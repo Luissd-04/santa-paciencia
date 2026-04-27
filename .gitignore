@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.local
+.DS_Store
+dist/
+build/
+
+# base de dados
+*.db
+*.sqlite
+
+# tokens sensíveis
+tokens/
+google_token.json

@@ -1,0 +1,97 @@
+const { db } = require('../config/database');
+const { interpolate, baseTemplate, getEmailSettings } = require('../services/emailService');
+
+function getAll(req, res) {
+  const templates = db.prepare('SELECT * FROM email_templates ORDER BY rowid').all();
+  const settings = getEmailSettings();
+  res.json({ success: true, data: templates, settings });
+}
+
+function update(req, res) {
+  const { slug } = req.params;
+  const existing = db.prepare('SELECT * FROM email_templates WHERE slug = ?').get(slug);
+  if (!existing) return res.status(404).json({ error: 'Template não encontrado' });
+
+  const { subject, body, timing_offset, timing_unit, timing_direction, timing_event, active } = req.body;
+
+  db.prepare(`
+    UPDATE email_templates SET
+      subject = COALESCE(?, subject),
+      body = COALESCE(?, body),
+      timing_offset = COALESCE(?, timing_offset),
+      timing_unit = COALESCE(?, timing_unit),
+      timing_direction = COALESCE(?, timing_direction),
+      timing_event = COALESCE(?, timing_event),
+      active = COALESCE(?, active),
+      updated_at = datetime('now')
+    WHERE slug = ?
+  `).run(
+    subject ?? null, body ?? null,
+    timing_offset !== undefined ? Number(timing_offset) : null,
+    timing_unit ?? null, timing_direction ?? null, timing_event ?? null,
+    active !== undefined ? (active ? 1 : 0) : null,
+    slug
+  );
+
+  res.json({ success: true, data: db.prepare('SELECT * FROM email_templates WHERE slug = ?').get(slug) });
+}
+
+function getSettings(req, res) {
+  const keys = ['checkin_time', 'checkout_time', 'social_facebook', 'social_instagram', 'social_website'];
+  const rows = db.prepare(`SELECT key, value FROM settings WHERE key IN (${keys.map(() => '?').join(',')})`).all(...keys);
+  const s = {};
+  rows.forEach(r => s[r.key] = r.value);
+  res.json({ success: true, data: s });
+}
+
+function saveSettings(req, res) {
+  const allowed = ['checkin_time', 'checkout_time', 'social_facebook', 'social_instagram', 'social_website'];
+  const upsert = db.prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))");
+  for (const [key, value] of Object.entries(req.body)) {
+    if (allowed.includes(key)) upsert.run(key, value ?? '');
+  }
+  res.json({ success: true });
+}
+
+async function preview(req, res) {
+  const { slug } = req.params;
+  const template = db.prepare('SELECT * FROM email_templates WHERE slug = ?').get(slug);
+  if (!template) return res.status(404).json({ error: 'Template não encontrado' });
+
+  if (process.env.EMAIL_ENABLED === 'false') {
+    return res.status(400).json({ error: 'Email desativado (EMAIL_ENABLED=false)' });
+  }
+
+  const settings = getEmailSettings();
+  const fakeVars = {
+    nome_hospede: 'João Silva',
+    primeiro_nome: 'João',
+    alojamento: 'Suite Mezzanine Deluxe',
+    data_checkin: 'sábado, 15 de junho de 2025',
+    hora_checkin: settings.checkin_time || '15:00',
+    data_checkout: 'segunda-feira, 17 de junho de 2025',
+    hora_checkout: settings.checkout_time || '11:00',
+    noites: '2',
+    num_hospedes: '2',
+    total: '€250.00',
+    referencia: 'SP-PREVIEW-001',
+    wifi_nome: 'SantaPaciencia_WiFi',
+    wifi_password: '••••••••',
+  };
+
+  const subject = interpolate(template.subject, fakeVars);
+  const body = interpolate(template.body, fakeVars);
+  const html = baseTemplate(body, settings);
+  const previewTo = req.body.to || process.env.EMAIL_USER;
+  if (!previewTo) return res.status(400).json({ error: 'EMAIL_USER não configurado' });
+
+  try {
+    const transporter = require('../config/email');
+    await transporter.sendMail({ from: process.env.EMAIL_FROM, to: previewTo, subject: `[PREVIEW] ${subject}`, html });
+    res.json({ success: true, message: `Preview enviado para ${previewTo}` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+}
+
+module.exports = { getAll, update, getSettings, saveSettings, preview };

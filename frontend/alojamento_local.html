@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alojamento Local — Gestão Profissional</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h1>Santa Paciência</h1>
+      <p>Gestão de Alojamento</p>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Principal</div>
+      <div class="nav-item active" onclick="showView('dashboard')">
+        <span class="icon"><i data-lucide="layout-dashboard"></i></span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showView('reservas')">
+        <span class="icon"><i data-lucide="clipboard-list"></i></span> Reservas
+      </div>
+      <div class="nav-item" onclick="showView('calendario')">
+        <span class="icon"><i data-lucide="calendar-days"></i></span> Calendário
+      </div>
+      <div class="nav-item" onclick="showView('hospedes')">
+        <span class="icon"><i data-lucide="users"></i></span> Hóspedes
+      </div>
+      <div class="nav-section">Gestão</div>
+      <div class="nav-item" onclick="showView('alojamentos')">
+        <span class="icon"><i data-lucide="home"></i></span> Alojamentos
+      </div>
+      <div class="nav-item" onclick="showView('despesas')">
+        <span class="icon"><i data-lucide="receipt"></i></span> Despesas
+      </div>
+      <div class="nav-item" onclick="showView('emails')">
+        <span class="icon"><i data-lucide="mail"></i></span> Emails
+      </div>
+      <div class="nav-item" onclick="showView('gcal')">
+        <span class="icon"><i data-lucide="calendar-sync"></i></span> Google Calendar
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      v1.0 · Santa Paciência
+    </div>
+  </aside>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Menu">
+        <i data-lucide="menu" style="width:20px;height:20px;"></i>
+      </button>
+      <span class="topbar-title" id="topbar-title">Dashboard</span>
+      <div class="topbar-actions">
+        <button class="btn btn-primary" onclick="showView('reservas'); setTimeout(()=>openModal(),100)" style="background:var(--marca);">
+          <i data-lucide="plus" style="width:14px;height:14px;"></i> Nova Reserva
+        </button>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ══ DASHBOARD ══ -->
+      <div class="view active" id="view-dashboard">
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Total Faturado</div>
+            <div class="kpi-value" id="kpi-faturado">€—</div>
+            <div class="kpi-sub">reservas confirmadas</div>
+          </div>
+          <div class="kpi-card" style="border-color:var(--verde)">
+            <div class="kpi-label">Reservas Ativas</div>
+            <div class="kpi-value" id="kpi-ativas">—</div>
+            <div class="kpi-sub">confirmadas</div>
+          </div>
+          <div class="kpi-card" style="border-color:var(--azul-claro)">
+            <div class="kpi-label">Noites Totais</div>
+            <div class="kpi-value" id="kpi-noites">—</div>
+            <div class="kpi-sub">este mês</div>
+          </div>
+          <div class="kpi-card" style="border-color:var(--roxo)">
+            <div class="kpi-label">Taxa Ocupação</div>
+            <div class="kpi-value" id="kpi-ocup">—</div>
+            <div class="kpi-sub">média das suites</div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">
+                <i data-lucide="calendar-clock"></i> Próximas Chegadas
+              </span>
+              <button class="btn btn-ghost btn-sm" onclick="showView('reservas')">Ver todas</button>
+            </div>
+            <div id="dash-proximas"><div class="loading"><div class="spinner"></div> A carregar...</div></div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">
+                <i data-lucide="bar-chart-2"></i> Disponibilidade — Mês Atual
+              </span>
+            </div>
+            <div id="dash-avail"><div class="loading"><div class="spinner"></div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ RESERVAS ══ -->
+      <div class="view" id="view-reservas">
+        <div class="toolbar">
+          <div class="search-box">
+            <i data-lucide="search"></i>
+            <input type="text" id="search-input" placeholder="Pesquisar hóspede, ID..." oninput="renderTabela()">
+          </div>
+          <select class="form-control" id="filter-estado" style="width:auto;" onchange="renderTabela()">
+            <option value="">Todos os estados</option>
+            <option value="confirmada">Confirmada</option>
+            <option value="pendente">Pendente</option>
+            <option value="cancelada">Cancelada</option>
+            <option value="check-in">Check-in</option>
+            <option value="check-out">Check-out</option>
+          </select>
+          <select class="form-control" id="filter-suite" style="width:auto;" onchange="renderTabela()">
+            <option value="">Todas as suites</option>
+          </select>
+          <select class="form-control" id="filter-canal" style="width:auto;" onchange="renderTabela()">
+            <option value="">Todos os canais</option>
+            <option value="airbnb">Airbnb</option>
+            <option value="booking">Booking.com</option>
+            <option value="direto">Direto</option>
+            <option value="expedia">Expedia</option>
+            <option value="vrbo">VRBO</option>
+            <option value="outro">Outro</option>
+          </select>
+          <select class="form-control" id="filter-pagamento" style="width:auto;" onchange="renderTabela()">
+            <option value="">Todos os pagamentos</option>
+            <option value="pago">Pago</option>
+            <option value="parcial">Parcial</option>
+            <option value="pendente">Pendente</option>
+          </select>
+          <input type="date" class="form-control" id="filter-date-from" title="Check-in a partir de" onchange="renderTabela()" style="width:auto;">
+          <input type="date" class="form-control" id="filter-date-to"   title="Check-out até"        onchange="renderTabela()" style="width:auto;">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('filter-date-from').value='';document.getElementById('filter-date-to').value='';renderTabela();" title="Limpar filtros">
+            <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar
+          </button>
+          <button class="btn btn-primary" style="margin-left:auto;" onclick="openModal()">
+            <i data-lucide="plus"></i> Nova Reserva
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th onclick="sortTabela('id')" class="th-sort">ID <span class="sort-icon" id="sort-id"></span></th>
+                  <th onclick="sortTabela('guest_name')" class="th-sort">Hóspede <span class="sort-icon" id="sort-guest_name"></span></th>
+                  <th onclick="sortTabela('accommodation_name')" class="th-sort">Alojamento <span class="sort-icon" id="sort-accommodation_name"></span></th>
+                  <th onclick="sortTabela('check_in')" class="th-sort">Check-in <span class="sort-icon" id="sort-check_in">↑</span></th>
+                  <th onclick="sortTabela('check_out')" class="th-sort">Check-out <span class="sort-icon" id="sort-check_out"></span></th>
+                  <th onclick="sortTabela('nights')" class="th-sort">Noites <span class="sort-icon" id="sort-nights"></span></th>
+                  <th onclick="sortTabela('total_amount')" class="th-sort">Total <span class="sort-icon" id="sort-total_amount"></span></th>
+                  <th onclick="sortTabela('channel')" class="th-sort">Canal <span class="sort-icon" id="sort-channel"></span></th>
+                  <th onclick="sortTabela('status')" class="th-sort">Estado <span class="sort-icon" id="sort-status"></span></th>
+                  <th onclick="sortTabela('payment_status')" class="th-sort">Pagamento <span class="sort-icon" id="sort-payment_status"></span></th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tabela-body"></tbody>
+            </table>
+          </div>
+          <div id="tabela-empty" style="display:none;" class="empty-state">
+            <div class="es-icon">📭</div>
+            <h3>Sem reservas</h3>
+            <p>Não foram encontradas reservas com estes filtros.</p>
+          </div>
+          <div id="tabela-loading" class="loading">
+            <div class="spinner"></div> A carregar reservas...
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ CALENDÁRIO ══ -->
+      <div class="view" id="view-calendario">
+        <div class="calendar-controls">
+          <button class="btn btn-ghost btn-sm" onclick="calPrev()">
+            <i data-lucide="chevron-left"></i> Anterior
+          </button>
+          <span id="cal-label" style="font-family:'Playfair Display',serif;font-size:18px;color:var(--azul);font-weight:600;min-width:200px;text-align:center;"></span>
+          <button class="btn btn-ghost btn-sm" onclick="calNext()">
+            Próximo <i data-lucide="chevron-right"></i>
+          </button>
+          <select class="form-control" id="cal-suite-filter" style="width:auto;" onchange="renderCalView()">
+            <option value="">Todas as Suites</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="goToday()">
+            <i data-lucide="calendar-check"></i> Hoje
+          </button>
+          <div class="cal-mode-toggle" style="margin-left:auto;">
+            <button class="cal-mode-btn active" data-mode="calendar" onclick="setCalMode('calendar')">
+              <i data-lucide="calendar-days"></i> Calendário
+            </button>
+            <button class="cal-mode-btn" data-mode="timeline" onclick="setCalMode('timeline')">
+              <i data-lucide="gantt-chart"></i> Timeline
+            </button>
+          </div>
+        </div>
+        <div class="cal-wrap">
+          <div class="cal-header">
+            <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+          </div>
+          <div class="cal-grid" id="cal-grid"></div>
+        </div>
+        <div id="timeline-wrap" style="display:none;"></div>
+      </div>
+
+      <!-- ══ ALOJAMENTOS — LISTA ══ -->
+      <div class="view" id="view-alojamentos">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">
+              <i data-lucide="home"></i> Alojamentos
+            </span>
+            <span style="font-size:12px;color:var(--cinza);">Clique num alojamento para editar</span>
+          </div>
+          <table id="aloj-table" style="table-layout:fixed;width:100%">
+            <thead>
+              <tr>
+                <th style="width:32px"></th>
+                <th style="width:52px"></th>
+                <th>Nome</th>
+                <th style="width:80px">Tipo</th>
+                <th style="width:120px">Capacidade</th>
+                <th style="width:90px">Quartos</th>
+                <th style="width:70px">Área</th>
+                <th style="width:110px">Preço/noite</th>
+                <th style="width:80px">Licença</th>
+                <th style="width:130px"></th>
+              </tr>
+            </thead>
+            <tbody id="aloj-body"></tbody>
+          </table>
+          <div id="aloj-loading" class="loading"><div class="spinner"></div> A carregar...</div>
+
+          <div style="padding:14px 16px;border-top:1px solid var(--cinza-claro);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-ghost btn-sm" onclick="addAlojamento()">
+              <i data-lucide="plus"></i> Adicionar alojamento
+            </button>
+            <div style="margin-left:auto;display:flex;gap:8px;">
+              <button class="btn btn-ghost btn-sm" onclick="exportAlojamentosXLS()" title="Exportar Excel">
+                <i data-lucide="table-2"></i> XLS
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="exportAlojamentosPDF()" title="Exportar PDF">
+                <i data-lucide="file-text"></i> PDF
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Serviços e Taxas -->
+        <div class="card" style="margin-top:20px;">
+          <div class="card-header">
+            <span class="card-title">
+              <i data-lucide="receipt"></i> Serviços e Taxas
+            </span>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-ghost btn-sm" onclick="addServico()">
+                <i data-lucide="plus"></i> Adicionar
+              </button>
+            </div>
+          </div>
+          <table style="table-layout:fixed;width:100%" id="servicos-table">
+            <thead>
+              <tr>
+                <th style="width:120px">Tipo</th>
+                <th>Nome</th>
+                <th style="width:110px">Valor (€)</th>
+                <th style="width:160px">Unidade</th>
+                <th style="width:60px">Ativo</th>
+                <th style="width:40px"></th>
+              </tr>
+            </thead>
+            <tbody id="servicos-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ══ ALOJAMENTO — DETALHE / EDIÇÃO ══ -->
+      <div class="view" id="view-alojamento-detalhe">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+          <button class="btn btn-ghost btn-sm" onclick="showView('alojamentos')">
+            <i data-lucide="arrow-left"></i> Voltar
+          </button>
+          <span id="aloj-detalhe-nome" style="font-family:'Playfair Display',serif;font-size:22px;color:var(--azul);font-weight:600;"></span>
+          <button class="btn btn-primary" style="margin-left:auto;" onclick="saveAlojamento()">
+            <i data-lucide="save"></i> Guardar
+          </button>
+        </div>
+
+        <!-- Tabs -->
+        <div style="display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--cinza-claro);">
+          <button class="aloj-tab active" onclick="showAlojTab('info')" id="tab-info">
+            <i data-lucide="info"></i> Informação
+          </button>
+          <button class="aloj-tab" onclick="showAlojTab('comodidades')" id="tab-comodidades">
+            <i data-lucide="check-square"></i> Comodidades
+          </button>
+          <button class="aloj-tab" onclick="showAlojTab('imagens')" id="tab-imagens">
+            <i data-lucide="image"></i> Imagens
+          </button>
+        </div>
+
+        <!-- Tab: Informação -->
+        <div id="aloj-tab-info">
+
+          <!-- Linha 1: Informação | Layout -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" style="font-size:14px;">
+                  <i data-lucide="map-pin"></i> Informação do alojamento
+                </span>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Nome</label>
+                  <input class="form-control" id="aloj-nome" placeholder="Nome do alojamento">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Cor no calendário</label>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <input type="color" id="aloj-color" value="#843424" style="width:48px;height:36px;padding:2px;border:1px solid var(--borda);border-radius:8px;cursor:pointer;background:none;">
+                    <span id="aloj-color-label" style="font-size:13px;color:var(--cinza);">#843424</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Número de licença</label>
+                  <div style="display:flex;gap:8px;align-items:center;">
+                    <input class="form-control" id="aloj-licenca" placeholder="12345">
+                    <span style="font-size:13px;color:var(--cinza);white-space:nowrap;">/ AL</span>
+                  </div>
+                </div>
+                <div class="form-group form-full">
+                  <label class="form-label">Morada</label>
+                  <input class="form-control" id="aloj-morada" placeholder="Rua, número">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Código Postal</label>
+                  <input class="form-control" id="aloj-cp" placeholder="0000-000">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Localidade</label>
+                  <input class="form-control" id="aloj-cidade" placeholder="Lisboa">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Região</label>
+                  <select class="form-control" id="aloj-regiao">
+                    <option>Continente</option>
+                    <option>Açores</option>
+                    <option>Madeira</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">País</label>
+                  <input class="form-control" id="aloj-pais" value="Portugal">
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" style="font-size:14px;">
+                  <i data-lucide="layout-panel-left"></i> Layout do alojamento
+                </span>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Tipologia</label>
+                  <select class="form-control" id="aloj-tipo">
+                    <option value="suite">Suite</option>
+                    <option value="apartamento">Apartamento</option>
+                    <option value="quarto">Quarto</option>
+                    <option value="moradia">Moradia</option>
+                    <option value="villa">Villa</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Área (m²)</label>
+                  <input class="form-control" id="aloj-area" type="number" min="1" placeholder="ex: 45">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Capacidade máx. hóspedes</label>
+                  <input class="form-control" id="aloj-capacidade" type="number" min="1" max="20">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Quartos</label>
+                  <input class="form-control" id="aloj-quartos" type="number" min="0" max="20">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Casas de banho</label>
+                  <input class="form-control" id="aloj-casasbanho" type="number" min="0" max="20">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Preço / noite (€)</label>
+                  <input class="form-control" id="aloj-preco" type="number" min="0" step="0.01">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Linha 2: Descrição -->
+          <div class="card" style="margin-bottom:24px;">
+            <div class="card-header">
+              <span class="card-title" style="font-size:14px;">
+                <i data-lucide="file-text"></i> Descrição
+              </span>
+            </div>
+            <div style="display:flex;gap:0;border-bottom:1px solid var(--cinza-claro);overflow-x:auto;padding:0 16px;" id="desc-lang-tabs">
+              <button class="desc-lang-tab active" data-lang="pt" onclick="switchDescLang('pt')">🇵🇹 Português</button>
+              <button class="desc-lang-tab" data-lang="en" onclick="switchDescLang('en')">🇬🇧 Inglês</button>
+              <button class="desc-lang-tab" data-lang="fr" onclick="switchDescLang('fr')">🇫🇷 Francês</button>
+              <button class="desc-lang-tab" data-lang="es" onclick="switchDescLang('es')">🇪🇸 Espanhol</button>
+              <button class="desc-lang-tab" data-lang="de" onclick="switchDescLang('de')">🇩🇪 Alemão</button>
+              <button class="desc-lang-tab" data-lang="it" onclick="switchDescLang('it')">🇮🇹 Italiano</button>
+              <button class="desc-lang-tab" data-lang="nl" onclick="switchDescLang('nl')">🇳🇱 Neerlandês</button>
+            </div>
+            <div style="padding:12px 16px 16px;">
+              <textarea class="form-control desc-lang-area" id="desc-pt" rows="6" placeholder="Descreva o alojamento em Português..." style="display:block;"></textarea>
+              <textarea class="form-control desc-lang-area" id="desc-en" rows="6" placeholder="Describe the accommodation in English..." style="display:none;"></textarea>
+              <textarea class="form-control desc-lang-area" id="desc-fr" rows="6" placeholder="Décrivez le logement en Français..." style="display:none;"></textarea>
+              <textarea class="form-control desc-lang-area" id="desc-es" rows="6" placeholder="Describa el alojamiento en Español..." style="display:none;"></textarea>
+              <textarea class="form-control desc-lang-area" id="desc-de" rows="6" placeholder="Beschreiben Sie die Unterkunft auf Deutsch..." style="display:none;"></textarea>
+              <textarea class="form-control desc-lang-area" id="desc-it" rows="6" placeholder="Descrivi l'alloggio in Italiano..." style="display:none;"></textarea>
+              <textarea class="form-control desc-lang-area" id="desc-nl" rows="6" placeholder="Beschrijf de accommodatie in het Nederlands..." style="display:none;"></textarea>
+            </div>
+          </div>
+
+          <!-- Mapa -->
+          <div class="card" style="margin-bottom:24px;">
+            <div class="card-header">
+              <span class="card-title" style="font-size:14px;">
+                <i data-lucide="map-pin"></i> Localização no mapa
+              </span>
+              <button class="btn btn-ghost btn-sm" id="aloj-map-btn" onclick="geocodeAndShowMap()">
+                <i data-lucide="search"></i> Verificar endereço
+              </button>
+            </div>
+            <div id="aloj-map-placeholder" class="aloj-map-placeholder">
+              <i data-lucide="map" style="width:36px;height:36px;opacity:.3;"></i>
+              <span>Preencha a morada e clique em "Verificar endereço"</span>
+            </div>
+            <div id="aloj-map" style="display:none;"></div>
+          </div>
+
+          <!-- Linha 3: Horários + Wi-Fi + Google Calendar -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-bottom:0;">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" style="font-size:14px;">
+                  <i data-lucide="clock"></i> Horários
+                </span>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Check-in</label>
+                  <input class="form-control" id="aloj-checkin-time" type="time" value="15:00">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Check-out</label>
+                  <input class="form-control" id="aloj-checkout-time" type="time" value="11:00">
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" style="font-size:14px;">
+                  <i data-lucide="wifi"></i> Wi-Fi
+                </span>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Nome da rede (SSID)</label>
+                  <input class="form-control" id="aloj-wifi-nome" placeholder="Nome da rede Wi-Fi">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Senha</label>
+                  <input class="form-control" id="aloj-wifi-password" placeholder="Senha do Wi-Fi">
+                </div>
+              </div>
+              <span style="font-size:11.5px;color:var(--cinza);">Enviados automaticamente no email de coordenadas</span>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" style="font-size:14px;">
+                  <i data-lucide="calendar-sync"></i> Google Calendar
+                </span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">ID do Calendário</label>
+                <input class="form-control" id="aloj-gcal-id" placeholder="exemplo@group.calendar.google.com">
+                <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;">Deixe em branco para usar o calendário principal</span>
+              </div>
+              <div style="margin-top:12px;">
+                <button class="btn btn-ghost btn-sm" onclick="openAlojCalendar()">
+                  <i data-lucide="external-link"></i> Abrir Calendário deste Alojamento
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /aloj-tab-info -->
+
+        <!-- Tab: Comodidades -->
+        <div id="aloj-tab-comodidades" style="display:none;">
+          <div class="card">
+            <div id="amenities-grid"></div>
+          </div>
+        </div>
+
+        <!-- Tab: Imagens -->
+        <div id="aloj-tab-imagens" style="display:none;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" style="font-size:14px;">
+                <i data-lucide="images"></i> Galeria de Imagens
+              </span>
+            </div>
+            <!-- Foto de capa -->
+            <div style="display:flex;align-items:center;gap:20px;padding:16px;background:var(--cinza-claro);border-radius:12px;margin-bottom:20px;">
+              <div style="position:relative;width:90px;height:90px;border-radius:10px;overflow:hidden;background:var(--branco);border:2px dashed var(--cinza-claro);flex-shrink:0;cursor:pointer;" onclick="document.getElementById('cover-input').click()">
+                <img id="aloj-cover-preview" src="" style="display:none;width:100%;height:100%;object-fit:cover;">
+                <div id="aloj-cover-placeholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;color:var(--cinza);">
+                  <i data-lucide="camera" style="width:24px;height:24px;"></i>
+                  <span>Capa</span>
+                </div>
+              </div>
+              <div>
+                <div style="font-weight:600;color:var(--azul);margin-bottom:4px;">Foto de Capa</div>
+                <div style="font-size:12.5px;color:var(--cinza);">Esta imagem aparece na lista de alojamentos ao lado do nome.<br>Clique na imagem para alterar.</div>
+                <button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:12px;" onclick="document.getElementById('cover-input').click()">
+                  <i data-lucide="camera"></i> Escolher foto
+                </button>
+              </div>
+            </div>
+            <input type="file" id="cover-input" accept="image/*" style="display:none">
+            <input type="file" id="img-input" multiple accept="image/*" style="display:none">
+
+            <p style="font-size:13px;color:var(--cinza);margin-bottom:16px;">
+              Arraste imagens ou clique para selecionar. Guardadas no servidor.
+            </p>
+            <!-- Drop zone -->
+            <div id="img-dropzone" onclick="document.getElementById('img-input').click()"
+              style="border:2px dashed var(--azul-claro);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:background .2s;margin-bottom:20px;"
+              ondragover="event.preventDefault();this.style.background='rgba(74,127,165,.08)'"
+              ondragleave="this.style.background=''"
+              ondrop="handleImgDrop(event)">
+              <i data-lucide="image-plus" style="width:36px;height:36px;color:var(--azul-claro);margin-bottom:8px;"></i>
+              <div style="font-size:14px;color:var(--azul);font-weight:500;">Arraste as imagens para aqui</div>
+              <div style="font-size:12px;color:var(--cinza);margin-top:4px;">ou clique para selecionar ficheiros (JPG, PNG, máx. 5MB)</div>
+            </div>
+
+            <!-- Secções de imagens (gerado dinamicamente por renderImagens()) -->
+            <div id="img-sections"></div>
+
+            <!-- Adicionar nova divisão -->
+            <div class="img-add-section-row">
+              <input class="form-control" id="new-section-name" placeholder="Nome da nova divisão (ex: Terraço)" style="max-width:260px;font-size:13px;padding:7px 12px;">
+              <button class="btn btn-ghost btn-sm" onclick="addImgSection()">
+                <i data-lucide="plus"></i> Adicionar divisão
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <input type="hidden" id="aloj-editing-id">
+      </div>
+
+      <!-- ══ HÓSPEDES ══ -->
+      <div class="view" id="view-hospedes">
+        <div class="toolbar" style="margin-bottom:20px;">
+          <div class="search-box">
+            <i data-lucide="search"></i>
+            <input type="text" id="hospedes-search" placeholder="Pesquisar hóspede, email..." oninput="renderHospedes()">
+          </div>
+          <div class="hospedes-view-toggle" id="hospedes-view-toggle">
+            <button class="hvt-btn active" id="hvt-cards" onclick="setHospedesView('cards')">
+              <i data-lucide="layout-grid"></i> Cartões
+            </button>
+            <button class="hvt-btn" id="hvt-lista" onclick="setHospedesView('lista')">
+              <i data-lucide="list"></i> Lista
+            </button>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="exportHospedesXLS()" title="Exportar Excel">
+            <i data-lucide="table-2"></i> XLS
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="exportHospedesPDF()" title="Exportar PDF">
+            <i data-lucide="file-text"></i> PDF
+          </button>
+        </div>
+
+        <!-- Vista Cartões -->
+        <div id="hospedes-cards-view">
+          <div id="hospedes-cards-grid" class="hospedes-grid"></div>
+          <div id="hospedes-empty" style="display:none;" class="empty-state">
+            <div class="es-icon">👥</div>
+            <h3>Sem hóspedes</h3>
+            <p>Ainda não existem hóspedes registados.</p>
+          </div>
+          <div id="hospedes-loading" class="loading">
+            <div class="spinner"></div> A carregar hóspedes...
+          </div>
+        </div>
+
+        <!-- Vista Lista -->
+        <div id="hospedes-lista-view" style="display:none;">
+          <div class="card">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th onclick="sortHospedes('name')" class="th-sort">Nome <span class="sort-icon" id="hsort-name">↑</span></th>
+                    <th onclick="sortHospedes('email')" class="th-sort">Email <span class="sort-icon" id="hsort-email"></span></th>
+                    <th onclick="sortHospedes('phone')" class="th-sort">Telefone <span class="sort-icon" id="hsort-phone"></span></th>
+                    <th onclick="sortHospedes('nationality')" class="th-sort">País <span class="sort-icon" id="hsort-nationality"></span></th>
+                    <th onclick="sortHospedes('reservation_count')" class="th-sort">Reservas <span class="sort-icon" id="hsort-reservation_count"></span></th>
+                    <th onclick="sortHospedes('last_check_in')" class="th-sort">Última visita <span class="sort-icon" id="hsort-last_check_in"></span></th>
+                    <th style="width:80px;">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="hospedes-lista-body"></tbody>
+              </table>
+            </div>
+            <div id="hospedes-lista-empty" style="display:none;" class="empty-state">
+              <div class="es-icon">👥</div>
+              <h3>Sem hóspedes</h3>
+              <p>Ainda não existem hóspedes registados.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ DESPESAS ══ -->
+      <div class="view" id="view-despesas">
+        <div class="kpi-grid" id="despesas-kpi-grid"></div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i data-lucide="receipt"></i> Registo de Despesas</span>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="month" class="form-control" id="despesa-filter-month" style="width:auto;"
+                     value="" onchange="loadDespesas()">
+              <button class="btn btn-primary btn-sm" onclick="openDespesaModal()">
+                <i data-lucide="plus"></i> Nova Despesa
+              </button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:110px;">Data</th>
+                  <th style="width:130px;">Categoria</th>
+                  <th>Descrição</th>
+                  <th style="width:100px;">Valor</th>
+                  <th style="width:120px;">Método</th>
+                  <th style="width:80px;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="despesas-body"></tbody>
+            </table>
+          </div>
+          <div id="despesas-empty" style="display:none;" class="empty-state">
+            <div class="es-icon">💸</div>
+            <h3>Sem despesas</h3>
+            <p>Nenhuma despesa registada neste período.</p>
+          </div>
+          <div id="despesas-loading" class="loading">
+            <div class="spinner"></div> A carregar despesas...
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ EMAILS ══ -->
+      <div class="view" id="view-emails">
+        <div class="emails-layout">
+          <!-- Sidebar: template list + settings -->
+          <div class="emails-sidebar">
+            <div class="emails-sidebar-section-title">Templates de Email</div>
+            <div id="email-template-list"></div>
+            <div class="emails-sidebar-sep"></div>
+            <div class="emails-sidebar-section-title">Configurações</div>
+            <div id="email-settings-panel"></div>
+          </div>
+          <!-- Editor -->
+          <div class="emails-editor" id="email-editor-panel">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--cinza);gap:10px;">
+              <i data-lucide="mail" style="width:40px;height:40px;opacity:.3;"></i>
+              <span style="font-size:14px;">Selecione um template para editar</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ GOOGLE CALENDAR ══ -->
+      <div class="view" id="view-gcal">
+        <div class="gcal-banner">
+          <div class="gcal-icon">
+            <i data-lucide="calendar-sync"></i>
+          </div>
+          <div class="gcal-text">
+            <h3>Integração Google Calendar</h3>
+            <p>Sincronize as reservas automaticamente. Reservas canceladas são removidas do calendário.</p>
+          </div>
+          <div class="gcal-actions">
+            <button class="btn btn-gcal-outline btn-sm" onclick="connectGcal()">
+              <i data-lucide="link"></i> Ligar Google Calendar
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">
+              <i data-lucide="refresh-cw"></i> Estado da Sincronização
+            </span>
+            <span id="gcal-badge" class="gcal-status"><span class="dot dot-red"></span> Desligado</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px;">
+            <div style="background:var(--cinza-claro);border-radius:10px;padding:16px;text-align:center;">
+              <div style="font-size:28px;font-weight:700;color:var(--azul);" id="sync-total">—</div>
+              <div style="font-size:12px;color:var(--cinza);">Eventos no Calendário</div>
+            </div>
+            <div style="background:var(--cinza-claro);border-radius:10px;padding:16px;text-align:center;">
+              <div style="font-size:28px;font-weight:700;color:var(--verde);" id="sync-ok">—</div>
+              <div style="font-size:12px;color:var(--cinza);">Sincronizados</div>
+            </div>
+            <div style="background:var(--cinza-claro);border-radius:10px;padding:16px;text-align:center;">
+              <div style="font-size:28px;font-weight:700;color:var(--vermelho);" id="sync-removed">—</div>
+              <div style="font-size:12px;color:var(--cinza);">Removidos (Cancelados)</div>
+            </div>
+          </div>
+          <div class="gcal-log" id="gcal-log">
+            <div class="log-item">
+              <span class="log-time">--:--:--</span>
+              <span class="log-msg log-info">Aguardando ligação ao Google Calendar...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- MODAL EDITAR HÓSPEDE -->
+<div class="modal-bg" id="guest-modal-bg" onclick="if(event.target===this)closeGuestModal()">
+  <div class="modal">
+    <div class="modal-header" style="background:var(--azul);color:#fff;">
+      <span class="modal-title" style="color:#fff;display:inline-flex;align-items:center;gap:8px;">
+        <i data-lucide="contact" style="width:18px;height:18px;"></i> Editar hóspede
+      </span>
+      <button class="modal-close" onclick="closeGuestModal()" style="color:#fff;opacity:.7;">
+        <i data-lucide="x" style="width:20px;height:20px;"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label"><span style="color:var(--vermelho)">*</span> Primeiro nome</label>
+          <input class="form-control" id="gedit-first-name" placeholder="Primeiro nome">
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span style="color:var(--vermelho)">*</span> Apelido</label>
+          <input class="form-control" id="gedit-last-name" placeholder="Apelido">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email (canal)</label>
+          <input class="form-control" id="gedit-email" type="email" placeholder="email@canal.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email (pessoal)</label>
+          <input class="form-control" id="gedit-email-personal" type="email" placeholder="email@pessoal.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span style="color:var(--vermelho)">*</span> Telefone</label>
+          <input class="form-control" id="gedit-phone" placeholder="+351...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data de nascimento</label>
+          <input class="form-control" id="gedit-birth-date" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">NIF</label>
+          <input class="form-control" id="gedit-nif" placeholder="000 000 000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">País</label>
+          <select class="form-control" id="gedit-country"></select>
+        </div>
+        <div class="form-group form-full">
+          <label class="form-label">Morada</label>
+          <input class="form-control" id="gedit-address" placeholder="Rua, número, andar...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Código postal</label>
+          <input class="form-control" id="gedit-postal-code" placeholder="0000-000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Localidade</label>
+          <input class="form-control" id="gedit-city" placeholder="Lisboa">
+        </div>
+      </div>
+
+      <div class="guest-tags-row">
+        <label class="guest-tag-toggle">
+          <input type="checkbox" id="gedit-favorito">
+          <span class="gtt-switch"></span>
+          <span class="gtt-label"><span class="gtt-icon">⭐</span> Favorito</span>
+        </label>
+        <label class="guest-tag-toggle">
+          <input type="checkbox" id="gedit-vip">
+          <span class="gtt-switch"></span>
+          <span class="gtt-label"><span class="gtt-icon">👑</span> VIP</span>
+        </label>
+        <label class="guest-tag-toggle">
+          <input type="checkbox" id="gedit-nao-desejado">
+          <span class="gtt-switch gtt-danger"></span>
+          <span class="gtt-label"><span class="gtt-icon">🚫</span> Não desejado</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeGuestModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-guardar-hospede" onclick="saveGuestEdit()">
+        <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DESPESA -->
+<div class="modal-bg" id="despesa-modal-bg" onclick="if(event.target===this)closeDespesaModal()">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <span class="modal-title" id="despesa-modal-title">Nova Despesa</span>
+      <button class="modal-close" onclick="closeDespesaModal()">
+        <i data-lucide="x" style="width:20px;height:20px;"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Data</label>
+          <input class="form-control" id="despesa-date" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Categoria</label>
+          <select class="form-control" id="despesa-category">
+            <option value="limpeza">Limpeza</option>
+            <option value="manutencao">Manutenção</option>
+            <option value="marketing">Marketing</option>
+            <option value="impostos">Impostos</option>
+            <option value="servicos">Serviços</option>
+            <option value="consumiveis">Consumíveis</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+        <div class="form-group form-full">
+          <label class="form-label">Descrição</label>
+          <input class="form-control" id="despesa-description" placeholder="Descrição da despesa">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valor (€)</label>
+          <input class="form-control" id="despesa-amount" type="number" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Método de pagamento</label>
+          <select class="form-control" id="despesa-payment">
+            <option value="numerário">Numerário</option>
+            <option value="transferencia">Transferência</option>
+            <option value="mbway">MBWay</option>
+            <option value="cartao">Cartão</option>
+          </select>
+        </div>
+        <div class="form-group form-full">
+          <label class="form-label">Notas</label>
+          <textarea class="form-control" id="despesa-notes" rows="2" placeholder="Notas adicionais..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeDespesaModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveDespesa()">
+        <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOVA / EDITAR RESERVA -->
+<div class="modal-bg" id="modal-bg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">Nova Reserva</span>
+      <button class="modal-close" onclick="closeModal()">
+        <i data-lucide="x" style="width:20px;height:20px;"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+
+        <!-- ── HÓSPEDE PRINCIPAL ── -->
+        <div class="section-subtitle form-full">
+          <i data-lucide="user"></i> Dados do Hóspede Principal
+        </div>
+
+        <!-- Obrigatórios -->
+        <div class="form-group">
+          <label class="form-label">Nome <span class="req-star">*</span></label>
+          <input class="form-control" id="f-primeiro-nome" placeholder="Primeiro nome">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Apelido <span class="req-star">*</span></label>
+          <input class="form-control" id="f-apelido" placeholder="Apelido">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email <span class="req-star">*</span></label>
+          <input class="form-control" id="f-email" type="email" placeholder="email@exemplo.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefone <span class="req-star">*</span></label>
+          <input class="form-control" id="f-tel" placeholder="+351...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nacionalidade <span class="req-star">*</span></label>
+          <input class="form-control" id="f-nacionalidade" placeholder="Portuguesa">
+        </div>
+        <div class="form-group">
+          <label class="form-label">País</label>
+          <input class="form-control" id="f-pais" placeholder="Portugal">
+        </div>
+
+        <!-- Opcionais (colapsáveis) -->
+        <div class="form-full">
+          <button type="button" class="btn btn-ghost btn-sm" style="font-size:12px;padding:6px 10px;" onclick="toggleGuestExtra(this)">
+            <i data-lucide="chevron-down" style="width:13px;height:13px;"></i> Dados adicionais (opcional)
+          </button>
+        </div>
+        <div id="guest-extra-fields" class="guest-extra-fields-wrap" style="display:none">
+          <div class="form-group">
+            <label class="form-label">Tipo de Documento</label>
+            <select class="form-control" id="f-doc-tipo">
+              <option value="">— Selecionar —</option>
+              <option value="cc">Cartão de Cidadão</option>
+              <option value="bi">Bilhete de Identidade</option>
+              <option value="passaporte">Passaporte</option>
+              <option value="nie">NIE</option>
+              <option value="outro">Outro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nº de Documento</label>
+            <input class="form-control" id="f-doc-num" placeholder="XX000000">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Data de Nascimento</label>
+            <input class="form-control" id="f-nascimento" type="date">
+          </div>
+          <div class="form-group">
+            <label class="form-label">NIF</label>
+            <input class="form-control" id="f-nif" placeholder="000 000 000">
+          </div>
+          <div class="form-group form-full">
+            <label class="form-label">Morada</label>
+            <input class="form-control" id="f-morada" placeholder="Rua, nº">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Código Postal</label>
+            <input class="form-control" id="f-cp" placeholder="0000-000">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Localidade</label>
+            <input class="form-control" id="f-cidade" placeholder="Lisboa">
+          </div>
+        </div>
+
+        <!-- ── DETALHES DA RESERVA ── -->
+        <div class="section-divider"></div>
+        <div class="section-subtitle form-full">
+          <i data-lucide="home"></i> Detalhes da Reserva
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Alojamento</label>
+          <select class="form-control" id="f-aloj" onchange="calcTotal()"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Canal</label>
+          <select class="form-control" id="f-canal">
+            <option value="airbnb">Airbnb</option>
+            <option value="booking">Booking.com</option>
+            <option value="direto">Direto</option>
+            <option value="expedia">Expedia</option>
+            <option value="vrbo">VRBO</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Check-in</label>
+          <input class="form-control" id="f-checkin" type="date" onchange="calcTotal()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Check-out</label>
+          <input class="form-control" id="f-checkout" type="date" onchange="calcTotal()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nº de Hóspedes</label>
+          <input class="form-control" id="f-num-hospedes" type="number" min="1" max="20" value="2" onchange="calcTotal();renderExtraGuests()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Pequeno-almoço</label>
+          <select class="form-control" id="f-breakfast" onchange="calcTotal()">
+            <option value="false">Não incluído</option>
+            <option value="true">Incluído</option>
+          </select>
+        </div>
+
+        <!-- Hóspedes adicionais -->
+        <div id="extra-guests-wrap" style="display:none;" class="form-full">
+          <div class="section-divider"></div>
+          <div class="section-subtitle form-full">
+            <i data-lucide="users"></i> Hóspedes Adicionais
+          </div>
+          <div id="extra-guests-container"></div>
+        </div>
+
+        <!-- ── VALORES ── -->
+        <div class="section-divider"></div>
+        <div class="section-subtitle form-full">
+          <i data-lucide="euro"></i> Valores (calculados automaticamente)
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Noites</label>
+          <input class="form-control" id="f-noites" type="number" readonly style="background:var(--cinza-claro);">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Total Estimado (€)</label>
+          <input class="form-control" id="f-total" type="number" readonly style="background:var(--cinza-claro);font-weight:600;">
+        </div>
+
+        <!-- ── ESTADO ── -->
+        <div class="section-divider"></div>
+        <div class="section-subtitle form-full">
+          <i data-lucide="clipboard"></i> Estado
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Método de Pagamento</label>
+          <select class="form-control" id="f-pagamento">
+            <option value="transferencia">Transferência</option>
+            <option value="mbway">MBWay</option>
+            <option value="numerario">Numerário</option>
+            <option value="cartao">Cartão</option>
+          </select>
+        </div>
+        <div class="form-group form-full">
+          <label class="form-label">Notas</label>
+          <textarea class="form-control" id="f-notas" rows="2" placeholder="Observações, pedidos especiais..."></textarea>
+        </div>
+
+        <!-- ── RGPD ── -->
+        <div class="section-divider"></div>
+        <div class="form-full">
+          <div class="rgpd-box">
+            <div class="rgpd-title"><i data-lucide="shield" style="width:14px;height:14px;"></i> Proteção de Dados (RGPD)</div>
+            <div class="rgpd-text">
+              Os seus dados pessoais são recolhidos e tratados pela Santa Paciência — Alojamento Local, com a finalidade de gerir a sua reserva e dar cumprimento às obrigações legais aplicáveis ao alojamento local em Portugal (incluindo a comunicação ao SEF/AIMA). Os dados são conservados pelo período legalmente exigido. Tem direito de acesso, retificação, apagamento e portabilidade dos seus dados, podendo exercê-los por contacto direto com o estabelecimento. O fornecimento dos dados é obrigatório para a concretização da reserva.
+            </div>
+            <label class="rgpd-check-label" id="rgpd-check-label">
+              <input type="checkbox" id="f-rgpd-check" onchange="this.closest('.rgpd-box').classList.toggle('rgpd-accepted',this.checked)">
+              <span>Li e aceito o tratamento dos meus dados pessoais nos termos acima descritos. <span class="req-star">*</span></span>
+            </label>
+          </div>
+        </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" id="btn-guardar" onclick="saveReserva()">
+        <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar Reserva
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALHE RESERVA -->
+<div class="modal-bg" id="detail-bg" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="detail-title">Reserva</span>
+      <button class="modal-close" onclick="document.getElementById('detail-bg').classList.remove('open')">
+        <i data-lucide="x" style="width:20px;height:20px;"></i>
+      </button>
+    </div>
+    <div class="modal-body" id="detail-body"></div>
+    <div class="modal-footer" id="detail-footer"></div>
+  </div>
+</div>
+
+<!-- TOASTS -->
+<div class="toast-container" id="toast-container"></div>
+
+<script src="js/state.js"></script>
+<script src="js/helpers.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/reservas.js"></script>
+<script src="js/calendario.js"></script>
+<script src="js/alojamentos.js"></script>
+<script src="js/hospedes.js"></script>
+<script src="js/emails.js"></script>
+<script src="js/despesas.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
