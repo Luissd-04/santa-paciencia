@@ -729,8 +729,14 @@
             <p>Sincronize as reservas automaticamente. Reservas canceladas são removidas do calendário.</p>
           </div>
           <div class="gcal-actions">
-            <button class="btn btn-gcal-outline btn-sm" onclick="connectGcal()">
+            <button id="gcal-connect-btn" class="btn btn-gcal-outline btn-sm" onclick="connectGcal()">
               <i data-lucide="link"></i> Ligar Google Calendar
+            </button>
+            <button id="gcal-disconnect-btn" class="btn btn-ghost btn-sm" style="display:none;" onclick="disconnectGcal()">
+              <i data-lucide="unlink"></i> Desligar
+            </button>
+            <button id="gcal-sync-btn" class="btn btn-primary btn-sm" style="display:none;" onclick="syncAllGcal()">
+              <i data-lucide="refresh-cw"></i> Sincronizar tudo
             </button>
           </div>
         </div>
@@ -742,24 +748,18 @@
             </span>
             <span id="gcal-badge" class="gcal-status"><span class="dot dot-red"></span> Desligado</span>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px;">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
             <div style="background:var(--cinza-claro);border-radius:10px;padding:16px;text-align:center;">
               <div style="font-size:28px;font-weight:700;color:var(--azul);" id="sync-total">—</div>
-              <div style="font-size:12px;color:var(--cinza);">Eventos no Calendário</div>
+              <div style="font-size:12px;color:var(--cinza);">Total de Reservas Ativas</div>
             </div>
             <div style="background:var(--cinza-claro);border-radius:10px;padding:16px;text-align:center;">
               <div style="font-size:28px;font-weight:700;color:var(--verde);" id="sync-ok">—</div>
-              <div style="font-size:12px;color:var(--cinza);">Sincronizados</div>
+              <div style="font-size:12px;color:var(--cinza);">No Google Calendar</div>
             </div>
             <div style="background:var(--cinza-claro);border-radius:10px;padding:16px;text-align:center;">
               <div style="font-size:28px;font-weight:700;color:var(--vermelho);" id="sync-removed">—</div>
-              <div style="font-size:12px;color:var(--cinza);">Removidos (Cancelados)</div>
-            </div>
-          </div>
-          <div class="gcal-log" id="gcal-log">
-            <div class="log-item">
-              <span class="log-time">--:--:--</span>
-              <span class="log-msg log-info">Aguardando ligação ao Google Calendar...</span>
+              <div style="font-size:12px;color:var(--cinza);">Canceladas (removidas)</div>
             </div>
           </div>
         </div>

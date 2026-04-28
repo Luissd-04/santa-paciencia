@@ -89,9 +89,13 @@ function renderTabela() {
         <button class="btn btn-ghost btn-sm" onclick="openEditModal('${r.id}')" title="Editar">
           ${lcIcon('pencil', 13)}
         </button>
-        <button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho)" onclick="deleteReserva('${r.id}')" title="Cancelar">
-          ${lcIcon('trash-2', 13)}
-        </button>
+        ${r.status === 'cancelada'
+          ? `<button class="btn btn-sm" style="background:rgba(46,125,82,.12);color:#2e7d52" onclick="reativarReserva('${r.id}')" title="Reativar reserva">
+               ${lcIcon('refresh-cw', 13)}
+             </button>`
+          : `<button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho)" onclick="deleteReserva('${r.id}')" title="Cancelar reserva">
+               ${lcIcon('trash-2', 13)}
+             </button>`}
       </td>
     </tr>`).join('');
   if (window.lucide) lucide.createIcons();
@@ -481,7 +485,8 @@ async function reativarReserva(id) {
   try {
     const res = await apiPut(`/api/reservations/${id}`, { status: 'confirmada' });
     if (res.success) {
-      document.getElementById('detail-bg').classList.remove('open');
+      const detailBg = document.getElementById('detail-bg');
+      if (detailBg?.classList.contains('open')) detailBg.classList.remove('open');
       toast('✅ Reserva reativada!', 'success');
       await loadReservas();
       renderDashboard();

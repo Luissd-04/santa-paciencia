@@ -1,6 +1,7 @@
 let calMode = 'calendar';
 let timelineStart = new Date();
 timelineStart.setHours(0, 0, 0, 0);
+let tlDragging = { resId: null, fromAccId: null };
 
 const TL_DAYS      = 30;
 const TL_LABEL_W   = 190;
@@ -188,13 +189,23 @@ function renderTimeline() {
           const bg    = ACCOM_COLOR[r.accommodation_id] || STATUS_BG[r.status] || STATUS_BG.outro;
           return `<div class="tl-block" style="left:${left}px;width:${width}px;background:${bg}18;border-color:${bg}55;"
                        onclick="showDetail('${r.id}')"
+                       draggable="true"
+                       data-res-id="${r.id}"
+                       data-acc-id="${r.accommodation_id}"
+                       ondragstart="tlDragStart(event)"
+                       ondragend="tlDragEnd(event)"
                        title="${r.guest_name} · ${r.check_in} → ${r.check_out}">
             <span class="tl-block-name">${r.guest_name.split(' ')[0]}</span>
             <span class="tl-block-status" style="color:${bg};">${r.status}</span>
           </div>`;
         }).join('');
 
-        return `<div class="tl-row">
+        return `<div class="tl-row"
+                     data-acc-id="${a.id}"
+                     data-acc-name="${a.name.replace(/"/g, '&quot;')}"
+                     ondragover="tlDragOver(event)"
+                     ondrop="tlDrop(event)"
+                     ondragleave="tlDragLeave(event)">
           <div class="tl-label" style="min-width:${TL_LABEL_W}px;max-width:${TL_LABEL_W}px;">${a.name}</div>
           <div class="tl-days-area" style="width:${TL_DAYS * dayW}px;flex:none;">
             <div class="tl-cells">${dayBg}</div>
@@ -218,4 +229,75 @@ function renderTimeline() {
     </div>`;
 
   if (window.lucide) lucide.createIcons();
+}
+
+// ── TIMELINE DRAG & DROP ──
+function tlDragStart(event) {
+  const el = event.currentTarget;
+  tlDragging.resId    = el.dataset.resId;
+  tlDragging.fromAccId = el.dataset.accId;
+  el.classList.add('tl-dragging');
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', tlDragging.resId);
+}
+
+function tlDragEnd(event) {
+  event.currentTarget.classList.remove('tl-dragging');
+}
+
+function tlDragOver(event) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  event.currentTarget.classList.add('tl-drag-over');
+}
+
+function tlDragLeave(event) {
+  if (!event.currentTarget.contains(event.relatedTarget)) {
+    event.currentTarget.classList.remove('tl-drag-over');
+  }
+}
+
+function tlDrop(event) {
+  event.preventDefault();
+  const row = event.currentTarget;
+  row.classList.remove('tl-drag-over');
+  const toAccId   = row.dataset.accId;
+  const toAccName = row.dataset.accName;
+  if (!tlDragging.resId || toAccId === tlDragging.fromAccId) return;
+
+  const fromAcc = accommodations.find(a => a.id === tlDragging.fromAccId);
+  tlShowConfirm(
+    `Mover reserva de <b>${fromAcc?.name || tlDragging.fromAccId}</b> para <b>${toAccName}</b>?`,
+    async () => {
+      try {
+        const res = await apiPut(`/api/reservations/${tlDragging.resId}`, { accommodation_id: toAccId });
+        if (res.success) {
+          toast('✅ Reserva movida!', 'success');
+          await loadReservas();
+          renderTimeline();
+        } else {
+          toast('❌ ' + (res.error || 'Erro ao mover reserva.'), 'error');
+        }
+      } catch (e) {
+        toast('❌ Erro de ligação.', 'error');
+      }
+    }
+  );
+}
+
+function tlShowConfirm(msgHtml, onConfirm) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:400px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+      <div style="font-size:15px;color:var(--azul);line-height:1.5;margin-bottom:22px;">${msgHtml}</div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-ghost btn-sm" id="_tl-cancel">Cancelar</button>
+        <button class="btn btn-primary btn-sm" id="_tl-confirm">Confirmar alteração</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#_tl-cancel').onclick  = () => overlay.remove();
+  overlay.querySelector('#_tl-confirm').onclick = () => { overlay.remove(); onConfirm(); };
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
 }

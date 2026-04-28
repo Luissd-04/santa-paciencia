@@ -120,6 +120,7 @@ i[data-lucide] { display:inline-flex; align-items:center; justify-content:center
   display:flex;
   flex-direction:column;
   min-height: 100vh;
+  min-width: 0;
 }
 
 .topbar {
@@ -972,6 +973,52 @@ select.form-control { cursor:pointer; }
   resize: vertical;
 }
 
+.email-body-editor {
+  min-height: 480px;
+  border: 1.5px solid rgba(26,46,74,.12);
+  border-radius: 0 0 8px 8px;
+  padding: 16px;
+  background: #fff;
+  font-family: Georgia, serif;
+  font-size: 14px;
+  line-height: 1.7;
+  outline: none;
+  overflow-y: auto;
+}
+.email-body-editor:focus { border-color: var(--azul); }
+.email-body-editor h2 { color: #843424; margin: 0 0 10px; }
+.email-body-editor h3 { color: #843424; margin: 0 0 8px; }
+.email-body-editor p  { color: #555; margin: 0 0 10px; }
+.email-body-editor table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.email-body-editor td  { padding: 6px 8px; }
+
+.emails-editor { overflow: auto; }
+
+.email-editor-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.email-editor-left { display: flex; flex-direction: column; }
+.email-editor-right { position: sticky; top: 80px; }
+@media (max-width: 900px) {
+  .email-editor-cols { grid-template-columns: 1fr; }
+  .email-editor-right { position: static; }
+}
+
+.email-preview-frame-wrap {
+  position: sticky;
+  top: 80px;
+}
+.email-preview-frame {
+  width: 100%;
+  height: 520px;
+  border: 1px solid var(--cinza-claro);
+  border-radius: 8px;
+  background: #f4f4f4;
+}
+
 .email-timing-fixed {
   display: inline-flex;
   align-items: center;
@@ -1096,6 +1143,8 @@ select.form-control { cursor:pointer; }
   transition: opacity .15s, transform .1s;
 }
 .tl-block:hover { opacity: .85; transform: translateY(-1px); }
+.tl-block.tl-dragging { opacity: .4; }
+.tl-row.tl-drag-over .tl-days-area { background: rgba(132,52,36,.06); outline: 2px dashed rgba(132,52,36,.35); outline-offset: -3px; border-radius: 4px; }
 .tl-block-name {
   font-size: 11.5px;
   font-weight: 700;

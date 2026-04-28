@@ -116,72 +116,77 @@ function buildCodesDropdown(fieldId) {
 function buildFmtToolbar() {
   return `
     <div class="email-fmt-toolbar">
-      <button class="fmt-btn" type="button" onclick="fmtWrap('et-body','<strong>','</strong>')" title="Negrito"><b>B</b></button>
-      <button class="fmt-btn" type="button" onclick="fmtWrap('et-body','<em>','</em>')" title="Itálico"><i>I</i></button>
-      <button class="fmt-btn" type="button" onclick="fmtWrap('et-body','<u>','</u>')" title="Sublinhado"><u>U</u></button>
+      <button class="fmt-btn" type="button" onclick="document.execCommand('bold');emailBodyChanged()" title="Negrito"><b>B</b></button>
+      <button class="fmt-btn" type="button" onclick="document.execCommand('italic');emailBodyChanged()" title="Itálico"><i>I</i></button>
+      <button class="fmt-btn" type="button" onclick="document.execCommand('underline');emailBodyChanged()" title="Sublinhado"><u>U</u></button>
       <div class="fmt-btn-sep"></div>
-      <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtWrap('et-body','<h2 style=\\"color:#843424;margin:0 0 10px\\">','</h2>')" title="Título">H2</button>
-      <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtWrap('et-body','<h3 style=\\"color:#843424;margin:0 0 8px\\">','</h3>')" title="Subtítulo">H3</button>
-      <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtWrap('et-body','<p style=\\"color:#555;line-height:1.6\\">','</p>')" title="Parágrafo">P</button>
+      <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtWrap('<h2 style=\\"color:#843424;margin:0 0 10px\\">','</h2>')" title="Título">H2</button>
+      <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtWrap('<h3 style=\\"color:#843424;margin:0 0 8px\\">','</h3>')" title="Subtítulo">H3</button>
+      <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtWrap('<p style=\\"color:#555;line-height:1.6\\">','</p>')" title="Parágrafo">P</button>
       <div class="fmt-btn-sep"></div>
-      <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtInsertList('et-body','ul')" title="Lista">• Lista</button>
-      <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtInsertList('et-body','ol')" title="Lista numerada">1. Lista</button>
+      <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtInsert('<ul><li>Item 1</li><li>Item 2</li></ul>')" title="Lista">• Lista</button>
+      <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtInsert('<ol><li>Item 1</li><li>Item 2</li></ol>')" title="Lista numerada">1. Lista</button>
       <div class="fmt-btn-sep"></div>
-      <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtInsert('et-body','<hr style=\\"border:none;border-top:1px solid #eee;margin:20px 0\\">')" title="Separador">—</button>
-      <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtInsert('et-body','<br>')" title="Quebra de linha">↵ BR</button>
-      <div class="fmt-btn-sep"></div>
-      <button class="fmt-btn fmt-btn-wide" type="button" onclick="toggleEmailBodyPreview()" title="Pré-visualização" id="fmt-preview-btn">👁 Preview</button>
+      <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtInsert('<hr style=\\"border:none;border-top:1px solid #eee;margin:20px 0\\">')" title="Separador">—</button>
+      <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtInsert('<br>')" title="Quebra de linha">↵ BR</button>
     </div>`;
 }
 
-function fmtWrap(fieldId, open, close) {
-  const ta = document.getElementById(fieldId);
-  if (!ta) return;
-  const start = ta.selectionStart ?? ta.value.length;
-  const end   = ta.selectionEnd   ?? ta.value.length;
-  const sel   = ta.value.slice(start, end) || 'texto aqui';
-  const ins   = open + sel + close;
-  ta.value    = ta.value.slice(0, start) + ins + ta.value.slice(end);
-  ta.selectionStart = start + open.length;
-  ta.selectionEnd   = start + open.length + sel.length;
-  ta.focus();
+function fmtWrap(open, close) {
+  const editor = document.getElementById('et-body');
+  if (!editor) return;
+  editor.focus();
+  const sel = window.getSelection();
+  const selText = (sel?.rangeCount > 0 ? sel.getRangeAt(0).toString() : '') || 'texto aqui';
+  document.execCommand('insertHTML', false, open + selText + close);
+  emailBodyChanged();
 }
 
-function fmtInsert(fieldId, html) {
-  const ta = document.getElementById(fieldId);
-  if (!ta) return;
-  const pos = ta.selectionStart ?? ta.value.length;
-  ta.value  = ta.value.slice(0, pos) + html + ta.value.slice(pos);
-  ta.selectionStart = ta.selectionEnd = pos + html.length;
-  ta.focus();
+function fmtInsert(html) {
+  const editor = document.getElementById('et-body');
+  if (!editor) return;
+  editor.focus();
+  document.execCommand('insertHTML', false, html);
+  emailBodyChanged();
 }
 
-function fmtInsertList(fieldId, tag) {
-  const ta = document.getElementById(fieldId);
-  if (!ta) return;
-  const pos = ta.selectionStart ?? ta.value.length;
-  const ins = `<${tag}>\n  <li>Item 1</li>\n  <li>Item 2</li>\n</${tag}>`;
-  ta.value  = ta.value.slice(0, pos) + ins + ta.value.slice(pos);
-  ta.selectionStart = ta.selectionEnd = pos + ins.length;
-  ta.focus();
+let _emailPreviewTimer = null;
+function emailBodyChanged() {
+  clearTimeout(_emailPreviewTimer);
+  _emailPreviewTimer = setTimeout(updateEmailPreview, 300);
 }
 
-function toggleEmailBodyPreview() {
-  const ta      = document.getElementById('et-body');
-  const preview = document.getElementById('et-body-preview');
-  const btn     = document.getElementById('fmt-preview-btn');
-  if (!ta || !preview) return;
-  const isPreview = preview.style.display !== 'none';
-  if (isPreview) {
-    preview.style.display = 'none';
-    ta.style.display = '';
-    if (btn) btn.textContent = '👁 Preview';
-  } else {
-    preview.innerHTML = ta.value;
-    preview.style.display = 'block';
-    ta.style.display = 'none';
-    if (btn) btn.textContent = '✏️ Editar';
-  }
+function updateEmailPreview() {
+  const editor = document.getElementById('et-body');
+  const frame  = document.getElementById('et-preview-frame');
+  if (!editor || !frame) return;
+  frame.srcdoc = buildEmailPreviewHtml(editor.innerHTML);
+}
+
+function buildEmailPreviewHtml(bodyHtml) {
+  return `<!DOCTYPE html>
+<html lang="pt"><head><meta charset="UTF-8">
+<style>*{box-sizing:border-box;}body{margin:0;padding:12px;background:#f4f4f4;font-family:Georgia,serif;}
+h2{color:#843424;margin:0 0 10px;}h3{color:#843424;margin:0 0 8px;}
+p{color:#555;line-height:1.6;margin:0 0 10px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}td{padding:6px 8px;}
+strong{font-weight:700;}a{color:#843424;}</style>
+</head><body>
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr><td align="center">
+<table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);">
+  <tr><td style="background:#843424;padding:20px 30px;text-align:center;">
+    <p style="color:rgba(255,255,255,.9);margin:0;font-family:Georgia,serif;font-size:18px;font-weight:bold;">Santa Paciência</p>
+    <p style="color:rgba(255,255,255,.55);margin:4px 0 0;font-size:11px;letter-spacing:1px;">ALOJAMENTO LOCAL</p>
+  </td></tr>
+  <tr><td style="padding:28px 32px;">${bodyHtml}</td></tr>
+  <tr><td style="background:#f8f8f8;padding:16px;border-top:1px solid #eee;text-align:center;">
+    <p style="color:#999;font-size:11px;margin:0;">Santa Paciência · Alojamento Local</p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`;
 }
 
 // ── SELECT TEMPLATE ──
@@ -242,10 +247,17 @@ function selectTemplate(slug) {
           ${buildCodesDropdown('et-body')}
         </div>
         ${buildFmtToolbar()}
-        <textarea class="form-control email-body-textarea with-toolbar" id="et-body" rows="18">${escapeHtml(t.body)}</textarea>
-        <div class="email-preview" id="et-body-preview" style="display:none;border-radius:0 0 8px 8px;"></div>
-        <div style="margin-top:6px;font-size:11.5px;color:var(--cinza);">
-          💡 Use os botões acima para formatar. Os códigos <code>{{variavel}}</code> são substituídos automaticamente.
+        <div class="email-editor-cols">
+          <div class="email-editor-left">
+            <div class="email-body-editor" id="et-body" contenteditable="true" oninput="emailBodyChanged()"></div>
+            <div style="margin-top:6px;font-size:11.5px;color:var(--cinza);">
+              💡 Use os botões acima para formatar. Os códigos <code>{{variavel}}</code> são substituídos automaticamente.
+            </div>
+          </div>
+          <div class="email-editor-right">
+            <div style="font-size:11.5px;font-weight:600;color:var(--cinza);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px;">Pré-visualização</div>
+            <iframe id="et-preview-frame" class="email-preview-frame" sandbox="allow-same-origin"></iframe>
+          </div>
         </div>
       </div>
 
@@ -260,6 +272,13 @@ function selectTemplate(slug) {
     </div>`;
 
   if (window.lucide) lucide.createIcons();
+
+  // Populate contenteditable with template body and render initial preview
+  const editor = document.getElementById('et-body');
+  if (editor) {
+    editor.innerHTML = t.body || '';
+    updateEmailPreview();
+  }
 }
 
 // ── CODES DROPDOWN LOGIC ──
@@ -275,12 +294,18 @@ function toggleCodesDropdown(fieldId) {
 function insertVarInField(fieldId, key) {
   const el = document.getElementById(fieldId);
   if (!el) return;
-  const v     = `{{${key}}}`;
-  const start = el.selectionStart ?? el.value.length;
-  const end   = el.selectionEnd   ?? el.value.length;
-  el.value = el.value.slice(0, start) + v + el.value.slice(end);
-  el.selectionStart = el.selectionEnd = start + v.length;
-  el.focus();
+  const v = `{{${key}}}`;
+  if (el.isContentEditable) {
+    el.focus();
+    document.execCommand('insertText', false, v);
+    emailBodyChanged();
+  } else {
+    const start = el.selectionStart ?? el.value.length;
+    const end   = el.selectionEnd   ?? el.value.length;
+    el.value = el.value.slice(0, start) + v + el.value.slice(end);
+    el.selectionStart = el.selectionEnd = start + v.length;
+    el.focus();
+  }
   document.querySelectorAll('.codes-dropdown').forEach(d => d.style.display = 'none');
 }
 
@@ -299,7 +324,7 @@ async function saveTemplate(slug) {
   const isFixed = FIXED_TIMING_EVENTS.includes(t.timing_event);
   const body = {
     subject: document.getElementById('et-subject')?.value ?? t.subject,
-    body:    document.getElementById('et-body')?.value    ?? t.body,
+    body:    document.getElementById('et-body')?.innerHTML ?? t.body,
     active:  document.getElementById('et-active')?.checked ?? !!t.active,
   };
   if (!isFixed) {

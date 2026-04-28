@@ -64,14 +64,26 @@ function toggleSidebar() {
 // ── GOOGLE CALENDAR ──
 async function loadCalendarStatus() {
   try {
-    const data = await apiGet('/auth/google/status');
-    const connected = data.connected ?? data?.data?.connected ?? false;
+    const data = await apiGet('/api/calendar/status');
+    const d = data?.data ?? data;
+    const connected = d.connected ?? false;
+
     const badge = document.getElementById('gcal-badge');
-    const dot = connected ? '<span class="dot dot-green"></span>' : '<span class="dot dot-red"></span>';
-    if (badge) badge.innerHTML = dot + ' ' + (connected ? 'Ligado' : 'Desligado');
-    document.getElementById('sync-total').textContent = data.inCalendar ?? data?.data?.inCalendar ?? 0;
-    document.getElementById('sync-ok').textContent = data.inCalendar ?? data?.data?.inCalendar ?? 0;
-    document.getElementById('sync-removed').textContent = data.removed ?? data?.data?.removed ?? 0;
+    if (badge) badge.innerHTML = connected
+      ? '<span class="dot dot-green"></span> Ligado'
+      : '<span class="dot dot-red"></span> Desligado';
+
+    const el = id => document.getElementById(id);
+    if (el('sync-total'))   el('sync-total').textContent   = d.total      ?? 0;
+    if (el('sync-ok'))      el('sync-ok').textContent      = d.inCalendar ?? 0;
+    if (el('sync-removed')) el('sync-removed').textContent = d.removed    ?? 0;
+
+    const connectBtn    = el('gcal-connect-btn');
+    const disconnectBtn = el('gcal-disconnect-btn');
+    const syncBtn       = el('gcal-sync-btn');
+    if (connectBtn)    connectBtn.style.display    = connected ? 'none'         : '';
+    if (disconnectBtn) disconnectBtn.style.display = connected ? ''             : 'none';
+    if (syncBtn)       syncBtn.style.display       = connected ? 'inline-flex'  : 'none';
   } catch (e) {}
 }
 
@@ -83,9 +95,44 @@ function connectGcal() {
       clearInterval(poll);
       await new Promise(r => setTimeout(r, 1000));
       await loadCalendarStatus();
-      toast('🗓 Estado do Google Calendar atualizado!', 'info');
+      toast('🗓 Google Calendar ligado!', 'success');
     }
   }, 500);
+}
+
+async function disconnectGcal() {
+  try {
+    const res = await fetch(API_BASE + '/auth/google', { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      toast('🗓 Google Calendar desligado.', 'info');
+      await loadCalendarStatus();
+    } else {
+      toast('❌ Erro ao desligar.', 'error');
+    }
+  } catch (e) {
+    toast('❌ Erro de ligação.', 'error');
+  }
+}
+
+async function syncAllGcal() {
+  const btn = document.getElementById('gcal-sync-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'A sincronizar…'; }
+  try {
+    const res = await apiPost('/api/calendar/sync-all', {});
+    if (res.success) {
+      const d = res.data;
+      toast(`✅ Sincronização completa: ${d.created} criados, ${d.updated} atualizados${d.errors ? ', ' + d.errors + ' erros' : ''}.`, 'success');
+      await loadCalendarStatus();
+    } else {
+      toast('❌ ' + (res.error || 'Erro ao sincronizar.'), 'error');
+    }
+  } catch (e) {
+    toast('❌ Erro de ligação.', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = lcIcon('refresh-cw', 14) + ' Sincronizar tudo'; }
+    if (window.lucide) lucide.createIcons();
+  }
 }
 
 // ── INIT ──

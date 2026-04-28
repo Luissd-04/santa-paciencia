@@ -124,12 +124,23 @@ function resolveCountryCode(g) {
 
 function flagImg(g, size = 64) {
   const code = resolveCountryCode(g);
-  const w = size <= 32 ? 32 : size <= 48 ? 48 : size <= 64 ? 64 : 80;
+
+  if (size <= 40) {
+    const h = Math.round(size * 0.72);
+    const fallback = `<span style="font-size:${Math.round(size * 0.65)}px;width:${size}px;height:${h}px;display:inline-flex;align-items:center;justify-content:center;background:var(--cinza-claro);border-radius:4px;flex-shrink:0;">🌐</span>`;
+    if (!code) return fallback;
+    return `<img src="https://flagcdn.com/w${size <= 32 ? 32 : 48}/${code}.png"
+                 width="${size}" height="${h}"
+                 style="border-radius:4px;object-fit:cover;flex-shrink:0;display:block;"
+                 onerror="this.outerHTML='${fallback.replace(/'/g, '&#39;')}'"
+                 alt="${code}">`;
+  }
+
+  const w = size <= 48 ? 48 : size <= 64 ? 64 : 80;
   const h = Math.round(size * 0.67);
   const fs = Math.round(size * 0.45);
   const base = `width:${size}px;height:${h}px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--cinza-claro);font-size:${fs}px;overflow:hidden;position:relative;`;
   if (!code) return `<div style="${base}">🌐</div>`;
-  // Globe is a flex child (centered by parent flex), image overlays it absolutely when loaded
   return `<div style="${base}">
     <span style="line-height:1;flex-shrink:0;">🌐</span>
     <img src="https://flagcdn.com/w${w}/${code}.png" alt="${code}"

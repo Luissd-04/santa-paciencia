@@ -179,11 +179,14 @@ async function update(req, res, next) {
 
     const {
       check_in, check_out, num_guests, breakfast_included,
-      channel, payment_method, notes, status, payment_status, guests_data, guest
+      channel, payment_method, notes, status, payment_status, guests_data, guest,
+      accommodation_id
     } = req.body;
 
+    const newAccommodationId = accommodation_id || existing.accommodation_id;
     const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ?')
-      .get(existing.accommodation_id);
+      .get(newAccommodationId);
+    if (!accommodation) return res.status(404).json({ error: 'Alojamento não encontrado' });
 
     const newCheckIn = check_in || existing.check_in;
     const newCheckOut = check_out || existing.check_out;
@@ -225,12 +228,13 @@ async function update(req, res, next) {
 
     db.prepare(`
       UPDATE reservations SET
-        check_in = ?, check_out = ?, nights = ?, num_guests = ?,
+        accommodation_id = ?, check_in = ?, check_out = ?, nights = ?, num_guests = ?,
         total_amount = ?, breakfast_included = ?, tourist_tax = ?,
         channel = ?, payment_method = ?, notes = ?, status = ?,
         payment_status = ?, guests_data = ?, updated_at = datetime('now')
       WHERE id = ?
     `).run(
+      newAccommodationId,
       newCheckIn, newCheckOut, nights, guests, totalAmount, bkfOn2,
       touristTax,
       channel || existing.channel, payment_method || existing.payment_method,
