@@ -23,6 +23,7 @@ app.use(cors({
     const allowed = [
       /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/,
       /^https:\/\/[a-z0-9-]+\.ngrok[a-z0-9.-]*$/,
+      /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/,
     ];
     if (allowed.some(r => r.test(origin))) {
       callback(null, true);
