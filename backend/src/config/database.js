@@ -174,6 +174,9 @@ function migrateAccommodations() {
     ['checkin_time',    'TEXT'],
     ['checkout_time',   'TEXT'],
     ['color',           "TEXT DEFAULT '#843424'"],
+    ['social_facebook',  'TEXT'],
+    ['social_instagram', 'TEXT'],
+    ['social_website',   'TEXT'],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {
@@ -205,6 +208,13 @@ function migrateEmailTemplates() {
       updated_at TEXT DEFAULT (datetime('now'))
     )
   `);
+
+  // Add language columns if they don't exist
+  const etCols = db.pragma('table_info(email_templates)').map(c => c.name);
+  const langCols = ['en','fr','es','de','it','nl'].flatMap(l => [`subject_${l}`,`body_${l}`]);
+  for (const col of langCols) {
+    if (!etCols.includes(col)) db.exec(`ALTER TABLE email_templates ADD COLUMN ${col} TEXT DEFAULT ''`);
+  }
   db.exec(`
     CREATE TABLE IF NOT EXISTS email_log (
       id TEXT PRIMARY KEY,

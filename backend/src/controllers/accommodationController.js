@@ -49,7 +49,8 @@ function update(req, res) {
     description_de, description_it, description_nl,
     address, postal_code, city, region, country,
     area, num_rooms, num_bathrooms, amenities, google_calendar_id,
-    wifi_name, wifi_password, checkin_time, checkout_time, color
+    wifi_name, wifi_password, checkin_time, checkout_time, color,
+    social_facebook, social_instagram, social_website
   } = req.body;
 
   db.prepare(`UPDATE accommodations SET
@@ -79,6 +80,9 @@ function update(req, res) {
     checkin_time = COALESCE(?, checkin_time),
     checkout_time = COALESCE(?, checkout_time),
     color = COALESCE(?, color),
+    social_facebook = ?,
+    social_instagram = ?,
+    social_website = ?,
     google_calendar_id = ?
     WHERE id = ?`)
     .run(
@@ -93,6 +97,9 @@ function update(req, res) {
       checkin_time !== undefined ? (checkin_time || null) : null,
       checkout_time !== undefined ? (checkout_time || null) : null,
       color !== undefined ? (color || null) : null,
+      social_facebook !== undefined ? (social_facebook || null) : existing.social_facebook,
+      social_instagram !== undefined ? (social_instagram || null) : existing.social_instagram,
+      social_website !== undefined ? (social_website || null) : existing.social_website,
       google_calendar_id !== undefined ? (google_calendar_id || null) : existing.google_calendar_id,
       id
     );

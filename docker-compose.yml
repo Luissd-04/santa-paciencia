@@ -10,5 +10,13 @@ services:
       - DB_PATH=/app/data/santapaciencia.db
       - FRONTEND_PATH=/app/frontend
     volumes:
-      - ./data:/app/data      # base de dados + uploads (persistente)
-      - ./tokens:/tokens      # token Google Calendar (persistente)
+      - ./data:/app/data
+      - ./tokens:/tokens
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    network_mode: host
+    command: tunnel --url http://localhost:3001 --no-autoupdate
+    depends_on:
+      - backend
