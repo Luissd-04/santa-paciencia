@@ -12,7 +12,11 @@ function update(req, res) {
   const existing = db.prepare('SELECT * FROM email_templates WHERE slug = ?').get(slug);
   if (!existing) return res.status(404).json({ error: 'Template não encontrado' });
 
-  const { subject, body, timing_offset, timing_unit, timing_direction, timing_event, active } = req.body;
+  const {
+    subject, body, timing_offset, timing_unit, timing_direction, timing_event, active,
+    subject_en, body_en, subject_fr, body_fr, subject_es, body_es,
+    subject_de, body_de, subject_it, body_it, subject_nl, body_nl,
+  } = req.body;
 
   db.prepare(`
     UPDATE email_templates SET
@@ -23,6 +27,12 @@ function update(req, res) {
       timing_direction = COALESCE(?, timing_direction),
       timing_event = COALESCE(?, timing_event),
       active = COALESCE(?, active),
+      subject_en = COALESCE(?, subject_en), body_en = COALESCE(?, body_en),
+      subject_fr = COALESCE(?, subject_fr), body_fr = COALESCE(?, body_fr),
+      subject_es = COALESCE(?, subject_es), body_es = COALESCE(?, body_es),
+      subject_de = COALESCE(?, subject_de), body_de = COALESCE(?, body_de),
+      subject_it = COALESCE(?, subject_it), body_it = COALESCE(?, body_it),
+      subject_nl = COALESCE(?, subject_nl), body_nl = COALESCE(?, body_nl),
       updated_at = datetime('now')
     WHERE slug = ?
   `).run(
@@ -30,6 +40,12 @@ function update(req, res) {
     timing_offset !== undefined ? Number(timing_offset) : null,
     timing_unit ?? null, timing_direction ?? null, timing_event ?? null,
     active !== undefined ? (active ? 1 : 0) : null,
+    subject_en ?? null, body_en ?? null,
+    subject_fr ?? null, body_fr ?? null,
+    subject_es ?? null, body_es ?? null,
+    subject_de ?? null, body_de ?? null,
+    subject_it ?? null, body_it ?? null,
+    subject_nl ?? null, body_nl ?? null,
     slug
   );
 
