@@ -52,10 +52,15 @@ function renderCal() {
       return dateStr >= r.check_in && dateStr < r.check_out;
     });
 
-    const events = dayReservas.slice(0, 3).map(r => `
-      <div class="cal-event event-${r.accommodation_id}" onclick="event.stopPropagation();showDetail('${r.id}')" title="${r.guest_name} — ${r.accommodation_name}">
+    const events = dayReservas.slice(0, 3).map(r => {
+      const accom = accommodations.find(a => a.id === r.accommodation_id);
+      const color = accom?.color || '#843424';
+      return `<div class="cal-event" style="background:${color}22;color:${color};border-left:3px solid ${color};"
+                   onclick="event.stopPropagation();showDetail('${r.id}')"
+                   title="${r.guest_name} — ${r.accommodation_name}">
         ${r.guest_name.split(' ')[0]} · ${r.accommodation_name.replace('Suite ', '')}
-      </div>`).join('') +
+      </div>`;
+    }).join('') +
       (dayReservas.length > 3 ? `<div style="font-size:10px;color:var(--cinza);padding:2px 6px;">+${dayReservas.length - 3} mais</div>` : '');
 
     grid.innerHTML += `<div class="cal-day${isToday ? ' today' : ''}">

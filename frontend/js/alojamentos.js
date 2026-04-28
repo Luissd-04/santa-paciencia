@@ -117,6 +117,12 @@ async function openAlojamento(id) {
     document.getElementById('aloj-wifi-password').value = a.wifi_password || '';
     document.getElementById('aloj-checkin-time').value  = a.checkin_time  || '15:00';
     document.getElementById('aloj-checkout-time').value = a.checkout_time || '11:00';
+    const fbEl  = document.getElementById('aloj-social-fb');
+    const igEl  = document.getElementById('aloj-social-ig');
+    const webEl = document.getElementById('aloj-social-web');
+    if (fbEl)  fbEl.value  = a.social_facebook  || '';
+    if (igEl)  igEl.value  = a.social_instagram || '';
+    if (webEl) webEl.value = a.social_website   || '';
     const colorVal = a.color || '#843424';
     const colorInput = document.getElementById('aloj-color');
     const colorLabel = document.getElementById('aloj-color-label');
@@ -483,26 +489,34 @@ function renderServicos() {
   const tbody = document.getElementById('servicos-body');
   if (!tbody) return;
   const BUILTIN = ['breakfast', 'tourist_tax'];
-  tbody.innerHTML = servicosData.map((s, i) => `
+  tbody.innerHTML = servicosData.map((s, i) => {
+    const isBuiltin = BUILTIN.includes(s.id);
+    return `
     <tr>
       <td>
-        <select class="form-control" style="font-size:12px;padding:5px 8px;" onchange="servicosData[${i}].type=this.value;autoSaveServicos()" ${BUILTIN.includes(s.id) ? 'disabled' : ''}>
-          <option value="service" ${s.type === 'service' ? 'selected' : ''}>Serviço</option>
-          <option value="tax" ${s.type === 'tax' ? 'selected' : ''}>Taxa</option>
-        </select>
+        ${isBuiltin
+          ? `<span style="font-size:13px;color:var(--cinza);">${s.type === 'service' ? 'Serviço' : 'Taxa'}</span>`
+          : `<select class="form-control" style="font-size:12px;padding:5px 8px;" onchange="servicosData[${i}].type=this.value;autoSaveServicos()">
+               <option value="service" ${s.type === 'service' ? 'selected' : ''}>Serviço</option>
+               <option value="tax"     ${s.type === 'tax'     ? 'selected' : ''}>Taxa</option>
+             </select>`}
       </td>
-      <td><input class="form-control" style="font-size:13px;padding:6px 10px;" value="${s.name}" onchange="servicosData[${i}].name=this.value;autoSaveServicos()" ${BUILTIN.includes(s.id) ? 'readonly style="font-size:13px;padding:6px 10px;background:var(--cinza-claro)"' : ''}></td>
-      <td><input class="form-control" type="number" step="0.01" style="font-size:13px;padding:6px 10px;-moz-appearance:textfield;" value="${s.value}" onchange="servicosData[${i}].value=parseFloat(this.value)||0;autoSaveServicos()"></td>
+      <td>
+        ${isBuiltin
+          ? `<span style="font-size:13px;color:var(--cinza);">${s.name}</span>`
+          : `<input class="form-control" style="font-size:13px;padding:6px 10px;" value="${s.name}" onchange="servicosData[${i}].name=this.value;autoSaveServicos()">`}
+      </td>
+      <td><input class="form-control" type="number" step="0.01" style="font-size:13px;padding:6px 10px;-moz-appearance:textfield;width:90px;" value="${s.value}" onchange="servicosData[${i}].value=parseFloat(this.value)||0;autoSaveServicos()"></td>
       <td><span style="font-size:13px;color:var(--cinza);">€/hóspede/noite</span></td>
       <td><label class="toggle-switch"><input type="checkbox" ${s.active !== false ? 'checked' : ''} onchange="servicosData[${i}].active=this.checked;autoSaveServicos()"><span class="toggle-slider"></span></label></td>
       <td>
-        ${BUILTIN.includes(s.id) ? '<span style="width:32px;display:inline-block;"></span>' : `
+        ${isBuiltin ? '<span style="width:32px;display:inline-block;"></span>' : `
         <button onclick="removeServico(${i})" style="background:none;border:none;cursor:pointer;color:var(--vermelho);display:flex;align-items:center;" title="Remover">
           ${lcIcon('trash-2', 15)}
         </button>`}
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
   if (window.lucide) lucide.createIcons();
 }
 
@@ -551,6 +565,52 @@ async function addAlojamento() {
 }
 
 // ── EXPORTAR ALOJAMENTOS ──
+async function importAlojamentosXLS(input) {
+  if (typeof XLSX === 'undefined') { toast('❌ Biblioteca XLSX não carregada.', 'error'); return; }
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const wb   = XLSX.read(e.target.result, { type: 'array' });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (!rows.length) { toast('⚠️ Ficheiro vazio.', 'error'); return; }
+
+      const pick = (row, ...keys) => { for (const k of keys) if (row[k] !== undefined && row[k] !== '') return String(row[k]); return ''; };
+
+      let created = 0, skipped = 0;
+      for (const row of rows) {
+        const nome = pick(row, 'Nome', 'name', 'Name');
+        if (!nome) { skipped++; continue; }
+        try {
+          await apiPost('/api/accommodations', {
+            name:          nome,
+            type:          pick(row, 'Tipo', 'type') || 'suite',
+            price_per_night: parseFloat(pick(row, 'Preço/noite', 'price_per_night')) || 100,
+            max_guests:    parseInt(pick(row, 'Capacidade', 'max_guests')) || 2,
+            license_number:pick(row, 'Licença', 'license_number') || '00000/AL',
+            address:       pick(row, 'Morada', 'address'),
+            city:          pick(row, 'Cidade', 'city'),
+            region:        pick(row, 'Região', 'region'),
+            country:       pick(row, 'País', 'country') || 'Portugal',
+            checkin_time:  pick(row, 'Check-in', 'checkin_time') || '15:00',
+            checkout_time: pick(row, 'Check-out', 'checkout_time') || '11:00',
+          });
+          created++;
+        } catch { skipped++; }
+      }
+      toast(`✅ ${created} alojamentos importados${skipped ? `, ${skipped} ignorados` : ''}.`, 'success');
+      await loadAccommodations();
+    } catch (err) {
+      toast('❌ Erro ao ler ficheiro: ' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 function exportAlojamentosXLS() {
   if (typeof XLSX === 'undefined') { toast('❌ Biblioteca XLSX não carregada.', 'error'); return; }
   const rows = accommodations.map(a => ({
@@ -667,6 +727,9 @@ async function saveAlojamento() {
     checkin_time:  document.getElementById('aloj-checkin-time').value  || null,
     checkout_time: document.getElementById('aloj-checkout-time').value || null,
     color:         document.getElementById('aloj-color')?.value        || null,
+    social_facebook:  document.getElementById('aloj-social-fb')?.value.trim()  || null,
+    social_instagram: document.getElementById('aloj-social-ig')?.value.trim()  || null,
+    social_website:   document.getElementById('aloj-social-web')?.value.trim() || null,
     amenities: checkedAmenities,
   };
 

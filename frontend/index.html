@@ -269,6 +269,10 @@
               <button class="btn btn-ghost btn-sm" onclick="exportAlojamentosPDF()" title="Exportar PDF">
                 <i data-lucide="file-text"></i> PDF
               </button>
+              <label class="btn btn-ghost btn-sm" title="Importar Excel" style="cursor:pointer;">
+                <i data-lucide="upload"></i> Importar XLS
+                <input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importAlojamentosXLS(this)">
+              </label>
             </div>
           </div>
         </div>
@@ -468,8 +472,8 @@
             <div id="aloj-map" style="display:none;"></div>
           </div>
 
-          <!-- Linha 3: Horários + Wi-Fi + Google Calendar -->
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-bottom:0;">
+          <!-- Linha 3: Horários + Wi-Fi + Redes Sociais + Google Calendar -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:24px;margin-bottom:0;">
             <div class="card">
               <div class="card-header">
                 <span class="card-title" style="font-size:14px;">
@@ -505,6 +509,26 @@
                 </div>
               </div>
               <span style="font-size:11.5px;color:var(--cinza);">Enviados automaticamente no email de coordenadas</span>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" style="font-size:14px;">
+                  <i data-lucide="share-2"></i> Redes Sociais
+                </span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Facebook</label>
+                <input class="form-control" id="aloj-social-fb" placeholder="https://facebook.com/...">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Instagram</label>
+                <input class="form-control" id="aloj-social-ig" placeholder="https://instagram.com/...">
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Website</label>
+                <input class="form-control" id="aloj-social-web" placeholder="https://...">
+              </div>
             </div>
 
             <div class="card">
@@ -614,6 +638,10 @@
           <button class="btn btn-ghost btn-sm" onclick="exportHospedesPDF()" title="Exportar PDF">
             <i data-lucide="file-text"></i> PDF
           </button>
+          <label class="btn btn-ghost btn-sm" title="Importar Excel" style="cursor:pointer;">
+            <i data-lucide="upload"></i> Importar XLS
+            <input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importHospedesXLS(this)">
+          </label>
         </div>
 
         <!-- Vista Cartões -->

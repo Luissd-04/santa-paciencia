@@ -456,6 +456,63 @@ function exportHospedesXLS() {
   toast('📊 Excel exportado!', 'success');
 }
 
+async function importHospedesXLS(input) {
+  if (typeof XLSX === 'undefined') { toast('❌ Biblioteca XLSX não carregada.', 'error'); return; }
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const wb  = XLSX.read(e.target.result, { type: 'array' });
+      const ws  = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (!rows.length) { toast('⚠️ Ficheiro vazio.', 'error'); return; }
+
+      const COL = {
+        nome:      ['Nome', 'Name', 'nome'],
+        email:     ['Email', 'email', 'E-mail'],
+        telefone:  ['Telefone', 'Phone', 'telefone'],
+        pais:      ['País', 'Pais', 'Country', 'Nationality'],
+        nif:       ['NIF', 'nif'],
+        morada:    ['Morada', 'Address', 'morada'],
+        cp:        ['CP', 'Postal Code', 'postal_code'],
+        cidade:    ['Localidade', 'City', 'cidade'],
+      };
+      const pick = (row, keys) => { for (const k of keys) if (row[k] !== undefined && row[k] !== '') return String(row[k]); return ''; };
+
+      let created = 0, skipped = 0;
+      for (const row of rows) {
+        const nome  = pick(row, COL.nome);
+        const email = pick(row, COL.email);
+        if (!nome) { skipped++; continue; }
+        try {
+          const parts = nome.trim().split(' ');
+          await apiPost('/api/guests', {
+            name:       nome,
+            first_name: parts[0] || '',
+            last_name:  parts.slice(1).join(' ') || '',
+            email:      email || `importado_${Date.now()}@sem-email.local`,
+            phone:      pick(row, COL.telefone),
+            country:    pick(row, COL.pais),
+            nif:        pick(row, COL.nif),
+            address:    pick(row, COL.morada),
+            postal_code:pick(row, COL.cp),
+            city:       pick(row, COL.cidade),
+          });
+          created++;
+        } catch { skipped++; }
+      }
+      toast(`✅ ${created} hóspedes importados${skipped ? `, ${skipped} ignorados` : ''}.`, 'success');
+      await loadHospedes();
+    } catch (err) {
+      toast('❌ Erro ao ler ficheiro: ' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 function exportHospedesPDF() {
   if (typeof window.jspdf === 'undefined') { toast('❌ Biblioteca jsPDF não carregada.', 'error'); return; }
   const { jsPDF } = window.jspdf;

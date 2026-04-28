@@ -10,7 +10,17 @@ if (!EMAIL_DISABLED) {
 const BRAND_COLOR = '#843424';
 const ACCENT_COLOR = '#c9a84c';
 
-function getEmailSettings() {
+function getEmailSettings(accommodation) {
+  // If accommodation object provided, prefer its social links
+  if (accommodation) {
+    return {
+      checkin_time:  accommodation.checkin_time  || '15:00',
+      checkout_time: accommodation.checkout_time || '11:00',
+      facebook:  accommodation.social_facebook  || '',
+      instagram: accommodation.social_instagram || '',
+      website:   accommodation.social_website   || '',
+    };
+  }
   try {
     const { db } = require('../config/database');
     const keys = ['checkin_time','checkout_time','social_facebook','social_instagram','social_website'];
@@ -20,22 +30,27 @@ function getEmailSettings() {
     return {
       checkin_time: s.checkin_time || '15:00',
       checkout_time: s.checkout_time || '11:00',
-      facebook: s.social_facebook || '',
+      facebook:  s.social_facebook  || '',
       instagram: s.social_instagram || '',
-      website: s.social_website || '',
+      website:   s.social_website   || '',
     };
   } catch { return { checkin_time: '15:00', checkout_time: '11:00', facebook:'', instagram:'', website:'' }; }
 }
 
+// SVG icons as base64 data URIs for email client compatibility
+const FB_ICON  = `<img src="https://cdn.simpleicons.org/facebook/ffffff" width="20" height="20" alt="f" style="vertical-align:middle;">`;
+const IG_ICON  = `<img src="https://cdn.simpleicons.org/instagram/ffffff" width="20" height="20" alt="ig" style="vertical-align:middle;">`;
+const WEB_ICON = `<img src="https://cdn.simpleicons.org/googlechrome/ffffff" width="20" height="20" alt="web" style="vertical-align:middle;">`;
+
 function buildSocialButtons(settings) {
   const btns = [];
-  if (settings.facebook) btns.push(`<a href="${settings.facebook}" style="display:inline-block;margin:0 5px;padding:8px 18px;background:#1877f2;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600;">Facebook</a>`);
-  if (settings.instagram) btns.push(`<a href="${settings.instagram}" style="display:inline-block;margin:0 5px;padding:8px 18px;background:#e1306c;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600;">Instagram</a>`);
-  if (settings.website) btns.push(`<a href="${settings.website}" style="display:inline-block;margin:0 5px;padding:8px 18px;background:${BRAND_COLOR};color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600;">Website</a>`);
+  if (settings.facebook)  btns.push(`<a href="${settings.facebook}"  style="display:inline-flex;align-items:center;gap:7px;margin:0 5px;padding:9px 18px;background:#1877f2;color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;font-family:sans-serif;">${FB_ICON} Facebook</a>`);
+  if (settings.instagram) btns.push(`<a href="${settings.instagram}" style="display:inline-flex;align-items:center;gap:7px;margin:0 5px;padding:9px 18px;background:#e1306c;color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;font-family:sans-serif;">${IG_ICON} Instagram</a>`);
+  if (settings.website)   btns.push(`<a href="${settings.website}"   style="display:inline-flex;align-items:center;gap:7px;margin:0 5px;padding:9px 18px;background:${BRAND_COLOR};color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;font-family:sans-serif;">${WEB_ICON} Website</a>`);
   if (!btns.length) return '';
   return `<tr><td style="background:${BRAND_COLOR};padding:20px 40px;border-top:1px solid rgba(255,255,255,.1);text-align:center;">
-    <p style="color:rgba(255,255,255,.65);font-size:12px;margin:0 0 12px;letter-spacing:.5px;text-transform:uppercase;">Siga-nos nas redes sociais</p>
-    ${btns.join('')}
+    <p style="color:rgba(255,255,255,.65);font-size:12px;margin:0 0 14px;letter-spacing:.5px;text-transform:uppercase;font-family:sans-serif;">Siga-nos nas redes sociais</p>
+    <div>${btns.join('')}</div>
   </td></tr>`;
 }
 
@@ -107,7 +122,7 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation) {
   const { db } = require('../config/database');
   const template = db.prepare('SELECT * FROM email_templates WHERE slug=? AND active=1').get(slug);
   if (!template) { console.log(`Template ${slug} não encontrado ou inativo`); return null; }
-  const settings = getEmailSettings();
+  const settings = getEmailSettings(accommodation);
   const vars = buildVars(guest, reservation, accommodation, settings);
   const to = guest.email;
   if (!to) return null;

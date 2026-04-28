@@ -1,6 +1,17 @@
 let emailTemplates = [];
-let emailSettings = {};
+let emailSettings  = {};
 let selectedTemplateSlug = null;
+let emailLang = 'pt';
+
+const LANGS = [
+  { code: 'pt', label: 'Português',  flag: '🇵🇹' },
+  { code: 'en', label: 'Inglês',     flag: '🇬🇧' },
+  { code: 'fr', label: 'Francês',    flag: '🇫🇷' },
+  { code: 'es', label: 'Espanhol',   flag: '🇪🇸' },
+  { code: 'de', label: 'Alemão',     flag: '🇩🇪' },
+  { code: 'it', label: 'Italiano',   flag: '🇮🇹' },
+  { code: 'nl', label: 'Neerlandês', flag: '🇳🇱' },
+];
 
 const TEMPLATE_META = {
   confirmacao:    { icon: '✅', label: 'Agradecimento pela reserva', eventLabel: 'Imediatamente após a reserva' },
@@ -11,7 +22,6 @@ const TEMPLATE_META = {
   coordenadas:    { icon: '🗺️', label: 'Envio das coordenadas',       eventLabel: 'Antes do check-in' },
 };
 
-// Categorised variable catalogue
 const TEMPLATE_VAR_CATS = [
   {
     label: 'Hóspede',
@@ -31,21 +41,24 @@ const TEMPLATE_VAR_CATS = [
   {
     label: 'Reserva',
     vars: [
-      { key: 'referencia',   label: 'Referência' },
-      { key: 'data_checkin', label: 'Data de check-in' },
-      { key: 'hora_checkin', label: 'Hora de check-in' },
-      { key: 'data_checkout',label: 'Data de check-out' },
-      { key: 'hora_checkout',label: 'Hora de check-out' },
-      { key: 'noites',       label: 'Noites' },
-      { key: 'num_hospedes', label: 'Nº de hóspedes' },
-      { key: 'total',        label: 'Total (€)' },
+      { key: 'referencia',    label: 'Referência' },
+      { key: 'data_checkin',  label: 'Data de check-in' },
+      { key: 'hora_checkin',  label: 'Hora de check-in' },
+      { key: 'data_checkout', label: 'Data de check-out' },
+      { key: 'hora_checkout', label: 'Hora de check-out' },
+      { key: 'noites',        label: 'Noites' },
+      { key: 'num_hospedes',  label: 'Nº de hóspedes' },
+      { key: 'total',         label: 'Total (€)' },
     ]
   },
 ];
 
 const FIXED_TIMING_EVENTS = ['booking', 'cancellation'];
 
-// Close codes dropdowns when clicking outside
+function langField(lang, field) {
+  return lang === 'pt' ? field : `${field}_${lang}`;
+}
+
 document.addEventListener('click', e => {
   if (!e.target.closest('.codes-dropdown-wrap')) {
     document.querySelectorAll('.codes-dropdown').forEach(d => d.style.display = 'none');
@@ -92,7 +105,7 @@ function renderTemplateList() {
   }).join('');
 }
 
-// ── CODES DROPDOWN HTML ──
+// ── CODES DROPDOWN ──
 function buildCodesDropdown(fieldId) {
   const cats = TEMPLATE_VAR_CATS.map((cat, i) => `
     ${i > 0 ? '<div class="codes-cat-divider"></div>' : ''}
@@ -128,7 +141,6 @@ function buildFmtToolbar() {
       <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtInsert('<ol><li>Item 1</li><li>Item 2</li></ol>')" title="Lista numerada">1. Lista</button>
       <div class="fmt-btn-sep"></div>
       <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtInsert('<hr style=\\"border:none;border-top:1px solid #eee;margin:20px 0\\">')" title="Separador">—</button>
-      <button class="fmt-btn fmt-btn-wide" type="button" onclick="fmtInsert('<br>')" title="Quebra de linha">↵ BR</button>
     </div>`;
 }
 
@@ -164,24 +176,43 @@ function updateEmailPreview() {
 }
 
 function buildEmailPreviewHtml(bodyHtml) {
+  const s = emailSettings;
+  const fb  = s.social_facebook  || s.facebook  || '';
+  const ig  = s.social_instagram || s.instagram || '';
+  const web = s.social_website   || s.website   || '';
+
+  const socialBtns = [
+    fb  ? `<a href="${fb}"  style="display:inline-flex;align-items:center;gap:6px;margin:0 4px;padding:8px 16px;background:#1877f2;color:#fff;border-radius:8px;text-decoration:none;font-size:12px;font-weight:600;">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg> Facebook</a>` : '',
+    ig  ? `<a href="${ig}"  style="display:inline-flex;align-items:center;gap:6px;margin:0 4px;padding:8px 16px;background:#e1306c;color:#fff;border-radius:8px;text-decoration:none;font-size:12px;font-weight:600;">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="#fff" stroke="none"/></svg> Instagram</a>` : '',
+    web ? `<a href="${web}" style="display:inline-flex;align-items:center;gap:6px;margin:0 4px;padding:8px 16px;background:#843424;color:#fff;border-radius:8px;text-decoration:none;font-size:12px;font-weight:600;">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Website</a>` : '',
+  ].filter(Boolean).join('');
+
   return `<!DOCTYPE html>
 <html lang="pt"><head><meta charset="UTF-8">
 <style>*{box-sizing:border-box;}body{margin:0;padding:12px;background:#f4f4f4;font-family:Georgia,serif;}
 h2{color:#843424;margin:0 0 10px;}h3{color:#843424;margin:0 0 8px;}
-p{color:#555;line-height:1.6;margin:0 0 10px;}
-table{width:100%;border-collapse:collapse;font-size:13px;}td{padding:6px 8px;}
-strong{font-weight:700;}a{color:#843424;}</style>
+p{color:#555;line-height:1.6;margin:0 0 10px;}ul,ol{color:#555;line-height:1.7;}
+table{width:100%;border-collapse:collapse;}td{padding:6px 8px;}
+strong{font-weight:700;}a{color:#843424;}hr{border:none;border-top:1px solid #eee;margin:16px 0;}
+</style>
 </head><body>
 <table width="100%" cellpadding="0" cellspacing="0">
 <tr><td align="center">
-<table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);">
-  <tr><td style="background:#843424;padding:20px 30px;text-align:center;">
-    <p style="color:rgba(255,255,255,.9);margin:0;font-family:Georgia,serif;font-size:18px;font-weight:bold;">Santa Paciência</p>
-    <p style="color:rgba(255,255,255,.55);margin:4px 0 0;font-size:11px;letter-spacing:1px;">ALOJAMENTO LOCAL</p>
+<table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);">
+  <tr><td style="background:#843424;padding:24px 32px;text-align:center;">
+    <p style="color:rgba(255,255,255,.95);margin:0;font-family:Georgia,serif;font-size:20px;font-weight:bold;">Santa Paciência</p>
+    <p style="color:rgba(255,255,255,.55);margin:4px 0 0;font-size:11px;letter-spacing:1.5px;font-family:sans-serif;">ALOJAMENTO LOCAL</p>
   </td></tr>
-  <tr><td style="padding:28px 32px;">${bodyHtml}</td></tr>
-  <tr><td style="background:#f8f8f8;padding:16px;border-top:1px solid #eee;text-align:center;">
-    <p style="color:#999;font-size:11px;margin:0;">Santa Paciência · Alojamento Local</p>
+  <tr><td style="padding:28px 32px;font-family:Georgia,serif;">${bodyHtml}</td></tr>
+  ${socialBtns ? `<tr><td style="background:#843424;padding:18px 32px;text-align:center;">
+    <p style="color:rgba(255,255,255,.6);font-size:11px;margin:0 0 12px;letter-spacing:.5px;text-transform:uppercase;font-family:sans-serif;">Siga-nos</p>
+    <div>${socialBtns}</div>
+  </td></tr>` : ''}
+  <tr><td style="background:#f8f8f8;padding:14px;border-top:1px solid #eee;text-align:center;">
+    <p style="color:#999;font-size:11px;margin:0;font-family:sans-serif;">Santa Paciência · Alojamento Local</p>
   </td></tr>
 </table>
 </td></tr>
@@ -189,9 +220,43 @@ strong{font-weight:700;}a{color:#843424;}</style>
 </body></html>`;
 }
 
+// ── LANGUAGE TABS ──
+function buildLangTabs(slug) {
+  return `<div class="email-lang-tabs">
+    ${LANGS.map(l => `
+      <button class="lang-tab${emailLang === l.code ? ' active' : ''}"
+              data-lang="${l.code}"
+              onclick="switchEmailLang('${l.code}','${slug}')">
+        <span>${l.flag}</span> ${l.label}
+      </button>`).join('')}
+  </div>`;
+}
+
+function switchEmailLang(lang, slug) {
+  _saveEditorToTemplate();
+  emailLang = lang;
+  document.querySelectorAll('.lang-tab').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+  const t = emailTemplates.find(x => x.slug === slug);
+  const subj = document.getElementById('et-subject');
+  const body = document.getElementById('et-body');
+  if (subj) subj.value = t?.[langField(lang, 'subject')] || '';
+  if (body) { body.innerHTML = t?.[langField(lang, 'body')] || ''; updateEmailPreview(); }
+}
+
+function _saveEditorToTemplate() {
+  const t = emailTemplates.find(x => x.slug === selectedTemplateSlug);
+  if (!t) return;
+  const subjEl = document.getElementById('et-subject');
+  const bodyEl = document.getElementById('et-body');
+  if (subjEl) t[langField(emailLang, 'subject')] = subjEl.value;
+  if (bodyEl) t[langField(emailLang, 'body')]    = bodyEl.innerHTML;
+}
+
 // ── SELECT TEMPLATE ──
 function selectTemplate(slug) {
+  _saveEditorToTemplate();
   selectedTemplateSlug = slug;
+  emailLang = 'pt';
   renderTemplateList();
   const t = emailTemplates.find(x => x.slug === slug);
   if (!t) return;
@@ -220,8 +285,9 @@ function selectTemplate(slug) {
       <div>
         <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:600;color:var(--azul);">${meta.label || t.name}</div>
       </div>
-      <label class="email-active-toggle">
-        <input type="checkbox" id="et-active" ${t.active ? 'checked' : ''}>
+      <label class="email-active-toggle" style="margin-left:auto;">
+        <input type="checkbox" id="et-active" ${t.active ? 'checked' : ''}
+               onchange="toggleTemplateActive('${slug}')">
         <span class="gtt-switch"></span>
         <span class="gtt-label" style="font-size:13px;">Ativo</span>
       </label>
@@ -233,6 +299,8 @@ function selectTemplate(slug) {
         ${timingHtml}
       </div>
 
+      ${buildLangTabs(slug)}
+
       <div class="form-group">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
           <label class="form-label" style="margin:0;">Assunto</label>
@@ -243,22 +311,19 @@ function selectTemplate(slug) {
 
       <div class="form-group">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <label class="form-label" style="margin:0;">Corpo do email</label>
+          <label class="form-label" style="margin:0;">Mensagem</label>
           ${buildCodesDropdown('et-body')}
         </div>
         ${buildFmtToolbar()}
-        <div class="email-editor-cols">
-          <div class="email-editor-left">
-            <div class="email-body-editor" id="et-body" contenteditable="true" oninput="emailBodyChanged()"></div>
-            <div style="margin-top:6px;font-size:11.5px;color:var(--cinza);">
-              💡 Use os botões acima para formatar. Os códigos <code>{{variavel}}</code> são substituídos automaticamente.
-            </div>
-          </div>
-          <div class="email-editor-right">
-            <div style="font-size:11.5px;font-weight:600;color:var(--cinza);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px;">Pré-visualização</div>
-            <iframe id="et-preview-frame" class="email-preview-frame" sandbox="allow-same-origin"></iframe>
-          </div>
+        <div class="email-body-editor" id="et-body" contenteditable="true" oninput="emailBodyChanged()"></div>
+        <div style="margin-top:5px;font-size:11.5px;color:var(--cinza);">
+          💡 Os códigos <code>{{variavel}}</code> são substituídos automaticamente no envio.
         </div>
+      </div>
+
+      <div class="form-group">
+        <div style="font-size:11.5px;font-weight:600;color:var(--cinza);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">Pré-visualização</div>
+        <iframe id="et-preview-frame" class="email-preview-frame" sandbox="allow-same-origin"></iframe>
       </div>
 
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
@@ -273,7 +338,6 @@ function selectTemplate(slug) {
 
   if (window.lucide) lucide.createIcons();
 
-  // Populate contenteditable with template body and render initial preview
   const editor = document.getElementById('et-body');
   if (editor) {
     editor.innerHTML = t.body || '';
@@ -281,10 +345,23 @@ function selectTemplate(slug) {
   }
 }
 
+// ── TOGGLE ACTIVE (auto-save) ──
+async function toggleTemplateActive(slug) {
+  const active = document.getElementById('et-active')?.checked ?? true;
+  try {
+    await apiPut(`/api/email-templates/${slug}`, { active });
+    const t = emailTemplates.find(x => x.slug === slug);
+    if (t) t.active = active;
+    renderTemplateList();
+    toast(active ? '✅ Email ativado' : '⭕ Email desativado', 'info');
+  } catch (e) {
+    toast('❌ Erro ao guardar.', 'error');
+  }
+}
+
 // ── CODES DROPDOWN LOGIC ──
 function toggleCodesDropdown(fieldId) {
-  const id  = 'codes-dropdown-' + fieldId;
-  const el  = document.getElementById(id);
+  const el = document.getElementById('codes-dropdown-' + fieldId);
   if (!el) return;
   const open = el.style.display !== 'none';
   document.querySelectorAll('.codes-dropdown').forEach(d => d.style.display = 'none');
@@ -313,20 +390,22 @@ function escapeAttr(s) {
   return (s || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function escapeHtml(s) {
-  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
 // ── SAVE TEMPLATE ──
 async function saveTemplate(slug) {
+  _saveEditorToTemplate();
   const t = emailTemplates.find(x => x.slug === slug);
   if (!t) return;
   const isFixed = FIXED_TIMING_EVENTS.includes(t.timing_event);
   const body = {
-    subject: document.getElementById('et-subject')?.value ?? t.subject,
-    body:    document.getElementById('et-body')?.innerHTML ?? t.body,
+    subject: t.subject || '',
+    body:    t.body    || '',
     active:  document.getElementById('et-active')?.checked ?? !!t.active,
   };
+  // All language variants
+  for (const l of LANGS.filter(x => x.code !== 'pt')) {
+    body[langField(l.code, 'subject')] = t[langField(l.code, 'subject')] || '';
+    body[langField(l.code, 'body')]    = t[langField(l.code, 'body')]    || '';
+  }
   if (!isFixed) {
     body.timing_offset    = parseInt(document.getElementById('et-offset')?.value || 0);
     body.timing_unit      = document.getElementById('et-unit')?.value      || t.timing_unit;
@@ -359,60 +438,18 @@ async function previewEmail(slug) {
   }
 }
 
-// ── EMAIL SETTINGS ──
+// ── EMAIL SETTINGS (only sender info now — social/checkin moved to accommodation) ──
 function renderEmailSettings() {
   const el = document.getElementById('email-settings-panel');
   if (!el) return;
-  const s = emailSettings;
   el.innerHTML = `
     <div style="padding:0 12px 12px;">
-      <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);margin-bottom:12px;">Horários</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
-        <div class="form-group" style="margin:0;">
-          <label class="form-label" style="font-size:11.5px;">Check-in</label>
-          <input class="form-control" id="es-checkin-time" type="time" value="${s.checkin_time || '15:00'}" style="font-size:13px;padding:7px 10px;">
-        </div>
-        <div class="form-group" style="margin:0;">
-          <label class="form-label" style="font-size:11.5px;">Check-out</label>
-          <input class="form-control" id="es-checkout-time" type="time" value="${s.checkout_time || '11:00'}" style="font-size:13px;padding:7px 10px;">
-        </div>
+      <div style="font-size:11px;color:var(--cinza);line-height:1.5;background:var(--cinza-claro);border-radius:8px;padding:10px 12px;margin-bottom:12px;">
+        💡 Os horários de check-in/out e as redes sociais são configurados em cada alojamento individualmente.
       </div>
-      <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);margin-bottom:12px;">Redes Sociais</div>
-      <div class="form-group" style="margin-bottom:8px;">
-        <label class="form-label" style="font-size:11.5px;">Facebook</label>
-        <input class="form-control" id="es-facebook" placeholder="https://facebook.com/..." value="${s.social_facebook || s.facebook || ''}" style="font-size:13px;padding:7px 10px;">
-      </div>
-      <div class="form-group" style="margin-bottom:8px;">
-        <label class="form-label" style="font-size:11.5px;">Instagram</label>
-        <input class="form-control" id="es-instagram" placeholder="https://instagram.com/..." value="${s.social_instagram || s.instagram || ''}" style="font-size:13px;padding:7px 10px;">
-      </div>
-      <div class="form-group" style="margin-bottom:12px;">
-        <label class="form-label" style="font-size:11.5px;">Website</label>
-        <input class="form-control" id="es-website" placeholder="https://..." value="${s.social_website || s.website || ''}" style="font-size:13px;padding:7px 10px;">
-      </div>
-      <button class="btn btn-primary btn-sm" style="width:100%;" onclick="saveEmailSettings()">
-        Guardar configurações
+      <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="showView('alojamentos')">
+        ${lcIcon('building-2', 13)} Ir para configurações de alojamento
       </button>
     </div>`;
-}
-
-async function saveEmailSettings() {
-  const body = {
-    checkin_time:     document.getElementById('es-checkin-time')?.value  || '15:00',
-    checkout_time:    document.getElementById('es-checkout-time')?.value || '11:00',
-    social_facebook:  document.getElementById('es-facebook')?.value  || '',
-    social_instagram: document.getElementById('es-instagram')?.value || '',
-    social_website:   document.getElementById('es-website')?.value   || '',
-  };
-  try {
-    const res = await apiPut('/api/email-templates/email-settings', body);
-    if (res.success) {
-      toast('✅ Configurações guardadas!', 'success');
-      emailSettings = { ...emailSettings, ...body };
-    } else {
-      toast('❌ Erro ao guardar configurações.', 'error');
-    }
-  } catch (e) {
-    toast('❌ Erro de ligação ao servidor.', 'error');
-  }
+  if (window.lucide) lucide.createIcons();
 }
