@@ -77,6 +77,15 @@
 
       <!-- ══ DASHBOARD ══ -->
       <div class="view active" id="view-dashboard">
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;">
+          <button class="btn btn-ghost btn-sm" onclick="exportDB()" title="Exportar base de dados completa">
+            <i data-lucide="download" style="width:13px;height:13px;"></i> Exportar BD
+          </button>
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0;" title="Importar base de dados completa (substitui dados existentes)">
+            <i data-lucide="upload" style="width:13px;height:13px;"></i> Importar BD
+            <input type="file" accept=".json" style="display:none" onchange="importDB(this)">
+          </label>
+        </div>
         <div class="kpi-grid">
           <div class="kpi-card">
             <div class="kpi-label">Total Faturado</div>
@@ -959,7 +968,6 @@
           <i data-lucide="user"></i> Dados do Hóspede Principal
         </div>
 
-        <!-- Obrigatórios -->
         <div class="form-group">
           <label class="form-label">Nome <span class="req-star">*</span></label>
           <input class="form-control" id="f-primeiro-nome" placeholder="Primeiro nome">
@@ -974,59 +982,49 @@
         </div>
         <div class="form-group">
           <label class="form-label">Telefone <span class="req-star">*</span></label>
-          <input class="form-control" id="f-tel" placeholder="+351...">
+          <div class="phone-group">
+            <select class="form-control phone-prefix" id="f-tel-prefix"></select>
+            <input class="form-control phone-number" id="f-tel-num" type="tel" placeholder="912 345 678">
+          </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Nacionalidade <span class="req-star">*</span></label>
-          <input class="form-control" id="f-nacionalidade" placeholder="Portuguesa">
+          <label class="form-label">País <span class="req-star">*</span></label>
+          <select class="form-control" id="f-pais"></select>
         </div>
         <div class="form-group">
-          <label class="form-label">País</label>
-          <input class="form-control" id="f-pais" placeholder="Portugal">
+          <label class="form-label">Data de Nascimento</label>
+          <input class="form-control" id="f-nascimento" type="date">
         </div>
-
-        <!-- Opcionais (colapsáveis) -->
-        <div class="form-full">
-          <button type="button" class="btn btn-ghost btn-sm" style="font-size:12px;padding:6px 10px;" onclick="toggleGuestExtra(this)">
-            <i data-lucide="chevron-down" style="width:13px;height:13px;"></i> Dados adicionais (opcional)
-          </button>
+        <div class="form-group">
+          <label class="form-label">Tipo de Documento</label>
+          <select class="form-control" id="f-doc-tipo">
+            <option value="">— Selecionar —</option>
+            <option value="cc">Cartão de Cidadão</option>
+            <option value="bi">Bilhete de Identidade</option>
+            <option value="passaporte">Passaporte</option>
+            <option value="nie">NIE</option>
+            <option value="outro">Outro</option>
+          </select>
         </div>
-        <div id="guest-extra-fields" class="guest-extra-fields-wrap" style="display:none">
-          <div class="form-group">
-            <label class="form-label">Tipo de Documento</label>
-            <select class="form-control" id="f-doc-tipo">
-              <option value="">— Selecionar —</option>
-              <option value="cc">Cartão de Cidadão</option>
-              <option value="bi">Bilhete de Identidade</option>
-              <option value="passaporte">Passaporte</option>
-              <option value="nie">NIE</option>
-              <option value="outro">Outro</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Nº de Documento</label>
-            <input class="form-control" id="f-doc-num" placeholder="XX000000">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Data de Nascimento</label>
-            <input class="form-control" id="f-nascimento" type="date">
-          </div>
-          <div class="form-group">
-            <label class="form-label">NIF</label>
-            <input class="form-control" id="f-nif" placeholder="000 000 000">
-          </div>
-          <div class="form-group form-full">
-            <label class="form-label">Morada</label>
-            <input class="form-control" id="f-morada" placeholder="Rua, nº">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Código Postal</label>
-            <input class="form-control" id="f-cp" placeholder="0000-000">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Localidade</label>
-            <input class="form-control" id="f-cidade" placeholder="Lisboa">
-          </div>
+        <div class="form-group">
+          <label class="form-label">Nº de Documento</label>
+          <input class="form-control" id="f-doc-num" placeholder="XX000000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">NIF</label>
+          <input class="form-control" id="f-nif" placeholder="000 000 000">
+        </div>
+        <div class="form-group form-full">
+          <label class="form-label">Morada</label>
+          <input class="form-control" id="f-morada" placeholder="Rua, nº">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Código Postal</label>
+          <input class="form-control" id="f-cp" placeholder="0000-000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Localidade</label>
+          <input class="form-control" id="f-cidade" placeholder="Lisboa">
         </div>
 
         <!-- ── DETALHES DA RESERVA ── -->

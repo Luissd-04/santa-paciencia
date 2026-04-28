@@ -11,6 +11,7 @@ const authRoutes = require('./routes/auth');
 const guestRoutes = require('./routes/guests');
 const emailTemplateRoutes = require('./routes/emailTemplates');
 const expenseRoutes = require('./routes/expenses');
+const backupRoutes = require('./routes/backup');
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use('/auth', authRoutes);
 app.use('/api/guests', guestRoutes);
 app.use('/api/email-templates', emailTemplateRoutes);
 app.use('/api/expenses', expenseRoutes);
+app.use('/api/backup', backupRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

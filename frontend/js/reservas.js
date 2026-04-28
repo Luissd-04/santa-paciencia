@@ -1,6 +1,68 @@
 let sortCol = 'check_in';
 let sortAsc = true;
 
+const DIAL_DIAL_COUNTRIES = [
+  { code:'PT', name:'Portugal',         dial:'+351', flag:'🇵🇹' },
+  { code:'ES', name:'Espanha',          dial:'+34',  flag:'🇪🇸' },
+  { code:'FR', name:'França',           dial:'+33',  flag:'🇫🇷' },
+  { code:'GB', name:'Reino Unido',      dial:'+44',  flag:'🇬🇧' },
+  { code:'DE', name:'Alemanha',         dial:'+49',  flag:'🇩🇪' },
+  { code:'IT', name:'Itália',           dial:'+39',  flag:'🇮🇹' },
+  { code:'NL', name:'Países Baixos',    dial:'+31',  flag:'🇳🇱' },
+  { code:'BE', name:'Bélgica',          dial:'+32',  flag:'🇧🇪' },
+  { code:'CH', name:'Suíça',            dial:'+41',  flag:'🇨🇭' },
+  { code:'AT', name:'Áustria',          dial:'+43',  flag:'🇦🇹' },
+  { code:'SE', name:'Suécia',           dial:'+46',  flag:'🇸🇪' },
+  { code:'NO', name:'Noruega',          dial:'+47',  flag:'🇳🇴' },
+  { code:'DK', name:'Dinamarca',        dial:'+45',  flag:'🇩🇰' },
+  { code:'FI', name:'Finlândia',        dial:'+358', flag:'🇫🇮' },
+  { code:'IE', name:'Irlanda',          dial:'+353', flag:'🇮🇪' },
+  { code:'PL', name:'Polónia',          dial:'+48',  flag:'🇵🇱' },
+  { code:'CZ', name:'República Checa',  dial:'+420', flag:'🇨🇿' },
+  { code:'HU', name:'Hungria',          dial:'+36',  flag:'🇭🇺' },
+  { code:'RO', name:'Roménia',          dial:'+40',  flag:'🇷🇴' },
+  { code:'GR', name:'Grécia',           dial:'+30',  flag:'🇬🇷' },
+  { code:'US', name:'Estados Unidos',   dial:'+1',   flag:'🇺🇸' },
+  { code:'CA', name:'Canadá',           dial:'+1',   flag:'🇨🇦' },
+  { code:'MX', name:'México',           dial:'+52',  flag:'🇲🇽' },
+  { code:'BR', name:'Brasil',           dial:'+55',  flag:'🇧🇷' },
+  { code:'AR', name:'Argentina',        dial:'+54',  flag:'🇦🇷' },
+  { code:'CL', name:'Chile',            dial:'+56',  flag:'🇨🇱' },
+  { code:'CO', name:'Colômbia',         dial:'+57',  flag:'🇨🇴' },
+  { code:'AO', name:'Angola',           dial:'+244', flag:'🇦🇴' },
+  { code:'MZ', name:'Moçambique',       dial:'+258', flag:'🇲🇿' },
+  { code:'CV', name:'Cabo Verde',       dial:'+238', flag:'🇨🇻' },
+  { code:'GW', name:'Guiné-Bissau',     dial:'+245', flag:'🇬🇼' },
+  { code:'ST', name:'São Tomé e Príncipe', dial:'+239', flag:'🇸🇹' },
+  { code:'ZA', name:'África do Sul',    dial:'+27',  flag:'🇿🇦' },
+  { code:'MA', name:'Marrocos',         dial:'+212', flag:'🇲🇦' },
+  { code:'CN', name:'China',            dial:'+86',  flag:'🇨🇳' },
+  { code:'JP', name:'Japão',            dial:'+81',  flag:'🇯🇵' },
+  { code:'KR', name:'Coreia do Sul',    dial:'+82',  flag:'🇰🇷' },
+  { code:'IN', name:'Índia',            dial:'+91',  flag:'🇮🇳' },
+  { code:'AU', name:'Austrália',        dial:'+61',  flag:'🇦🇺' },
+  { code:'NZ', name:'Nova Zelândia',    dial:'+64',  flag:'🇳🇿' },
+  { code:'RU', name:'Rússia',           dial:'+7',   flag:'🇷🇺' },
+  { code:'TR', name:'Turquia',          dial:'+90',  flag:'🇹🇷' },
+  { code:'IL', name:'Israel',           dial:'+972', flag:'🇮🇱' },
+  { code:'AE', name:'Emirados Árabes',  dial:'+971', flag:'🇦🇪' },
+  { code:'LU', name:'Luxemburgo',       dial:'+352', flag:'🇱🇺' },
+  { code:'SK', name:'Eslováquia',       dial:'+421', flag:'🇸🇰' },
+  { code:'HR', name:'Croácia',          dial:'+385', flag:'🇭🇷' },
+  { code:'UA', name:'Ucrânia',          dial:'+380', flag:'🇺🇦' },
+];
+
+function buildCountrySelects() {
+  const prefixOpts = DIAL_DIAL_COUNTRIES.map(c =>
+    `<option value="${c.dial}" data-code="${c.code}">${c.flag} ${c.dial}</option>`
+  ).join('');
+  const countryOpts = '<option value="">— País —</option>' +
+    DIAL_DIAL_COUNTRIES.map(c => `<option value="${c.name}">${c.flag} ${c.name}</option>`).join('');
+
+  document.querySelectorAll('.phone-prefix').forEach(el => { el.innerHTML = prefixOpts; });
+  document.querySelectorAll('select#f-pais, select.guest-country').forEach(el => { el.innerHTML = countryOpts; });
+}
+
 async function loadReservas() {
   document.getElementById('tabela-loading').style.display = 'flex';
   document.getElementById('tabela-body').innerHTML = '';
@@ -101,30 +163,22 @@ function renderTabela() {
   if (window.lucide) lucide.createIcons();
 }
 
-function toggleGuestExtra(btn) {
-  const wrap = document.getElementById('guest-extra-fields');
-  if (!wrap) return;
-  const open = wrap.classList.toggle('open');
-  wrap.style.display = open ? '' : 'none';
-  const icon = btn.querySelector('i[data-lucide]');
-  if (icon) { icon.setAttribute('data-lucide', open ? 'chevron-up' : 'chevron-down'); if (window.lucide) lucide.createIcons(); }
-}
-
 function _resetGuestFields() {
-  ['f-primeiro-nome','f-apelido','f-email','f-tel','f-nacionalidade','f-pais',
+  ['f-primeiro-nome','f-apelido','f-email','f-tel-num',
    'f-doc-num','f-nascimento','f-nif','f-morada','f-cp','f-cidade','f-notas'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   const docTipo = document.getElementById('f-doc-tipo'); if (docTipo) docTipo.value = '';
+  const pais = document.getElementById('f-pais'); if (pais) pais.value = '';
+  const prefix = document.getElementById('f-tel-prefix'); if (prefix) prefix.value = '+351';
   const rgpd = document.getElementById('f-rgpd-check'); if (rgpd) { rgpd.checked = false; rgpd.closest('.rgpd-box')?.classList.remove('rgpd-accepted'); }
-  const extra = document.getElementById('guest-extra-fields');
-  if (extra) { extra.classList.remove('open'); extra.style.display = 'none'; }
 }
 
 function openModal() {
   editingId = null;
   document.getElementById('modal-title').textContent = 'Nova Reserva';
   document.getElementById('btn-guardar').textContent = 'Guardar Reserva';
+  buildCountrySelects();
   _resetGuestFields();
   document.getElementById('f-checkin').value = '';
   document.getElementById('f-checkout').value = '';
@@ -148,15 +202,24 @@ async function openEditModal(id) {
     editingId = id;
     document.getElementById('modal-title').textContent = 'Editar Reserva — ' + id;
     document.getElementById('btn-guardar').textContent = 'Atualizar Reserva';
+    buildCountrySelects();
     _resetGuestFields();
 
     const nameParts = (r.guest_name || '').trim().split(' ');
     document.getElementById('f-primeiro-nome').value = guestFull.first_name || nameParts[0] || '';
     document.getElementById('f-apelido').value        = guestFull.last_name  || nameParts.slice(1).join(' ') || '';
     document.getElementById('f-email').value          = r.guest_email || '';
-    document.getElementById('f-tel').value            = r.guest_phone || '';
-    document.getElementById('f-nacionalidade').value  = guestFull.nationality || '';
-    document.getElementById('f-pais').value           = guestFull.country || '';
+    // Split stored phone into prefix + number
+    const rawPhone = r.guest_phone || guestFull.phone || '';
+    const matchedCountry = DIAL_COUNTRIES.find(c => rawPhone.startsWith(c.dial));
+    if (matchedCountry) {
+      document.getElementById('f-tel-prefix').value = matchedCountry.dial;
+      document.getElementById('f-tel-num').value = rawPhone.slice(matchedCountry.dial.length).trim();
+    } else {
+      document.getElementById('f-tel-num').value = rawPhone;
+    }
+    const countryName = guestFull.country || guestFull.nationality || '';
+    document.getElementById('f-pais').value           = countryName;
     document.getElementById('f-doc-tipo').value       = guestFull.document_type || '';
     document.getElementById('f-doc-num').value        = guestFull.document_number || '';
     document.getElementById('f-nascimento').value     = guestFull.birth_date || '';
@@ -164,11 +227,6 @@ async function openEditModal(id) {
     document.getElementById('f-morada').value         = guestFull.address || '';
     document.getElementById('f-cp').value             = guestFull.postal_code || '';
     document.getElementById('f-cidade').value         = guestFull.city || '';
-
-    if (guestFull.document_type || guestFull.document_number || guestFull.birth_date || guestFull.nif || guestFull.address) {
-      const extra = document.getElementById('guest-extra-fields');
-      if (extra) { extra.classList.add('open'); extra.style.display = ''; }
-    }
 
     document.getElementById('f-checkin').value       = r.check_in || '';
     document.getElementById('f-checkout').value      = r.check_out || '';
@@ -191,10 +249,20 @@ async function openEditModal(id) {
     guestsData.forEach((g, idx) => {
       const rows = document.querySelectorAll('.extra-guest-row');
       if (!rows[idx]) return;
-      rows[idx].querySelector('[data-field="name"]').value        = g.name        || '';
-      rows[idx].querySelector('[data-field="email"]').value       = g.email       || '';
-      rows[idx].querySelector('[data-field="phone"]').value       = g.phone       || '';
-      rows[idx].querySelector('[data-field="nationality"]').value = g.nationality || '';
+      const row = rows[idx];
+      const setVal = (field, val) => { const el = row.querySelector(`[data-field="${field}"]`); if (el) el.value = val || ''; };
+      setVal('first_name', g.first_name || (g.name || '').split(' ')[0]);
+      setVal('last_name',  g.last_name  || (g.name || '').split(' ').slice(1).join(' '));
+      setVal('email',      g.email);
+      const rawP = g.phone || '';
+      const mc = DIAL_COUNTRIES.find(c => rawP.startsWith(c.dial));
+      setVal('tel_prefix', mc ? mc.dial : '+351');
+      setVal('tel_num', mc ? rawP.slice(mc.dial.length).trim() : rawP);
+      setVal('country',        g.country || g.nationality);
+      setVal('doc_type',       g.document_type);
+      setVal('doc_number',     g.document_number);
+      setVal('birth_date',     g.birth_date);
+      setVal('nif',            g.nif);
     });
     document.getElementById('modal-bg').classList.add('open');
   } catch (e) {
@@ -232,57 +300,127 @@ function renderExtraGuests() {
   if (!wrap || !container) return;
   if (n <= 1) { wrap.style.display = 'none'; container.innerHTML = ''; return; }
   wrap.style.display = '';
-  // Preserve existing values before re-render
+
   const existing = Array.from(container.querySelectorAll('.extra-guest-row')).map(row => ({
-    name: row.querySelector('[data-field="name"]')?.value || '',
-    email: row.querySelector('[data-field="email"]')?.value || '',
-    phone: row.querySelector('[data-field="phone"]')?.value || '',
-    nationality: row.querySelector('[data-field="nationality"]')?.value || '',
+    first_name:      row.querySelector('[data-field="first_name"]')?.value      || '',
+    last_name:       row.querySelector('[data-field="last_name"]')?.value       || '',
+    email:           row.querySelector('[data-field="email"]')?.value           || '',
+    tel_prefix:      row.querySelector('[data-field="tel_prefix"]')?.value      || '+351',
+    tel_num:         row.querySelector('[data-field="tel_num"]')?.value         || '',
+    country:         row.querySelector('[data-field="country"]')?.value         || '',
+    doc_type:        row.querySelector('[data-field="doc_type"]')?.value        || '',
+    doc_number:      row.querySelector('[data-field="doc_number"]')?.value      || '',
+    birth_date:      row.querySelector('[data-field="birth_date"]')?.value      || '',
+    nif:             row.querySelector('[data-field="nif"]')?.value             || '',
   }));
+
+  const prefixOpts = DIAL_COUNTRIES.map(c =>
+    `<option value="${c.dial}">${c.flag} ${c.dial}</option>`
+  ).join('');
+  const countryOpts = '<option value="">— País —</option>' +
+    DIAL_COUNTRIES.map(c => `<option value="${c.name}">${c.flag} ${c.name}</option>`).join('');
+
   container.innerHTML = '';
   for (let i = 2; i <= n; i++) {
-    const prev = existing[i - 2] || {};
+    const p = existing[i - 2] || {};
     container.innerHTML += `
       <div class="extra-guest-row" style="background:var(--cinza-claro);border-radius:10px;padding:14px;margin-bottom:12px;">
         <div style="font-size:12px;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Hóspede ${i}</div>
-        <div class="form-grid" style="margin:0;">
+        <div class="form-grid" style="margin:0;gap:12px;">
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Nome</label>
-            <input class="form-control" data-field="name" placeholder="Nome completo" value="${prev.name || ''}">
+            <input class="form-control" data-field="first_name" placeholder="Primeiro nome" value="${p.first_name || ''}">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Apelido</label>
+            <input class="form-control" data-field="last_name" placeholder="Apelido" value="${p.last_name || ''}">
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Email</label>
-            <input class="form-control" data-field="email" type="email" placeholder="email@exemplo.com" value="${prev.email || ''}">
+            <input class="form-control" data-field="email" type="email" placeholder="email@exemplo.com" value="${p.email || ''}">
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Telefone</label>
-            <input class="form-control" data-field="phone" placeholder="+351..." value="${prev.phone || ''}">
+            <div class="phone-group">
+              <select class="form-control phone-prefix" data-field="tel_prefix">${prefixOpts}</select>
+              <input class="form-control phone-number" data-field="tel_num" type="tel" placeholder="912 345 678" value="${p.tel_num || ''}">
+            </div>
           </div>
           <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Nacionalidade</label>
-            <input class="form-control" data-field="nationality" placeholder="Portuguesa" value="${prev.nationality || ''}">
+            <label class="form-label">País</label>
+            <select class="form-control guest-country" data-field="country">${countryOpts}</select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Tipo de Documento</label>
+            <select class="form-control" data-field="doc_type">
+              <option value="">— Selecionar —</option>
+              <option value="cc">Cartão de Cidadão</option>
+              <option value="bi">Bilhete de Identidade</option>
+              <option value="passaporte">Passaporte</option>
+              <option value="nie">NIE</option>
+              <option value="outro">Outro</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Nº de Documento</label>
+            <input class="form-control" data-field="doc_number" placeholder="XX000000" value="${p.doc_number || ''}">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Data de Nascimento</label>
+            <input class="form-control" data-field="birth_date" type="date" value="${p.birth_date || ''}">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">NIF</label>
+            <input class="form-control" data-field="nif" placeholder="000 000 000" value="${p.nif || ''}">
           </div>
         </div>
       </div>`;
   }
+
+  // Restore select values after DOM insertion
+  container.querySelectorAll('.extra-guest-row').forEach((row, idx) => {
+    const p = existing[idx] || {};
+    const prefixSel = row.querySelector('[data-field="tel_prefix"]');
+    if (prefixSel && p.tel_prefix) prefixSel.value = p.tel_prefix;
+    const countrySel = row.querySelector('[data-field="country"]');
+    if (countrySel && p.country) countrySel.value = p.country;
+    const docSel = row.querySelector('[data-field="doc_type"]');
+    if (docSel && p.doc_type) docSel.value = p.doc_type;
+  });
+
   if (window.lucide) lucide.createIcons();
 }
 
 function collectExtraGuests() {
-  return Array.from(document.querySelectorAll('.extra-guest-row')).map(row => ({
-    name:        row.querySelector('[data-field="name"]')?.value        || '',
-    email:       row.querySelector('[data-field="email"]')?.value       || '',
-    phone:       row.querySelector('[data-field="phone"]')?.value       || '',
-    nationality: row.querySelector('[data-field="nationality"]')?.value || '',
-  })).filter(g => g.name || g.email);
+  return Array.from(document.querySelectorAll('.extra-guest-row')).map(row => {
+    const first_name  = row.querySelector('[data-field="first_name"]')?.value  || '';
+    const last_name   = row.querySelector('[data-field="last_name"]')?.value   || '';
+    const tel_prefix  = row.querySelector('[data-field="tel_prefix"]')?.value  || '';
+    const tel_num     = row.querySelector('[data-field="tel_num"]')?.value     || '';
+    return {
+      name:           (first_name + ' ' + last_name).trim(),
+      first_name,
+      last_name,
+      email:          row.querySelector('[data-field="email"]')?.value          || '',
+      phone:          tel_prefix + tel_num.replace(/\s/g, ''),
+      nationality:    row.querySelector('[data-field="country"]')?.value        || '',
+      country:        row.querySelector('[data-field="country"]')?.value        || '',
+      document_type:  row.querySelector('[data-field="doc_type"]')?.value      || '',
+      document_number:row.querySelector('[data-field="doc_number"]')?.value    || '',
+      birth_date:     row.querySelector('[data-field="birth_date"]')?.value    || '',
+      nif:            row.querySelector('[data-field="nif"]')?.value           || '',
+    };
+  }).filter(g => g.first_name || g.email);
 }
 
 async function saveReserva() {
   const primeiroNome = document.getElementById('f-primeiro-nome').value.trim();
   const apelido      = document.getElementById('f-apelido').value.trim();
   const email        = document.getElementById('f-email').value.trim();
-  const tel          = document.getElementById('f-tel').value.trim();
-  const nacionalidade = document.getElementById('f-nacionalidade').value.trim();
+  const telPrefix    = document.getElementById('f-tel-prefix')?.value || '';
+  const telNum       = document.getElementById('f-tel-num')?.value.trim() || '';
+  const tel          = telPrefix + telNum.replace(/\s/g, '');
+  const pais         = document.getElementById('f-pais').value.trim();
   const checkin  = document.getElementById('f-checkin').value;
   const checkout = document.getElementById('f-checkout').value;
   const alojId   = document.getElementById('f-aloj').value;
@@ -291,8 +429,8 @@ async function saveReserva() {
   if (!primeiroNome) { toast('Por favor insira o nome do hóspede.', 'error'); return; }
   if (!apelido)      { toast('Por favor insira o apelido do hóspede.', 'error'); return; }
   if (!email)        { toast('Por favor insira o email do hóspede.', 'error'); return; }
-  if (!tel)          { toast('Por favor insira o telefone do hóspede.', 'error'); return; }
-  if (!nacionalidade){ toast('Por favor insira a nacionalidade do hóspede.', 'error'); return; }
+  if (!telNum)       { toast('Por favor insira o telefone do hóspede.', 'error'); return; }
+  if (!pais)         { toast('Por favor selecione o país do hóspede.', 'error'); return; }
   if (!checkin || !checkout) { toast('Por favor selecione as datas.', 'error'); return; }
   if (checkin >= checkout) { toast('O check-out deve ser depois do check-in.', 'error'); return; }
   if (rgpdCheck && !rgpdCheck.checked) {
@@ -319,15 +457,14 @@ async function saveReserva() {
         guests_data: collectExtraGuests(),
         guest: {
           name: nomeFull, first_name: primeiroNome, last_name: apelido,
-          email, phone: tel, nationality: nacionalidade,
-          country:        document.getElementById('f-pais')?.value        || null,
-          document_type:  document.getElementById('f-doc-tipo')?.value    || null,
-          document_number:document.getElementById('f-doc-num')?.value     || null,
-          birth_date:     document.getElementById('f-nascimento')?.value  || null,
-          nif:            document.getElementById('f-nif')?.value         || null,
-          address:        document.getElementById('f-morada')?.value      || null,
-          postal_code:    document.getElementById('f-cp')?.value          || null,
-          city:           document.getElementById('f-cidade')?.value      || null,
+          email, phone: tel, nationality: pais, country: pais,
+          document_type:   document.getElementById('f-doc-tipo')?.value   || null,
+          document_number: document.getElementById('f-doc-num')?.value    || null,
+          birth_date:      document.getElementById('f-nascimento')?.value || null,
+          nif:             document.getElementById('f-nif')?.value        || null,
+          address:         document.getElementById('f-morada')?.value     || null,
+          postal_code:     document.getElementById('f-cp')?.value         || null,
+          city:            document.getElementById('f-cidade')?.value     || null,
         },
       };
       const res = await apiPut(`/api/reservations/${editingId}`, body);
@@ -343,15 +480,14 @@ async function saveReserva() {
       const body = {
         guest: {
           name: nomeFull, first_name: primeiroNome, last_name: apelido,
-          email, phone: tel, nationality: nacionalidade,
-          country:        document.getElementById('f-pais')?.value        || null,
-          document_type:  document.getElementById('f-doc-tipo')?.value    || null,
-          document_number:document.getElementById('f-doc-num')?.value     || null,
-          birth_date:     document.getElementById('f-nascimento')?.value  || null,
-          nif:            document.getElementById('f-nif')?.value         || null,
-          address:        document.getElementById('f-morada')?.value      || null,
-          postal_code:    document.getElementById('f-cp')?.value          || null,
-          city:           document.getElementById('f-cidade')?.value      || null,
+          email, phone: tel, nationality: pais, country: pais,
+          document_type:   document.getElementById('f-doc-tipo')?.value   || null,
+          document_number: document.getElementById('f-doc-num')?.value    || null,
+          birth_date:      document.getElementById('f-nascimento')?.value || null,
+          nif:             document.getElementById('f-nif')?.value        || null,
+          address:         document.getElementById('f-morada')?.value     || null,
+          postal_code:     document.getElementById('f-cp')?.value         || null,
+          city:            document.getElementById('f-cidade')?.value     || null,
         },
         accommodation_id: alojId,
         check_in: checkin,

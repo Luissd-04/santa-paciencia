@@ -1384,6 +1384,20 @@ select.form-control { cursor:pointer; }
   border-top: 1px solid var(--cinza-claro);
 }
 
+/* ── Phone group (prefix select + number input) ── */
+.phone-group { display:flex; }
+.phone-group .phone-prefix {
+  width: 110px; min-width: 110px; flex-shrink: 0;
+  border-radius: var(--raio) 0 0 var(--raio);
+  border-right: none;
+  font-size: 13px;
+}
+.phone-group .phone-number {
+  flex: 1;
+  border-radius: 0 var(--raio) var(--raio) 0;
+}
+.phone-group .phone-prefix:focus { z-index: 1; }
+
 /* ── Guest extra fields pass-through grid ── */
 .guest-extra-fields-wrap { display: none; }
 .guest-extra-fields-wrap.open { display: contents; }

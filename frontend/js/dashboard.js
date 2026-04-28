@@ -1,3 +1,43 @@
+async function exportDB() {
+  try {
+    const res = await fetch(API_BASE + '/api/backup/export');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `santa_paciencia_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('✅ Base de dados exportada!', 'success');
+  } catch (e) {
+    toast('❌ Erro ao exportar base de dados.', 'error');
+  }
+}
+
+async function importDB(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (!confirm('⚠️ Isto vai SUBSTITUIR toda a base de dados atual pelos dados do ficheiro. Tem a certeza?')) {
+    input.value = '';
+    return;
+  }
+  try {
+    const text = await file.text();
+    const json = JSON.parse(text);
+    if (!json.tables) { toast('❌ Ficheiro inválido.', 'error'); input.value = ''; return; }
+    const res = await apiPost('/api/backup/import', json);
+    if (res.success) {
+      toast('✅ Base de dados importada! A recarregar...', 'success');
+      setTimeout(() => window.location.reload(), 1500);
+    } else {
+      toast('❌ ' + (res.error || 'Erro ao importar.'), 'error');
+    }
+  } catch (e) {
+    toast('❌ Ficheiro inválido ou erro de ligação.', 'error');
+  }
+  input.value = '';
+}
+
 async function loadDashboardStats() {
   try {
     const data = await apiGet('/api/reservations/stats/dashboard');
