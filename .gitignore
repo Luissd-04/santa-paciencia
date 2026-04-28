@@ -12,3 +12,10 @@ build/
 # tokens sensíveis
 tokens/
 google_token.json
+
+# sqlite temp files
+*.db-shm
+*.db-wal
+
+# uploads (opcional mas recomendado)
+backend/src/data/uploads/

@@ -1,0 +1,8 @@
+node_modules
+backend/src/data
+backend/src/.env
+backend/tokens
+*.db
+*.sqlite
+.DS_Store
+.git

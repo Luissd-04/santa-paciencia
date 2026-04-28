@@ -36,9 +36,15 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Servir ficheiros de upload (imagens dos alojamentos)
 const path = require('path');
+
+// Servir ficheiros de upload (imagens dos alojamentos)
 app.use('/uploads', require('express').static(path.resolve('./data/uploads')));
+
+// Servir frontend estático (apenas em produção via Docker)
+if (process.env.FRONTEND_PATH) {
+  app.use(express.static(process.env.FRONTEND_PATH));
+}
 
 // Inicializar base de dados
 initDatabase();
