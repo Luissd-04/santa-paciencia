@@ -214,4 +214,24 @@ function safeJson(v, def) {
   try { return v ? JSON.parse(v) : def; } catch { return def; }
 }
 
-module.exports = { getAll, getById, create, update, uploadCover, uploadImages, deleteImage, patchImages, getSettings, saveSettings };
+// ─── DELETE ───────────────────────────────────────────────
+function remove(req, res) {
+  const acc = db.prepare('SELECT * FROM accommodations WHERE id = ?').get(req.params.id);
+  if (!acc) return res.status(404).json({ success: false, error: 'Alojamento não encontrado.' });
+
+  const active = db.prepare(
+    "SELECT COUNT(*) as c FROM reservations WHERE accommodation_id = ? AND status != 'cancelada'"
+  ).get(req.params.id);
+  if (active.c > 0) {
+    return res.status(409).json({
+      success: false,
+      error: `Não é possível apagar: o alojamento tem ${active.c} reserva(s) ativa(s).`
+    });
+  }
+
+  db.prepare('DELETE FROM reservations WHERE accommodation_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM accommodations WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+}
+
+module.exports = { getAll, getById, create, update, remove, uploadCover, uploadImages, deleteImage, patchImages, getSettings, saveSettings };

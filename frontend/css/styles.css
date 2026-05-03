@@ -56,7 +56,8 @@ i[data-lucide] { display:inline-flex; align-items:center; justify-content:center
   position: fixed;
   top:0; left:0; bottom:0;
   z-index: 100;
-  transition: transform .3s;
+  transition: transform .3s, width .25s ease;
+  overflow: hidden;
 }
 
 .sidebar-brand {
@@ -112,7 +113,30 @@ i[data-lucide] { display:inline-flex; align-items:center; justify-content:center
   border-top: 1px solid rgba(255,255,255,.06);
   font-size: 11px;
   color: rgba(255,255,255,.25);
+  transition: opacity .2s;
 }
+
+/* ── Sidebar collapse toggle button ── */
+.sb-collapse-btn {
+  display: flex; align-items: center; justify-content: flex-end;
+  width: 100%; padding: 10px 14px 4px;
+  background: none; border: none; cursor: pointer;
+  color: rgba(255,255,255,.4); transition: color .2s;
+  flex-shrink: 0;
+}
+.sb-collapse-btn:hover { color: rgba(255,255,255,.85); }
+
+/* ── Collapsed state ── */
+.layout.sb-collapsed .sidebar { width: 56px; }
+.layout.sb-collapsed .main    { margin-left: 56px; }
+.layout.sb-collapsed .sb-label { display: none; }
+.layout.sb-collapsed .nav-label { display: none; }
+.layout.sb-collapsed .sidebar-brand { padding: 8px 0 12px; }
+.layout.sb-collapsed .sidebar-nav { padding: 8px 4px; }
+.layout.sb-collapsed .nav-item { justify-content: center; padding: 10px 0; gap: 0; }
+.layout.sb-collapsed .nav-item.active { border-left: 3px solid var(--dourado); padding-left: 0; }
+.layout.sb-collapsed .sb-collapse-btn { justify-content: center; padding: 10px 0 4px; }
+.layout.sb-collapsed .sidebar-footer { padding: 12px 0; text-align: center; font-size: 9px; }
 
 .main {
   margin-left: 240px;
@@ -121,6 +145,7 @@ i[data-lucide] { display:inline-flex; align-items:center; justify-content:center
   flex-direction:column;
   min-height: 100vh;
   min-width: 0;
+  transition: margin-left .25s ease;
 }
 
 .topbar {
@@ -1383,6 +1408,17 @@ select.form-control { cursor:pointer; }
   padding: 10px 16px;
   border-top: 1px solid var(--cinza-claro);
 }
+
+/* ── Password field with eye toggle ── */
+.password-field { position:relative; display:flex; }
+.password-field .form-control { flex:1; padding-right:40px; }
+.password-eye {
+  position:absolute; right:0; top:0; bottom:0;
+  width:38px; display:flex; align-items:center; justify-content:center;
+  background:none; border:none; cursor:pointer;
+  color:var(--cinza); transition:color .15s;
+}
+.password-eye:hover { color:var(--azul); }
 
 /* ── Phone group (prefix select + number input) ── */
 .phone-group { display:flex; }

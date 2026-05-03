@@ -18,40 +18,43 @@
 <div class="layout">
 
   <!-- SIDEBAR -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="main-sidebar">
+    <button class="sb-collapse-btn" onclick="toggleSidebarCollapse()" title="Expandir/recolher menu">
+      <i data-lucide="panel-left-close" style="width:18px;height:18px;"></i>
+    </button>
     <div class="sidebar-brand">
-      <h1>Santa Paciência</h1>
-      <p>Gestão de Alojamento</p>
+      <h1 class="sb-label">Santa Paciência</h1>
+      <p class="sb-label">Gestão de Alojamento</p>
     </div>
     <nav class="sidebar-nav">
-      <div class="nav-section">Principal</div>
+      <div class="nav-section sb-label">Principal</div>
       <div class="nav-item active" onclick="showView('dashboard')">
-        <span class="icon"><i data-lucide="layout-dashboard"></i></span> Dashboard
+        <span class="icon"><i data-lucide="layout-dashboard"></i></span><span class="nav-label"> Dashboard</span>
       </div>
       <div class="nav-item" onclick="showView('reservas')">
-        <span class="icon"><i data-lucide="clipboard-list"></i></span> Reservas
+        <span class="icon"><i data-lucide="clipboard-list"></i></span><span class="nav-label"> Reservas</span>
       </div>
       <div class="nav-item" onclick="showView('calendario')">
-        <span class="icon"><i data-lucide="calendar-days"></i></span> Calendário
+        <span class="icon"><i data-lucide="calendar-days"></i></span><span class="nav-label"> Calendário</span>
       </div>
       <div class="nav-item" onclick="showView('hospedes')">
-        <span class="icon"><i data-lucide="users"></i></span> Hóspedes
+        <span class="icon"><i data-lucide="users"></i></span><span class="nav-label"> Hóspedes</span>
       </div>
-      <div class="nav-section">Gestão</div>
+      <div class="nav-section sb-label">Gestão</div>
       <div class="nav-item" onclick="showView('alojamentos')">
-        <span class="icon"><i data-lucide="home"></i></span> Alojamentos
+        <span class="icon"><i data-lucide="home"></i></span><span class="nav-label"> Alojamentos</span>
       </div>
       <div class="nav-item" onclick="showView('despesas')">
-        <span class="icon"><i data-lucide="receipt"></i></span> Despesas
+        <span class="icon"><i data-lucide="receipt"></i></span><span class="nav-label"> Despesas</span>
       </div>
       <div class="nav-item" onclick="showView('emails')">
-        <span class="icon"><i data-lucide="mail"></i></span> Emails
+        <span class="icon"><i data-lucide="mail"></i></span><span class="nav-label"> Emails</span>
       </div>
       <div class="nav-item" onclick="showView('gcal')">
-        <span class="icon"><i data-lucide="calendar-sync"></i></span> Google Calendar
+        <span class="icon"><i data-lucide="calendar-sync"></i></span><span class="nav-label"> Google Calendar</span>
       </div>
     </nav>
-    <div class="sidebar-footer">
+    <div class="sidebar-footer sb-label">
       v1.0 · Santa Paciência
     </div>
   </aside>
@@ -321,7 +324,10 @@
             <i data-lucide="arrow-left"></i> Voltar
           </button>
           <span id="aloj-detalhe-nome" style="font-family:'Playfair Display',serif;font-size:22px;color:var(--azul);font-weight:600;"></span>
-          <button class="btn btn-primary" style="margin-left:auto;" onclick="saveAlojamento()">
+          <button class="btn btn-danger btn-sm" onclick="deleteAlojamento()" style="margin-left:auto;">
+            <i data-lucide="trash-2"></i> Apagar
+          </button>
+          <button class="btn btn-primary" onclick="saveAlojamento()">
             <i data-lucide="save"></i> Guardar
           </button>
         </div>
@@ -507,14 +513,17 @@
                   <i data-lucide="wifi"></i> Wi-Fi
                 </span>
               </div>
-              <div class="form-grid">
-                <div class="form-group">
-                  <label class="form-label">Nome da rede (SSID)</label>
-                  <input class="form-control" id="aloj-wifi-nome" placeholder="Nome da rede Wi-Fi">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Senha</label>
-                  <input class="form-control" id="aloj-wifi-password" placeholder="Senha do Wi-Fi">
+              <div class="form-group" style="margin-bottom:12px;">
+                <label class="form-label">Nome da rede (SSID)</label>
+                <input class="form-control" id="aloj-wifi-nome" placeholder="Nome da rede Wi-Fi">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Senha</label>
+                <div class="password-field">
+                  <input class="form-control" id="aloj-wifi-password" type="password" placeholder="Senha do Wi-Fi" autocomplete="off">
+                  <button type="button" class="password-eye" onclick="toggleWifiPass(this)" tabindex="-1" title="Mostrar/ocultar senha">
+                    <i data-lucide="eye" style="width:16px;height:16px;"></i>
+                  </button>
                 </div>
               </div>
               <span style="font-size:11.5px;color:var(--cinza);">Enviados automaticamente no email de coordenadas</span>
@@ -808,7 +817,7 @@
 
 <!-- MODAL EDITAR HÓSPEDE -->
 <div class="modal-bg" id="guest-modal-bg" onclick="if(event.target===this)closeGuestModal()">
-  <div class="modal">
+  <div class="modal" style="width:760px;">
     <div class="modal-header" style="background:var(--azul);color:#fff;">
       <span class="modal-title" style="color:#fff;display:inline-flex;align-items:center;gap:8px;">
         <i data-lucide="contact" style="width:18px;height:18px;"></i> Editar hóspede
@@ -819,37 +828,70 @@
     </div>
     <div class="modal-body">
       <div class="form-grid">
+
+        <!-- ── Identificação ── -->
+        <div class="section-subtitle form-full" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);padding-bottom:4px;border-bottom:1px solid var(--cinza-claro);">
+          <i data-lucide="user"></i> Identificação
+        </div>
         <div class="form-group">
-          <label class="form-label"><span style="color:var(--vermelho)">*</span> Primeiro nome</label>
+          <label class="form-label">Primeiro nome <span class="req-star">*</span></label>
           <input class="form-control" id="gedit-first-name" placeholder="Primeiro nome">
         </div>
         <div class="form-group">
-          <label class="form-label"><span style="color:var(--vermelho)">*</span> Apelido</label>
+          <label class="form-label">Apelido <span class="req-star">*</span></label>
           <input class="form-control" id="gedit-last-name" placeholder="Apelido">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Email (canal)</label>
-          <input class="form-control" id="gedit-email" type="email" placeholder="email@canal.com">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Email (pessoal)</label>
-          <input class="form-control" id="gedit-email-personal" type="email" placeholder="email@pessoal.com">
-        </div>
-        <div class="form-group">
-          <label class="form-label"><span style="color:var(--vermelho)">*</span> Telefone</label>
-          <input class="form-control" id="gedit-phone" placeholder="+351...">
         </div>
         <div class="form-group">
           <label class="form-label">Data de nascimento</label>
           <input class="form-control" id="gedit-birth-date" type="date">
         </div>
         <div class="form-group">
+          <label class="form-label">País <span class="req-star">*</span></label>
+          <select class="form-control" id="gedit-country"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo de documento</label>
+          <select class="form-control" id="gedit-doc-type">
+            <option value="">— Selecionar —</option>
+            <option value="cc">Cartão de Cidadão</option>
+            <option value="bi">Bilhete de Identidade</option>
+            <option value="passaporte">Passaporte</option>
+            <option value="nie">NIE</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nº de documento</label>
+          <input class="form-control" id="gedit-doc-number" placeholder="XX000000">
+        </div>
+        <div class="form-group">
           <label class="form-label">NIF</label>
           <input class="form-control" id="gedit-nif" placeholder="000 000 000">
         </div>
+
+        <!-- ── Contacto ── -->
+        <div class="section-subtitle form-full" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);padding-bottom:4px;border-bottom:1px solid var(--cinza-claro);margin-top:8px;">
+          <i data-lucide="phone"></i> Contacto
+        </div>
         <div class="form-group">
-          <label class="form-label">País</label>
-          <select class="form-control" id="gedit-country"></select>
+          <label class="form-label">Telefone <span class="req-star">*</span></label>
+          <div class="phone-group">
+            <select class="form-control phone-prefix" id="gedit-tel-prefix"></select>
+            <input class="form-control phone-number" id="gedit-phone" type="tel" placeholder="912 345 678">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email (canal) <span class="req-star">*</span></label>
+          <input class="form-control" id="gedit-email" type="email" placeholder="email@canal.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email (pessoal)</label>
+          <input class="form-control" id="gedit-email-personal" type="email" placeholder="email@pessoal.com">
+        </div>
+
+        <!-- ── Morada ── -->
+        <div class="section-subtitle form-full" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);padding-bottom:4px;border-bottom:1px solid var(--cinza-claro);margin-top:8px;">
+          <i data-lucide="map-pin"></i> Morada
         </div>
         <div class="form-group form-full">
           <label class="form-label">Morada</label>
@@ -863,9 +905,10 @@
           <label class="form-label">Localidade</label>
           <input class="form-control" id="gedit-city" placeholder="Lisboa">
         </div>
+
       </div>
 
-      <div class="guest-tags-row">
+      <div class="guest-tags-row" style="margin-top:20px;">
         <label class="guest-tag-toggle">
           <input type="checkbox" id="gedit-favorito">
           <span class="gtt-switch"></span>

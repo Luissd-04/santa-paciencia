@@ -11,5 +11,6 @@ router.post('/:id/cover',           ctrl.uploadCover);
 router.post('/:id/images',          ctrl.uploadImages);
 router.patch('/:id/images',         ctrl.patchImages);
 router.delete('/:id/images',        ctrl.deleteImage);
+router.delete('/:id',               ctrl.remove);
 
 module.exports = router;

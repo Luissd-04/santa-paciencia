@@ -45,6 +45,7 @@ async function update(req, res, next) {
     const {
       first_name, last_name, email, email_personal,
       phone, birth_date, nif, nationality, country,
+      document_type, document_number,
       address, postal_code, city,
       is_favorite, is_vip, is_unwanted
     } = req.body;
@@ -59,25 +60,28 @@ async function update(req, res, next) {
         email = ?, email_personal = ?,
         phone = ?, birth_date = ?, nif = ?,
         nationality = ?, country = ?,
+        document_type = ?, document_number = ?,
         address = ?, postal_code = ?, city = ?,
         is_favorite = ?, is_vip = ?, is_unwanted = ?
       WHERE id = ?
     `).run(
       first_name ?? existing.first_name,
-      last_name ?? existing.last_name,
+      last_name  ?? existing.last_name,
       name,
-      email ?? existing.email,
+      email          ?? existing.email,
       email_personal ?? existing.email_personal,
-      phone ?? existing.phone,
-      birth_date ?? existing.birth_date,
-      nif ?? existing.nif,
-      nationality ?? existing.nationality,
-      country ?? existing.country,
-      address ?? existing.address,
-      postal_code ?? existing.postal_code,
-      city ?? existing.city,
+      phone          ?? existing.phone,
+      birth_date     ?? existing.birth_date,
+      nif            ?? existing.nif,
+      nationality    ?? existing.nationality,
+      country        ?? existing.country,
+      document_type  ?? existing.document_type,
+      document_number ?? existing.document_number,
+      address        ?? existing.address,
+      postal_code    ?? existing.postal_code,
+      city           ?? existing.city,
       is_favorite ? 1 : 0,
-      is_vip ? 1 : 0,
+      is_vip      ? 1 : 0,
       is_unwanted ? 1 : 0,
       req.params.id
     );

@@ -330,6 +330,7 @@ async function showHospedeDetail(id) {
         ${g.phone ? `<div class="detail-row"><div class="detail-label">Telefone</div><div class="detail-val">${g.phone}</div></div>` : ''}
         ${g.birth_date ? `<div class="detail-row"><div class="detail-label">Nascimento</div><div class="detail-val">${formatDate(g.birth_date)}</div></div>` : ''}
         ${g.nif ? `<div class="detail-row"><div class="detail-label">NIF</div><div class="detail-val">${g.nif}</div></div>` : ''}
+        ${g.document_type ? `<div class="detail-row"><div class="detail-label">Documento</div><div class="detail-val">${g.document_type.toUpperCase()}${g.document_number ? ' · ' + g.document_number : ''}</div></div>` : ''}
         ${g.address ? `<div class="detail-row"><div class="detail-label">Morada</div><div class="detail-val">${g.address}${g.postal_code ? ', ' + g.postal_code : ''}${g.city ? ' ' + g.city : ''}</div></div>` : ''}
         <div class="detail-row"><div class="detail-label">Reservas</div><div class="detail-val"><b>${reservations.length}</b></div></div>
         <div class="detail-row"><div class="detail-label">Desde</div><div class="detail-val">${formatDate(g.created_at)}</div></div>
@@ -368,11 +369,20 @@ async function showHospedeDetail(id) {
 }
 
 // ── EDIT MODAL ──
-function populateCountrySelect() {
-  const sel = document.getElementById('gedit-country');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">— Sem país —</option>' +
-    COUNTRIES.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+function populateGuestEditSelects() {
+  // Country dropdown
+  const countrySel = document.getElementById('gedit-country');
+  if (countrySel) {
+    countrySel.innerHTML = '<option value="">— Sem país —</option>' +
+      COUNTRIES.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+  }
+  // Phone prefix dropdown — built from DIAL_COUNTRIES defined in reservas.js
+  const prefixSel = document.getElementById('gedit-tel-prefix');
+  if (prefixSel && typeof DIAL_COUNTRIES !== 'undefined') {
+    prefixSel.innerHTML = DIAL_COUNTRIES.map(c =>
+      `<option value="${c.dial}">${c.flag} ${c.dial}</option>`
+    ).join('');
+  }
 }
 
 async function openGuestEdit(id) {
@@ -381,26 +391,43 @@ async function openGuestEdit(id) {
     const g = data.data;
     editingGuestId = id;
 
-    populateCountrySelect();
+    populateGuestEditSelects();
 
-    // Split name into first/last if not already stored separately
     const parts = (g.name || '').trim().split(' ');
-    document.getElementById('gedit-first-name').value = g.first_name || parts[0] || '';
-    document.getElementById('gedit-last-name').value = g.last_name || parts.slice(1).join(' ') || '';
-    document.getElementById('gedit-email').value = g.email || '';
+    document.getElementById('gedit-first-name').value  = g.first_name || parts[0] || '';
+    document.getElementById('gedit-last-name').value   = g.last_name  || parts.slice(1).join(' ') || '';
+    document.getElementById('gedit-email').value        = g.email || '';
     document.getElementById('gedit-email-personal').value = g.email_personal || '';
-    document.getElementById('gedit-phone').value = g.phone || '';
-    document.getElementById('gedit-birth-date').value = g.birth_date || '';
-    document.getElementById('gedit-nif').value = g.nif || '';
-    document.getElementById('gedit-address').value = g.address || '';
-    document.getElementById('gedit-postal-code').value = g.postal_code || '';
-    document.getElementById('gedit-city').value = g.city || '';
-    document.getElementById('gedit-favorito').checked = !!g.is_favorite;
-    document.getElementById('gedit-vip').checked = !!g.is_vip;
+    document.getElementById('gedit-birth-date').value  = g.birth_date || '';
+    document.getElementById('gedit-nif').value          = g.nif || '';
+    document.getElementById('gedit-address').value      = g.address || '';
+    document.getElementById('gedit-postal-code').value  = g.postal_code || '';
+    document.getElementById('gedit-city').value         = g.city || '';
+    document.getElementById('gedit-favorito').checked   = !!g.is_favorite;
+    document.getElementById('gedit-vip').checked        = !!g.is_vip;
     document.getElementById('gedit-nao-desejado').checked = !!g.is_unwanted;
 
-    const sel = document.getElementById('gedit-country');
-    if (g.country) sel.value = g.country;
+    // Document fields
+    const docType = document.getElementById('gedit-doc-type');
+    if (docType) docType.value = g.document_type || '';
+    const docNum = document.getElementById('gedit-doc-number');
+    if (docNum) docNum.value = g.document_number || '';
+
+    // Country
+    const countrySel = document.getElementById('gedit-country');
+    if (countrySel) countrySel.value = g.country || g.nationality || '';
+
+    // Phone: split into prefix + number
+    const rawPhone = g.phone || '';
+    const prefixSel = document.getElementById('gedit-tel-prefix');
+    const numInput  = document.getElementById('gedit-phone');
+    if (prefixSel && typeof DIAL_COUNTRIES !== 'undefined') {
+      const mc = DIAL_COUNTRIES.find(c => rawPhone.startsWith(c.dial));
+      prefixSel.value = mc ? mc.dial : '+351';
+      numInput.value  = mc ? rawPhone.slice(mc.dial.length).trim() : rawPhone;
+    } else if (numInput) {
+      numInput.value = rawPhone;
+    }
 
     if (window.lucide) lucide.createIcons();
     document.getElementById('guest-modal-bg').classList.add('open');
@@ -540,14 +567,18 @@ function exportHospedesPDF() {
 
 async function saveGuestEdit() {
   const firstName = document.getElementById('gedit-first-name').value.trim();
-  const lastName = document.getElementById('gedit-last-name').value.trim();
-  const phone = document.getElementById('gedit-phone').value.trim();
-  const email = document.getElementById('gedit-email').value.trim();
+  const lastName  = document.getElementById('gedit-last-name').value.trim();
+  const telPrefix = document.getElementById('gedit-tel-prefix')?.value || '';
+  const telNum    = document.getElementById('gedit-phone').value.trim();
+  const phone     = telPrefix + telNum.replace(/\s/g, '');
+  const email     = document.getElementById('gedit-email').value.trim();
+  const country   = document.getElementById('gedit-country').value;
 
   if (!firstName) { toast('Insira o primeiro nome.', 'error'); return; }
   if (!lastName)  { toast('Insira o apelido.', 'error'); return; }
-  if (!phone)     { toast('Insira o telefone.', 'error'); return; }
+  if (!telNum)    { toast('Insira o telefone.', 'error'); return; }
   if (!email)     { toast('Insira o email.', 'error'); return; }
+  if (!country)   { toast('Selecione o país.', 'error'); return; }
 
   const btn = document.getElementById('btn-guardar-hospede');
   btn.disabled = true; btn.textContent = '⏳ A guardar...';
@@ -559,15 +590,18 @@ async function saveGuestEdit() {
       email,
       email_personal: document.getElementById('gedit-email-personal').value.trim() || null,
       phone,
-      birth_date: document.getElementById('gedit-birth-date').value || null,
-      nif: document.getElementById('gedit-nif').value.trim() || null,
-      country: document.getElementById('gedit-country').value || null,
-      address: document.getElementById('gedit-address').value.trim() || null,
-      postal_code: document.getElementById('gedit-postal-code').value.trim() || null,
-      city: document.getElementById('gedit-city').value.trim() || null,
-      is_favorite: document.getElementById('gedit-favorito').checked,
-      is_vip: document.getElementById('gedit-vip').checked,
-      is_unwanted: document.getElementById('gedit-nao-desejado').checked,
+      birth_date:      document.getElementById('gedit-birth-date').value  || null,
+      nif:             document.getElementById('gedit-nif').value.trim()  || null,
+      document_type:   document.getElementById('gedit-doc-type')?.value   || null,
+      document_number: document.getElementById('gedit-doc-number')?.value.trim() || null,
+      nationality: country,
+      country,
+      address:         document.getElementById('gedit-address').value.trim()     || null,
+      postal_code:     document.getElementById('gedit-postal-code').value.trim() || null,
+      city:            document.getElementById('gedit-city').value.trim()        || null,
+      is_favorite:     document.getElementById('gedit-favorito').checked,
+      is_vip:          document.getElementById('gedit-vip').checked,
+      is_unwanted:     document.getElementById('gedit-nao-desejado').checked,
     };
 
     const res = await apiPut(`/api/guests/${editingGuestId}`, body);

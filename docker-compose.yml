@@ -12,11 +12,21 @@ services:
     volumes:
       - ./data:/app/data
       - ./tokens:/tokens
+    networks:
+      - app-network
+    depends_on:
+      - cloudflared
 
   cloudflared:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
     network_mode: host
-    command: tunnel --url http://localhost:3001 --no-autoupdate
+    command: tunnel run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    environment:
+      - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       - backend
+
+networks:
+  app-network:
+    driver: bridge

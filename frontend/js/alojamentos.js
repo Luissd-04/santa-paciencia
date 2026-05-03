@@ -691,6 +691,34 @@ function openAlojCalendarDirect(id, gcalId, nome) {
   }
 }
 
+async function deleteAlojamento() {
+  const id = document.getElementById('aloj-editing-id').value;
+  const name = document.getElementById('aloj-nome').value || id;
+  if (!id) return;
+  if (!confirm(`Apagar o alojamento "${name}"?\n\nEsta ação é irreversível. Todas as reservas canceladas associadas serão apagadas.`)) return;
+  try {
+    const res = await apiDelete(`/api/accommodations/${id}`);
+    if (res.success) {
+      toast('🗑 Alojamento apagado.', 'info');
+      showView('alojamentos');
+      await loadAlojamentos();
+    } else {
+      toast('❌ ' + (res.error || 'Erro ao apagar alojamento.'), 'error');
+    }
+  } catch (e) {
+    toast('❌ Erro de ligação ao servidor.', 'error');
+  }
+}
+
+function toggleWifiPass(btn) {
+  const input = btn.previousElementSibling;
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  const icon = btn.querySelector('i[data-lucide]');
+  icon.setAttribute('data-lucide', showing ? 'eye' : 'eye-off');
+  if (window.lucide) lucide.createIcons();
+}
+
 // ── GUARDAR ALOJAMENTO ──
 async function saveAlojamento() {
   const id = document.getElementById('aloj-editing-id').value;

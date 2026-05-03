@@ -61,6 +61,17 @@ function toggleSidebar() {
   if (overlay) overlay.classList.toggle('active', open);
 }
 
+function toggleSidebarCollapse() {
+  const layout = document.querySelector('.layout');
+  const collapsed = layout.classList.toggle('sb-collapsed');
+  localStorage.setItem('sbCollapsed', collapsed ? '1' : '0');
+  const icon = document.querySelector('.sb-collapse-btn i[data-lucide]');
+  if (icon) {
+    icon.setAttribute('data-lucide', collapsed ? 'panel-left-open' : 'panel-left-close');
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
 // ── GOOGLE CALENDAR ──
 async function loadCalendarStatus() {
   try {
@@ -151,4 +162,12 @@ async function init() {
   loadServicos();
 }
 
-init().then(() => { if (window.lucide) lucide.createIcons(); });
+init().then(() => {
+  if (window.lucide) lucide.createIcons();
+  // Restore sidebar collapsed state
+  if (localStorage.getItem('sbCollapsed') === '1') {
+    document.querySelector('.layout').classList.add('sb-collapsed');
+    const icon = document.querySelector('.sb-collapse-btn i[data-lucide]');
+    if (icon) { icon.setAttribute('data-lucide', 'panel-left-open'); lucide.createIcons(); }
+  }
+});
