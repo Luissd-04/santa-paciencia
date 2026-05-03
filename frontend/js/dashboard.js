@@ -47,6 +47,12 @@ async function loadDashboardStats() {
       document.getElementById('kpi-ativas').textContent = s.confirmedReservations;
       document.getElementById('kpi-noites').textContent = s.nightsThisMonth;
       document.getElementById('kpi-ocup').textContent = s.occupancyRate + '%';
+      ['kpi-faturado','kpi-ativas','kpi-noites','kpi-ocup'].forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.remove('kpi-animated');
+        void el.offsetWidth;
+        el.classList.add('kpi-animated');
+      });
     }
   } catch (e) {
     ['kpi-faturado','kpi-ativas','kpi-noites','kpi-ocup'].forEach(id => {
@@ -99,7 +105,7 @@ async function renderDashboard() {
         <span style="width:10px;height:10px;border-radius:50%;background:${cor};flex-shrink:0;display:inline-block;"></span>
         ${a.name}
       </div>
-      <div class="avail-bar"><div class="avail-fill" style="width:${pct}%;background:${cor}"></div></div>
+      <div class="avail-bar"><div class="avail-fill" style="--fill-pct:${pct}%;background:${cor}"></div></div>
       <div class="avail-info"><span>${pct}% ocupado</span><span>€${a.price_per_night}/noite</span></div>
     </div>`;
   }).join('');

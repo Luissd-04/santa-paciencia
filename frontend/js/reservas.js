@@ -1,7 +1,7 @@
 let sortCol = 'check_in';
 let sortAsc = true;
 
-const DIAL_DIAL_COUNTRIES = [
+const DIAL_COUNTRIES = [
   { code:'PT', name:'Portugal',         dial:'+351', flag:'🇵🇹' },
   { code:'ES', name:'Espanha',          dial:'+34',  flag:'🇪🇸' },
   { code:'FR', name:'França',           dial:'+33',  flag:'🇫🇷' },
@@ -53,11 +53,11 @@ const DIAL_DIAL_COUNTRIES = [
 ];
 
 function buildCountrySelects() {
-  const prefixOpts = DIAL_DIAL_COUNTRIES.map(c =>
+  const prefixOpts = DIAL_COUNTRIES.map(c =>
     `<option value="${c.dial}" data-code="${c.code}">${c.flag} ${c.dial}</option>`
   ).join('');
   const countryOpts = '<option value="">— País —</option>' +
-    DIAL_DIAL_COUNTRIES.map(c => `<option value="${c.name}">${c.flag} ${c.name}</option>`).join('');
+    DIAL_COUNTRIES.map(c => `<option value="${c.name}">${c.flag} ${c.name}</option>`).join('');
 
   document.querySelectorAll('.phone-prefix').forEach(el => { el.innerHTML = prefixOpts; });
   document.querySelectorAll('select#f-pais, select.guest-country').forEach(el => { el.innerHTML = countryOpts; });
@@ -139,7 +139,7 @@ function renderTabela() {
     <tr onclick="showDetail('${r.id}')">
       <td><code style="font-size:11.5px;color:var(--azul-claro)">${r.id}</code></td>
       <td><b>${r.guest_name}</b><br><span style="font-size:11.5px;color:var(--cinza)">${r.guest_email || ''}</span></td>
-      <td><span class="chip-aloj chip-${r.accommodation_id}">${r.accommodation_name}</span></td>
+      <td>${accomChip(r)}</td>
       <td>${formatDate(r.check_in)}</td>
       <td>${formatDate(r.check_out)}</td>
       <td>${r.nights}</td>
@@ -271,8 +271,10 @@ async function openEditModal(id) {
 }
 
 function closeModal() {
-  document.getElementById('modal-bg').classList.remove('open');
-  editingId = null;
+  const bg = document.getElementById('modal-bg');
+  const modal = bg.querySelector('.modal');
+  modal.classList.add('modal-closing');
+  setTimeout(() => { bg.classList.remove('open'); modal.classList.remove('modal-closing'); editingId = null; }, 320);
 }
 
 function calcTotal() {
@@ -544,7 +546,7 @@ async function showDetail(id) {
         <div class="detail-row"><div class="detail-label">Hóspede</div><div class="detail-val"><b>${r.guest_name}</b></div></div>
         <div class="detail-row"><div class="detail-label">Email</div><div class="detail-val">${r.guest_email || '—'}</div></div>
         <div class="detail-row"><div class="detail-label">Telefone</div><div class="detail-val">${r.guest_phone || '—'}</div></div>
-        <div class="detail-row"><div class="detail-label">Alojamento</div><div class="detail-val"><span class="chip-aloj chip-${r.accommodation_id}">${r.accommodation_name}</span></div></div>
+        <div class="detail-row"><div class="detail-label">Alojamento</div><div class="detail-val">${accomChip(r)}</div></div>
         <div class="detail-row"><div class="detail-label">Canal</div><div class="detail-val">${r.channel}</div></div>
         <div class="detail-row"><div class="detail-label">Hóspedes</div><div class="detail-val">${r.num_guests}</div></div>
         <div class="detail-row"><div class="detail-label">Check-in</div><div class="detail-val">${formatDate(r.check_in)}</div></div>

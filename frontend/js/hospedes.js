@@ -437,8 +437,10 @@ async function openGuestEdit(id) {
 }
 
 function closeGuestModal() {
-  document.getElementById('guest-modal-bg').classList.remove('open');
-  editingGuestId = null;
+  const bg = document.getElementById('guest-modal-bg');
+  const modal = bg.querySelector('.modal');
+  modal.classList.add('modal-closing');
+  setTimeout(() => { bg.classList.remove('open'); modal.classList.remove('modal-closing'); editingGuestId = null; }, 320);
 }
 
 // ── DELETE ──

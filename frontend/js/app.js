@@ -11,8 +11,11 @@ const VIEW_TITLES = {
 };
 
 function showView(v) {
-  document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
-  document.getElementById('view-' + v).classList.add('active');
+  document.querySelectorAll('.view').forEach(x => x.classList.remove('active', 'view-entering'));
+  const nextView = document.getElementById('view-' + v);
+  nextView.classList.add('active');
+  void nextView.offsetWidth;
+  nextView.classList.add('view-entering');
   document.querySelectorAll('.nav-item').forEach(x => {
     x.classList.toggle('active', x.getAttribute('onclick')?.includes("'" + v + "'"));
   });

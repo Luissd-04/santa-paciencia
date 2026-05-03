@@ -115,8 +115,10 @@ function openDespesaModal(id) {
 }
 
 function closeDespesaModal() {
-  document.getElementById('despesa-modal-bg').classList.remove('open');
-  despesaEditId = null;
+  const bg = document.getElementById('despesa-modal-bg');
+  const modal = bg.querySelector('.modal');
+  modal.classList.add('modal-closing');
+  setTimeout(() => { bg.classList.remove('open'); modal.classList.remove('modal-closing'); despesaEditId = null; }, 320);
 }
 
 async function saveDespesa() {

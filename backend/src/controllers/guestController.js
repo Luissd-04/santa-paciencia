@@ -1,4 +1,49 @@
 const { db } = require('../config/database');
+const { v4: uuidv4 } = require('uuid');
+
+// POST /api/guests
+async function create(req, res, next) {
+  try {
+    const {
+      name, first_name, last_name, email, email_personal,
+      phone, birth_date, nif, nationality, country,
+      document_type, document_number,
+      address, postal_code, city
+    } = req.body;
+
+    if (!name && !first_name) {
+      return res.status(400).json({ error: 'Nome é obrigatório' });
+    }
+
+    const fullName = name || `${first_name || ''} ${last_name || ''}`.trim();
+    const effectiveEmail = email || `guest_${Date.now()}@sem-email.local`;
+
+    const existing = db.prepare('SELECT * FROM guests WHERE email = ?').get(effectiveEmail);
+    if (existing) {
+      return res.status(409).json({ error: 'Já existe um hóspede com este email', data: existing });
+    }
+
+    const id = uuidv4();
+    db.prepare(`
+      INSERT INTO guests (id, name, first_name, last_name, email, email_personal,
+        phone, birth_date, nif, nationality, country,
+        document_type, document_number, address, postal_code, city)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id, fullName, first_name || null, last_name || null,
+      effectiveEmail, email_personal || null,
+      phone || null, birth_date || null, nif || null,
+      nationality || null, country || null,
+      document_type || null, document_number || null,
+      address || null, postal_code || null, city || null
+    );
+
+    const guest = db.prepare('SELECT * FROM guests WHERE id = ?').get(id);
+    res.status(201).json({ success: true, data: guest });
+  } catch (err) {
+    next(err);
+  }
+}
 
 // GET /api/guests
 async function getAll(req, res, next) {
@@ -117,4 +162,4 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { getAll, getById, update, remove };
+module.exports = { create, getAll, getById, update, remove };
