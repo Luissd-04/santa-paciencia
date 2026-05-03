@@ -14,8 +14,6 @@ services:
       - ./tokens:/tokens
     networks:
       - app-network
-    depends_on:
-      - cloudflared
 
   cloudflared:
     image: cloudflare/cloudflared:latest
