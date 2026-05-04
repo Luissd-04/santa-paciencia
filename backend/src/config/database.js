@@ -116,7 +116,9 @@ function initDatabase() {
 function migrateReservations() {
   const existing = db.pragma('table_info(reservations)').map(c => c.name);
   const cols = [
-    ['guests_data', "TEXT DEFAULT '[]'"],
+    ['guests_data',   "TEXT DEFAULT '[]'"],
+    ['amount_paid',   'REAL DEFAULT 0'],
+    ['payment_date',  'TEXT'],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {

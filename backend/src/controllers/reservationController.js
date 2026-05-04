@@ -59,7 +59,8 @@ async function create(req, res, next) {
     const {
       guest, accommodation_id, check_in, check_out,
       num_guests, breakfast_included, channel, payment_method,
-      notes, rgpd_consent, rgpd_ip, guests_data
+      notes, rgpd_consent, rgpd_ip, guests_data,
+      amount_paid, payment_date, payment_status: reqPaymentStatus
     } = req.body;
 
     // Validação básica
@@ -135,20 +136,28 @@ async function create(req, res, next) {
     const breakfastCost = bkfOn ? bkfRate * num_guests * nights : 0;
     const totalAmount   = (accommodation.price_per_night * nights) + touristTax + breakfastCost;
 
+    const paidAmt = Number(amount_paid) || 0;
+    const autoPaymentStatus = paidAmt >= totalAmount && paidAmt > 0
+      ? 'confirmado'
+      : paidAmt > 0
+        ? 'parcial'
+        : (reqPaymentStatus || 'pendente');
+
     // Criar reserva
     const reservationId = `SP-${Date.now()}`;
     db.prepare(`
       INSERT INTO reservations (
         id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
         total_amount, breakfast_included, tourist_tax, channel, payment_method,
-        notes, license_number, guests_data
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        notes, license_number, guests_data, amount_paid, payment_date, payment_status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       reservationId, guestRecord.id, accommodation_id, check_in, check_out,
       nights, num_guests, totalAmount, bkfOn,
       touristTax, channel || 'direto', payment_method || null,
       notes || null, accommodation.license_number,
-      JSON.stringify(guests_data || [])
+      JSON.stringify(guests_data || []),
+      paidAmt, payment_date || null, autoPaymentStatus
     );
 
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ?').get(reservationId);
@@ -184,7 +193,7 @@ async function update(req, res, next) {
     const {
       check_in, check_out, num_guests, breakfast_included,
       channel, payment_method, notes, status, payment_status, guests_data, guest,
-      accommodation_id
+      accommodation_id, amount_paid, payment_date
     } = req.body;
 
     const newAccommodationId = accommodation_id || existing.accommodation_id;
@@ -233,12 +242,20 @@ async function update(req, res, next) {
     }
     const totalAmount = (accommodation.price_per_night * nights) + touristTax + breakfastCost;
 
+    const newPaidAmt = amount_paid !== undefined ? Number(amount_paid) : (existing.amount_paid || 0);
+    const autoPaymentStatus2 = newPaidAmt >= totalAmount && newPaidAmt > 0
+      ? 'confirmado'
+      : newPaidAmt > 0
+        ? 'parcial'
+        : (payment_status || existing.payment_status || 'pendente');
+
     db.prepare(`
       UPDATE reservations SET
         accommodation_id = ?, check_in = ?, check_out = ?, nights = ?, num_guests = ?,
         total_amount = ?, breakfast_included = ?, tourist_tax = ?,
         channel = ?, payment_method = ?, notes = ?, status = ?,
-        payment_status = ?, guests_data = ?, updated_at = datetime('now')
+        payment_status = ?, guests_data = ?,
+        amount_paid = ?, payment_date = ?, updated_at = datetime('now')
       WHERE id = ?
     `).run(
       newAccommodationId,
@@ -246,8 +263,10 @@ async function update(req, res, next) {
       touristTax,
       channel || existing.channel, payment_method || existing.payment_method,
       notes !== undefined ? notes : existing.notes, status || existing.status,
-      payment_status || existing.payment_status,
+      autoPaymentStatus2,
       guests_data !== undefined ? JSON.stringify(guests_data) : (existing.guests_data || '[]'),
+      newPaidAmt,
+      payment_date !== undefined ? (payment_date || null) : existing.payment_date,
       req.params.id
     );
 
@@ -257,7 +276,7 @@ async function update(req, res, next) {
     updateCalendarEvent(updated);
 
     // Email de pagamento se confirmado agora
-    if (payment_status === 'pago' && existing.payment_status !== 'pago') {
+    if (autoPaymentStatus2 === 'confirmado' && existing.payment_status !== 'confirmado') {
       const guest = db.prepare('SELECT * FROM guests WHERE id = ?').get(updated.guest_id);
       sendPaymentConfirmationEmail(guest, updated, accommodation)
         .catch(err => console.warn('Email não enviado:', err.message));

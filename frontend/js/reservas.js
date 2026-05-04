@@ -15,8 +15,7 @@ function renderMobileCards() {
 
   const q = (document.getElementById('mobile-search-input') || {value:''}).value.toLowerCase();
   const statusColors = {
-    'confirmada': 'var(--marca)', 'pendente': 'var(--laranja)',
-    'check-in': 'var(--verde)', 'check-out': 'var(--cinza)', 'cancelada': 'var(--vermelho)'
+    'confirmada': 'var(--marca)', 'pendente': 'var(--laranja)', 'cancelada': 'var(--vermelho)'
   };
 
   const filtered = reservas.filter(r => {
@@ -45,8 +44,14 @@ function renderMobileCards() {
         <div class="mrc-meta-item"><i data-lucide="moon"></i> ${r.nights} noite${r.nights !== 1 ? 's' : ''}</div>
       </div>
       <div class="mrc-total">
-        <span class="mrc-channel">${r.channel || '—'}</span>
-        <span class="mrc-price">€${Number(r.total_amount || 0).toFixed(2)}</span>
+        <span class="mrc-channel">${r.channel || '—'} · ${badgePagamento(r.payment_status)}</span>
+        <span class="mrc-price">€${Number(r.total_amount || 0).toFixed(2)}${(() => {
+          const paid = Number(r.amount_paid || 0);
+          const total = Number(r.total_amount || 0);
+          const rem = total - paid;
+          if (paid > 0 && rem > 0.01) return `<span style="font-size:11px;color:var(--vermelho);display:block;">falta €${rem.toFixed(2)}</span>`;
+          return '';
+        })()}</span>
       </div>
       <div class="mrc-actions" onclick="event.stopPropagation()">
         <button class="m-card-btn primary" onclick="showDetail('${r.id}')">
@@ -209,7 +214,14 @@ function renderTabela() {
       <td><b>€${Number(r.total_amount || 0).toFixed(2)}</b></td>
       <td><span style="font-size:12px;color:var(--cinza)">${r.channel}</span></td>
       <td>${badgeEstado(r.status)}</td>
-      <td>${badgePagamento(r.payment_status)}</td>
+      <td>${badgePagamento(r.payment_status)}${(() => {
+        const paid = Number(r.amount_paid || 0);
+        const total = Number(r.total_amount || 0);
+        if (paid <= 0) return '';
+        const rem = total - paid;
+        if (rem > 0.01) return `<br><span style="font-size:11px;color:var(--vermelho);">€${paid.toFixed(2)} / falta €${rem.toFixed(2)}</span>`;
+        return `<br><span style="font-size:11px;color:var(--cinza);">€${paid.toFixed(2)}</span>`;
+      })()}</td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="openEditModal('${r.id}')" title="Editar">
           ${lcIcon('pencil', 13)}
@@ -250,7 +262,31 @@ function _resetGuestFields() {
 function onPaymentStatusChange() {
   const ps = document.getElementById('f-payment-status').value;
   document.getElementById('pagamento-metodo-wrap').style.display =
-    (ps === 'pago' || ps === 'parcial') ? '' : 'none';
+    (ps === 'confirmado' || ps === 'parcial') ? '' : 'none';
+}
+
+function onAmountPaidChange() {
+  const paid = parseFloat(document.getElementById('f-amount-paid').value) || 0;
+  const total = parseFloat(document.getElementById('f-total').value) || 0;
+  const psEl = document.getElementById('f-payment-status');
+  const remWrap = document.getElementById('payment-remaining-wrap');
+  const remVal = document.getElementById('payment-remaining-val');
+
+  if (paid > 0 && total > 0) {
+    if (paid >= total) {
+      psEl.value = 'confirmado';
+      if (remWrap) remWrap.style.display = 'none';
+    } else {
+      psEl.value = 'parcial';
+      const rem = total - paid;
+      if (remWrap) remWrap.style.display = '';
+      if (remVal) remVal.textContent = '€' + rem.toFixed(2);
+    }
+  } else {
+    psEl.value = 'pendente';
+    if (remWrap) remWrap.style.display = 'none';
+  }
+  onPaymentStatusChange();
 }
 
 // ── WIZARD STATE ──
@@ -272,6 +308,9 @@ function openModal() {
   document.getElementById('f-payment-status').value = 'pendente';
   document.getElementById('pagamento-metodo-wrap').style.display = 'none';
   document.getElementById('f-pagamento').value = 'transferencia';
+  const amtPaidEl = document.getElementById('f-amount-paid'); if (amtPaidEl) amtPaidEl.value = '';
+  const payDateEl = document.getElementById('f-payment-date'); if (payDateEl) payDateEl.value = '';
+  const remWrap = document.getElementById('payment-remaining-wrap'); if (remWrap) remWrap.style.display = 'none';
   document.getElementById('f-noites').value = '';
   document.getElementById('f-total').value = '';
   const rgpdWrap = document.getElementById('wiz-rgpd-wrap');
@@ -330,10 +369,22 @@ async function openEditModal(id) {
     document.getElementById('f-breakfast').value     = r.breakfast_included ? 'true' : 'false';
     document.getElementById('f-canal').value         = r.channel || 'direto';
     document.getElementById('f-estado').value        = r.status || 'confirmada';
-    const ps = r.payment_status || 'pendente';
+    const ps = r.payment_status === 'pago' ? 'confirmado' : (r.payment_status || 'pendente');
     document.getElementById('f-payment-status').value = ps;
-    document.getElementById('pagamento-metodo-wrap').style.display = (ps === 'pago' || ps === 'parcial') ? '' : 'none';
+    document.getElementById('pagamento-metodo-wrap').style.display = (ps === 'confirmado' || ps === 'parcial') ? '' : 'none';
     document.getElementById('f-pagamento').value     = r.payment_method || 'transferencia';
+    const amtPaidEl2 = document.getElementById('f-amount-paid');
+    if (amtPaidEl2) amtPaidEl2.value = r.amount_paid > 0 ? Number(r.amount_paid).toFixed(2) : '';
+    const payDateEl2 = document.getElementById('f-payment-date');
+    if (payDateEl2) payDateEl2.value = r.payment_date || '';
+    const remWrap2 = document.getElementById('payment-remaining-wrap');
+    const remVal2  = document.getElementById('payment-remaining-val');
+    if (ps === 'parcial' && r.amount_paid > 0 && r.total_amount > r.amount_paid) {
+      if (remWrap2) remWrap2.style.display = '';
+      if (remVal2) remVal2.textContent = '€' + (r.total_amount - r.amount_paid).toFixed(2);
+    } else {
+      if (remWrap2) remWrap2.style.display = 'none';
+    }
     document.getElementById('f-notas').value         = r.notes || '';
     document.getElementById('f-noites').value        = r.nights || '';
     document.getElementById('f-total').value         = Number(r.total_amount || 0).toFixed(2);
@@ -849,6 +900,8 @@ async function saveReserva() {
         status: document.getElementById('f-estado').value,
         payment_status: document.getElementById('f-payment-status').value,
         payment_method: document.getElementById('f-pagamento').value,
+        amount_paid: parseFloat(document.getElementById('f-amount-paid')?.value) || 0,
+        payment_date: document.getElementById('f-payment-date')?.value || null,
         notes: document.getElementById('f-notas').value,
         guests_data: collectExtraGuests(),
         guest: {
@@ -898,6 +951,8 @@ async function saveReserva() {
         status: document.getElementById('f-estado').value,
         payment_status: document.getElementById('f-payment-status').value,
         payment_method: document.getElementById('f-pagamento').value,
+        amount_paid: parseFloat(document.getElementById('f-amount-paid')?.value) || 0,
+        payment_date: document.getElementById('f-payment-date')?.value || null,
         notes: document.getElementById('f-notas').value,
         rgpd_consent: true,
         guests_data: collectExtraGuests(),
@@ -954,6 +1009,7 @@ async function showDetail(id) {
         <div class="detail-row"><div class="detail-label">Noites</div><div class="detail-val">${r.nights}</div></div>
         <div class="detail-row"><div class="detail-label">Estado</div><div class="detail-val">${badgeEstado(r.status)}</div></div>
         <div class="detail-row"><div class="detail-label">Pagamento</div><div class="detail-val">${badgePagamento(r.payment_status)}</div></div>
+        ${r.payment_date ? `<div class="detail-row"><div class="detail-label">Data Pagamento</div><div class="detail-val">${formatDate(r.payment_date)}</div></div>` : ''}
       </div>
       ${(() => {
         const gd = typeof r.guests_data === 'string' ? JSON.parse(r.guests_data || '[]') : (r.guests_data || []);
@@ -966,15 +1022,31 @@ async function showDetail(id) {
           </div>`).join('')}
         </div>`;
       })()}
-      <div style="margin-top:20px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;">
-        ${[['Alojamento', (accommodations.find(a => a.id === r.accommodation_id)?.price_per_night || 0) * r.nights],
-           ['Taxa Turística', r.tourist_tax || 0],
-           ['Pequeno-almoço', r.breakfast_included ? r.num_guests * r.nights * (servicosData.find(s => s.id === 'breakfast')?.value ?? 19) : 0],
-           ['Total', r.total_amount || 0]].map(([l, v]) => `
+      <div style="margin-top:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;">
+        ${[['Alojamento', (accommodations.find(a => a.id === r.accommodation_id)?.price_per_night || 0) * r.nights, false],
+           ['Taxa Turística', r.tourist_tax || 0, false],
+           ['Pequeno-almoço', r.breakfast_included ? r.num_guests * r.nights * (servicosData.find(s => s.id === 'breakfast')?.value ?? 19) : 0, false],
+           ['Total', r.total_amount || 0, false]].map(([l, v, _]) => `
           <div style="background:var(--cinza-claro);border-radius:10px;padding:14px;text-align:center;">
             <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">${l}</div>
             <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--azul);">€${Number(v).toFixed(2)}</div>
           </div>`).join('')}
+        ${(() => {
+          const paid = Number(r.amount_paid || 0);
+          const total = Number(r.total_amount || 0);
+          const remaining = total - paid;
+          if (paid <= 0) return '';
+          return `
+          <div style="background:rgba(46,125,82,.08);border-radius:10px;padding:14px;text-align:center;border:1px solid rgba(46,125,82,.2);">
+            <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Valor Pago</div>
+            <div style="font-family:'Playfair Display',serif;font-size:22px;color:#2e7d52;">€${paid.toFixed(2)}</div>
+          </div>
+          ${remaining > 0.01 ? `
+          <div style="background:rgba(176,48,48,.08);border-radius:10px;padding:14px;text-align:center;border:1px solid rgba(176,48,48,.2);">
+            <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Em Falta</div>
+            <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--vermelho);">€${remaining.toFixed(2)}</div>
+          </div>` : ''}`;
+        })()}
       </div>
       ${r.notes ? `<div style="margin-top:16px;background:rgba(201,168,76,.1);border-left:3px solid var(--dourado);padding:12px 16px;border-radius:6px;font-size:13.5px;color:var(--texto);">📝 ${r.notes}</div>` : ''}
       <div style="margin-top:12px;font-size:12px;color:${r.google_event_id ? 'var(--verde)' : 'var(--cinza)'};">

@@ -207,9 +207,8 @@
           <div class="mobile-filter-chips">
             <div class="chip active" onclick="setMobileChip(this,'')">Todas</div>
             <div class="chip" onclick="setMobileChip(this,'confirmada')">Confirmadas</div>
-            <div class="chip" onclick="setMobileChip(this,'check-in')">Check-in</div>
             <div class="chip" onclick="setMobileChip(this,'pendente')">Pendentes</div>
-            <div class="chip" onclick="setMobileChip(this,'check-out')">Check-out</div>
+            <div class="chip" onclick="setMobileChip(this,'cancelada')">Canceladas</div>
           </div>
           <div id="mobile-res-cards"></div>
         </div>
@@ -226,8 +225,6 @@
             <option value="confirmada">Confirmada</option>
             <option value="pendente">Pendente</option>
             <option value="cancelada">Cancelada</option>
-            <option value="check-in">Check-in</option>
-            <option value="check-out">Check-out</option>
           </select>
           <select class="form-control" id="filter-suite" style="width:auto;" onchange="renderTabela()">
             <option value="">Todas as suites</option>
@@ -243,7 +240,7 @@
           </select>
           <select class="form-control" id="filter-pagamento" style="width:auto;" onchange="renderTabela()">
             <option value="">Todos os pagamentos</option>
-            <option value="pago">Pago</option>
+            <option value="confirmado">Confirmado</option>
             <option value="parcial">Parcial</option>
             <option value="pendente">Pendente</option>
           </select>
@@ -1307,17 +1304,30 @@
               <select class="form-control" id="f-estado">
                 <option value="confirmada">Confirmada</option>
                 <option value="pendente">Pendente</option>
-                <option value="check-in">Check-in</option>
-                <option value="check-out">Check-out</option>
+                <option value="cancelada">Cancelada</option>
               </select>
             </div>
             <div class="form-group">
               <label class="form-label">Estado de Pagamento</label>
               <select class="form-control" id="f-payment-status" onchange="onPaymentStatusChange()">
-                <option value="pendente">A aguardar pagamento</option>
-                <option value="pago">Pagamento efetuado</option>
-                <option value="parcial">Pagamento parcial</option>
+                <option value="pendente">Pendente</option>
+                <option value="confirmado">Confirmado</option>
+                <option value="parcial">Parcial</option>
               </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Valor Pago (€)</label>
+              <input type="number" class="form-control" id="f-amount-paid" min="0" step="0.01" placeholder="0.00" oninput="onAmountPaidChange()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data de Pagamento</label>
+              <input type="date" class="form-control" id="f-payment-date">
+            </div>
+            <div class="form-group form-full" id="payment-remaining-wrap" style="display:none;">
+              <div style="background:rgba(201,168,76,.12);border-left:3px solid var(--dourado);border-radius:6px;padding:10px 14px;font-size:13.5px;color:var(--texto);">
+                <span style="color:var(--cinza);font-size:12px;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:2px;">Valor em falta</span>
+                <span id="payment-remaining-val" style="font-family:'Playfair Display',serif;font-size:20px;color:var(--vermelho);font-weight:700;">€0.00</span>
+              </div>
             </div>
             <div class="form-group" id="pagamento-metodo-wrap" style="display:none;">
               <label class="form-label">Método de Pagamento</label>

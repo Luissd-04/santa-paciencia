@@ -37,17 +37,16 @@ function formatDate(s) {
 
 function badgeEstado(e) {
   const map = {
-    'confirmada': 'badge-confirmada', 'pendente': 'badge-pendente',
-    'cancelada': 'badge-cancelada', 'check-in': 'badge-checkin', 'check-out': 'badge-checkout'
+    'confirmada': 'badge-confirmada', 'pendente': 'badge-pendente', 'cancelada': 'badge-cancelada'
   };
   const label = e ? e.charAt(0).toUpperCase() + e.slice(1) : e;
   return `<span class="badge ${map[e] || ''}">${label}</span>`;
 }
 
 function badgePagamento(p) {
-  const map = { 'pago': 'badge-pago', 'parcial': 'badge-parcial', 'pendente': 'badge-pendpag' };
-  const label = p ? p.charAt(0).toUpperCase() + p.slice(1) : p;
-  return `<span class="badge ${map[p] || ''}">${label || '—'}</span>`;
+  const map = { 'confirmado': 'badge-pago', 'pago': 'badge-pago', 'parcial': 'badge-parcial', 'pendente': 'badge-pendpag' };
+  const labels = { 'confirmado': 'Confirmado', 'pago': 'Confirmado', 'parcial': 'Parcial', 'pendente': 'Pendente' };
+  return `<span class="badge ${map[p] || ''}">${labels[p] || (p ? p.charAt(0).toUpperCase() + p.slice(1) : '—')}</span>`;
 }
 
 function toast(msg, type = 'info', dur = 3500) {
