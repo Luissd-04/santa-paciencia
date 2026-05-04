@@ -253,10 +253,14 @@ function onPaymentStatusChange() {
     (ps === 'pago' || ps === 'parcial') ? '' : 'none';
 }
 
+// ── WIZARD STATE ──
+let wizStep = 1;
+
 function openModal() {
   editingId = null;
-  document.getElementById('modal-title').textContent = 'Nova Reserva';
-  document.getElementById('btn-guardar').textContent = 'Guardar Reserva';
+  wizStep = 1;
+  const titleEl = document.getElementById('modal-title');
+  if (titleEl) titleEl.textContent = 'Nova Reserva';
   buildCountrySelects();
   _resetGuestFields();
   document.getElementById('f-checkin').value = '';
@@ -270,7 +274,14 @@ function openModal() {
   document.getElementById('f-pagamento').value = 'transferencia';
   document.getElementById('f-noites').value = '';
   document.getElementById('f-total').value = '';
+  const rgpdWrap = document.getElementById('wiz-rgpd-wrap');
+  if (rgpdWrap) rgpdWrap.style.display = '';
+  const searchEl = document.getElementById('wiz-guest-search');
+  if (searchEl) searchEl.value = '';
   renderExtraGuests();
+  renderSuiteCards();
+  updateWizSummary();
+  updateWizUI();
   document.getElementById('modal-bg').classList.add('open');
 }
 
@@ -353,6 +364,15 @@ async function openEditModal(id) {
       setVal('birth_date',     g.birth_date);
       setVal('nif',            g.nif);
     });
+
+    wizStep = 1;
+    const rgpdWrap = document.getElementById('wiz-rgpd-wrap');
+    if (rgpdWrap) rgpdWrap.style.display = 'none';
+    const searchEl = document.getElementById('wiz-guest-search');
+    if (searchEl) searchEl.value = '';
+    renderSuiteCards();
+    updateWizSummary();
+    updateWizUI();
     document.getElementById('modal-bg').classList.add('open');
   } catch (e) {
     toast('❌ Erro ao carregar reserva.', 'error');
@@ -374,6 +394,17 @@ function calcTotal() {
   const alojId = document.getElementById('f-aloj').value;
   const suite = accommodations.find(a => a.id === alojId);
 
+  // Update nights badge from dates alone (no suite needed)
+  const badge = document.getElementById('wiz-nights-badge-wrap');
+  const valEl = document.getElementById('wiz-nights-val');
+  if (ci && co) {
+    const noitesOnly = Math.max(0, Math.round((new Date(co) - new Date(ci)) / 86400000));
+    if (badge) badge.style.display = noitesOnly > 0 ? '' : 'none';
+    if (valEl) valEl.textContent = noitesOnly;
+  } else {
+    if (badge) badge.style.display = 'none';
+  }
+
   if (ci && co && suite) {
     const noites = Math.max(0, Math.round((new Date(co) - new Date(ci)) / (1000 * 60 * 60 * 24)));
     document.getElementById('f-noites').value = noites;
@@ -384,6 +415,7 @@ function calcTotal() {
     const bkfCost = breakfast ? bkfRate * numHospedes * noites : 0;
     document.getElementById('f-total').value = ((suite.price_per_night * noites) + taxCost + bkfCost).toFixed(2);
   }
+  updateWizSummary();
 }
 
 function renderExtraGuests() {
@@ -483,6 +515,262 @@ function renderExtraGuests() {
 
   if (window.lucide) lucide.createIcons();
 }
+
+// ── WIZARD FUNCTIONS ──
+
+function updateWizUI() {
+  const total = 3;
+  for (let i = 1; i <= total; i++) {
+    const item = document.getElementById('ws-' + i);
+    if (item) {
+      item.classList.remove('wiz-active', 'wiz-done');
+      if (i === wizStep) item.classList.add('wiz-active');
+      else if (i < wizStep) item.classList.add('wiz-done');
+    }
+    const panel = document.getElementById('wiz-panel-' + i);
+    if (panel) panel.classList.toggle('active', i === wizStep);
+  }
+  const counter = document.getElementById('wiz-step-counter');
+  if (counter) counter.textContent = `Passo ${wizStep} de ${total}`;
+  const numEl = document.getElementById('wiz-step-num');
+  if (numEl) numEl.textContent = wizStep;
+
+  const prev = document.getElementById('btn-wiz-prev');
+  const next = document.getElementById('btn-wiz-next');
+  const save = document.getElementById('btn-guardar');
+  if (prev) prev.style.display = wizStep > 1 ? '' : 'none';
+  if (next) next.style.display = wizStep < total ? '' : 'none';
+  if (save) {
+    save.style.display = wizStep === total ? '' : 'none';
+    save.innerHTML = (editingId
+      ? `<i data-lucide="save" style="width:14px;height:14px;"></i> Atualizar Reserva`
+      : `<i data-lucide="save" style="width:14px;height:14px;"></i> Guardar Reserva`);
+  }
+  if (wizStep === 2) { renderSuiteCards(); calcTotal(); }
+  if (wizStep === 3) buildWizConfirm();
+  if (window.lucide) lucide.createIcons();
+}
+
+function validateWizStep(step) {
+  if (step === 1) {
+    if (!document.getElementById('f-primeiro-nome').value.trim())
+      { toast('⚠️ Introduz o primeiro nome do hóspede.', 'error'); return false; }
+    if (!document.getElementById('f-email').value.trim())
+      { toast('⚠️ Introduz o email do hóspede.', 'error'); return false; }
+    if (!document.getElementById('f-tel-num').value.trim())
+      { toast('⚠️ Introduz o telefone do hóspede.', 'error'); return false; }
+    if (!document.getElementById('f-pais').value)
+      { toast('⚠️ Seleciona o país do hóspede.', 'error'); return false; }
+    const isForeign = document.getElementById('f-pais').value !== 'Portugal';
+    if (isForeign) {
+      if (!document.getElementById('f-doc-tipo').value)
+        { toast('⚠️ Seleciona o tipo de documento.', 'error'); return false; }
+      if (!document.getElementById('f-doc-num').value.trim())
+        { toast('⚠️ Introduz o número de documento.', 'error'); return false; }
+      if (!document.getElementById('f-doc-emissor').value)
+        { toast('⚠️ Seleciona o país emissor do documento.', 'error'); return false; }
+      if (!document.getElementById('f-nascimento').value)
+        { toast('⚠️ Introduz a data de nascimento.', 'error'); return false; }
+      if (!document.getElementById('f-local-nascimento').value.trim())
+        { toast('⚠️ Introduz o local de nascimento.', 'error'); return false; }
+    }
+    return true;
+  }
+  if (step === 2) {
+    const ci = document.getElementById('f-checkin').value;
+    const co = document.getElementById('f-checkout').value;
+    if (!ci) { toast('⚠️ Seleciona a data de check-in.', 'error'); return false; }
+    if (!co) { toast('⚠️ Seleciona a data de check-out.', 'error'); return false; }
+    if (new Date(co) <= new Date(ci)) { toast('⚠️ O check-out deve ser depois do check-in.', 'error'); return false; }
+    if (!document.getElementById('f-aloj').value) { toast('⚠️ Seleciona um alojamento.', 'error'); return false; }
+    return true;
+  }
+  return true;
+}
+
+function wizNext() {
+  if (!validateWizStep(wizStep)) return;
+  if (wizStep < 3) {
+    wizStep++;
+    updateWizUI();
+    const body = document.querySelector('.modal-wizard .modal-body');
+    if (body) body.scrollTop = 0;
+  }
+}
+
+function wizPrev() {
+  if (wizStep > 1) {
+    wizStep--;
+    updateWizUI();
+    const body = document.querySelector('.modal-wizard .modal-body');
+    if (body) body.scrollTop = 0;
+  }
+}
+
+function updateWizSummary() {
+  const nome = (document.getElementById('f-primeiro-nome')?.value || '').trim();
+  const apelido = (document.getElementById('f-apelido')?.value || '').trim();
+  const alojId = document.getElementById('f-aloj')?.value;
+  const suite = accommodations.find(a => a.id === alojId);
+  const ci = document.getElementById('f-checkin')?.value;
+  const co = document.getElementById('f-checkout')?.value;
+  const nights = ci && co ? Math.max(0, Math.round((new Date(co) - new Date(ci)) / 86400000)) : 0;
+  const total = document.getElementById('f-total')?.value;
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('ws-guest', [nome, apelido].filter(Boolean).join(' ') || '—');
+  set('ws-suite', suite?.name || '—');
+  set('ws-checkin', ci ? formatDate(ci) : '—');
+  set('ws-nights', nights > 0 ? nights + ' noite' + (nights !== 1 ? 's' : '') : '—');
+  set('ws-total', total && Number(total) > 0 ? '€' + Number(total).toLocaleString('pt-PT', { minimumFractionDigits: 2 }) : '—');
+}
+
+function renderSuiteCards() {
+  const grid = document.getElementById('suite-cards-grid');
+  if (!grid) return;
+  const currentAlojId = document.getElementById('f-aloj')?.value;
+  if (!accommodations.length) {
+    grid.innerHTML = '<p style="font-size:13px;color:var(--cinza);">Nenhum alojamento disponível.</p>';
+    return;
+  }
+  grid.innerHTML = accommodations.map(a => {
+    const cor = a.color || 'var(--marca)';
+    const sel = currentAlojId === a.id ? 'selected' : '';
+    return `<div class="suite-card-opt ${sel}" onclick="selectSuiteCard('${a.id}')">
+      <div class="suite-check"><i data-lucide="check" style="width:10px;height:10px;color:#fff;"></i></div>
+      <div style="width:10px;height:10px;border-radius:50%;background:${cor};margin-bottom:8px;"></div>
+      <div class="suite-card-name">${a.name}</div>
+      <div class="suite-card-price">€${a.price_per_night}<span class="suite-card-sub"> / noite</span></div>
+    </div>`;
+  }).join('');
+  if (window.lucide) lucide.createIcons();
+}
+
+function selectSuiteCard(id) {
+  const sel = document.getElementById('f-aloj');
+  if (sel) sel.value = id;
+  renderSuiteCards();
+  calcTotal();
+}
+
+function buildWizConfirm() {
+  calcTotal();
+  const nome = document.getElementById('f-primeiro-nome')?.value || '';
+  const apelido = document.getElementById('f-apelido')?.value || '';
+  const email = document.getElementById('f-email')?.value || '';
+  const prefix = document.getElementById('f-tel-prefix')?.value || '';
+  const telNum = document.getElementById('f-tel-num')?.value || '';
+  const pais = document.getElementById('f-pais')?.value || '';
+  const alojId = document.getElementById('f-aloj')?.value;
+  const suite = accommodations.find(a => a.id === alojId);
+  const cor = suite?.color || 'var(--marca)';
+  const ci = document.getElementById('f-checkin')?.value;
+  const co = document.getElementById('f-checkout')?.value;
+  const nights = ci && co ? Math.max(0, Math.round((new Date(co) - new Date(ci)) / 86400000)) : 0;
+  const canal = document.getElementById('f-canal')?.value || '';
+  const numH = parseInt(document.getElementById('f-num-hospedes')?.value) || 1;
+  const bkf = document.getElementById('f-breakfast')?.value === 'true';
+  const total = parseFloat(document.getElementById('f-total')?.value) || 0;
+  const card = document.getElementById('wiz-conf-card');
+  if (!card) return;
+  card.innerHTML = `<div class="wiz-conf-grid">
+    <div class="wiz-conf-cell">
+      <div class="wiz-conf-lbl">Hóspede</div>
+      <div class="wiz-conf-val">${[nome, apelido].filter(Boolean).join(' ') || '—'}</div>
+      <div class="wiz-conf-sub">${email}</div>
+      <div class="wiz-conf-sub">${(prefix + ' ' + telNum).trim()} · ${pais}</div>
+    </div>
+    <div class="wiz-conf-cell">
+      <div class="wiz-conf-lbl">Alojamento</div>
+      <div class="wiz-conf-val" style="display:flex;align-items:center;gap:6px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:${cor};flex-shrink:0;display:inline-block;"></span>
+        ${suite?.name || '—'}
+      </div>
+      <div class="wiz-conf-sub">${canal} · ${numH} hóspede${numH !== 1 ? 's' : ''}</div>
+      <div class="wiz-conf-sub">${bkf ? '🥐 Pequeno-almoço incl.' : 'Sem pequeno-almoço'}</div>
+    </div>
+    <div class="wiz-conf-cell">
+      <div class="wiz-conf-lbl">Datas</div>
+      <div class="wiz-conf-val">${ci ? formatDate(ci) : '—'} → ${co ? formatDate(co) : '—'}</div>
+      <div class="wiz-conf-sub">${nights} noite${nights !== 1 ? 's' : ''}</div>
+    </div>
+    <div class="wiz-conf-cell accent">
+      <div class="wiz-conf-lbl">Total</div>
+      <div class="wiz-conf-val">€${total.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}</div>
+      <div class="wiz-conf-sub">€${suite?.price_per_night || 0}/noite × ${nights} noites</div>
+    </div>
+  </div>`;
+}
+
+// ── GUEST SEARCH AUTOCOMPLETE ──
+let _guestSearchTimer = null;
+let _guestSearchResults = [];
+
+async function wizGuestSearch(q) {
+  const drop = document.getElementById('wiz-guest-drop');
+  if (!drop) return;
+  if (!q || q.length < 2) { _guestSearchResults = []; drop.innerHTML = ''; drop.classList.remove('open'); return; }
+  clearTimeout(_guestSearchTimer);
+  _guestSearchTimer = setTimeout(async () => {
+    try {
+      const data = await apiGet(`/api/guests?search=${encodeURIComponent(q)}`);
+      _guestSearchResults = (data.data || []).slice(0, 8);
+      if (!_guestSearchResults.length) {
+        drop.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--cinza);">Sem resultados</div>';
+        drop.classList.add('open');
+        return;
+      }
+      drop.innerHTML = _guestSearchResults.map((g, idx) => {
+        const name = [g.first_name, g.last_name].filter(Boolean).join(' ') || g.name || '—';
+        const meta = [g.email, g.phone].filter(Boolean).join(' · ');
+        return `<div class="guest-drop-item" onclick="wizSelectGuest(${idx})">
+          <div class="gdi-name">${name.replace(/</g, '&lt;')}</div>
+          <div class="gdi-meta">${meta.replace(/</g, '&lt;')}</div>
+        </div>`;
+      }).join('');
+      drop.classList.add('open');
+    } catch (e) { drop.classList.remove('open'); }
+  }, 280);
+}
+
+function wizSelectGuest(idx) {
+  const g = _guestSearchResults[idx];
+  if (!g) return;
+  document.getElementById('f-primeiro-nome').value = g.first_name || '';
+  document.getElementById('f-apelido').value = g.last_name || '';
+  document.getElementById('f-email').value = g.email || '';
+  const rawPhone = g.phone || '';
+  const mc = DIAL_COUNTRIES.find(c => rawPhone.startsWith(c.dial));
+  if (mc) {
+    document.getElementById('f-tel-prefix').value = mc.dial;
+    document.getElementById('f-tel-num').value = rawPhone.slice(mc.dial.length).trim();
+  } else {
+    document.getElementById('f-tel-num').value = rawPhone;
+  }
+  document.getElementById('f-pais').value = g.country || g.nationality || '';
+  document.getElementById('f-doc-tipo').value = g.document_type || '';
+  document.getElementById('f-doc-num').value = g.document_number || '';
+  document.getElementById('f-doc-emissor').value = g.document_issuer_country || '';
+  document.getElementById('f-nascimento').value = g.birth_date || '';
+  document.getElementById('f-local-nascimento').value = g.birth_city || '';
+  document.getElementById('f-nif').value = g.nif || '';
+  document.getElementById('f-morada').value = g.address || '';
+  document.getElementById('f-cp').value = g.postal_code || '';
+  document.getElementById('f-cidade').value = g.city || '';
+  updateForeignRequirements();
+  updateWizSummary();
+  const drop = document.getElementById('wiz-guest-drop');
+  if (drop) { drop.innerHTML = ''; drop.classList.remove('open'); }
+  const si = document.getElementById('wiz-guest-search');
+  if (si) si.value = '';
+  toast('✅ Dados do hóspede preenchidos.', 'success');
+}
+
+// Close guest dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  const drop = document.getElementById('wiz-guest-drop');
+  const wrap = document.getElementById('wiz-guest-search')?.closest('.guest-search-wrap');
+  if (drop && wrap && !wrap.contains(e.target)) drop.classList.remove('open');
+});
 
 function collectExtraGuests() {
   return Array.from(document.querySelectorAll('.extra-guest-row')).map(row => {

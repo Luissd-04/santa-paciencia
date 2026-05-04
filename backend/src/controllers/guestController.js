@@ -48,15 +48,32 @@ async function create(req, res, next) {
 // GET /api/guests
 async function getAll(req, res, next) {
   try {
-    const guests = db.prepare(`
-      SELECT g.*,
-        COUNT(CASE WHEN r.status != 'cancelada' THEN 1 END) as reservation_count,
-        MAX(CASE WHEN r.status != 'cancelada' THEN r.check_in END) as last_check_in
-      FROM guests g
-      LEFT JOIN reservations r ON r.guest_id = g.id
-      GROUP BY g.id
-      ORDER BY last_check_in DESC
-    `).all();
+    const { search } = req.query;
+    let guests;
+    if (search && search.trim()) {
+      const q = `%${search.trim().toLowerCase()}%`;
+      guests = db.prepare(`
+        SELECT g.*,
+          COUNT(CASE WHEN r.status != 'cancelada' THEN 1 END) as reservation_count,
+          MAX(CASE WHEN r.status != 'cancelada' THEN r.check_in END) as last_check_in
+        FROM guests g
+        LEFT JOIN reservations r ON r.guest_id = g.id
+        WHERE lower(g.name) LIKE ? OR lower(g.email) LIKE ? OR g.phone LIKE ?
+        GROUP BY g.id
+        ORDER BY last_check_in DESC
+        LIMIT 20
+      `).all(q, q, q);
+    } else {
+      guests = db.prepare(`
+        SELECT g.*,
+          COUNT(CASE WHEN r.status != 'cancelada' THEN 1 END) as reservation_count,
+          MAX(CASE WHEN r.status != 'cancelada' THEN r.check_in END) as last_check_in
+        FROM guests g
+        LEFT JOIN reservations r ON r.guest_id = g.id
+        GROUP BY g.id
+        ORDER BY last_check_in DESC
+      `).all();
+    }
     res.json({ success: true, data: guests });
   } catch (err) {
     next(err);

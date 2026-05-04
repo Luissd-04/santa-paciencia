@@ -1076,215 +1076,302 @@
   </div>
 </div>
 
-<!-- MODAL NOVA / EDITAR RESERVA -->
+<!-- MODAL NOVA / EDITAR RESERVA — WIZARD -->
 <div class="modal-bg" id="modal-bg" onclick="if(event.target===this)closeModal()">
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title" id="modal-title">Nova Reserva</span>
-      <button class="modal-close" onclick="closeModal()">
-        <i data-lucide="x" style="width:20px;height:20px;"></i>
-      </button>
-    </div>
-    <div class="modal-body">
-      <div class="form-grid">
+  <div class="modal modal-wizard">
 
-        <!-- ── HÓSPEDE PRINCIPAL ── -->
-        <div class="section-subtitle form-full">
-          <i data-lucide="user"></i> Dados do Hóspede Principal
-        </div>
+    <!-- ── LEFT SIDEBAR ── -->
+    <div class="wizard-side">
+      <div class="wiz-brand">
+        <div class="wiz-brand-title" id="modal-title">Nova Reserva</div>
+        <div class="wiz-step-counter" id="wiz-step-counter">Passo 1 de 3</div>
+      </div>
 
-        <div class="form-group">
-          <label class="form-label">Nome <span class="req-star">*</span></label>
-          <input class="form-control" id="f-primeiro-nome" placeholder="Primeiro nome">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Apelido <span class="req-star">*</span></label>
-          <input class="form-control" id="f-apelido" placeholder="Apelido">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Email <span class="req-star">*</span></label>
-          <input class="form-control" id="f-email" type="email" placeholder="email@exemplo.com">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Telefone <span class="req-star">*</span></label>
-          <div class="phone-group">
-            <select class="form-control phone-prefix" id="f-tel-prefix"></select>
-            <input class="form-control phone-number" id="f-tel-num" type="tel" placeholder="912 345 678">
+      <ol class="wiz-steps">
+        <li class="wiz-step wiz-active" id="ws-1">
+          <div class="wiz-dot">1</div>
+          <div class="wiz-step-info">
+            <div class="wiz-step-label">Identificação</div>
+            <div class="wiz-step-name">Hóspede</div>
           </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">País <span class="req-star">*</span></label>
-          <select class="form-control" id="f-pais" onchange="updateForeignRequirements()"></select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Data de Nascimento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
-          <input class="form-control" id="f-nascimento" type="date">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Local de Nascimento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
-          <input class="form-control" id="f-local-nascimento" placeholder="Cidade de nascimento">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Tipo de Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
-          <select class="form-control" id="f-doc-tipo">
-            <option value="">— Selecionar —</option>
-            <option value="cc">Cartão de Cidadão</option>
-            <option value="bi">Bilhete de Identidade</option>
-            <option value="passaporte">Passaporte</option>
-            <option value="nie">NIE</option>
-            <option value="outro">Outro</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Nº de Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
-          <input class="form-control" id="f-doc-num" placeholder="XX000000">
-        </div>
-        <div class="form-group">
-          <label class="form-label">País Emissor do Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
-          <select class="form-control" id="f-doc-emissor"></select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">NIF</label>
-          <input class="form-control" id="f-nif" placeholder="000 000 000">
-        </div>
-        <div class="form-group form-full">
-          <label class="form-label">Morada</label>
-          <input class="form-control" id="f-morada" placeholder="Rua, nº">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Código Postal</label>
-          <input class="form-control" id="f-cp" placeholder="0000-000">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Localidade</label>
-          <input class="form-control" id="f-cidade" placeholder="Lisboa">
-        </div>
-
-        <!-- ── DETALHES DA RESERVA ── -->
-        <div class="section-divider"></div>
-        <div class="section-subtitle form-full">
-          <i data-lucide="home"></i> Detalhes da Reserva
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Alojamento</label>
-          <select class="form-control" id="f-aloj" onchange="calcTotal()"></select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Canal</label>
-          <select class="form-control" id="f-canal">
-            <option value="airbnb">Airbnb</option>
-            <option value="booking">Booking.com</option>
-            <option value="direto">Direto</option>
-            <option value="expedia">Expedia</option>
-            <option value="vrbo">VRBO</option>
-            <option value="outro">Outro</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Check-in</label>
-          <input class="form-control" id="f-checkin" type="date" onchange="calcTotal()">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Check-out</label>
-          <input class="form-control" id="f-checkout" type="date" onchange="calcTotal()">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Nº de Hóspedes</label>
-          <input class="form-control" id="f-num-hospedes" type="number" min="1" max="20" value="2" onchange="calcTotal();renderExtraGuests()">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Pequeno-almoço</label>
-          <select class="form-control" id="f-breakfast" onchange="calcTotal()">
-            <option value="false">Não incluído</option>
-            <option value="true">Incluído</option>
-          </select>
-        </div>
-
-        <!-- Hóspedes adicionais -->
-        <div id="extra-guests-wrap" style="display:none;" class="form-full">
-          <div class="section-divider"></div>
-          <div class="section-subtitle form-full">
-            <i data-lucide="users"></i> Hóspedes Adicionais
+        </li>
+        <li class="wiz-step" id="ws-2">
+          <div class="wiz-dot">2</div>
+          <div class="wiz-step-info">
+            <div class="wiz-step-label">Estadia</div>
+            <div class="wiz-step-name">Datas & Suite</div>
           </div>
-          <div id="extra-guests-container"></div>
-        </div>
-
-        <!-- ── VALORES ── -->
-        <div class="section-divider"></div>
-        <div class="section-subtitle form-full">
-          <i data-lucide="euro"></i> Valores (calculados automaticamente)
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Noites</label>
-          <input class="form-control" id="f-noites" type="number" readonly style="background:var(--cinza-claro);">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Total Estimado (€)</label>
-          <input class="form-control" id="f-total" type="number" readonly style="background:var(--cinza-claro);font-weight:600;">
-        </div>
-
-        <!-- ── ESTADO ── -->
-        <div class="section-divider"></div>
-        <div class="section-subtitle form-full">
-          <i data-lucide="clipboard"></i> Estado
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Estado da Reserva</label>
-          <select class="form-control" id="f-estado">
-            <option value="confirmada">Confirmada</option>
-            <option value="pendente">Pendente</option>
-            <option value="check-in">Check-in</option>
-            <option value="check-out">Check-out</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Estado de Pagamento</label>
-          <select class="form-control" id="f-payment-status" onchange="onPaymentStatusChange()">
-            <option value="pendente">A aguardar pagamento</option>
-            <option value="pago">Pagamento efetuado</option>
-            <option value="parcial">Pagamento parcial</option>
-          </select>
-        </div>
-        <div class="form-group" id="pagamento-metodo-wrap" style="display:none;">
-          <label class="form-label">Método de Pagamento</label>
-          <select class="form-control" id="f-pagamento">
-            <option value="transferencia">Transferência</option>
-            <option value="mbway">MBWay</option>
-            <option value="numerario">Numerário</option>
-            <option value="cartao">Cartão</option>
-          </select>
-        </div>
-        <div class="form-group form-full">
-          <label class="form-label">Notas</label>
-          <textarea class="form-control" id="f-notas" rows="2" placeholder="Observações, pedidos especiais..."></textarea>
-        </div>
-
-        <!-- ── RGPD ── -->
-        <div class="section-divider"></div>
-        <div class="form-full">
-          <div class="rgpd-box">
-            <div class="rgpd-title"><i data-lucide="shield" style="width:14px;height:14px;"></i> Proteção de Dados (RGPD)</div>
-            <div class="rgpd-text">
-              Os seus dados pessoais são recolhidos e tratados pela Santa Paciência — Alojamento Local, com a finalidade de gerir a sua reserva e dar cumprimento às obrigações legais aplicáveis ao alojamento local em Portugal (incluindo a comunicação ao SEF/AIMA). Os dados são conservados pelo período legalmente exigido. Tem direito de acesso, retificação, apagamento e portabilidade dos seus dados, podendo exercê-los por contacto direto com o estabelecimento. O fornecimento dos dados é obrigatório para a concretização da reserva.
-            </div>
-            <label class="rgpd-check-label" id="rgpd-check-label">
-              <input type="checkbox" id="f-rgpd-check" onchange="this.closest('.rgpd-box').classList.toggle('rgpd-accepted',this.checked)">
-              <span>Li e aceito o tratamento dos meus dados pessoais nos termos acima descritos. <span class="req-star">*</span></span>
-            </label>
+        </li>
+        <li class="wiz-step" id="ws-3">
+          <div class="wiz-dot">3</div>
+          <div class="wiz-step-info">
+            <div class="wiz-step-label">Finalizar</div>
+            <div class="wiz-step-name">Confirmar</div>
           </div>
+        </li>
+      </ol>
+
+      <div class="wiz-sum">
+        <div class="wiz-sum-heading">Resumo</div>
+        <div class="wiz-sum-row">
+          <span class="wiz-sum-key">Hóspede</span>
+          <span class="wiz-sum-val" id="ws-guest">—</span>
         </div>
+        <div class="wiz-sum-row">
+          <span class="wiz-sum-key">Suite</span>
+          <span class="wiz-sum-val" id="ws-suite">—</span>
+        </div>
+        <div class="wiz-sum-row">
+          <span class="wiz-sum-key">Check-in</span>
+          <span class="wiz-sum-val" id="ws-checkin">—</span>
+        </div>
+        <div class="wiz-sum-row">
+          <span class="wiz-sum-key">Noites</span>
+          <span class="wiz-sum-val" id="ws-nights">—</span>
+        </div>
+        <div class="wiz-sum-row" style="border-top:1.5px solid rgba(139,58,36,.2);margin-top:4px;padding-top:8px;">
+          <span class="wiz-sum-key" style="font-weight:700;">Total</span>
+          <span class="wiz-sum-val wiz-sum-total" id="ws-total">—</span>
         </div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" id="btn-guardar" onclick="saveReserva()">
-        <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar Reserva
-      </button>
-    </div>
+
+    <!-- ── RIGHT MAIN ── -->
+    <div class="wizard-main">
+      <div class="modal-header">
+        <span class="modal-title" id="modal-title-mobile" style="font-size:13px;color:var(--cinza);font-family:inherit;">
+          Passo <span id="wiz-step-num">1</span> de 3
+        </span>
+        <button class="modal-close" onclick="closeModal()">
+          <i data-lucide="x" style="width:20px;height:20px;"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- ── STEP 1: HÓSPEDE ── -->
+        <div class="wiz-panel active" id="wiz-panel-1">
+          <h3 class="wiz-panel-title">Hóspede Principal</h3>
+
+          <div class="form-group form-full" style="margin-bottom:18px;">
+            <label class="form-label">Pesquisa rápida (hóspede existente)</label>
+            <div class="guest-search-wrap">
+              <input class="form-control" id="wiz-guest-search" placeholder="Nome, email ou telefone…" autocomplete="off" oninput="wizGuestSearch(this.value)">
+              <div class="guest-drop" id="wiz-guest-drop"></div>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Nome <span class="req-star">*</span></label>
+              <input class="form-control" id="f-primeiro-nome" placeholder="Primeiro nome" oninput="updateWizSummary()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Apelido <span class="req-star">*</span></label>
+              <input class="form-control" id="f-apelido" placeholder="Apelido" oninput="updateWizSummary()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email <span class="req-star">*</span></label>
+              <input class="form-control" id="f-email" type="email" placeholder="email@exemplo.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Telefone <span class="req-star">*</span></label>
+              <div class="phone-group">
+                <select class="form-control phone-prefix" id="f-tel-prefix"></select>
+                <input class="form-control phone-number" id="f-tel-num" type="tel" placeholder="912 345 678">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">País <span class="req-star">*</span></label>
+              <select class="form-control" id="f-pais" onchange="updateForeignRequirements()"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data de Nascimento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
+              <input class="form-control" id="f-nascimento" type="date">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Local de Nascimento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
+              <input class="form-control" id="f-local-nascimento" placeholder="Cidade de nascimento">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tipo de Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
+              <select class="form-control" id="f-doc-tipo">
+                <option value="">— Selecionar —</option>
+                <option value="cc">Cartão de Cidadão</option>
+                <option value="bi">Bilhete de Identidade</option>
+                <option value="passaporte">Passaporte</option>
+                <option value="nie">NIE</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nº de Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
+              <input class="form-control" id="f-doc-num" placeholder="XX000000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">País Emissor do Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
+              <select class="form-control" id="f-doc-emissor"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">NIF</label>
+              <input class="form-control" id="f-nif" placeholder="000 000 000">
+            </div>
+            <div class="form-group form-full">
+              <label class="form-label">Morada</label>
+              <input class="form-control" id="f-morada" placeholder="Rua, nº">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Código Postal</label>
+              <input class="form-control" id="f-cp" placeholder="0000-000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Localidade</label>
+              <input class="form-control" id="f-cidade" placeholder="Lisboa">
+            </div>
+          </div>
+        </div>
+
+        <!-- ── STEP 2: ESTADIA ── -->
+        <div class="wiz-panel" id="wiz-panel-2">
+          <h3 class="wiz-panel-title">Datas & Alojamento</h3>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Check-in <span class="req-star">*</span></label>
+              <input class="form-control" id="f-checkin" type="date" onchange="calcTotal();updateWizSummary()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Check-out <span class="req-star">*</span></label>
+              <input class="form-control" id="f-checkout" type="date" onchange="calcTotal();updateWizSummary()">
+            </div>
+            <div class="form-group form-full" id="wiz-nights-badge-wrap" style="display:none;">
+              <div class="wiz-nights-badge">
+                <i data-lucide="moon" style="width:18px;height:18px;color:var(--marca);flex-shrink:0;"></i>
+                <div>
+                  <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--marca);font-weight:700;">Duração</div>
+                  <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--azul);font-weight:700;"><span id="wiz-nights-val">0</span> noites</div>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Canal</label>
+              <select class="form-control" id="f-canal">
+                <option value="airbnb">Airbnb</option>
+                <option value="booking">Booking.com</option>
+                <option value="direto">Direto</option>
+                <option value="expedia">Expedia</option>
+                <option value="vrbo">VRBO</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nº de Hóspedes</label>
+              <input class="form-control" id="f-num-hospedes" type="number" min="1" max="20" value="2" onchange="calcTotal();renderExtraGuests()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Pequeno-almoço</label>
+              <select class="form-control" id="f-breakfast" onchange="calcTotal()">
+                <option value="false">Não incluído</option>
+                <option value="true">Incluído</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Suite selection (visual cards) -->
+          <div style="margin-top:18px;">
+            <label class="form-label">Alojamento <span class="req-star">*</span></label>
+            <!-- Hidden select kept for save compatibility -->
+            <select id="f-aloj" style="display:none;" onchange="calcTotal();updateWizSummary()"></select>
+            <div class="suite-cards" id="suite-cards-grid"></div>
+          </div>
+
+          <!-- Extra guests -->
+          <div id="extra-guests-wrap" style="display:none;" class="form-full">
+            <div class="section-divider"></div>
+            <div class="section-subtitle form-full">
+              <i data-lucide="users"></i> Hóspedes Adicionais
+            </div>
+            <div id="extra-guests-container"></div>
+          </div>
+        </div>
+
+        <!-- ── STEP 3: CONFIRMAR ── -->
+        <div class="wiz-panel" id="wiz-panel-3">
+          <h3 class="wiz-panel-title">Confirmar Reserva</h3>
+
+          <div id="wiz-conf-card" style="margin-bottom:20px;"></div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Estado da Reserva</label>
+              <select class="form-control" id="f-estado">
+                <option value="confirmada">Confirmada</option>
+                <option value="pendente">Pendente</option>
+                <option value="check-in">Check-in</option>
+                <option value="check-out">Check-out</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Estado de Pagamento</label>
+              <select class="form-control" id="f-payment-status" onchange="onPaymentStatusChange()">
+                <option value="pendente">A aguardar pagamento</option>
+                <option value="pago">Pagamento efetuado</option>
+                <option value="parcial">Pagamento parcial</option>
+              </select>
+            </div>
+            <div class="form-group" id="pagamento-metodo-wrap" style="display:none;">
+              <label class="form-label">Método de Pagamento</label>
+              <select class="form-control" id="f-pagamento">
+                <option value="transferencia">Transferência</option>
+                <option value="mbway">MBWay</option>
+                <option value="numerario">Numerário</option>
+                <option value="cartao">Cartão</option>
+              </select>
+            </div>
+            <div class="form-group form-full">
+              <label class="form-label">Notas</label>
+              <textarea class="form-control" id="f-notas" rows="2" placeholder="Observações, pedidos especiais…"></textarea>
+            </div>
+          </div>
+
+          <!-- Hidden computed fields -->
+          <input type="hidden" id="f-noites">
+          <input type="hidden" id="f-total">
+
+          <!-- RGPD (hidden on edits) -->
+          <div id="wiz-rgpd-wrap">
+            <div class="section-divider"></div>
+            <div class="rgpd-box">
+              <div class="rgpd-title"><i data-lucide="shield" style="width:14px;height:14px;"></i> Proteção de Dados (RGPD)</div>
+              <div class="rgpd-text">Os seus dados pessoais são recolhidos e tratados pela Santa Paciência — Alojamento Local, com a finalidade de gerir a sua reserva e dar cumprimento às obrigações legais aplicáveis ao alojamento local em Portugal (incluindo a comunicação ao SEF/AIMA). Os dados são conservados pelo período legalmente exigido. Tem direito de acesso, retificação, apagamento e portabilidade dos seus dados, podendo exercê-los por contacto direto com o estabelecimento. O fornecimento dos dados é obrigatório para a concretização da reserva.</div>
+              <label class="rgpd-check-label" id="rgpd-check-label">
+                <input type="checkbox" id="f-rgpd-check" onchange="this.closest('.rgpd-box').classList.toggle('rgpd-accepted',this.checked)">
+                <span>Li e aceito o tratamento dos meus dados pessoais nos termos acima descritos. <span class="req-star">*</span></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /modal-body -->
+
+      <div class="modal-footer">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+          <button class="btn btn-ghost" id="btn-wiz-prev" onclick="wizPrev()" style="display:none;">
+            <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Voltar
+          </button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn btn-primary" id="btn-wiz-next" onclick="wizNext()">
+            Continuar <i data-lucide="arrow-right" style="width:14px;height:14px;"></i>
+          </button>
+          <button class="btn btn-primary" id="btn-guardar" onclick="saveReserva()" style="display:none;">
+            <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar Reserva
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /wizard-main -->
   </div>
 </div>
 
