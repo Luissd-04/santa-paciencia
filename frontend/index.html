@@ -80,6 +80,67 @@
 
       <!-- ══ DASHBOARD ══ -->
       <div class="view active" id="view-dashboard">
+
+        <!-- Mobile dashboard content -->
+        <div id="dash-mobile" style="display:none">
+          <div class="mobile-arrivals-card" onclick="showView('reservas')">
+            <div class="mac-label">Chegadas Hoje</div>
+            <div class="mac-count" id="mac-count">—</div>
+            <div class="mac-sub" id="mac-sub"></div>
+            <div class="mac-next" id="mac-next" style="display:none">
+              <i data-lucide="clock"></i>
+              <span id="mac-next-text"></span>
+            </div>
+          </div>
+          <div class="mobile-kpi-grid">
+            <div class="m-kpi gold">
+              <div class="m-kpi-label">Faturado</div>
+              <div class="m-kpi-value" id="m-kpi-faturado">€—</div>
+              <div class="m-kpi-sub">total</div>
+            </div>
+            <div class="m-kpi green">
+              <div class="m-kpi-label">Ativas</div>
+              <div class="m-kpi-value" id="m-kpi-ativas">—</div>
+              <div class="m-kpi-sub">reservas</div>
+            </div>
+            <div class="m-kpi brown">
+              <div class="m-kpi-label">Noites</div>
+              <div class="m-kpi-value" id="m-kpi-noites">—</div>
+              <div class="m-kpi-sub">este mês</div>
+            </div>
+            <div class="m-kpi">
+              <div class="m-kpi-label">Ocupação</div>
+              <div class="m-kpi-value" id="m-kpi-ocup">—</div>
+              <div class="m-kpi-sub">média</div>
+            </div>
+          </div>
+          <div class="m-section-title"><h3>Ações Rápidas</h3></div>
+          <div class="mobile-quick-grid">
+            <div class="quick-item" onclick="goToTodayCheckins()">
+              <div class="quick-icon green"><i data-lucide="log-in"></i></div>
+              <div class="quick-label">Check-in Hoje</div>
+              <div class="quick-sub" id="qk-checkin">— hóspedes</div>
+            </div>
+            <div class="quick-item" onclick="goToTodayCheckouts()">
+              <div class="quick-icon brown"><i data-lucide="log-out"></i></div>
+              <div class="quick-label">Check-out</div>
+              <div class="quick-sub" id="qk-checkout">— hóspedes</div>
+            </div>
+            <div class="quick-item" onclick="goToPendingPayments()">
+              <div class="quick-icon gold"><i data-lucide="receipt"></i></div>
+              <div class="quick-label">Pagamentos</div>
+              <div class="quick-sub" id="qk-payments">— pendentes</div>
+            </div>
+            <div class="quick-item" onclick="showView('emails')">
+              <div class="quick-icon blue"><i data-lucide="mail"></i></div>
+              <div class="quick-label">Emails</div>
+              <div class="quick-sub">Templates</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Desktop dashboard content -->
+        <div id="dash-desktop">
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;">
           <button class="btn btn-ghost btn-sm" onclick="exportDB()" title="Exportar base de dados completa">
             <i data-lucide="download" style="width:13px;height:13px;"></i> Exportar BD
@@ -131,10 +192,30 @@
             <div id="dash-avail"><div class="loading"><div class="spinner"></div></div></div>
           </div>
         </div>
+        </div><!-- /dash-desktop -->
       </div>
 
       <!-- ══ RESERVAS ══ -->
       <div class="view" id="view-reservas">
+
+        <!-- Mobile reservas content -->
+        <div id="reservas-mobile" style="display:none">
+          <div class="m-search-box">
+            <i data-lucide="search"></i>
+            <input type="text" id="mobile-search-input" placeholder="Pesquisar hóspede, ID..." oninput="renderMobileCards()">
+          </div>
+          <div class="mobile-filter-chips">
+            <div class="chip active" onclick="setMobileChip(this,'')">Todas</div>
+            <div class="chip" onclick="setMobileChip(this,'confirmada')">Confirmadas</div>
+            <div class="chip" onclick="setMobileChip(this,'check-in')">Check-in</div>
+            <div class="chip" onclick="setMobileChip(this,'pendente')">Pendentes</div>
+            <div class="chip" onclick="setMobileChip(this,'check-out')">Check-out</div>
+          </div>
+          <div id="mobile-res-cards"></div>
+        </div>
+
+        <!-- Desktop reservas content -->
+        <div id="reservas-desktop">
         <div class="toolbar">
           <div class="search-box">
             <i data-lucide="search"></i>
@@ -206,6 +287,7 @@
             <div class="spinner"></div> A carregar reservas...
           </div>
         </div>
+        </div><!-- /reservas-desktop -->
       </div>
 
       <!-- ══ CALENDÁRIO ══ -->
@@ -1032,14 +1114,18 @@
         </div>
         <div class="form-group">
           <label class="form-label">País <span class="req-star">*</span></label>
-          <select class="form-control" id="f-pais"></select>
+          <select class="form-control" id="f-pais" onchange="updateForeignRequirements()"></select>
         </div>
         <div class="form-group">
-          <label class="form-label">Data de Nascimento</label>
+          <label class="form-label">Data de Nascimento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
           <input class="form-control" id="f-nascimento" type="date">
         </div>
         <div class="form-group">
-          <label class="form-label">Tipo de Documento</label>
+          <label class="form-label">Local de Nascimento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
+          <input class="form-control" id="f-local-nascimento" placeholder="Cidade de nascimento">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo de Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
           <select class="form-control" id="f-doc-tipo">
             <option value="">— Selecionar —</option>
             <option value="cc">Cartão de Cidadão</option>
@@ -1050,8 +1136,12 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Nº de Documento</label>
+          <label class="form-label">Nº de Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
           <input class="form-control" id="f-doc-num" placeholder="XX000000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">País Emissor do Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
+          <select class="form-control" id="f-doc-emissor"></select>
         </div>
         <div class="form-group">
           <label class="form-label">NIF</label>
@@ -1142,6 +1232,23 @@
         </div>
 
         <div class="form-group">
+          <label class="form-label">Estado da Reserva</label>
+          <select class="form-control" id="f-estado">
+            <option value="confirmada">Confirmada</option>
+            <option value="pendente">Pendente</option>
+            <option value="check-in">Check-in</option>
+            <option value="check-out">Check-out</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estado de Pagamento</label>
+          <select class="form-control" id="f-payment-status" onchange="onPaymentStatusChange()">
+            <option value="pendente">A aguardar pagamento</option>
+            <option value="pago">Pagamento efetuado</option>
+            <option value="parcial">Pagamento parcial</option>
+          </select>
+        </div>
+        <div class="form-group" id="pagamento-metodo-wrap" style="display:none;">
           <label class="form-label">Método de Pagamento</label>
           <select class="form-control" id="f-pagamento">
             <option value="transferencia">Transferência</option>
@@ -1197,6 +1304,65 @@
 
 <!-- TOASTS -->
 <div class="toast-container" id="toast-container"></div>
+
+<!-- BOTTOM NAV (mobile only) -->
+<nav class="bottom-nav-bar" id="bottom-nav-bar">
+  <button class="bn-item active" id="bn-dashboard" onclick="showView('dashboard')">
+    <i data-lucide="layout-dashboard"></i><span>Início</span>
+  </button>
+  <button class="bn-item" id="bn-reservas" onclick="showView('reservas')">
+    <i data-lucide="clipboard-list"></i><span>Reservas</span>
+  </button>
+  <button class="bn-item" id="bn-calendario" onclick="showView('calendario')">
+    <i data-lucide="calendar-days"></i><span>Calendário</span>
+  </button>
+  <button class="bn-item" id="bn-hospedes" onclick="showView('hospedes')">
+    <i data-lucide="users"></i><span>Hóspedes</span>
+  </button>
+  <button class="bn-item" id="bn-mais" onclick="openSideDrawer()">
+    <i data-lucide="more-horizontal"></i><span>Mais</span>
+  </button>
+</nav>
+
+<!-- FAB (mobile only) -->
+<button class="mobile-fab" id="mobile-fab" onclick="openModal()">
+  <i data-lucide="plus"></i>
+</button>
+
+<!-- SIDE DRAWER (mobile) -->
+<div class="side-drawer-overlay" id="side-drawer-overlay" onclick="closeSideDrawer()"></div>
+<div class="side-drawer" id="side-drawer">
+  <div class="side-drawer-brand">
+    <h2>Santa Paciência</h2>
+    <p>Gestão de Alojamento</p>
+  </div>
+  <div class="side-drawer-section">Principal</div>
+  <div class="side-drawer-item" onclick="showView('dashboard');closeSideDrawer()">
+    <i data-lucide="layout-dashboard"></i> Dashboard
+  </div>
+  <div class="side-drawer-item" onclick="showView('reservas');closeSideDrawer()">
+    <i data-lucide="clipboard-list"></i> Reservas
+  </div>
+  <div class="side-drawer-item" onclick="showView('calendario');closeSideDrawer()">
+    <i data-lucide="calendar-days"></i> Calendário
+  </div>
+  <div class="side-drawer-item" onclick="showView('hospedes');closeSideDrawer()">
+    <i data-lucide="users"></i> Hóspedes
+  </div>
+  <div class="side-drawer-section">Gestão</div>
+  <div class="side-drawer-item" onclick="showView('alojamentos');closeSideDrawer()">
+    <i data-lucide="home"></i> Alojamentos
+  </div>
+  <div class="side-drawer-item" onclick="showView('despesas');closeSideDrawer()">
+    <i data-lucide="receipt"></i> Despesas
+  </div>
+  <div class="side-drawer-item" onclick="showView('emails');closeSideDrawer()">
+    <i data-lucide="mail"></i> Emails
+  </div>
+  <div class="side-drawer-item" onclick="showView('gcal');closeSideDrawer()">
+    <i data-lucide="calendar-sync"></i> Google Calendar
+  </div>
+</div>
 
 <script src="js/state.js"></script>
 <script src="js/helpers.js"></script>

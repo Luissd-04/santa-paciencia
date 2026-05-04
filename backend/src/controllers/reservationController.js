@@ -73,29 +73,34 @@ async function create(req, res, next) {
     if (!guestRecord) {
       const guestId = uuidv4();
       db.prepare(`
-        INSERT INTO guests (id, name, email, phone, document_type, document_number, nationality,
-          first_name, last_name, birth_date, nif, country, address, postal_code, city)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO guests (id, name, email, phone, document_type, document_number, document_issuer_country,
+          nationality, first_name, last_name, birth_date, birth_city, nif, country, address, postal_code, city)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(guestId, guest.name, guest.email, guest.phone || null,
-             guest.document_type || null, guest.document_number || null, guest.nationality || null,
+             guest.document_type || null, guest.document_number || null,
+             guest.document_issuer_country || null, guest.nationality || null,
              guest.first_name || null, guest.last_name || null, guest.birth_date || null,
-             guest.nif || null, guest.country || null, guest.address || null,
-             guest.postal_code || null, guest.city || null);
+             guest.birth_city || null, guest.nif || null, guest.country || null,
+             guest.address || null, guest.postal_code || null, guest.city || null);
       guestRecord = db.prepare('SELECT * FROM guests WHERE id = ?').get(guestId);
     } else {
       // Actualizar campos opcionais se fornecidos
       db.prepare(`UPDATE guests SET
         name = COALESCE(?, name), phone = COALESCE(?, phone),
         document_type = COALESCE(?, document_type), document_number = COALESCE(?, document_number),
+        document_issuer_country = COALESCE(?, document_issuer_country),
         nationality = COALESCE(?, nationality), first_name = COALESCE(?, first_name),
         last_name = COALESCE(?, last_name), birth_date = COALESCE(?, birth_date),
+        birth_city = COALESCE(?, birth_city),
         nif = COALESCE(?, nif), country = COALESCE(?, country),
         address = COALESCE(?, address), postal_code = COALESCE(?, postal_code), city = COALESCE(?, city)
         WHERE id = ?`).run(
         guest.name || null, guest.phone || null,
         guest.document_type || null, guest.document_number || null,
+        guest.document_issuer_country || null,
         guest.nationality || null, guest.first_name || null,
         guest.last_name || null, guest.birth_date || null,
+        guest.birth_city || null,
         guest.nif || null, guest.country || null,
         guest.address || null, guest.postal_code || null, guest.city || null,
         guestRecord.id
@@ -123,11 +128,10 @@ async function create(req, res, next) {
     const services = settingsRow ? JSON.parse(settingsRow.value) : [];
     const taxSvc = services.find(s => s.id === 'tourist_tax');
     const bkfSvc = services.find(s => s.id === 'breakfast');
-    const taxRate = taxSvc?.value ?? 3;
     const bkfRate = bkfSvc?.value ?? 19;
     const bkfOn   = breakfast_included ? 1 : 0;
 
-    const touristTax    = taxRate * num_guests * nights;
+    const touristTax    = (taxSvc?.active !== false) ? (taxSvc?.value ?? 3) * num_guests * nights : 0;
     const breakfastCost = bkfOn ? bkfRate * num_guests * nights : 0;
     const totalAmount   = (accommodation.price_per_night * nights) + touristTax + breakfastCost;
 
@@ -200,9 +204,8 @@ async function update(req, res, next) {
     const services2 = settingsRow2 ? JSON.parse(settingsRow2.value) : [];
     const taxSvc2 = services2.find(s => s.id === 'tourist_tax');
     const bkfSvc2 = services2.find(s => s.id === 'breakfast');
-    const taxRate2 = taxSvc2?.value ?? 3;
     const bkfRate2 = bkfSvc2?.value ?? 19;
-    const touristTax = taxRate2 * guests * nights;
+    const touristTax = (taxSvc2?.active !== false) ? (taxSvc2?.value ?? 3) * guests * nights : 0;
     const breakfastCost = bkfOn2 ? bkfRate2 * guests * nights : 0;
 
     // Actualizar dados do hóspede se fornecidos
@@ -210,15 +213,19 @@ async function update(req, res, next) {
       db.prepare(`UPDATE guests SET
         name = COALESCE(?, name), phone = COALESCE(?, phone),
         document_type = COALESCE(?, document_type), document_number = COALESCE(?, document_number),
+        document_issuer_country = COALESCE(?, document_issuer_country),
         nationality = COALESCE(?, nationality), first_name = COALESCE(?, first_name),
         last_name = COALESCE(?, last_name), birth_date = COALESCE(?, birth_date),
+        birth_city = COALESCE(?, birth_city),
         nif = COALESCE(?, nif), country = COALESCE(?, country),
         address = COALESCE(?, address), postal_code = COALESCE(?, postal_code), city = COALESCE(?, city)
         WHERE id = ?`).run(
         guest.name || null, guest.phone || null,
         guest.document_type || null, guest.document_number || null,
+        guest.document_issuer_country || null,
         guest.nationality || null, guest.first_name || null,
         guest.last_name || null, guest.birth_date || null,
+        guest.birth_city || null,
         guest.nif || null, guest.country || null,
         guest.address || null, guest.postal_code || null, guest.city || null,
         existing.guest_id

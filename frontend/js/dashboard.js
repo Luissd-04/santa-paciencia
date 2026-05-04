@@ -67,6 +67,78 @@ function accomChip(r) {
   return `<span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;background:${color}20;color:${color};border:1px solid ${color}40;">${r.accommodation_name}</span>`;
 }
 
+function renderMobileDashboard() {
+  const today = new Date().toISOString().split('T')[0];
+  const todayArrivals = reservas.filter(r => r.check_in === today && r.status !== 'cancelada');
+  const todayDeps     = reservas.filter(r => r.check_out === today && r.status !== 'cancelada');
+  const pendingPay    = reservas.filter(r => r.payment_status === 'pendente' && r.status !== 'cancelada');
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+  // Arrivals card
+  set('mac-count', todayArrivals.length);
+  if (todayArrivals.length === 0) {
+    set('mac-sub', 'Sem chegadas hoje');
+  } else {
+    const conf = todayArrivals.filter(r => r.status === 'confirmada').length;
+    const pend = todayArrivals.filter(r => r.status === 'pendente').length;
+    const parts = [];
+    if (conf) parts.push(conf + ' confirmada' + (conf !== 1 ? 's' : ''));
+    if (pend) parts.push(pend + ' pendente' + (pend !== 1 ? 's' : ''));
+    set('mac-sub', parts.join(', ') || todayArrivals.length + ' chegadas');
+  }
+  const macNext = document.getElementById('mac-next');
+  if (macNext) {
+    if (todayArrivals.length > 0) {
+      macNext.style.display = 'flex';
+      set('mac-next-text', 'Próximo: ' + todayArrivals[0].guest_name);
+    } else {
+      macNext.style.display = 'none';
+    }
+  }
+
+  // Mirror desktop KPI values into mobile
+  [['m-kpi-faturado','kpi-faturado'],['m-kpi-ativas','kpi-ativas'],
+   ['m-kpi-noites','kpi-noites'],['m-kpi-ocup','kpi-ocup']].forEach(([mId, dId]) => {
+    const mel = document.getElementById(mId);
+    const del = document.getElementById(dId);
+    if (mel && del) mel.textContent = del.textContent;
+  });
+
+  // Quick action counts
+  set('qk-checkin',  todayArrivals.length + ' hóspede' + (todayArrivals.length !== 1 ? 's' : ''));
+  set('qk-checkout', todayDeps.length     + ' hóspede' + (todayDeps.length     !== 1 ? 's' : ''));
+  set('qk-payments', pendingPay.length    + ' pendente' + (pendingPay.length   !== 1 ? 's' : ''));
+}
+
+function goToTodayCheckins() {
+  const today = new Date().toISOString().split('T')[0];
+  showView('reservas');
+  setTimeout(() => {
+    const fd = document.getElementById('filter-date-from');
+    const ft = document.getElementById('filter-date-to');
+    if (fd) fd.value = today;
+    if (ft) ft.value = today;
+    renderTabela();
+    renderMobileCards();
+  }, 50);
+}
+
+function goToTodayCheckouts() {
+  showView('reservas');
+}
+
+function goToPendingPayments() {
+  if (typeof mobileChipFilter !== 'undefined') {
+    mobileChipFilter = 'pendente';
+    document.querySelectorAll('.mobile-filter-chips .chip').forEach(c => c.classList.remove('active'));
+    const pendChip = document.querySelector('.mobile-filter-chips .chip[onclick*="pendente"]');
+    if (pendChip) pendChip.classList.add('active');
+  }
+  showView('reservas');
+  setTimeout(renderMobileCards, 50);
+}
+
 async function renderDashboard() {
   await Promise.all([loadDashboardStats(), loadReservas()]);
 
@@ -88,6 +160,9 @@ async function renderDashboard() {
         <td>${badgeEstado(r.status)}</td>
       </tr>`).join('') + '</tbody></table>';
   }
+
+  renderMobileDashboard();
+  if (window.lucide) lucide.createIcons();
 
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const da = document.getElementById('dash-avail');

@@ -6,8 +6,8 @@ async function create(req, res, next) {
   try {
     const {
       name, first_name, last_name, email, email_personal,
-      phone, birth_date, nif, nationality, country,
-      document_type, document_number,
+      phone, birth_date, birth_city, nif, nationality, country,
+      document_type, document_number, document_issuer_country,
       address, postal_code, city
     } = req.body;
 
@@ -26,15 +26,15 @@ async function create(req, res, next) {
     const id = uuidv4();
     db.prepare(`
       INSERT INTO guests (id, name, first_name, last_name, email, email_personal,
-        phone, birth_date, nif, nationality, country,
-        document_type, document_number, address, postal_code, city)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        phone, birth_date, birth_city, nif, nationality, country,
+        document_type, document_number, document_issuer_country, address, postal_code, city)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id, fullName, first_name || null, last_name || null,
       effectiveEmail, email_personal || null,
-      phone || null, birth_date || null, nif || null,
+      phone || null, birth_date || null, birth_city || null, nif || null,
       nationality || null, country || null,
-      document_type || null, document_number || null,
+      document_type || null, document_number || null, document_issuer_country || null,
       address || null, postal_code || null, city || null
     );
 
@@ -89,8 +89,8 @@ async function update(req, res, next) {
 
     const {
       first_name, last_name, email, email_personal,
-      phone, birth_date, nif, nationality, country,
-      document_type, document_number,
+      phone, birth_date, birth_city, nif, nationality, country,
+      document_type, document_number, document_issuer_country,
       address, postal_code, city,
       is_favorite, is_vip, is_unwanted
     } = req.body;
@@ -103,9 +103,9 @@ async function update(req, res, next) {
       UPDATE guests SET
         first_name = ?, last_name = ?, name = ?,
         email = ?, email_personal = ?,
-        phone = ?, birth_date = ?, nif = ?,
+        phone = ?, birth_date = ?, birth_city = ?, nif = ?,
         nationality = ?, country = ?,
-        document_type = ?, document_number = ?,
+        document_type = ?, document_number = ?, document_issuer_country = ?,
         address = ?, postal_code = ?, city = ?,
         is_favorite = ?, is_vip = ?, is_unwanted = ?
       WHERE id = ?
@@ -117,11 +117,13 @@ async function update(req, res, next) {
       email_personal ?? existing.email_personal,
       phone          ?? existing.phone,
       birth_date     ?? existing.birth_date,
+      birth_city     ?? existing.birth_city,
       nif            ?? existing.nif,
       nationality    ?? existing.nationality,
       country        ?? existing.country,
       document_type  ?? existing.document_type,
-      document_number ?? existing.document_number,
+      document_number        ?? existing.document_number,
+      document_issuer_country ?? existing.document_issuer_country,
       address        ?? existing.address,
       postal_code    ?? existing.postal_code,
       city           ?? existing.city,

@@ -1,5 +1,66 @@
 let sortCol = 'check_in';
 let sortAsc = true;
+let mobileChipFilter = '';
+
+function setMobileChip(el, filter) {
+  mobileChipFilter = filter;
+  document.querySelectorAll('.mobile-filter-chips .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderMobileCards();
+}
+
+function renderMobileCards() {
+  const container = document.getElementById('mobile-res-cards');
+  if (!container) return;
+
+  const q = (document.getElementById('mobile-search-input') || {value:''}).value.toLowerCase();
+  const statusColors = {
+    'confirmada': 'var(--marca)', 'pendente': 'var(--laranja)',
+    'check-in': 'var(--verde)', 'check-out': 'var(--cinza)', 'cancelada': 'var(--vermelho)'
+  };
+
+  const filtered = reservas.filter(r => {
+    const matchQ = !q || (r.guest_name + ' ' + r.id + ' ' + r.accommodation_name).toLowerCase().includes(q);
+    const matchS = !mobileChipFilter || r.status === mobileChipFilter;
+    return matchQ && matchS;
+  }).sort((a, b) => new Date(b.check_in) - new Date(a.check_in));
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="es-icon">📭</div><h3>Sem reservas</h3><p>Nenhuma reserva encontrada.</p></div>';
+    return;
+  }
+
+  container.innerHTML = filtered.map(r => {
+    const bc = statusColors[r.status] || 'var(--marca)';
+    return `<div class="m-res-card" style="border-left-color:${bc}" onclick="showDetail('${r.id}')">
+      <div class="mrc-top">
+        <div>
+          <div class="mrc-name">${r.guest_name}</div>
+          <div class="mrc-id">${r.id} · ${r.accommodation_name}</div>
+        </div>
+        ${badgeEstado(r.status)}
+      </div>
+      <div class="mrc-meta">
+        <div class="mrc-meta-item"><i data-lucide="calendar"></i> ${formatDate(r.check_in)}</div>
+        <div class="mrc-meta-item"><i data-lucide="moon"></i> ${r.nights} noite${r.nights !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="mrc-total">
+        <span class="mrc-channel">${r.channel || '—'}</span>
+        <span class="mrc-price">€${Number(r.total_amount || 0).toFixed(2)}</span>
+      </div>
+      <div class="mrc-actions" onclick="event.stopPropagation()">
+        <button class="m-card-btn primary" onclick="showDetail('${r.id}')">
+          <i data-lucide="eye"></i> Ver
+        </button>
+        <button class="m-card-btn" onclick="openEditModal('${r.id}')">
+          <i data-lucide="pencil"></i> Editar
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
 
 const DIAL_COUNTRIES = [
   { code:'PT', name:'Portugal',         dial:'+351', flag:'🇵🇹' },
@@ -60,7 +121,7 @@ function buildCountrySelects() {
     DIAL_COUNTRIES.map(c => `<option value="${c.name}">${c.flag} ${c.name}</option>`).join('');
 
   document.querySelectorAll('.phone-prefix').forEach(el => { el.innerHTML = prefixOpts; });
-  document.querySelectorAll('select#f-pais, select.guest-country').forEach(el => { el.innerHTML = countryOpts; });
+  document.querySelectorAll('select#f-pais, select#f-doc-emissor, select.guest-country').forEach(el => { el.innerHTML = countryOpts; });
 }
 
 async function loadReservas() {
@@ -132,9 +193,11 @@ function renderTabela() {
   if (data.length === 0) {
     tbody.innerHTML = '';
     empty.style.display = 'block';
+    renderMobileCards();
     return;
   }
   empty.style.display = 'none';
+  renderMobileCards();
   tbody.innerHTML = data.map(r => `
     <tr onclick="showDetail('${r.id}')">
       <td><code style="font-size:11.5px;color:var(--azul-claro)">${r.id}</code></td>
@@ -163,15 +226,31 @@ function renderTabela() {
   if (window.lucide) lucide.createIcons();
 }
 
+function updateForeignRequirements() {
+  const pais = document.getElementById('f-pais')?.value;
+  const isForeign = pais && pais !== 'Portugal';
+  document.querySelectorAll('.req-foreign').forEach(el => {
+    el.style.display = isForeign ? '' : 'none';
+  });
+}
+
 function _resetGuestFields() {
   ['f-primeiro-nome','f-apelido','f-email','f-tel-num',
-   'f-doc-num','f-nascimento','f-nif','f-morada','f-cp','f-cidade','f-notas'].forEach(id => {
+   'f-doc-num','f-local-nascimento','f-nascimento','f-nif','f-morada','f-cp','f-cidade','f-notas'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   const docTipo = document.getElementById('f-doc-tipo'); if (docTipo) docTipo.value = '';
   const pais = document.getElementById('f-pais'); if (pais) pais.value = '';
+  const docEmissor = document.getElementById('f-doc-emissor'); if (docEmissor) docEmissor.value = '';
   const prefix = document.getElementById('f-tel-prefix'); if (prefix) prefix.value = '+351';
   const rgpd = document.getElementById('f-rgpd-check'); if (rgpd) { rgpd.checked = false; rgpd.closest('.rgpd-box')?.classList.remove('rgpd-accepted'); }
+  updateForeignRequirements();
+}
+
+function onPaymentStatusChange() {
+  const ps = document.getElementById('f-payment-status').value;
+  document.getElementById('pagamento-metodo-wrap').style.display =
+    (ps === 'pago' || ps === 'parcial') ? '' : 'none';
 }
 
 function openModal() {
@@ -185,6 +264,9 @@ function openModal() {
   document.getElementById('f-num-hospedes').value = 2;
   document.getElementById('f-breakfast').value = 'false';
   document.getElementById('f-canal').value = 'direto';
+  document.getElementById('f-estado').value = 'confirmada';
+  document.getElementById('f-payment-status').value = 'pendente';
+  document.getElementById('pagamento-metodo-wrap').style.display = 'none';
   document.getElementById('f-pagamento').value = 'transferencia';
   document.getElementById('f-noites').value = '';
   document.getElementById('f-total').value = '';
@@ -220,9 +302,12 @@ async function openEditModal(id) {
     }
     const countryName = guestFull.country || guestFull.nationality || '';
     document.getElementById('f-pais').value           = countryName;
-    document.getElementById('f-doc-tipo').value       = guestFull.document_type || '';
-    document.getElementById('f-doc-num').value        = guestFull.document_number || '';
-    document.getElementById('f-nascimento').value     = guestFull.birth_date || '';
+    document.getElementById('f-doc-tipo').value          = guestFull.document_type || '';
+    document.getElementById('f-doc-num').value           = guestFull.document_number || '';
+    document.getElementById('f-doc-emissor').value       = guestFull.document_issuer_country || '';
+    document.getElementById('f-nascimento').value        = guestFull.birth_date || '';
+    document.getElementById('f-local-nascimento').value  = guestFull.birth_city || '';
+    updateForeignRequirements();
     document.getElementById('f-nif').value            = guestFull.nif || '';
     document.getElementById('f-morada').value         = guestFull.address || '';
     document.getElementById('f-cp').value             = guestFull.postal_code || '';
@@ -233,6 +318,10 @@ async function openEditModal(id) {
     document.getElementById('f-num-hospedes').value  = r.num_guests || 2;
     document.getElementById('f-breakfast').value     = r.breakfast_included ? 'true' : 'false';
     document.getElementById('f-canal').value         = r.channel || 'direto';
+    document.getElementById('f-estado').value        = r.status || 'confirmada';
+    const ps = r.payment_status || 'pendente';
+    document.getElementById('f-payment-status').value = ps;
+    document.getElementById('pagamento-metodo-wrap').style.display = (ps === 'pago' || ps === 'parcial') ? '' : 'none';
     document.getElementById('f-pagamento').value     = r.payment_method || 'transferencia';
     document.getElementById('f-notas').value         = r.notes || '';
     document.getElementById('f-noites').value        = r.nights || '';
@@ -288,10 +377,12 @@ function calcTotal() {
   if (ci && co && suite) {
     const noites = Math.max(0, Math.round((new Date(co) - new Date(ci)) / (1000 * 60 * 60 * 24)));
     document.getElementById('f-noites').value = noites;
-    const taxRate = servicosData.find(s => s.id === 'tourist_tax')?.value ?? 3;
-    const bkfRate = servicosData.find(s => s.id === 'breakfast')?.value ?? 19;
+    const taxSvc = servicosData.find(s => s.id === 'tourist_tax');
+    const bkfSvc = servicosData.find(s => s.id === 'breakfast');
+    const taxCost = (taxSvc?.active !== false) ? (taxSvc?.value ?? 3) * numHospedes * noites : 0;
+    const bkfRate = bkfSvc?.value ?? 19;
     const bkfCost = breakfast ? bkfRate * numHospedes * noites : 0;
-    document.getElementById('f-total').value = ((suite.price_per_night * noites) + (taxRate * numHospedes * noites) + bkfCost).toFixed(2);
+    document.getElementById('f-total').value = ((suite.price_per_night * noites) + taxCost + bkfCost).toFixed(2);
   }
 }
 
@@ -435,6 +526,19 @@ async function saveReserva() {
   if (!pais)         { toast('Por favor selecione o país do hóspede.', 'error'); return; }
   if (!checkin || !checkout) { toast('Por favor selecione as datas.', 'error'); return; }
   if (checkin >= checkout) { toast('O check-out deve ser depois do check-in.', 'error'); return; }
+
+  if (pais && pais !== 'Portugal') {
+    if (!document.getElementById('f-nascimento').value)
+      { toast('Para hóspedes estrangeiros, a data de nascimento é obrigatória.', 'error'); return; }
+    if (!document.getElementById('f-local-nascimento').value.trim())
+      { toast('Para hóspedes estrangeiros, o local de nascimento é obrigatório.', 'error'); return; }
+    if (!document.getElementById('f-doc-tipo').value)
+      { toast('Para hóspedes estrangeiros, o tipo de documento é obrigatório.', 'error'); return; }
+    if (!document.getElementById('f-doc-num').value.trim())
+      { toast('Para hóspedes estrangeiros, o número de documento é obrigatório.', 'error'); return; }
+    if (!document.getElementById('f-doc-emissor').value)
+      { toast('Para hóspedes estrangeiros, o país emissor do documento é obrigatório.', 'error'); return; }
+  }
   if (rgpdCheck && !rgpdCheck.checked) {
     toast('O hóspede tem de aceitar o tratamento de dados (RGPD) para continuar.', 'error');
     rgpdCheck.closest('.rgpd-box')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -454,19 +558,23 @@ async function saveReserva() {
         num_guests: parseInt(document.getElementById('f-num-hospedes').value) || 1,
         breakfast_included: document.getElementById('f-breakfast')?.value === 'true',
         channel: document.getElementById('f-canal').value,
+        status: document.getElementById('f-estado').value,
+        payment_status: document.getElementById('f-payment-status').value,
         payment_method: document.getElementById('f-pagamento').value,
         notes: document.getElementById('f-notas').value,
         guests_data: collectExtraGuests(),
         guest: {
           name: nomeFull, first_name: primeiroNome, last_name: apelido,
           email, phone: tel, nationality: pais, country: pais,
-          document_type:   document.getElementById('f-doc-tipo')?.value   || null,
-          document_number: document.getElementById('f-doc-num')?.value    || null,
-          birth_date:      document.getElementById('f-nascimento')?.value || null,
-          nif:             document.getElementById('f-nif')?.value        || null,
-          address:         document.getElementById('f-morada')?.value     || null,
-          postal_code:     document.getElementById('f-cp')?.value         || null,
-          city:            document.getElementById('f-cidade')?.value     || null,
+          document_type:            document.getElementById('f-doc-tipo')?.value          || null,
+          document_number:          document.getElementById('f-doc-num')?.value           || null,
+          document_issuer_country:  document.getElementById('f-doc-emissor')?.value       || null,
+          birth_date:               document.getElementById('f-nascimento')?.value        || null,
+          birth_city:               document.getElementById('f-local-nascimento')?.value  || null,
+          nif:                      document.getElementById('f-nif')?.value               || null,
+          address:                  document.getElementById('f-morada')?.value            || null,
+          postal_code:              document.getElementById('f-cp')?.value                || null,
+          city:                     document.getElementById('f-cidade')?.value            || null,
         },
       };
       const res = await apiPut(`/api/reservations/${editingId}`, body);
@@ -483,13 +591,15 @@ async function saveReserva() {
         guest: {
           name: nomeFull, first_name: primeiroNome, last_name: apelido,
           email, phone: tel, nationality: pais, country: pais,
-          document_type:   document.getElementById('f-doc-tipo')?.value   || null,
-          document_number: document.getElementById('f-doc-num')?.value    || null,
-          birth_date:      document.getElementById('f-nascimento')?.value || null,
-          nif:             document.getElementById('f-nif')?.value        || null,
-          address:         document.getElementById('f-morada')?.value     || null,
-          postal_code:     document.getElementById('f-cp')?.value         || null,
-          city:            document.getElementById('f-cidade')?.value     || null,
+          document_type:            document.getElementById('f-doc-tipo')?.value          || null,
+          document_number:          document.getElementById('f-doc-num')?.value           || null,
+          document_issuer_country:  document.getElementById('f-doc-emissor')?.value       || null,
+          birth_date:               document.getElementById('f-nascimento')?.value        || null,
+          birth_city:               document.getElementById('f-local-nascimento')?.value  || null,
+          nif:                      document.getElementById('f-nif')?.value               || null,
+          address:                  document.getElementById('f-morada')?.value            || null,
+          postal_code:              document.getElementById('f-cp')?.value                || null,
+          city:                     document.getElementById('f-cidade')?.value            || null,
         },
         accommodation_id: alojId,
         check_in: checkin,
@@ -497,6 +607,8 @@ async function saveReserva() {
         num_guests: parseInt(document.getElementById('f-num-hospedes').value) || 1,
         breakfast_included: document.getElementById('f-breakfast')?.value === 'true',
         channel: document.getElementById('f-canal').value,
+        status: document.getElementById('f-estado').value,
+        payment_status: document.getElementById('f-payment-status').value,
         payment_method: document.getElementById('f-pagamento').value,
         notes: document.getElementById('f-notas').value,
         rgpd_consent: true,

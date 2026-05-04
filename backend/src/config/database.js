@@ -137,9 +137,11 @@ function migrateGuests() {
     ['address',       'TEXT'],
     ['postal_code',   'TEXT'],
     ['city',          'TEXT'],
-    ['is_favorite',   'INTEGER DEFAULT 0'],
-    ['is_vip',        'INTEGER DEFAULT 0'],
-    ['is_unwanted',   'INTEGER DEFAULT 0'],
+    ['is_favorite',              'INTEGER DEFAULT 0'],
+    ['is_vip',                   'INTEGER DEFAULT 0'],
+    ['is_unwanted',              'INTEGER DEFAULT 0'],
+    ['birth_city',               'TEXT'],
+    ['document_issuer_country',  'TEXT'],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {

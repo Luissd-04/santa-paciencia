@@ -20,6 +20,7 @@ function showView(v) {
     x.classList.toggle('active', x.getAttribute('onclick')?.includes("'" + v + "'"));
   });
   document.getElementById('topbar-title').textContent = VIEW_TITLES[v] || v;
+  setActiveBN(v);
   if (window.lucide) lucide.createIcons();
   if (v === 'dashboard') renderDashboard();
   if (v === 'reservas') loadReservas();
@@ -29,6 +30,30 @@ function showView(v) {
   if (v === 'despesas') loadDespesas();
   if (v === 'emails') loadEmailTemplates();
   if (v === 'gcal') loadCalendarStatus();
+}
+
+// ── MOBILE BOTTOM NAV ──
+const BOTTOM_NAV_VIEWS = ['dashboard', 'reservas', 'calendario', 'hospedes'];
+
+function setActiveBN(v) {
+  BOTTOM_NAV_VIEWS.forEach(name => {
+    const el = document.getElementById('bn-' + name);
+    if (el) el.classList.toggle('active', name === v);
+  });
+  const mais = document.getElementById('bn-mais');
+  if (mais) mais.classList.toggle('active', !BOTTOM_NAV_VIEWS.includes(v));
+}
+
+function openSideDrawer() {
+  document.getElementById('side-drawer').classList.add('open');
+  document.getElementById('side-drawer-overlay').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSideDrawer() {
+  document.getElementById('side-drawer').classList.remove('open');
+  document.getElementById('side-drawer-overlay').classList.remove('active');
+  document.body.style.overflow = '';
 }
 
 // ── ACCOMMODATIONS ──
@@ -58,6 +83,10 @@ function populateAccommodationSelects() {
 
 // ── SIDEBAR MOBILE ──
 function toggleSidebar() {
+  if (window.innerWidth <= 600) {
+    openSideDrawer();
+    return;
+  }
   const sidebar = document.querySelector('.sidebar');
   const overlay = document.getElementById('sidebar-overlay');
   const open = sidebar.classList.toggle('sidebar-open');
