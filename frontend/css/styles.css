@@ -1659,6 +1659,52 @@ select.form-control { cursor:pointer; }
    MOBILE UI — Component styles
 ══════════════════════════════════════════ */
 
+/* ── Modal Step Indicator ── */
+.modal-steps {
+  display: flex;
+  align-items: center;
+  padding: 14px 24px 10px;
+  background: var(--cinza-claro);
+  border-bottom: 1px solid rgba(139,58,36,.1);
+  flex-shrink: 0;
+}
+.ms-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  min-width: 56px;
+}
+.ms-dot {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: rgba(138,130,120,.18);
+  color: var(--cinza);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  transition: background .2s, color .2s;
+  border: 2px solid transparent;
+}
+.ms-item.active .ms-dot { background: var(--marca); color: #fff; border-color: var(--marca); }
+.ms-item.completed .ms-dot { background: var(--verde); color: #fff; border-color: var(--verde); }
+.ms-item.inactive { cursor: default; }
+.ms-label {
+  font-size: 10px; font-weight: 500; color: var(--cinza);
+  white-space: nowrap; transition: color .2s;
+}
+.ms-item.active .ms-label { color: var(--marca); font-weight: 600; }
+.ms-item.completed .ms-label { color: var(--verde); }
+.ms-connector {
+  flex: 1; height: 2px;
+  background: rgba(138,130,120,.2);
+  margin: 0 6px; margin-bottom: 18px;
+  transition: background .25s;
+}
+.ms-connector.completed { background: var(--verde); }
+.modal-step-panel { animation: stepFadeIn .2s ease; }
+@keyframes stepFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
 /* ── Arrivals hero card ── */
 .mobile-arrivals-card {
   background: linear-gradient(135deg, var(--marca) 0%, var(--marca-claro) 100%);

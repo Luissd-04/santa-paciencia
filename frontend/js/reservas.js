@@ -681,7 +681,7 @@ async function showDetail(id) {
       <div style="margin-top:20px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;">
         ${[['Alojamento', (accommodations.find(a => a.id === r.accommodation_id)?.price_per_night || 0) * r.nights],
            ['Taxa Turística', r.tourist_tax || 0],
-           ['Pequeno-almoço', r.num_guests * r.nights * (servicosData.find(s => s.id === 'breakfast')?.value ?? 19)],
+           ['Pequeno-almoço', r.breakfast_included ? r.num_guests * r.nights * (servicosData.find(s => s.id === 'breakfast')?.value ?? 19) : 0],
            ['Total', r.total_amount || 0]].map(([l, v]) => `
           <div style="background:var(--cinza-claro);border-radius:10px;padding:14px;text-align:center;">
             <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">${l}</div>
