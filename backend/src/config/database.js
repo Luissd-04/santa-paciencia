@@ -238,7 +238,6 @@ function initDatabase() {
   migrateOrgScopedTables();
   migrateLegacyDataToOrganizations();
 
-  seedAccommodations();
   console.log('✅ Base de dados inicializada');
 }
 
@@ -569,24 +568,5 @@ function migrateExpenses() {
   `);
 }
 
-function seedAccommodations() {
-  const orgCount = db.prepare('SELECT COUNT(*) as c FROM organizations').get().c;
-  if (orgCount === 0) return;
-
-  const count = db.prepare('SELECT COUNT(*) as c FROM accommodations').get();
-  if (count.c > 0) return;
-
-  const suites = [
-    { id: 'suite-mezzanine-deluxe', name: 'Suite Mezzanine Deluxe', type: 'suite', price_per_night: 120, max_guests: 2, license_number: process.env.LICENSE_NUMBER || '12345/AL' },
-    { id: 'suite-familiar-deluxe',  name: 'Suite Familiar Deluxe',  type: 'suite', price_per_night: 150, max_guests: 4, license_number: process.env.LICENSE_NUMBER || '12345/AL' },
-    { id: 'suite-king-deluxe',      name: 'Suite King Deluxe',      type: 'suite', price_per_night: 130, max_guests: 2, license_number: process.env.LICENSE_NUMBER || '12345/AL' },
-    { id: 'suite-queen-deluxe',     name: 'Suite Queen Deluxe',     type: 'suite', price_per_night: 110, max_guests: 2, license_number: process.env.LICENSE_NUMBER || '12345/AL' },
-  ];
-
-  const insert = db.prepare(`INSERT INTO accommodations (id, name, type, price_per_night, max_guests, license_number)
-    VALUES (@id, @name, @type, @price_per_night, @max_guests, @license_number)`);
-  db.transaction(items => items.forEach(i => insert.run(i)))(suites);
-  console.log('🏨 Suites inseridas na base de dados');
-}
 
 module.exports = { db, initDatabase };
