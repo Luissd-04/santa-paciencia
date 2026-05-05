@@ -1,0 +1,89 @@
+.reservas-shell {
+  display: grid;
+  gap: 24px;
+}
+
+.reservas-filter-panel {
+  padding: 18px;
+  border-radius: 24px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-soft);
+}
+
+.reservas-toolbar {
+  margin-bottom: 0;
+}
+
+.reservas-search-box {
+  min-width: min(100%, 320px);
+}
+
+.reservas-table-card {
+  overflow: hidden;
+  padding: 0;
+}
+
+.reservas-table-headline {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+  padding: 24px 24px 0;
+}
+
+.reservas-table-headline h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 24px;
+  color: var(--text-main);
+  margin-bottom: 6px;
+}
+
+.reservas-table-headline p {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.reservas-table-wrap {
+  padding: 18px 24px 24px;
+}
+
+.reservas-mobile-layout {
+  display: grid;
+  gap: 16px;
+}
+
+.reservas-mobile-search {
+  background: var(--surface-card);
+}
+
+.reservas-mobile-chips {
+  gap: 10px;
+}
+
+.reservas-mobile-cards {
+  display: grid;
+  gap: 14px;
+}
+
+#mobile-res-cards .m-res-card,
+#mobile-res-cards > div {
+  border-radius: 20px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-soft);
+}
+
+[data-theme="dark"] .reservas-filter-panel {
+  background: var(--surface-card);
+}
+
+@media (max-width: 900px) {
+  .reservas-table-headline {
+    padding: 22px 20px 0;
+  }
+
+  .reservas-table-wrap {
+    padding: 16px 20px 20px;
+  }
+}

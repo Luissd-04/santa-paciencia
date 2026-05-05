@@ -5,6 +5,7 @@ let reservas = [];
 let accommodations = [];
 let editingId = null;
 let calYear, calMonth;
+let currentUser = null;
 let servicosData = [
   { id: 'breakfast', name: 'Pequeno-almoço', value: 19 },
   { id: 'tourist_tax', name: 'Taxa turística', value: 3 },

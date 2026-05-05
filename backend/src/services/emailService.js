@@ -10,7 +10,7 @@ if (!EMAIL_DISABLED) {
 const BRAND_COLOR = '#843424';
 const ACCENT_COLOR = '#c9a84c';
 
-function getEmailSettings(accommodation) {
+function getEmailSettings(accommodation, organizationId) {
   // If accommodation object provided, prefer its social links
   if (accommodation) {
     return {
@@ -24,7 +24,10 @@ function getEmailSettings(accommodation) {
   try {
     const { db } = require('../config/database');
     const keys = ['checkin_time','checkout_time','social_facebook','social_instagram','social_website'];
-    const rows = db.prepare(`SELECT key,value FROM settings WHERE key IN (${keys.map(() => '?').join(',')})`).all(...keys);
+    const orgId = organizationId || accommodation?.organization_id;
+    const rows = orgId
+      ? db.prepare(`SELECT key,value FROM organization_settings WHERE organization_id = ? AND key IN (${keys.map(() => '?').join(',')})`).all(orgId, ...keys)
+      : db.prepare(`SELECT key,value FROM settings WHERE key IN (${keys.map(() => '?').join(',')})`).all(...keys);
     const s = {};
     rows.forEach(r => s[r.key] = r.value);
     return {
@@ -120,9 +123,12 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation) {
   if (EMAIL_DISABLED) { console.log(`Email ${slug} ignorado (EMAIL_ENABLED=false)`); return null; }
   if (!transporter) return null;
   const { db } = require('../config/database');
-  const template = db.prepare('SELECT * FROM email_templates WHERE slug=? AND active=1').get(slug);
+  const orgId = reservation.organization_id || accommodation.organization_id;
+  const template = orgId
+    ? db.prepare('SELECT * FROM organization_email_templates WHERE organization_id = ? AND slug = ? AND active=1').get(orgId, slug)
+    : db.prepare('SELECT * FROM email_templates WHERE slug=? AND active=1').get(slug);
   if (!template) { console.log(`Template ${slug} não encontrado ou inativo`); return null; }
-  const settings = getEmailSettings(accommodation);
+  const settings = getEmailSettings(accommodation, orgId);
   const vars = buildVars(guest, reservation, accommodation, settings);
   const to = guest.email;
   if (!to) return null;
@@ -145,9 +151,12 @@ async function sendCancellationEmail(guest, reservation, accommodation) {
 async function sendPaymentConfirmationEmail(guest, reservation, accommodation) {
   if (EMAIL_DISABLED || !transporter) return null;
   const { db } = require('../config/database');
-  const template = db.prepare("SELECT * FROM email_templates WHERE slug='pagamento' AND active=1").get();
+  const orgId = reservation.organization_id || accommodation.organization_id;
+  const template = orgId
+    ? db.prepare("SELECT * FROM organization_email_templates WHERE organization_id = ? AND slug='pagamento' AND active=1").get(orgId)
+    : db.prepare("SELECT * FROM email_templates WHERE slug='pagamento' AND active=1").get();
   if (template) return sendTemplatedEmail('pagamento', guest, reservation, accommodation);
-  const settings = getEmailSettings();
+  const settings = getEmailSettings(null, orgId);
   const content = `<h2 style="color:#27ae60;margin-top:0;">💶 Pagamento Confirmado</h2>
     <p style="color:#555;">Olá <strong>${guest.name}</strong>,</p>
     <p style="color:#555;">Confirmamos a receção do pagamento da sua reserva em <strong>${accommodation.name || ''}</strong>.</p>

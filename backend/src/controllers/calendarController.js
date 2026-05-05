@@ -4,20 +4,21 @@ const { createCalendarEvent, updateCalendarEvent } = require('../services/calend
 
 function getStatus(req, res) {
   const connected = isAuthenticated();
+  const orgId = req.user.organization_id;
 
   const inCalendar = db.prepare(`
     SELECT COUNT(*) as count FROM reservations
-    WHERE google_event_id IS NOT NULL AND status != 'cancelada'
-  `).get();
+    WHERE organization_id = ? AND google_event_id IS NOT NULL AND status != 'cancelada'
+  `).get(orgId);
 
   const removed = db.prepare(`
     SELECT COUNT(*) as count FROM reservations
-    WHERE status = 'cancelada' AND google_event_id IS NOT NULL
-  `).get();
+    WHERE organization_id = ? AND status = 'cancelada' AND google_event_id IS NOT NULL
+  `).get(orgId);
 
   const total = db.prepare(`
-    SELECT COUNT(*) as count FROM reservations WHERE status != 'cancelada'
-  `).get();
+    SELECT COUNT(*) as count FROM reservations WHERE organization_id = ? AND status != 'cancelada'
+  `).get(orgId);
 
   res.json({
     success: true,
@@ -37,8 +38,8 @@ async function syncAll(req, res) {
   }
 
   const reservations = db.prepare(`
-    SELECT * FROM reservations WHERE status != 'cancelada'
-  `).all();
+    SELECT * FROM reservations WHERE organization_id = ? AND status != 'cancelada'
+  `).all(req.user.organization_id);
 
   let created = 0;
   let updated = 0;

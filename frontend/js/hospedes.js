@@ -188,8 +188,19 @@ function setHospedesView(mode) {
 }
 
 function renderHospedes() {
+  updateHospedesSummary();
   if (hospedesViewMode === 'cards') renderHospedesCards();
   else renderHospedesList();
+}
+
+function updateHospedesSummary() {
+  const data = filteredHospedes();
+  const totalEl = document.getElementById('hospedes-total');
+  const vipEl = document.getElementById('hospedes-vip');
+  const repeatEl = document.getElementById('hospedes-repeat');
+  if (totalEl) totalEl.textContent = String(data.length);
+  if (vipEl) vipEl.textContent = String(data.filter(g => g.is_vip || g.is_favorite).length);
+  if (repeatEl) repeatEl.textContent = String(data.filter(g => Number(g.reservation_count || 0) > 1).length);
 }
 
 function filteredHospedes() {
@@ -215,12 +226,9 @@ function renderHospedesCards() {
   }
   empty.style.display = 'none';
   grid.innerHTML = data.map(g => `
-    <div class="hospede-card">
+    <div class="hospede-card" onclick="showHospedeDetail('${g.id}')" title="Ver detalhes do hóspede">
       <div class="hospede-card-top">
         ${flagImg(g, 72)}
-        <button class="hospede-menu-btn" onclick="showHospedeDetail('${g.id}')" title="Ver detalhes">
-          ${lcIcon('external-link', 16)}
-        </button>
       </div>
       <div class="hospede-name">${g.name}</div>
       <div class="hospede-info-row">

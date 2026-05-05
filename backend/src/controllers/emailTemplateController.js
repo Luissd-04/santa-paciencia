@@ -2,14 +2,21 @@ const { db } = require('../config/database');
 const { interpolate, baseTemplate, getEmailSettings } = require('../services/emailService');
 
 function getAll(req, res) {
-  const templates = db.prepare('SELECT * FROM email_templates ORDER BY rowid').all();
-  const settings = getEmailSettings();
+  const templates = db.prepare(`
+    SELECT * FROM organization_email_templates
+    WHERE organization_id = ?
+    ORDER BY rowid
+  `).all(req.user.organization_id);
+  const settings = getEmailSettings(null, req.user.organization_id);
   res.json({ success: true, data: templates, settings });
 }
 
 function update(req, res) {
   const { slug } = req.params;
-  const existing = db.prepare('SELECT * FROM email_templates WHERE slug = ?').get(slug);
+  const existing = db.prepare(`
+    SELECT * FROM organization_email_templates
+    WHERE organization_id = ? AND slug = ?
+  `).get(req.user.organization_id, slug);
   if (!existing) return res.status(404).json({ error: 'Template não encontrado' });
 
   const {
@@ -19,7 +26,7 @@ function update(req, res) {
   } = req.body;
 
   db.prepare(`
-    UPDATE email_templates SET
+    UPDATE organization_email_templates SET
       subject = COALESCE(?, subject),
       body = COALESCE(?, body),
       timing_offset = COALESCE(?, timing_offset),
@@ -34,7 +41,7 @@ function update(req, res) {
       subject_it = COALESCE(?, subject_it), body_it = COALESCE(?, body_it),
       subject_nl = COALESCE(?, subject_nl), body_nl = COALESCE(?, body_nl),
       updated_at = datetime('now')
-    WHERE slug = ?
+    WHERE organization_id = ? AND slug = ?
   `).run(
     subject ?? null, body ?? null,
     timing_offset !== undefined ? Number(timing_offset) : null,
@@ -46,15 +53,22 @@ function update(req, res) {
     subject_de ?? null, body_de ?? null,
     subject_it ?? null, body_it ?? null,
     subject_nl ?? null, body_nl ?? null,
-    slug
+    req.user.organization_id, slug
   );
 
-  res.json({ success: true, data: db.prepare('SELECT * FROM email_templates WHERE slug = ?').get(slug) });
+  res.json({
+    success: true,
+    data: db.prepare('SELECT * FROM organization_email_templates WHERE organization_id = ? AND slug = ?').get(req.user.organization_id, slug)
+  });
 }
 
 function getSettings(req, res) {
   const keys = ['checkin_time', 'checkout_time', 'social_facebook', 'social_instagram', 'social_website'];
-  const rows = db.prepare(`SELECT key, value FROM settings WHERE key IN (${keys.map(() => '?').join(',')})`).all(...keys);
+  const rows = db.prepare(`
+    SELECT key, value
+    FROM organization_settings
+    WHERE organization_id = ? AND key IN (${keys.map(() => '?').join(',')})
+  `).all(req.user.organization_id, ...keys);
   const s = {};
   rows.forEach(r => s[r.key] = r.value);
   res.json({ success: true, data: s });
@@ -62,23 +76,29 @@ function getSettings(req, res) {
 
 function saveSettings(req, res) {
   const allowed = ['checkin_time', 'checkout_time', 'social_facebook', 'social_instagram', 'social_website'];
-  const upsert = db.prepare("INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))");
+  const upsert = db.prepare(`
+    INSERT OR REPLACE INTO organization_settings (organization_id, key, value, updated_at)
+    VALUES (?, ?, ?, datetime('now'))
+  `);
   for (const [key, value] of Object.entries(req.body)) {
-    if (allowed.includes(key)) upsert.run(key, value ?? '');
+    if (allowed.includes(key)) upsert.run(req.user.organization_id, key, value ?? '');
   }
   res.json({ success: true });
 }
 
 async function preview(req, res) {
   const { slug } = req.params;
-  const template = db.prepare('SELECT * FROM email_templates WHERE slug = ?').get(slug);
+  const template = db.prepare(`
+    SELECT * FROM organization_email_templates
+    WHERE organization_id = ? AND slug = ?
+  `).get(req.user.organization_id, slug);
   if (!template) return res.status(404).json({ error: 'Template não encontrado' });
 
   if (process.env.EMAIL_ENABLED === 'false') {
     return res.status(400).json({ error: 'Email desativado (EMAIL_ENABLED=false)' });
   }
 
-  const settings = getEmailSettings();
+  const settings = getEmailSettings(null, req.user.organization_id);
   const fakeVars = {
     nome_hospede: 'João Silva',
     primeiro_nome: 'João',

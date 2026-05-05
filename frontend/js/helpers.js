@@ -1,31 +1,52 @@
 // ── API ──
-async function apiGet(path) {
-  const res = await fetch(API_BASE + path);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+async function apiRequest(path, options = {}, config = {}) {
+  const headers = { ...(options.headers || {}) };
+  const request = {
+    credentials: 'include',
+    ...options,
+    headers
+  };
+
+  const res = await fetch(API_BASE + path, request);
+  let payload = null;
+  try { payload = await res.json(); } catch (_) {}
+
+  if (res.status === 401 && !config.skipAuthRedirect && typeof handleUnauthorized === 'function') {
+    handleUnauthorized();
+  }
+
+  if (!res.ok) {
+    const err = new Error(payload?.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    err.payload = payload;
+    throw err;
+  }
+
+  return payload;
 }
 
-async function apiPost(path, body) {
-  const res = await fetch(API_BASE + path, {
+async function apiGet(path, config) {
+  return apiRequest(path, {}, config);
+}
+
+async function apiPost(path, body, config) {
+  return apiRequest(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
-  });
-  return res.json();
+  }, config);
 }
 
-async function apiPut(path, body) {
-  const res = await fetch(API_BASE + path, {
+async function apiPut(path, body, config) {
+  return apiRequest(path, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
-  });
-  return res.json();
+  }, config);
 }
 
-async function apiDelete(path) {
-  const res = await fetch(API_BASE + path, { method: 'DELETE' });
-  return res.json();
+async function apiDelete(path, config) {
+  return apiRequest(path, { method: 'DELETE' }, config);
 }
 
 // ── FORMAT ──

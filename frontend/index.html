@@ -6,6 +6,14 @@
 <title>Alojamento Local — Gestão Profissional</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/themes.css">
+<link rel="stylesheet" href="css/views/dashboard.css">
+<link rel="stylesheet" href="css/views/reservas.css">
+<link rel="stylesheet" href="css/views/despesas.css">
+<link rel="stylesheet" href="css/views/operations.css">
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -15,7 +23,55 @@
 </head>
 <body>
 
-<div class="layout">
+<div class="bg-pattern" id="auth-bg-pattern"></div>
+<div class="auth-container" id="auth-shell">
+  <div class="auth-card auth-card-premium">
+    <div class="auth-card-content">
+      <div class="auth-header">
+        <div class="brand-icon"><i data-lucide="castle"></i></div>
+        <h1>Santa Paciência</h1>
+        <p id="auth-copy">Entra na operação, gere a tua equipa e mantém cada propriedade organizada num espaço próprio.</p>
+      </div>
+      <div class="auth-tabs" id="auth-tabs">
+        <button class="tab-btn active" id="tab-login" type="button">Entrar</button>
+        <button class="tab-btn" id="tab-register" type="button">Criar Espaço</button>
+      </div>
+      <div class="auth-invite-banner" id="auth-invite-banner" style="display:none;"></div>
+      <form id="login-form" class="auth-premium-form">
+        <label class="auth-field auth-register-only is-hidden" id="register-name-wrap">
+          <span>Nome</span>
+          <input class="form-input" type="text" id="register-name" placeholder="O teu nome completo" autocomplete="name">
+        </label>
+        <label class="auth-field auth-register-only is-hidden" id="register-org-wrap">
+          <span>Nome do Espaço</span>
+          <input class="form-input" type="text" id="register-organization-name" placeholder="Ex: Casas da Serra" autocomplete="organization">
+        </label>
+        <label class="auth-field">
+          <span>Email</span>
+          <input class="form-input" type="email" id="login-email" placeholder="gestao@santapaciencia.xyz" autocomplete="username" required>
+        </label>
+        <label class="auth-field">
+          <span>Password</span>
+          <input class="form-input" type="password" id="login-password" placeholder="A tua password" autocomplete="current-password" required>
+        </label>
+        <label class="auth-field auth-register-only is-hidden" id="register-confirm-wrap">
+          <span>Confirmar password</span>
+          <input class="form-input" type="password" id="register-confirm-password" placeholder="Repete a password" autocomplete="new-password">
+        </label>
+        <button class="btn btn-primary auth-submit" id="login-submit" type="submit">
+          <i data-lucide="log-in"></i> Entrar
+        </button>
+        <p class="auth-helper-text" id="auth-helper-text">Cada proprietário cria o seu próprio espaço. Gestores e funcionários entram por convite.</p>
+        <div class="login-feedback" id="login-feedback">
+          <p class="login-message" id="login-message"></p>
+          <pre class="login-message-detail" id="login-message-detail"></pre>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="layout" id="app-layout" style="display:none;">
 
   <!-- SIDEBAR -->
   <aside class="sidebar" id="main-sidebar">
@@ -53,6 +109,9 @@
       <div class="nav-item" onclick="showView('gcal')">
         <span class="icon"><i data-lucide="calendar-sync"></i></span><span class="nav-label"> Google Calendar</span>
       </div>
+      <div class="nav-item" data-owner-only="true" style="display:none;" onclick="showView('equipa')">
+        <span class="icon"><i data-lucide="users-round"></i></span><span class="nav-label"> Equipa</span>
+      </div>
     </nav>
     <div class="sidebar-footer sb-label">
       v1.0 · Santa Paciência
@@ -68,10 +127,30 @@
       <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Menu">
         <i data-lucide="menu" style="width:20px;height:20px;"></i>
       </button>
-      <span class="topbar-title" id="topbar-title">Dashboard</span>
+      <div class="topbar-heading">
+        <span class="topbar-title" id="topbar-title">Dashboard</span>
+        <span class="topbar-subtitle">Operação centralizada por espaço</span>
+      </div>
       <div class="topbar-actions">
+        <button class="theme-toggle" id="theme-toggle" type="button" onclick="toggleTheme()" aria-label="Alternar tema">
+          <span class="theme-toggle-track">
+            <i data-lucide="sun-medium" class="theme-toggle-icon theme-toggle-icon-sun"></i>
+            <i data-lucide="moon-star" class="theme-toggle-icon theme-toggle-icon-moon"></i>
+            <span class="theme-toggle-thumb"></span>
+          </span>
+          <span class="theme-toggle-label" id="theme-toggle-label">Modo escuro</span>
+        </button>
+        <div class="auth-user-chip" id="auth-user-chip">
+          <div class="auth-user-copy">
+            <strong id="auth-user-name">Sessão</strong>
+            <span id="auth-user-role"></span>
+          </div>
+        </div>
         <button class="btn btn-primary" onclick="showView('reservas'); setTimeout(()=>openModal(),100)" style="background:var(--marca);">
           <i data-lucide="plus" style="width:14px;height:14px;"></i> Nova Reserva
+        </button>
+        <button class="btn btn-ghost" onclick="logout()">
+          <i data-lucide="log-out" style="width:14px;height:14px;"></i> Sair
         </button>
       </div>
     </header>
@@ -80,249 +159,339 @@
 
       <!-- ══ DASHBOARD ══ -->
       <div class="view active" id="view-dashboard">
+        <section class="dashboard-shell">
+          <div class="view-toolbar view-toolbar-dashboard">
+            <div class="view-toolbar-spacer"></div>
+            <div class="view-toolbar-actions">
+              <button class="btn btn-ghost btn-sm" onclick="exportDB()" title="Exportar backup ZIP com dados e imagens">
+                <i data-lucide="download" style="width:13px;height:13px;"></i> Exportar BD
+              </button>
+              <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0;" title="Importar backup ZIP completo (substitui dados e imagens existentes)">
+                <i data-lucide="upload" style="width:13px;height:13px;"></i> Importar BD
+                <input type="file" accept=".zip,application/zip" style="display:none" onchange="importDB(this)">
+              </label>
+            </div>
+          </div>
 
-        <!-- Mobile dashboard content -->
-        <div id="dash-mobile" style="display:none">
-          <div class="mobile-arrivals-card" onclick="showView('reservas')">
-            <div class="mac-label">Chegadas Hoje</div>
-            <div class="mac-count" id="mac-count">—</div>
-            <div class="mac-sub" id="mac-sub"></div>
-            <div class="mac-next" id="mac-next" style="display:none">
-              <i data-lucide="clock"></i>
-              <span id="mac-next-text"></span>
+          <div id="dash-mobile" class="dashboard-mobile-layout" style="display:none">
+            <div class="dashboard-mobile-highlight" onclick="showView('reservas')">
+              <div class="dashboard-mobile-highlight-copy">
+                <div class="mac-label">Chegadas Hoje</div>
+                <div class="mac-count" id="mac-count">—</div>
+                <div class="mac-sub" id="mac-sub"></div>
+              </div>
+              <div class="mac-next" id="mac-next" style="display:none">
+                <i data-lucide="clock"></i>
+                <span id="mac-next-text"></span>
+              </div>
+            </div>
+            <div class="mobile-kpi-grid dashboard-mobile-kpis">
+              <div class="m-kpi gold">
+                <div class="m-kpi-label">Faturado</div>
+                <div class="m-kpi-value" id="m-kpi-faturado">€—</div>
+                <div class="m-kpi-sub">reservas confirmadas</div>
+              </div>
+              <div class="m-kpi green">
+                <div class="m-kpi-label">Ativas</div>
+                <div class="m-kpi-value" id="m-kpi-ativas">—</div>
+                <div class="m-kpi-sub">em curso</div>
+              </div>
+              <div class="m-kpi brown">
+                <div class="m-kpi-label">Noites</div>
+                <div class="m-kpi-value" id="m-kpi-noites">—</div>
+                <div class="m-kpi-sub">este mês</div>
+              </div>
+              <div class="m-kpi">
+                <div class="m-kpi-label">Ocupação</div>
+                <div class="m-kpi-value" id="m-kpi-ocup">—</div>
+                <div class="m-kpi-sub">média</div>
+              </div>
+            </div>
+            <div class="view-section-heading">
+              <h3>Ações Rápidas</h3>
+              <span>Atalhos para a operação diária</span>
+            </div>
+            <div class="mobile-quick-grid dashboard-mobile-actions">
+              <div class="quick-item" onclick="goToTodayCheckins()">
+                <div class="quick-icon green"><i data-lucide="log-in"></i></div>
+                <div class="quick-label">Check-in Hoje</div>
+                <div class="quick-sub" id="qk-checkin">— hóspedes</div>
+              </div>
+              <div class="quick-item" onclick="goToTodayCheckouts()">
+                <div class="quick-icon brown"><i data-lucide="log-out"></i></div>
+                <div class="quick-label">Check-out</div>
+                <div class="quick-sub" id="qk-checkout">— hóspedes</div>
+              </div>
+              <div class="quick-item" onclick="goToPendingPayments()">
+                <div class="quick-icon gold"><i data-lucide="receipt"></i></div>
+                <div class="quick-label">Pagamentos</div>
+                <div class="quick-sub" id="qk-payments">— pendentes</div>
+              </div>
+              <div class="quick-item" onclick="showView('emails')">
+                <div class="quick-icon blue"><i data-lucide="mail"></i></div>
+                <div class="quick-label">Emails</div>
+                <div class="quick-sub">Templates</div>
+              </div>
             </div>
           </div>
-          <div class="mobile-kpi-grid">
-            <div class="m-kpi gold">
-              <div class="m-kpi-label">Faturado</div>
-              <div class="m-kpi-value" id="m-kpi-faturado">€—</div>
-              <div class="m-kpi-sub">total</div>
-            </div>
-            <div class="m-kpi green">
-              <div class="m-kpi-label">Ativas</div>
-              <div class="m-kpi-value" id="m-kpi-ativas">—</div>
-              <div class="m-kpi-sub">reservas</div>
-            </div>
-            <div class="m-kpi brown">
-              <div class="m-kpi-label">Noites</div>
-              <div class="m-kpi-value" id="m-kpi-noites">—</div>
-              <div class="m-kpi-sub">este mês</div>
-            </div>
-            <div class="m-kpi">
-              <div class="m-kpi-label">Ocupação</div>
-              <div class="m-kpi-value" id="m-kpi-ocup">—</div>
-              <div class="m-kpi-sub">média</div>
-            </div>
-          </div>
-          <div class="m-section-title"><h3>Ações Rápidas</h3></div>
-          <div class="mobile-quick-grid">
-            <div class="quick-item" onclick="goToTodayCheckins()">
-              <div class="quick-icon green"><i data-lucide="log-in"></i></div>
-              <div class="quick-label">Check-in Hoje</div>
-              <div class="quick-sub" id="qk-checkin">— hóspedes</div>
-            </div>
-            <div class="quick-item" onclick="goToTodayCheckouts()">
-              <div class="quick-icon brown"><i data-lucide="log-out"></i></div>
-              <div class="quick-label">Check-out</div>
-              <div class="quick-sub" id="qk-checkout">— hóspedes</div>
-            </div>
-            <div class="quick-item" onclick="goToPendingPayments()">
-              <div class="quick-icon gold"><i data-lucide="receipt"></i></div>
-              <div class="quick-label">Pagamentos</div>
-              <div class="quick-sub" id="qk-payments">— pendentes</div>
-            </div>
-            <div class="quick-item" onclick="showView('emails')">
-              <div class="quick-icon blue"><i data-lucide="mail"></i></div>
-              <div class="quick-label">Emails</div>
-              <div class="quick-sub">Templates</div>
-            </div>
-          </div>
-        </div>
 
-        <!-- Desktop dashboard content -->
-        <div id="dash-desktop">
-        <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;">
-          <button class="btn btn-ghost btn-sm" onclick="exportDB()" title="Exportar base de dados completa">
-            <i data-lucide="download" style="width:13px;height:13px;"></i> Exportar BD
-          </button>
-          <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0;" title="Importar base de dados completa (substitui dados existentes)">
-            <i data-lucide="upload" style="width:13px;height:13px;"></i> Importar BD
-            <input type="file" accept=".json" style="display:none" onchange="importDB(this)">
-          </label>
-        </div>
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="kpi-label">Total Faturado</div>
-            <div class="kpi-value" id="kpi-faturado">€—</div>
-            <div class="kpi-sub">reservas confirmadas</div>
-          </div>
-          <div class="kpi-card" style="border-color:var(--verde)">
-            <div class="kpi-label">Reservas Ativas</div>
-            <div class="kpi-value" id="kpi-ativas">—</div>
-            <div class="kpi-sub">confirmadas</div>
-          </div>
-          <div class="kpi-card" style="border-color:var(--azul-claro)">
-            <div class="kpi-label">Noites Totais</div>
-            <div class="kpi-value" id="kpi-noites">—</div>
-            <div class="kpi-sub">este mês</div>
-          </div>
-          <div class="kpi-card" style="border-color:var(--roxo)">
-            <div class="kpi-label">Taxa Ocupação</div>
-            <div class="kpi-value" id="kpi-ocup">—</div>
-            <div class="kpi-sub">média das suites</div>
-          </div>
-        </div>
+          <div id="dash-desktop" class="dashboard-desktop-layout">
+            <div class="kpi-grid dashboard-kpi-grid">
+              <div class="kpi-card dashboard-kpi-card">
+                <div class="kpi-label">Total Faturado</div>
+                <div class="kpi-value" id="kpi-faturado">€—</div>
+                <div class="kpi-sub">reservas confirmadas</div>
+              </div>
+              <div class="kpi-card dashboard-kpi-card dashboard-kpi-success">
+                <div class="kpi-label">Reservas Ativas</div>
+                <div class="kpi-value" id="kpi-ativas">—</div>
+                <div class="kpi-sub">confirmadas</div>
+              </div>
+              <div class="kpi-card dashboard-kpi-card dashboard-kpi-accent">
+                <div class="kpi-label">Noites Totais</div>
+                <div class="kpi-value" id="kpi-noites">—</div>
+                <div class="kpi-sub">este mês</div>
+              </div>
+              <div class="kpi-card dashboard-kpi-card dashboard-kpi-violet">
+                <div class="kpi-label">Taxa Ocupação</div>
+                <div class="kpi-value" id="kpi-ocup">—</div>
+                <div class="kpi-sub">média das suites</div>
+              </div>
+            </div>
 
-        <div class="dashboard-grid">
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">
-                <i data-lucide="calendar-clock"></i> Próximas Chegadas
-              </span>
-              <button class="btn btn-ghost btn-sm" onclick="showView('reservas')">Ver todas</button>
+            <div class="dashboard-grid">
+              <div class="card dashboard-panel">
+                <div class="card-header dashboard-panel-header">
+                  <span class="card-title">
+                    <i data-lucide="calendar-clock"></i> Próximas Chegadas
+                  </span>
+                  <button class="btn btn-ghost btn-sm" onclick="showView('reservas')">Ver todas</button>
+                </div>
+                <div id="dash-proximas"><div class="loading"><div class="spinner"></div> A carregar...</div></div>
+              </div>
+              <div class="card dashboard-panel">
+                <div class="card-header dashboard-panel-header">
+                  <span class="card-title">
+                    <i data-lucide="bar-chart-2"></i> Disponibilidade — Mês Atual
+                  </span>
+                </div>
+                <div id="dash-avail"><div class="loading"><div class="spinner"></div></div></div>
+              </div>
             </div>
-            <div id="dash-proximas"><div class="loading"><div class="spinner"></div> A carregar...</div></div>
           </div>
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">
-                <i data-lucide="bar-chart-2"></i> Disponibilidade — Mês Atual
-              </span>
-            </div>
-            <div id="dash-avail"><div class="loading"><div class="spinner"></div></div></div>
-          </div>
-        </div>
-        </div><!-- /dash-desktop -->
+        </section>
       </div>
 
       <!-- ══ RESERVAS ══ -->
       <div class="view" id="view-reservas">
+        <section class="reservas-shell">
+          <div class="view-toolbar view-toolbar-reservas">
+            <div class="view-toolbar-spacer"></div>
+            <div class="view-toolbar-actions">
+              <button class="btn btn-primary" onclick="openModal()">
+                <i data-lucide="plus"></i> Nova Reserva
+              </button>
+            </div>
+          </div>
 
-        <!-- Mobile reservas content -->
-        <div id="reservas-mobile" style="display:none">
-          <div class="m-search-box">
-            <i data-lucide="search"></i>
-            <input type="text" id="mobile-search-input" placeholder="Pesquisar hóspede, ID..." oninput="renderMobileCards()">
+          <div id="reservas-mobile" class="reservas-mobile-layout" style="display:none">
+            <div class="m-search-box reservas-mobile-search">
+              <i data-lucide="search"></i>
+              <input type="text" id="mobile-search-input" placeholder="Pesquisar hóspede, ID..." oninput="renderMobileCards()">
+            </div>
+            <div class="mobile-filter-chips reservas-mobile-chips">
+              <div class="chip active" onclick="setMobileChip(this,'')">Todas</div>
+              <div class="chip" onclick="setMobileChip(this,'confirmada')">Confirmadas</div>
+              <div class="chip" onclick="setMobileChip(this,'pendente')">Pendentes</div>
+              <div class="chip" onclick="setMobileChip(this,'cancelada')">Canceladas</div>
+            </div>
+            <div id="mobile-res-cards" class="reservas-mobile-cards"></div>
           </div>
-          <div class="mobile-filter-chips">
-            <div class="chip active" onclick="setMobileChip(this,'')">Todas</div>
-            <div class="chip" onclick="setMobileChip(this,'confirmada')">Confirmadas</div>
-            <div class="chip" onclick="setMobileChip(this,'pendente')">Pendentes</div>
-            <div class="chip" onclick="setMobileChip(this,'cancelada')">Canceladas</div>
-          </div>
-          <div id="mobile-res-cards"></div>
-        </div>
 
-        <!-- Desktop reservas content -->
-        <div id="reservas-desktop">
-        <div class="toolbar">
-          <div class="search-box">
-            <i data-lucide="search"></i>
-            <input type="text" id="search-input" placeholder="Pesquisar hóspede, ID..." oninput="renderTabela()">
-          </div>
-          <select class="form-control" id="filter-estado" style="width:auto;" onchange="renderTabela()">
-            <option value="">Todos os estados</option>
-            <option value="confirmada">Confirmada</option>
-            <option value="pendente">Pendente</option>
-            <option value="cancelada">Cancelada</option>
-          </select>
-          <select class="form-control" id="filter-suite" style="width:auto;" onchange="renderTabela()">
-            <option value="">Todas as suites</option>
-          </select>
-          <select class="form-control" id="filter-canal" style="width:auto;" onchange="renderTabela()">
-            <option value="">Todos os canais</option>
-            <option value="airbnb">Airbnb</option>
-            <option value="booking">Booking.com</option>
-            <option value="direto">Direto</option>
-            <option value="expedia">Expedia</option>
-            <option value="vrbo">VRBO</option>
-            <option value="outro">Outro</option>
-          </select>
-          <select class="form-control" id="filter-pagamento" style="width:auto;" onchange="renderTabela()">
-            <option value="">Todos os pagamentos</option>
-            <option value="confirmado">Confirmado</option>
-            <option value="parcial">Parcial</option>
-            <option value="pendente">Pendente</option>
-          </select>
-          <input type="date" class="form-control" id="filter-date-from" title="Check-in a partir de" onchange="renderTabela()" style="width:auto;">
-          <input type="date" class="form-control" id="filter-date-to"   title="Check-out até"        onchange="renderTabela()" style="width:auto;">
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('filter-date-from').value='';document.getElementById('filter-date-to').value='';renderTabela();" title="Limpar filtros">
-            <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar
-          </button>
-          <button class="btn btn-primary" style="margin-left:auto;" onclick="openModal()">
-            <i data-lucide="plus"></i> Nova Reserva
-          </button>
-        </div>
+          <div id="reservas-desktop" class="reservas-desktop-layout">
+            <div class="reservas-filter-panel">
+              <div class="toolbar reservas-toolbar">
+                <div class="search-box reservas-search-box">
+                  <i data-lucide="search"></i>
+                  <input type="text" id="search-input" placeholder="Pesquisar hóspede, ID..." oninput="renderTabela()">
+                </div>
+                <select class="form-control" id="filter-estado" style="width:auto;" onchange="renderTabela()">
+                  <option value="">Todos os estados</option>
+                  <option value="confirmada">Confirmada</option>
+                  <option value="pendente">Pendente</option>
+                  <option value="cancelada">Cancelada</option>
+                </select>
+                <select class="form-control" id="filter-suite" style="width:auto;" onchange="renderTabela()">
+                  <option value="">Todas as suites</option>
+                </select>
+                <select class="form-control" id="filter-canal" style="width:auto;" onchange="renderTabela()">
+                  <option value="">Todos os canais</option>
+                  <option value="airbnb">Airbnb</option>
+                  <option value="booking">Booking.com</option>
+                  <option value="direto">Direto</option>
+                  <option value="expedia">Expedia</option>
+                  <option value="vrbo">VRBO</option>
+                  <option value="outro">Outro</option>
+                </select>
+                <select class="form-control" id="filter-pagamento" style="width:auto;" onchange="renderTabela()">
+                  <option value="">Todos os pagamentos</option>
+                  <option value="confirmado">Confirmado</option>
+                  <option value="parcial">Parcial</option>
+                  <option value="pendente">Pendente</option>
+                </select>
+                <input type="date" class="form-control" id="filter-date-from" title="Check-in a partir de" onchange="renderTabela()" style="width:auto;">
+                <input type="date" class="form-control" id="filter-date-to" title="Check-out até" onchange="renderTabela()" style="width:auto;">
+                <button class="btn btn-ghost btn-sm" onclick="document.getElementById('filter-date-from').value='';document.getElementById('filter-date-to').value='';renderTabela();" title="Limpar filtros">
+                  <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar
+                </button>
+              </div>
+            </div>
 
-        <div class="card">
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th onclick="sortTabela('id')" class="th-sort">ID <span class="sort-icon" id="sort-id"></span></th>
-                  <th onclick="sortTabela('guest_name')" class="th-sort">Hóspede <span class="sort-icon" id="sort-guest_name"></span></th>
-                  <th onclick="sortTabela('accommodation_name')" class="th-sort">Alojamento <span class="sort-icon" id="sort-accommodation_name"></span></th>
-                  <th onclick="sortTabela('check_in')" class="th-sort">Check-in <span class="sort-icon" id="sort-check_in">↑</span></th>
-                  <th onclick="sortTabela('check_out')" class="th-sort">Check-out <span class="sort-icon" id="sort-check_out"></span></th>
-                  <th onclick="sortTabela('nights')" class="th-sort">Noites <span class="sort-icon" id="sort-nights"></span></th>
-                  <th onclick="sortTabela('total_amount')" class="th-sort">Total <span class="sort-icon" id="sort-total_amount"></span></th>
-                  <th onclick="sortTabela('channel')" class="th-sort">Canal <span class="sort-icon" id="sort-channel"></span></th>
-                  <th onclick="sortTabela('status')" class="th-sort">Estado <span class="sort-icon" id="sort-status"></span></th>
-                  <th onclick="sortTabela('payment_status')" class="th-sort">Pagamento <span class="sort-icon" id="sort-payment_status"></span></th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody id="tabela-body"></tbody>
-            </table>
+            <div class="card reservas-table-card">
+            <div class="reservas-table-headline">
+              <div>
+                <h3>Reservas ativas e histórico</h3>
+                <p>Ordena qualquer coluna e mantém o controlo por alojamento, canal e estado.</p>
+              </div>
+              <span class="view-stat-chip reservas-results-chip">
+                <strong id="reservas-results-total">0</strong>
+                <span id="reservas-results-detail">resultados visíveis</span>
+              </span>
+            </div>
+              <div class="table-wrap reservas-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th onclick="sortTabela('id')" class="th-sort">ID <span class="sort-icon" id="sort-id"></span></th>
+                      <th onclick="sortTabela('guest_name')" class="th-sort">Hóspede <span class="sort-icon" id="sort-guest_name"></span></th>
+                      <th onclick="sortTabela('accommodation_name')" class="th-sort">Alojamento <span class="sort-icon" id="sort-accommodation_name"></span></th>
+                      <th onclick="sortTabela('check_in')" class="th-sort">Check-in <span class="sort-icon" id="sort-check_in">↑</span></th>
+                      <th onclick="sortTabela('check_out')" class="th-sort">Check-out <span class="sort-icon" id="sort-check_out"></span></th>
+                      <th onclick="sortTabela('nights')" class="th-sort">Noites <span class="sort-icon" id="sort-nights"></span></th>
+                      <th onclick="sortTabela('total_amount')" class="th-sort">Total <span class="sort-icon" id="sort-total_amount"></span></th>
+                      <th onclick="sortTabela('channel')" class="th-sort">Canal <span class="sort-icon" id="sort-channel"></span></th>
+                      <th onclick="sortTabela('status')" class="th-sort">Estado <span class="sort-icon" id="sort-status"></span></th>
+                      <th onclick="sortTabela('payment_status')" class="th-sort">Pagamento <span class="sort-icon" id="sort-payment_status"></span></th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tabela-body"></tbody>
+                </table>
+              </div>
+              <div id="tabela-empty" style="display:none;" class="empty-state">
+                <div class="es-icon">📭</div>
+                <h3>Sem reservas</h3>
+                <p>Não foram encontradas reservas com estes filtros.</p>
+              </div>
+              <div id="tabela-loading" class="loading">
+                <div class="spinner"></div> A carregar reservas...
+              </div>
+            </div>
           </div>
-          <div id="tabela-empty" style="display:none;" class="empty-state">
-            <div class="es-icon">📭</div>
-            <h3>Sem reservas</h3>
-            <p>Não foram encontradas reservas com estes filtros.</p>
-          </div>
-          <div id="tabela-loading" class="loading">
-            <div class="spinner"></div> A carregar reservas...
-          </div>
-        </div>
-        </div><!-- /reservas-desktop -->
+        </section>
       </div>
 
       <!-- ══ CALENDÁRIO ══ -->
       <div class="view" id="view-calendario">
-        <div class="calendar-controls">
-          <button class="btn btn-ghost btn-sm" onclick="calPrev()">
-            <i data-lucide="chevron-left"></i> Anterior
-          </button>
-          <span id="cal-label" style="font-family:'Playfair Display',serif;font-size:18px;color:var(--azul);font-weight:600;min-width:200px;text-align:center;"></span>
-          <button class="btn btn-ghost btn-sm" onclick="calNext()">
-            Próximo <i data-lucide="chevron-right"></i>
-          </button>
-          <select class="form-control" id="cal-suite-filter" style="width:auto;" onchange="renderCalView()">
-            <option value="">Todas as Suites</option>
-          </select>
-          <button class="btn btn-ghost btn-sm" onclick="goToday()">
-            <i data-lucide="calendar-check"></i> Hoje
-          </button>
-          <div class="cal-mode-toggle" style="margin-left:auto;">
-            <button class="cal-mode-btn active" data-mode="calendar" onclick="setCalMode('calendar')">
-              <i data-lucide="calendar-days"></i> Calendário
-            </button>
-            <button class="cal-mode-btn" data-mode="timeline" onclick="setCalMode('timeline')">
-              <i data-lucide="gantt-chart"></i> Timeline
-            </button>
+        <section class="calendar-shell">
+          <div class="view-toolbar calendar-toolbar">
+            <div class="view-chip-list">
+              <span class="view-stat-chip">
+                <strong>Agenda</strong>
+                <span>Leitura rápida por mês ou timeline</span>
+              </span>
+            </div>
+            <div class="view-toolbar-actions">
+              <button class="btn btn-ghost btn-sm" onclick="calPrev()">
+                <i data-lucide="chevron-left"></i> Anterior
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="goToday()">
+                <i data-lucide="calendar-check"></i> Hoje
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="calNext()">
+                Próximo <i data-lucide="chevron-right"></i>
+              </button>
+              <select class="form-control" id="cal-suite-filter" style="width:auto;" onchange="renderCalView()">
+                <option value="">Todas as Suites</option>
+              </select>
+              <select class="form-control" id="cal-status-filter" style="width:auto;" onchange="renderCalView()">
+                <option value="">Todos os estados</option>
+                <option value="confirmada">Confirmadas</option>
+                <option value="pendente">Pendentes</option>
+              </select>
+              <select class="form-control" id="cal-channel-filter" style="width:auto;" onchange="renderCalView()">
+                <option value="">Todos os canais</option>
+                <option value="airbnb">Airbnb</option>
+                <option value="booking">Booking.com</option>
+                <option value="direto">Direto</option>
+                <option value="expedia">Expedia</option>
+                <option value="vrbo">VRBO</option>
+                <option value="outro">Outro</option>
+              </select>
+              <div class="calendar-view-stack">
+                <div class="cal-mode-toggle">
+                  <button class="cal-mode-btn active" data-mode="calendar" onclick="setCalMode('calendar')">
+                    <i data-lucide="calendar-days"></i> Calendário
+                  </button>
+                  <button class="cal-mode-btn" data-mode="timeline" onclick="setCalMode('timeline')">
+                    <i data-lucide="gantt-chart"></i> Timeline
+                  </button>
+                </div>
+                <div class="cal-mode-toggle" id="timeline-range-toggle" style="display:none;">
+                  <button class="cal-mode-btn" data-range="7" onclick="setTimelineRange(7)">7 dias</button>
+                  <button class="cal-mode-btn active" data-range="14" onclick="setTimelineRange(14)">14 dias</button>
+                  <button class="cal-mode-btn" data-range="30" onclick="setTimelineRange(30)">30 dias</button>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="cal-wrap">
-          <div class="cal-header">
-            <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+
+          <div class="section-card section-card-calendar">
+            <div class="section-card-head">
+              <h3 class="section-card-title calendar-month-title" id="cal-label"></h3>
+            </div>
+            <div class="calendar-legend">
+              <button class="legend-pill legend-confirmada" id="legend-confirmada" type="button" onclick="toggleCalendarLegendFilter('confirmada')">Confirmada</button>
+              <button class="legend-pill legend-pendente" id="legend-pendente" type="button" onclick="toggleCalendarLegendFilter('pendente')">Pendente</button>
+            </div>
+            <div class="cal-wrap">
+              <div class="cal-header">
+                <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+              </div>
+              <div class="cal-grid" id="cal-grid"></div>
+            </div>
+            <div id="timeline-wrap" style="display:none;"></div>
           </div>
-          <div class="cal-grid" id="cal-grid"></div>
-        </div>
-        <div id="timeline-wrap" style="display:none;"></div>
+        </section>
       </div>
 
       <!-- ══ ALOJAMENTOS — LISTA ══ -->
       <div class="view" id="view-alojamentos">
+        <div class="aloj-hidden-controls" aria-hidden="true">
+          <div class="search-box aloj-search-box">
+            <i data-lucide="search"></i>
+            <input type="text" id="aloj-search" placeholder="Pesquisar nome, cidade, licença..." oninput="renderAlojamentos()">
+          </div>
+          <select class="form-control" id="aloj-filter-type" style="width:auto;" onchange="renderAlojamentos()">
+            <option value="">Todos os tipos</option>
+            <option value="alojamento">Alojamentos principais</option>
+            <option value="suite">Suites</option>
+            <option value="apartamento">Apartamentos</option>
+            <option value="quarto">Quartos</option>
+            <option value="moradia">Moradias</option>
+            <option value="villa">Villas</option>
+          </select>
+          <select class="form-control" id="aloj-filter-link" style="width:auto;" onchange="renderAlojamentos()">
+            <option value="">Todas as relações</option>
+            <option value="main">Só principais</option>
+            <option value="linked">Só associadas</option>
+            <option value="standalone">Só independentes</option>
+          </select>
+          <span id="aloj-count-total">0</span>
+          <span id="aloj-count-main">0</span>
+          <span id="aloj-count-linked">0</span>
+        </div>
+
         <div class="card">
           <div class="card-header">
             <span class="card-title">
@@ -398,11 +567,14 @@
 
       <!-- ══ ALOJAMENTO — DETALHE / EDIÇÃO ══ -->
       <div class="view" id="view-alojamento-detalhe">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+        <div class="aloj-detail-header">
           <button class="btn btn-ghost btn-sm" onclick="showView('alojamentos')">
             <i data-lucide="arrow-left"></i> Voltar
           </button>
-          <span id="aloj-detalhe-nome" style="font-family:'Playfair Display',serif;font-size:22px;color:var(--azul);font-weight:600;"></span>
+          <div class="aloj-detail-title-wrap">
+            <span id="aloj-detalhe-nome" class="aloj-detail-title"></span>
+            <span class="aloj-detail-subtitle">Configurações, descrição, imagens e integração por unidade.</span>
+          </div>
           <button class="btn btn-danger btn-sm" onclick="deleteAlojamento()" style="margin-left:auto;">
             <i data-lucide="trash-2"></i> Apagar
           </button>
@@ -426,6 +598,11 @@
 
         <!-- Tab: Informação -->
         <div id="aloj-tab-info">
+
+          <!-- Banner de herança (visível quando tem parent) -->
+          <div id="aloj-inherited-banner" style="display:none;margin-bottom:18px;padding:10px 16px;background:rgba(201,168,76,.1);border-left:3px solid var(--dourado);border-radius:6px;font-size:13px;color:var(--texto);">
+            <span id="aloj-inherited-msg"></span>
+          </div>
 
           <!-- Linha 1: Informação | Layout -->
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
@@ -490,13 +667,21 @@
               <div class="form-grid">
                 <div class="form-group">
                   <label class="form-label">Tipologia</label>
-                  <select class="form-control" id="aloj-tipo">
+                  <select class="form-control" id="aloj-tipo" onchange="onAlojTipoChange()">
+                    <option value="alojamento">Alojamento Principal</option>
                     <option value="suite">Suite</option>
                     <option value="apartamento">Apartamento</option>
                     <option value="quarto">Quarto</option>
                     <option value="moradia">Moradia</option>
                     <option value="villa">Villa</option>
                   </select>
+                </div>
+                <div class="form-group" id="aloj-parent-wrap" style="display:none;">
+                  <label class="form-label">Alojamento Principal</label>
+                  <select class="form-control" id="aloj-parent-id" onchange="onAlojParentChange()">
+                    <option value="">— Nenhum —</option>
+                  </select>
+                  <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;display:block;">Associa esta unidade a um alojamento principal</span>
                 </div>
                 <div class="form-group">
                   <label class="form-label">Área (m²)</label>
@@ -574,7 +759,7 @@
                   <i data-lucide="clock"></i> Horários
                 </span>
               </div>
-              <div class="form-grid">
+              <div class="form-grid" style="grid-template-columns:1fr;">
                 <div class="form-group">
                   <label class="form-label">Check-in</label>
                   <input class="form-control" id="aloj-checkin-time" type="time" value="15:00">
@@ -652,6 +837,12 @@
         <!-- Tab: Comodidades -->
         <div id="aloj-tab-comodidades" style="display:none;">
           <div class="card">
+            <div style="padding:18px 20px 0;">
+              <div class="search-box aloj-search-box" style="max-width:360px;">
+                <i data-lucide="search"></i>
+                <input type="text" id="amenities-search" placeholder="Pesquisar comodidades..." oninput="refreshAmenitiesFilter()">
+              </div>
+            </div>
             <div id="amenities-grid"></div>
           </div>
         </div>
@@ -665,17 +856,30 @@
               </span>
             </div>
             <!-- Foto de capa -->
-            <div style="display:flex;align-items:center;gap:20px;padding:16px;background:var(--cinza-claro);border-radius:12px;margin-bottom:20px;">
-              <div style="position:relative;width:90px;height:90px;border-radius:10px;overflow:hidden;background:var(--branco);border:2px dashed var(--cinza-claro);flex-shrink:0;cursor:pointer;" onclick="document.getElementById('cover-input').click()">
-                <img id="aloj-cover-preview" src="" style="display:none;width:100%;height:100%;object-fit:cover;">
+            <div class="aloj-cover-panel">
+              <div id="aloj-cover-dropzone" class="aloj-cover-dropzone"
+                onclick="handleCoverZoneClick(event)"
+                ondragover="event.preventDefault();this.classList.add('drag-over')"
+                ondragleave="this.classList.remove('drag-over')"
+                ondrop="handleCoverDrop(event)">
+                <img id="aloj-cover-preview" src="" style="display:none;width:100%;height:100%;object-fit:cover;" draggable="true"
+                  ondragstart="coverDragStart(event)" ondragend="coverDragEnd(event)">
                 <div id="aloj-cover-placeholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;color:var(--cinza);">
                   <i data-lucide="camera" style="width:24px;height:24px;"></i>
                   <span>Capa</span>
                 </div>
+                <div class="aloj-cover-actions">
+                  <button type="button" class="img-section-btn add" onclick="event.stopPropagation();document.getElementById('cover-input').click()" title="Escolher foto">
+                    <i data-lucide="upload"></i>
+                  </button>
+                  <button type="button" class="img-section-btn" id="aloj-cover-delete-btn" style="display:none;" onclick="event.stopPropagation();removeCoverImage()" title="Remover capa">
+                    <i data-lucide="trash-2"></i>
+                  </button>
+                </div>
               </div>
-              <div>
+              <div class="aloj-cover-copy">
                 <div style="font-weight:600;color:var(--azul);margin-bottom:4px;">Foto de Capa</div>
-                <div style="font-size:12.5px;color:var(--cinza);">Esta imagem aparece na lista de alojamentos ao lado do nome.<br>Clique na imagem para alterar.</div>
+                <div style="font-size:12.5px;color:var(--cinza);">Esta imagem aparece na lista de alojamentos ao lado do nome.<br>Clique para abrir em grande, arraste da galeria para definir como capa.</div>
                 <button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:12px;" onclick="document.getElementById('cover-input').click()">
                   <i data-lucide="camera"></i> Escolher foto
                 </button>
@@ -716,110 +920,126 @@
 
       <!-- ══ HÓSPEDES ══ -->
       <div class="view" id="view-hospedes">
-        <div class="toolbar" style="margin-bottom:20px;">
-          <div class="search-box">
-            <i data-lucide="search"></i>
-            <input type="text" id="hospedes-search" placeholder="Pesquisar hóspede, email..." oninput="renderHospedes()">
-          </div>
-          <div class="hospedes-view-toggle" id="hospedes-view-toggle">
-            <button class="hvt-btn active" id="hvt-cards" onclick="setHospedesView('cards')">
-              <i data-lucide="layout-grid"></i> Cartões
-            </button>
-            <button class="hvt-btn" id="hvt-lista" onclick="setHospedesView('lista')">
-              <i data-lucide="list"></i> Lista
-            </button>
-          </div>
-          <button class="btn btn-ghost btn-sm" onclick="exportHospedesXLS()" title="Exportar Excel">
-            <i data-lucide="table-2"></i> XLS
-          </button>
-          <button class="btn btn-ghost btn-sm" onclick="exportHospedesPDF()" title="Exportar PDF">
-            <i data-lucide="file-text"></i> PDF
-          </button>
-          <label class="btn btn-ghost btn-sm" title="Importar Excel" style="cursor:pointer;">
-            <i data-lucide="upload"></i> Importar XLS
-            <input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importHospedesXLS(this)">
-          </label>
-        </div>
-
-        <!-- Vista Cartões -->
-        <div id="hospedes-cards-view">
-          <div id="hospedes-cards-grid" class="hospedes-grid"></div>
-          <div id="hospedes-empty" style="display:none;" class="empty-state">
-            <div class="es-icon">👥</div>
-            <h3>Sem hóspedes</h3>
-            <p>Ainda não existem hóspedes registados.</p>
-          </div>
-          <div id="hospedes-loading" class="loading">
-            <div class="spinner"></div> A carregar hóspedes...
-          </div>
-        </div>
-
-        <!-- Vista Lista -->
-        <div id="hospedes-lista-view" style="display:none;">
-          <div class="card">
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th onclick="sortHospedes('name')" class="th-sort">Nome <span class="sort-icon" id="hsort-name">↑</span></th>
-                    <th onclick="sortHospedes('email')" class="th-sort">Email <span class="sort-icon" id="hsort-email"></span></th>
-                    <th onclick="sortHospedes('phone')" class="th-sort">Telefone <span class="sort-icon" id="hsort-phone"></span></th>
-                    <th onclick="sortHospedes('nationality')" class="th-sort">País <span class="sort-icon" id="hsort-nationality"></span></th>
-                    <th onclick="sortHospedes('reservation_count')" class="th-sort">Reservas <span class="sort-icon" id="hsort-reservation_count"></span></th>
-                    <th onclick="sortHospedes('last_check_in')" class="th-sort">Última visita <span class="sort-icon" id="hsort-last_check_in"></span></th>
-                    <th style="width:80px;">Ações</th>
-                  </tr>
-                </thead>
-                <tbody id="hospedes-lista-body"></tbody>
-              </table>
+        <section class="hospedes-shell">
+          <div class="view-toolbar hospedes-toolbar">
+            <div class="view-chip-list">
+              <span class="view-stat-chip">
+                <strong id="hospedes-total">0</strong>
+                <span>hóspedes</span>
+              </span>
+              <span class="view-stat-chip">
+                <strong id="hospedes-vip">0</strong>
+                <span>VIP/Favoritos</span>
+              </span>
+              <span class="view-stat-chip">
+                <strong id="hospedes-repeat">0</strong>
+                <span>repetentes</span>
+              </span>
             </div>
-            <div id="hospedes-lista-empty" style="display:none;" class="empty-state">
-              <div class="es-icon">👥</div>
-              <h3>Sem hóspedes</h3>
-              <p>Ainda não existem hóspedes registados.</p>
+            <div class="view-toolbar-actions">
+              <div class="search-box hospedes-search-box">
+                <i data-lucide="search"></i>
+                <input type="text" id="hospedes-search" placeholder="Pesquisar hóspede, email..." oninput="renderHospedes()">
+              </div>
+              <div class="hospedes-view-toggle" id="hospedes-view-toggle">
+                <button class="hvt-btn active" id="hvt-cards" onclick="setHospedesView('cards')">
+                  <i data-lucide="layout-grid"></i> Cartões
+                </button>
+                <button class="hvt-btn" id="hvt-lista" onclick="setHospedesView('lista')">
+                  <i data-lucide="list"></i> Lista
+                </button>
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="exportHospedesXLS()" title="Exportar Excel">
+                <i data-lucide="table-2"></i> XLS
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="exportHospedesPDF()" title="Exportar PDF">
+                <i data-lucide="file-text"></i> PDF
+              </button>
+              <label class="btn btn-ghost btn-sm hospedes-import-btn" title="Importar Excel" style="cursor:pointer;">
+                <i data-lucide="upload"></i> Importar XLS
+                <input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importHospedesXLS(this)">
+              </label>
             </div>
           </div>
-        </div>
+
+          <div class="card section-card hospedes-card-board">
+            <div id="hospedes-cards-view">
+              <div id="hospedes-cards-grid" class="hospedes-grid"></div>
+              <div id="hospedes-empty" style="display:none;" class="empty-state">
+                <div class="es-icon">👥</div>
+                <h3>Sem hóspedes</h3>
+                <p>Ainda não existem hóspedes registados.</p>
+              </div>
+              <div id="hospedes-loading" class="loading">
+                <div class="spinner"></div> A carregar hóspedes...
+              </div>
+            </div>
+
+            <div id="hospedes-lista-view" style="display:none;">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th onclick="sortHospedes('name')" class="th-sort">Nome <span class="sort-icon" id="hsort-name">↑</span></th>
+                      <th onclick="sortHospedes('email')" class="th-sort">Email <span class="sort-icon" id="hsort-email"></span></th>
+                      <th onclick="sortHospedes('phone')" class="th-sort">Telefone <span class="sort-icon" id="hsort-phone"></span></th>
+                      <th onclick="sortHospedes('nationality')" class="th-sort">País <span class="sort-icon" id="hsort-nationality"></span></th>
+                      <th onclick="sortHospedes('reservation_count')" class="th-sort">Reservas <span class="sort-icon" id="hsort-reservation_count"></span></th>
+                      <th onclick="sortHospedes('last_check_in')" class="th-sort">Última visita <span class="sort-icon" id="hsort-last_check_in"></span></th>
+                      <th style="width:80px;">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="hospedes-lista-body"></tbody>
+                </table>
+              </div>
+              <div id="hospedes-lista-empty" style="display:none;" class="empty-state">
+                <div class="es-icon">👥</div>
+                <h3>Sem hóspedes</h3>
+                <p>Ainda não existem hóspedes registados.</p>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
 
       <!-- ══ DESPESAS ══ -->
       <div class="view" id="view-despesas">
-        <div class="kpi-grid" id="despesas-kpi-grid"></div>
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title"><i data-lucide="receipt"></i> Registo de Despesas</span>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <input type="month" class="form-control" id="despesa-filter-month" style="width:auto;"
-                     value="" onchange="loadDespesas()">
+        <section class="despesas-shell">
+          <input type="month" class="form-control" id="despesa-filter-month" style="display:none;" value="" onchange="loadDespesas()">
+
+          <div class="kpi-grid despesas-kpi-grid" id="despesas-kpi-grid"></div>
+          <div class="card despesas-table-card">
+            <div class="card-header despesas-card-header">
+              <span class="card-title"><i data-lucide="receipt"></i> Registo de Despesas</span>
               <button class="btn btn-primary btn-sm" onclick="openDespesaModal()">
                 <i data-lucide="plus"></i> Nova Despesa
               </button>
             </div>
+            <div class="table-wrap despesas-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:110px;">Data</th>
+                    <th style="width:130px;">Categoria</th>
+                    <th>Descrição</th>
+                    <th style="width:100px;">Valor</th>
+                    <th style="width:120px;">Método</th>
+                    <th style="width:80px;">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="despesas-body"></tbody>
+              </table>
+            </div>
+            <div id="despesas-empty" style="display:none;" class="empty-state">
+              <div class="es-icon">💸</div>
+              <h3>Sem despesas</h3>
+              <p>Nenhuma despesa registada neste período.</p>
+            </div>
+            <div id="despesas-loading" class="loading">
+              <div class="spinner"></div> A carregar despesas...
+            </div>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:110px;">Data</th>
-                  <th style="width:130px;">Categoria</th>
-                  <th>Descrição</th>
-                  <th style="width:100px;">Valor</th>
-                  <th style="width:120px;">Método</th>
-                  <th style="width:80px;">Ações</th>
-                </tr>
-              </thead>
-              <tbody id="despesas-body"></tbody>
-            </table>
-          </div>
-          <div id="despesas-empty" style="display:none;" class="empty-state">
-            <div class="es-icon">💸</div>
-            <h3>Sem despesas</h3>
-            <p>Nenhuma despesa registada neste período.</p>
-          </div>
-          <div id="despesas-loading" class="loading">
-            <div class="spinner"></div> A carregar despesas...
-          </div>
-        </div>
+        </section>
       </div>
 
       <!-- ══ EMAILS ══ -->
@@ -886,6 +1106,46 @@
               <div style="font-size:28px;font-weight:700;color:var(--vermelho);" id="sync-removed">—</div>
               <div style="font-size:12px;color:var(--cinza);">Canceladas (removidas)</div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-equipa">
+        <div class="card" style="margin-bottom:24px;">
+          <div class="card-header">
+            <span class="card-title"><i data-lucide="users-round"></i> Equipa</span>
+          </div>
+          <div class="form-grid" style="grid-template-columns:2fr 1fr auto;align-items:end;">
+            <div class="form-group">
+              <label class="form-label">Convidar por email</label>
+              <input class="form-control" id="team-invite-email" type="email" placeholder="colaborador@empresa.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Papel</label>
+              <select class="form-control" id="team-invite-role">
+                <option value="staff">Funcionário</option>
+                <option value="manager">Gestor</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="inviteTeamMember()">
+              <i data-lucide="send"></i> Enviar convite
+            </button>
+          </div>
+          <div id="team-invite-feedback" style="margin-top:12px;font-size:13px;color:var(--cinza);"></div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="shield-check"></i> Membros</span>
+            </div>
+            <div id="team-members-list"><div class="loading"><div class="spinner"></div> A carregar equipa...</div></div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="mail-plus"></i> Convites pendentes</span>
+            </div>
+            <div id="team-invitations-list"><div class="loading"><div class="spinner"></div> A carregar convites...</div></div>
           </div>
         </div>
       </div>
@@ -1011,6 +1271,15 @@
         <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
       </button>
     </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="image-lightbox-bg" onclick="closeImageLightbox()">
+  <div class="image-lightbox" onclick="event.stopPropagation()">
+    <button class="image-lightbox-close" type="button" onclick="closeImageLightbox()" aria-label="Fechar imagem">
+      <i data-lucide="x"></i>
+    </button>
+    <img id="image-lightbox-img" src="" alt="Pré-visualização">
   </div>
 </div>
 
@@ -1459,10 +1728,14 @@
   <div class="side-drawer-item" onclick="showView('gcal');closeSideDrawer()">
     <i data-lucide="calendar-sync"></i> Google Calendar
   </div>
+  <div class="side-drawer-item" data-owner-only="true" style="display:none;" onclick="showView('equipa');closeSideDrawer()">
+    <i data-lucide="users-round"></i> Equipa
+  </div>
 </div>
 
 <script src="js/state.js"></script>
 <script src="js/helpers.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/reservas.js"></script>
 <script src="js/calendario.js"></script>
@@ -1470,6 +1743,7 @@
 <script src="js/hospedes.js"></script>
 <script src="js/emails.js"></script>
 <script src="js/despesas.js"></script>
+<script src="js/team.js"></script>
 <script src="js/app.js"></script>
 
 </body>

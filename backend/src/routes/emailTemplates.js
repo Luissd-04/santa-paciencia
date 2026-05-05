@@ -1,6 +1,8 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/emailTemplateController');
+const requireRole = require('../middleware/requireRole');
 
+router.use(requireRole('manager'));
 router.get('/', ctrl.getAll);
 router.get('/email-settings', ctrl.getSettings);
 router.put('/email-settings', ctrl.saveSettings);

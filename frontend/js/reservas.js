@@ -23,6 +23,7 @@ function renderMobileCards() {
     const matchS = !mobileChipFilter || r.status === mobileChipFilter;
     return matchQ && matchS;
   }).sort((a, b) => new Date(b.check_in) - new Date(a.check_in));
+  updateReservasSummary(filtered.length, mobileChipFilter ? `filtro ${mobileChipFilter}` : 'resultados visíveis');
 
   if (filtered.length === 0) {
     container.innerHTML = '<div class="empty-state"><div class="es-icon">📭</div><h3>Sem reservas</h3><p>Nenhuma reserva encontrada.</p></div>';
@@ -194,6 +195,7 @@ function renderTabela() {
   const loading = document.getElementById('tabela-loading');
 
   loading.style.display = 'none';
+  updateReservasSummary(data.length, data.length === 1 ? 'reserva visível' : 'resultados visíveis');
 
   if (data.length === 0) {
     tbody.innerHTML = '';
@@ -236,6 +238,13 @@ function renderTabela() {
       </td>
     </tr>`).join('');
   if (window.lucide) lucide.createIcons();
+}
+
+function updateReservasSummary(total, detailText) {
+  const totalEl = document.getElementById('reservas-results-total');
+  const detailEl = document.getElementById('reservas-results-detail');
+  if (totalEl) totalEl.textContent = String(total ?? 0);
+  if (detailEl) detailEl.textContent = detailText || 'resultados visíveis';
 }
 
 function updateForeignRequirements() {
@@ -292,15 +301,21 @@ function onAmountPaidChange() {
 // ── WIZARD STATE ──
 let wizStep = 1;
 
-function openModal() {
+function addDaysToIsoDate(dateStr, days = 1) {
+  const d = new Date(`${dateStr}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function openModal(config = {}) {
   editingId = null;
-  wizStep = 1;
+  wizStep = config.step || 1;
   const titleEl = document.getElementById('modal-title');
   if (titleEl) titleEl.textContent = 'Nova Reserva';
   buildCountrySelects();
   _resetGuestFields();
-  document.getElementById('f-checkin').value = '';
-  document.getElementById('f-checkout').value = '';
+  document.getElementById('f-checkin').value = config.checkIn || '';
+  document.getElementById('f-checkout').value = config.checkOut || '';
   document.getElementById('f-num-hospedes').value = 2;
   document.getElementById('f-breakfast').value = 'false';
   document.getElementById('f-canal').value = 'direto';
@@ -313,15 +328,34 @@ function openModal() {
   const remWrap = document.getElementById('payment-remaining-wrap'); if (remWrap) remWrap.style.display = 'none';
   document.getElementById('f-noites').value = '';
   document.getElementById('f-total').value = '';
+  const alojSelect = document.getElementById('f-aloj');
+  if (alojSelect) alojSelect.value = config.accommodationId || '';
   const rgpdWrap = document.getElementById('wiz-rgpd-wrap');
   if (rgpdWrap) rgpdWrap.style.display = '';
   const searchEl = document.getElementById('wiz-guest-search');
   if (searchEl) searchEl.value = '';
   renderExtraGuests();
+  if (config.checkIn && config.checkOut) {
+    _availTimer && clearTimeout(_availTimer);
+    _availTimer = setTimeout(fetchSuiteAvailability, 0);
+  } else {
+    _unavailableSuites = new Set();
+  }
   renderSuiteCards();
+  calcTotal();
   updateWizSummary();
   updateWizUI();
   document.getElementById('modal-bg').classList.add('open');
+}
+
+function openModalFromCalendar(checkIn, accommodationId = '') {
+  if (!checkIn) return;
+  openModal({
+    checkIn,
+    checkOut: addDaysToIsoDate(checkIn, 1),
+    accommodationId,
+    step: 2
+  });
 }
 
 async function openEditModal(id) {
@@ -452,8 +486,13 @@ function calcTotal() {
     const noitesOnly = Math.max(0, Math.round((new Date(co) - new Date(ci)) / 86400000));
     if (badge) badge.style.display = noitesOnly > 0 ? '' : 'none';
     if (valEl) valEl.textContent = noitesOnly;
+    // Trigger availability check (debounced)
+    clearTimeout(_availTimer);
+    _availTimer = setTimeout(fetchSuiteAvailability, 300);
   } else {
     if (badge) badge.style.display = 'none';
+    _unavailableSuites = new Set();
+    renderSuiteCards();
   }
 
   if (ci && co && suite) {
@@ -569,6 +608,34 @@ function renderExtraGuests() {
 
 // ── WIZARD FUNCTIONS ──
 
+let _unavailableSuites = new Set();
+let _availTimer = null;
+
+async function fetchSuiteAvailability() {
+  const ci = document.getElementById('f-checkin')?.value;
+  const co = document.getElementById('f-checkout')?.value;
+  if (!ci || !co || new Date(co) <= new Date(ci)) {
+    _unavailableSuites = new Set();
+    renderSuiteCards();
+    return;
+  }
+  try {
+    const excludeParam = editingId ? `&exclude_id=${encodeURIComponent(editingId)}` : '';
+    const data = await apiGet(`/api/reservations/availability?check_in=${ci}&check_out=${co}${excludeParam}`);
+    _unavailableSuites = new Set(data.data?.unavailable || []);
+  } catch (e) {
+    _unavailableSuites = new Set();
+  }
+  renderSuiteCards();
+  // If currently selected suite became unavailable, deselect it
+  const selEl = document.getElementById('f-aloj');
+  if (selEl?.value && _unavailableSuites.has(selEl.value)) {
+    selEl.value = '';
+    updateWizSummary();
+    calcTotal();
+  }
+}
+
 function updateWizUI() {
   const total = 3;
   for (let i = 1; i <= total; i++) {
@@ -633,7 +700,9 @@ function validateWizStep(step) {
     if (!ci) { toast('⚠️ Seleciona a data de check-in.', 'error'); return false; }
     if (!co) { toast('⚠️ Seleciona a data de check-out.', 'error'); return false; }
     if (new Date(co) <= new Date(ci)) { toast('⚠️ O check-out deve ser depois do check-in.', 'error'); return false; }
-    if (!document.getElementById('f-aloj').value) { toast('⚠️ Seleciona um alojamento.', 'error'); return false; }
+    const alojVal = document.getElementById('f-aloj').value;
+    if (!alojVal) { toast('⚠️ Seleciona um alojamento.', 'error'); return false; }
+    if (_unavailableSuites.has(alojVal)) { toast('⚠️ Este alojamento está ocupado nas datas selecionadas.', 'error'); return false; }
     return true;
   }
   return true;
@@ -679,24 +748,35 @@ function renderSuiteCards() {
   const grid = document.getElementById('suite-cards-grid');
   if (!grid) return;
   const currentAlojId = document.getElementById('f-aloj')?.value;
+  const ci = document.getElementById('f-checkin')?.value;
+  const co = document.getElementById('f-checkout')?.value;
+  const datesSet = !!(ci && co && new Date(co) > new Date(ci));
   if (!accommodations.length) {
     grid.innerHTML = '<p style="font-size:13px;color:var(--cinza);">Nenhum alojamento disponível.</p>';
     return;
   }
   grid.innerHTML = accommodations.map(a => {
     const cor = a.color || 'var(--marca)';
-    const sel = currentAlojId === a.id ? 'selected' : '';
-    return `<div class="suite-card-opt ${sel}" onclick="selectSuiteCard('${a.id}')">
+    const unavail = datesSet && _unavailableSuites.has(a.id);
+    const sel = !unavail && currentAlojId === a.id ? 'selected' : '';
+    const cls = `suite-card-opt${sel ? ' selected' : ''}${unavail ? ' unavailable' : ''}`;
+    const click = unavail ? '' : `onclick="selectSuiteCard('${a.id}')"`;
+    return `<div class="${cls}" ${click} title="${unavail ? 'Indisponível nas datas selecionadas' : a.name}">
       <div class="suite-check"><i data-lucide="check" style="width:10px;height:10px;color:#fff;"></i></div>
-      <div style="width:10px;height:10px;border-radius:50%;background:${cor};margin-bottom:8px;"></div>
+      ${unavail
+        ? `<div style="font-size:16px;margin-bottom:6px;">🔒</div>`
+        : `<div style="width:10px;height:10px;border-radius:50%;background:${cor};margin-bottom:8px;"></div>`}
       <div class="suite-card-name">${a.name}</div>
-      <div class="suite-card-price">€${a.price_per_night}<span class="suite-card-sub"> / noite</span></div>
+      ${unavail
+        ? `<div class="suite-card-unavail-lbl">Indisponível</div>`
+        : `<div class="suite-card-price">€${a.price_per_night}<span class="suite-card-sub"> / noite</span></div>`}
     </div>`;
   }).join('');
   if (window.lucide) lucide.createIcons();
 }
 
 function selectSuiteCard(id) {
+  if (_unavailableSuites.has(id)) return;
   const sel = document.getElementById('f-aloj');
   if (sel) sel.value = id;
   renderSuiteCards();
@@ -923,6 +1003,7 @@ async function saveReserva() {
         toast('✅ Reserva atualizada!', 'success');
         closeModal();
         await loadReservas();
+        if (typeof renderCalView === 'function') renderCalView();
         renderDashboard();
       } else {
         toast('❌ ' + (res.error || 'Erro ao atualizar reserva.'), 'error');
@@ -962,6 +1043,7 @@ async function saveReserva() {
         toast('✅ Reserva criada com sucesso!', 'success');
         closeModal();
         await loadReservas();
+        if (typeof renderCalView === 'function') renderCalView();
         renderDashboard();
       } else {
         toast('❌ ' + (res.error || 'Erro ao criar reserva.'), 'error');
@@ -982,6 +1064,7 @@ async function deleteReserva(id) {
     if (res.success) {
       toast('🗑 Reserva cancelada.', 'info');
       await loadReservas();
+      if (typeof renderCalView === 'function') renderCalView();
       renderDashboard();
     } else {
       toast('❌ ' + (res.error || 'Erro ao cancelar.'), 'error');
@@ -1081,6 +1164,7 @@ async function cancelarReserva(id) {
       document.getElementById('detail-bg').classList.remove('open');
       toast('❌ Reserva cancelada.', 'info');
       await loadReservas();
+      if (typeof renderCalView === 'function') renderCalView();
       renderDashboard();
     } else {
       toast('❌ ' + (res.error || 'Erro ao cancelar.'), 'error');
@@ -1099,6 +1183,7 @@ async function reativarReserva(id) {
       if (detailBg?.classList.contains('open')) detailBg.classList.remove('open');
       toast('✅ Reserva reativada!', 'success');
       await loadReservas();
+      if (typeof renderCalView === 'function') renderCalView();
       renderDashboard();
     } else {
       toast('❌ ' + (res.error || 'Erro ao reativar.'), 'error');

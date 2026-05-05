@@ -7,8 +7,32 @@ const VIEW_TITLES = {
   alojamentos: 'Alojamentos & Serviços',
   despesas: 'Despesas',
   emails: 'Templates de Email',
-  gcal: 'Google Calendar'
+  gcal: 'Google Calendar',
+  equipa: 'Equipa'
 };
+
+const THEME_KEY = 'sp-theme';
+
+function applyTheme(theme) {
+  const resolved = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', resolved);
+  const label = document.getElementById('theme-toggle-label');
+  if (label) label.textContent = resolved === 'dark' ? 'Modo claro' : 'Modo escuro';
+}
+
+function getStoredTheme() {
+  const stored = localStorage.getItem(THEME_KEY);
+  if (stored === 'dark' || stored === 'light') return stored;
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+  if (window.lucide) lucide.createIcons();
+}
 
 function showView(v) {
   document.querySelectorAll('.view').forEach(x => x.classList.remove('active', 'view-entering'));
@@ -30,6 +54,7 @@ function showView(v) {
   if (v === 'despesas') loadDespesas();
   if (v === 'emails') loadEmailTemplates();
   if (v === 'gcal') loadCalendarStatus();
+  if (v === 'equipa' && currentUser?.role === 'owner') loadTeamOverview();
 }
 
 // ── MOBILE BOTTOM NAV ──
@@ -145,7 +170,7 @@ function connectGcal() {
 
 async function disconnectGcal() {
   try {
-    const res = await fetch(API_BASE + '/auth/google', { method: 'DELETE' });
+    const res = await fetch(API_BASE + '/auth/google', { method: 'DELETE', credentials: 'include' });
     const data = await res.json();
     if (data.success) {
       toast('🗓 Google Calendar desligado.', 'info');
@@ -179,7 +204,7 @@ async function syncAllGcal() {
 }
 
 // ── INIT ──
-async function init() {
+async function initApp() {
   const coverInput = document.getElementById('cover-input');
   if (coverInput) coverInput.addEventListener('change', function () {
     if (this.files[0]) uploadCoverImage(this.files[0]);
@@ -192,14 +217,13 @@ async function init() {
   await renderDashboard();
   loadCalendarStatus();
   loadServicos();
-}
-
-init().then(() => {
   if (window.lucide) lucide.createIcons();
-  // Restore sidebar collapsed state
   if (localStorage.getItem('sbCollapsed') === '1') {
     document.querySelector('.layout').classList.add('sb-collapsed');
     const icon = document.querySelector('.sb-collapse-btn i[data-lucide]');
     if (icon) { icon.setAttribute('data-lucide', 'panel-left-open'); lucide.createIcons(); }
   }
-});
+}
+
+applyTheme(getStoredTheme());
+boot();

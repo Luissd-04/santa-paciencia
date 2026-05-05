@@ -1,0 +1,50 @@
+.despesas-shell {
+  display: grid;
+  gap: 24px;
+}
+
+.despesas-kpi-grid {
+  gap: 18px;
+}
+
+.despesas-table-card {
+  overflow: hidden;
+  padding: 0;
+}
+
+.despesas-card-header {
+  padding: 22px 24px 0;
+  align-items: end;
+}
+
+.despesas-card-caption {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.despesas-table-wrap {
+  padding: 18px 24px 24px;
+}
+
+#despesas-kpi-grid .kpi-card {
+  min-height: 158px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(247, 241, 233, 0.96));
+}
+
+[data-theme="dark"] #despesas-kpi-grid .kpi-card {
+  background:
+    linear-gradient(180deg, rgba(40, 31, 27, 0.88), rgba(26, 20, 17, 0.96));
+}
+
+@media (max-width: 900px) {
+  .despesas-card-header {
+    padding: 22px 20px 0;
+    align-items: start;
+    gap: 10px;
+  }
+
+  .despesas-table-wrap {
+    padding: 16px 20px 20px;
+  }
+}

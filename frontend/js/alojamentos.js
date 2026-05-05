@@ -13,12 +13,64 @@ const DEFAULT_SECTIONS = [
   { key: 'casabanho', label: 'Fotos da Casa de Banho' },
   { key: 'outros',    label: 'Outras Fotos' },
 ];
+const COMMON_AREAS_SECTION = { key: 'areas_comuns', label: 'Áreas Comuns' };
 
-let dragSrcIdx = null;
+let dragSrcId = null;
 let dragImgSrc = null; // { section, url } for image drag between sections
 let alojImagens = {};
+let coverDragUrl = null;
+let collapsedAlojParents = new Set();
+let currentAlojDetail = null;
 // servicosData is declared globally in state.js; keep a local alias reference
 let _servicosTimer = null;
+
+function prettifyImageSectionLabel(key) {
+  if (!key) return 'Nova Secção';
+  if (key === COMMON_AREAS_SECTION.key) return COMMON_AREAS_SECTION.label;
+  const fromDefault = DEFAULT_SECTIONS.find(section => section.key === key);
+  if (fromDefault) return fromDefault.label;
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+function buildImageSections(images, explicitSections = [], hasParent = false) {
+  const baseSections = Array.isArray(explicitSections) && explicitSections.length
+    ? explicitSections.map(section => ({ ...section }))
+    : DEFAULT_SECTIONS.map(section => ({ ...section }));
+
+  const knownKeys = new Set(baseSections.map(section => section.key));
+  Object.keys(images || {})
+    .filter(key => key !== '_sections')
+    .forEach(key => {
+      if (!knownKeys.has(key)) {
+        baseSections.push({ key, label: prettifyImageSectionLabel(key) });
+        knownKeys.add(key);
+      }
+    });
+
+  if (hasParent) {
+    return baseSections.filter(section => section.key !== COMMON_AREAS_SECTION.key);
+  }
+
+  if (!knownKeys.has(COMMON_AREAS_SECTION.key)) {
+    baseSections.unshift({ ...COMMON_AREAS_SECTION });
+  }
+
+  return baseSections;
+}
+
+function getActiveAlojTab() {
+  return ['info', 'comodidades', 'imagens'].find(tab =>
+    document.getElementById('tab-' + tab)?.classList.contains('active')
+  ) || 'info';
+}
+
+function hasStoredImages(imageState) {
+  return Object.entries(imageState || {}).some(([key, value]) =>
+    key !== '_sections' && Array.isArray(value) && value.length > 0
+  );
+}
 
 // ── LISTA DE ALOJAMENTOS ──
 function renderAlojamentos() {
@@ -26,22 +78,64 @@ function renderAlojamentos() {
   const tbody = document.getElementById('aloj-body');
   if (!tbody) return;
   loading.style.display = 'none';
+  updateAlojamentoSummary();
 
   if (accommodations.length === 0) {
     loading.style.display = 'flex';
     return;
   }
 
-  tbody.innerHTML = accommodations.map((a, idx) => `
-    <tr draggable="true" data-id="${a.id}" data-idx="${idx}" onclick="openAlojamento('${a.id}')">
+  const filtered = getFilteredAlojamentos();
+  const parentMap = {};
+  const childrenByParent = {};
+  accommodations.forEach(a => {
+    if (a.type === 'alojamento') parentMap[a.id] = a.name;
+    if (a.parent_id) {
+      if (!childrenByParent[a.parent_id]) childrenByParent[a.parent_id] = [];
+      childrenByParent[a.parent_id].push(a);
+    }
+  });
+
+  const inFiltered = new Set(filtered.map(a => a.id));
+  const ordered = [];
+  accommodations.forEach(a => {
+    if (a.parent_id) return;
+    const includeSelf = inFiltered.has(a.id);
+    const visibleChildren = (childrenByParent[a.id] || []).filter(c => inFiltered.has(c.id));
+    if (!includeSelf && !visibleChildren.length) return;
+    if (includeSelf) ordered.push(a);
+    if (visibleChildren.length && !collapsedAlojParents.has(a.id)) ordered.push(...visibleChildren);
+  });
+  filtered.forEach(a => {
+    const already = ordered.some(x => x.id === a.id);
+    if (!already) ordered.push(a);
+  });
+
+  tbody.innerHTML = ordered.map((a, idx) => {
+    const isAlojamento = a.type === 'alojamento';
+    const parentName = a.parent_id ? parentMap[a.parent_id] : null;
+    const childCount = (childrenByParent[a.id] || []).filter(c => inFiltered.has(c.id)).length;
+    const isCollapsed = collapsedAlojParents.has(a.id);
+    const typeLabel = isAlojamento
+      ? `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--marca);">Alojamento</span>`
+      : `<span style="font-size:12px;color:var(--cinza);">${a.type || '—'}</span>`;
+    const indent = parentName ? 'padding-left:24px;' : '';
+    return `
+    <tr draggable="true" data-id="${a.id}" data-idx="${idx}" onclick="openAlojamento('${a.id}')" style="${isAlojamento ? 'background:rgba(139,58,36,.03);' : ''}" class="${parentName ? 'aloj-child-row' : 'aloj-parent-row'}">
       <td><span class="drag-handle" onclick="event.stopPropagation()" title="Arrastar para reordenar">${lcIcon('grip-vertical', 16)}</span></td>
       <td>
         ${a.cover_image
           ? `<img src="${a.cover_image.startsWith('http') ? a.cover_image : API_BASE + a.cover_image}" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid var(--cinza-claro);">`
-          : `<div style="width:40px;height:40px;border-radius:8px;background:var(--cinza-claro);display:flex;align-items:center;justify-content:center;color:var(--cinza);">${lcIcon('home', 18)}</div>`}
+          : `<div style="width:40px;height:40px;border-radius:8px;background:var(--cinza-claro);display:flex;align-items:center;justify-content:center;color:var(--cinza);">${lcIcon(isAlojamento ? 'building-2' : 'home', 18)}</div>`}
       </td>
-      <td><b>${a.name}</b>${a.city ? `<br><span style="font-size:11px;color:var(--cinza)">${a.city}</span>` : ''}</td>
-      <td style="font-size:12px;color:var(--cinza)">${a.type || '—'}</td>
+      <td style="${indent}">
+        <b>${a.name}</b>
+        ${isAlojamento && childCount ? `<button class="aloj-toggle-children" onclick="event.stopPropagation();toggleAlojChildren('${a.id}')" title="${isCollapsed ? 'Expandir unidades' : 'Recolher unidades'}">
+          ${lcIcon(isCollapsed ? 'chevron-right' : 'chevron-down', 14)} ${childCount} unidade${childCount !== 1 ? 's' : ''}
+        </button>` : ''}
+        ${parentName ? `<br><span style="font-size:11px;color:var(--cinza);">${lcIcon('corner-down-right',11)} ${parentName}</span>` : (a.city ? `<br><span style="font-size:11px;color:var(--cinza)">${a.city}</span>` : '')}
+      </td>
+      <td>${typeLabel}</td>
       <td style="font-size:12px">${a.max_guests} hósp.</td>
       <td style="font-size:12px">${a.num_rooms || 1}</td>
       <td style="font-size:12px">${a.area ? a.area + ' m²' : '—'}</td>
@@ -52,9 +146,44 @@ function renderAlojamentos() {
           ${lcIcon('calendar', 13)} Calendário${a.google_calendar_id ? ' ✓' : ''}
         </button>
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
   if (window.lucide) lucide.createIcons();
+}
+
+function getFilteredAlojamentos() {
+  const q = (document.getElementById('aloj-search')?.value || '').trim().toLowerCase();
+  const type = document.getElementById('aloj-filter-type')?.value || '';
+  const link = document.getElementById('aloj-filter-link')?.value || '';
+
+  return accommodations.filter(a => {
+    const parentName = a.parent_id ? (accommodations.find(p => p.id === a.parent_id)?.name || '') : '';
+    const haystack = [
+      a.name, a.city, a.license_number, a.type, parentName
+    ].filter(Boolean).join(' ').toLowerCase();
+    if (q && !haystack.includes(q)) return false;
+    if (type && a.type !== type) return false;
+    if (link === 'main' && a.type !== 'alojamento') return false;
+    if (link === 'linked' && !a.parent_id) return false;
+    if (link === 'standalone' && (a.parent_id || a.type === 'alojamento')) return false;
+    return true;
+  });
+}
+
+function updateAlojamentoSummary() {
+  const filtered = getFilteredAlojamentos();
+  const totalEl = document.getElementById('aloj-count-total');
+  const mainEl = document.getElementById('aloj-count-main');
+  const linkedEl = document.getElementById('aloj-count-linked');
+  if (totalEl) totalEl.textContent = String(filtered.length);
+  if (mainEl) mainEl.textContent = String(filtered.filter(a => a.type === 'alojamento').length);
+  if (linkedEl) linkedEl.textContent = String(filtered.filter(a => !!a.parent_id).length);
+}
+
+function toggleAlojChildren(parentId) {
+  if (collapsedAlojParents.has(parentId)) collapsedAlojParents.delete(parentId);
+  else collapsedAlojParents.add(parentId);
+  renderAlojamentos();
 }
 
 function initAlojDrag() {
@@ -63,11 +192,12 @@ function initAlojDrag() {
 
   tbody.querySelectorAll('tr[draggable]').forEach(row => {
     row.addEventListener('dragstart', e => {
-      dragSrcIdx = parseInt(row.dataset.idx);
+      dragSrcId = row.dataset.id;
       row.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
     });
     row.addEventListener('dragend', () => {
+      dragSrcId = null;
       row.classList.remove('dragging');
       tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
     });
@@ -80,11 +210,35 @@ function initAlojDrag() {
     row.addEventListener('drop', e => {
       e.preventDefault();
       e.stopPropagation();
-      const destIdx = parseInt(row.dataset.idx);
-      if (dragSrcIdx === null || dragSrcIdx === destIdx) return;
-      const moved = accommodations.splice(dragSrcIdx, 1)[0];
-      accommodations.splice(destIdx, 0, moved);
-      dragSrcIdx = null;
+      const destId = row.dataset.id;
+      if (!dragSrcId || dragSrcId === destId) return;
+
+      const srcIndex = accommodations.findIndex(a => a.id === dragSrcId);
+      const destIndex = accommodations.findIndex(a => a.id === destId);
+      if (srcIndex === -1 || destIndex === -1) {
+        dragSrcId = null;
+        return;
+      }
+
+      const source = accommodations[srcIndex];
+      const target = accommodations[destIndex];
+      const sameParentGroup = (source.parent_id || null) === (target.parent_id || null);
+      if (!sameParentGroup) {
+        dragSrcId = null;
+        tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
+        toast('Só podes reordenar alojamentos dentro do mesmo grupo.', 'info');
+        return;
+      }
+
+      const [moved] = accommodations.splice(srcIndex, 1);
+      let insertIndex = accommodations.findIndex(a => a.id === destId);
+      if (insertIndex < 0) {
+        accommodations.push(moved);
+      } else {
+        accommodations.splice(insertIndex, 0, moved);
+      }
+
+      dragSrcId = null;
       renderAlojamentos();
       initAlojDrag();
     });
@@ -92,10 +246,12 @@ function initAlojDrag() {
 }
 
 // ── DETALHE / EDIÇÃO ──
-async function openAlojamento(id) {
+async function openAlojamento(id, preferredTab = 'info') {
   try {
+    const previousImageState = alojImagens[id] || {};
     const data = await apiGet('/api/accommodations/' + id);
     const a = data.data;
+    currentAlojDetail = a;
 
     document.getElementById('aloj-detalhe-nome').textContent = a.name;
     document.getElementById('aloj-editing-id').value = a.id;
@@ -107,6 +263,19 @@ async function openAlojamento(id) {
     document.getElementById('aloj-regiao').value = a.region || 'Continente';
     document.getElementById('aloj-pais').value = a.country || 'Portugal';
     document.getElementById('aloj-tipo').value = a.type || 'suite';
+
+    // Populate parent selector with alojamento-type entries
+    const parentSel = document.getElementById('aloj-parent-id');
+    if (parentSel) {
+      parentSel.innerHTML = '<option value="">— Nenhum —</option>' +
+        accommodations
+          .filter(p => p.type === 'alojamento' && p.id !== a.id)
+          .map(p => `<option value="${p.id}"${a.parent_id === p.id ? ' selected' : ''}>${p.name}</option>`)
+          .join('');
+      parentSel.value = a.parent_id || '';
+    }
+    onAlojTipoChange(a);
+    _applyInheritedFields(a);
     document.getElementById('aloj-area').value = a.area || '';
     document.getElementById('aloj-capacidade').value = a.max_guests || 2;
     document.getElementById('aloj-quartos').value = a.num_rooms || 1;
@@ -139,21 +308,27 @@ async function openAlojamento(id) {
 
     const coverPreview = document.getElementById('aloj-cover-preview');
     const coverPlaceholder = document.getElementById('aloj-cover-placeholder');
+    const coverDeleteBtn = document.getElementById('aloj-cover-delete-btn');
     if (coverPreview) {
       if (a.cover_image) {
         const url = a.cover_image.startsWith('http') ? a.cover_image : API_BASE + a.cover_image;
         coverPreview.src = url + '?t=' + Date.now();
         coverPreview.style.display = 'block';
         if (coverPlaceholder) coverPlaceholder.style.display = 'none';
+        if (coverDeleteBtn) coverDeleteBtn.style.display = '';
       } else {
+        coverPreview.src = '';
         coverPreview.style.display = 'none';
         if (coverPlaceholder) coverPlaceholder.style.display = 'flex';
+        if (coverDeleteBtn) coverDeleteBtn.style.display = 'none';
       }
     }
 
-    alojImagens[a.id] = a.images || {};
-    renderAmenities(a.amenities || []);
-    showAlojTab('info');
+    const fetchedImageState = { ...(a.own_images || a.images || {}) };
+    fetchedImageState._sections = buildImageSections(fetchedImageState, a.image_sections, !!a.parent_id);
+    alojImagens[a.id] = fetchedImageState;
+    renderAmenities(a.own_amenities || a.amenities || [], a.inherited_amenities || []);
+    showAlojTab(preferredTab);
     resetAlojMap();
 
     document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
@@ -165,45 +340,106 @@ async function openAlojamento(id) {
   }
 }
 
-function renderAmenities(selected) {
+function renderAmenities(selectedOwn, inherited = []) {
+  const query = (document.getElementById('amenities-search')?.value || '').trim().toLowerCase();
   const container = document.getElementById('amenities-grid');
-  container.innerHTML = Object.entries(AMENITIES_CATALOG).map(([section, items]) => `
-    <div class="amenity-section">
-      <div class="amenity-section-title">${section}</div>
-      <div class="amenity-grid">
-        ${items.map(item => {
-          const checked = selected.includes(item);
-          return `<label class="amenity-item${checked ? ' checked' : ''}">
-            <input type="checkbox" value="${item}" ${checked ? 'checked' : ''} onchange="toggleAmenity(this)">
-            ${item}
-          </label>`;
-        }).join('')}
+  const ownSet = new Set(selectedOwn || []);
+  const inheritedSet = new Set(inherited || []);
+  const knownItems = new Set(Object.values(AMENITIES_CATALOG).flat());
+  const blocks = Object.entries(AMENITIES_CATALOG).map(([section, items]) => {
+    const matches = items.filter(item => !query || item.toLowerCase().includes(query));
+    if (!matches.length) return '';
+    return `
+      <div class="amenity-section">
+        <div class="amenity-section-title">${section}</div>
+        <div class="amenity-grid">
+          ${matches.map(item => {
+            const inheritedItem = inheritedSet.has(item);
+            const ownItem = ownSet.has(item);
+            const checked = inheritedItem || ownItem;
+            return `<label class="amenity-item${checked ? ' checked' : ''}${inheritedItem ? ' amenity-item-inherited' : ''}">
+              <input type="checkbox" value="${item}" ${checked ? 'checked' : ''} ${inheritedItem ? 'disabled data-inherited="1"' : ''} onchange="toggleAmenity(this)">
+              <span>${item}</span>
+              ${inheritedItem ? `<span class="amenity-badge-inherited">herdado</span>` : ''}
+            </label>`;
+          }).join('')}
+        </div>
+      </div>`;
+  }).filter(Boolean);
+
+  const customItems = Array.from(new Set([
+    ...Array.from(inheritedSet),
+    ...Array.from(ownSet)
+  ]))
+    .filter(item => !knownItems.has(item))
+    .filter(item => !query || item.toLowerCase().includes(query));
+
+  if (customItems.length) {
+    blocks.push(`
+      <div class="amenity-section">
+        <div class="amenity-section-title">Outras</div>
+        <div class="amenity-grid">
+          ${customItems.map(item => {
+            const inheritedItem = inheritedSet.has(item);
+            const ownItem = ownSet.has(item);
+            const checked = inheritedItem || ownItem;
+            return `<label class="amenity-item${checked ? ' checked' : ''}${inheritedItem ? ' amenity-item-inherited' : ''}">
+              <input type="checkbox" value="${item}" ${checked ? 'checked' : ''} ${inheritedItem ? 'disabled data-inherited="1"' : ''} onchange="toggleAmenity(this)">
+              <span>${item}</span>
+              ${inheritedItem ? `<span class="amenity-badge-inherited">herdado</span>` : ''}
+            </label>`;
+          }).join('')}
+        </div>
       </div>
-    </div>
-  `).join('');
+    `);
+  }
+
+  container.innerHTML = blocks.join('') || `<div style="padding:18px 20px;color:var(--cinza);font-size:13px;">Nenhuma comodidade encontrada.</div>`;
 }
 
 function toggleAmenity(el) {
   el.closest('.amenity-item').classList.toggle('checked', el.checked);
 }
 
-function showAlojTab(tab) {
+function getSelectedAmenitiesFromUi() {
+  return Array.from(document.querySelectorAll('#amenities-grid input[type="checkbox"]:checked:not([data-inherited="1"])')).map(el => el.value);
+}
+
+function refreshAmenitiesFilter() {
+  const inherited = currentAlojDetail?.inherited_amenities || [];
+  renderAmenities(getSelectedAmenitiesFromUi(), inherited);
+  if (window.lucide) lucide.createIcons();
+}
+
+async function showAlojTab(tab) {
   ['info','comodidades','imagens'].forEach(t => {
     const el = document.getElementById('aloj-tab-' + t);
     if (el) el.style.display = t === tab ? '' : 'none';
     const btn = document.getElementById('tab-' + t);
     if (btn) btn.classList.toggle('active', t === tab);
   });
-  if (tab === 'imagens') renderImagens();
+  if (tab === 'imagens') {
+    // Re-fetch to guarantee fresh images and up-to-date common_area_images from parent
+    const id = document.getElementById('aloj-editing-id').value;
+    if (id) {
+      try {
+        const data = await apiGet('/api/accommodations/' + id);
+        const a = data.data;
+        currentAlojDetail = a;
+        const imgs = { ...(a.own_images || a.images || {}) };
+        imgs._sections = buildImageSections(imgs, a.image_sections, !!a.parent_id);
+        alojImagens[id] = imgs;
+      } catch (_) { /* render with cached data if fetch fails */ }
+    }
+    renderImagens();
+  }
 }
 
 // ── IMAGENS ──
 function getImgSections(id) {
   const imgs = alojImagens[id] || {};
-  if (imgs._sections && Array.isArray(imgs._sections) && imgs._sections.length > 0) {
-    return imgs._sections;
-  }
-  return DEFAULT_SECTIONS;
+  const hasParent = !!currentAlojDetail?.parent_id;
+  return buildImageSections(imgs, imgs._sections, hasParent);
 }
 
 function renderImagens() {
@@ -212,34 +448,63 @@ function renderImagens() {
   const imgs = alojImagens[id] || {};
   const sections = getImgSections(id);
   const container = document.getElementById('img-sections');
+  const hasParent = !!currentAlojDetail?.parent_id;
+  const commonAreaImages = currentAlojDetail?.common_area_images?.length
+    ? currentAlojDetail.common_area_images
+    : currentAlojDetail?._parent?.images?.[COMMON_AREAS_SECTION.key] || [];
 
-  container.innerHTML = sections.map((sec, idx) => {
+  const inheritedCommonAreas = hasParent ? `
+    <div class="img-section img-section-inherited">
+      <div class="img-section-header">
+        <div>
+          <div class="img-section-title-static">${COMMON_AREAS_SECTION.label}</div>
+          <div class="img-section-subtitle">Herdado de ${currentAlojDetail?._parent_name || 'alojamento principal'} · só leitura</div>
+        </div>
+      </div>
+      <div class="img-row img-row-inherited">
+        ${commonAreaImages.length
+          ? commonAreaImages.map(url => `
+            <div class="img-thumb-wrap">
+              <img class="img-thumb" src="${API_BASE}${url}" alt="" onclick="openImageLightbox('${API_BASE}${url}')">
+            </div>`).join('')
+          : `<div class="img-inherited-empty">Sem fotos de áreas comuns no alojamento principal.</div>`}
+      </div>
+    </div>
+  ` : '';
+
+  container.innerHTML = inheritedCommonAreas + sections.map((sec, idx) => {
     const key = sec.key;
     const label = sec.label;
     const urls = imgs[key] || [];
+    const isCommonAreas = key === COMMON_AREAS_SECTION.key;
 
     const thumbs = urls.map(url => `
       <div class="img-thumb-wrap" draggable="true"
            data-section="${key}" data-url="${url}"
            ondragstart="imgDragStart(event,'${key}','${url}')"
            ondragend="imgDragEnd(event)">
-        <img class="img-thumb" src="${API_BASE}${url}" alt="">
+        <img class="img-thumb" src="${API_BASE}${url}" alt="" onclick="openImageLightbox('${API_BASE}${url}')">
         <button class="img-remove" onclick="removeImg('${key}','${url}')">✕</button>
       </div>`).join('');
 
     return `
       <div class="img-section" data-section-idx="${idx}">
         <div class="img-section-header">
-          <input class="img-section-label-input" value="${label}"
+          ${isCommonAreas
+            ? `<div>
+                <div class="img-section-title-static">${label}</div>
+                <div class="img-section-subtitle">Visível em todas as suites associadas</div>
+              </div>`
+            : `<input class="img-section-label-input" value="${label}"
                  onchange="renameImgSection(${idx}, this.value)"
-                 title="Clique para renomear">
+                 title="Clique para renomear">`}
           <div class="img-section-actions">
             <button class="img-section-btn add" onclick="triggerImgUpload('${key}')" title="Adicionar fotos">
               ${lcIcon('image-plus', 14)}
             </button>
-            <button class="img-section-btn" onclick="removeImgSection(${idx})" title="Remover divisão">
+            ${isCommonAreas ? '' : `<button class="img-section-btn" onclick="removeImgSection(${idx})" title="Remover divisão">
               ${lcIcon('trash-2', 13)}
-            </button>
+            </button>`}
           </div>
         </div>
         <div class="img-row" id="imgs-${key}"
@@ -258,6 +523,7 @@ function renderImagens() {
 // ── IMAGE DRAG BETWEEN SECTIONS ──
 function imgDragStart(e, section, url) {
   dragImgSrc = { section, url };
+  coverDragUrl = null;
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', JSON.stringify({ section, url }));
   e.currentTarget.style.opacity = '0.5';
@@ -266,19 +532,31 @@ function imgDragStart(e, section, url) {
 function imgDragEnd(e) {
   e.currentTarget.style.opacity = '';
   document.querySelectorAll('.img-row').forEach(r => r.classList.remove('drag-over'));
+  document.getElementById('aloj-cover-dropzone')?.classList.remove('drag-over');
 }
 
 async function imgDropInSection(e, targetSection) {
   e.preventDefault();
   e.currentTarget.classList.remove('drag-over');
 
+  const id = document.getElementById('aloj-editing-id').value;
+  const imgs = alojImagens[id] || {};
+
+  if (coverDragUrl) {
+    if (!imgs[targetSection]) imgs[targetSection] = [];
+    if (!imgs[targetSection].includes(coverDragUrl)) imgs[targetSection].push(coverDragUrl);
+    alojImagens[id] = imgs;
+    coverDragUrl = null;
+    renderImagens();
+    await saveImgSections(id, imgs);
+    return;
+  }
+
   if (!dragImgSrc || dragImgSrc.section === targetSection) {
     dragImgSrc = null;
     return;
   }
 
-  const id = document.getElementById('aloj-editing-id').value;
-  const imgs = alojImagens[id] || {};
   const { section: srcSection, url } = dragImgSrc;
   dragImgSrc = null;
 
@@ -293,6 +571,7 @@ async function imgDropInSection(e, targetSection) {
   try {
     await fetch(`${API_BASE}/api/accommodations/${id}/images`, {
       method: 'PATCH',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ images: imgs })
     });
@@ -306,7 +585,9 @@ function renameImgSection(idx, newLabel) {
   const id = document.getElementById('aloj-editing-id').value;
   if (!id) return;
   const imgs = alojImagens[id] || {};
-  const sections = getImgSections(id).map((s, i) =>
+  const sectionsBase = getImgSections(id);
+  if (sectionsBase[idx]?.key === COMMON_AREAS_SECTION.key) return;
+  const sections = sectionsBase.map((s, i) =>
     i === idx ? { ...s, label: newLabel } : s
   );
   imgs._sections = sections;
@@ -321,6 +602,7 @@ async function removeImgSection(idx) {
   const sections = getImgSections(id);
   const sec = sections[idx];
   if (!sec) return;
+  if (sec.key === COMMON_AREAS_SECTION.key) return;
 
   const imgCount = (imgs[sec.key] || []).length;
   if (imgCount > 0 && !confirm(`A divisão "${sec.label}" tem ${imgCount} foto(s). Remover mesmo assim? As fotos serão eliminadas.`)) return;
@@ -358,6 +640,7 @@ async function saveImgSections(id, imgs) {
   try {
     await fetch(`${API_BASE}/api/accommodations/${id}/images`, {
       method: 'PATCH',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ images: imgs })
     });
@@ -401,10 +684,11 @@ async function processImgFile(file, section) {
       const res = await apiPost(`/api/accommodations/${id}/images`, { section, image: e.target.result });
       if (res.success) {
         if (!alojImagens[id]) alojImagens[id] = {};
-        // Preserve _sections when merging
-        const prevSections = alojImagens[id]._sections;
-        alojImagens[id] = res.images;
-        if (prevSections) alojImagens[id]._sections = prevSections;
+        const prevSections = alojImagens[id]?._sections;
+        alojImagens[id] = { ...res.images };
+        alojImagens[id]._sections = prevSections
+          || alojImagens[id]._sections
+          || buildImageSections(alojImagens[id], null, !!currentAlojDetail?.parent_id);
         renderImagens();
         toast('✅ Imagem guardada!', 'success');
       } else {
@@ -423,14 +707,17 @@ async function removeImg(sec, url) {
   try {
     const res = await fetch(`${API_BASE}/api/accommodations/${id}/images`, {
       method: 'DELETE',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ section: sec, url })
     });
     const data = await res.json();
     if (data.success) {
       const prevSections = alojImagens[id]?._sections;
-      alojImagens[id] = data.images;
-      if (prevSections) alojImagens[id]._sections = prevSections;
+      alojImagens[id] = { ...data.images };
+      alojImagens[id]._sections = prevSections
+        || alojImagens[id]._sections
+        || buildImageSections(alojImagens[id], null, !!currentAlojDetail?.parent_id);
       renderImagens();
     }
   } catch (e) {
@@ -450,9 +737,11 @@ async function uploadCoverImage(file) {
         const url = res.url.startsWith('http') ? res.url : API_BASE + res.url;
         const preview = document.getElementById('aloj-cover-preview');
         const placeholder = document.getElementById('aloj-cover-placeholder');
+        const deleteBtn = document.getElementById('aloj-cover-delete-btn');
         preview.src = url + '?t=' + Date.now();
         preview.style.display = 'block';
         if (placeholder) placeholder.style.display = 'none';
+        if (deleteBtn) deleteBtn.style.display = '';
         const acc = accommodations.find(a => a.id === id);
         if (acc) acc.cover_image = res.url;
         toast('✅ Foto de capa guardada!', 'success');
@@ -462,6 +751,119 @@ async function uploadCoverImage(file) {
     }
   };
   reader.readAsDataURL(file);
+}
+
+function handleCoverZoneClick(event) {
+  const preview = document.getElementById('aloj-cover-preview');
+  if (preview && preview.style.display !== 'none' && preview.src) {
+    openImageLightbox(preview.src.split('?')[0]);
+    return;
+  }
+  document.getElementById('cover-input')?.click();
+}
+
+async function removeCoverImage() {
+  const id = document.getElementById('aloj-editing-id').value;
+  if (!id) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/accommodations/${id}/cover`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error();
+    const preview = document.getElementById('aloj-cover-preview');
+    const placeholder = document.getElementById('aloj-cover-placeholder');
+    const deleteBtn = document.getElementById('aloj-cover-delete-btn');
+    if (preview) {
+      preview.src = '';
+      preview.style.display = 'none';
+    }
+    if (placeholder) placeholder.style.display = 'flex';
+    if (deleteBtn) deleteBtn.style.display = 'none';
+    const acc = accommodations.find(a => a.id === id);
+    if (acc) acc.cover_image = null;
+    toast('🗑 Foto de capa removida.', 'info');
+  } catch (e) {
+    toast('❌ Erro ao remover capa.', 'error');
+  }
+}
+
+function coverDragStart(event) {
+  const preview = document.getElementById('aloj-cover-preview');
+  const src = preview?.src ? preview.src.split('?')[0] : '';
+  if (!src) return;
+  coverDragUrl = src.replace(API_BASE, '');
+  dragImgSrc = null;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', JSON.stringify({ section: '__cover__', url: coverDragUrl }));
+  event.currentTarget.style.opacity = '0.55';
+}
+
+function coverDragEnd(event) {
+  coverDragUrl = null;
+  event.currentTarget.style.opacity = '';
+  document.getElementById('aloj-cover-dropzone')?.classList.remove('drag-over');
+  document.querySelectorAll('.img-row').forEach(r => r.classList.remove('drag-over'));
+}
+
+async function handleCoverDrop(event) {
+  event.preventDefault();
+  const zone = document.getElementById('aloj-cover-dropzone');
+  zone?.classList.remove('drag-over');
+  const id = document.getElementById('aloj-editing-id').value;
+  if (!id) return;
+
+  if (event.dataTransfer?.files?.length) {
+    const file = Array.from(event.dataTransfer.files).find(f => f.type.startsWith('image/'));
+    if (file) {
+      await uploadCoverImage(file);
+    }
+    return;
+  }
+
+  const url = dragImgSrc?.url || coverDragUrl;
+  if (!url) return;
+  if (dragImgSrc?.section === '__cover__') return;
+
+  try {
+    const res = await apiPost(`/api/accommodations/${id}/cover`, { url });
+    if (!res.success) throw new Error();
+    const preview = document.getElementById('aloj-cover-preview');
+    const placeholder = document.getElementById('aloj-cover-placeholder');
+    const deleteBtn = document.getElementById('aloj-cover-delete-btn');
+    if (preview) {
+      preview.src = `${API_BASE}${url}?t=${Date.now()}`;
+      preview.style.display = 'block';
+      preview.setAttribute('draggable', 'true');
+    }
+    if (placeholder) placeholder.style.display = 'none';
+    if (deleteBtn) deleteBtn.style.display = '';
+    const acc = accommodations.find(a => a.id === id);
+    if (acc) acc.cover_image = url;
+    toast('✅ Capa atualizada.', 'success');
+  } catch (e) {
+    toast('❌ Erro ao atualizar capa.', 'error');
+  } finally {
+    dragImgSrc = null;
+    coverDragUrl = null;
+  }
+}
+
+function openImageLightbox(url) {
+  const bg = document.getElementById('image-lightbox-bg');
+  const img = document.getElementById('image-lightbox-img');
+  if (!bg || !img || !url) return;
+  img.src = url;
+  bg.classList.add('open');
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeImageLightbox() {
+  const bg = document.getElementById('image-lightbox-bg');
+  const img = document.getElementById('image-lightbox-img');
+  if (bg) bg.classList.remove('open');
+  if (img) img.src = '';
 }
 
 // ── SERVIÇOS E TAXAS ──
@@ -543,6 +945,104 @@ async function saveServicos() {
   } catch (e) {
     toast('❌ Erro de ligação.', 'error');
   }
+}
+
+// ── HERANÇA DE CAMPOS DO ALOJAMENTO PRINCIPAL ──
+const INHERITED_FIELDS_MAP = {
+  'aloj-morada':        'address',
+  'aloj-cp':            'postal_code',
+  'aloj-cidade':        'city',
+  'aloj-regiao':        'region',
+  'aloj-pais':          'country',
+  'aloj-wifi-nome':     'wifi_name',
+  'aloj-wifi-password': 'wifi_password',
+  'aloj-checkin-time':  'checkin_time',
+  'aloj-checkout-time': 'checkout_time',
+  'aloj-social-fb':     'social_facebook',
+  'aloj-social-ig':     'social_instagram',
+  'aloj-social-web':    'social_website',
+};
+
+function onAlojTipoChange(accomData) {
+  const tipo = document.getElementById('aloj-tipo')?.value;
+  const parentWrap = document.getElementById('aloj-parent-wrap');
+  // Alojamento type never has a parent; other types can optionally have one
+  if (parentWrap) parentWrap.style.display = (tipo && tipo !== 'alojamento') ? '' : 'none';
+  if (tipo === 'alojamento') {
+    const parentSel = document.getElementById('aloj-parent-id');
+    if (parentSel) parentSel.value = '';
+    _applyInheritedFields(accomData || null);
+  }
+}
+
+function onAlojParentChange() {
+  const parentId = document.getElementById('aloj-parent-id')?.value;
+  if (!parentId) {
+    currentAlojDetail = { ...(currentAlojDetail || {}), parent_id: null, _parent: null, _parent_name: null, inherited_amenities: [], common_area_images: [] };
+    _applyInheritedFields(null);
+    renderAmenities(getSelectedAmenitiesFromUi(), []);
+    if (document.getElementById('tab-imagens')?.classList.contains('active')) renderImagens();
+    return;
+  }
+  const parent = accommodations.find(p => p.id === parentId);
+  currentAlojDetail = {
+    ...(currentAlojDetail || {}),
+    parent_id: parentId,
+    _parent: parent || null,
+    _parent_name: parent?.name || null,
+    inherited_amenities: parent?.effective_amenities || [],
+    common_area_images: parent?.images?.[COMMON_AREAS_SECTION.key] || []
+  };
+  _applyInheritedFields({ parent_id: parentId, _parent: parent });
+  // Fill in inherited values from parent immediately
+  if (parent) {
+    Object.entries(INHERITED_FIELDS_MAP).forEach(([elId, field]) => {
+      const el = document.getElementById(elId);
+      if (el) el.value = parent[field] || '';
+    });
+    renderAmenities(getSelectedAmenitiesFromUi(), parent.effective_amenities || []);
+    if (document.getElementById('tab-imagens')?.classList.contains('active')) renderImagens();
+  }
+}
+
+function _applyInheritedFields(accomData) {
+  const hasParent = !!(accomData?.parent_id);
+  const parent = accomData?._parent || (accomData?.parent_id ? accommodations.find(p => p.id === accomData.parent_id) : null);
+  const banner = document.getElementById('aloj-inherited-banner');
+  const msg = document.getElementById('aloj-inherited-msg');
+
+  if (hasParent && parent) {
+    if (banner) banner.style.display = '';
+    if (msg) msg.innerHTML = `${lcIcon('link',13)} Os campos marcados são herdados de <b>${parent.name}</b> e só podem ser editados a partir desse alojamento.`;
+  } else {
+    if (banner) banner.style.display = 'none';
+  }
+
+  Object.keys(INHERITED_FIELDS_MAP).forEach(elId => {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.disabled = hasParent;
+    el.style.opacity = hasParent ? '.55' : '';
+    el.style.cursor = hasParent ? 'not-allowed' : '';
+    // Ensure label shows inherited badge
+    const label = el.closest('.form-group')?.querySelector('.form-label');
+    const badgeId = elId + '-inherited-badge';
+    const existing = document.getElementById(badgeId);
+    if (hasParent && !existing && label) {
+      const badge = document.createElement('span');
+      badge.id = badgeId;
+      badge.style.cssText = 'margin-left:6px;font-size:10px;color:var(--dourado);font-weight:600;text-transform:uppercase;letter-spacing:.3px;';
+      badge.textContent = '↑ herdado';
+      label.appendChild(badge);
+    } else if (!hasParent && existing) {
+      existing.remove();
+    }
+    // For password field, also affect the wrapper
+    if (elId === 'aloj-wifi-password') {
+      const btn = el.closest('.password-field')?.querySelector('.password-eye');
+      if (btn) btn.disabled = hasParent;
+    }
+  });
 }
 
 // ── ADICIONAR ALOJAMENTO ──
@@ -724,19 +1224,16 @@ async function saveAlojamento() {
   const id = document.getElementById('aloj-editing-id').value;
   if (!id) return;
 
-  const checkedAmenities = Array.from(
-    document.querySelectorAll('#amenities-grid input[type=checkbox]:checked')
-  ).map(el => el.value);
+  const checkedAmenities = getSelectedAmenitiesFromUi();
+
+  const parentId = document.getElementById('aloj-parent-id')?.value || null;
+  const hasParent = !!parentId;
 
   const body = {
     name: document.getElementById('aloj-nome').value,
     license_number: document.getElementById('aloj-licenca').value + '/AL',
-    address: document.getElementById('aloj-morada').value,
-    postal_code: document.getElementById('aloj-cp').value,
-    city: document.getElementById('aloj-cidade').value,
-    region: document.getElementById('aloj-regiao').value,
-    country: document.getElementById('aloj-pais').value,
     type: document.getElementById('aloj-tipo').value,
+    parent_id: parentId,
     area: parseInt(document.getElementById('aloj-area').value) || null,
     max_guests: parseInt(document.getElementById('aloj-capacidade').value) || 2,
     num_rooms: parseInt(document.getElementById('aloj-quartos').value) || 1,
@@ -750,23 +1247,36 @@ async function saveAlojamento() {
     description_it: document.getElementById('desc-it').value,
     description_nl: document.getElementById('desc-nl').value,
     google_calendar_id: document.getElementById('aloj-gcal-id').value || null,
-    wifi_name:     document.getElementById('aloj-wifi-nome').value.trim()     || null,
-    wifi_password: document.getElementById('aloj-wifi-password').value.trim() || null,
-    checkin_time:  document.getElementById('aloj-checkin-time').value  || null,
-    checkout_time: document.getElementById('aloj-checkout-time').value || null,
-    color:         document.getElementById('aloj-color')?.value        || null,
-    social_facebook:  document.getElementById('aloj-social-fb')?.value.trim()  || null,
-    social_instagram: document.getElementById('aloj-social-ig')?.value.trim()  || null,
-    social_website:   document.getElementById('aloj-social-web')?.value.trim() || null,
-    amenities: checkedAmenities,
+    color:         document.getElementById('aloj-color')?.value || null,
+    own_amenities: checkedAmenities,
   };
+
+  // Only include inherited fields if this accommodation owns them (no parent)
+  if (!hasParent) {
+    Object.assign(body, {
+      address:    document.getElementById('aloj-morada').value,
+      postal_code: document.getElementById('aloj-cp').value,
+      city:       document.getElementById('aloj-cidade').value,
+      region:     document.getElementById('aloj-regiao').value,
+      country:    document.getElementById('aloj-pais').value,
+      wifi_name:     document.getElementById('aloj-wifi-nome').value.trim()     || null,
+      wifi_password: document.getElementById('aloj-wifi-password').value.trim() || null,
+      checkin_time:  document.getElementById('aloj-checkin-time').value  || null,
+      checkout_time: document.getElementById('aloj-checkout-time').value || null,
+      social_facebook:  document.getElementById('aloj-social-fb')?.value.trim()  || null,
+      social_instagram: document.getElementById('aloj-social-ig')?.value.trim()  || null,
+      social_website:   document.getElementById('aloj-social-web')?.value.trim() || null,
+    });
+  }
 
   try {
     const res = await apiPut('/api/accommodations/' + id, body);
     if (res.success) {
+      const activeTab = getActiveAlojTab();
       toast('✅ Alojamento guardado!', 'success');
       document.getElementById('aloj-detalhe-nome').textContent = body.name;
       await loadAccommodations();
+      await openAlojamento(id, activeTab);
     } else {
       toast('❌ ' + (res.error || 'Erro ao guardar.'), 'error');
     }

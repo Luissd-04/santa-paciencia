@@ -1,31 +1,47 @@
 async function exportDB() {
   try {
-    const res = await fetch(API_BASE + '/api/backup/export');
+    const res = await fetch(API_BASE + '/api/backup/export', { credentials: 'include' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `santa_paciencia_${new Date().toISOString().slice(0,10)}.json`;
+    a.download = `santa_paciencia_${new Date().toISOString().slice(0,10)}.zip`;
     a.click();
     URL.revokeObjectURL(url);
-    toast('✅ Base de dados exportada!', 'success');
+    toast('✅ Backup ZIP exportado com imagens!', 'success');
   } catch (e) {
-    toast('❌ Erro ao exportar base de dados.', 'error');
+    toast('❌ Erro ao exportar backup ZIP.', 'error');
   }
 }
 
 async function importDB(input) {
   const file = input.files[0];
   if (!file) return;
+  if (!/\.zip$/i.test(file.name)) {
+    toast('❌ Seleciona um ficheiro ZIP válido.', 'error');
+    input.value = '';
+    return;
+  }
   if (!confirm('⚠️ Isto vai SUBSTITUIR toda a base de dados atual pelos dados do ficheiro. Tem a certeza?')) {
     input.value = '';
     return;
   }
   try {
-    const text = await file.text();
-    const json = JSON.parse(text);
-    if (!json.tables) { toast('❌ Ficheiro inválido.', 'error'); input.value = ''; return; }
-    const res = await apiPost('/api/backup/import', json);
+    const bytes = await file.arrayBuffer();
+    let binary = '';
+    const chunkSize = 0x8000;
+    const uint8 = new Uint8Array(bytes);
+    for (let i = 0; i < uint8.length; i += chunkSize) {
+      const chunk = uint8.subarray(i, i + chunkSize);
+      binary += String.fromCharCode(...chunk);
+    }
+    const archiveBase64 = btoa(binary);
+
+    const res = await apiPost('/api/backup/import', {
+      filename: file.name,
+      archiveBase64
+    });
     if (res.success) {
       toast('✅ Base de dados importada! A recarregar...', 'success');
       setTimeout(() => window.location.reload(), 1500);
@@ -33,7 +49,7 @@ async function importDB(input) {
       toast('❌ ' + (res.error || 'Erro ao importar.'), 'error');
     }
   } catch (e) {
-    toast('❌ Ficheiro inválido ou erro de ligação.', 'error');
+    toast('❌ ZIP inválido ou erro de ligação.', 'error');
   }
   input.value = '';
 }

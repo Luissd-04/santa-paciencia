@@ -1,6 +1,8 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/guestController');
+const requireRole = require('../middleware/requireRole');
 
+router.use(requireRole('staff'));
 router.get('/', ctrl.getAll);
 router.post('/', ctrl.create);
 router.get('/:id', ctrl.getById);

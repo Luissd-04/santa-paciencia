@@ -4,10 +4,86 @@ const { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } = requir
 const { sendConfirmationEmail, sendCancellationEmail, sendPaymentConfirmationEmail } = require('../services/emailService');
 const { recordConsent } = require('../services/rgpdService');
 
+// Returns conflicting reservation ID (if any) for the given accommodation + date range.
+// Uses parent_id hierarchy: booking an alojamento blocks all child suites and vice versa.
+function findConflict(organizationId, accommodationId, checkIn, checkOut, excludeId) {
+  const accom = db.prepare('SELECT id, type, parent_id FROM accommodations WHERE id = ? AND organization_id = ?').get(accommodationId, organizationId);
+  if (!accom) return null;
+
+  const idsToCheck = new Set([accommodationId]);
+  if (accom.parent_id) {
+    // Child suite — also check if parent alojamento is booked
+    idsToCheck.add(accom.parent_id);
+  } else if (accom.type === 'alojamento') {
+    // Parent alojamento — also check all child suites
+    db.prepare('SELECT id FROM accommodations WHERE organization_id = ? AND parent_id = ?').all(organizationId, accommodationId)
+      .forEach(c => idsToCheck.add(c.id));
+  }
+
+  const placeholders = [...idsToCheck].map(() => '?').join(',');
+  let query = `
+    SELECT r.id FROM reservations r
+    WHERE r.status != 'cancelada'
+      AND r.organization_id = ?
+      AND r.check_in < ?
+      AND r.check_out > ?
+      AND r.accommodation_id IN (${placeholders})
+  `;
+  const params = [organizationId, checkOut, checkIn, ...[...idsToCheck]];
+  if (excludeId) { query += ' AND r.id != ?'; params.push(excludeId); }
+  return db.prepare(query).get(...params) || null;
+}
+
+// GET /api/reservations/availability?check_in=&check_out=&exclude_id=
+async function getAvailability(req, res, next) {
+  try {
+    const { check_in, check_out, exclude_id } = req.query;
+    const organizationId = req.user.organization_id;
+    if (!check_in || !check_out) {
+      return res.json({ success: true, data: { unavailable: [] } });
+    }
+
+    let query = `SELECT DISTINCT accommodation_id FROM reservations WHERE organization_id = ? AND status != 'cancelada' AND check_in < ? AND check_out > ?`;
+    const params = [organizationId, check_out, check_in];
+    if (exclude_id) { query += ' AND id != ?'; params.push(exclude_id); }
+
+    const conflicting = db.prepare(query).all(...params).map(r => r.accommodation_id);
+    if (!conflicting.length) return res.json({ success: true, data: { unavailable: [] } });
+
+    const allAccom = db.prepare('SELECT id, type, parent_id FROM accommodations WHERE organization_id = ?').all(organizationId);
+    const unavailable = new Set(conflicting);
+
+    // Propagate using parent_id hierarchy
+    for (const conflictId of conflicting) {
+      const acc = allAccom.find(a => a.id === conflictId);
+      if (!acc) continue;
+      if (acc.parent_id) {
+        // Child suite booked → parent alojamento unavailable
+        unavailable.add(acc.parent_id);
+      } else if (acc.type === 'alojamento') {
+        // Parent alojamento booked → all children unavailable
+        allAccom.filter(a => a.parent_id === conflictId).forEach(c => unavailable.add(c.id));
+      }
+    }
+    // Second pass: if any parent alojamento became unavailable, block all its children too
+    for (const unavailId of [...unavailable]) {
+      const acc = allAccom.find(a => a.id === unavailId);
+      if (acc?.type === 'alojamento') {
+        allAccom.filter(a => a.parent_id === unavailId).forEach(c => unavailable.add(c.id));
+      }
+    }
+
+    res.json({ success: true, data: { unavailable: [...unavailable] } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /api/reservations
 async function getAll(req, res, next) {
   try {
     const { status, accommodation_id, from, to } = req.query;
+    const organizationId = req.user.organization_id;
 
     let query = `
       SELECT r.*, g.name as guest_name, g.email as guest_email, g.phone as guest_phone,
@@ -15,9 +91,9 @@ async function getAll(req, res, next) {
       FROM reservations r
       JOIN guests g ON r.guest_id = g.id
       JOIN accommodations a ON r.accommodation_id = a.id
-      WHERE 1=1
+      WHERE r.organization_id = ?
     `;
-    const params = [];
+    const params = [organizationId];
 
     if (status) { query += ' AND r.status = ?'; params.push(status); }
     if (accommodation_id) { query += ' AND r.accommodation_id = ?'; params.push(accommodation_id); }
@@ -43,8 +119,8 @@ async function getById(req, res, next) {
       FROM reservations r
       JOIN guests g ON r.guest_id = g.id
       JOIN accommodations a ON r.accommodation_id = a.id
-      WHERE r.id = ?
-    `).get(req.params.id);
+      WHERE r.id = ? AND r.organization_id = ?
+    `).get(req.params.id, req.user.organization_id);
 
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
     res.json({ success: true, data: reservation });
@@ -62,6 +138,7 @@ async function create(req, res, next) {
       notes, rgpd_consent, rgpd_ip, guests_data,
       amount_paid, payment_date, payment_status: reqPaymentStatus
     } = req.body;
+    const organizationId = req.user.organization_id;
 
     // Validação básica
     if (!guest?.name || !guest?.email || !accommodation_id || !check_in || !check_out) {
@@ -69,21 +146,21 @@ async function create(req, res, next) {
     }
 
     // Criar ou actualizar hóspede
-    let guestRecord = db.prepare('SELECT * FROM guests WHERE email = ?').get(guest.email);
+    let guestRecord = db.prepare('SELECT * FROM guests WHERE email = ? AND organization_id = ?').get(guest.email, organizationId);
 
     if (!guestRecord) {
       const guestId = uuidv4();
       db.prepare(`
         INSERT INTO guests (id, name, email, phone, document_type, document_number, document_issuer_country,
-          nationality, first_name, last_name, birth_date, birth_city, nif, country, address, postal_code, city)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          nationality, first_name, last_name, birth_date, birth_city, nif, country, address, postal_code, city, organization_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(guestId, guest.name, guest.email, guest.phone || null,
              guest.document_type || null, guest.document_number || null,
              guest.document_issuer_country || null, guest.nationality || null,
              guest.first_name || null, guest.last_name || null, guest.birth_date || null,
              guest.birth_city || null, guest.nif || null, guest.country || null,
-             guest.address || null, guest.postal_code || null, guest.city || null);
-      guestRecord = db.prepare('SELECT * FROM guests WHERE id = ?').get(guestId);
+             guest.address || null, guest.postal_code || null, guest.city || null, organizationId);
+      guestRecord = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(guestId, organizationId);
     } else {
       // Actualizar campos opcionais se fornecidos
       db.prepare(`UPDATE guests SET
@@ -95,7 +172,7 @@ async function create(req, res, next) {
         birth_city = COALESCE(?, birth_city),
         nif = COALESCE(?, nif), country = COALESCE(?, country),
         address = COALESCE(?, address), postal_code = COALESCE(?, postal_code), city = COALESCE(?, city)
-        WHERE id = ?`).run(
+        WHERE id = ? AND organization_id = ?`).run(
         guest.name || null, guest.phone || null,
         guest.document_type || null, guest.document_number || null,
         guest.document_issuer_country || null,
@@ -104,9 +181,10 @@ async function create(req, res, next) {
         guest.birth_city || null,
         guest.nif || null, guest.country || null,
         guest.address || null, guest.postal_code || null, guest.city || null,
-        guestRecord.id
+        guestRecord.id,
+        organizationId
       );
-      guestRecord = db.prepare('SELECT * FROM guests WHERE id = ?').get(guestRecord.id);
+      guestRecord = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(guestRecord.id, organizationId);
     }
 
     // Registar consentimento RGPD
@@ -115,7 +193,7 @@ async function create(req, res, next) {
     }
 
     // Calcular valores
-    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ?').get(accommodation_id);
+    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(accommodation_id, organizationId);
     if (!accommodation) return res.status(404).json({ error: 'Alojamento não encontrado' });
 
     const checkIn = new Date(check_in);
@@ -124,8 +202,16 @@ async function create(req, res, next) {
 
     if (nights <= 0) return res.status(400).json({ error: 'Datas inválidas' });
 
+    // Verificar disponibilidade (anti double-booking)
+    const conflict = findConflict(organizationId, accommodation_id, check_in, check_out, null);
+    if (conflict) {
+      return res.status(409).json({
+        error: `Este alojamento já está ocupado nessas datas (reserva ${conflict.id}).`
+      });
+    }
+
     // Ler serviços e taxas das configurações
-    const settingsRow = db.prepare("SELECT value FROM settings WHERE key = 'services'").get();
+    const settingsRow = db.prepare("SELECT value FROM organization_settings WHERE organization_id = ? AND key = 'services'").get(organizationId);
     const services = settingsRow ? JSON.parse(settingsRow.value) : [];
     const taxSvc = services.find(s => s.id === 'tourist_tax');
     const bkfSvc = services.find(s => s.id === 'breakfast');
@@ -147,12 +233,12 @@ async function create(req, res, next) {
     const reservationId = `SP-${Date.now()}`;
     db.prepare(`
       INSERT INTO reservations (
-        id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
+        id, organization_id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
         total_amount, breakfast_included, tourist_tax, channel, payment_method,
         notes, license_number, guests_data, amount_paid, payment_date, payment_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      reservationId, guestRecord.id, accommodation_id, check_in, check_out,
+      reservationId, organizationId, guestRecord.id, accommodation_id, check_in, check_out,
       nights, num_guests, totalAmount, bkfOn,
       touristTax, channel || 'direto', payment_method || null,
       notes || null, accommodation.license_number,
@@ -160,7 +246,7 @@ async function create(req, res, next) {
       paidAmt, payment_date || null, autoPaymentStatus
     );
 
-    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ?').get(reservationId);
+    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservationId, organizationId);
 
     // Google Calendar (async, não bloqueia resposta)
     createCalendarEvent(reservation).then(eventId => {
@@ -187,7 +273,8 @@ async function create(req, res, next) {
 // PUT /api/reservations/:id
 async function update(req, res, next) {
   try {
-    const existing = db.prepare('SELECT * FROM reservations WHERE id = ?').get(req.params.id);
+    const organizationId = req.user.organization_id;
+    const existing = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
     if (!existing) return res.status(404).json({ error: 'Reserva não encontrada' });
 
     const {
@@ -197,8 +284,8 @@ async function update(req, res, next) {
     } = req.body;
 
     const newAccommodationId = accommodation_id || existing.accommodation_id;
-    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ?')
-      .get(newAccommodationId);
+    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?')
+      .get(newAccommodationId, organizationId);
     if (!accommodation) return res.status(404).json({ error: 'Alojamento não encontrado' });
 
     const newCheckIn = check_in || existing.check_in;
@@ -209,13 +296,21 @@ async function update(req, res, next) {
     const guests = num_guests || existing.num_guests;
     const bkfOn2 = breakfast_included !== undefined ? (breakfast_included ? 1 : 0) : existing.breakfast_included;
     // Ler taxas das configurações
-    const settingsRow2 = db.prepare("SELECT value FROM settings WHERE key = 'services'").get();
+    const settingsRow2 = db.prepare("SELECT value FROM organization_settings WHERE organization_id = ? AND key = 'services'").get(organizationId);
     const services2 = settingsRow2 ? JSON.parse(settingsRow2.value) : [];
     const taxSvc2 = services2.find(s => s.id === 'tourist_tax');
     const bkfSvc2 = services2.find(s => s.id === 'breakfast');
     const bkfRate2 = bkfSvc2?.value ?? 19;
     const touristTax = (taxSvc2?.active !== false) ? (taxSvc2?.value ?? 3) * guests * nights : 0;
     const breakfastCost = bkfOn2 ? bkfRate2 * guests * nights : 0;
+
+    // Verificar disponibilidade (excluir a própria reserva)
+    const conflict2 = findConflict(organizationId, newAccommodationId, newCheckIn, newCheckOut, req.params.id);
+    if (conflict2) {
+      return res.status(409).json({
+        error: `Este alojamento já está ocupado nessas datas (reserva ${conflict2.id}).`
+      });
+    }
 
     // Actualizar dados do hóspede se fornecidos
     if (guest) {
@@ -228,7 +323,7 @@ async function update(req, res, next) {
         birth_city = COALESCE(?, birth_city),
         nif = COALESCE(?, nif), country = COALESCE(?, country),
         address = COALESCE(?, address), postal_code = COALESCE(?, postal_code), city = COALESCE(?, city)
-        WHERE id = ?`).run(
+        WHERE id = ? AND organization_id = ?`).run(
         guest.name || null, guest.phone || null,
         guest.document_type || null, guest.document_number || null,
         guest.document_issuer_country || null,
@@ -237,7 +332,8 @@ async function update(req, res, next) {
         guest.birth_city || null,
         guest.nif || null, guest.country || null,
         guest.address || null, guest.postal_code || null, guest.city || null,
-        existing.guest_id
+        existing.guest_id,
+        organizationId
       );
     }
     const totalAmount = (accommodation.price_per_night * nights) + touristTax + breakfastCost;
@@ -256,7 +352,7 @@ async function update(req, res, next) {
         channel = ?, payment_method = ?, notes = ?, status = ?,
         payment_status = ?, guests_data = ?,
         amount_paid = ?, payment_date = ?, updated_at = datetime('now')
-      WHERE id = ?
+      WHERE id = ? AND organization_id = ?
     `).run(
       newAccommodationId,
       newCheckIn, newCheckOut, nights, guests, totalAmount, bkfOn2,
@@ -267,17 +363,18 @@ async function update(req, res, next) {
       guests_data !== undefined ? JSON.stringify(guests_data) : (existing.guests_data || '[]'),
       newPaidAmt,
       payment_date !== undefined ? (payment_date || null) : existing.payment_date,
-      req.params.id
+      req.params.id,
+      organizationId
     );
 
-    const updated = db.prepare('SELECT * FROM reservations WHERE id = ?').get(req.params.id);
+    const updated = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
 
     // Atualizar no Google Calendar
     updateCalendarEvent(updated);
 
     // Email de pagamento se confirmado agora
     if (autoPaymentStatus2 === 'confirmado' && existing.payment_status !== 'confirmado') {
-      const guest = db.prepare('SELECT * FROM guests WHERE id = ?').get(updated.guest_id);
+      const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(updated.guest_id, organizationId);
       sendPaymentConfirmationEmail(guest, updated, accommodation)
         .catch(err => console.warn('Email não enviado:', err.message));
     }
@@ -291,20 +388,21 @@ async function update(req, res, next) {
 // DELETE /api/reservations/:id  (cancela)
 async function cancel(req, res, next) {
   try {
-    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ?').get(req.params.id);
+    const organizationId = req.user.organization_id;
+    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
 
     db.prepare(`
-      UPDATE reservations SET status = 'cancelada', updated_at = datetime('now') WHERE id = ?
-    `).run(req.params.id);
+      UPDATE reservations SET status = 'cancelada', updated_at = datetime('now') WHERE id = ? AND organization_id = ?
+    `).run(req.params.id, organizationId);
 
     // Remover do Google Calendar
     deleteCalendarEvent(reservation);
 
     // Email de cancelamento
-    const guest = db.prepare('SELECT * FROM guests WHERE id = ?').get(reservation.guest_id);
-    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ?')
-      .get(reservation.accommodation_id);
+    const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(reservation.guest_id, organizationId);
+    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?')
+      .get(reservation.accommodation_id, organizationId);
     sendCancellationEmail(guest, reservation, accommodation)
       .catch(err => console.warn('Email não enviado:', err.message));
 
@@ -317,6 +415,7 @@ async function cancel(req, res, next) {
 // GET /api/reservations/stats/dashboard
 async function getDashboardStats(req, res, next) {
   try {
+    const organizationId = req.user.organization_id;
     const now = new Date();
     const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     const lastOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
@@ -324,22 +423,25 @@ async function getDashboardStats(req, res, next) {
 
     const totalBilled = db.prepare(`
       SELECT COALESCE(SUM(total_amount), 0) as total
-      FROM reservations WHERE status != 'cancelada'
-    `).get();
+      FROM reservations WHERE organization_id = ? AND status != 'cancelada'
+    `).get(organizationId);
 
     const confirmedReservations = db.prepare(`
-      SELECT COUNT(*) as count FROM reservations WHERE status = 'confirmada'
-    `).get();
+      SELECT COUNT(*) as count FROM reservations WHERE organization_id = ? AND status = 'confirmada'
+    `).get(organizationId);
 
     const nightsThisMonth = db.prepare(`
       SELECT COALESCE(SUM(nights), 0) as total
       FROM reservations
-      WHERE status != 'cancelada'
+      WHERE organization_id = ?
+        AND status != 'cancelada'
         AND check_in >= ? AND check_in <= ?
-    `).get(firstOfMonth, lastOfMonth);
+    `).get(organizationId, firstOfMonth, lastOfMonth);
 
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const totalRooms = 4;
+    const totalRooms = db.prepare(`
+      SELECT COUNT(*) as c FROM accommodations WHERE organization_id = ?
+    `).get(organizationId).c || 1;
     const occupiedNights = nightsThisMonth.total;
     const occupancyRate = Math.round((occupiedNights / (daysInMonth * totalRooms)) * 100);
 
@@ -357,4 +459,4 @@ async function getDashboardStats(req, res, next) {
   }
 }
 
-module.exports = { getAll, getById, create, update, cancel, getDashboardStats };
+module.exports = { getAll, getById, create, update, cancel, getDashboardStats, getAvailability };

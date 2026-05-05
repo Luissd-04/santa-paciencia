@@ -17,8 +17,9 @@ async function create(req, res, next) {
 
     const fullName = name || `${first_name || ''} ${last_name || ''}`.trim();
     const effectiveEmail = email || `guest_${Date.now()}@sem-email.local`;
+    const organizationId = req.user.organization_id;
 
-    const existing = db.prepare('SELECT * FROM guests WHERE email = ?').get(effectiveEmail);
+    const existing = db.prepare('SELECT * FROM guests WHERE email = ? AND organization_id = ?').get(effectiveEmail, organizationId);
     if (existing) {
       return res.status(409).json({ error: 'Já existe um hóspede com este email', data: existing });
     }
@@ -26,19 +27,19 @@ async function create(req, res, next) {
     const id = uuidv4();
     db.prepare(`
       INSERT INTO guests (id, name, first_name, last_name, email, email_personal,
-        phone, birth_date, birth_city, nif, nationality, country,
+        phone, birth_date, birth_city, nif, nationality, country, organization_id,
         document_type, document_number, document_issuer_country, address, postal_code, city)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id, fullName, first_name || null, last_name || null,
       effectiveEmail, email_personal || null,
       phone || null, birth_date || null, birth_city || null, nif || null,
-      nationality || null, country || null,
+      nationality || null, country || null, organizationId,
       document_type || null, document_number || null, document_issuer_country || null,
       address || null, postal_code || null, city || null
     );
 
-    const guest = db.prepare('SELECT * FROM guests WHERE id = ?').get(id);
+    const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(id, organizationId);
     res.status(201).json({ success: true, data: guest });
   } catch (err) {
     next(err);
@@ -49,6 +50,7 @@ async function create(req, res, next) {
 async function getAll(req, res, next) {
   try {
     const { search } = req.query;
+    const organizationId = req.user.organization_id;
     let guests;
     if (search && search.trim()) {
       const q = `%${search.trim().toLowerCase()}%`;
@@ -57,22 +59,24 @@ async function getAll(req, res, next) {
           COUNT(CASE WHEN r.status != 'cancelada' THEN 1 END) as reservation_count,
           MAX(CASE WHEN r.status != 'cancelada' THEN r.check_in END) as last_check_in
         FROM guests g
-        LEFT JOIN reservations r ON r.guest_id = g.id
-        WHERE lower(g.name) LIKE ? OR lower(g.email) LIKE ? OR g.phone LIKE ?
+        LEFT JOIN reservations r ON r.guest_id = g.id AND r.organization_id = g.organization_id
+        WHERE g.organization_id = ?
+          AND (lower(g.name) LIKE ? OR lower(g.email) LIKE ? OR g.phone LIKE ?)
         GROUP BY g.id
         ORDER BY last_check_in DESC
         LIMIT 20
-      `).all(q, q, q);
+      `).all(organizationId, q, q, q);
     } else {
       guests = db.prepare(`
         SELECT g.*,
           COUNT(CASE WHEN r.status != 'cancelada' THEN 1 END) as reservation_count,
           MAX(CASE WHEN r.status != 'cancelada' THEN r.check_in END) as last_check_in
         FROM guests g
-        LEFT JOIN reservations r ON r.guest_id = g.id
+        LEFT JOIN reservations r ON r.guest_id = g.id AND r.organization_id = g.organization_id
+        WHERE g.organization_id = ?
         GROUP BY g.id
         ORDER BY last_check_in DESC
-      `).all();
+      `).all(organizationId);
     }
     res.json({ success: true, data: guests });
   } catch (err) {
@@ -83,15 +87,16 @@ async function getAll(req, res, next) {
 // GET /api/guests/:id
 async function getById(req, res, next) {
   try {
-    const guest = db.prepare('SELECT * FROM guests WHERE id = ?').get(req.params.id);
+    const organizationId = req.user.organization_id;
+    const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
     if (!guest) return res.status(404).json({ error: 'Hóspede não encontrado' });
     const reservations = db.prepare(`
       SELECT r.*, a.name as accommodation_name
       FROM reservations r
       JOIN accommodations a ON r.accommodation_id = a.id
-      WHERE r.guest_id = ?
+      WHERE r.guest_id = ? AND r.organization_id = ?
       ORDER BY r.check_in DESC
-    `).all(req.params.id);
+    `).all(req.params.id, organizationId);
     res.json({ success: true, data: { ...guest, reservations } });
   } catch (err) {
     next(err);
@@ -101,7 +106,8 @@ async function getById(req, res, next) {
 // PUT /api/guests/:id
 async function update(req, res, next) {
   try {
-    const existing = db.prepare('SELECT * FROM guests WHERE id = ?').get(req.params.id);
+    const organizationId = req.user.organization_id;
+    const existing = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
     if (!existing) return res.status(404).json({ error: 'Hóspede não encontrado' });
 
     const {
@@ -125,7 +131,7 @@ async function update(req, res, next) {
         document_type = ?, document_number = ?, document_issuer_country = ?,
         address = ?, postal_code = ?, city = ?,
         is_favorite = ?, is_vip = ?, is_unwanted = ?
-      WHERE id = ?
+      WHERE id = ? AND organization_id = ?
     `).run(
       first_name ?? existing.first_name,
       last_name  ?? existing.last_name,
@@ -147,10 +153,11 @@ async function update(req, res, next) {
       is_favorite ? 1 : 0,
       is_vip      ? 1 : 0,
       is_unwanted ? 1 : 0,
-      req.params.id
+      req.params.id,
+      organizationId
     );
 
-    const updated = db.prepare('SELECT * FROM guests WHERE id = ?').get(req.params.id);
+    const updated = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
     res.json({ success: true, data: updated });
   } catch (err) {
     next(err);
@@ -160,12 +167,13 @@ async function update(req, res, next) {
 // DELETE /api/guests/:id
 async function remove(req, res, next) {
   try {
-    const guest = db.prepare('SELECT * FROM guests WHERE id = ?').get(req.params.id);
+    const organizationId = req.user.organization_id;
+    const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
     if (!guest) return res.status(404).json({ error: 'Hóspede não encontrado' });
 
     const active = db.prepare(
-      "SELECT COUNT(*) as c FROM reservations WHERE guest_id = ? AND status != 'cancelada'"
-    ).get(req.params.id);
+      "SELECT COUNT(*) as c FROM reservations WHERE guest_id = ? AND organization_id = ? AND status != 'cancelada'"
+    ).get(req.params.id, organizationId);
 
     if (active.c > 0) {
       return res.status(409).json({
@@ -173,8 +181,8 @@ async function remove(req, res, next) {
       });
     }
 
-    db.prepare("DELETE FROM reservations WHERE guest_id = ?").run(req.params.id);
-    db.prepare("DELETE FROM guests WHERE id = ?").run(req.params.id);
+    db.prepare("DELETE FROM reservations WHERE guest_id = ? AND organization_id = ?").run(req.params.id, organizationId);
+    db.prepare("DELETE FROM guests WHERE id = ? AND organization_id = ?").run(req.params.id, organizationId);
     res.json({ success: true, message: 'Hóspede removido.' });
   } catch (err) {
     next(err);

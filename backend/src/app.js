@@ -1,7 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const { initDatabase } = require('./config/database');
+const requireAuth = require('./middleware/requireAuth');
 const errorHandler = require('./middleware/errorHandler');
+const { clearExpiredSessions } = require('./services/authService');
 
 // Rotas
 const reservationRoutes = require('./routes/reservations');
@@ -12,6 +14,7 @@ const guestRoutes = require('./routes/guests');
 const emailTemplateRoutes = require('./routes/emailTemplates');
 const expenseRoutes = require('./routes/expenses');
 const backupRoutes = require('./routes/backup');
+const teamRoutes = require('./routes/team');
 
 const app = express();
 
@@ -35,8 +38,8 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '200mb' }));
+app.use(express.urlencoded({ extended: true, limit: '200mb' }));
 
 const path = require('path');
 
@@ -50,16 +53,19 @@ if (process.env.FRONTEND_PATH) {
 
 // Inicializar base de dados
 initDatabase();
+clearExpiredSessions();
 
 // Rotas
+app.use('/auth', authRoutes);
+app.use('/api', requireAuth);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/accommodations', accommodationRoutes);
 app.use('/api/calendar', calendarRoutes);
-app.use('/auth', authRoutes);
 app.use('/api/guests', guestRoutes);
 app.use('/api/email-templates', emailTemplateRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/backup', backupRoutes);
+app.use('/api/team', teamRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
