@@ -1645,8 +1645,52 @@ select.form-control { cursor:pointer; }
   transition: opacity .15s, transform .1s;
 }
 .tl-block:hover { opacity: .85; transform: translateY(-1px); }
-.tl-block.tl-dragging { opacity: .4; }
-.tl-row.tl-drag-over .tl-days-area { background: rgba(132,52,36,.06); outline: 2px dashed rgba(132,52,36,.35); outline-offset: -3px; border-radius: 4px; }
+.tl-block.tl-dragging { opacity: .75; cursor: grabbing; transition: none; z-index: 10; transform: none; }
+
+.tl-resize-handle {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 2;
+  border-radius: 6px;
+  transition: background .15s;
+}
+.tl-resize-left  { left: 0; }
+.tl-resize-right { right: 0; }
+.tl-resize-handle:hover { background: rgba(0,0,0,.14); }
+
+.tl-drag-tooltip {
+  position: fixed;
+  background: rgba(18,18,18,.88);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 9999;
+  white-space: nowrap;
+  display: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+
+.tl-drop-ghost {
+  position: absolute;
+  top: 7px;
+  height: 42px;
+  border-radius: 7px;
+  border: 2px dashed var(--marca, #843424);
+  background: rgba(132,52,36,.1);
+  pointer-events: none;
+  z-index: 5;
+  transition: left .08s ease, width .08s ease, border-color .15s, background .15s;
+}
+.tl-drop-ghost-conflict {
+  border-color: #b91c1c;
+  border-style: solid;
+  background: rgba(185,28,28,.13);
+}
 .tl-block-name {
   font-size: 11.5px;
   font-weight: 700;

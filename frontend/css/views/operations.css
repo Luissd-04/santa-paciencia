@@ -86,10 +86,12 @@
   row-gap: 10px;
 }
 
-.calendar-view-stack {
-  display: inline-grid;
-  gap: 8px;
-  align-items: start;
+.calendar-toolbar {
+  justify-content: flex-start;
+}
+
+.calendar-toolbar .view-toolbar-actions {
+  justify-content: flex-start;
 }
 
 .section-card-calendar .cal-wrap {
@@ -147,9 +149,70 @@
 }
 
 .cal-wrap {
-  background: transparent;
+  background: #fff;
   box-shadow: none;
 }
+
+.cal-week:not(:first-child) {
+  border-top: 1px dashed var(--border-soft, rgba(0,0,0,.1));
+}
+
+/* ── Toggle pill ── */
+#cal-main-toggle {
+  position: relative;
+}
+
+.cal-mode-pill {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  background: var(--branco, #fff);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  transition: left .22s cubic-bezier(.4,0,.2,1), width .22s cubic-bezier(.4,0,.2,1);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#cal-main-toggle .cal-mode-btn {
+  position: relative;
+  z-index: 1;
+}
+
+#cal-main-toggle .cal-mode-btn.active {
+  background: none;
+  box-shadow: none;
+}
+
+/* ── View slide animations ── */
+@keyframes calSlideInRight {
+  from { opacity: 0; transform: translateX(30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes calSlideInLeft {
+  from { opacity: 0; transform: translateX(-30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes calSlideOutLeft {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-30px); }
+}
+@keyframes calSlideOutRight {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(30px); }
+}
+
+.cal-slide-enter-right { animation: calSlideInRight  .24s ease forwards; }
+.cal-slide-enter-left  { animation: calSlideInLeft   .24s ease forwards; }
+.cal-slide-exit-left   { animation: calSlideOutLeft  .18s ease forwards; }
+.cal-slide-exit-right  { animation: calSlideOutRight .18s ease forwards; }
+
+/* ── Range toggle slide-in ── */
+@keyframes tlRangeIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.tl-range-enter { animation: tlRangeIn .22s ease forwards; }
 
 .cal-day {
   border-radius: 14px;

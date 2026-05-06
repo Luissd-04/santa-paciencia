@@ -395,12 +395,6 @@
       <div class="view" id="view-calendario">
         <section class="calendar-shell">
           <div class="view-toolbar calendar-toolbar">
-            <div class="view-chip-list">
-              <span class="view-stat-chip">
-                <strong>Agenda</strong>
-                <span>Leitura rápida por mês ou timeline</span>
-              </span>
-            </div>
             <div class="view-toolbar-actions">
               <button class="btn btn-ghost btn-sm" onclick="calPrev()">
                 <i data-lucide="chevron-left"></i> Anterior
@@ -428,20 +422,19 @@
                 <option value="vrbo">VRBO</option>
                 <option value="outro">Outro</option>
               </select>
-              <div class="calendar-view-stack">
-                <div class="cal-mode-toggle">
-                  <button class="cal-mode-btn active" data-mode="calendar" onclick="setCalMode('calendar')">
-                    <i data-lucide="calendar-days"></i> Calendário
-                  </button>
-                  <button class="cal-mode-btn" data-mode="timeline" onclick="setCalMode('timeline')">
-                    <i data-lucide="gantt-chart"></i> Timeline
-                  </button>
-                </div>
-                <div class="cal-mode-toggle" id="timeline-range-toggle" style="display:none;">
-                  <button class="cal-mode-btn" data-range="7" onclick="setTimelineRange(7)">7 dias</button>
-                  <button class="cal-mode-btn active" data-range="14" onclick="setTimelineRange(14)">14 dias</button>
-                  <button class="cal-mode-btn" data-range="30" onclick="setTimelineRange(30)">30 dias</button>
-                </div>
+              <div class="cal-mode-toggle" id="cal-main-toggle">
+                <span class="cal-mode-pill" id="cal-mode-pill"></span>
+                <button class="cal-mode-btn active" data-mode="calendar" onclick="setCalMode('calendar')">
+                  <i data-lucide="calendar-days"></i> Calendário
+                </button>
+                <button class="cal-mode-btn" data-mode="timeline" onclick="setCalMode('timeline')">
+                  <i data-lucide="gantt-chart"></i> Timeline
+                </button>
+              </div>
+              <div class="cal-mode-toggle" id="timeline-range-toggle" style="display:none;">
+                <button class="cal-mode-btn" data-range="7" onclick="setTimelineRange(7)">7 dias</button>
+                <button class="cal-mode-btn active" data-range="14" onclick="setTimelineRange(14)">14 dias</button>
+                <button class="cal-mode-btn" data-range="30" onclick="setTimelineRange(30)">30 dias</button>
               </div>
             </div>
           </div>
@@ -604,8 +597,8 @@
             <span id="aloj-inherited-msg"></span>
           </div>
 
-          <!-- Linha 1: Informação | Layout -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+          <!-- Linha 1: Informação / Layout -->
+          <div style="display:grid;grid-template-columns:1fr;gap:24px;margin-bottom:24px;">
             <div class="card">
               <div class="card-header">
                 <span class="card-title" style="font-size:14px;">
@@ -702,6 +695,35 @@
                 <div class="form-group">
                   <label class="form-label">Preço / noite (€)</label>
                   <input class="form-control" id="aloj-preco" type="number" min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Hóspedes incluídos no preço base</label>
+                  <input class="form-control" id="aloj-hospedes-incluidos" type="number" min="1" max="20">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Bebés abaixo de (anos)</label>
+                  <input class="form-control" id="aloj-baby-age-limit" type="number" min="0" max="18" value="2">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Preço bebé / noite (€)</label>
+                  <input class="form-control" id="aloj-baby-price" type="number" min="0" step="0.01" value="0">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Crianças abaixo de (anos)</label>
+                  <input class="form-control" id="aloj-child-age-limit" type="number" min="0" max="18" value="12">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Preço criança / noite (€)</label>
+                  <input class="form-control" id="aloj-child-price" type="number" min="0" step="0.01" value="0">
+                </div>
+                <div class="form-group form-full">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
+                    <label class="form-label" style="margin:0;">Ocupação adicional</label>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="addExtraOccupancyOption()">
+                      <i data-lucide="plus"></i> Adicionar extra
+                    </button>
+                  </div>
+                  <div id="aloj-extra-occupancy-list" style="display:grid;gap:12px;"></div>
                 </div>
               </div>
             </div>
@@ -1453,7 +1475,7 @@
             </div>
             <div class="form-group">
               <label class="form-label">Data de Nascimento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
-              <input class="form-control" id="f-nascimento" type="date">
+              <input class="form-control" id="f-nascimento" type="date" onchange="calcTotal()">
             </div>
             <div class="form-group">
               <label class="form-label">Local de Nascimento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>

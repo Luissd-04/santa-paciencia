@@ -1,5 +1,96 @@
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
+
+function getExtraOccupancyCharge(accommodation, guests, nights, birthDates = [], checkIn = null) {
+  if (!accommodation) return 0;
+  const options = normalizeExtraOccupancyOptions(accommodation);
+  const maxGuests = Number(accommodation.max_guests) || guests;
+  const included = Math.max(1, Math.min(
+    Number(accommodation.base_guests_included) || Math.min(maxGuests, 2),
+    maxGuests
+  ));
+  let remainingGuests = Math.max(0, guests - included);
+  if (!remainingGuests) return 0;
+  const specialRates = getAgeSpecialRates(accommodation, birthDates, checkIn).slice(0, remainingGuests);
+  let total = specialRates.reduce((sum, rate) => sum + (rate * nights), 0);
+  remainingGuests -= specialRates.length;
+
+  return options.reduce((runningTotal, option) => {
+    if (remainingGuests <= 0) return runningTotal;
+    const capacity = Math.max(0, Number(option.capacity) || 0);
+    if (!capacity) return runningTotal;
+    const guestsCovered = Math.min(remainingGuests, capacity);
+    remainingGuests -= guestsCovered;
+    const price = Number(option.price) || 0;
+    if (option.charge_type === 'per_bed_night') return runningTotal + (price * nights);
+    return runningTotal + (price * guestsCovered * nights);
+  }, total);
+}
+
+function normalizeExtraOccupancyOptions(accommodation) {
+  let options = [];
+  const raw = accommodation.extra_occupancy_options;
+  if (Array.isArray(raw)) {
+    options = raw;
+  } else if (typeof raw === 'string' && raw.trim()) {
+    try { options = JSON.parse(raw); } catch { options = []; }
+  }
+
+  if (!options.length && accommodation.extra_bed_enabled) {
+    options = [{
+      type: accommodation.extra_bed_type || 'sofa_cama',
+      capacity: Number(accommodation.extra_bed_capacity) || 0,
+      price: Number(accommodation.extra_bed_price) || 0,
+      charge_type: accommodation.extra_bed_charge_type || 'per_guest_night'
+    }];
+  }
+
+  return options.map(option => ({
+    capacity: Math.max(0, Number(option?.capacity) || 0),
+    price: Math.max(0, Number(option?.price) || 0),
+    charge_type: option?.charge_type === 'per_bed_night' ? 'per_bed_night' : 'per_guest_night'
+  }));
+}
+
+function getAgeSpecialRates(accommodation, birthDates = [], checkIn = null) {
+  const babyLimit = Number(accommodation.baby_age_limit ?? 2);
+  const childLimit = Number(accommodation.child_age_limit ?? 12);
+  const babyPrice = Number(accommodation.baby_price ?? 0);
+  const childPrice = Number(accommodation.child_price ?? 0);
+  return birthDates
+    .map(date => {
+      const age = getAgeAtDate(date, checkIn);
+      if (age === null) return null;
+      if (age < babyLimit) return { age, rate: babyPrice };
+      if (age >= babyLimit && age < childLimit) return { age, rate: childPrice };
+      return null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.age - b.age)
+    .map(item => item.rate);
+}
+
+function getAgeAtDate(birthDate, refDate) {
+  if (!birthDate || !refDate) return null;
+  const birth = new Date(`${birthDate}T12:00:00`);
+  const ref = new Date(`${refDate}T12:00:00`);
+  if (Number.isNaN(birth.getTime()) || Number.isNaN(ref.getTime()) || birth > ref) return null;
+  let age = ref.getFullYear() - birth.getFullYear();
+  const monthDiff = ref.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && ref.getDate() < birth.getDate())) age--;
+  return age;
+}
+
+function getReservationBirthDates(guest = {}, guestsData = []) {
+  const extra = Array.isArray(guestsData) ? guestsData : [];
+  return [guest.birth_date, ...extra.map(g => g?.birth_date)].filter(Boolean);
+}
+
+function safeJson(value, fallback) {
+  if (!value) return fallback;
+  if (typeof value === 'object') return value;
+  try { return JSON.parse(value); } catch { return fallback; }
+}
 const { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } = require('../services/calendarService');
 const { sendConfirmationEmail, sendCancellationEmail, sendPaymentConfirmationEmail } = require('../services/emailService');
 const { recordConsent } = require('../services/rgpdService');
@@ -53,23 +144,17 @@ async function getAvailability(req, res, next) {
     const allAccom = db.prepare('SELECT id, type, parent_id FROM accommodations WHERE organization_id = ?').all(organizationId);
     const unavailable = new Set(conflicting);
 
-    // Propagate using parent_id hierarchy
+    // Propagate using parent_id hierarchy (single pass, no cascade)
     for (const conflictId of conflicting) {
       const acc = allAccom.find(a => a.id === conflictId);
       if (!acc) continue;
       if (acc.parent_id) {
-        // Child suite booked → parent alojamento unavailable
+        // Child suite directly booked → parent unavailable (can't book whole property)
+        // Siblings are NOT affected
         unavailable.add(acc.parent_id);
       } else if (acc.type === 'alojamento') {
-        // Parent alojamento booked → all children unavailable
+        // Parent directly booked → all children unavailable
         allAccom.filter(a => a.parent_id === conflictId).forEach(c => unavailable.add(c.id));
-      }
-    }
-    // Second pass: if any parent alojamento became unavailable, block all its children too
-    for (const unavailId of [...unavailable]) {
-      const acc = allAccom.find(a => a.id === unavailId);
-      if (acc?.type === 'alojamento') {
-        allAccom.filter(a => a.parent_id === unavailId).forEach(c => unavailable.add(c.id));
       }
     }
 
@@ -195,6 +280,9 @@ async function create(req, res, next) {
     // Calcular valores
     const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(accommodation_id, organizationId);
     if (!accommodation) return res.status(404).json({ error: 'Alojamento não encontrado' });
+    if (Number(num_guests) > Number(accommodation.max_guests || 0)) {
+      return res.status(400).json({ error: `Este alojamento permite no máximo ${accommodation.max_guests} hóspedes.` });
+    }
 
     const checkIn = new Date(check_in);
     const checkOut = new Date(check_out);
@@ -220,7 +308,9 @@ async function create(req, res, next) {
 
     const touristTax    = (taxSvc?.active !== false) ? (taxSvc?.value ?? 3) * num_guests * nights : 0;
     const breakfastCost = bkfOn ? bkfRate * num_guests * nights : 0;
-    const totalAmount   = (accommodation.price_per_night * nights) + touristTax + breakfastCost;
+    const birthDates = getReservationBirthDates(guest, guests_data || []);
+    const extraOccupancyCost = getExtraOccupancyCharge(accommodation, num_guests, nights, birthDates, check_in);
+    const totalAmount   = (accommodation.price_per_night * nights) + extraOccupancyCost + touristTax + breakfastCost;
 
     const paidAmt = Number(amount_paid) || 0;
     const autoPaymentStatus = paidAmt >= totalAmount && paidAmt > 0
@@ -294,6 +384,9 @@ async function update(req, res, next) {
       (new Date(newCheckOut) - new Date(newCheckIn)) / (1000 * 60 * 60 * 24)
     );
     const guests = num_guests || existing.num_guests;
+    if (Number(guests) > Number(accommodation.max_guests || 0)) {
+      return res.status(400).json({ error: `Este alojamento permite no máximo ${accommodation.max_guests} hóspedes.` });
+    }
     const bkfOn2 = breakfast_included !== undefined ? (breakfast_included ? 1 : 0) : existing.breakfast_included;
     // Ler taxas das configurações
     const settingsRow2 = db.prepare("SELECT value FROM organization_settings WHERE organization_id = ? AND key = 'services'").get(organizationId);
@@ -303,6 +396,9 @@ async function update(req, res, next) {
     const bkfRate2 = bkfSvc2?.value ?? 19;
     const touristTax = (taxSvc2?.active !== false) ? (taxSvc2?.value ?? 3) * guests * nights : 0;
     const breakfastCost = bkfOn2 ? bkfRate2 * guests * nights : 0;
+    const incomingGuestsData = guests_data !== undefined ? guests_data : safeJson(existing.guests_data, []);
+    const birthDates = getReservationBirthDates(guest || {}, incomingGuestsData);
+    const extraOccupancyCost = getExtraOccupancyCharge(accommodation, guests, nights, birthDates, newCheckIn);
 
     // Verificar disponibilidade (excluir a própria reserva)
     const conflict2 = findConflict(organizationId, newAccommodationId, newCheckIn, newCheckOut, req.params.id);
@@ -336,7 +432,7 @@ async function update(req, res, next) {
         organizationId
       );
     }
-    const totalAmount = (accommodation.price_per_night * nights) + touristTax + breakfastCost;
+    const totalAmount = (accommodation.price_per_night * nights) + extraOccupancyCost + touristTax + breakfastCost;
 
     const newPaidAmt = amount_paid !== undefined ? Number(amount_paid) : (existing.amount_paid || 0);
     const autoPaymentStatus2 = newPaidAmt >= totalAmount && newPaidAmt > 0

@@ -126,11 +126,18 @@ function create(req, res) {
     .replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') +
     '-' + Date.now().toString().slice(-4);
 
-  db.prepare(`INSERT INTO accommodations (id, organization_id, name, type, price_per_night, max_guests, license_number, parent_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(id, req.user.organization_id, name, type || 'suite', price_per_night || 100, max_guests || 2,
+  const guestsMax = Number(max_guests) || 2;
+  const baseGuestsIncluded = Math.min(guestsMax, 2);
+
+  db.prepare(`INSERT INTO accommodations (
+      id, organization_id, name, type, price_per_night, max_guests, license_number, parent_id,
+      base_guests_included, extra_bed_enabled, extra_bed_type, extra_bed_capacity, extra_bed_price, extra_bed_charge_type,
+      extra_occupancy_options, baby_age_limit, baby_price, child_age_limit, child_price
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'sofa_cama', 0, 0, 'per_guest_night', '[]', 2, 0, 12, 0)`)
+    .run(id, req.user.organization_id, name, type || 'suite', price_per_night || 100, guestsMax,
       license_number || (process.env.LICENSE_NUMBER || '12345/AL'),
-      parent_id || null);
+      parent_id || null, baseGuestsIncluded);
 
   const created = getResolvedAccommodationsForOrg(req.user.organization_id).find(a => a.id === id);
   res.status(201).json({ success: true, data: created });
@@ -151,7 +158,10 @@ function update(req, res) {
     address, postal_code, city, region, country,
     area, num_rooms, num_bathrooms, amenities, own_amenities, google_calendar_id,
     wifi_name, wifi_password, checkin_time, checkout_time, color,
-    social_facebook, social_instagram, social_website, parent_id
+    social_facebook, social_instagram, social_website, parent_id,
+    base_guests_included, extra_bed_enabled, extra_bed_type,
+    extra_bed_capacity, extra_bed_price, extra_bed_charge_type,
+    extra_occupancy_options, baby_age_limit, baby_price, child_age_limit, child_price
   } = req.body;
 
   // Resolve effective parent_id (explicit set, keep existing, or null to unlink)
@@ -173,6 +183,28 @@ function update(req, res) {
     : Array.isArray(amenities)
       ? amenities
       : null;
+
+  const nextMaxGuests = max_guests !== undefined ? (Number(max_guests) || existing.max_guests) : existing.max_guests;
+  const nextBaseGuests = Math.max(1, Math.min(
+    Number(base_guests_included) || existing.base_guests_included || Math.min(nextMaxGuests, 2),
+    nextMaxGuests
+  ));
+  const nextExtraBedEnabled = extra_bed_enabled !== undefined ? (extra_bed_enabled ? 1 : 0) : (existing.extra_bed_enabled || 0);
+  const nextExtraBedCapacity = Math.max(0, Math.min(
+    extra_bed_capacity !== undefined ? (Number(extra_bed_capacity) || 0) : (existing.extra_bed_capacity || 0),
+    Math.max(0, nextMaxGuests - nextBaseGuests)
+  ));
+  const nextExtraOccupancyOptions = extra_occupancy_options !== undefined
+    ? normalizeExtraOccupancyOptions(extra_occupancy_options, {
+        extra_bed_enabled: nextExtraBedEnabled,
+        extra_bed_type,
+        extra_bed_capacity: nextExtraBedCapacity,
+        extra_bed_price,
+        extra_bed_charge_type
+      })
+    : normalizeExtraOccupancyOptions(existing.extra_occupancy_options, existing);
+  const nextBabyAgeLimit = Math.max(0, Number(baby_age_limit ?? existing.baby_age_limit ?? 2) || 0);
+  const nextChildAgeLimit = Math.max(nextBabyAgeLimit, Number(child_age_limit ?? existing.child_age_limit ?? 12) || nextBabyAgeLimit);
 
   db.prepare(`UPDATE accommodations SET
     name = COALESCE(?, name),
@@ -197,7 +229,18 @@ function update(req, res) {
     color = COALESCE(?, color),
     social_facebook = ?, social_instagram = ?, social_website = ?,
     google_calendar_id = ?,
-    parent_id = ?
+    parent_id = ?,
+    base_guests_included = ?,
+    extra_bed_enabled = ?,
+    extra_bed_type = ?,
+    extra_bed_capacity = ?,
+    extra_bed_price = ?,
+    extra_bed_charge_type = ?,
+    extra_occupancy_options = ?,
+    baby_age_limit = ?,
+    baby_price = ?,
+    child_age_limit = ?,
+    child_price = ?
     WHERE id = ? AND organization_id = ?`)
     .run(
       name, type, price_per_night, max_guests, license_number,
@@ -220,6 +263,17 @@ function update(req, res) {
       inh(social_website !== undefined ? (social_website || null) : null, existing.social_website),
       google_calendar_id !== undefined ? (google_calendar_id || null) : existing.google_calendar_id,
       effectiveParentId,
+      nextBaseGuests,
+      nextExtraBedEnabled,
+      extra_bed_type || existing.extra_bed_type || 'sofa_cama',
+      nextExtraBedCapacity,
+      extra_bed_price !== undefined ? (Number(extra_bed_price) || 0) : (existing.extra_bed_price || 0),
+      extra_bed_charge_type || existing.extra_bed_charge_type || 'per_guest_night',
+      JSON.stringify(nextExtraOccupancyOptions),
+      nextBabyAgeLimit,
+      Number(baby_price ?? existing.baby_price ?? 0) || 0,
+      nextChildAgeLimit,
+      Number(child_price ?? existing.child_price ?? 0) || 0,
       id,
       req.user.organization_id
     );
@@ -374,12 +428,42 @@ function parseJson(a) {
     ...a,
     amenities: safeJson(a.amenities, []),
     images: safeJson(a.images, {}),
+    extra_occupancy_options: normalizeExtraOccupancyOptions(a.extra_occupancy_options, a),
   };
 }
 function safeJson(v, def) {
   if (!v) return def;
   if (typeof v === 'object') return v; // already parsed — don't double-parse
   try { return JSON.parse(v); } catch { return def; }
+}
+
+function normalizeExtraOccupancyOptions(value, legacy = {}) {
+  let options = [];
+  if (Array.isArray(value)) {
+    options = value;
+  } else if (typeof value === 'string' && value.trim()) {
+    try { options = JSON.parse(value); } catch { options = []; }
+  }
+
+  if (!options.length && legacy.extra_bed_enabled) {
+    options = [{
+      type: legacy.extra_bed_type || 'sofa_cama',
+      custom_name: '',
+      capacity: Number(legacy.extra_bed_capacity) || 0,
+      price: Number(legacy.extra_bed_price) || 0,
+      charge_type: legacy.extra_bed_charge_type || 'per_guest_night',
+      notes: legacy.extra_bed_notes || ''
+    }];
+  }
+
+  return options.map(option => ({
+    type: option?.type || 'sofa_cama',
+    custom_name: String(option?.custom_name || ''),
+    capacity: Math.max(0, Number(option?.capacity) || 0),
+    price: Math.max(0, Number(option?.price) || 0),
+    charge_type: option?.charge_type === 'per_bed_night' ? 'per_bed_night' : 'per_guest_night',
+    notes: String(option?.notes || '')
+  }));
 }
 
 // ─── DELETE ───────────────────────────────────────────────

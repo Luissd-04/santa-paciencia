@@ -462,6 +462,17 @@ function migrateAccommodations() {
     ['social_facebook',  'TEXT'],
     ['social_instagram', 'TEXT'],
     ['social_website',   'TEXT'],
+    ['base_guests_included', "INTEGER DEFAULT 2"],
+    ['extra_bed_enabled',    "INTEGER DEFAULT 0"],
+    ['extra_bed_type',       "TEXT DEFAULT 'sofa_cama'"],
+    ['extra_bed_capacity',   "INTEGER DEFAULT 0"],
+    ['extra_bed_price',      "REAL DEFAULT 0"],
+    ['extra_bed_charge_type',"TEXT DEFAULT 'per_guest_night'"],
+    ['extra_occupancy_options', "TEXT DEFAULT '[]'"],
+    ['baby_age_limit',       "INTEGER DEFAULT 2"],
+    ['baby_price',           "REAL DEFAULT 0"],
+    ['child_age_limit',      "INTEGER DEFAULT 12"],
+    ['child_price',          "REAL DEFAULT 0"],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {

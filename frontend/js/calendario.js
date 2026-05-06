@@ -1,7 +1,7 @@
 let calMode = 'calendar';
 let timelineStart = new Date();
 timelineStart.setHours(0, 0, 0, 0);
-let tlDragging = { resId: null, fromAccId: null };
+let tlPointerDrag = null;
 
 let timelineDays   = 14;
 const TL_LABEL_W   = 190;
@@ -77,20 +77,61 @@ function getTimelineDayWidth() {
 function renderCalView() {
   if (calMode === 'timeline') renderTimeline();
   else renderCal();
+  requestAnimationFrame(movePill);
+}
+
+function movePill() {
+  const pill = document.getElementById('cal-mode-pill');
+  const mainToggle = document.getElementById('cal-main-toggle');
+  if (!pill || !mainToggle) return;
+  const activeBtn = mainToggle.querySelector(`.cal-mode-btn[data-mode="${calMode}"]`);
+  if (!activeBtn) return;
+  const toggleRect = mainToggle.getBoundingClientRect();
+  const btnRect = activeBtn.getBoundingClientRect();
+  pill.style.left  = (btnRect.left - toggleRect.left) + 'px';
+  pill.style.width = btnRect.width + 'px';
 }
 
 function setCalMode(m) {
   calMode = m;
   updateCalendarModeUi();
-  const calWrap  = document.querySelector('.cal-wrap');
-  const tlWrap   = document.getElementById('timeline-wrap');
+  movePill();
+
+  const calWrap     = document.querySelector('.cal-wrap');
+  const tlWrap      = document.getElementById('timeline-wrap');
   const rangeToggle = document.getElementById('timeline-range-toggle');
-  if (calWrap) calWrap.style.display  = m === 'calendar'  ? '' : 'none';
-  if (tlWrap)  tlWrap.style.display   = m === 'timeline'  ? '' : 'none';
-  if (rangeToggle) rangeToggle.style.display = m === 'timeline' ? '' : 'none';
-  updateTimelineRangeUi();
-  if (m === 'timeline') { updateTimelineLabel(); renderTimeline(); }
-  else renderCal();
+  const toTimeline  = m === 'timeline';
+
+  const outgoing  = toTimeline ? calWrap : tlWrap;
+  const incoming  = toTimeline ? tlWrap  : calWrap;
+  const exitAnim  = toTimeline ? 'cal-slide-exit-left'   : 'cal-slide-exit-right';
+  const enterAnim = toTimeline ? 'cal-slide-enter-right' : 'cal-slide-enter-left';
+
+  outgoing.classList.add(exitAnim);
+
+  if (!toTimeline && rangeToggle) rangeToggle.style.display = 'none';
+
+  setTimeout(() => {
+    outgoing.style.display = 'none';
+    outgoing.classList.remove(exitAnim);
+
+    incoming.style.display = '';
+    void incoming.offsetWidth;
+    incoming.classList.add(enterAnim);
+    setTimeout(() => incoming.classList.remove(enterAnim), 280);
+
+    if (toTimeline && rangeToggle) {
+      rangeToggle.style.display = '';
+      void rangeToggle.offsetWidth;
+      rangeToggle.classList.add('tl-range-enter');
+      setTimeout(() => rangeToggle.classList.remove('tl-range-enter'), 280);
+      updateTimelineRangeUi();
+      updateTimelineLabel();
+      renderTimeline();
+    } else {
+      renderCal();
+    }
+  }, 190);
 }
 
 // ── CALENDAR ──
@@ -352,27 +393,23 @@ function renderTimeline() {
           if (right <= 0 || left >= totalWidth || width <= 0) return '';
           const bg    = ACCOM_COLOR[r.accommodation_id] || STATUS_BG[r.status] || STATUS_BG.outro;
           return `<div class="tl-block tl-block-${r.status}" style="left:${left}px;width:${width}px;--tl-color:${bg};background:${bg}18;border-color:${bg}55;"
-                       onclick="showDetail('${r.id}')"
-                       draggable="true"
                        data-res-id="${r.id}"
                        data-acc-id="${r.accommodation_id}"
-                       ondragstart="tlDragStart(event)"
-                       ondragend="tlDragEnd(event)"
+                       onpointerdown="tlPointerDown(event,'${r.id}','move')"
                        title="${r.guest_name} · ${r.check_in} → ${r.check_out}">
+            <div class="tl-resize-handle tl-resize-left" onpointerdown="event.stopPropagation();tlPointerDown(event,'${r.id}','resize-left')"></div>
             <div class="tl-block-main">
               <span class="tl-block-name">${r.guest_name.split(' ')[0]}</span>
               <span class="tl-block-status" style="color:${bg};">${r.status}</span>
             </div>
             <span class="tl-block-meta">${shortDatePt(r.check_in)} → ${shortDatePt(r.check_out)} · ${nights} noite${nights !== 1 ? 's' : ''}</span>
+            <div class="tl-resize-handle tl-resize-right" onpointerdown="event.stopPropagation();tlPointerDown(event,'${r.id}','resize-right')"></div>
           </div>`;
         }).join('');
 
         return `<div class="tl-row"
                      data-acc-id="${a.id}"
-                     data-acc-name="${a.name.replace(/"/g, '&quot;')}"
-                     ondragover="tlDragOver(event)"
-                     ondrop="tlDrop(event)"
-                     ondragleave="tlDragLeave(event)">
+                     data-acc-name="${a.name.replace(/"/g, '&quot;')}">
           <div class="tl-label" style="min-width:${TL_LABEL_W}px;max-width:${TL_LABEL_W}px;">
             <div class="tl-label-title">${a.name}</div>
             <div class="tl-label-sub">${a.type || 'alojamento'} · ${alojReservas.length} reserva${alojReservas.length !== 1 ? 's' : ''}</div>
@@ -401,73 +438,254 @@ function renderTimeline() {
   if (window.lucide) lucide.createIcons();
 }
 
-// ── TIMELINE DRAG & DROP ──
-function tlDragStart(event) {
-  const el = event.currentTarget;
-  tlDragging.resId    = el.dataset.resId;
-  tlDragging.fromAccId = el.dataset.accId;
-  el.classList.add('tl-dragging');
-  event.dataTransfer.effectAllowed = 'move';
-  event.dataTransfer.setData('text/plain', tlDragging.resId);
-}
+// ── TIMELINE DRAG (pointer-based) ──
+function tlPointerDown(e, resId, type) {
+  if (e.button !== 0) return;
+  e.preventDefault();
+  e.stopPropagation();
 
-function tlDragEnd(event) {
-  event.currentTarget.classList.remove('tl-dragging');
-}
+  const r = reservas.find(x => x.id === resId);
+  if (!r) return;
+  const blockEl = type === 'move'
+    ? e.currentTarget
+    : e.currentTarget.closest('.tl-block');
+  if (!blockEl) return;
 
-function tlDragOver(event) {
-  event.preventDefault();
-  event.dataTransfer.dropEffect = 'move';
-  event.currentTarget.classList.add('tl-drag-over');
-}
+  const tooltip = document.createElement('div');
+  tooltip.className = 'tl-drag-tooltip';
+  document.body.appendChild(tooltip);
 
-function tlDragLeave(event) {
-  if (!event.currentTarget.contains(event.relatedTarget)) {
-    event.currentTarget.classList.remove('tl-drag-over');
+  // Ghost: clone visual do bloco que segue o cursor (só para 'move')
+  let ghost = null;
+  if (type === 'move') {
+    ghost = document.createElement('div');
+    ghost.className = 'tl-drop-ghost';
+    ghost.style.cssText = blockEl.style.cssText;
+    ghost.style.pointerEvents = 'none';
   }
+
+  tlPointerDrag = {
+    type, resId,
+    startX:        e.clientX,
+    origCheckIn:   r.check_in,
+    origCheckOut:  r.check_out,
+    origAccId:     r.accommodation_id,
+    origLeft:      parseFloat(blockEl.style.left)  || 0,
+    origWidth:     parseFloat(blockEl.style.width) || 100,
+    blockEl, tooltip, ghost,
+    dayW:          getTimelineDayWidth(),
+    moved:         false,
+    newCheckIn:    null,
+    newCheckOut:   null,
+    targetAccId:   null,
+    targetAccName: null
+  };
+
+  blockEl.classList.add('tl-dragging');
+  document.addEventListener('pointermove',   tlOnPointerMove);
+  document.addEventListener('pointerup',     tlOnPointerUp);
+  document.addEventListener('pointercancel', tlCancelDrag);
 }
 
-function tlDrop(event) {
-  event.preventDefault();
-  const row = event.currentTarget;
-  row.classList.remove('tl-drag-over');
-  const toAccId   = row.dataset.accId;
-  const toAccName = row.dataset.accName;
-  if (!tlDragging.resId || toAccId === tlDragging.fromAccId) return;
+function tlOnPointerMove(e) {
+  const d = tlPointerDrag;
+  if (!d) return;
 
-  const fromAcc = accommodations.find(a => a.id === tlDragging.fromAccId);
+  const dx = e.clientX - d.startX;
+  if (Math.abs(dx) > 4) d.moved = true;
+  if (!d.moved) return;
+
+  const dayDelta = Math.round(dx / d.dayW);
+  const snapDx   = dayDelta * d.dayW;
+  const origCi   = new Date(d.origCheckIn  + 'T12:00:00');
+  const origCo   = new Date(d.origCheckOut + 'T12:00:00');
+
+  let newCi, newCo;
+
+  if (d.type === 'move') {
+    newCi = tlAddDays(origCi, dayDelta);
+    newCo = tlAddDays(origCo, dayDelta);
+    const ghostLeft = Math.max(0, d.origLeft + snapDx);
+
+    // Detectar row alvo (esconder bloco para não interferir com elementFromPoint)
+    d.blockEl.style.pointerEvents = 'none';
+    const below      = document.elementFromPoint(e.clientX, e.clientY);
+    d.blockEl.style.pointerEvents = '';
+    const targetRow  = below?.closest?.('.tl-row');
+    const targetAccId = targetRow?.dataset?.accId;
+
+    document.querySelectorAll('.tl-row.tl-drag-over').forEach(r => r.classList.remove('tl-drag-over'));
+    d.targetAccId   = targetAccId && targetAccId !== d.origAccId ? targetAccId   : null;
+    d.targetAccName = targetAccId && targetAccId !== d.origAccId ? targetRow.dataset.accName : null;
+    if (d.targetAccId) targetRow.classList.add('tl-drag-over');
+
+    // Mover ghost para a row alvo
+    if (d.ghost) {
+      const destRow   = d.targetAccId ? targetRow : d.blockEl.closest('.tl-row');
+      const daysArea  = destRow?.querySelector('.tl-days-area');
+      if (daysArea && d.ghost.parentNode !== daysArea) daysArea.appendChild(d.ghost);
+      d.ghost.style.left  = ghostLeft + 'px';
+      d.ghost.style.width = d.origWidth + 'px';
+    }
+
+  } else {
+    // Resize: mover o próprio bloco
+    const origNights = Math.round((origCo - origCi) / 86400000);
+    let newLeft  = d.origLeft;
+    let newWidth = d.origWidth;
+
+    if (d.type === 'resize-left') {
+      const clampedDelta = Math.min(dayDelta, origNights - 1);
+      newLeft  = d.origLeft  + clampedDelta * d.dayW;
+      newWidth = d.origWidth - clampedDelta * d.dayW;
+      newCi    = tlAddDays(origCi, clampedDelta);
+      newCo    = origCo;
+    } else {
+      const clampedDelta = Math.max(dayDelta, -(origNights - 1));
+      newWidth = d.origWidth + clampedDelta * d.dayW;
+      newCi    = origCi;
+      newCo    = tlAddDays(origCo, clampedDelta);
+    }
+
+    d.blockEl.style.left  = Math.max(0, newLeft)  + 'px';
+    d.blockEl.style.width = Math.max(d.dayW, newWidth) + 'px';
+  }
+
+  d.newCheckIn  = tlToDateStr(newCi);
+  d.newCheckOut = tlToDateStr(newCo);
+
+  // Detetar conflito para feedback visual imediato
+  const checkAcc = d.targetAccId || d.origAccId;
+  d.hasConflict  = reservas.some(r2 =>
+    r2.id !== d.resId &&
+    r2.accommodation_id === checkAcc &&
+    r2.status !== 'cancelada' &&
+    r2.check_in < d.newCheckOut &&
+    r2.check_out > d.newCheckIn
+  );
+  if (d.ghost) d.ghost.classList.toggle('tl-drop-ghost-conflict', d.hasConflict);
+
+  const fmt = dt => `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
+  const label = d.targetAccId ? `${d.targetAccName} · ` : '';
+  d.tooltip.textContent   = (d.hasConflict ? '⚠ ' : '') + label + `${fmt(newCi)} → ${fmt(newCo)}`;
+  d.tooltip.style.left    = (e.clientX + 14) + 'px';
+  d.tooltip.style.top     = (e.clientY - 38) + 'px';
+  d.tooltip.style.display = 'block';
+}
+
+function tlOnPointerUp() {
+  if (!tlPointerDrag) return;
+  document.removeEventListener('pointermove',   tlOnPointerMove);
+  document.removeEventListener('pointerup',     tlOnPointerUp);
+  document.removeEventListener('pointercancel', tlCancelDrag);
+  document.querySelectorAll('.tl-row.tl-drag-over').forEach(r => r.classList.remove('tl-drag-over'));
+
+  const { resId, origCheckIn, origCheckOut, origAccId, newCheckIn, newCheckOut,
+          targetAccId, targetAccName, blockEl, tooltip, ghost, moved } = tlPointerDrag;
+  tlPointerDrag = null;
+  blockEl.classList.remove('tl-dragging');
+  tooltip.remove();
+  ghost?.remove();
+
+  if (!moved) { showDetail(resId); return; }
+
+  const datesChanged = newCheckIn && (newCheckIn !== origCheckIn || newCheckOut !== origCheckOut);
+  const roomChanged  = !!targetAccId;
+  if (!datesChanged && !roomChanged) { renderTimeline(); return; }
+
+  const r      = reservas.find(x => x.id === resId);
+  const fmtStr = s => s.split('-').reverse().slice(0, 2).join('/');
+  const updates = {};
+  if (datesChanged) { updates.check_in = newCheckIn; updates.check_out = newCheckOut; }
+  if (roomChanged)  { updates.accommodation_id = targetAccId; }
+
+  // Overbooking check
+  const checkAcc   = targetAccId || origAccId;
+  const conflicts  = reservas.filter(r2 =>
+    r2.id !== resId &&
+    r2.accommodation_id === checkAcc &&
+    r2.status !== 'cancelada' &&
+    r2.check_in < (newCheckOut || origCheckOut) &&
+    r2.check_out > (newCheckIn || origCheckIn)
+  );
+
+  const fromAcc = accommodations.find(a => a.id === origAccId);
+  let msgBody = `<b>${r?.guest_name || 'reserva'}</b>`;
+  msgBody += `<table style="margin-top:12px;width:100%;font-size:13px;border-collapse:collapse;">`;
+  if (roomChanged) {
+    msgBody += `<tr>
+      <td style="color:var(--cinza);padding:3px 8px 3px 0;white-space:nowrap;">Quarto</td>
+      <td><span style="text-decoration:line-through;opacity:.55">${fromAcc?.name || origAccId}</span>
+          &nbsp;→&nbsp;<b style="color:var(--azul)">${targetAccName}</b></td>
+    </tr>`;
+  }
+  if (datesChanged) {
+    msgBody += `<tr>
+      <td style="color:var(--cinza);padding:3px 8px 3px 0;white-space:nowrap;">Datas</td>
+      <td><span style="text-decoration:line-through;opacity:.55">${fmtStr(origCheckIn)} → ${fmtStr(origCheckOut)}</span>
+          &nbsp;→&nbsp;<b style="color:var(--azul)">${fmtStr(newCheckIn)} → ${fmtStr(newCheckOut)}</b></td>
+    </tr>`;
+  }
+  msgBody += `</table>`;
+
+  if (conflicts.length > 0) {
+    const names = conflicts.map(c => `<b>${c.guest_name}</b>`).join(', ');
+    msgBody += `<div style="margin-top:12px;padding:10px 12px;background:#fff3f3;border:1.5px solid #fbb;border-radius:8px;font-size:12.5px;color:#b91c1c;">
+      ⚠️ Overbooking — ${names} já tem${conflicts.length > 1 ? 'm' : ''} reserva nestas datas neste quarto.
+    </div>`;
+  }
+
   tlShowConfirm(
-    `Mover reserva de <b>${fromAcc?.name || tlDragging.fromAccId}</b> para <b>${toAccName}</b>?`,
+    msgBody,
     async () => {
       try {
-        const res = await apiPut(`/api/reservations/${tlDragging.resId}`, { accommodation_id: toAccId });
+        const res = await apiPut(`/api/reservations/${resId}`, updates);
         if (res.success) {
-          toast('✅ Reserva movida!', 'success');
+          toast('✅ Reserva atualizada!', 'success');
           await loadReservas();
           renderTimeline();
-        } else {
-          toast('❌ ' + (res.error || 'Erro ao mover reserva.'), 'error');
-        }
-      } catch (e) {
-        toast('❌ Erro de ligação.', 'error');
-      }
-    }
+        } else { toast('❌ ' + (res.error || 'Erro.'), 'error'); renderTimeline(); }
+      } catch { toast('❌ Erro de ligação.', 'error'); renderTimeline(); }
+    },
+    () => renderTimeline(),
+    conflicts.length > 0
   );
 }
 
-function tlShowConfirm(msgHtml, onConfirm) {
+function tlCancelDrag() {
+  document.removeEventListener('pointermove',   tlOnPointerMove);
+  document.removeEventListener('pointerup',     tlOnPointerUp);
+  document.removeEventListener('pointercancel', tlCancelDrag);
+  document.querySelectorAll('.tl-row.tl-drag-over').forEach(r => r.classList.remove('tl-drag-over'));
+  if (tlPointerDrag) {
+    tlPointerDrag.blockEl.classList.remove('tl-dragging');
+    tlPointerDrag.tooltip.remove();
+    tlPointerDrag.ghost?.remove();
+    tlPointerDrag = null;
+  }
+  renderTimeline();
+}
+
+function tlAddDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+function tlToDateStr(d)  {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function tlShowConfirm(msgHtml, onConfirm, onCancel, isOverbooking = false) {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
+  const actions = isOverbooking
+    ? `<button class="btn btn-ghost btn-sm" id="_tl-cancel">Cancelar</button>`
+    : `<button class="btn btn-ghost btn-sm" id="_tl-cancel">Cancelar</button>
+       <button class="btn btn-primary btn-sm" id="_tl-confirm">Confirmar alteração</button>`;
   overlay.innerHTML = `
-    <div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:400px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,.18);">
-      <div style="font-size:15px;color:var(--azul);line-height:1.5;margin-bottom:22px;">${msgHtml}</div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;">
-        <button class="btn btn-ghost btn-sm" id="_tl-cancel">Cancelar</button>
-        <button class="btn btn-primary btn-sm" id="_tl-confirm">Confirmar alteração</button>
-      </div>
+    <div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:420px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+      <div style="font-size:14.5px;color:var(--azul);line-height:1.6;margin-bottom:22px;">${msgHtml}</div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">${actions}</div>
     </div>`;
   document.body.appendChild(overlay);
-  overlay.querySelector('#_tl-cancel').onclick  = () => overlay.remove();
-  overlay.querySelector('#_tl-confirm').onclick = () => { overlay.remove(); onConfirm(); };
-  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  const dismiss = cb => { overlay.remove(); cb?.(); };
+  overlay.querySelector('#_tl-cancel').onclick  = () => dismiss(onCancel);
+  overlay.querySelector('#_tl-confirm')?.addEventListener('click', () => { overlay.remove(); onConfirm(); });
+  overlay.onclick = e => { if (e.target === overlay) dismiss(onCancel); };
 }

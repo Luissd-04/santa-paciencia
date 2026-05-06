@@ -281,6 +281,11 @@ async function openAlojamento(id, preferredTab = 'info') {
     document.getElementById('aloj-quartos').value = a.num_rooms || 1;
     document.getElementById('aloj-casasbanho').value = a.num_bathrooms || 1;
     document.getElementById('aloj-preco').value = a.price_per_night || '';
+    document.getElementById('aloj-baby-age-limit').value = a.baby_age_limit ?? 2;
+    document.getElementById('aloj-baby-price').value = a.baby_price ?? 0;
+    document.getElementById('aloj-child-age-limit').value = a.child_age_limit ?? 12;
+    document.getElementById('aloj-child-price').value = a.child_price ?? 0;
+    setExtraOccupancyFields(a);
     document.getElementById('aloj-gcal-id').value = a.google_calendar_id || '';
     document.getElementById('aloj-wifi-nome').value     = a.wifi_name     || '';
     document.getElementById('aloj-wifi-password').value = a.wifi_password || '';
@@ -1118,6 +1123,13 @@ function exportAlojamentosXLS() {
     'Tipo':           a.type || '',
     'Preço/noite':    a.price_per_night || 0,
     'Capacidade':     a.max_guests || '',
+    'Hóspedes incluídos': a.base_guests_included || Math.min(a.max_guests || 2, 2),
+    'Bebés abaixo de': a.baby_age_limit ?? 2,
+    'Preço bebé': a.baby_price ?? 0,
+    'Crianças abaixo de': a.child_age_limit ?? 12,
+    'Preço criança': a.child_price ?? 0,
+    'Ocupação adicional': normalizeExtraOccupancyOptions(a).length ? 'Sim' : 'Não',
+    'Extras': normalizeExtraOccupancyOptions(a).map(extra => `${extra.type === 'outro' ? (extra.custom_name || 'Outro') : extra.type} (${extra.capacity} hósp., €${extra.price})`).join('; '),
     'Quartos':        a.num_rooms || '',
     'Casas de banho': a.num_bathrooms || '',
     'Área (m²)':      a.area || '',
@@ -1219,6 +1231,143 @@ function toggleWifiPass(btn) {
   if (window.lucide) lucide.createIcons();
 }
 
+function setExtraOccupancyFields(a = {}) {
+  const maxGuests = Number(a.max_guests) || 2;
+  const includedEl = document.getElementById('aloj-hospedes-incluidos');
+  if (includedEl) includedEl.value = a.base_guests_included || Math.min(maxGuests, 2);
+  renderExtraOccupancyOptions(normalizeExtraOccupancyOptions(a));
+}
+
+function normalizeExtraOccupancyOptions(a = {}) {
+  let options = [];
+  if (Array.isArray(a.extra_occupancy_options)) {
+    options = a.extra_occupancy_options;
+  } else if (typeof a.extra_occupancy_options === 'string' && a.extra_occupancy_options.trim()) {
+    try { options = JSON.parse(a.extra_occupancy_options); } catch { options = []; }
+  }
+
+  if (!options.length && a.extra_bed_enabled) {
+    options = [{
+      type: a.extra_bed_type || 'sofa_cama',
+      capacity: Number(a.extra_bed_capacity) || 0,
+      price: Number(a.extra_bed_price) || 0,
+      charge_type: a.extra_bed_charge_type || 'per_guest_night',
+      notes: a.extra_bed_notes || ''
+    }];
+  }
+
+  return options.map(option => ({
+    type: option.type || 'sofa_cama',
+    custom_name: option.custom_name || '',
+    capacity: Math.max(0, Number(option.capacity) || 0),
+    price: Math.max(0, Number(option.price) || 0),
+    charge_type: option.charge_type || 'per_guest_night',
+    notes: option.notes || ''
+  }));
+}
+
+function escapeExtraOccupancyText(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[char]);
+}
+
+function renderExtraOccupancyOptions(options = []) {
+  const list = document.getElementById('aloj-extra-occupancy-list');
+  if (!list) return;
+  if (!options.length) {
+    list.innerHTML = `<div style="padding:12px 14px;border:1px dashed var(--borda);border-radius:8px;color:var(--cinza);font-size:13px;">Sem ocupação adicional configurada.</div>`;
+    return;
+  }
+
+  list.innerHTML = options.map((option, index) => `
+    <div class="extra-occupancy-row" style="border:1px solid var(--borda);border-radius:8px;padding:12px;background:#fff;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:end;">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Tipo</label>
+          <select class="form-control" data-field="type" onchange="onExtraOccupancyTypeChange(this)">
+            <option value="cama_extra" ${option.type === 'cama_extra' ? 'selected' : ''}>Cama extra</option>
+            <option value="sofa_cama" ${option.type === 'sofa_cama' ? 'selected' : ''}>Sofá-cama</option>
+            <option value="berco" ${option.type === 'berco' ? 'selected' : ''}>Berço</option>
+            <option value="outro" ${option.type === 'outro' ? 'selected' : ''}>Outro</option>
+          </select>
+        </div>
+        <div class="form-group" data-custom-extra-wrap style="margin:0;display:${option.type === 'outro' ? '' : 'none'};">
+          <label class="form-label">Nome do extra</label>
+          <input class="form-control" data-field="custom_name" value="${escapeExtraOccupancyText(option.custom_name)}" placeholder="Ex: Colchão no chão">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Capacidade</label>
+          <input class="form-control" data-field="capacity" type="number" min="0" max="20" value="${option.capacity}">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Preço (€)</label>
+          <input class="form-control" data-field="price" type="number" min="0" step="0.01" value="${option.price}">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label">Cobrança</label>
+          <select class="form-control" data-field="charge_type">
+            <option value="per_guest_night" ${option.charge_type === 'per_guest_night' ? 'selected' : ''}>Por hóspede/noite</option>
+            <option value="per_bed_night" ${option.charge_type === 'per_bed_night' ? 'selected' : ''}>Por cama/noite</option>
+          </select>
+        </div>
+        <button type="button" onclick="removeExtraOccupancyOption(${index})" title="Remover extra" style="height:32px;width:32px;padding:0;border:0;background:transparent;color:var(--vermelho);cursor:pointer;display:flex;align-items:center;justify-content:center;justify-self:end;">
+          ${lcIcon('trash-2', 14)}
+        </button>
+      </div>
+      <div class="form-group" style="margin:10px 0 0;">
+        <label class="form-label">Notas</label>
+        <textarea class="form-control" data-field="notes" rows="2" placeholder="Ex: mediante verificação de disponibilidade prévia">${escapeExtraOccupancyText(option.notes)}</textarea>
+      </div>
+    </div>
+  `).join('');
+  if (window.lucide) lucide.createIcons();
+}
+
+function collectExtraOccupancyOptions() {
+  return Array.from(document.querySelectorAll('#aloj-extra-occupancy-list .extra-occupancy-row')).map(row => ({
+    type: row.querySelector('[data-field="type"]')?.value || 'sofa_cama',
+    custom_name: row.querySelector('[data-field="custom_name"]')?.value.trim() || '',
+    capacity: parseInt(row.querySelector('[data-field="capacity"]')?.value) || 0,
+    price: parseFloat(row.querySelector('[data-field="price"]')?.value) || 0,
+    charge_type: row.querySelector('[data-field="charge_type"]')?.value || 'per_guest_night',
+    notes: row.querySelector('[data-field="notes"]')?.value.trim() || ''
+  }));
+}
+
+function addExtraOccupancyOption(option = {}) {
+  const options = collectExtraOccupancyOptions();
+  options.push({
+    type: option.type || 'cama_extra',
+    custom_name: option.custom_name || '',
+    capacity: option.capacity ?? 1,
+    price: option.price ?? 0,
+    charge_type: option.charge_type || 'per_guest_night',
+    notes: option.notes || ''
+  });
+  renderExtraOccupancyOptions(options);
+}
+
+function removeExtraOccupancyOption(index) {
+  const options = collectExtraOccupancyOptions();
+  options.splice(index, 1);
+  renderExtraOccupancyOptions(options);
+}
+
+function onExtraOccupancyTypeChange(select) {
+  const row = select.closest('.extra-occupancy-row');
+  const customWrap = row?.querySelector('[data-custom-extra-wrap]');
+  if (customWrap) customWrap.style.display = select.value === 'outro' ? '' : 'none';
+  const notes = row?.querySelector('[data-field="notes"]');
+  if (select.value === 'berco' && notes && !notes.value.trim()) {
+    notes.value = 'Mediante verificação de disponibilidade prévia.';
+  }
+}
+
 // ── GUARDAR ALOJAMENTO ──
 async function saveAlojamento() {
   const id = document.getElementById('aloj-editing-id').value;
@@ -1228,6 +1377,13 @@ async function saveAlojamento() {
 
   const parentId = document.getElementById('aloj-parent-id')?.value || null;
   const hasParent = !!parentId;
+  const maxGuests = parseInt(document.getElementById('aloj-capacidade').value) || 2;
+  const baseGuestsIncluded = Math.min(
+    parseInt(document.getElementById('aloj-hospedes-incluidos')?.value) || Math.min(maxGuests, 2),
+    maxGuests
+  );
+  const extraOccupancyOptions = collectExtraOccupancyOptions();
+  const firstExtra = extraOccupancyOptions[0] || null;
 
   const body = {
     name: document.getElementById('aloj-nome').value,
@@ -1235,10 +1391,21 @@ async function saveAlojamento() {
     type: document.getElementById('aloj-tipo').value,
     parent_id: parentId,
     area: parseInt(document.getElementById('aloj-area').value) || null,
-    max_guests: parseInt(document.getElementById('aloj-capacidade').value) || 2,
+    max_guests: maxGuests,
     num_rooms: parseInt(document.getElementById('aloj-quartos').value) || 1,
     num_bathrooms: parseInt(document.getElementById('aloj-casasbanho').value) || 1,
     price_per_night: parseFloat(document.getElementById('aloj-preco').value) || 0,
+    base_guests_included: baseGuestsIncluded,
+    baby_age_limit: parseInt(document.getElementById('aloj-baby-age-limit')?.value) || 0,
+    baby_price: parseFloat(document.getElementById('aloj-baby-price')?.value) || 0,
+    child_age_limit: parseInt(document.getElementById('aloj-child-age-limit')?.value) || 0,
+    child_price: parseFloat(document.getElementById('aloj-child-price')?.value) || 0,
+    extra_occupancy_options: extraOccupancyOptions,
+    extra_bed_enabled: extraOccupancyOptions.length > 0,
+    extra_bed_type: firstExtra?.type || 'sofa_cama',
+    extra_bed_capacity: firstExtra?.capacity || 0,
+    extra_bed_price: firstExtra?.price || 0,
+    extra_bed_charge_type: firstExtra?.charge_type || 'per_guest_night',
     description: document.getElementById('desc-pt').value,
     description_en: document.getElementById('desc-en').value,
     description_fr: document.getElementById('desc-fr').value,

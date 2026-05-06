@@ -503,9 +503,95 @@ function calcTotal() {
     const taxCost = (taxSvc?.active !== false) ? (taxSvc?.value ?? 3) * numHospedes * noites : 0;
     const bkfRate = bkfSvc?.value ?? 19;
     const bkfCost = breakfast ? bkfRate * numHospedes * noites : 0;
-    document.getElementById('f-total').value = ((suite.price_per_night * noites) + taxCost + bkfCost).toFixed(2);
+    const extraOccupancyCost = getExtraOccupancyCharge(suite, numHospedes, noites, getGuestBirthDatesFromUi(), ci);
+    document.getElementById('f-total').value = ((suite.price_per_night * noites) + extraOccupancyCost + taxCost + bkfCost).toFixed(2);
   }
   updateWizSummary();
+}
+
+function getExtraOccupancyCharge(suite, numGuests, nights, birthDates = [], checkIn = null) {
+  if (!suite) return 0;
+  const options = normalizeExtraOccupancyOptionsForPrice(suite);
+  const maxGuests = Number(suite.max_guests) || numGuests;
+  const included = Math.max(1, Math.min(
+    Number(suite.base_guests_included) || Math.min(maxGuests, 2),
+    maxGuests
+  ));
+  let remainingGuests = Math.max(0, numGuests - included);
+  if (!remainingGuests) return 0;
+  const specialRates = getAgeSpecialRates(suite, birthDates, checkIn).slice(0, remainingGuests);
+  let total = specialRates.reduce((sum, rate) => sum + (rate * nights), 0);
+  remainingGuests -= specialRates.length;
+
+  return options.reduce((runningTotal, option) => {
+    if (remainingGuests <= 0) return runningTotal;
+    const capacity = Math.max(0, Number(option.capacity) || 0);
+    if (!capacity) return runningTotal;
+    const guestsCovered = Math.min(remainingGuests, capacity);
+    remainingGuests -= guestsCovered;
+    const price = Number(option.price) || 0;
+    if (option.charge_type === 'per_bed_night') return runningTotal + (price * nights);
+    return runningTotal + (price * guestsCovered * nights);
+  }, total);
+}
+
+function normalizeExtraOccupancyOptionsForPrice(suite) {
+  let options = [];
+  if (Array.isArray(suite.extra_occupancy_options)) {
+    options = suite.extra_occupancy_options;
+  } else if (typeof suite.extra_occupancy_options === 'string' && suite.extra_occupancy_options.trim()) {
+    try { options = JSON.parse(suite.extra_occupancy_options); } catch { options = []; }
+  }
+
+  if (!options.length && suite.extra_bed_enabled) {
+    options = [{
+      capacity: Number(suite.extra_bed_capacity) || 0,
+      price: Number(suite.extra_bed_price) || 0,
+      charge_type: suite.extra_bed_charge_type || 'per_guest_night'
+    }];
+  }
+
+  return options.map(option => ({
+    capacity: Math.max(0, Number(option?.capacity) || 0),
+    price: Math.max(0, Number(option?.price) || 0),
+    charge_type: option?.charge_type === 'per_bed_night' ? 'per_bed_night' : 'per_guest_night'
+  }));
+}
+
+function getGuestBirthDatesFromUi() {
+  return [
+    document.getElementById('f-nascimento')?.value || '',
+    ...Array.from(document.querySelectorAll('.extra-guest-row [data-field="birth_date"]')).map(el => el.value || '')
+  ].filter(Boolean);
+}
+
+function getAgeSpecialRates(suite, birthDates = [], checkIn = null) {
+  const babyLimit = Number(suite.baby_age_limit ?? 2);
+  const childLimit = Number(suite.child_age_limit ?? 12);
+  const babyPrice = Number(suite.baby_price ?? 0);
+  const childPrice = Number(suite.child_price ?? 0);
+  return birthDates
+    .map(date => {
+      const age = getAgeAtDate(date, checkIn);
+      if (age === null) return null;
+      if (age < babyLimit) return { age, rate: babyPrice };
+      if (age >= babyLimit && age < childLimit) return { age, rate: childPrice };
+      return null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.age - b.age)
+    .map(item => item.rate);
+}
+
+function getAgeAtDate(birthDate, refDate) {
+  if (!birthDate || !refDate) return null;
+  const birth = new Date(`${birthDate}T12:00:00`);
+  const ref = new Date(`${refDate}T12:00:00`);
+  if (Number.isNaN(birth.getTime()) || Number.isNaN(ref.getTime()) || birth > ref) return null;
+  let age = ref.getFullYear() - birth.getFullYear();
+  const monthDiff = ref.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && ref.getDate() < birth.getDate())) age--;
+  return age;
 }
 
 function renderExtraGuests() {
@@ -582,7 +668,7 @@ function renderExtraGuests() {
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Data de Nascimento</label>
-            <input class="form-control" data-field="birth_date" type="date" value="${p.birth_date || ''}">
+            <input class="form-control" data-field="birth_date" type="date" value="${p.birth_date || ''}" onchange="calcTotal()">
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">NIF</label>
@@ -801,6 +887,7 @@ function buildWizConfirm() {
   const numH = parseInt(document.getElementById('f-num-hospedes')?.value) || 1;
   const bkf = document.getElementById('f-breakfast')?.value === 'true';
   const total = parseFloat(document.getElementById('f-total')?.value) || 0;
+  const extraOccupancyCost = getExtraOccupancyCharge(suite, numH, nights, getGuestBirthDatesFromUi(), ci);
   const card = document.getElementById('wiz-conf-card');
   if (!card) return;
   card.innerHTML = `<div class="wiz-conf-grid">
@@ -827,7 +914,7 @@ function buildWizConfirm() {
     <div class="wiz-conf-cell accent">
       <div class="wiz-conf-lbl">Total</div>
       <div class="wiz-conf-val">€${total.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}</div>
-      <div class="wiz-conf-sub">€${suite?.price_per_night || 0}/noite × ${nights} noites</div>
+      <div class="wiz-conf-sub">€${suite?.price_per_night || 0}/noite × ${nights} noites${extraOccupancyCost ? ` · extra €${extraOccupancyCost.toFixed(2)}` : ''}</div>
     </div>
   </div>`;
 }
@@ -945,6 +1032,12 @@ async function saveReserva() {
   if (!pais)         { toast('Por favor selecione o país do hóspede.', 'error'); return; }
   if (!checkin || !checkout) { toast('Por favor selecione as datas.', 'error'); return; }
   if (checkin >= checkout) { toast('O check-out deve ser depois do check-in.', 'error'); return; }
+  const selectedAccommodation = accommodations.find(a => a.id === alojId);
+  const requestedGuests = parseInt(document.getElementById('f-num-hospedes').value) || 1;
+  if (selectedAccommodation?.max_guests && requestedGuests > selectedAccommodation.max_guests) {
+    toast(`Este alojamento permite no máximo ${selectedAccommodation.max_guests} hóspede${selectedAccommodation.max_guests !== 1 ? 's' : ''}.`, 'error');
+    return;
+  }
 
   if (pais && pais !== 'Portugal') {
     if (!document.getElementById('f-nascimento').value)
@@ -1106,10 +1199,14 @@ async function showDetail(id) {
         </div>`;
       })()}
       <div style="margin-top:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;">
-        ${[['Alojamento', (accommodations.find(a => a.id === r.accommodation_id)?.price_per_night || 0) * r.nights, false],
+        ${(() => {
+          const acc = accommodations.find(a => a.id === r.accommodation_id);
+          return [['Alojamento', (acc?.price_per_night || 0) * r.nights, false],
+           ['Ocupação extra', getExtraOccupancyCharge(acc, r.num_guests || 1, r.nights || 0, (typeof r.guests_data === 'string' ? JSON.parse(r.guests_data || '[]') : (r.guests_data || [])).map(g => g.birth_date).filter(Boolean), r.check_in), false],
            ['Taxa Turística', r.tourist_tax || 0, false],
            ['Pequeno-almoço', r.breakfast_included ? r.num_guests * r.nights * (servicosData.find(s => s.id === 'breakfast')?.value ?? 19) : 0, false],
-           ['Total', r.total_amount || 0, false]].map(([l, v, _]) => `
+           ['Total', r.total_amount || 0, false]];
+        })().map(([l, v, _]) => `
           <div style="background:var(--cinza-claro);border-radius:10px;padding:14px;text-align:center;">
             <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">${l}</div>
             <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--azul);">€${Number(v).toFixed(2)}</div>
