@@ -685,3 +685,440 @@
     justify-content: center;
   }
 }
+
+/* ── Responsive containment pass: tablet/mobile only ── */
+.calendar-agenda-mobile {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .main,
+  .view,
+  .card,
+  .section-card,
+  .calendar-shell,
+  .aloj-shell,
+  .hospedes-shell,
+  .reservas-shell,
+  .despesas-shell {
+    min-width: 0;
+  }
+
+  .view-toolbar,
+  .view-toolbar-actions {
+    width: 100%;
+  }
+
+  .view-toolbar-actions > .form-control,
+  .view-toolbar-actions > select,
+  .view-toolbar-actions > .search-box {
+    flex: 1 1 190px;
+    min-width: 0;
+  }
+
+  .table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
+  }
+
+  .table-wrap table {
+    width: max-content;
+    min-width: 760px;
+  }
+
+  #aloj-table {
+    min-width: 920px;
+  }
+
+  #servicos-table {
+    min-width: 640px;
+  }
+
+  .despesas-table-wrap table {
+    min-width: 720px;
+  }
+
+  .section-card-calendar {
+    max-width: 100%;
+  }
+
+  .section-card-calendar .cal-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .section-card-calendar .cal-header,
+  .section-card-calendar .cal-grid {
+    min-width: 680px;
+  }
+
+  #timeline-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .timeline-scroll {
+    width: max-content;
+  }
+
+  .modal-wizard {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+  }
+
+  .modal {
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
+  }
+
+  #aloj-tab-info > div[style*="grid-template-columns:1fr 1fr 1fr 1fr"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .modal-wizard .form-grid,
+  #guest-modal-bg .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-footer {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 600px) {
+  .view-toolbar-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .view-toolbar-actions > .form-control,
+  .view-toolbar-actions > select,
+  .view-toolbar-actions > .search-box,
+  .view-toolbar-actions > .cal-mode-toggle {
+    grid-column: 1 / -1;
+    width: 100% !important;
+  }
+
+  .calendar-toolbar .view-toolbar-actions > .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .calendar-toolbar .view-toolbar-actions > .btn:nth-child(1),
+  .calendar-toolbar .view-toolbar-actions > .btn:nth-child(2),
+  .calendar-toolbar .view-toolbar-actions > .btn:nth-child(3) {
+    grid-column: auto;
+  }
+
+  .section-card-calendar:not(.is-timeline-mode) .cal-wrap {
+    display: none !important;
+  }
+
+  .section-card-calendar:not(.is-timeline-mode) .calendar-agenda-mobile {
+    display: grid;
+  }
+
+  .section-card-calendar.is-timeline-mode .calendar-agenda-mobile {
+    display: none !important;
+  }
+
+  .calendar-agenda-mobile {
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .agenda-day {
+    display: grid;
+    gap: 8px;
+  }
+
+  .agenda-day-title {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--text-muted);
+    padding: 0 2px;
+  }
+
+  .agenda-day-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .agenda-item {
+    appearance: none;
+    width: 100%;
+    border: 1px solid var(--border-soft);
+    border-left: 4px solid var(--agenda-color, var(--marca));
+    border-radius: 12px;
+    background: var(--surface-card-strong);
+    padding: 11px 12px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    text-align: left;
+    color: var(--text-main);
+  }
+
+  .agenda-item-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--agenda-color, var(--marca));
+  }
+
+  .agenda-item-main {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+
+  .agenda-item-main strong,
+  .agenda-item-main small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .agenda-item-main strong {
+    font-size: 13px;
+  }
+
+  .agenda-item-main small {
+    color: var(--text-muted);
+    font-size: 11.5px;
+  }
+
+  .agenda-item-status {
+    color: var(--agenda-color, var(--marca));
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+
+  .agenda-empty {
+    padding: 26px 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  #timeline-wrap {
+    border-radius: 14px;
+  }
+
+  #timeline-wrap .tl-label {
+    min-width: 132px !important;
+    max-width: 132px !important;
+    padding: 10px;
+  }
+
+  #timeline-wrap .tl-label-title {
+    font-size: 12px;
+  }
+
+  #timeline-wrap .tl-label-sub,
+  #timeline-wrap .tl-block-meta {
+    display: none;
+  }
+
+  #timeline-wrap .tl-days-area {
+    height: 60px;
+  }
+
+  #timeline-wrap .tl-block {
+    height: 44px;
+    padding: 6px 8px;
+  }
+
+  #aloj-tab-info > div[style*="grid-template-columns:1fr 1fr 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  #view-alojamentos > .card:first-of-type {
+    overflow: visible;
+  }
+
+  #aloj-table,
+  #aloj-table tbody,
+  #aloj-table tr,
+  #aloj-table td {
+    display: block;
+    min-width: 0;
+    width: 100%;
+  }
+
+  #aloj-table {
+    min-width: 0;
+  }
+
+  #aloj-table thead {
+    display: none;
+  }
+
+  #aloj-table tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  #aloj-table tr {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px 10px;
+    padding: 12px;
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    background: var(--surface-card-strong) !important;
+    box-shadow: var(--shadow-soft);
+  }
+
+  #aloj-table td {
+    border: 0;
+    padding: 0 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    font-size: 12px !important;
+  }
+
+  #aloj-table td:nth-child(1) {
+    display: none;
+  }
+
+  #aloj-table td:nth-child(2) {
+    grid-row: 1 / span 3;
+  }
+
+  #aloj-table td:nth-child(3) {
+    grid-column: 2 / 4;
+    font-size: 14px !important;
+  }
+
+  #aloj-table td:nth-child(4),
+  #aloj-table td:nth-child(5),
+  #aloj-table td:nth-child(6),
+  #aloj-table td:nth-child(7),
+  #aloj-table td:nth-child(8),
+  #aloj-table td:nth-child(9) {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  #aloj-table td:nth-child(4)::before { content: "Tipo"; }
+  #aloj-table td:nth-child(5)::before { content: "Capacidade"; }
+  #aloj-table td:nth-child(6)::before { content: "Quartos"; }
+  #aloj-table td:nth-child(7)::before { content: "Área"; }
+  #aloj-table td:nth-child(8)::before { content: "Preço"; }
+  #aloj-table td:nth-child(9)::before { content: "Licença"; }
+
+  #aloj-table td::before {
+    color: var(--text-muted);
+    font-size: 9.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  #aloj-table td:nth-child(10) {
+    grid-column: 2 / 4;
+  }
+
+  .despesas-table-wrap table,
+  .despesas-table-wrap tbody,
+  .despesas-table-wrap tr,
+  .despesas-table-wrap td {
+    display: block;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .despesas-table-wrap table {
+    min-width: 0;
+  }
+
+  .despesas-table-wrap thead {
+    display: none;
+  }
+
+  .despesas-table-wrap tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  .despesas-table-wrap tr {
+    padding: 12px;
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    background: var(--surface-card-strong);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .despesas-table-wrap td {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    border: 0;
+    padding: 7px 0 !important;
+    white-space: normal !important;
+  }
+
+  .despesas-table-wrap td:nth-child(1)::before { content: "Data"; }
+  .despesas-table-wrap td:nth-child(2)::before { content: "Categoria"; }
+  .despesas-table-wrap td:nth-child(3)::before { content: "Descrição"; }
+  .despesas-table-wrap td:nth-child(4)::before { content: "Valor"; }
+  .despesas-table-wrap td:nth-child(5)::before { content: "Método"; }
+  .despesas-table-wrap td:nth-child(6)::before { content: "Ações"; }
+
+  .despesas-table-wrap td::before {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  .modal-bg {
+    overflow: hidden;
+  }
+
+  .modal,
+  .modal-wizard {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    max-height: 100dvh !important;
+    height: auto;
+    margin: 0 !important;
+  }
+
+  .modal-wizard {
+    border-radius: 18px 18px 0 0;
+  }
+
+  .modal-wizard .modal-body {
+    max-height: calc(100dvh - 150px);
+  }
+
+  .modal-footer {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface-card-strong);
+  }
+}

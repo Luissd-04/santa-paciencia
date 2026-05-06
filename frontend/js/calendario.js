@@ -75,6 +75,7 @@ function getTimelineDayWidth() {
 
 // ── PUBLIC ENTRY POINT ──
 function renderCalView() {
+  document.querySelector('.section-card-calendar')?.classList.toggle('is-timeline-mode', calMode === 'timeline');
   if (calMode === 'timeline') renderTimeline();
   else renderCal();
   requestAnimationFrame(movePill);
@@ -96,8 +97,10 @@ function setCalMode(m) {
   calMode = m;
   updateCalendarModeUi();
   movePill();
+  document.querySelector('.section-card-calendar')?.classList.toggle('is-timeline-mode', m === 'timeline');
 
   const calWrap     = document.querySelector('.cal-wrap');
+  const agendaWrap  = document.getElementById('calendar-agenda-mobile');
   const tlWrap      = document.getElementById('timeline-wrap');
   const rangeToggle = document.getElementById('timeline-range-toggle');
   const toTimeline  = m === 'timeline';
@@ -108,6 +111,7 @@ function setCalMode(m) {
   const enterAnim = toTimeline ? 'cal-slide-enter-right' : 'cal-slide-enter-left';
 
   outgoing.classList.add(exitAnim);
+  if (agendaWrap) agendaWrap.style.display = toTimeline ? 'none' : '';
 
   if (!toTimeline && rangeToggle) rangeToggle.style.display = 'none';
 
@@ -270,6 +274,48 @@ function renderCal() {
     const colSeps    = [1,2,3,4,5,6].map(i => `<div class="cal-col-sep" style="left:calc(${i}*100%/7)"></div>`).join('');
     grid.innerHTML += `<div class="cal-week">${colSeps}<div class="cal-week-days">${dayCells}</div>${eventsRow}</div>`;
   }
+
+  renderCalendarAgenda(allDays.filter(day => !day.otherMonth).map(day => day.dateStr), filters);
+}
+
+function renderCalendarAgenda(monthDays, filters = getCalendarFilters()) {
+  const agenda = document.getElementById('calendar-agenda-mobile');
+  if (!agenda) return;
+
+  const monthReservations = reservas
+    .filter(r => reservationMatchesCalendarFilters(r, filters))
+    .filter(r => r.check_out >= monthDays[0] && r.check_in <= monthDays[monthDays.length - 1])
+    .sort((a, b) => a.check_in.localeCompare(b.check_in) || a.check_out.localeCompare(b.check_out));
+
+  const groups = monthDays.map(dateStr => {
+    const dayReservations = monthReservations.filter(r => r.check_in <= dateStr && r.check_out >= dateStr);
+    if (!dayReservations.length) return '';
+    const date = new Date(`${dateStr}T12:00:00`);
+    const dayLabel = date.toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: 'short' });
+    return `<section class="agenda-day">
+      <div class="agenda-day-title">${dayLabel}</div>
+      <div class="agenda-day-list">
+        ${dayReservations.map(r => {
+          const accommodation = accommodations.find(a => a.id === r.accommodation_id);
+          const color = accommodation?.color || '#843424';
+          const isCheckIn = r.check_in === dateStr;
+          const isCheckOut = r.check_out === dateStr;
+          const marker = isCheckIn ? 'Check-in' : isCheckOut ? 'Check-out' : 'Estadia';
+          return `<button type="button" class="agenda-item" onclick="showDetail('${r.id}')" style="--agenda-color:${color};">
+            <span class="agenda-item-dot"></span>
+            <span class="agenda-item-main">
+              <strong>${r.guest_name || 'Reserva'}</strong>
+              <small>${r.accommodation_name || accommodation?.name || 'Alojamento'} · ${marker}</small>
+            </span>
+            <span class="agenda-item-status">${r.status || '—'}</span>
+          </button>`;
+        }).join('')}
+      </div>
+    </section>`;
+  }).filter(Boolean);
+
+  agenda.innerHTML = groups.join('') || `<div class="agenda-empty">Sem reservas visíveis neste mês.</div>`;
+  if (window.lucide) lucide.createIcons();
 }
 
 function calPrev() {
