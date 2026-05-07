@@ -14,7 +14,8 @@ const guestRoutes = require('./routes/guests');
 const emailTemplateRoutes = require('./routes/emailTemplates');
 const expenseRoutes = require('./routes/expenses');
 const backupRoutes = require('./routes/backup');
-const teamRoutes = require('./routes/team');
+const teamRoutes   = require('./routes/team');
+const reportRoutes = require('./routes/reports');
 
 const app = express();
 
@@ -66,11 +67,19 @@ app.use('/api/email-templates', emailTemplateRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/backup', backupRoutes);
 app.use('/api/team', teamRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// SPA catch-all: serve index.html para todas as rotas de frontend
+if (process.env.FRONTEND_PATH) {
+  app.get(/(.*)/, (req, res) => {
+    res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'index.html'));
+  });
+}
 
 // Tratamento global de erros
 app.use(errorHandler);

@@ -1,14 +1,15 @@
 // ── NAVIGATION ──
 const VIEW_TITLES = {
-  dashboard: 'Dashboard',
-  reservas: 'Reservas',
+  dashboard:  'Dashboard',
+  reservas:   'Reservas',
   calendario: 'Calendário',
-  hospedes: 'Hóspedes',
-  alojamentos: 'Alojamentos & Serviços',
-  despesas: 'Despesas',
-  emails: 'Templates de Email',
-  gcal: 'Google Calendar',
-  equipa: 'Equipa'
+  hospedes:   'Hóspedes',
+  alojamentos:'Alojamentos & Serviços',
+  despesas:   'Despesas',
+  relatorios: 'Relatórios Financeiros',
+  emails:     'Templates de Email',
+  gcal:       'Google Calendar',
+  equipa:     'Equipa'
 };
 
 const THEME_KEY = 'sp-theme';
@@ -34,7 +35,7 @@ function toggleTheme() {
   if (window.lucide) lucide.createIcons();
 }
 
-function showView(v) {
+function showView(v, pushState = true) {
   document.querySelectorAll('.view').forEach(x => x.classList.remove('active', 'view-entering'));
   const nextView = document.getElementById('view-' + v);
   nextView.classList.add('active');
@@ -45,17 +46,24 @@ function showView(v) {
   });
   document.getElementById('topbar-title').textContent = VIEW_TITLES[v] || v;
   setActiveBN(v);
+  if (pushState) history.pushState({ view: v }, '', '/' + (v === 'dashboard' ? '' : v));
   if (window.lucide) lucide.createIcons();
   if (v === 'dashboard') renderDashboard();
   if (v === 'reservas') loadReservas();
   if (v === 'calendario') loadReservas().then(() => renderCalView());
   if (v === 'hospedes') loadHospedes();
   if (v === 'alojamentos') { renderAlojamentos(); initAlojDrag(); loadServicos(); }
-  if (v === 'despesas') loadDespesas();
+  if (v === 'despesas')   loadDespesas();
+  if (v === 'relatorios') loadRelatorios();
   if (v === 'emails') loadEmailTemplates();
   if (v === 'gcal') loadCalendarStatus();
   if (v === 'equipa' && currentUser?.role === 'owner') loadTeamOverview();
 }
+
+window.addEventListener('popstate', (e) => {
+  const v = e.state?.view || 'dashboard';
+  if (VIEW_TITLES[v]) showView(v, false);
+});
 
 // ── MOBILE BOTTOM NAV ──
 const BOTTOM_NAV_VIEWS = ['dashboard', 'reservas', 'calendario', 'hospedes'];
@@ -222,6 +230,20 @@ async function initApp() {
     document.querySelector('.layout').classList.add('sb-collapsed');
     const icon = document.querySelector('.sb-collapse-btn i[data-lucide]');
     if (icon) { icon.setAttribute('data-lucide', 'panel-left-open'); lucide.createIcons(); }
+  }
+
+  const pathView = window.location.pathname.replace(/^\/+|\/+$/g, '') || 'dashboard';
+  showView(VIEW_TITLES[pathView] ? pathView : 'dashboard', false);
+
+  // Restore sub-states that can't be recovered from URL alone
+  if (pathView === 'alojamentos') {
+    const savedId  = SS.get('aloj:id', null);
+    const savedTab = SS.get('aloj:tab', 'info');
+    if (savedId && accommodations.find(a => a.id === savedId)) openAlojamento(savedId, savedTab);
+  }
+  if (pathView === 'alojamentos' || pathView === 'reservas') {
+    const sv = (id, key) => { const el = document.getElementById(id); if (el && !el.value) el.value = SS.get(key, ''); };
+    sv('aloj-search', 'aloj:q'); sv('aloj-filter-type', 'aloj:type'); sv('aloj-filter-link', 'aloj:link');
   }
 }
 

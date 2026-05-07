@@ -1,7 +1,7 @@
 let hospedes = [];
-let hospedesViewMode = 'cards';
-let hospedesSortCol = 'name';
-let hospedesSortAsc = true;
+let hospedesViewMode = SS.get('hsp:mode', 'cards');
+let hospedesSortCol  = SS.get('hsp:sort', 'name');
+let hospedesSortAsc  = SS.get('hsp:asc', true);
 let editingGuestId = null;
 
 // ── COUNTRIES ──
@@ -165,6 +165,14 @@ function guestTagsHtml(g) {
 
 // ── LOAD ──
 async function loadHospedes() {
+  const searchEl = document.getElementById('hospedes-search');
+  if (searchEl && !searchEl.value) searchEl.value = SS.get('hsp:q', '');
+  // Restore view mode UI
+  document.getElementById('hvt-cards')?.classList.toggle('active', hospedesViewMode === 'cards');
+  document.getElementById('hvt-lista')?.classList.toggle('active', hospedesViewMode === 'lista');
+  document.getElementById('hospedes-cards-view') && (document.getElementById('hospedes-cards-view').style.display = hospedesViewMode === 'cards' ? '' : 'none');
+  document.getElementById('hospedes-lista-view') && (document.getElementById('hospedes-lista-view').style.display = hospedesViewMode === 'lista' ? '' : 'none');
+
   document.getElementById('hospedes-loading').style.display = 'flex';
   document.getElementById('hospedes-cards-grid').innerHTML = '';
   document.getElementById('hospedes-empty').style.display = 'none';
@@ -180,6 +188,7 @@ async function loadHospedes() {
 
 function setHospedesView(mode) {
   hospedesViewMode = mode;
+  SS.set('hsp:mode', mode);
   document.getElementById('hvt-cards').classList.toggle('active', mode === 'cards');
   document.getElementById('hvt-lista').classList.toggle('active', mode === 'lista');
   document.getElementById('hospedes-cards-view').style.display = mode === 'cards' ? '' : 'none';
@@ -205,6 +214,7 @@ function updateHospedesSummary() {
 
 function filteredHospedes() {
   const q = (document.getElementById('hospedes-search') || { value: '' }).value.toLowerCase();
+  SS.set('hsp:q', document.getElementById('hospedes-search')?.value || '');
   if (!q) return hospedes;
   return hospedes.filter(g =>
     (g.name + ' ' + (g.email || '') + ' ' + (g.nationality || '') + ' ' + (g.phone || '') + ' ' + (g.country || '')).toLowerCase().includes(q)
@@ -253,6 +263,8 @@ function sortHospedes(col) {
     hospedesSortCol = col;
     hospedesSortAsc = true;
   }
+  SS.set('hsp:sort', hospedesSortCol);
+  SS.set('hsp:asc', hospedesSortAsc);
   document.querySelectorAll('[id^="hsort-"]').forEach(el => el.textContent = '');
   const icon = document.getElementById('hsort-' + col);
   if (icon) icon.textContent = hospedesSortAsc ? '↑' : '↓';

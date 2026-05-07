@@ -21,6 +21,7 @@ const {
   createOrganization,
   getClaimableLegacyOrganization,
   getInvitationByToken,
+  getMembershipByUserAndOrganization,
 } = require('../services/orgService');
 const fs = require('fs');
 const path = require('path');
@@ -88,6 +89,7 @@ router.get('/invitations/:token', (req, res) => {
       role: invitation.role,
       organization_name: invitation.organization_name,
       expires_at: invitation.expires_at,
+      user_exists: !!getUserByEmail(invitation.email),
     }
   });
 });
@@ -183,26 +185,47 @@ router.post('/invitations/accept', (req, res) => {
     return res.status(410).json({ success: false, error: 'Este convite expirou.' });
   }
 
-  const trimmedName = String(name || '').trim();
   const normalizedEmail = normalizeEmail(invitation.email);
+  const existingUser = getUserByEmail(normalizedEmail);
+
+  if (existingUser) {
+    // User already has an account — verify their password and add membership
+    if (!password) {
+      return res.status(400).json({ success: false, error: 'Introduz a tua password para aceitar o convite.' });
+    }
+    if (!existingUser.active) {
+      return res.status(403).json({ success: false, error: 'Esta conta está desativada.' });
+    }
+    if (!verifyPassword(String(password), existingUser.password_hash)) {
+      return res.status(401).json({ success: false, error: 'Password incorreta.' });
+    }
+
+    const alreadyMember = getMembershipByUserAndOrganization(existingUser.id, invitation.organization_id);
+    try {
+      if (!alreadyMember) {
+        acceptInvitation({ invitationId: invitation.id, userId: existingUser.id });
+      }
+      const { sessionId } = createSession(existingUser.id, invitation.organization_id);
+      setSessionCookie(res, sessionId);
+      const sessionUser = require('../services/authService').getSessionUser(sessionId);
+      return res.json({ success: true, data: { user: serializeUser(sessionUser) } });
+    } catch (err) {
+      return res.status(400).json({ success: false, error: err.message });
+    }
+  }
+
+  // New user — full registration flow
+  const trimmedName = String(name || '').trim();
   if (!trimmedName || !password || !confirm_password) {
     return res.status(400).json({ success: false, error: 'Preenche todos os campos obrigatórios.' });
   }
   if (password !== confirm_password) {
     return res.status(400).json({ success: false, error: 'As passwords não coincidem.' });
   }
-
   try {
     validatePassword(password);
   } catch (err) {
     return res.status(400).json({ success: false, error: err.message });
-  }
-
-  if (getUserByEmail(normalizedEmail)) {
-    return res.status(409).json({
-      success: false,
-      error: 'Já existe uma conta com este email. Pede ao proprietário para enviar convite para outro email.',
-    });
   }
 
   try {
@@ -223,6 +246,37 @@ router.post('/invitations/accept', (req, res) => {
         invite_url: buildInvitationUrl(token),
       }
     });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/memberships', requireAuth, (req, res) => {
+  const memberships = db.prepare(`
+    SELECT m.organization_id, m.role, o.name as organization_name, o.slug as organization_slug
+    FROM memberships m
+    JOIN organizations o ON o.id = m.organization_id
+    WHERE m.user_id = ? AND m.active = 1
+    ORDER BY CASE m.role WHEN 'owner' THEN 1 WHEN 'manager' THEN 2 ELSE 3 END, m.created_at ASC
+  `).all(req.user.id);
+  res.json({ success: true, data: { memberships } });
+});
+
+router.post('/switch-org', requireAuth, (req, res) => {
+  const { organization_id } = req.body || {};
+  if (!organization_id) {
+    return res.status(400).json({ success: false, error: 'organization_id é obrigatório.' });
+  }
+  const membership = getMembershipByUserAndOrganization(req.user.id, organization_id);
+  if (!membership) {
+    return res.status(403).json({ success: false, error: 'Não tens acesso a este espaço.' });
+  }
+  try {
+    deleteSession(req.sessionId);
+    const { sessionId } = createSession(req.user.id, organization_id);
+    setSessionCookie(res, sessionId);
+    const sessionUser = require('../services/authService').getSessionUser(sessionId);
+    res.json({ success: true, data: { user: serializeUser(sessionUser) } });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
   }

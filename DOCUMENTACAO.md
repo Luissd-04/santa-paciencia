@@ -564,22 +564,34 @@ created_at      TEXT
 - Cabeçalho de detalhe mais claro para navegação, guardar e apagar sem perda de contexto
 
 ### Calendário
-- Vista mensal com grid 7 colunas
-- Cada reserva: bloco colorido com nome do hóspede, visível nas células dos dias abrangidos
-- Blocos clicáveis → abre modal de detalhe
-- Filtro por suite
-- Navegação mês anterior/seguinte
-- Toolbar operacional consistente com navegação, filtro e alternância `Calendário/Timeline`
-- Card principal de contexto para o período visível
-- Filtros adicionais por estado e canal
-- Timeline com janela ajustável `7 / 14 / 30 dias`
-- Destaques visuais para `hoje`, `check-ins` e `check-outs`
-- Blocos da timeline mais informativos: estado, intervalo e noites
-- Coluna fixa de alojamentos com contexto da tipologia e nº de reservas visíveis
-- Chips interativos no topo:
-  - `Confirmada` / `Pendente` aplicam filtro rápido de estado
-  - `Check-in` / `Check-out` ligam ou desligam os marcadores visuais correspondentes
-- Em janelas curtas (`7` e `14` dias), a timeline alarga as colunas para ocupar melhor a largura disponível
+
+**Vista mensal**
+- Grid 7 colunas; cada reserva aparece como bloco colorido nos dias abrangidos
+- Blocos clicáveis → abre modal de detalhe; clicar num dia vazio abre o wizard com a data pré-preenchida
+- Filtros: suite, estado e canal; chips `Confirmada`/`Pendente` aplicam filtro rápido de estado
+- Navegação mês anterior/seguinte + botão "Hoje"
+- Vista agenda móvel por baixo do calendário (agrupa reservas por dia do mês)
+- O filtro de estado **não é persistido** entre sessões — sempre começa a mostrar todas as reservas
+
+**Vista Timeline (ano completo)**
+- Renderiza os 365/366 dias do ano corrente numa única faixa scrollável horizontalmente
+- Cabeçalho duplo: linha de meses + linha de dias (nome do dia oculto no zoom "Pequeno")
+- Mês corrente destacado no cabeçalho com cor de marca
+- Separador vertical mais espesso no dia 1 de cada mês para identificar mudança de mês
+- Coluna de alojamentos fixa à esquerda (`position: sticky; left: 0`), fundo opaco para não deixar transparecer a grelha de dias
+- Contador no label de cada alojamento mostra reservas **do mês corrente** (não do ano)
+- Ao abrir a timeline, faz scroll automático para o dia de hoje com **2 dias do passado visíveis** à esquerda (foco no futuro)
+- Zoom via toggle `Grande / Médio / Pequeno` (80 / 48 / 24 px por dia); ao fazer zoom, mantém o dia central da vista
+- Botões `←` / `→` fazem scroll de 70% da largura visível; "Hoje" centra novamente no dia de hoje
+
+**Drag & Drop na Timeline**
+- Arrastar um bloco move a reserva (datas e/ou alojamento)
+- Redimensionar pelas pegas laterais altera o check-in (pega esquerda) ou check-out (pega direita)
+- Ghost visual segue o cursor; fica vermelho se houver conflito antes de largar
+- Ao largar, abre diálogo de confirmação com resumo das alterações
+- **Verificação de overbooking**: detecta outras reservas no mesmo alojamento nas novas datas → mostra aviso e bloqueia confirmação
+- **Verificação de alojamento completo**: se o destino for um alojamento principal (`type = 'alojamento'`), verifica se algum dos quartos filhos (`parent_id = destino`) já tem reserva nas datas pretendidas → mostra aviso "Alojamento completo não disponível — [Quarto X] já tem reserva nestas datas" e bloqueia confirmação (só disponível o botão Cancelar)
+- Sem alterações reais → clique simples abre o detalhe da reserva
 
 ### Emails Automáticos
 

@@ -555,4 +555,66 @@ async function getDashboardStats(req, res, next) {
   }
 }
 
-module.exports = { getAll, getById, create, update, cancel, getDashboardStats, getAvailability };
+function getNotifications(req, res, next) {
+  try {
+    const orgId = req.user.organization_id;
+    const today    = new Date().toISOString().slice(0, 10);
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+
+    const baseSelect = `
+      SELECT r.id, r.check_in, r.check_out, r.status, r.total_amount, r.amount_paid,
+             g.name as guest_name, a.name as accommodation_name
+      FROM reservations r
+      JOIN guests g ON g.id = r.guest_id
+      JOIN accommodations a ON a.id = r.accommodation_id
+      WHERE r.organization_id = ?`;
+
+    const checkinsToday    = db.prepare(`${baseSelect} AND r.check_in = ?  AND r.status != 'cancelada'`).all(orgId, today);
+    const checkinsTomorrow = db.prepare(`${baseSelect} AND r.check_in = ?  AND r.status != 'cancelada'`).all(orgId, tomorrow);
+    const checkoutsToday   = db.prepare(`${baseSelect} AND r.check_out = ? AND r.status != 'cancelada'`).all(orgId, today);
+    const pending          = db.prepare(`${baseSelect} AND r.status = 'pendente'`).all(orgId);
+    const unpaid           = db.prepare(`${baseSelect} AND r.status = 'confirmada' AND r.total_amount > 0 AND r.amount_paid < r.total_amount`).all(orgId);
+
+    const notifications = [];
+
+    checkinsToday.forEach(r => notifications.push({
+      type: 'checkin_today', priority: 'high', icon: 'log-in',
+      title: 'Check-in hoje',
+      subtitle: `${r.guest_name} · ${r.accommodation_name}`,
+      reservation_id: r.id,
+    }));
+    checkoutsToday.forEach(r => notifications.push({
+      type: 'checkout_today', priority: 'high', icon: 'log-out',
+      title: 'Check-out hoje',
+      subtitle: `${r.guest_name} · ${r.accommodation_name}`,
+      reservation_id: r.id,
+    }));
+    checkinsTomorrow.forEach(r => notifications.push({
+      type: 'checkin_tomorrow', priority: 'medium', icon: 'calendar-clock',
+      title: 'Check-in amanhã',
+      subtitle: `${r.guest_name} · ${r.accommodation_name}`,
+      reservation_id: r.id,
+    }));
+    unpaid.forEach(r => {
+      const em = Number(r.total_amount) - Number(r.amount_paid);
+      notifications.push({
+        type: 'unpaid', priority: 'medium', icon: 'circle-alert',
+        title: 'Pagamento em falta',
+        subtitle: `${r.guest_name} · €${em.toFixed(2)} por receber`,
+        reservation_id: r.id,
+      });
+    });
+    pending.forEach(r => notifications.push({
+      type: 'pending', priority: 'low', icon: 'clock',
+      title: 'Reserva pendente',
+      subtitle: `${r.guest_name} · ${r.accommodation_name}`,
+      reservation_id: r.id,
+    }));
+
+    res.json({ success: true, data: { notifications } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getAll, getById, create, update, cancel, getDashboardStats, getAvailability, getNotifications };

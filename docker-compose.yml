@@ -12,6 +12,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./tokens:/tokens
+      - ./frontend:/app/frontend
     networks:
       - app-network
 

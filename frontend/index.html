@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="css/views/despesas.css">
 <link rel="stylesheet" href="css/views/operations.css">
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
@@ -40,23 +41,23 @@
       <form id="login-form" class="auth-premium-form">
         <label class="auth-field auth-register-only is-hidden" id="register-name-wrap">
           <span>Nome</span>
-          <input class="form-input" type="text" id="register-name" placeholder="O teu nome completo" autocomplete="name">
+          <input class="form-input" type="text" id="register-name" name="name" placeholder="O teu nome completo" autocomplete="name">
         </label>
         <label class="auth-field auth-register-only is-hidden" id="register-org-wrap">
           <span>Nome do Espaço</span>
-          <input class="form-input" type="text" id="register-organization-name" placeholder="Ex: Casas da Serra" autocomplete="organization">
+          <input class="form-input" type="text" id="register-organization-name" name="organization" placeholder="Ex: Casas da Serra" autocomplete="organization">
         </label>
         <label class="auth-field">
           <span>Email</span>
-          <input class="form-input" type="email" id="login-email" placeholder="gestao@santapaciencia.xyz" autocomplete="username" required>
+          <input class="form-input" type="email" id="login-email" name="username" placeholder="gestao@santapaciencia.xyz" autocomplete="username" required>
         </label>
         <label class="auth-field">
           <span>Password</span>
-          <input class="form-input" type="password" id="login-password" placeholder="A tua password" autocomplete="current-password" required>
+          <input class="form-input" type="password" id="login-password" name="password" placeholder="A tua password" autocomplete="current-password" required>
         </label>
         <label class="auth-field auth-register-only is-hidden" id="register-confirm-wrap">
           <span>Confirmar password</span>
-          <input class="form-input" type="password" id="register-confirm-password" placeholder="Repete a password" autocomplete="new-password">
+          <input class="form-input" type="password" id="register-confirm-password" name="confirm-password" placeholder="Repete a password" autocomplete="new-password">
         </label>
         <button class="btn btn-primary auth-submit" id="login-submit" type="submit">
           <i data-lucide="log-in"></i> Entrar
@@ -82,6 +83,7 @@
       <h1 class="sb-label">Santa Paciência</h1>
       <p class="sb-label">Gestão de Alojamento</p>
     </div>
+    <div id="org-switcher" style="display:none;"></div>
     <nav class="sidebar-nav">
       <div class="nav-section sb-label">Principal</div>
       <div class="nav-item active" onclick="showView('dashboard')">
@@ -102,6 +104,9 @@
       </div>
       <div class="nav-item" onclick="showView('despesas')">
         <span class="icon"><i data-lucide="receipt"></i></span><span class="nav-label"> Despesas</span>
+      </div>
+      <div class="nav-item" onclick="showView('relatorios')">
+        <span class="icon"><i data-lucide="bar-chart-3"></i></span><span class="nav-label"> Relatórios</span>
       </div>
       <div class="nav-item" onclick="showView('emails')">
         <span class="icon"><i data-lucide="mail"></i></span><span class="nav-label"> Emails</span>
@@ -140,6 +145,13 @@
           </span>
           <span class="theme-toggle-label" id="theme-toggle-label">Modo escuro</span>
         </button>
+        <div class="notif-wrap" id="notif-wrap">
+          <button class="notif-bell" onclick="toggleNotif(event)" aria-label="Notificações">
+            <i data-lucide="bell" style="width:18px;height:18px;"></i>
+            <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+          </button>
+          <div class="notif-dropdown" id="notif-dropdown" style="display:none;"></div>
+        </div>
         <div class="auth-user-chip" id="auth-user-chip">
           <div class="auth-user-copy">
             <strong id="auth-user-name">Sessão</strong>
@@ -344,6 +356,12 @@
                 <button class="btn btn-ghost btn-sm" onclick="document.getElementById('filter-date-from').value='';document.getElementById('filter-date-to').value='';renderTabela();" title="Limpar filtros">
                   <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar
                 </button>
+                <button class="btn btn-ghost btn-sm" onclick="exportReservasXLS()" title="Exportar Excel">
+                  <i data-lucide="file-spreadsheet" style="width:13px;height:13px;"></i>
+                </button>
+                <button class="btn btn-ghost btn-sm" onclick="exportReservasPDF()" title="Exportar PDF">
+                  <i data-lucide="file-text" style="width:13px;height:13px;"></i>
+                </button>
               </div>
             </div>
 
@@ -432,9 +450,9 @@
                 </button>
               </div>
               <div class="cal-mode-toggle" id="timeline-range-toggle" style="display:none;">
-                <button class="cal-mode-btn" data-range="7" onclick="setTimelineRange(7)">7 dias</button>
-                <button class="cal-mode-btn active" data-range="14" onclick="setTimelineRange(14)">14 dias</button>
-                <button class="cal-mode-btn" data-range="30" onclick="setTimelineRange(30)">30 dias</button>
+                <button class="cal-mode-btn" data-range="7" onclick="setTimelineRange(7)">Grande</button>
+                <button class="cal-mode-btn active" data-range="14" onclick="setTimelineRange(14)">Médio</button>
+                <button class="cal-mode-btn" data-range="30" onclick="setTimelineRange(30)">Pequeno</button>
               </div>
             </div>
           </div>
@@ -1090,6 +1108,169 @@
         </div>
       </div>
 
+      <!-- ══ RELATÓRIOS ══ -->
+      <div class="view" id="view-relatorios">
+
+        <!-- Sub-tabs -->
+        <div class="report-tabs">
+          <button class="report-tab active" id="rtab-btn-faturamento" onclick="switchReportTab('faturamento')">
+            <i data-lucide="trending-up" style="width:14px;height:14px;"></i> Faturamento
+          </button>
+          <button class="report-tab" id="rtab-btn-despesas" onclick="switchReportTab('despesas')">
+            <i data-lucide="receipt" style="width:14px;height:14px;"></i> Despesas
+          </button>
+          <button class="report-tab" id="rtab-btn-lucro" onclick="switchReportTab('lucro')">
+            <i data-lucide="landmark" style="width:14px;height:14px;"></i> Lucro
+          </button>
+        </div>
+
+        <!-- ─── FATURAMENTO ─── -->
+        <div class="report-tab-panel" id="rtab-faturamento">
+          <div class="report-toolbar">
+            <div class="report-filters">
+              <select class="form-control" id="report-year-sel" onchange="setReportYear(this.value)" style="width:auto;"></select>
+              <select class="form-control" id="report-acc-sel" onchange="setReportAccId(this.value)" style="width:auto;"></select>
+            </div>
+          </div>
+          <div class="report-kpis" id="report-kpis">
+            <div class="report-loading"><i data-lucide="loader" style="width:18px;height:18px;"></i> A carregar...</div>
+          </div>
+          <div class="report-charts-row">
+            <div class="card report-chart-wrap report-chart-main">
+              <div class="card-header">
+                <span class="card-title"><i data-lucide="bar-chart-2"></i> Receita Mensal &amp; Ocupação</span>
+              </div>
+              <div style="position:relative;height:260px;">
+                <canvas id="chart-revenue"></canvas>
+              </div>
+            </div>
+            <div class="card report-chart-wrap report-chart-side">
+              <div class="card-header">
+                <span class="card-title"><i data-lucide="pie-chart"></i> Receita por Canal</span>
+              </div>
+              <div style="position:relative;height:260px;">
+                <canvas id="chart-channel"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="card report-chart-wrap">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="building-2"></i> Receita por Alojamento</span>
+            </div>
+            <div style="position:relative;height:180px;">
+              <canvas id="chart-accom"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="table-2"></i> Resumo Mensal</span>
+            </div>
+            <div class="table-wrap">
+              <table class="tabela report-table">
+                <thead>
+                  <tr>
+                    <th>Mês</th>
+                    <th style="text-align:right;">Reservas</th>
+                    <th style="text-align:right;">Noites</th>
+                    <th style="text-align:right;">Receita</th>
+                    <th style="text-align:right;">Ocupação</th>
+                  </tr>
+                </thead>
+                <tbody id="report-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── DESPESAS ─── -->
+        <div class="report-tab-panel" id="rtab-despesas" style="display:none;">
+          <div class="report-toolbar">
+            <div class="report-filters">
+              <select class="form-control" id="desp-year-sel" onchange="setDespYear(this.value)" style="width:auto;"></select>
+            </div>
+          </div>
+          <div class="report-kpis" id="desp-kpis">
+            <div class="report-loading"><i data-lucide="loader" style="width:18px;height:18px;"></i> A carregar...</div>
+          </div>
+          <div class="report-charts-row">
+            <div class="card report-chart-wrap report-chart-main">
+              <div class="card-header">
+                <span class="card-title"><i data-lucide="bar-chart-2"></i> Despesas Mensais</span>
+              </div>
+              <div style="position:relative;height:260px;">
+                <canvas id="chart-desp-monthly"></canvas>
+              </div>
+            </div>
+            <div class="card report-chart-wrap report-chart-side">
+              <div class="card-header">
+                <span class="card-title"><i data-lucide="pie-chart"></i> Despesas por Categoria</span>
+              </div>
+              <div style="position:relative;height:260px;">
+                <canvas id="chart-desp-category"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="table-2"></i> Resumo Mensal de Despesas</span>
+            </div>
+            <div class="table-wrap">
+              <table class="tabela report-table">
+                <thead>
+                  <tr>
+                    <th>Mês</th>
+                    <th style="text-align:right;">Nº Despesas</th>
+                    <th style="text-align:right;">Total</th>
+                  </tr>
+                </thead>
+                <tbody id="desp-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── LUCRO ─── -->
+        <div class="report-tab-panel" id="rtab-lucro" style="display:none;">
+          <div class="report-toolbar">
+            <div class="report-filters">
+              <select class="form-control" id="lucro-year-sel" onchange="setLucroYear(this.value)" style="width:auto;"></select>
+              <select class="form-control" id="lucro-acc-sel" onchange="setLucroAccId(this.value)" style="width:auto;"></select>
+            </div>
+          </div>
+          <div class="report-kpis" id="lucro-kpis">
+            <div class="report-loading"><i data-lucide="loader" style="width:18px;height:18px;"></i> A carregar...</div>
+          </div>
+          <div class="card report-chart-wrap">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="bar-chart-2"></i> Receita vs Despesas</span>
+            </div>
+            <div style="position:relative;height:300px;">
+              <canvas id="chart-lucro"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="table-2"></i> Resumo Mensal de Lucro</span>
+            </div>
+            <div class="table-wrap">
+              <table class="tabela report-table">
+                <thead>
+                  <tr>
+                    <th>Mês</th>
+                    <th style="text-align:right;">Receita</th>
+                    <th style="text-align:right;">Despesas</th>
+                    <th style="text-align:right;">Lucro</th>
+                    <th style="text-align:right;">Margem</th>
+                  </tr>
+                </thead>
+                <tbody id="lucro-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
       <!-- ══ GOOGLE CALENDAR ══ -->
       <div class="view" id="view-gcal">
         <div class="gcal-banner">
@@ -1384,15 +1565,15 @@
         <li class="wiz-step wiz-active" id="ws-1">
           <div class="wiz-dot">1</div>
           <div class="wiz-step-info">
-            <div class="wiz-step-label">Identificação</div>
-            <div class="wiz-step-name">Hóspede</div>
+            <div class="wiz-step-label">Estadia</div>
+            <div class="wiz-step-name">Datas & Suite</div>
           </div>
         </li>
         <li class="wiz-step" id="ws-2">
           <div class="wiz-dot">2</div>
           <div class="wiz-step-info">
-            <div class="wiz-step-label">Estadia</div>
-            <div class="wiz-step-name">Datas & Suite</div>
+            <div class="wiz-step-label">Hóspedes</div>
+            <div class="wiz-step-name">Dados dos Hóspedes</div>
           </div>
         </li>
         <li class="wiz-step" id="ws-3">
@@ -1442,8 +1623,62 @@
 
       <div class="modal-body">
 
-        <!-- ── STEP 1: HÓSPEDE ── -->
+        <!-- ── STEP 1: ESTADIA ── -->
         <div class="wiz-panel active" id="wiz-panel-1">
+          <h3 class="wiz-panel-title">Datas & Alojamento</h3>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Check-in <span class="req-star">*</span></label>
+              <input class="form-control" id="f-checkin" type="date" onchange="calcTotal();updateWizSummary()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Check-out <span class="req-star">*</span></label>
+              <input class="form-control" id="f-checkout" type="date" onchange="calcTotal();updateWizSummary()">
+            </div>
+            <div class="form-group form-full" id="wiz-nights-badge-wrap" style="display:none;">
+              <div class="wiz-nights-badge">
+                <i data-lucide="moon" style="width:18px;height:18px;color:var(--marca);flex-shrink:0;"></i>
+                <div>
+                  <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--marca);font-weight:700;">Duração</div>
+                  <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--azul);font-weight:700;"><span id="wiz-nights-val">0</span> noites</div>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nº de Hóspedes <span class="req-star">*</span></label>
+              <input class="form-control" id="f-num-hospedes" type="number" min="1" max="20" value="2" onchange="calcTotal();renderExtraGuests()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Pequeno-almoço</label>
+              <select class="form-control" id="f-breakfast" onchange="calcTotal()">
+                <option value="false">Não incluído</option>
+                <option value="true">Incluído</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Canal</label>
+              <select class="form-control" id="f-canal">
+                <option value="airbnb">Airbnb</option>
+                <option value="booking">Booking.com</option>
+                <option value="direto">Direto</option>
+                <option value="expedia">Expedia</option>
+                <option value="vrbo">VRBO</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Suite selection (visual cards) -->
+          <div style="margin-top:18px;">
+            <label class="form-label">Alojamento <span class="req-star">*</span></label>
+            <select id="f-aloj" style="display:none;" onchange="calcTotal();updateWizSummary()"></select>
+            <div class="suite-cards" id="suite-cards-grid"></div>
+          </div>
+        </div>
+
+        <!-- ── STEP 2: HÓSPEDES ── -->
+        <div class="wiz-panel" id="wiz-panel-2">
           <h3 class="wiz-panel-title">Hóspede Principal</h3>
 
           <div class="form-group form-full" style="margin-bottom:18px;">
@@ -1455,13 +1690,9 @@
           </div>
 
           <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">Nome <span class="req-star">*</span></label>
-              <input class="form-control" id="f-primeiro-nome" placeholder="Primeiro nome" oninput="updateWizSummary()">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Apelido <span class="req-star">*</span></label>
-              <input class="form-control" id="f-apelido" placeholder="Apelido" oninput="updateWizSummary()">
+            <div class="form-group form-full">
+              <label class="form-label">Nome Completo <span class="req-star">*</span></label>
+              <input class="form-control" id="f-nome-completo" placeholder="Nome completo do hóspede" oninput="updateWizSummary()">
             </div>
             <div class="form-group">
               <label class="form-label">Email <span class="req-star">*</span></label>
@@ -1521,61 +1752,6 @@
               <label class="form-label">Localidade</label>
               <input class="form-control" id="f-cidade" placeholder="Lisboa">
             </div>
-          </div>
-        </div>
-
-        <!-- ── STEP 2: ESTADIA ── -->
-        <div class="wiz-panel" id="wiz-panel-2">
-          <h3 class="wiz-panel-title">Datas & Alojamento</h3>
-
-          <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">Check-in <span class="req-star">*</span></label>
-              <input class="form-control" id="f-checkin" type="date" onchange="calcTotal();updateWizSummary()">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Check-out <span class="req-star">*</span></label>
-              <input class="form-control" id="f-checkout" type="date" onchange="calcTotal();updateWizSummary()">
-            </div>
-            <div class="form-group form-full" id="wiz-nights-badge-wrap" style="display:none;">
-              <div class="wiz-nights-badge">
-                <i data-lucide="moon" style="width:18px;height:18px;color:var(--marca);flex-shrink:0;"></i>
-                <div>
-                  <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--marca);font-weight:700;">Duração</div>
-                  <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--azul);font-weight:700;"><span id="wiz-nights-val">0</span> noites</div>
-                </div>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Canal</label>
-              <select class="form-control" id="f-canal">
-                <option value="airbnb">Airbnb</option>
-                <option value="booking">Booking.com</option>
-                <option value="direto">Direto</option>
-                <option value="expedia">Expedia</option>
-                <option value="vrbo">VRBO</option>
-                <option value="outro">Outro</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Nº de Hóspedes</label>
-              <input class="form-control" id="f-num-hospedes" type="number" min="1" max="20" value="2" onchange="calcTotal();renderExtraGuests()">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Pequeno-almoço</label>
-              <select class="form-control" id="f-breakfast" onchange="calcTotal()">
-                <option value="false">Não incluído</option>
-                <option value="true">Incluído</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Suite selection (visual cards) -->
-          <div style="margin-top:18px;">
-            <label class="form-label">Alojamento <span class="req-star">*</span></label>
-            <!-- Hidden select kept for save compatibility -->
-            <select id="f-aloj" style="display:none;" onchange="calcTotal();updateWizSummary()"></select>
-            <div class="suite-cards" id="suite-cards-grid"></div>
           </div>
 
           <!-- Extra guests -->
@@ -1749,6 +1925,9 @@
   <div class="side-drawer-item" onclick="showView('despesas');closeSideDrawer()">
     <i data-lucide="receipt"></i> Despesas
   </div>
+  <div class="side-drawer-item" onclick="showView('relatorios');closeSideDrawer()">
+    <i data-lucide="bar-chart-3"></i> Relatórios
+  </div>
   <div class="side-drawer-item" onclick="showView('emails');closeSideDrawer()">
     <i data-lucide="mail"></i> Emails
   </div>
@@ -1771,6 +1950,8 @@
 <script src="js/emails.js"></script>
 <script src="js/despesas.js"></script>
 <script src="js/team.js"></script>
+<script src="js/relatorios.js"></script>
+<script src="js/notifications.js"></script>
 <script src="js/app.js"></script>
 
 </body>

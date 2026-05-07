@@ -1,9 +1,10 @@
-let sortCol = 'check_in';
-let sortAsc = true;
-let mobileChipFilter = '';
+let sortCol = SS.get('res:sort', 'check_in');
+let sortAsc = SS.get('res:asc', true);
+let mobileChipFilter = SS.get('res:chip', '');
 
 function setMobileChip(el, filter) {
   mobileChipFilter = filter;
+  SS.set('res:chip', filter);
   document.querySelectorAll('.mobile-filter-chips .chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
   renderMobileCards();
@@ -131,6 +132,16 @@ function buildCountrySelects() {
 }
 
 async function loadReservas() {
+  // Restore persisted filters
+  const sv = (id, key) => { const el = document.getElementById(id); if (el && !el.value) el.value = SS.get(key, ''); };
+  sv('search-input', 'res:q'); sv('filter-estado', 'res:fe'); sv('filter-suite', 'res:fs');
+  sv('filter-canal', 'res:fc'); sv('filter-pagamento', 'res:fp');
+  sv('filter-date-from', 'res:fd'); sv('filter-date-to', 'res:ft');
+  // Restore sort icon
+  document.querySelectorAll('.sort-icon').forEach(el => el.textContent = '');
+  const sIcon = document.getElementById('sort-' + sortCol);
+  if (sIcon) sIcon.textContent = sortAsc ? '↑' : '↓';
+
   document.getElementById('tabela-loading').style.display = 'flex';
   document.getElementById('tabela-body').innerHTML = '';
   document.getElementById('tabela-empty').style.display = 'none';
@@ -151,6 +162,8 @@ function sortTabela(col) {
     sortCol = col;
     sortAsc = true;
   }
+  SS.set('res:sort', sortCol);
+  SS.set('res:asc', sortAsc);
   document.querySelectorAll('.sort-icon').forEach(el => el.textContent = '');
   const icon = document.getElementById('sort-' + col);
   if (icon) icon.textContent = sortAsc ? '↑' : '↓';
@@ -165,6 +178,9 @@ function renderTabela() {
   const fp = (document.getElementById('filter-pagamento')|| { value: '' }).value;
   const fd = (document.getElementById('filter-date-from')|| { value: '' }).value;
   const ft = (document.getElementById('filter-date-to')  || { value: '' }).value;
+  SS.set('res:q', document.getElementById('search-input')?.value || '');
+  SS.set('res:fe', fe); SS.set('res:fs', fs); SS.set('res:fc', fc);
+  SS.set('res:fp', fp); SS.set('res:fd', fd); SS.set('res:ft', ft);
 
   let data = reservas.filter(r => {
     const matchQ = !q || (r.guest_name + ' ' + r.id + ' ' + (r.guest_email || '') + ' ' + r.accommodation_name).toLowerCase().includes(q);
@@ -256,7 +272,7 @@ function updateForeignRequirements() {
 }
 
 function _resetGuestFields() {
-  ['f-primeiro-nome','f-apelido','f-email','f-tel-num',
+  ['f-nome-completo','f-email','f-tel-num',
    'f-doc-num','f-local-nascimento','f-nascimento','f-nif','f-morada','f-cp','f-cidade','f-notas'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
@@ -354,7 +370,7 @@ function openModalFromCalendar(checkIn, accommodationId = '') {
     checkIn,
     checkOut: addDaysToIsoDate(checkIn, 1),
     accommodationId,
-    step: 2
+    step: 1
   });
 }
 
@@ -372,8 +388,8 @@ async function openEditModal(id) {
     _resetGuestFields();
 
     const nameParts = (r.guest_name || '').trim().split(' ');
-    document.getElementById('f-primeiro-nome').value = guestFull.first_name || nameParts[0] || '';
-    document.getElementById('f-apelido').value        = guestFull.last_name  || nameParts.slice(1).join(' ') || '';
+    const nomeFull = [guestFull.first_name || nameParts[0], guestFull.last_name || nameParts.slice(1).join(' ')].filter(Boolean).join(' ');
+    document.getElementById('f-nome-completo').value = nomeFull || r.guest_name || '';
     document.getElementById('f-email').value          = r.guest_email || '';
     // Split stored phone into prefix + number
     const rawPhone = r.guest_phone || guestFull.phone || '';
@@ -436,17 +452,18 @@ async function openEditModal(id) {
       if (!rows[idx]) return;
       const row = rows[idx];
       const setVal = (field, val) => { const el = row.querySelector(`[data-field="${field}"]`); if (el) el.value = val || ''; };
-      setVal('first_name', g.first_name || (g.name || '').split(' ')[0]);
-      setVal('last_name',  g.last_name  || (g.name || '').split(' ').slice(1).join(' '));
+      setVal('nome_completo', [g.first_name, g.last_name].filter(Boolean).join(' ') || g.name || '');
       setVal('email',      g.email);
       const rawP = g.phone || '';
       const mc = DIAL_COUNTRIES.find(c => rawP.startsWith(c.dial));
       setVal('tel_prefix', mc ? mc.dial : '+351');
       setVal('tel_num', mc ? rawP.slice(mc.dial.length).trim() : rawP);
       setVal('country',        g.country || g.nationality);
+      setVal('birth_date',     g.birth_date);
+      setVal('birth_city',     g.birth_city);
       setVal('doc_type',       g.document_type);
       setVal('doc_number',     g.document_number);
-      setVal('birth_date',     g.birth_date);
+      setVal('doc_emissor',    g.document_issuer_country);
       setVal('nif',            g.nif);
     });
 
@@ -603,15 +620,16 @@ function renderExtraGuests() {
   wrap.style.display = '';
 
   const existing = Array.from(container.querySelectorAll('.extra-guest-row')).map(row => ({
-    first_name:      row.querySelector('[data-field="first_name"]')?.value      || '',
-    last_name:       row.querySelector('[data-field="last_name"]')?.value       || '',
+    nome_completo:   row.querySelector('[data-field="nome_completo"]')?.value   || '',
     email:           row.querySelector('[data-field="email"]')?.value           || '',
     tel_prefix:      row.querySelector('[data-field="tel_prefix"]')?.value      || '+351',
     tel_num:         row.querySelector('[data-field="tel_num"]')?.value         || '',
     country:         row.querySelector('[data-field="country"]')?.value         || '',
+    birth_date:      row.querySelector('[data-field="birth_date"]')?.value      || '',
+    birth_city:      row.querySelector('[data-field="birth_city"]')?.value      || '',
     doc_type:        row.querySelector('[data-field="doc_type"]')?.value        || '',
     doc_number:      row.querySelector('[data-field="doc_number"]')?.value      || '',
-    birth_date:      row.querySelector('[data-field="birth_date"]')?.value      || '',
+    doc_emissor:     row.querySelector('[data-field="doc_emissor"]')?.value     || '',
     nif:             row.querySelector('[data-field="nif"]')?.value             || '',
   }));
 
@@ -623,36 +641,50 @@ function renderExtraGuests() {
 
   container.innerHTML = '';
   for (let i = 2; i <= n; i++) {
-    const p = existing[i - 2] || {};
+    const idx = i - 2;
+    const p = existing[idx] || {};
     container.innerHTML += `
-      <div class="extra-guest-row" style="background:var(--cinza-claro);border-radius:10px;padding:14px;margin-bottom:12px;">
+      <div class="extra-guest-row" data-extra-idx="${idx}" style="background:var(--cinza-claro);border-radius:10px;padding:14px;margin-bottom:12px;">
         <div style="font-size:12px;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Hóspede ${i}</div>
+        <div class="form-group form-full" style="margin-bottom:12px;">
+          <label class="form-label">Pesquisa rápida (hóspede existente)</label>
+          <div class="guest-search-wrap">
+            <input class="form-control extra-guest-search-input" placeholder="Nome, email ou telefone…" autocomplete="off"
+              oninput="extraGuestSearch(this.value,${idx})">
+            <div class="guest-drop" id="extra-guest-drop-${idx}"></div>
+          </div>
+        </div>
         <div class="form-grid" style="margin:0;gap:12px;">
-          <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Nome</label>
-            <input class="form-control" data-field="first_name" placeholder="Primeiro nome" value="${p.first_name || ''}">
+          <div class="form-group form-full" style="margin-bottom:0;">
+            <label class="form-label">Nome Completo <span class="req-star">*</span></label>
+            <input class="form-control" data-field="nome_completo" placeholder="Nome completo" value="${p.nome_completo || ''}">
           </div>
           <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Apelido</label>
-            <input class="form-control" data-field="last_name" placeholder="Apelido" value="${p.last_name || ''}">
-          </div>
-          <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Email</label>
+            <label class="form-label">Email <span class="req-star">*</span></label>
             <input class="form-control" data-field="email" type="email" placeholder="email@exemplo.com" value="${p.email || ''}">
           </div>
           <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Telefone</label>
+            <label class="form-label">Telefone <span class="req-star">*</span></label>
             <div class="phone-group">
               <select class="form-control phone-prefix" data-field="tel_prefix">${prefixOpts}</select>
               <input class="form-control phone-number" data-field="tel_num" type="tel" placeholder="912 345 678" value="${p.tel_num || ''}">
             </div>
           </div>
           <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">País</label>
-            <select class="form-control guest-country" data-field="country">${countryOpts}</select>
+            <label class="form-label">País <span class="req-star">*</span></label>
+            <select class="form-control guest-country" data-field="country"
+              onchange="updateExtraForeignReqs(this.closest('.extra-guest-row'))">${countryOpts}</select>
           </div>
           <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Tipo de Documento</label>
+            <label class="form-label">Data de Nascimento <span class="req-foreign-extra" style="display:none;color:var(--vermelho)">*</span></label>
+            <input class="form-control" data-field="birth_date" type="date" value="${p.birth_date || ''}" onchange="calcTotal()">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Local de Nascimento <span class="req-foreign-extra" style="display:none;color:var(--vermelho)">*</span></label>
+            <input class="form-control" data-field="birth_city" placeholder="Cidade de nascimento" value="${p.birth_city || ''}">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Tipo de Documento <span class="req-foreign-extra" style="display:none;color:var(--vermelho)">*</span></label>
             <select class="form-control" data-field="doc_type">
               <option value="">— Selecionar —</option>
               <option value="cc">Cartão de Cidadão</option>
@@ -663,12 +695,12 @@ function renderExtraGuests() {
             </select>
           </div>
           <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Nº de Documento</label>
+            <label class="form-label">Nº de Documento <span class="req-foreign-extra" style="display:none;color:var(--vermelho)">*</span></label>
             <input class="form-control" data-field="doc_number" placeholder="XX000000" value="${p.doc_number || ''}">
           </div>
           <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Data de Nascimento</label>
-            <input class="form-control" data-field="birth_date" type="date" value="${p.birth_date || ''}" onchange="calcTotal()">
+            <label class="form-label">País Emissor do Documento <span class="req-foreign-extra" style="display:none;color:var(--vermelho)">*</span></label>
+            <select class="form-control" data-field="doc_emissor">${countryOpts}</select>
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">NIF</label>
@@ -678,7 +710,7 @@ function renderExtraGuests() {
       </div>`;
   }
 
-  // Restore select values after DOM insertion
+  // Restore select values + update foreign requirements after DOM insertion
   container.querySelectorAll('.extra-guest-row').forEach((row, idx) => {
     const p = existing[idx] || {};
     const prefixSel = row.querySelector('[data-field="tel_prefix"]');
@@ -687,9 +719,83 @@ function renderExtraGuests() {
     if (countrySel && p.country) countrySel.value = p.country;
     const docSel = row.querySelector('[data-field="doc_type"]');
     if (docSel && p.doc_type) docSel.value = p.doc_type;
+    const emissorSel = row.querySelector('[data-field="doc_emissor"]');
+    if (emissorSel && p.doc_emissor) emissorSel.value = p.doc_emissor;
+    updateExtraForeignReqs(row);
   });
 
   if (window.lucide) lucide.createIcons();
+}
+
+function updateExtraForeignReqs(row) {
+  const isForeign = (row.querySelector('[data-field="country"]')?.value || '') !== 'Portugal'
+    && row.querySelector('[data-field="country"]')?.value !== '';
+  row.querySelectorAll('.req-foreign-extra').forEach(el => {
+    el.style.display = isForeign ? '' : 'none';
+  });
+}
+
+// ── EXTRA GUEST SEARCH ──
+const _extraSearchTimers = {};
+const _extraSearchResultsMap = {};
+
+async function extraGuestSearch(q, idx) {
+  const drop = document.getElementById(`extra-guest-drop-${idx}`);
+  if (!drop) return;
+  if (!q || q.length < 2) {
+    _extraSearchResultsMap[idx] = [];
+    drop.innerHTML = '';
+    drop.classList.remove('open');
+    return;
+  }
+  clearTimeout(_extraSearchTimers[idx]);
+  _extraSearchTimers[idx] = setTimeout(async () => {
+    try {
+      const data = await apiGet(`/api/guests?search=${encodeURIComponent(q)}`);
+      _extraSearchResultsMap[idx] = (data.data || []).slice(0, 8);
+      if (!_extraSearchResultsMap[idx].length) {
+        drop.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--cinza);">Sem resultados</div>';
+        drop.classList.add('open');
+        return;
+      }
+      drop.innerHTML = _extraSearchResultsMap[idx].map((g, gIdx) => {
+        const name = [g.first_name, g.last_name].filter(Boolean).join(' ') || g.name || '—';
+        const meta = [g.email, g.phone].filter(Boolean).join(' · ');
+        return `<div class="guest-drop-item" onclick="extraGuestSelect(${idx},${gIdx})">
+          <div class="gdi-name">${name.replace(/</g,'&lt;')}</div>
+          <div class="gdi-meta">${meta.replace(/</g,'&lt;')}</div>
+        </div>`;
+      }).join('');
+      drop.classList.add('open');
+    } catch (e) { drop.classList.remove('open'); }
+  }, 280);
+}
+
+function extraGuestSelect(idx, gIdx) {
+  const g = (_extraSearchResultsMap[idx] || [])[gIdx];
+  if (!g) return;
+  const row = document.querySelector(`.extra-guest-row[data-extra-idx="${idx}"]`);
+  if (!row) return;
+  const setVal = (field, val) => { const el = row.querySelector(`[data-field="${field}"]`); if (el) el.value = val || ''; };
+  setVal('nome_completo', [g.first_name, g.last_name].filter(Boolean).join(' ') || g.name || '');
+  setVal('email',       g.email);
+  const rawPhone = g.phone || '';
+  const mc = DIAL_COUNTRIES.find(c => rawPhone.startsWith(c.dial));
+  setVal('tel_prefix',  mc ? mc.dial : '+351');
+  setVal('tel_num',     mc ? rawPhone.slice(mc.dial.length).trim() : rawPhone);
+  setVal('country',     g.country || g.nationality);
+  setVal('birth_date',  g.birth_date);
+  setVal('birth_city',  g.birth_city);
+  setVal('doc_type',    g.document_type);
+  setVal('doc_number',  g.document_number);
+  setVal('doc_emissor', g.document_issuer_country);
+  setVal('nif',         g.nif);
+  updateExtraForeignReqs(row);
+  const drop = document.getElementById(`extra-guest-drop-${idx}`);
+  if (drop) { drop.innerHTML = ''; drop.classList.remove('open'); }
+  const si = row.querySelector('.extra-guest-search-input');
+  if (si) si.value = '';
+  toast('✅ Dados preenchidos.', 'success');
 }
 
 // ── WIZARD FUNCTIONS ──
@@ -750,37 +856,13 @@ function updateWizUI() {
       ? `<i data-lucide="save" style="width:14px;height:14px;"></i> Atualizar Reserva`
       : `<i data-lucide="save" style="width:14px;height:14px;"></i> Guardar Reserva`);
   }
-  if (wizStep === 2) { renderSuiteCards(); calcTotal(); }
+  if (wizStep === 1) { renderSuiteCards(); calcTotal(); }
   if (wizStep === 3) buildWizConfirm();
   if (window.lucide) lucide.createIcons();
 }
 
 function validateWizStep(step) {
   if (step === 1) {
-    if (!document.getElementById('f-primeiro-nome').value.trim())
-      { toast('⚠️ Introduz o primeiro nome do hóspede.', 'error'); return false; }
-    if (!document.getElementById('f-email').value.trim())
-      { toast('⚠️ Introduz o email do hóspede.', 'error'); return false; }
-    if (!document.getElementById('f-tel-num').value.trim())
-      { toast('⚠️ Introduz o telefone do hóspede.', 'error'); return false; }
-    if (!document.getElementById('f-pais').value)
-      { toast('⚠️ Seleciona o país do hóspede.', 'error'); return false; }
-    const isForeign = document.getElementById('f-pais').value !== 'Portugal';
-    if (isForeign) {
-      if (!document.getElementById('f-doc-tipo').value)
-        { toast('⚠️ Seleciona o tipo de documento.', 'error'); return false; }
-      if (!document.getElementById('f-doc-num').value.trim())
-        { toast('⚠️ Introduz o número de documento.', 'error'); return false; }
-      if (!document.getElementById('f-doc-emissor').value)
-        { toast('⚠️ Seleciona o país emissor do documento.', 'error'); return false; }
-      if (!document.getElementById('f-nascimento').value)
-        { toast('⚠️ Introduz a data de nascimento.', 'error'); return false; }
-      if (!document.getElementById('f-local-nascimento').value.trim())
-        { toast('⚠️ Introduz o local de nascimento.', 'error'); return false; }
-    }
-    return true;
-  }
-  if (step === 2) {
     const ci = document.getElementById('f-checkin').value;
     const co = document.getElementById('f-checkout').value;
     if (!ci) { toast('⚠️ Seleciona a data de check-in.', 'error'); return false; }
@@ -789,6 +871,49 @@ function validateWizStep(step) {
     const alojVal = document.getElementById('f-aloj').value;
     if (!alojVal) { toast('⚠️ Seleciona um alojamento.', 'error'); return false; }
     if (_unavailableSuites.has(alojVal)) { toast('⚠️ Este alojamento está ocupado nas datas selecionadas.', 'error'); return false; }
+    return true;
+  }
+  if (step === 2) {
+    if (!document.getElementById('f-nome-completo').value.trim())
+      { toast('⚠️ Introduz o nome completo do hóspede.', 'error'); return false; }
+    if (!document.getElementById('f-email').value.trim())
+      { toast('⚠️ Introduz o email do hóspede.', 'error'); return false; }
+    if (!document.getElementById('f-tel-num').value.trim())
+      { toast('⚠️ Introduz o telefone do hóspede.', 'error'); return false; }
+    if (!document.getElementById('f-pais').value)
+      { toast('⚠️ Seleciona o país do hóspede.', 'error'); return false; }
+    const isForeign = document.getElementById('f-pais').value !== 'Portugal';
+    if (isForeign) {
+      if (!document.getElementById('f-nascimento').value)
+        { toast('⚠️ Data de nascimento obrigatória para hóspedes estrangeiros.', 'error'); return false; }
+      if (!document.getElementById('f-local-nascimento').value.trim())
+        { toast('⚠️ Local de nascimento obrigatório para hóspedes estrangeiros.', 'error'); return false; }
+      if (!document.getElementById('f-doc-tipo').value)
+        { toast('⚠️ Tipo de documento obrigatório para hóspedes estrangeiros.', 'error'); return false; }
+      if (!document.getElementById('f-doc-num').value.trim())
+        { toast('⚠️ Nº de documento obrigatório para hóspedes estrangeiros.', 'error'); return false; }
+      if (!document.getElementById('f-doc-emissor').value)
+        { toast('⚠️ País emissor do documento obrigatório para hóspedes estrangeiros.', 'error'); return false; }
+    }
+    // Validate extra guests
+    let extraIdx = 2;
+    for (const row of document.querySelectorAll('.extra-guest-row')) {
+      const nome = row.querySelector('[data-field="nome_completo"]')?.value.trim();
+      const country = row.querySelector('[data-field="country"]')?.value;
+      if (!nome) { toast(`⚠️ Introduz o nome do hóspede ${extraIdx}.`, 'error'); return false; }
+      if (!country) { toast(`⚠️ Seleciona o país do hóspede ${extraIdx}.`, 'error'); return false; }
+      if (country !== 'Portugal') {
+        if (!row.querySelector('[data-field="birth_date"]')?.value)
+          { toast(`⚠️ Data de nascimento obrigatória para o hóspede ${extraIdx} (estrangeiro).`, 'error'); return false; }
+        if (!row.querySelector('[data-field="doc_type"]')?.value)
+          { toast(`⚠️ Tipo de documento obrigatório para o hóspede ${extraIdx} (estrangeiro).`, 'error'); return false; }
+        if (!row.querySelector('[data-field="doc_number"]')?.value.trim())
+          { toast(`⚠️ Nº de documento obrigatório para o hóspede ${extraIdx} (estrangeiro).`, 'error'); return false; }
+        if (!row.querySelector('[data-field="doc_emissor"]')?.value)
+          { toast(`⚠️ País emissor obrigatório para o hóspede ${extraIdx} (estrangeiro).`, 'error'); return false; }
+      }
+      extraIdx++;
+    }
     return true;
   }
   return true;
@@ -814,8 +939,8 @@ function wizPrev() {
 }
 
 function updateWizSummary() {
-  const nome = (document.getElementById('f-primeiro-nome')?.value || '').trim();
-  const apelido = (document.getElementById('f-apelido')?.value || '').trim();
+  const nome = (document.getElementById('f-nome-completo')?.value || '').trim();
+  const apelido = '';
   const alojId = document.getElementById('f-aloj')?.value;
   const suite = accommodations.find(a => a.id === alojId);
   const ci = document.getElementById('f-checkin')?.value;
@@ -847,11 +972,15 @@ function renderSuiteCards() {
     const sel = !unavail && currentAlojId === a.id ? 'selected' : '';
     const cls = `suite-card-opt${sel ? ' selected' : ''}${unavail ? ' unavailable' : ''}`;
     const click = unavail ? '' : `onclick="selectSuiteCard('${a.id}')"`;
+    const coverUrl = a.cover_image ? (a.cover_image.startsWith('http') ? a.cover_image : API_BASE + a.cover_image) : '';
     return `<div class="${cls}" ${click} title="${unavail ? 'Indisponível nas datas selecionadas' : a.name}">
       <div class="suite-check"><i data-lucide="check" style="width:10px;height:10px;color:#fff;"></i></div>
-      ${unavail
-        ? `<div style="font-size:16px;margin-bottom:6px;">🔒</div>`
-        : `<div style="width:10px;height:10px;border-radius:50%;background:${cor};margin-bottom:8px;"></div>`}
+      ${coverUrl
+        ? `<img src="${coverUrl}" class="suite-card-cover" alt="${a.name}">`
+        : unavail
+          ? `<div style="font-size:16px;margin-bottom:6px;">🔒</div>`
+          : `<div style="width:10px;height:10px;border-radius:50%;background:${cor};margin-bottom:8px;"></div>`}
+      ${unavail ? `<div class="suite-card-lock">🔒</div>` : ''}
       <div class="suite-card-name">${a.name}</div>
       ${unavail
         ? `<div class="suite-card-unavail-lbl">Indisponível</div>`
@@ -871,8 +1000,8 @@ function selectSuiteCard(id) {
 
 function buildWizConfirm() {
   calcTotal();
-  const nome = document.getElementById('f-primeiro-nome')?.value || '';
-  const apelido = document.getElementById('f-apelido')?.value || '';
+  const nome = (document.getElementById('f-nome-completo')?.value || '').trim();
+  const apelido = '';
   const email = document.getElementById('f-email')?.value || '';
   const prefix = document.getElementById('f-tel-prefix')?.value || '';
   const telNum = document.getElementById('f-tel-num')?.value || '';
@@ -953,8 +1082,7 @@ async function wizGuestSearch(q) {
 function wizSelectGuest(idx) {
   const g = _guestSearchResults[idx];
   if (!g) return;
-  document.getElementById('f-primeiro-nome').value = g.first_name || '';
-  document.getElementById('f-apelido').value = g.last_name || '';
+  document.getElementById('f-nome-completo').value = [g.first_name, g.last_name].filter(Boolean).join(' ') || g.name || '';
   document.getElementById('f-email').value = g.email || '';
   const rawPhone = g.phone || '';
   const mc = DIAL_COUNTRIES.find(c => rawPhone.startsWith(c.dial));
@@ -983,38 +1111,48 @@ function wizSelectGuest(idx) {
   toast('✅ Dados do hóspede preenchidos.', 'success');
 }
 
-// Close guest dropdown when clicking outside
+// Close guest dropdowns when clicking outside
 document.addEventListener('click', function(e) {
-  const drop = document.getElementById('wiz-guest-drop');
-  const wrap = document.getElementById('wiz-guest-search')?.closest('.guest-search-wrap');
-  if (drop && wrap && !wrap.contains(e.target)) drop.classList.remove('open');
+  const mainDrop = document.getElementById('wiz-guest-drop');
+  const mainWrap = document.getElementById('wiz-guest-search')?.closest('.guest-search-wrap');
+  if (mainDrop && mainWrap && !mainWrap.contains(e.target)) mainDrop.classList.remove('open');
+  document.querySelectorAll('.extra-guest-row').forEach(row => {
+    const wrap = row.querySelector('.guest-search-wrap');
+    const idx = row.dataset.extraIdx;
+    const drop = document.getElementById(`extra-guest-drop-${idx}`);
+    if (drop && wrap && !wrap.contains(e.target)) drop.classList.remove('open');
+  });
 });
 
 function collectExtraGuests() {
   return Array.from(document.querySelectorAll('.extra-guest-row')).map(row => {
-    const first_name  = row.querySelector('[data-field="first_name"]')?.value  || '';
-    const last_name   = row.querySelector('[data-field="last_name"]')?.value   || '';
-    const tel_prefix  = row.querySelector('[data-field="tel_prefix"]')?.value  || '';
-    const tel_num     = row.querySelector('[data-field="tel_num"]')?.value     || '';
+    const nomeCompleto = (row.querySelector('[data-field="nome_completo"]')?.value || '').trim();
+    const parts        = nomeCompleto.split(' ');
+    const tel_prefix   = row.querySelector('[data-field="tel_prefix"]')?.value  || '';
+    const tel_num      = row.querySelector('[data-field="tel_num"]')?.value     || '';
     return {
-      name:           (first_name + ' ' + last_name).trim(),
-      first_name,
-      last_name,
-      email:          row.querySelector('[data-field="email"]')?.value          || '',
-      phone:          tel_prefix + tel_num.replace(/\s/g, ''),
-      nationality:    row.querySelector('[data-field="country"]')?.value        || '',
-      country:        row.querySelector('[data-field="country"]')?.value        || '',
-      document_type:  row.querySelector('[data-field="doc_type"]')?.value      || '',
-      document_number:row.querySelector('[data-field="doc_number"]')?.value    || '',
-      birth_date:     row.querySelector('[data-field="birth_date"]')?.value    || '',
-      nif:            row.querySelector('[data-field="nif"]')?.value           || '',
+      name:                     nomeCompleto,
+      first_name:               parts[0] || '',
+      last_name:                parts.slice(1).join(' '),
+      email:                    row.querySelector('[data-field="email"]')?.value          || '',
+      phone:                    tel_prefix + tel_num.replace(/\s/g, ''),
+      nationality:              row.querySelector('[data-field="country"]')?.value        || '',
+      country:                  row.querySelector('[data-field="country"]')?.value        || '',
+      birth_date:               row.querySelector('[data-field="birth_date"]')?.value    || '',
+      birth_city:               row.querySelector('[data-field="birth_city"]')?.value    || '',
+      document_type:            row.querySelector('[data-field="doc_type"]')?.value      || '',
+      document_number:          row.querySelector('[data-field="doc_number"]')?.value    || '',
+      document_issuer_country:  row.querySelector('[data-field="doc_emissor"]')?.value   || '',
+      nif:                      row.querySelector('[data-field="nif"]')?.value           || '',
     };
-  }).filter(g => g.first_name || g.email);
+  }).filter(g => g.name || g.email);
 }
 
 async function saveReserva() {
-  const primeiroNome = document.getElementById('f-primeiro-nome').value.trim();
-  const apelido      = document.getElementById('f-apelido').value.trim();
+  const nomeCompleto = document.getElementById('f-nome-completo').value.trim();
+  const nomeParts    = nomeCompleto.split(' ');
+  const primeiroNome = nomeParts[0] || '';
+  const apelido      = nomeParts.slice(1).join(' ');
   const email        = document.getElementById('f-email').value.trim();
   const telPrefix    = document.getElementById('f-tel-prefix')?.value || '';
   const telNum       = document.getElementById('f-tel-num')?.value.trim() || '';
@@ -1025,8 +1163,7 @@ async function saveReserva() {
   const alojId   = document.getElementById('f-aloj').value;
   const rgpdCheck = document.getElementById('f-rgpd-check');
 
-  if (!primeiroNome) { toast('Por favor insira o nome do hóspede.', 'error'); return; }
-  if (!apelido)      { toast('Por favor insira o apelido do hóspede.', 'error'); return; }
+  if (!nomeCompleto) { toast('Por favor insira o nome do hóspede.', 'error'); return; }
   if (!email)        { toast('Por favor insira o email do hóspede.', 'error'); return; }
   if (!telNum)       { toast('Por favor insira o telefone do hóspede.', 'error'); return; }
   if (!pais)         { toast('Por favor selecione o país do hóspede.', 'error'); return; }
@@ -1057,7 +1194,7 @@ async function saveReserva() {
     return;
   }
 
-  const nomeFull = (primeiroNome + ' ' + apelido).trim();
+  const nomeFull = nomeCompleto;
   const btn = document.getElementById('btn-guardar');
   btn.disabled = true;
   btn.textContent = '⏳ A guardar...';
@@ -1288,4 +1425,74 @@ async function reativarReserva(id) {
   } catch (e) {
     toast('❌ Erro de ligação ao servidor.', 'error');
   }
+}
+
+function _getFilteredReservasForExport() {
+  const q  = (document.getElementById('search-input')?.value || '').toLowerCase();
+  const fe = document.getElementById('filter-estado')?.value || '';
+  const fs = document.getElementById('filter-suite')?.value || '';
+  const fc = document.getElementById('filter-canal')?.value || '';
+  const fp = document.getElementById('filter-pagamento')?.value || '';
+  const fd = document.getElementById('filter-date-from')?.value || '';
+  const ft = document.getElementById('filter-date-to')?.value || '';
+  return reservas.filter(r => {
+    const matchQ = !q  || (r.guest_name + ' ' + r.id + ' ' + (r.guest_email||'') + ' ' + r.accommodation_name).toLowerCase().includes(q);
+    return matchQ &&
+      (!fe || r.status === fe) &&
+      (!fs || r.accommodation_id === fs) &&
+      (!fc || r.channel === fc) &&
+      (!fp || r.payment_status === fp) &&
+      (!fd || r.check_in >= fd) &&
+      (!ft || r.check_out <= ft);
+  });
+}
+
+function exportReservasXLS() {
+  if (typeof XLSX === 'undefined') { toast('❌ Biblioteca XLSX não carregada.', 'error'); return; }
+  const data = _getFilteredReservasForExport();
+  const rows = data.map(r => ({
+    'ID':             r.id,
+    'Hóspede':        r.guest_name,
+    'Email':          r.guest_email || '',
+    'Alojamento':     r.accommodation_name,
+    'Check-in':       r.check_in,
+    'Check-out':      r.check_out,
+    'Noites':         r.nights,
+    'Hóspedes':       r.num_guests,
+    'Canal':          r.channel,
+    'Estado':         r.status,
+    'Pagamento':      r.payment_status,
+    'Total (€)':      r.total_amount,
+    'Pago (€)':       r.amount_paid,
+    'Em falta (€)':   Math.max(0, r.total_amount - r.amount_paid),
+    'Notas':          r.notes || '',
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Reservas');
+  XLSX.writeFile(wb, `reservas_${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('📊 Excel exportado!', 'success');
+}
+
+function exportReservasPDF() {
+  if (typeof window.jspdf === 'undefined') { toast('❌ Biblioteca jsPDF não carregada.', 'error'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc  = new jsPDF({ orientation: 'landscape' });
+  const data = _getFilteredReservasForExport();
+  doc.setFontSize(16); doc.text('Reservas — Santa Paciência', 14, 18);
+  doc.setFontSize(10); doc.text(`Exportado em ${new Date().toLocaleDateString('pt-PT')} · ${data.length} reserva${data.length !== 1 ? 's' : ''}`, 14, 26);
+  doc.autoTable({
+    startY: 32,
+    styles: { fontSize: 8, cellPadding: 3 },
+    headStyles: { fillColor: [132, 52, 36], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [252, 250, 248] },
+    head: [['ID','Hóspede','Alojamento','Check-in','Check-out','Noites','Canal','Estado','Total']],
+    body: data.map(r => [
+      r.id, r.guest_name, r.accommodation_name,
+      r.check_in, r.check_out, r.nights, r.channel, r.status,
+      '€' + Number(r.total_amount).toFixed(2),
+    ]),
+  });
+  doc.save(`reservas_${new Date().toISOString().slice(0,10)}.pdf`);
+  toast('📄 PDF exportado!', 'success');
 }

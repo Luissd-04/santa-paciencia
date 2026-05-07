@@ -1,11 +1,8 @@
-let calMode = 'calendar';
-let timelineStart = new Date();
-timelineStart.setHours(0, 0, 0, 0);
+let calMode = SS.get('calMode', 'calendar');
 let tlPointerDrag = null;
-
-let timelineDays   = 14;
-const TL_LABEL_W   = 190;
-const TL_DAY_W     = 52;
+let timelineDays  = SS.get('tlDays', 14);
+const TL_LABEL_W  = 190;
+const TL_ZOOM     = { 7: 80, 14: 48, 30: 24 };
 
 function getCalendarFilters() {
   return {
@@ -55,28 +52,56 @@ function toggleCalendarLegendFilter(status) {
 }
 
 function setTimelineRange(days) {
+  const wrap = document.getElementById('timeline-wrap');
+  const oldDayW = getTimelineDayWidth();
+  const centerOffset = wrap ? wrap.scrollLeft + (wrap.clientWidth - TL_LABEL_W) / 2 - TL_LABEL_W : 0;
+  const centerDayIdx = oldDayW > 0 ? centerOffset / oldDayW : 0;
+
   timelineDays = Number(days);
+  SS.set('tlDays', timelineDays);
   updateTimelineRangeUi();
+
   if (calMode === 'timeline') {
-    updateTimelineLabel();
-    renderTimeline();
+    const newDayW = getTimelineDayWidth();
+    renderTimeline(false);
+    requestAnimationFrame(() => {
+      if (wrap) wrap.scrollLeft = TL_LABEL_W + centerDayIdx * newDayW - (wrap.clientWidth - TL_LABEL_W) / 2;
+    });
   }
 }
 
 function getTimelineDayWidth() {
+  return TL_ZOOM[timelineDays] || 48;
+}
+
+function scrollTimelineToToday(dayW) {
   const wrap = document.getElementById('timeline-wrap');
-  const usable = Math.max(0, (wrap?.clientWidth || 0) - TL_LABEL_W - 4);
-  if (!usable) return TL_DAY_W;
-  if (timelineDays <= 14) {
-    return Math.max(TL_DAY_W, Math.floor(usable / timelineDays));
-  }
-  return TL_DAY_W;
+  if (!wrap) return;
+  const today = new Date();
+  const yearStart = new Date(today.getFullYear(), 0, 1);
+  const dayOfYear = Math.floor((today - yearStart) / 86400000);
+  const todayX = TL_LABEL_W + dayOfYear * dayW;
+  wrap.scrollLeft = Math.max(0, todayX - TL_LABEL_W - 2 * dayW);
 }
 
 // ── PUBLIC ENTRY POINT ──
 function renderCalView() {
-  document.querySelector('.section-card-calendar')?.classList.toggle('is-timeline-mode', calMode === 'timeline');
-  if (calMode === 'timeline') renderTimeline();
+  const filterEl    = document.getElementById('cal-status-filter');
+
+  const calWrap     = document.querySelector('.cal-wrap');
+  const agendaWrap  = document.getElementById('calendar-agenda-mobile');
+  const tlWrap      = document.getElementById('timeline-wrap');
+  const rangeToggle = document.getElementById('timeline-range-toggle');
+  const toTimeline  = calMode === 'timeline';
+
+  if (calWrap)     calWrap.style.display     = toTimeline ? 'none' : '';
+  if (tlWrap)      tlWrap.style.display      = toTimeline ? '' : 'none';
+  if (agendaWrap)  agendaWrap.style.display  = toTimeline ? 'none' : '';
+  if (rangeToggle) rangeToggle.style.display = toTimeline ? '' : 'none';
+
+  document.querySelector('.section-card-calendar')?.classList.toggle('is-timeline-mode', toTimeline);
+  updateCalendarModeUi();
+  if (toTimeline) { updateTimelineRangeUi(); updateTimelineLabel(); renderTimeline(); }
   else renderCal();
   requestAnimationFrame(movePill);
 }
@@ -95,6 +120,7 @@ function movePill() {
 
 function setCalMode(m) {
   calMode = m;
+  SS.set('calMode', m);
   updateCalendarModeUi();
   movePill();
   document.querySelector('.section-card-calendar')?.classList.toggle('is-timeline-mode', m === 'timeline');
@@ -140,6 +166,8 @@ function setCalMode(m) {
 
 // ── CALENDAR ──
 function renderCal() {
+  SS.set('calYear', calYear);
+  SS.set('calMonth', calMonth);
   const filters = getCalendarFilters();
   updateCalendarLegendUi();
   const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -263,14 +291,17 @@ function renderCal() {
         ).length;
         if (extra > 0) {
           const topPx = visLanes * (LANE_H + LANE_GAP);
-          eventHtml += `<div class="cal-event-more" style="left:${(col/7*100).toFixed(2)}%;width:${(100/7).toFixed(2)}%;top:${topPx}px;">+${extra} mais</div>`;
+          eventHtml += `<div class="cal-event-more" style="left:${(col/7*100).toFixed(2)}%;width:${(100/7).toFixed(2)}%;top:${topPx}px;" onclick="event.stopPropagation()">+${extra} mais</div>`;
         }
       });
     }
 
     const numRows    = visLanes + (lanes.length > MAX_LANES ? 1 : 0);
     const containerH = numRows > 0 ? numRows * (LANE_H + LANE_GAP) : 0;
-    const eventsRow  = eventHtml ? `<div class="cal-week-events" style="height:${containerH}px;">${eventHtml}</div>` : '';
+    const clickOverlays = week.map((day, col) =>
+      day.otherMonth ? '' : `<div class="cal-day-click-area" style="left:${(col/7*100).toFixed(2)}%;width:${(100/7).toFixed(2)}%;" onclick="openModalFromCalendar('${day.dateStr}')"></div>`
+    ).join('');
+    const eventsRow  = `<div class="cal-week-events" style="height:${containerH}px;">${clickOverlays}${eventHtml}</div>`;
     const colSeps    = [1,2,3,4,5,6].map(i => `<div class="cal-col-sep" style="left:calc(${i}*100%/7)"></div>`).join('');
     grid.innerHTML += `<div class="cal-week">${colSeps}<div class="cal-week-days">${dayCells}</div>${eventsRow}</div>`;
   }
@@ -320,10 +351,8 @@ function renderCalendarAgenda(monthDays, filters = getCalendarFilters()) {
 
 function calPrev() {
   if (calMode === 'timeline') {
-    timelineStart = new Date(timelineStart);
-    timelineStart.setDate(timelineStart.getDate() - Math.max(3, Math.round(timelineDays / 2)));
-    updateTimelineLabel();
-    renderTimeline();
+    const wrap = document.getElementById('timeline-wrap');
+    if (wrap) wrap.scrollLeft -= (wrap.clientWidth - TL_LABEL_W) * 0.7;
     return;
   }
   calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCal();
@@ -331,10 +360,8 @@ function calPrev() {
 
 function calNext() {
   if (calMode === 'timeline') {
-    timelineStart = new Date(timelineStart);
-    timelineStart.setDate(timelineStart.getDate() + Math.max(3, Math.round(timelineDays / 2)));
-    updateTimelineLabel();
-    renderTimeline();
+    const wrap = document.getElementById('timeline-wrap');
+    if (wrap) wrap.scrollLeft += (wrap.clientWidth - TL_LABEL_W) * 0.7;
     return;
   }
   calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCal();
@@ -342,15 +369,7 @@ function calNext() {
 
 function goToday() {
   if (calMode === 'timeline') {
-    timelineStart = new Date();
-    timelineStart.setHours(0, 0, 0, 0);
-    updateTimelineLabel();
-    renderTimeline();
-    // Scroll to today column after render
-    setTimeout(() => {
-      const wrap = document.getElementById('timeline-wrap');
-      if (wrap) wrap.scrollLeft = 0;
-    }, 50);
+    scrollTimelineToToday(getTimelineDayWidth());
     return;
   }
   calYear = now.getFullYear(); calMonth = now.getMonth(); renderCal();
@@ -359,65 +378,72 @@ function goToday() {
 // ── TIMELINE ──
 function updateTimelineLabel() {
   const label = document.getElementById('cal-label');
-  if (!label) return;
-  const end = new Date(timelineStart);
-  end.setDate(end.getDate() + timelineDays - 1);
-  const ms = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  label.textContent = `${timelineStart.getDate()} ${ms[timelineStart.getMonth()]} — ${end.getDate()} ${ms[end.getMonth()]} ${end.getFullYear()} · janela ${timelineDays} dias`;
+  if (label) label.textContent = `Timeline ${new Date().getFullYear()}`;
 }
 
-function renderTimeline() {
+function renderTimeline(autoScroll = true) {
+  SS.set('tlDays', timelineDays);
   const wrap = document.getElementById('timeline-wrap');
   if (!wrap) return;
 
-  const dayW = getTimelineDayWidth();
+  const dayW    = getTimelineDayWidth();
   const filters = getCalendarFilters();
   updateCalendarLegendUi();
   const filteredReservations = reservas.filter(r => reservationMatchesCalendarFilters(r, filters));
-  const alojList    = filters.suite
+  const alojList = filters.suite
     ? accommodations.filter(a => a.id === filters.suite)
     : accommodations;
 
-  const start    = new Date(timelineStart);
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const dayNames = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const now       = new Date();
+  const year      = now.getFullYear();
+  const yearStart = new Date(year, 0, 1);
+  const totalDays = Math.round((new Date(year + 1, 0, 1) - yearStart) / 86400000);
+  const todayStr  = now.toISOString().slice(0, 10);
+  const startStr  = `${year}-01-01`;
+  const endStr    = `${year + 1}-01-01`;
+  const curMonthStart = `${year}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  const curMonthEnd   = (() => { const d = new Date(year, now.getMonth() + 1, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; })();
 
-  const days = [];
-  for (let i = 0; i < timelineDays; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    days.push(d);
+  const dayNames   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+  // Month header cells
+  let monthCells = '';
+  for (let m = 0; m < 12; m++) {
+    const mDays    = Math.round((new Date(year, m + 1, 1) - new Date(year, m, 1)) / 86400000);
+    const mStart   = `${year}-${String(m + 1).padStart(2, '0')}-01`;
+    const mEnd     = m === 11 ? `${year + 1}-01-01` : `${year}-${String(m + 2).padStart(2, '0')}-01`;
+    const hasToday = todayStr >= mStart && todayStr < mEnd;
+    monthCells += `<div class="tl-month-head${hasToday ? ' tl-month-today' : ''}" style="width:${mDays * dayW}px;min-width:${mDays * dayW}px;">${monthNames[m]}</div>`;
   }
 
-  const endDate = new Date(start);
-  endDate.setDate(endDate.getDate() + timelineDays);
-  const startStr = start.toISOString().slice(0, 10);
-  const endStr   = endDate.toISOString().slice(0, 10);
-
-  const headerDays = days.map(d => {
-    const ds      = d.toISOString().slice(0, 10);
-    const isToday = ds === todayStr;
-    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-    return `<div class="tl-day-head${isToday ? ' tl-today' : ''}${isWeekend ? ' tl-weekend' : ''}" style="width:${dayW}px;min-width:${dayW}px;">
-      <div class="tl-day-name">${dayNames[d.getDay()]}</div>
-      <div class="tl-day-num">${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}</div>
+  // Day header cells
+  let dayCells = '';
+  for (let i = 0; i < totalDays; i++) {
+    const d  = new Date(year, 0, 1 + i);
+    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const isToday      = ds === todayStr;
+    const isWeekend    = d.getDay() === 0 || d.getDay() === 6;
+    const isMonthStart = d.getDate() === 1 && i > 0;
+    dayCells += `<div class="tl-day-head${isToday ? ' tl-today' : ''}${isWeekend ? ' tl-weekend' : ''}${isMonthStart ? ' tl-month-start' : ''}" style="width:${dayW}px;min-width:${dayW}px;">
+      ${dayW >= 40 ? `<div class="tl-day-name">${dayNames[d.getDay()]}</div>` : ''}
+      <div class="tl-day-num">${d.getDate()}</div>
     </div>`;
-  }).join('');
+  }
 
   const ACCOM_COLOR = {};
   accommodations.forEach(a => { ACCOM_COLOR[a.id] = a.color || '#843424'; });
-  const STATUS_BG = {
-    confirmada: '#2e7d52', pendente: '#c47820',
-    'check-in': '#1e6090', 'check-out': '#5a4a8a', outro: '#8a8278'
-  };
 
   const rows = alojList.length === 0
     ? `<div style="padding:40px;text-align:center;color:var(--cinza);">Nenhum alojamento encontrado.</div>`
     : alojList.map(a => {
-        const dayBg = days.map(d => {
-          const ds = d.toISOString().slice(0, 10);
-          return `<div class="tl-cell${ds === todayStr ? ' tl-today-col' : ''}" style="width:${dayW}px;min-width:${dayW}px;" onclick="openModalFromCalendar('${ds}','${a.id}')"></div>`;
-        }).join('');
+        let cellHtml = '';
+        for (let i = 0; i < totalDays; i++) {
+          const d  = new Date(year, 0, 1 + i);
+          const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const isMonthStart = d.getDate() === 1 && i > 0;
+          cellHtml += `<div class="tl-cell${ds === todayStr ? ' tl-today-col' : ''}${isMonthStart ? ' tl-month-start' : ''}" style="width:${dayW}px;min-width:${dayW}px;" onclick="openModalFromCalendar('${ds}','${a.id}')"></div>`;
+        }
 
         const alojReservas = filteredReservations.filter(r =>
           r.accommodation_id === a.id &&
@@ -425,19 +451,21 @@ function renderTimeline() {
           r.check_in  < endStr
         );
 
+        const monthCount = alojReservas.filter(r =>
+          r.check_out > curMonthStart && r.check_in < curMonthEnd
+        ).length;
+
         const blocks = alojReservas.map(r => {
           const ci     = new Date(r.check_in  + 'T00:00:00');
           const co     = new Date(r.check_out + 'T00:00:00');
-          const offset = Math.round((ci - start) / 86400000);
-          const nights = Math.round((co - ci)    / 86400000);
-          const totalWidth = timelineDays * dayW;
-          const startPos = (offset * dayW) + (dayW / 2);
-          const endPos = ((offset + nights) * dayW) + (dayW / 2);
-          const left  = Math.max(0, startPos);
-          const right = Math.min(totalWidth, endPos);
+          const offset = Math.round((ci - yearStart) / 86400000);
+          const nights = Math.round((co - ci) / 86400000);
+          const totalWidth = totalDays * dayW;
+          const left  = Math.max(0, offset * dayW + dayW / 2);
+          const right = Math.min(totalWidth, (offset + nights) * dayW + dayW / 2);
           const width = Math.max(18, right - left - 4);
           if (right <= 0 || left >= totalWidth || width <= 0) return '';
-          const bg    = ACCOM_COLOR[r.accommodation_id] || STATUS_BG[r.status] || STATUS_BG.outro;
+          const bg = ACCOM_COLOR[r.accommodation_id] || '#843424';
           return `<div class="tl-block tl-block-${r.status}" style="left:${left}px;width:${width}px;--tl-color:${bg};background:${bg}18;border-color:${bg}55;"
                        data-res-id="${r.id}"
                        data-acc-id="${r.accommodation_id}"
@@ -458,30 +486,31 @@ function renderTimeline() {
                      data-acc-name="${a.name.replace(/"/g, '&quot;')}">
           <div class="tl-label" style="min-width:${TL_LABEL_W}px;max-width:${TL_LABEL_W}px;">
             <div class="tl-label-title">${a.name}</div>
-            <div class="tl-label-sub">${a.type || 'alojamento'} · ${alojReservas.length} reserva${alojReservas.length !== 1 ? 's' : ''}</div>
+            <div class="tl-label-sub">${a.type || 'alojamento'} · ${monthCount} reserva${monthCount !== 1 ? 's' : ''} este mês</div>
           </div>
-          <div class="tl-days-area" style="width:${timelineDays * dayW}px;flex:none;">
-            <div class="tl-cells">${dayBg}</div>
+          <div class="tl-days-area" style="width:${totalDays * dayW}px;flex:none;">
+            <div class="tl-cells">${cellHtml}</div>
             ${blocks}
           </div>
         </div>`;
       }).join('');
 
-  const totalW = TL_LABEL_W + timelineDays * dayW;
+  const totalW = TL_LABEL_W + totalDays * dayW;
 
   wrap.innerHTML = `
     <div class="timeline-scroll" style="min-width:${totalW}px;">
       <div class="tl-header">
         <div class="tl-label tl-header-label" style="min-width:${TL_LABEL_W}px;max-width:${TL_LABEL_W}px;">Alojamento</div>
-        <div style="display:flex;">${headerDays}</div>
+        <div class="tl-header-cols">
+          <div class="tl-months-row">${monthCells}</div>
+          <div class="tl-days-row">${dayCells}</div>
+        </div>
       </div>
       <div class="tl-body">${rows}</div>
-    </div>
-    <div class="tl-nav-hint">
-      ${lcIcon('move-horizontal', 12)} Arraste horizontalmente para navegar · use a janela 7/14/30 dias para mudar o nível de detalhe
     </div>`;
 
   if (window.lucide) lucide.createIcons();
+  if (autoScroll) requestAnimationFrame(() => scrollTimelineToToday(dayW));
 }
 
 // ── TIMELINE DRAG (pointer-based) ──
@@ -601,14 +630,26 @@ function tlOnPointerMove(e) {
   d.newCheckOut = tlToDateStr(newCo);
 
   // Detetar conflito para feedback visual imediato
-  const checkAcc = d.targetAccId || d.origAccId;
-  d.hasConflict  = reservas.some(r2 =>
+  const checkAcc    = d.targetAccId || d.origAccId;
+  const directConflict = reservas.some(r2 =>
     r2.id !== d.resId &&
     r2.accommodation_id === checkAcc &&
     r2.status !== 'cancelada' &&
     r2.check_in < d.newCheckOut &&
     r2.check_out > d.newCheckIn
   );
+  const checkAccObj = accommodations.find(a => a.id === checkAcc);
+  const childConflict = checkAccObj?.type === 'alojamento' &&
+    accommodations.filter(a => a.parent_id === checkAcc).some(child =>
+      reservas.some(r2 =>
+        r2.id !== d.resId &&
+        r2.accommodation_id === child.id &&
+        r2.status !== 'cancelada' &&
+        r2.check_in < d.newCheckOut &&
+        r2.check_out > d.newCheckIn
+      )
+    );
+  d.hasConflict = directConflict || childConflict;
   if (d.ghost) d.ghost.classList.toggle('tl-drop-ghost-conflict', d.hasConflict);
 
   const fmt = dt => `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
@@ -637,7 +678,7 @@ function tlOnPointerUp() {
 
   const datesChanged = newCheckIn && (newCheckIn !== origCheckIn || newCheckOut !== origCheckOut);
   const roomChanged  = !!targetAccId;
-  if (!datesChanged && !roomChanged) { renderTimeline(); return; }
+  if (!datesChanged && !roomChanged) { renderTimeline(false); return; }
 
   const r      = reservas.find(x => x.id === resId);
   const fmtStr = s => s.split('-').reverse().slice(0, 2).join('/');
@@ -645,14 +686,33 @@ function tlOnPointerUp() {
   if (datesChanged) { updates.check_in = newCheckIn; updates.check_out = newCheckOut; }
   if (roomChanged)  { updates.accommodation_id = targetAccId; }
 
-  // Overbooking check
-  const checkAcc   = targetAccId || origAccId;
-  const conflicts  = reservas.filter(r2 =>
+  // Overbooking check — direto no mesmo alojamento
+  const checkAcc  = targetAccId || origAccId;
+  const ciCheck   = newCheckOut || origCheckOut;
+  const coCheck   = newCheckIn  || origCheckIn;
+  const conflicts = reservas.filter(r2 =>
     r2.id !== resId &&
     r2.accommodation_id === checkAcc &&
     r2.status !== 'cancelada' &&
-    r2.check_in < (newCheckOut || origCheckOut) &&
-    r2.check_out > (newCheckIn || origCheckIn)
+    r2.check_in < ciCheck &&
+    r2.check_out > coCheck
+  );
+
+  // Se o alojamento destino é um "alojamento completo" (pai), verificar quartos filhos
+  const destAcc       = accommodations.find(a => a.id === checkAcc);
+  const childUnits    = destAcc?.type === 'alojamento'
+    ? accommodations.filter(a => a.parent_id === checkAcc)
+    : [];
+  const childConflicts = childUnits.flatMap(child =>
+    reservas
+      .filter(r2 =>
+        r2.id !== resId &&
+        r2.accommodation_id === child.id &&
+        r2.status !== 'cancelada' &&
+        r2.check_in < ciCheck &&
+        r2.check_out > coCheck
+      )
+      .map(r2 => ({ ...r2, _childName: child.name }))
   );
 
   const fromAcc = accommodations.find(a => a.id === origAccId);
@@ -681,6 +741,14 @@ function tlOnPointerUp() {
     </div>`;
   }
 
+  if (childConflicts.length > 0) {
+    const occupiedRooms = [...new Set(childConflicts.map(c => `<b>${c._childName}</b>`))].join(', ');
+    msgBody += `<div style="margin-top:12px;padding:10px 12px;background:#fff3f3;border:1.5px solid #fbb;border-radius:8px;font-size:12.5px;color:#b91c1c;">
+      ⚠️ Alojamento completo não disponível — ${occupiedRooms} já ${childConflicts.length > 1 ? 'têm' : 'tem'} reserva nestas datas.
+    </div>`;
+  }
+
+  const hasBlocker = conflicts.length > 0 || childConflicts.length > 0;
   tlShowConfirm(
     msgBody,
     async () => {
@@ -689,12 +757,12 @@ function tlOnPointerUp() {
         if (res.success) {
           toast('✅ Reserva atualizada!', 'success');
           await loadReservas();
-          renderTimeline();
-        } else { toast('❌ ' + (res.error || 'Erro.'), 'error'); renderTimeline(); }
-      } catch { toast('❌ Erro de ligação.', 'error'); renderTimeline(); }
+          renderTimeline(false);
+        } else { toast('❌ ' + (res.error || 'Erro.'), 'error'); renderTimeline(false); }
+      } catch { toast('❌ Erro de ligação.', 'error'); renderTimeline(false); }
     },
-    () => renderTimeline(),
-    conflicts.length > 0
+    () => renderTimeline(false),
+    hasBlocker
   );
 }
 
@@ -709,7 +777,7 @@ function tlCancelDrag() {
     tlPointerDrag.ghost?.remove();
     tlPointerDrag = null;
   }
-  renderTimeline();
+  renderTimeline(false);
 }
 
 function tlAddDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }

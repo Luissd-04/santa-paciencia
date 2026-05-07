@@ -155,6 +155,9 @@ function getFilteredAlojamentos() {
   const q = (document.getElementById('aloj-search')?.value || '').trim().toLowerCase();
   const type = document.getElementById('aloj-filter-type')?.value || '';
   const link = document.getElementById('aloj-filter-link')?.value || '';
+  SS.set('aloj:q', document.getElementById('aloj-search')?.value || '');
+  SS.set('aloj:type', type);
+  SS.set('aloj:link', link);
 
   return accommodations.filter(a => {
     const parentName = a.parent_id ? (accommodations.find(p => p.id === a.parent_id)?.name || '') : '';
@@ -252,6 +255,7 @@ async function openAlojamento(id, preferredTab = 'info') {
     const data = await apiGet('/api/accommodations/' + id);
     const a = data.data;
     currentAlojDetail = a;
+    SS.set('aloj:id', a.id);
 
     document.getElementById('aloj-detalhe-nome').textContent = a.name;
     document.getElementById('aloj-editing-id').value = a.id;
@@ -417,6 +421,7 @@ function refreshAmenitiesFilter() {
 }
 
 async function showAlojTab(tab) {
+  SS.set('aloj:tab', tab);
   ['info','comodidades','imagens'].forEach(t => {
     const el = document.getElementById('aloj-tab-' + t);
     if (el) el.style.display = t === tab ? '' : 'none';

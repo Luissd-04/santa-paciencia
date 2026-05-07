@@ -1,6 +1,6 @@
 let despesasData = [];
 let despesaEditId = null;
-let despesaFilterMonth = new Date().toISOString().slice(0, 7);
+let despesaFilterMonth = SS.get('desp:month', new Date().toISOString().slice(0, 7));
 
 const EXPENSE_CATS = {
   limpeza:      { label: 'Limpeza',       color: '#4a90d9' },
@@ -22,6 +22,7 @@ async function loadDespesas() {
   if (monthInput) {
     if (!monthInput.value) monthInput.value = despesaFilterMonth;
     despesaFilterMonth = monthInput.value;
+    SS.set('desp:month', despesaFilterMonth);
   }
 
   try {

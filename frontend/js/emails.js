@@ -1,7 +1,7 @@
 let emailTemplates = [];
 let emailSettings  = {};
-let selectedTemplateSlug = null;
-let emailLang = 'pt';
+let selectedTemplateSlug = SS.get('email:slug', null);
+let emailLang = SS.get('email:lang', 'pt');
 
 const LANGS = [
   { code: 'pt', label: 'Português',  flag: '🇵🇹' },
@@ -87,7 +87,7 @@ async function loadEmailTemplates() {
 function renderTemplateList() {
   const el = document.getElementById('email-template-list');
   if (!el) return;
-  el.innerHTML = emailTemplates.map(t => {
+  el.innerHTML = emailTemplates.map((t, i) => {
     const meta = TEMPLATE_META[t.slug] || {};
     const isFixed = FIXED_TIMING_EVENTS.includes(t.timing_event);
     const timingLabel = isFixed
@@ -96,9 +96,9 @@ function renderTemplateList() {
     return `
       <div class="template-item ${selectedTemplateSlug === t.slug ? 'active' : ''}" onclick="selectTemplate('${t.slug}')">
         <div class="template-item-top">
-          <span class="template-item-icon">${meta.icon || '📧'}</span>
+          <span class="template-item-num">${String(i + 1).padStart(2, '0')}</span>
           <span class="template-item-name">${meta.label || t.name}</span>
-          <span class="template-item-status ${t.active ? 'on' : 'off'}">${t.active ? 'Ativo' : 'Inativo'}</span>
+          <span class="template-item-dot ${t.active ? 'on' : 'off'}"></span>
         </div>
         <div class="template-item-timing">${timingLabel}</div>
       </div>`;
@@ -117,7 +117,7 @@ function buildCodesDropdown(fieldId) {
   return `
     <div class="codes-dropdown-wrap">
       <button class="codes-btn" type="button" onclick="toggleCodesDropdown('${fieldId}');event.stopPropagation();">
-        ⚙ Códigos <span style="font-size:9px;opacity:.7;">▾</span>
+        ${lcIcon('settings-2', 12)} Códigos
       </button>
       <div class="codes-dropdown" id="codes-dropdown-${fieldId}" style="display:none;">
         ${cats}
@@ -235,6 +235,7 @@ function buildLangTabs(slug) {
 function switchEmailLang(lang, slug) {
   _saveEditorToTemplate();
   emailLang = lang;
+  SS.set('email:lang', lang);
   document.querySelectorAll('.lang-tab').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
   const t = emailTemplates.find(x => x.slug === slug);
   const subj = document.getElementById('et-subject');
@@ -257,6 +258,8 @@ function selectTemplate(slug) {
   _saveEditorToTemplate();
   selectedTemplateSlug = slug;
   emailLang = 'pt';
+  SS.set('email:slug', slug);
+  SS.set('email:lang', 'pt');
   renderTemplateList();
   const t = emailTemplates.find(x => x.slug === slug);
   if (!t) return;
@@ -280,59 +283,65 @@ function selectTemplate(slug) {
       </div>`;
 
   panel.innerHTML = `
-    <div class="email-editor-header">
-      <span style="font-size:22px;">${meta.icon || '📧'}</span>
-      <div>
-        <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:600;color:var(--azul);">${meta.label || t.name}</div>
-      </div>
-      <label class="email-active-toggle" style="margin-left:auto;">
+    <div class="emed-header">
+      <div class="emed-template-name">${meta.label || t.name}</div>
+      <label class="email-active-toggle">
         <input type="checkbox" id="et-active" ${t.active ? 'checked' : ''}
                onchange="toggleTemplateActive('${slug}')">
         <span class="gtt-switch"></span>
-        <span class="gtt-label" style="font-size:13px;">Ativo</span>
+        <span class="gtt-label">Ativo</span>
       </label>
     </div>
 
-    <div class="email-editor-body">
-      <div class="form-group">
-        <label class="form-label">Quando é enviado</label>
+    <div class="emed-envelope-fields">
+      <div class="emed-env-row">
+        <span class="emed-env-label">De</span>
+        <span class="emed-env-value">Santa Paciência</span>
+      </div>
+      <div class="emed-env-row">
+        <span class="emed-env-label">Para</span>
+        <span class="emed-env-value">{{nome_hospede}}</span>
+      </div>
+    </div>
+
+    <div class="emed-body-wrap">
+      <div class="emed-section">
+        <div class="emed-section-label">${lcIcon('clock-3', 13)} Momento de envio</div>
         ${timingHtml}
       </div>
 
       ${buildLangTabs(slug)}
 
-      <div class="form-group">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <label class="form-label" style="margin:0;">Assunto</label>
+      <div class="emed-section">
+        <div class="emed-section-label">Assunto</div>
+        <div class="emed-subject-row">
+          <input class="form-control" id="et-subject" placeholder="Assunto do email" value="${escapeAttr(t.subject || '')}">
           ${buildCodesDropdown('et-subject')}
         </div>
-        <input class="form-control" id="et-subject" value="${escapeAttr(t.subject)}">
       </div>
 
-      <div class="form-group">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <label class="form-label" style="margin:0;">Mensagem</label>
-          ${buildCodesDropdown('et-body')}
-        </div>
-        ${buildFmtToolbar()}
-        <div class="email-body-editor" id="et-body" contenteditable="true" oninput="emailBodyChanged()"></div>
-        <div style="margin-top:5px;font-size:11.5px;color:var(--cinza);">
-          💡 Os códigos <code>{{variavel}}</code> são substituídos automaticamente no envio.
+      <div class="emed-section">
+        <div class="emed-section-label">Mensagem</div>
+        <div class="emed-body-section">
+          ${buildFmtToolbar()}
+          <div class="email-body-editor" id="et-body" contenteditable="true" oninput="emailBodyChanged()"></div>
+          <div class="emed-body-footer">
+            ${buildCodesDropdown('et-body')}
+            <div class="emed-body-actions">
+              <button class="btn btn-ghost btn-sm" onclick="previewEmail('${slug}')">
+                ${lcIcon('send', 13)} Enviar preview
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="saveTemplate('${slug}')">
+                ${lcIcon('save', 14)} Guardar
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="form-group">
-        <div style="font-size:11.5px;font-weight:600;color:var(--cinza);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">Pré-visualização</div>
+      <div class="emed-section">
+        <div class="emed-section-label">${lcIcon('eye', 13)} Pré-visualização</div>
         <iframe id="et-preview-frame" class="email-preview-frame" sandbox="allow-same-origin"></iframe>
-      </div>
-
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
-        <button class="btn btn-ghost btn-sm" onclick="previewEmail('${slug}')">
-          ${lcIcon('send', 13)} Enviar preview para mim
-        </button>
-        <button class="btn btn-primary" onclick="saveTemplate('${slug}')">
-          ${lcIcon('save', 14)} Guardar
-        </button>
       </div>
     </div>`;
 
