@@ -11,7 +11,7 @@ function getExtraOccupancyCharge(accommodation, guests, nights, birthDates = [],
   ));
   let remainingGuests = Math.max(0, guests - included);
   if (!remainingGuests) return 0;
-  const specialRates = getAgeSpecialRates(accommodation, birthDates, checkIn).slice(0, remainingGuests);
+  const specialRates = getAgeSpecialRates(accommodation, birthDates.slice(included), checkIn).slice(0, remainingGuests);
   let total = specialRates.reduce((sum, rate) => sum + (rate * nights), 0);
   remainingGuests -= specialRates.length;
 
@@ -72,8 +72,11 @@ function getAgeSpecialRates(accommodation, birthDates = [], checkIn = null) {
 
 function getAgeAtDate(birthDate, refDate) {
   if (!birthDate || !refDate) return null;
-  const birth = new Date(`${birthDate}T12:00:00`);
-  const ref = new Date(`${refDate}T12:00:00`);
+  const birthIso = normalizeDateValue(birthDate);
+  const refIso = normalizeDateValue(refDate);
+  if (!birthIso || !refIso) return null;
+  const birth = new Date(`${birthIso}T12:00:00`);
+  const ref = new Date(`${refIso}T12:00:00`);
   if (Number.isNaN(birth.getTime()) || Number.isNaN(ref.getTime()) || birth > ref) return null;
   let age = ref.getFullYear() - birth.getFullYear();
   const monthDiff = ref.getMonth() - birth.getMonth();
@@ -81,9 +84,30 @@ function getAgeAtDate(birthDate, refDate) {
   return age;
 }
 
+function normalizeDateValue(value) {
+  const raw = String(value || '').trim();
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return raw;
+  const pt = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (pt) return `${pt[3]}-${pt[2]}-${pt[1]}`;
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 8) return `${digits.slice(4, 8)}-${digits.slice(2, 4)}-${digits.slice(0, 2)}`;
+  return '';
+}
+
 function getReservationBirthDates(guest = {}, guestsData = []) {
   const extra = Array.isArray(guestsData) ? guestsData : [];
   return [guest.birth_date, ...extra.map(g => g?.birth_date)].filter(Boolean);
+}
+
+function validateReservationBirthDates(numGuests, guest = {}, guestsData = []) {
+  const totalGuests = Math.max(1, Number(numGuests) || 1);
+  if (!guest.birth_date) return 'A data de nascimento do hóspede principal é obrigatória.';
+  const extra = Array.isArray(guestsData) ? guestsData : [];
+  for (let i = 0; i < Math.max(0, totalGuests - 1); i++) {
+    if (!extra[i]?.birth_date) return `A data de nascimento do hóspede ${i + 2} é obrigatória.`;
+  }
+  return null;
 }
 
 function safeJson(value, fallback) {
@@ -229,6 +253,8 @@ async function create(req, res, next) {
     if (!guest?.name || !guest?.email || !accommodation_id || !check_in || !check_out) {
       return res.status(400).json({ error: 'Campos obrigatórios em falta' });
     }
+    const birthDateError = validateReservationBirthDates(num_guests, guest, guests_data || []);
+    if (birthDateError) return res.status(400).json({ error: birthDateError });
 
     // Criar ou actualizar hóspede
     let guestRecord = db.prepare('SELECT * FROM guests WHERE email = ? AND organization_id = ?').get(guest.email, organizationId);
@@ -339,10 +365,10 @@ async function create(req, res, next) {
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservationId, organizationId);
 
     // Google Calendar (async, não bloqueia resposta)
-    createCalendarEvent(reservation).then(eventId => {
+    createCalendarEvent(reservation, { userId: req.user.id, organizationId }).then(eventId => {
       if (eventId) {
-        db.prepare('UPDATE reservations SET google_event_id = ? WHERE id = ?')
-          .run(eventId, reservationId);
+        db.prepare('UPDATE reservations SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ? AND organization_id = ?')
+          .run(eventId, req.user.id, reservationId, organizationId);
       }
     });
 
@@ -397,7 +423,13 @@ async function update(req, res, next) {
     const touristTax = (taxSvc2?.active !== false) ? (taxSvc2?.value ?? 3) * guests * nights : 0;
     const breakfastCost = bkfOn2 ? bkfRate2 * guests * nights : 0;
     const incomingGuestsData = guests_data !== undefined ? guests_data : safeJson(existing.guests_data, []);
-    const birthDates = getReservationBirthDates(guest || {}, incomingGuestsData);
+    const existingGuest = db.prepare('SELECT birth_date FROM guests WHERE id = ? AND organization_id = ?').get(existing.guest_id, organizationId) || {};
+    const guestForBirthDates = guest || { birth_date: existingGuest.birth_date };
+    if (guest || guests_data !== undefined || num_guests !== undefined) {
+      const birthDateError = validateReservationBirthDates(guests, guestForBirthDates, incomingGuestsData);
+      if (birthDateError) return res.status(400).json({ error: birthDateError });
+    }
+    const birthDates = getReservationBirthDates(guestForBirthDates, incomingGuestsData);
     const extraOccupancyCost = getExtraOccupancyCharge(accommodation, guests, nights, birthDates, newCheckIn);
 
     // Verificar disponibilidade (excluir a própria reserva)
@@ -466,7 +498,10 @@ async function update(req, res, next) {
     const updated = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
 
     // Atualizar no Google Calendar
-    updateCalendarEvent(updated);
+    updateCalendarEvent(updated, {
+      userId: updated.google_calendar_user_id || req.user.id,
+      organizationId
+    });
 
     // Email de pagamento se confirmado agora
     if (autoPaymentStatus2 === 'confirmado' && existing.payment_status !== 'confirmado') {
@@ -493,7 +528,10 @@ async function cancel(req, res, next) {
     `).run(req.params.id, organizationId);
 
     // Remover do Google Calendar
-    deleteCalendarEvent(reservation);
+    deleteCalendarEvent(reservation, {
+      userId: reservation.google_calendar_user_id || req.user.id,
+      organizationId
+    });
 
     // Email de cancelamento
     const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(reservation.guest_id, organizationId);

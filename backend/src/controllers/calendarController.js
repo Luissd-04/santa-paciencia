@@ -3,18 +3,18 @@ const { db } = require('../config/database');
 const { createCalendarEvent, updateCalendarEvent } = require('../services/calendarService');
 
 function getStatus(req, res) {
-  const connected = isAuthenticated();
+  const connected = isAuthenticated(req.user.id, req.user.organization_id);
   const orgId = req.user.organization_id;
 
   const inCalendar = db.prepare(`
     SELECT COUNT(*) as count FROM reservations
-    WHERE organization_id = ? AND google_event_id IS NOT NULL AND status != 'cancelada'
-  `).get(orgId);
+    WHERE organization_id = ? AND google_calendar_user_id = ? AND google_event_id IS NOT NULL AND status != 'cancelada'
+  `).get(orgId, req.user.id);
 
   const removed = db.prepare(`
     SELECT COUNT(*) as count FROM reservations
-    WHERE organization_id = ? AND status = 'cancelada' AND google_event_id IS NOT NULL
-  `).get(orgId);
+    WHERE organization_id = ? AND google_calendar_user_id = ? AND status = 'cancelada' AND google_event_id IS NOT NULL
+  `).get(orgId, req.user.id);
 
   const total = db.prepare(`
     SELECT COUNT(*) as count FROM reservations WHERE organization_id = ? AND status != 'cancelada'
@@ -33,7 +33,7 @@ function getStatus(req, res) {
 }
 
 async function syncAll(req, res) {
-  if (!isAuthenticated()) {
+  if (!isAuthenticated(req.user.id, req.user.organization_id)) {
     return res.status(400).json({ success: false, error: 'Google Calendar não está ligado.' });
   }
 
@@ -43,17 +43,22 @@ async function syncAll(req, res) {
 
   let created = 0;
   let updated = 0;
+  let skipped = 0;
   let errors  = 0;
 
   for (const r of reservations) {
     try {
-      if (r.google_event_id) {
-        await updateCalendarEvent(r);
+      if (r.google_event_id && r.google_calendar_user_id === req.user.id) {
+        await updateCalendarEvent(r, { userId: req.user.id, organizationId: req.user.organization_id });
         updated++;
+      } else if (r.google_event_id && r.google_calendar_user_id && r.google_calendar_user_id !== req.user.id) {
+        // Já está sincronizada no calendário de outro membro da equipa.
+        skipped++;
       } else {
-        const eventId = await createCalendarEvent(r);
+        const eventId = await createCalendarEvent(r, { userId: req.user.id, organizationId: req.user.organization_id });
         if (eventId) {
-          db.prepare('UPDATE reservations SET google_event_id = ? WHERE id = ?').run(eventId, r.id);
+          db.prepare('UPDATE reservations SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ? AND organization_id = ?')
+            .run(eventId, req.user.id, r.id, req.user.organization_id);
           created++;
         } else {
           errors++;
@@ -64,7 +69,7 @@ async function syncAll(req, res) {
     }
   }
 
-  res.json({ success: true, data: { created, updated, errors, total: reservations.length } });
+  res.json({ success: true, data: { created, updated, skipped, errors, total: reservations.length } });
 }
 
 module.exports = { getStatus, syncAll };

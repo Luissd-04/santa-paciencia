@@ -459,18 +459,21 @@ created_at      TEXT
 - Campo de pesquisa com autocomplete: debounce 280ms, chama `GET /api/guests?search=`, exibe dropdown com nome/email/telefone/nº reservas
 - Seleção de resultado preenche todos os campos do hóspede automaticamente
 - Campos: primeiro nome\*, apelido, email\*, telefone (prefixo por país)\*, país\*
-- Campos adicionais: NIF, data nascimento, local nascimento, documento (tipo + número + país emissor), morada, CP, cidade
-- Validação estrangeiros (país ≠ Portugal): documento, país emissor, data nascimento e local nascimento obrigatórios
+- Campos adicionais: NIF, data nascimento obrigatória, local nascimento, documento (tipo + número + país emissor), morada, CP, cidade
+- Datas visíveis em formato português `dd-mm-aaaa`; campos de nascimento aceitam escrita corrida (`16022015` → `16-02-2015`) e têm calendário custom minimalista/arredondado
+- Validação estrangeiros (país ≠ Portugal): documento, país emissor e local nascimento obrigatórios
 - Seletor de país com +60 países e indicativo telefónico
 
 **Passo 2 — Alojamento & Datas**
-- Datas check-in e check-out com badge de noites calculado automaticamente
+- Datas check-in e check-out com calendário custom, formato visual `dd-mm-aaaa` e badge de noites calculado automaticamente
 - Canal: Airbnb, Booking.com, Direto, Expedia, VRBO, Outro
 - Número de hóspedes + pequeno-almoço (toggle)
 - Cards visuais de suites: cor personalizada, nome, preço/noite
 - **Disponibilidade em tempo real**: ao mudar datas, chama `GET /api/reservations/availability` (debounce 300ms); suites ocupadas ficam cinzentas com 🔒 e "Indisponível", não são clicáveis; se alojamento pai ocupado → todos os filhos bloqueados
+- **Validação de capacidade no passo 1**: se o nº de hóspedes exceder `max_guests`, o alojamento fica bloqueado e mostra `Capacidade máxima: X hóspedes`
 - Se suite selecionada ficar ocupada ao mudar datas: desseleção automática
-- Hóspedes adicionais expansíveis (nome, email, telefone, país, documento, data nasc., NIF)
+- Hóspedes adicionais expansíveis (nome, email, telefone, país, documento, data nasc. obrigatória, NIF)
+- Preços especiais por idade: se a idade calculada pela data de nascimento entrar nos limites configurados para bebé/criança, aparece aviso no formulário e o preço especial é aplicado quando esse hóspede está acima da ocupação base incluída
 
 **Passo 3 — Confirmar & Pagamento**
 - Card-resumo com dados do hóspede, alojamento (com cor), datas, total
@@ -481,6 +484,7 @@ created_at      TEXT
   - `0 < pago < total` → Parcial + mostra "Valor em falta: €X.XX" a vermelho
   - `pago = 0` → Pendente
 - Data de pagamento
+- Campo de data de pagamento usa o calendário custom e formato visual `dd-mm-aaaa`
 - Método de pagamento (visível apenas quando confirmado ou parcial)
 - Notas / observações
 - RGPD: checkbox obrigatório (escondido em edições)
@@ -488,10 +492,11 @@ created_at      TEXT
 
 **Tabela de reservas (desktop)**
 - Colunas: ID, Hóspede+email, Suite (chip colorido), Check-in, Check-out, Noites, Total, Canal, Estado, Pagamento+valor pago/em falta, Ações (editar, cancelar/reativar)
-- Filtros: pesquisa texto livre, estado, suite, canal, pagamento, intervalo de datas
+- Filtros: pesquisa texto livre, estado, suite, canal, pagamento, intervalo de datas com calendário custom e formato visual `dd-mm-aaaa`
 - Ordenação por qualquer coluna (toggle asc/desc)
 - Hero premium + painel de filtros próprio em `css/views/reservas.css`
 - Contador visual de resultados para perceber rapidamente o efeito dos filtros
+- Exportação XLS/PDF com botões maiores e com texto, alinhados com os botões usados em Alojamentos/Hóspedes
 
 **Cards de reservas (móvel)**
 - Filtros por chips: Todas, Confirmadas, Pendentes, Canceladas
@@ -520,7 +525,7 @@ created_at      TEXT
 - Lista tabular com hierarquia visual:
   - Alojamento principal: fundo subtil `rgba(139,58,36,.03)`, ícone `building-2`
   - Suites filhas: recuadas com seta "↳ Nome do pai"
-  - Pais com unidades filhas podem ser recolhidos/expandidos diretamente na lista
+  - Pais com unidades filhas mostram apenas um contador estático (`X alojamentos`), sem seta/click falso
 - **Tipologias**: `alojamento` (principal), `suite`, `apartamento`, `quarto`, `moradia`, `villa`
 - Pesquisa e filtros na lista por nome/cidade/licença, tipologia e relação (`principal`, `associada`, `independente`)
 - **Seletor de alojamento pai**: visível para todos os tipos exceto `alojamento`; lista só entidades com `type='alojamento'`
@@ -534,6 +539,10 @@ created_at      TEXT
   - Banner amarelo explica a fonte e que só se edita no alojamento principal
   - Backend recusa atualização destes campos via API se `parent_id` existir
 - **Campos próprios da suite** (sempre editáveis): nome, cor, licença, preço, capacidade, quartos, casas de banho, área, descrição, Google Calendar, imagens próprias e comodidades próprias
+- **Layout de detalhe**: Informação do alojamento e Layout do alojamento aparecem empilhados verticalmente
+- **Ocupação extra configurável**: múltiplos extras por alojamento através de botão `+`, com tipo (`cama extra`, `sofá-cama`, `berço`, `outro`), capacidade, preço, forma de cobrança e notas; em `Outro`, o proprietário escreve o nome do extra
+- Berço pode ter nota padrão como `Mediante verificação de disponibilidade prévia`
+- **Preços especiais por idade**: campos para idade limite de bebé, preço bebé/noite, idade limite de criança e preço criança/noite
 - Tabs: Informação | Comodidades | Imagens
 - **Comodidades**: grid por categorias (Casa de banho, Quarto, Cozinha, Segurança, Outros)
   - pesquisa local dentro da lista de comodidades
@@ -562,6 +571,7 @@ created_at      TEXT
   - Auto-save com debounce 800ms
 - Contadores rápidos na lista: total de unidades, principais e associadas
 - Cabeçalho de detalhe mais claro para navegação, guardar e apagar sem perda de contexto
+- Ao fazer refresh (`F5`) na vista de alojamentos, a app fica na lista e já não reabre automaticamente o último alojamento editado
 
 ### Calendário
 
@@ -649,11 +659,12 @@ created_at      TEXT
 - Contraste reforçado em dark mode para títulos, KPIs, tabelas, inputs e ações rápidas
 
 ### Google Calendar
-- OAuth2: abre popup → consent screen Google → callback guarda token
+- OAuth2 por utilizador: abre popup → consent screen Google → callback guarda token ligado ao membro atual e à organização
 - Estado: ligado/desligado com badge colorido
-- Estatísticas: total reservas, nº em calendário, nº removidos
-- Sincronização manual de todas as reservas (`POST /api/calendar/sync-all`)
-- Automático: criação ao criar reserva, atualização ao editar, remoção ao cancelar
+- Estatísticas: total reservas, nº em calendário, nº removidos; a contagem é por utilizador ligado
+- Sincronização manual de reservas (`POST /api/calendar/sync-all`) cria/atualiza eventos no calendário do utilizador ligado e salta reservas já associadas a outro membro
+- Automático: criação ao criar reserva, atualização ao editar, remoção ao cancelar, usando a ligação Google Calendar do utilizador que criou/ficou associado à reserva
+- Tokens antigos globais em `tokens/google_token.json` não são migrados automaticamente; cada utilizador deve ligar a sua conta Google
 
 ### RGPD
 - Checkbox obrigatório no passo 3 do wizard (só em criações)
@@ -664,6 +675,57 @@ created_at      TEXT
 - Export: `ZIP` com `backup.json`, dados da organização, equipa (`users`, `memberships`, `invitations`) e uploads referenciados pelos alojamentos
 - Import: lê esse `ZIP`, substitui todos os dados da organização atual, restaura imagens e faz reload automático da página
 - O import/export usa `/usr/bin/zip` e `/usr/bin/unzip`, e o backend aceita payloads até `200mb`
+- Futuro pretendido: backups automáticos para o computador dos proprietários, de X em X tempo configurável, sem depender apenas do export manual
+
+### Datas e Calendário de Inputs
+- Todos os campos HTML `type="date"` são enriquecidos no frontend com um calendário custom minimalista/arredondado
+- O formato mostrado ao utilizador é `dd-mm-aaaa`, adequado a Portugal
+- Internamente, antes de cálculos, filtros e envio para API, as datas são normalizadas para `aaaa-mm-dd`
+- Campos de nascimento aceitam escrita corrida (`ddmmaaaa`) e convertem para `dd-mm-aaaa`
+
+### Motor Público de Reservas
+- Existe uma página pública separada do backoffice onde o cliente faz a própria reserva
+- Cada alojamento principal (`type = alojamento`) recebe um `public_slug` automático e um link público no formato `/reservar/:slug`
+- No detalhe do alojamento principal existe o campo "Link público de reserva", com opção para copiar e pré-visualizar a página vista pelo cliente
+- A página pública usa imagens do alojamento principal e das unidades/quartos associados, com galeria animada e formulário centrado
+- Fluxo implementado:
+  - cliente escolhe check-in, check-out e nº de hóspedes
+  - sistema mostra alojamentos disponíveis e com capacidade suficiente
+  - cliente escolhe a unidade/quarto disponível
+  - cálculo automático de preço base, ocupação extra, bebé/criança, pequeno-almoço e taxa turística
+  - cliente preenche dados próprios e dos restantes hóspedes
+  - cliente aceita RGPD/regras
+  - reserva entra no backoffice como `pendente`
+- Como ainda não há pagamento online/sinal obrigatório, as reservas públicas entram sempre como `pendente`, para validação manual antes de confirmar
+- Após criação é gerado um `public_token` aleatório e seguro para o cliente poder voltar mais tarde à reserva
+- Link posterior possível: `/reserva/:token`
+- Endpoints públicos implementados:
+  - `GET /api/public/booking/:slug`
+  - `GET /api/public/booking/:slug/availability`
+  - `POST /api/public/booking/:slug/reservations`
+- Ainda por implementar numa fase seguinte: página do token para editar dados permitidos após a reserva pública estar criada
+- Campos editáveis pelo cliente no link posterior devem ser limitados:
+  - dados pessoais
+  - dados dos hóspedes
+  - hora prevista de chegada
+  - notas/pedidos especiais
+- Alterações sensíveis como datas, alojamento ou nº de hóspedes devem voltar a colocar a reserva em `pendente` ou exigir aprovação no backoffice
+- Nunca expor o ID legível da reserva como credencial de acesso; usar token longo, aleatório, revogável e, se fizer sentido, com expiração
+
+### Futuro — Integração com Website Externo
+- O website público atual tem botão `Reservar já`; há três opções para ligar ao motor de reservas:
+- **Redirect**: botão aponta para a página pública da plataforma, por exemplo `https://app.santapaciencia.xyz/reservar`
+  - Opção mais simples, segura e fácil de manter
+  - A lógica de disponibilidade, preços e RGPD fica toda num só sítio
+- **Iframe/embed**: website mostra uma versão embebida do formulário, por exemplo `<iframe src="https://app.santapaciencia.xyz/reservar/embed">`
+  - Mantém a sensação de que o cliente continua no website
+  - Exige cuidado com responsividade, altura do iframe, headers de segurança e eventual pagamento/cookies no futuro
+- **Formulário nativo no website externo + API pública**:
+  - Website externo implementa o formulário e comunica com endpoints públicos da plataforma
+  - Mais flexível visualmente, mas mais complexo
+  - Exige CORS, rate limiting, validação forte, proteção anti-spam e manutenção duplicada sempre que campos/regras mudarem
+- Recomendação inicial: começar por redirect ou iframe/embed; deixar formulário nativo via API para uma fase posterior
+- Para redirect a partir do website externo, cada botão "Reservar já" pode apontar para o link público do alojamento principal correspondente, por exemplo `https://app.santapaciencia.xyz/reservar/santa-paciencia`
 
 ---
 
@@ -781,6 +843,10 @@ LICENSE_NUMBER=12345/AL
 - **Notificações push** (PWA Service Worker) para chegadas do dia
 - **Preços dinâmicos** por época, dia da semana ou período mínimo de estadia
 - **Ficha SEF/AIMA** — geração automática do relatório de hóspedes estrangeiros
+- **Backups automáticos locais** — export periódico para o PC dos proprietários, com intervalo configurável
+- **Motor público de reservas** — página externa onde clientes escolhem datas/alojamento e criam reservas como `pendente`
+- **Portal/link público da reserva** — token seguro para o cliente editar dados permitidos após criar a reserva
+- **Integração com website externo** — decidir entre redirect, iframe/embed ou formulário nativo via API pública
 - **PWA** — o frontend é responsivo mas não é instalável como app
 - **Testes automatizados** — sem testes unitários ou de integração
 - **Auditoria/histórico** — sem log de quem alterou o quê e quando

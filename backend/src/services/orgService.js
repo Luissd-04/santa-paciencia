@@ -73,39 +73,9 @@ function seedOrganizationEmailTemplates(organizationId) {
   ));
 }
 
-function seedOrganizationAccommodations(organizationId) {
-  const legacyRows = db.prepare(`
-    SELECT COUNT(*) as c FROM accommodations WHERE organization_id = ?
-  `).get(organizationId).c;
-  if (legacyRows > 0) return;
-
-  const suites = [
-    { id: 'suite-mezzanine-deluxe', name: 'Suite Mezzanine Deluxe', type: 'suite', price_per_night: 120, max_guests: 2 },
-    { id: 'suite-familiar-deluxe', name: 'Suite Familiar Deluxe', type: 'suite', price_per_night: 150, max_guests: 4 },
-    { id: 'suite-king-deluxe', name: 'Suite King Deluxe', type: 'suite', price_per_night: 130, max_guests: 2 },
-    { id: 'suite-queen-deluxe', name: 'Suite Queen Deluxe', type: 'suite', price_per_night: 110, max_guests: 2 },
-  ];
-
-  const insert = db.prepare(`
-    INSERT INTO accommodations (
-      id, organization_id, name, type, price_per_night, max_guests, license_number
-    ) VALUES (@id, @organization_id, @name, @type, @price_per_night, @max_guests, @license_number)
-  `);
-
-  db.transaction(() => {
-    suites.forEach((suite, index) => insert.run({
-      ...suite,
-      id: `${suite.id}-${organizationId.slice(0, 6)}-${index + 1}`,
-      organization_id: organizationId,
-      license_number: process.env.LICENSE_NUMBER || '12345/AL',
-    }));
-  })();
-}
-
 function seedOrganizationDefaults(organizationId) {
   seedOrganizationSettings(organizationId);
   seedOrganizationEmailTemplates(organizationId);
-  seedOrganizationAccommodations(organizationId);
 }
 
 function createOrganization(name) {

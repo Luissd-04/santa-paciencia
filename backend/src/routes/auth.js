@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { getOAuth2Client, TOKEN_PATH } = require('../config/google');
+const { deleteTokens, getOAuth2Client, isAuthenticated, saveTokens } = require('../config/google');
 const { db } = require('../config/database');
 const requireAuth = require('../middleware/requireAuth');
 const requireRole = require('../middleware/requireRole');
@@ -23,8 +23,6 @@ const {
   getInvitationByToken,
   getMembershipByUserAndOrganization,
 } = require('../services/orgService');
-const fs = require('fs');
-const path = require('path');
 
 const SCOPES = ['https://www.googleapis.com/auth/calendar'];
 const COOKIE_MAX_AGE = Number(process.env.SESSION_TTL_DAYS || 14) * 86400000;
@@ -292,7 +290,7 @@ router.get('/me', requireAuth, (req, res) => {
   res.json({ success: true, data: { user: serializeUser(req.user) } });
 });
 
-router.get('/google', requireAuth, requireRole('manager'), (req, res) => {
+router.get('/google', requireAuth, (req, res) => {
   const oAuth2Client = getOAuth2Client();
   const authUrl = oAuth2Client.generateAuthUrl({
     access_type: 'offline',
@@ -302,7 +300,7 @@ router.get('/google', requireAuth, requireRole('manager'), (req, res) => {
   res.redirect(authUrl);
 });
 
-router.get('/google/callback', requireAuth, requireRole('manager'), async (req, res) => {
+router.get('/google/callback', requireAuth, async (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).send('Código de autorização em falta.');
 
@@ -311,9 +309,7 @@ router.get('/google/callback', requireAuth, requireRole('manager'), async (req, 
     const { tokens } = await oAuth2Client.getToken(code);
     oAuth2Client.setCredentials(tokens);
 
-    const dir = path.dirname(TOKEN_PATH);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens));
+    saveTokens(req.user.id, req.user.organization_id, tokens);
 
     console.log('✅ Google Calendar autenticado com sucesso!');
     res.send(`
@@ -330,12 +326,11 @@ router.get('/google/callback', requireAuth, requireRole('manager'), async (req, 
 });
 
 router.get('/google/status', requireAuth, (req, res) => {
-  const { isAuthenticated } = require('../config/google');
-  res.json({ connected: isAuthenticated() });
+  res.json({ connected: isAuthenticated(req.user.id, req.user.organization_id) });
 });
 
-router.delete('/google', requireAuth, requireRole('manager'), (req, res) => {
-  if (fs.existsSync(TOKEN_PATH)) fs.unlinkSync(TOKEN_PATH);
+router.delete('/google', requireAuth, (req, res) => {
+  deleteTokens(req.user.id, req.user.organization_id);
   res.json({ success: true, message: 'Google Calendar desligado' });
 });
 

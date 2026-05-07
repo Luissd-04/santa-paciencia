@@ -16,6 +16,7 @@ const expenseRoutes = require('./routes/expenses');
 const backupRoutes = require('./routes/backup');
 const teamRoutes   = require('./routes/team');
 const reportRoutes = require('./routes/reports');
+const publicBookingRoutes = require('./routes/publicBooking');
 
 const app = express();
 
@@ -58,6 +59,7 @@ clearExpiredSessions();
 
 // Rotas
 app.use('/auth', authRoutes);
+app.use('/api/public', publicBookingRoutes);
 app.use('/api', requireAuth);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/accommodations', accommodationRoutes);
@@ -76,6 +78,9 @@ app.get('/health', (req, res) => {
 
 // SPA catch-all: serve index.html para todas as rotas de frontend
 if (process.env.FRONTEND_PATH) {
+  app.get(['/reservar/:slug', '/reserva/:token'], (req, res) => {
+    res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'public-reservation.html'));
+  });
   app.get(/(.*)/, (req, res) => {
     res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'index.html'));
   });

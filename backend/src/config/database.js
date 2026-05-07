@@ -132,6 +132,19 @@ function initDatabase() {
     );
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS google_calendar_connections (
+      organization_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      tokens TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (organization_id, user_id),
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
   // Alojamentos
   db.exec(`
     CREATE TABLE IF NOT EXISTS accommodations (
@@ -236,6 +249,7 @@ function initDatabase() {
   migrateMemberships();
   migrateInvitations();
   migrateOrgScopedTables();
+  migrateGoogleCalendarConnections();
   migrateLegacyDataToOrganizations();
 
   console.log('✅ Base de dados inicializada');
@@ -393,12 +407,30 @@ function migrateLegacyEmailTemplates(organizationId) {
   } catch {}
 }
 
+function migrateGoogleCalendarConnections() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS google_calendar_connections (
+      organization_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      tokens TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (organization_id, user_id),
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+}
+
 function migrateReservations() {
   const existing = db.pragma('table_info(reservations)').map(c => c.name);
   const cols = [
     ['guests_data',   "TEXT DEFAULT '[]'"],
     ['amount_paid',   'REAL DEFAULT 0'],
     ['payment_date',  'TEXT'],
+    ['google_calendar_user_id', 'TEXT'],
+    ['public_token', 'TEXT'],
+    ['arrival_time', 'TEXT'],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {
@@ -473,6 +505,7 @@ function migrateAccommodations() {
     ['baby_price',           "REAL DEFAULT 0"],
     ['child_age_limit',      "INTEGER DEFAULT 12"],
     ['child_price',          "REAL DEFAULT 0"],
+    ['public_slug',          'TEXT'],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {

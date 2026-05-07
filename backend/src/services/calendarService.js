@@ -2,11 +2,13 @@ const { google } = require('googleapis');
 const { getAuthenticatedClient, isAuthenticated } = require('../config/google');
 const { db } = require('../config/database');
 
-async function createCalendarEvent(reservation) {
-  if (!isAuthenticated()) return null;
+async function createCalendarEvent(reservation, calendarUser = {}) {
+  const userId = calendarUser.userId || reservation.google_calendar_user_id;
+  const organizationId = calendarUser.organizationId || reservation.organization_id;
+  if (!isAuthenticated(userId, organizationId)) return null;
 
   try {
-    const auth = getAuthenticatedClient();
+    const auth = getAuthenticatedClient(userId, organizationId);
     const calendar = google.calendar({ version: 'v3', auth });
 
     // Buscar dados do hóspede e alojamento
@@ -62,11 +64,13 @@ async function createCalendarEvent(reservation) {
   }
 }
 
-async function updateCalendarEvent(reservation) {
-  if (!isAuthenticated() || !reservation.google_event_id) return;
+async function updateCalendarEvent(reservation, calendarUser = {}) {
+  const userId = calendarUser.userId || reservation.google_calendar_user_id;
+  const organizationId = calendarUser.organizationId || reservation.organization_id;
+  if (!isAuthenticated(userId, organizationId) || !reservation.google_event_id) return;
 
   try {
-    const auth = getAuthenticatedClient();
+    const auth = getAuthenticatedClient(userId, organizationId);
     const calendar = google.calendar({ version: 'v3', auth });
 
     const guest = db.prepare('SELECT * FROM guests WHERE id = ?').get(reservation.guest_id);
@@ -92,11 +96,13 @@ async function updateCalendarEvent(reservation) {
   }
 }
 
-async function deleteCalendarEvent(reservation) {
-  if (!isAuthenticated() || !reservation.google_event_id) return;
+async function deleteCalendarEvent(reservation, calendarUser = {}) {
+  const userId = calendarUser.userId || reservation.google_calendar_user_id;
+  const organizationId = calendarUser.organizationId || reservation.organization_id;
+  if (!isAuthenticated(userId, organizationId) || !reservation.google_event_id) return;
 
   try {
-    const auth = getAuthenticatedClient();
+    const auth = getAuthenticatedClient(userId, organizationId);
     const calendar = google.calendar({ version: 'v3', auth });
 
     const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ?')

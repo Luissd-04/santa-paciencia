@@ -66,6 +66,52 @@ function getActiveAlojTab() {
   ) || 'info';
 }
 
+function getPublicBookingUrl(slug) {
+  const cleanSlug = String(slug || '').trim();
+  if (!cleanSlug) return '';
+  return `${window.location.origin}/reservar/${encodeURIComponent(cleanSlug)}`;
+}
+
+function updatePublicBookingLink(accomData = currentAlojDetail) {
+  const wrap = document.getElementById('aloj-public-link-wrap');
+  const input = document.getElementById('aloj-public-link');
+  if (!wrap || !input) return;
+
+  const tipo = document.getElementById('aloj-tipo')?.value || accomData?.type || 'suite';
+  const isMainAccommodation = tipo === 'alojamento';
+  wrap.style.display = isMainAccommodation ? '' : 'none';
+
+  if (!isMainAccommodation) {
+    input.value = '';
+    return;
+  }
+
+  input.value = getPublicBookingUrl(accomData?.public_slug);
+}
+
+function openPublicBookingPreview() {
+  const url = document.getElementById('aloj-public-link')?.value;
+  if (!url) {
+    toast('Guarda ou reabre o alojamento para gerar o link público.', 'error');
+    return;
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+async function copyPublicBookingLink() {
+  const url = document.getElementById('aloj-public-link')?.value;
+  if (!url) {
+    toast('Ainda não há link público para copiar.', 'error');
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('Link público copiado!', 'success');
+  } catch (_) {
+    toast('Não consegui copiar automaticamente. Podes selecionar o campo e copiar.', 'error');
+  }
+}
+
 function hasStoredImages(imageState) {
   return Object.entries(imageState || {}).some(([key, value]) =>
     key !== '_sections' && Array.isArray(value) && value.length > 0
@@ -115,7 +161,6 @@ function renderAlojamentos() {
     const isAlojamento = a.type === 'alojamento';
     const parentName = a.parent_id ? parentMap[a.parent_id] : null;
     const childCount = (childrenByParent[a.id] || []).filter(c => inFiltered.has(c.id)).length;
-    const isCollapsed = collapsedAlojParents.has(a.id);
     const typeLabel = isAlojamento
       ? `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--marca);">Alojamento</span>`
       : `<span style="font-size:12px;color:var(--cinza);">${a.type || '—'}</span>`;
@@ -130,9 +175,7 @@ function renderAlojamentos() {
       </td>
       <td style="${indent}">
         <b>${a.name}</b>
-        ${isAlojamento && childCount ? `<button class="aloj-toggle-children" onclick="event.stopPropagation();toggleAlojChildren('${a.id}')" title="${isCollapsed ? 'Expandir unidades' : 'Recolher unidades'}">
-          ${lcIcon(isCollapsed ? 'chevron-right' : 'chevron-down', 14)} ${childCount} unidade${childCount !== 1 ? 's' : ''}
-        </button>` : ''}
+        ${isAlojamento && childCount ? `<span class="aloj-child-count">${childCount} alojamento${childCount !== 1 ? 's' : ''}</span>` : ''}
         ${parentName ? `<br><span style="font-size:11px;color:var(--cinza);">${lcIcon('corner-down-right',11)} ${parentName}</span>` : (a.city ? `<br><span style="font-size:11px;color:var(--cinza)">${a.city}</span>` : '')}
       </td>
       <td>${typeLabel}</td>
@@ -279,6 +322,7 @@ async function openAlojamento(id, preferredTab = 'info') {
       parentSel.value = a.parent_id || '';
     }
     onAlojTipoChange(a);
+    updatePublicBookingLink(a);
     _applyInheritedFields(a);
     document.getElementById('aloj-area').value = a.area || '';
     document.getElementById('aloj-capacidade').value = a.max_guests || 2;
@@ -978,6 +1022,7 @@ function onAlojTipoChange(accomData) {
   const parentWrap = document.getElementById('aloj-parent-wrap');
   // Alojamento type never has a parent; other types can optionally have one
   if (parentWrap) parentWrap.style.display = (tipo && tipo !== 'alojamento') ? '' : 'none';
+  updatePublicBookingLink(accomData || currentAlojDetail);
   if (tipo === 'alojamento') {
     const parentSel = document.getElementById('aloj-parent-id');
     if (parentSel) parentSel.value = '';
@@ -1217,13 +1262,15 @@ async function deleteAlojamento() {
     const res = await apiDelete(`/api/accommodations/${id}`);
     if (res.success) {
       toast('🗑 Alojamento apagado.', 'info');
+      currentAlojDetail = null;
+      SS.set('aloj:id', null);
       showView('alojamentos');
-      await loadAlojamentos();
+      await loadAccommodations();
     } else {
       toast('❌ ' + (res.error || 'Erro ao apagar alojamento.'), 'error');
     }
   } catch (e) {
-    toast('❌ Erro de ligação ao servidor.', 'error');
+    toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
   }
 }
 

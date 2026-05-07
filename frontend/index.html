@@ -357,10 +357,10 @@
                   <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar
                 </button>
                 <button class="btn btn-ghost btn-sm" onclick="exportReservasXLS()" title="Exportar Excel">
-                  <i data-lucide="file-spreadsheet" style="width:13px;height:13px;"></i>
+                  <i data-lucide="table-2"></i> XLS
                 </button>
                 <button class="btn btn-ghost btn-sm" onclick="exportReservasPDF()" title="Exportar PDF">
-                  <i data-lucide="file-text" style="width:13px;height:13px;"></i>
+                  <i data-lucide="file-text"></i> PDF
                 </button>
               </div>
             </div>
@@ -698,6 +698,19 @@
                     <option value="">— Nenhum —</option>
                   </select>
                   <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;display:block;">Associa esta unidade a um alojamento principal</span>
+                </div>
+                <div class="form-group form-full" id="aloj-public-link-wrap" style="display:none;">
+                  <label class="form-label">Link público de reserva</label>
+                  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <input class="form-control" id="aloj-public-link" readonly placeholder="O link é gerado automaticamente" style="flex:1 1 320px;">
+                    <button class="btn btn-ghost btn-sm" type="button" onclick="copyPublicBookingLink()">
+                      <i data-lucide="copy"></i> Copiar
+                    </button>
+                    <button class="btn btn-primary btn-sm" type="button" onclick="openPublicBookingPreview()">
+                      <i data-lucide="external-link"></i> Pré-visualizar
+                    </button>
+                  </div>
+                  <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;display:block;">Abre a página que o cliente vê para fazer uma reserva neste alojamento.</span>
                 </div>
                 <div class="form-group">
                   <label class="form-label">Área (m²)</label>
@@ -1279,7 +1292,7 @@
           </div>
           <div class="gcal-text">
             <h3>Integração Google Calendar</h3>
-            <p>Sincronize as reservas automaticamente. Reservas canceladas são removidas do calendário.</p>
+            <p>Ligue o seu próprio Google Calendar. As reservas criadas por si são sincronizadas com o calendário da sua conta.</p>
           </div>
           <div class="gcal-actions">
             <button id="gcal-connect-btn" class="btn btn-gcal-outline btn-sm" onclick="connectGcal()">
@@ -1647,7 +1660,7 @@
             </div>
             <div class="form-group">
               <label class="form-label">Nº de Hóspedes <span class="req-star">*</span></label>
-              <input class="form-control" id="f-num-hospedes" type="number" min="1" max="20" value="2" onchange="calcTotal();renderExtraGuests()">
+              <input class="form-control" id="f-num-hospedes" type="number" min="1" max="20" value="2" onchange="renderSuiteCards();calcTotal();renderExtraGuests()">
             </div>
             <div class="form-group">
               <label class="form-label">Pequeno-almoço</label>
@@ -1710,8 +1723,14 @@
               <select class="form-control" id="f-pais" onchange="updateForeignRequirements()"></select>
             </div>
             <div class="form-group">
-              <label class="form-label">Data de Nascimento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
-              <input class="form-control" id="f-nascimento" type="date" onchange="calcTotal()">
+              <label class="form-label">Data de Nascimento <span class="req-star">*</span></label>
+              <div class="birth-date-control">
+                <input class="form-control birth-date-input" id="f-nascimento" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" onfocus="openBirthDateCalendar(this)" onclick="openBirthDateCalendar(this)" oninput="handleBirthDateInput(this)" onblur="normalizeBirthDateInput(this);calcTotal();updateSpecialRateHints()">
+                <button class="birth-date-picker-btn" type="button" onclick="openBirthDateCalendar(document.getElementById('f-nascimento'))" aria-label="Abrir calendário">
+                  <i data-lucide="calendar-days"></i>
+                </button>
+              </div>
+              <div class="guest-rate-hint" id="f-nascimento-rate-hint"></div>
             </div>
             <div class="form-group">
               <label class="form-label">Local de Nascimento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>

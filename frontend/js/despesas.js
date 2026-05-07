@@ -105,7 +105,7 @@ function openDespesaModal(id) {
   despesaEditId = id || null;
   const d = id ? despesasData.find(x => x.id === id) : null;
   document.getElementById('despesa-modal-title').textContent = d ? 'Editar Despesa' : 'Nova Despesa';
-  document.getElementById('despesa-date').value        = d ? d.date        : new Date().toISOString().slice(0, 10);
+  document.getElementById('despesa-date').value        = formatDateForStandardInput(d ? d.date : new Date().toISOString().slice(0, 10));
   document.getElementById('despesa-category').value    = d ? d.category    : 'limpeza';
   document.getElementById('despesa-description').value = d ? d.description : '';
   document.getElementById('despesa-amount').value      = d ? d.amount      : '';
@@ -123,7 +123,7 @@ function closeDespesaModal() {
 }
 
 async function saveDespesa() {
-  const date        = document.getElementById('despesa-date').value;
+  const date        = normalizeIsoDateValue(document.getElementById('despesa-date').value);
   const category    = document.getElementById('despesa-category').value;
   const description = document.getElementById('despesa-description').value.trim();
   const amount      = parseFloat(document.getElementById('despesa-amount').value);

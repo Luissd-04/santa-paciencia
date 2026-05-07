@@ -2969,6 +2969,13 @@ select.form-control { cursor:pointer; }
   font-size: 11px; color: var(--vermelho); font-weight: 600;
   text-transform: uppercase; letter-spacing: .3px;
 }
+.suite-card-capacity-lbl {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--vermelho);
+  font-weight: 700;
+  line-height: 1.25;
+}
 .suite-check {
   position: absolute; top: 10px; right: 10px;
   width: 18px; height: 18px; border-radius: 50%;
@@ -2982,6 +2989,131 @@ select.form-control { cursor:pointer; }
   color: var(--marca); font-weight: 700;
 }
 .suite-card-sub { font-size: 11px; color: var(--cinza); font-family: inherit; font-weight: 400; }
+
+.guest-rate-hint {
+  display: none;
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #2e7d52;
+}
+
+.birth-date-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.birth-date-control .form-control {
+  padding-right: 44px;
+}
+
+.toolbar .birth-date-control,
+.view-toolbar .birth-date-control {
+  width: auto;
+}
+
+.toolbar .birth-date-control .form-control,
+.view-toolbar .birth-date-control .form-control {
+  min-width: 145px;
+}
+
+.birth-date-picker-btn {
+  position: absolute;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(132, 52, 36, .08);
+  color: var(--marca);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.birth-date-picker-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.birth-date-calendar-pop {
+  position: fixed;
+  width: 284px;
+  z-index: 5000;
+  padding: 12px;
+  border: 1px solid rgba(132, 52, 36, .14);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 18px 44px rgba(45, 34, 28, .18);
+}
+
+.birth-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.birth-cal-head strong {
+  flex: 1;
+  font-size: 13px;
+  color: var(--azul);
+  text-transform: capitalize;
+  text-align: center;
+}
+
+.birth-cal-head button {
+  width: 28px;
+  height: 30px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--cinza-claro);
+  color: var(--azul);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.birth-cal-head svg {
+  width: 15px;
+  height: 15px;
+}
+
+.birth-cal-week,
+.birth-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.birth-cal-week {
+  margin-bottom: 5px;
+  color: var(--cinza);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.birth-cal-day {
+  height: 32px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--azul);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.birth-cal-day:hover,
+.birth-cal-day.selected {
+  background: var(--marca);
+  color: #fff;
+}
 
 /* Guest search */
 .guest-search-wrap { position: relative; }

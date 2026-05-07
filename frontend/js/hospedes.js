@@ -418,7 +418,7 @@ async function openGuestEdit(id) {
     document.getElementById('gedit-last-name').value   = g.last_name  || parts.slice(1).join(' ') || '';
     document.getElementById('gedit-email').value        = g.email || '';
     document.getElementById('gedit-email-personal').value = g.email_personal || '';
-    document.getElementById('gedit-birth-date').value  = g.birth_date || '';
+    document.getElementById('gedit-birth-date').value  = formatDateForStandardInput(g.birth_date || '');
     document.getElementById('gedit-nif').value          = g.nif || '';
     document.getElementById('gedit-address').value      = g.address || '';
     document.getElementById('gedit-postal-code').value  = g.postal_code || '';
@@ -612,7 +612,7 @@ async function saveGuestEdit() {
       email,
       email_personal: document.getElementById('gedit-email-personal').value.trim() || null,
       phone,
-      birth_date:      document.getElementById('gedit-birth-date').value  || null,
+      birth_date:      normalizeIsoDateValue(document.getElementById('gedit-birth-date').value) || null,
       nif:             document.getElementById('gedit-nif').value.trim()  || null,
       document_type:   document.getElementById('gedit-doc-type')?.value   || null,
       document_number: document.getElementById('gedit-doc-number')?.value.trim() || null,

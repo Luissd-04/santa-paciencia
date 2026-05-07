@@ -176,8 +176,8 @@ function renderTabela() {
   const fs = (document.getElementById('filter-suite')    || { value: '' }).value;
   const fc = (document.getElementById('filter-canal')    || { value: '' }).value;
   const fp = (document.getElementById('filter-pagamento')|| { value: '' }).value;
-  const fd = (document.getElementById('filter-date-from')|| { value: '' }).value;
-  const ft = (document.getElementById('filter-date-to')  || { value: '' }).value;
+  const fd = normalizeIsoDateValue((document.getElementById('filter-date-from')|| { value: '' }).value);
+  const ft = normalizeIsoDateValue((document.getElementById('filter-date-to')  || { value: '' }).value);
   SS.set('res:q', document.getElementById('search-input')?.value || '');
   SS.set('res:fe', fe); SS.set('res:fs', fs); SS.set('res:fc', fc);
   SS.set('res:fp', fp); SS.set('res:fd', fd); SS.set('res:ft', ft);
@@ -330,8 +330,8 @@ function openModal(config = {}) {
   if (titleEl) titleEl.textContent = 'Nova Reserva';
   buildCountrySelects();
   _resetGuestFields();
-  document.getElementById('f-checkin').value = config.checkIn || '';
-  document.getElementById('f-checkout').value = config.checkOut || '';
+  document.getElementById('f-checkin').value = formatDateForStandardInput(config.checkIn || '');
+  document.getElementById('f-checkout').value = formatDateForStandardInput(config.checkOut || '');
   document.getElementById('f-num-hospedes').value = 2;
   document.getElementById('f-breakfast').value = 'false';
   document.getElementById('f-canal').value = 'direto';
@@ -405,7 +405,7 @@ async function openEditModal(id) {
     document.getElementById('f-doc-tipo').value          = guestFull.document_type || '';
     document.getElementById('f-doc-num').value           = guestFull.document_number || '';
     document.getElementById('f-doc-emissor').value       = guestFull.document_issuer_country || '';
-    document.getElementById('f-nascimento').value        = guestFull.birth_date || '';
+    document.getElementById('f-nascimento').value        = formatDateForBirthInput(guestFull.birth_date || '');
     document.getElementById('f-local-nascimento').value  = guestFull.birth_city || '';
     updateForeignRequirements();
     document.getElementById('f-nif').value            = guestFull.nif || '';
@@ -413,8 +413,8 @@ async function openEditModal(id) {
     document.getElementById('f-cp').value             = guestFull.postal_code || '';
     document.getElementById('f-cidade').value         = guestFull.city || '';
 
-    document.getElementById('f-checkin').value       = r.check_in || '';
-    document.getElementById('f-checkout').value      = r.check_out || '';
+    document.getElementById('f-checkin').value       = formatDateForStandardInput(r.check_in || '');
+    document.getElementById('f-checkout').value      = formatDateForStandardInput(r.check_out || '');
     document.getElementById('f-num-hospedes').value  = r.num_guests || 2;
     document.getElementById('f-breakfast').value     = r.breakfast_included ? 'true' : 'false';
     document.getElementById('f-canal').value         = r.channel || 'direto';
@@ -426,7 +426,7 @@ async function openEditModal(id) {
     const amtPaidEl2 = document.getElementById('f-amount-paid');
     if (amtPaidEl2) amtPaidEl2.value = r.amount_paid > 0 ? Number(r.amount_paid).toFixed(2) : '';
     const payDateEl2 = document.getElementById('f-payment-date');
-    if (payDateEl2) payDateEl2.value = r.payment_date || '';
+    if (payDateEl2) payDateEl2.value = formatDateForStandardInput(r.payment_date || '');
     const remWrap2 = document.getElementById('payment-remaining-wrap');
     const remVal2  = document.getElementById('payment-remaining-val');
     if (ps === 'parcial' && r.amount_paid > 0 && r.total_amount > r.amount_paid) {
@@ -459,7 +459,7 @@ async function openEditModal(id) {
       setVal('tel_prefix', mc ? mc.dial : '+351');
       setVal('tel_num', mc ? rawP.slice(mc.dial.length).trim() : rawP);
       setVal('country',        g.country || g.nationality);
-      setVal('birth_date',     g.birth_date);
+      setVal('birth_date',     formatDateForBirthInput(g.birth_date));
       setVal('birth_city',     g.birth_city);
       setVal('doc_type',       g.document_type);
       setVal('doc_number',     g.document_number);
@@ -489,8 +489,8 @@ function closeModal() {
 }
 
 function calcTotal() {
-  const ci = document.getElementById('f-checkin').value;
-  const co = document.getElementById('f-checkout').value;
+  const ci = normalizeIsoDateValue(document.getElementById('f-checkin').value);
+  const co = normalizeIsoDateValue(document.getElementById('f-checkout').value);
   const numHospedes = parseInt(document.getElementById('f-num-hospedes').value) || 1;
   const breakfast = document.getElementById('f-breakfast')?.value === 'true';
   const alojId = document.getElementById('f-aloj').value;
@@ -522,8 +522,12 @@ function calcTotal() {
     const bkfCost = breakfast ? bkfRate * numHospedes * noites : 0;
     const extraOccupancyCost = getExtraOccupancyCharge(suite, numHospedes, noites, getGuestBirthDatesFromUi(), ci);
     document.getElementById('f-total').value = ((suite.price_per_night * noites) + extraOccupancyCost + taxCost + bkfCost).toFixed(2);
+  } else {
+    if (!suite) document.getElementById('f-total').value = '';
+    if (!ci || !co) document.getElementById('f-noites').value = '';
   }
   updateWizSummary();
+  updateSpecialRateHints();
 }
 
 function getExtraOccupancyCharge(suite, numGuests, nights, birthDates = [], checkIn = null) {
@@ -536,7 +540,7 @@ function getExtraOccupancyCharge(suite, numGuests, nights, birthDates = [], chec
   ));
   let remainingGuests = Math.max(0, numGuests - included);
   if (!remainingGuests) return 0;
-  const specialRates = getAgeSpecialRates(suite, birthDates, checkIn).slice(0, remainingGuests);
+  const specialRates = getAgeSpecialRates(suite, birthDates.slice(included), checkIn).slice(0, remainingGuests);
   let total = specialRates.reduce((sum, rate) => sum + (rate * nights), 0);
   remainingGuests -= specialRates.length;
 
@@ -577,9 +581,204 @@ function normalizeExtraOccupancyOptionsForPrice(suite) {
 
 function getGuestBirthDatesFromUi() {
   return [
-    document.getElementById('f-nascimento')?.value || '',
-    ...Array.from(document.querySelectorAll('.extra-guest-row [data-field="birth_date"]')).map(el => el.value || '')
+    getBirthDateValue(document.getElementById('f-nascimento')),
+    ...Array.from(document.querySelectorAll('.extra-guest-row [data-field="birth_date"]')).map(el => getBirthDateValue(el))
   ].filter(Boolean);
+}
+
+function formatDateForBirthInput(value) {
+  const iso = normalizeBirthDateValue(value);
+  if (!iso) return value || '';
+  const [, year, month, day] = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/) || [];
+  return year ? `${day}-${month}-${year}` : value;
+}
+
+function normalizeBirthDateValue(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) return isValidDateParts(isoMatch[1], isoMatch[2], isoMatch[3]) ? raw : '';
+  const ptMatch = raw.match(/^(\d{2})[\/-](\d{2})[\/-](\d{4})$/);
+  if (ptMatch) {
+    const [, day, month, year] = ptMatch;
+    return isValidDateParts(year, month, day) ? `${year}-${month}-${day}` : '';
+  }
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 8) {
+    const day = digits.slice(0, 2);
+    const month = digits.slice(2, 4);
+    const year = digits.slice(4, 8);
+    return isValidDateParts(year, month, day) ? `${year}-${month}-${day}` : '';
+  }
+  return '';
+}
+
+function isValidDateParts(year, month, day) {
+  const y = Number(year);
+  const m = Number(month);
+  const d = Number(day);
+  if (y < 1900 || y > new Date().getFullYear() || m < 1 || m > 12 || d < 1 || d > 31) return false;
+  const date = new Date(`${year}-${month}-${day}T12:00:00`);
+  return date.getFullYear() === y && date.getMonth() + 1 === m && date.getDate() === d;
+}
+
+function getBirthDateValue(input) {
+  return normalizeBirthDateValue(input?.value || '');
+}
+
+function handleBirthDateInput(input) {
+  const digits = String(input.value || '').replace(/\D/g, '');
+  if (digits.length === 8) normalizeBirthDateInput(input);
+}
+
+function normalizeBirthDateInput(input) {
+  if (!input) return;
+  const iso = normalizeBirthDateValue(input.value);
+  if (iso) input.value = formatDateForBirthInput(iso);
+  calcTotal();
+  updateSpecialRateHints();
+}
+
+let _birthCalendarInput = null;
+let _birthCalendarMonth = null;
+
+function openBirthDateCalendar(input) {
+  if (!input) return;
+  _birthCalendarInput = input;
+  const iso = getCustomDateInputValue(input);
+  const fallbackYear = input.dataset.dateFormat === 'pt' ? new Date().getFullYear() - 12 : new Date().getFullYear();
+  _birthCalendarMonth = iso ? new Date(`${iso}T12:00:00`) : new Date(fallbackYear, new Date().getMonth(), 1, 12);
+  renderBirthDateCalendar();
+}
+
+function closeBirthDateCalendar() {
+  document.getElementById('birth-date-calendar-pop')?.remove();
+  _birthCalendarInput = null;
+}
+
+function removeBirthDateCalendarPop() {
+  document.getElementById('birth-date-calendar-pop')?.remove();
+}
+
+function shiftBirthDateCalendar(monthDelta) {
+  if (!_birthCalendarMonth) return;
+  _birthCalendarMonth = new Date(_birthCalendarMonth.getFullYear(), _birthCalendarMonth.getMonth() + monthDelta, 1, 12);
+  renderBirthDateCalendar();
+}
+
+function shiftBirthDateCalendarYear(yearDelta) {
+  if (!_birthCalendarMonth) return;
+  _birthCalendarMonth = new Date(_birthCalendarMonth.getFullYear() + yearDelta, _birthCalendarMonth.getMonth(), 1, 12);
+  renderBirthDateCalendar();
+}
+
+function selectBirthDateFromCalendar(day) {
+  if (!_birthCalendarInput || !_birthCalendarMonth) return;
+  const date = new Date(_birthCalendarMonth.getFullYear(), _birthCalendarMonth.getMonth(), day, 12);
+  const iso = date.toISOString().slice(0, 10);
+  _birthCalendarInput.value = _birthCalendarInput.dataset.dateFormat === 'pt'
+    ? formatDateForBirthInput(iso)
+    : formatDateForStandardInput(iso);
+  _birthCalendarInput.dispatchEvent(new Event('change', { bubbles: true }));
+  closeBirthDateCalendar();
+  calcTotal();
+  updateSpecialRateHints();
+}
+
+function renderBirthDateCalendar() {
+  removeBirthDateCalendarPop();
+  if (!_birthCalendarInput || !_birthCalendarMonth) return;
+  const pop = document.createElement('div');
+  pop.id = 'birth-date-calendar-pop';
+  pop.className = 'birth-date-calendar-pop';
+
+  const year = _birthCalendarMonth.getFullYear();
+  const month = _birthCalendarMonth.getMonth();
+  const monthName = _birthCalendarMonth.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
+  const firstDay = new Date(year, month, 1, 12);
+  const startOffset = (firstDay.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const selectedIso = getCustomDateInputValue(_birthCalendarInput);
+
+  const days = [];
+  for (let i = 0; i < startOffset; i++) days.push('<span></span>');
+  for (let day = 1; day <= daysInMonth; day++) {
+    const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const selected = iso === selectedIso ? ' selected' : '';
+    days.push(`<button type="button" class="birth-cal-day${selected}" onclick="selectBirthDateFromCalendar(${day})">${day}</button>`);
+  }
+
+  pop.innerHTML = `
+    <div class="birth-cal-head">
+      <button type="button" onclick="shiftBirthDateCalendarYear(-1)" aria-label="Ano anterior"><i data-lucide="chevrons-left"></i></button>
+      <button type="button" onclick="shiftBirthDateCalendar(-1)" aria-label="Mês anterior"><i data-lucide="chevron-left"></i></button>
+      <strong>${monthName}</strong>
+      <button type="button" onclick="shiftBirthDateCalendar(1)" aria-label="Mês seguinte"><i data-lucide="chevron-right"></i></button>
+      <button type="button" onclick="shiftBirthDateCalendarYear(1)" aria-label="Ano seguinte"><i data-lucide="chevrons-right"></i></button>
+    </div>
+    <div class="birth-cal-week"><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span><span>D</span></div>
+    <div class="birth-cal-grid">${days.join('')}</div>
+  `;
+  document.body.appendChild(pop);
+  pop.addEventListener('click', event => event.stopPropagation());
+  pop.addEventListener('mousedown', event => event.stopPropagation());
+  const rect = _birthCalendarInput.getBoundingClientRect();
+  pop.style.left = `${Math.min(rect.left, window.innerWidth - 292)}px`;
+  pop.style.top = `${rect.bottom + 8}px`;
+  if (window.lucide) lucide.createIcons();
+}
+
+function getCustomDateInputValue(input) {
+  if (!input) return '';
+  if (input.dataset.dateFormat === 'pt') return getBirthDateValue(input);
+  return normalizeIsoDateValue(input.value);
+}
+
+function normalizeIsoDateValue(value) {
+  const raw = String(value || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  return normalizeBirthDateValue(raw);
+}
+
+function formatDateForStandardInput(value) {
+  const iso = normalizeIsoDateValue(value);
+  if (!iso) return value || '';
+  const [, year, month, day] = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/) || [];
+  return year ? `${day}-${month}-${year}` : value;
+}
+
+function enhanceCustomDatePickers(root = document) {
+  root.querySelectorAll('input[type="date"]:not([data-custom-calendar="1"])').forEach(input => {
+    input.dataset.customCalendar = '1';
+    input.dataset.dateFormat = input.dataset.dateFormat || 'iso';
+    input.type = 'text';
+    input.inputMode = 'numeric';
+    input.placeholder = input.placeholder || 'dd-mm-aaaa';
+    input.autocomplete = 'off';
+    input.addEventListener('focus', () => openBirthDateCalendar(input));
+    input.addEventListener('click', () => openBirthDateCalendar(input));
+    input.addEventListener('blur', () => {
+      const iso = normalizeIsoDateValue(input.value);
+      if (iso) input.value = formatDateForStandardInput(iso);
+    });
+    if (!input.closest('.birth-date-control')) {
+      const wrap = document.createElement('div');
+      wrap.className = 'birth-date-control';
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
+      const btn = document.createElement('button');
+      btn.className = 'birth-date-picker-btn';
+      btn.type = 'button';
+      btn.setAttribute('aria-label', 'Abrir calendário');
+      btn.innerHTML = '<i data-lucide="calendar-days"></i>';
+      btn.addEventListener('click', event => {
+        event.stopPropagation();
+        openBirthDateCalendar(input);
+      });
+      wrap.appendChild(btn);
+    }
+  });
+  if (window.lucide) lucide.createIcons();
 }
 
 function getAgeSpecialRates(suite, birthDates = [], checkIn = null) {
@@ -600,10 +799,61 @@ function getAgeSpecialRates(suite, birthDates = [], checkIn = null) {
     .map(item => item.rate);
 }
 
+function getAgeSpecialRateInfo(suite, birthDate, checkIn = null) {
+  if (!suite || !birthDate || !checkIn) return null;
+  const age = getAgeAtDate(birthDate, checkIn);
+  if (age === null) return null;
+  const babyLimit = Number(suite.baby_age_limit ?? 2);
+  const childLimit = Number(suite.child_age_limit ?? 12);
+  if (age < babyLimit) {
+    return { type: 'bebé', label: 'Preço de bebé aplicado', price: Number(suite.baby_price ?? 0), age };
+  }
+  if (age >= babyLimit && age < childLimit) {
+    return { type: 'criança', label: 'Preço de criança aplicado', price: Number(suite.child_price ?? 0), age };
+  }
+  return null;
+}
+
+function updateSpecialRateHints() {
+  const suite = accommodations.find(a => a.id === document.getElementById('f-aloj')?.value);
+  const checkIn = document.getElementById('f-checkin')?.value || new Date().toISOString().slice(0, 10);
+  const included = Math.max(1, Math.min(
+    Number(suite?.base_guests_included) || Math.min(Number(suite?.max_guests) || 2, 2),
+    Number(suite?.max_guests) || 20
+  ));
+  const setHint = (el, birthDate, guestIndex = 0) => {
+    if (!el) return;
+    const info = getAgeSpecialRateInfo(suite, birthDate, checkIn);
+    el.style.display = info ? '' : 'none';
+    if (!info) {
+      el.textContent = '';
+      return;
+    }
+    const applied = guestIndex >= included;
+    el.textContent = `${info.label}${applied ? '' : ' se for hóspede adicional'} · €${info.price.toFixed(2)}/noite`;
+  };
+
+  setHint(
+    document.getElementById('f-nascimento-rate-hint'),
+    getBirthDateValue(document.getElementById('f-nascimento')),
+    0
+  );
+  document.querySelectorAll('.extra-guest-row').forEach((row, idx) => {
+    setHint(
+      row.querySelector('.guest-rate-hint'),
+      getBirthDateValue(row.querySelector('[data-field="birth_date"]')),
+      idx + 1
+    );
+  });
+}
+
 function getAgeAtDate(birthDate, refDate) {
   if (!birthDate || !refDate) return null;
-  const birth = new Date(`${birthDate}T12:00:00`);
-  const ref = new Date(`${refDate}T12:00:00`);
+  const normalizedBirthDate = normalizeBirthDateValue(birthDate);
+  const normalizedRefDate = normalizeBirthDateValue(refDate) || refDate;
+  if (!normalizedBirthDate) return null;
+  const birth = new Date(`${normalizedBirthDate}T12:00:00`);
+  const ref = new Date(`${normalizedRefDate}T12:00:00`);
   if (Number.isNaN(birth.getTime()) || Number.isNaN(ref.getTime()) || birth > ref) return null;
   let age = ref.getFullYear() - birth.getFullYear();
   const monthDiff = ref.getMonth() - birth.getMonth();
@@ -625,7 +875,7 @@ function renderExtraGuests() {
     tel_prefix:      row.querySelector('[data-field="tel_prefix"]')?.value      || '+351',
     tel_num:         row.querySelector('[data-field="tel_num"]')?.value         || '',
     country:         row.querySelector('[data-field="country"]')?.value         || '',
-    birth_date:      row.querySelector('[data-field="birth_date"]')?.value      || '',
+    birth_date:      formatDateForBirthInput(row.querySelector('[data-field="birth_date"]')?.value || ''),
     birth_city:      row.querySelector('[data-field="birth_city"]')?.value      || '',
     doc_type:        row.querySelector('[data-field="doc_type"]')?.value        || '',
     doc_number:      row.querySelector('[data-field="doc_number"]')?.value      || '',
@@ -676,8 +926,14 @@ function renderExtraGuests() {
               onchange="updateExtraForeignReqs(this.closest('.extra-guest-row'))">${countryOpts}</select>
           </div>
           <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Data de Nascimento <span class="req-foreign-extra" style="display:none;color:var(--vermelho)">*</span></label>
-            <input class="form-control" data-field="birth_date" type="date" value="${p.birth_date || ''}" onchange="calcTotal()">
+            <label class="form-label">Data de Nascimento <span class="req-star">*</span></label>
+            <div class="birth-date-control">
+              <input class="form-control birth-date-input" data-field="birth_date" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" value="${formatDateForBirthInput(p.birth_date || '')}" onfocus="openBirthDateCalendar(this)" onclick="openBirthDateCalendar(this)" oninput="handleBirthDateInput(this)" onblur="normalizeBirthDateInput(this);calcTotal();updateSpecialRateHints()">
+              <button class="birth-date-picker-btn" type="button" onclick="openBirthDateCalendar(this.closest('.birth-date-control').querySelector('.birth-date-input'))" aria-label="Abrir calendário">
+                <i data-lucide="calendar-days"></i>
+              </button>
+            </div>
+            <div class="guest-rate-hint"></div>
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Local de Nascimento <span class="req-foreign-extra" style="display:none;color:var(--vermelho)">*</span></label>
@@ -725,6 +981,7 @@ function renderExtraGuests() {
   });
 
   if (window.lucide) lucide.createIcons();
+  updateSpecialRateHints();
 }
 
 function updateExtraForeignReqs(row) {
@@ -784,13 +1041,14 @@ function extraGuestSelect(idx, gIdx) {
   setVal('tel_prefix',  mc ? mc.dial : '+351');
   setVal('tel_num',     mc ? rawPhone.slice(mc.dial.length).trim() : rawPhone);
   setVal('country',     g.country || g.nationality);
-  setVal('birth_date',  g.birth_date);
+  setVal('birth_date',  formatDateForBirthInput(g.birth_date));
   setVal('birth_city',  g.birth_city);
   setVal('doc_type',    g.document_type);
   setVal('doc_number',  g.document_number);
   setVal('doc_emissor', g.document_issuer_country);
   setVal('nif',         g.nif);
   updateExtraForeignReqs(row);
+  calcTotal();
   const drop = document.getElementById(`extra-guest-drop-${idx}`);
   if (drop) { drop.innerHTML = ''; drop.classList.remove('open'); }
   const si = row.querySelector('.extra-guest-search-input');
@@ -804,8 +1062,8 @@ let _unavailableSuites = new Set();
 let _availTimer = null;
 
 async function fetchSuiteAvailability() {
-  const ci = document.getElementById('f-checkin')?.value;
-  const co = document.getElementById('f-checkout')?.value;
+  const ci = normalizeIsoDateValue(document.getElementById('f-checkin')?.value);
+  const co = normalizeIsoDateValue(document.getElementById('f-checkout')?.value);
   if (!ci || !co || new Date(co) <= new Date(ci)) {
     _unavailableSuites = new Set();
     renderSuiteCards();
@@ -863,14 +1121,21 @@ function updateWizUI() {
 
 function validateWizStep(step) {
   if (step === 1) {
-    const ci = document.getElementById('f-checkin').value;
-    const co = document.getElementById('f-checkout').value;
+    const ci = normalizeIsoDateValue(document.getElementById('f-checkin').value);
+    const co = normalizeIsoDateValue(document.getElementById('f-checkout').value);
     if (!ci) { toast('⚠️ Seleciona a data de check-in.', 'error'); return false; }
     if (!co) { toast('⚠️ Seleciona a data de check-out.', 'error'); return false; }
     if (new Date(co) <= new Date(ci)) { toast('⚠️ O check-out deve ser depois do check-in.', 'error'); return false; }
     const alojVal = document.getElementById('f-aloj').value;
     if (!alojVal) { toast('⚠️ Seleciona um alojamento.', 'error'); return false; }
     if (_unavailableSuites.has(alojVal)) { toast('⚠️ Este alojamento está ocupado nas datas selecionadas.', 'error'); return false; }
+    const suite = accommodations.find(a => a.id === alojVal);
+    const requestedGuests = parseInt(document.getElementById('f-num-hospedes')?.value, 10) || 1;
+    const maxGuests = Number(suite?.max_guests) || 0;
+    if (maxGuests > 0 && requestedGuests > maxGuests) {
+      toast(`⚠️ Capacidade máxima: ${maxGuests} hóspede${maxGuests !== 1 ? 's' : ''}.`, 'error');
+      return false;
+    }
     return true;
   }
   if (step === 2) {
@@ -882,10 +1147,10 @@ function validateWizStep(step) {
       { toast('⚠️ Introduz o telefone do hóspede.', 'error'); return false; }
     if (!document.getElementById('f-pais').value)
       { toast('⚠️ Seleciona o país do hóspede.', 'error'); return false; }
+    if (!getBirthDateValue(document.getElementById('f-nascimento')))
+      { toast('⚠️ Introduz uma data de nascimento válida para o hóspede.', 'error'); return false; }
     const isForeign = document.getElementById('f-pais').value !== 'Portugal';
     if (isForeign) {
-      if (!document.getElementById('f-nascimento').value)
-        { toast('⚠️ Data de nascimento obrigatória para hóspedes estrangeiros.', 'error'); return false; }
       if (!document.getElementById('f-local-nascimento').value.trim())
         { toast('⚠️ Local de nascimento obrigatório para hóspedes estrangeiros.', 'error'); return false; }
       if (!document.getElementById('f-doc-tipo').value)
@@ -900,11 +1165,11 @@ function validateWizStep(step) {
     for (const row of document.querySelectorAll('.extra-guest-row')) {
       const nome = row.querySelector('[data-field="nome_completo"]')?.value.trim();
       const country = row.querySelector('[data-field="country"]')?.value;
+      const birthDate = getBirthDateValue(row.querySelector('[data-field="birth_date"]'));
       if (!nome) { toast(`⚠️ Introduz o nome do hóspede ${extraIdx}.`, 'error'); return false; }
       if (!country) { toast(`⚠️ Seleciona o país do hóspede ${extraIdx}.`, 'error'); return false; }
+      if (!birthDate) { toast(`⚠️ Introduz uma data de nascimento válida para o hóspede ${extraIdx}.`, 'error'); return false; }
       if (country !== 'Portugal') {
-        if (!row.querySelector('[data-field="birth_date"]')?.value)
-          { toast(`⚠️ Data de nascimento obrigatória para o hóspede ${extraIdx} (estrangeiro).`, 'error'); return false; }
         if (!row.querySelector('[data-field="doc_type"]')?.value)
           { toast(`⚠️ Tipo de documento obrigatório para o hóspede ${extraIdx} (estrangeiro).`, 'error'); return false; }
         if (!row.querySelector('[data-field="doc_number"]')?.value.trim())
@@ -943,8 +1208,8 @@ function updateWizSummary() {
   const apelido = '';
   const alojId = document.getElementById('f-aloj')?.value;
   const suite = accommodations.find(a => a.id === alojId);
-  const ci = document.getElementById('f-checkin')?.value;
-  const co = document.getElementById('f-checkout')?.value;
+  const ci = normalizeIsoDateValue(document.getElementById('f-checkin')?.value);
+  const co = normalizeIsoDateValue(document.getElementById('f-checkout')?.value);
   const nights = ci && co ? Math.max(0, Math.round((new Date(co) - new Date(ci)) / 86400000)) : 0;
   const total = document.getElementById('f-total')?.value;
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
@@ -958,32 +1223,48 @@ function updateWizSummary() {
 function renderSuiteCards() {
   const grid = document.getElementById('suite-cards-grid');
   if (!grid) return;
-  const currentAlojId = document.getElementById('f-aloj')?.value;
-  const ci = document.getElementById('f-checkin')?.value;
-  const co = document.getElementById('f-checkout')?.value;
+  const alojEl = document.getElementById('f-aloj');
+  let currentAlojId = alojEl?.value;
+  const ci = normalizeIsoDateValue(document.getElementById('f-checkin')?.value);
+  const co = normalizeIsoDateValue(document.getElementById('f-checkout')?.value);
+  const requestedGuests = parseInt(document.getElementById('f-num-hospedes')?.value, 10) || 1;
   const datesSet = !!(ci && co && new Date(co) > new Date(ci));
   if (!accommodations.length) {
     grid.innerHTML = '<p style="font-size:13px;color:var(--cinza);">Nenhum alojamento disponível.</p>';
     return;
   }
+  const currentSuite = accommodations.find(a => a.id === currentAlojId);
+  const currentMaxGuests = Number(currentSuite?.max_guests) || 0;
+  if (currentMaxGuests > 0 && requestedGuests > currentMaxGuests) {
+    if (alojEl) alojEl.value = '';
+    currentAlojId = '';
+    updateWizSummary();
+  }
   grid.innerHTML = accommodations.map(a => {
     const cor = a.color || 'var(--marca)';
+    const maxGuests = Number(a.max_guests) || 0;
     const unavail = datesSet && _unavailableSuites.has(a.id);
-    const sel = !unavail && currentAlojId === a.id ? 'selected' : '';
-    const cls = `suite-card-opt${sel ? ' selected' : ''}${unavail ? ' unavailable' : ''}`;
-    const click = unavail ? '' : `onclick="selectSuiteCard('${a.id}')"`;
+    const overCapacity = maxGuests > 0 && requestedGuests > maxGuests;
+    const blocked = unavail || overCapacity;
+    const sel = !blocked && currentAlojId === a.id ? 'selected' : '';
+    const cls = `suite-card-opt${sel ? ' selected' : ''}${blocked ? ' unavailable' : ''}${overCapacity ? ' capacity-blocked' : ''}`;
+    const click = blocked ? '' : `onclick="selectSuiteCard('${a.id}')"`;
+    const title = overCapacity
+      ? `Capacidade máxima: ${maxGuests} hóspede${maxGuests !== 1 ? 's' : ''}`
+      : (unavail ? 'Indisponível nas datas selecionadas' : a.name);
     const coverUrl = a.cover_image ? (a.cover_image.startsWith('http') ? a.cover_image : API_BASE + a.cover_image) : '';
-    return `<div class="${cls}" ${click} title="${unavail ? 'Indisponível nas datas selecionadas' : a.name}">
+    return `<div class="${cls}" ${click} title="${title}">
       <div class="suite-check"><i data-lucide="check" style="width:10px;height:10px;color:#fff;"></i></div>
       ${coverUrl
         ? `<img src="${coverUrl}" class="suite-card-cover" alt="${a.name}">`
-        : unavail
+        : blocked
           ? `<div style="font-size:16px;margin-bottom:6px;">🔒</div>`
           : `<div style="width:10px;height:10px;border-radius:50%;background:${cor};margin-bottom:8px;"></div>`}
-      ${unavail ? `<div class="suite-card-lock">🔒</div>` : ''}
+      ${blocked ? `<div class="suite-card-lock">🔒</div>` : ''}
       <div class="suite-card-name">${a.name}</div>
-      ${unavail
-        ? `<div class="suite-card-unavail-lbl">Indisponível</div>`
+      ${blocked
+        ? `${unavail ? `<div class="suite-card-unavail-lbl">Indisponível</div>` : ''}
+           ${overCapacity ? `<div class="suite-card-capacity-lbl">Capacidade máxima: ${maxGuests} hóspede${maxGuests !== 1 ? 's' : ''}</div>` : ''}`
         : `<div class="suite-card-price">€${a.price_per_night}<span class="suite-card-sub"> / noite</span></div>`}
     </div>`;
   }).join('');
@@ -992,6 +1273,10 @@ function renderSuiteCards() {
 
 function selectSuiteCard(id) {
   if (_unavailableSuites.has(id)) return;
+  const suite = accommodations.find(a => a.id === id);
+  const requestedGuests = parseInt(document.getElementById('f-num-hospedes')?.value, 10) || 1;
+  const maxGuests = Number(suite?.max_guests) || 0;
+  if (maxGuests > 0 && requestedGuests > maxGuests) return;
   const sel = document.getElementById('f-aloj');
   if (sel) sel.value = id;
   renderSuiteCards();
@@ -1009,8 +1294,8 @@ function buildWizConfirm() {
   const alojId = document.getElementById('f-aloj')?.value;
   const suite = accommodations.find(a => a.id === alojId);
   const cor = suite?.color || 'var(--marca)';
-  const ci = document.getElementById('f-checkin')?.value;
-  const co = document.getElementById('f-checkout')?.value;
+  const ci = normalizeIsoDateValue(document.getElementById('f-checkin')?.value);
+  const co = normalizeIsoDateValue(document.getElementById('f-checkout')?.value);
   const nights = ci && co ? Math.max(0, Math.round((new Date(co) - new Date(ci)) / 86400000)) : 0;
   const canal = document.getElementById('f-canal')?.value || '';
   const numH = parseInt(document.getElementById('f-num-hospedes')?.value) || 1;
@@ -1096,13 +1381,14 @@ function wizSelectGuest(idx) {
   document.getElementById('f-doc-tipo').value = g.document_type || '';
   document.getElementById('f-doc-num').value = g.document_number || '';
   document.getElementById('f-doc-emissor').value = g.document_issuer_country || '';
-  document.getElementById('f-nascimento').value = g.birth_date || '';
+  document.getElementById('f-nascimento').value = formatDateForBirthInput(g.birth_date || '');
   document.getElementById('f-local-nascimento').value = g.birth_city || '';
   document.getElementById('f-nif').value = g.nif || '';
   document.getElementById('f-morada').value = g.address || '';
   document.getElementById('f-cp').value = g.postal_code || '';
   document.getElementById('f-cidade').value = g.city || '';
   updateForeignRequirements();
+  calcTotal();
   updateWizSummary();
   const drop = document.getElementById('wiz-guest-drop');
   if (drop) { drop.innerHTML = ''; drop.classList.remove('open'); }
@@ -1113,6 +1399,10 @@ function wizSelectGuest(idx) {
 
 // Close guest dropdowns when clicking outside
 document.addEventListener('click', function(e) {
+  const birthPop = document.getElementById('birth-date-calendar-pop');
+  if (birthPop && !birthPop.contains(e.target) && !e.target.closest('.birth-date-control')) {
+    closeBirthDateCalendar();
+  }
   const mainDrop = document.getElementById('wiz-guest-drop');
   const mainWrap = document.getElementById('wiz-guest-search')?.closest('.guest-search-wrap');
   if (mainDrop && mainWrap && !mainWrap.contains(e.target)) mainDrop.classList.remove('open');
@@ -1138,7 +1428,7 @@ function collectExtraGuests() {
       phone:                    tel_prefix + tel_num.replace(/\s/g, ''),
       nationality:              row.querySelector('[data-field="country"]')?.value        || '',
       country:                  row.querySelector('[data-field="country"]')?.value        || '',
-      birth_date:               row.querySelector('[data-field="birth_date"]')?.value    || '',
+      birth_date:               getBirthDateValue(row.querySelector('[data-field="birth_date"]')) || '',
       birth_city:               row.querySelector('[data-field="birth_city"]')?.value    || '',
       document_type:            row.querySelector('[data-field="doc_type"]')?.value      || '',
       document_number:          row.querySelector('[data-field="doc_number"]')?.value    || '',
@@ -1158,8 +1448,8 @@ async function saveReserva() {
   const telNum       = document.getElementById('f-tel-num')?.value.trim() || '';
   const tel          = telPrefix + telNum.replace(/\s/g, '');
   const pais         = document.getElementById('f-pais').value.trim();
-  const checkin  = document.getElementById('f-checkin').value;
-  const checkout = document.getElementById('f-checkout').value;
+  const checkin  = normalizeIsoDateValue(document.getElementById('f-checkin').value);
+  const checkout = normalizeIsoDateValue(document.getElementById('f-checkout').value);
   const alojId   = document.getElementById('f-aloj').value;
   const rgpdCheck = document.getElementById('f-rgpd-check');
 
@@ -1167,6 +1457,8 @@ async function saveReserva() {
   if (!email)        { toast('Por favor insira o email do hóspede.', 'error'); return; }
   if (!telNum)       { toast('Por favor insira o telefone do hóspede.', 'error'); return; }
   if (!pais)         { toast('Por favor selecione o país do hóspede.', 'error'); return; }
+  const birthDate = getBirthDateValue(document.getElementById('f-nascimento'));
+  if (!birthDate) { toast('Por favor insira uma data de nascimento válida.', 'error'); return; }
   if (!checkin || !checkout) { toast('Por favor selecione as datas.', 'error'); return; }
   if (checkin >= checkout) { toast('O check-out deve ser depois do check-in.', 'error'); return; }
   const selectedAccommodation = accommodations.find(a => a.id === alojId);
@@ -1177,8 +1469,6 @@ async function saveReserva() {
   }
 
   if (pais && pais !== 'Portugal') {
-    if (!document.getElementById('f-nascimento').value)
-      { toast('Para hóspedes estrangeiros, a data de nascimento é obrigatória.', 'error'); return; }
     if (!document.getElementById('f-local-nascimento').value.trim())
       { toast('Para hóspedes estrangeiros, o local de nascimento é obrigatório.', 'error'); return; }
     if (!document.getElementById('f-doc-tipo').value)
@@ -1211,7 +1501,7 @@ async function saveReserva() {
         payment_status: document.getElementById('f-payment-status').value,
         payment_method: document.getElementById('f-pagamento').value,
         amount_paid: parseFloat(document.getElementById('f-amount-paid')?.value) || 0,
-        payment_date: document.getElementById('f-payment-date')?.value || null,
+        payment_date: normalizeIsoDateValue(document.getElementById('f-payment-date')?.value) || null,
         notes: document.getElementById('f-notas').value,
         guests_data: collectExtraGuests(),
         guest: {
@@ -1220,7 +1510,7 @@ async function saveReserva() {
           document_type:            document.getElementById('f-doc-tipo')?.value          || null,
           document_number:          document.getElementById('f-doc-num')?.value           || null,
           document_issuer_country:  document.getElementById('f-doc-emissor')?.value       || null,
-          birth_date:               document.getElementById('f-nascimento')?.value        || null,
+          birth_date:               birthDate || null,
           birth_city:               document.getElementById('f-local-nascimento')?.value  || null,
           nif:                      document.getElementById('f-nif')?.value               || null,
           address:                  document.getElementById('f-morada')?.value            || null,
@@ -1246,7 +1536,7 @@ async function saveReserva() {
           document_type:            document.getElementById('f-doc-tipo')?.value          || null,
           document_number:          document.getElementById('f-doc-num')?.value           || null,
           document_issuer_country:  document.getElementById('f-doc-emissor')?.value       || null,
-          birth_date:               document.getElementById('f-nascimento')?.value        || null,
+          birth_date:               birthDate || null,
           birth_city:               document.getElementById('f-local-nascimento')?.value  || null,
           nif:                      document.getElementById('f-nif')?.value               || null,
           address:                  document.getElementById('f-morada')?.value            || null,
@@ -1263,7 +1553,7 @@ async function saveReserva() {
         payment_status: document.getElementById('f-payment-status').value,
         payment_method: document.getElementById('f-pagamento').value,
         amount_paid: parseFloat(document.getElementById('f-amount-paid')?.value) || 0,
-        payment_date: document.getElementById('f-payment-date')?.value || null,
+        payment_date: normalizeIsoDateValue(document.getElementById('f-payment-date')?.value) || null,
         notes: document.getElementById('f-notas').value,
         rgpd_consent: true,
         guests_data: collectExtraGuests(),
@@ -1433,8 +1723,8 @@ function _getFilteredReservasForExport() {
   const fs = document.getElementById('filter-suite')?.value || '';
   const fc = document.getElementById('filter-canal')?.value || '';
   const fp = document.getElementById('filter-pagamento')?.value || '';
-  const fd = document.getElementById('filter-date-from')?.value || '';
-  const ft = document.getElementById('filter-date-to')?.value || '';
+  const fd = normalizeIsoDateValue(document.getElementById('filter-date-from')?.value || '');
+  const ft = normalizeIsoDateValue(document.getElementById('filter-date-to')?.value || '');
   return reservas.filter(r => {
     const matchQ = !q  || (r.guest_name + ' ' + r.id + ' ' + (r.guest_email||'') + ' ' + r.accommodation_name).toLowerCase().includes(q);
     return matchQ &&

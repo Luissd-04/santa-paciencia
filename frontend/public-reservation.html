@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reservar estadia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/public-reservation.css">
+</head>
+<body>
+  <div class="booking-page">
+    <div class="ambient-bg" id="ambient-bg"></div>
+    <div class="ambient-overlay"></div>
+
+    <header class="booking-hero">
+      <div class="brand-pill" id="property-location">A carregar...</div>
+      <h1 id="property-name">Reserve a sua estadia</h1>
+      <p id="property-description">Escolha as datas, veja os quartos disponíveis e envie o pedido de reserva.</p>
+    </header>
+
+    <main class="booking-shell">
+      <section class="gallery-rail" aria-label="Galeria do alojamento">
+        <div class="rail-track" id="gallery-top"></div>
+      </section>
+
+      <section class="booking-card">
+        <div class="stepbar">
+          <span class="step-dot active" data-step-dot="1">1</span>
+          <span class="step-line"></span>
+          <span class="step-dot" data-step-dot="2">2</span>
+          <span class="step-line"></span>
+          <span class="step-dot" data-step-dot="3">3</span>
+        </div>
+
+        <div class="booking-grid">
+          <form class="booking-form" id="public-booking-form">
+            <section class="form-step active" data-step="1">
+              <div class="step-heading">
+                <span>Datas</span>
+                <h2>Quando quer vir?</h2>
+              </div>
+              <div class="field-grid two">
+                <label>
+                  <span>Check-in</span>
+                  <input id="pb-checkin" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" autocomplete="off">
+                </label>
+                <label>
+                  <span>Check-out</span>
+                  <input id="pb-checkout" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" autocomplete="off">
+                </label>
+              </div>
+              <div class="field-grid two">
+                <label>
+                  <span>Hóspedes</span>
+                  <input id="pb-guests" type="number" min="1" max="20" value="2">
+                </label>
+                <label>
+                  <span>Pequeno-almoço</span>
+                  <select id="pb-breakfast">
+                    <option value="false">Não incluído</option>
+                    <option value="true">Incluir</option>
+                  </select>
+                </label>
+              </div>
+              <div class="unit-list" id="unit-list"></div>
+            </section>
+
+            <section class="form-step" data-step="2">
+              <div class="step-heading">
+                <span>Hóspedes</span>
+                <h2>Os seus dados</h2>
+              </div>
+              <label>
+                <span>Nome completo</span>
+                <input id="pb-name" required placeholder="Nome completo">
+              </label>
+              <div class="field-grid two">
+                <label>
+                  <span>Email</span>
+                  <input id="pb-email" type="email" required placeholder="email@exemplo.com">
+                </label>
+                <label>
+                  <span>Telefone</span>
+                  <input id="pb-phone" type="tel" required placeholder="+351 912 345 678">
+                </label>
+              </div>
+              <div class="field-grid two">
+                <label>
+                  <span>País</span>
+                  <input id="pb-country" required value="Portugal">
+                </label>
+                <label>
+                  <span>Data de nascimento</span>
+                  <input id="pb-birth" class="birth-input" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10">
+                  <small class="rate-hint" id="pb-main-rate"></small>
+                </label>
+              </div>
+              <div id="extra-guests"></div>
+            </section>
+
+            <section class="form-step" data-step="3">
+              <div class="step-heading">
+                <span>Confirmar</span>
+                <h2>Últimos detalhes</h2>
+              </div>
+              <div class="field-grid two">
+                <label>
+                  <span>Hora prevista de chegada</span>
+                  <input id="pb-arrival" type="time">
+                </label>
+                <label>
+                  <span>NIF</span>
+                  <input id="pb-nif" placeholder="Opcional">
+                </label>
+              </div>
+              <label>
+                <span>Notas ou pedidos especiais</span>
+                <textarea id="pb-notes" rows="4" placeholder="Algum pedido especial?"></textarea>
+              </label>
+              <label class="rgpd-check">
+                <input id="pb-rgpd" type="checkbox">
+                <span>Autorizo o tratamento dos meus dados para gestão da reserva e comunicações relacionadas com a estadia.</span>
+              </label>
+              <div class="success-box" id="success-box"></div>
+            </section>
+          </form>
+
+          <aside class="summary-panel">
+            <div class="summary-media" id="summary-media"></div>
+            <div class="summary-content">
+              <span class="summary-kicker">Pedido de reserva</span>
+              <h3 id="summary-unit">Escolha um quarto</h3>
+              <div class="summary-row"><span>Datas</span><strong id="summary-dates">-</strong></div>
+              <div class="summary-row"><span>Noites</span><strong id="summary-nights">-</strong></div>
+              <div class="summary-row"><span>Hóspedes</span><strong id="summary-guests">2</strong></div>
+              <div class="summary-row muted"><span>Base</span><strong id="summary-base">-</strong></div>
+              <div class="summary-row muted"><span>Extras</span><strong id="summary-extras">-</strong></div>
+              <div class="summary-row muted"><span>Taxas/serviços</span><strong id="summary-services">-</strong></div>
+              <div class="summary-total"><span>Total estimado</span><strong id="summary-total">-</strong></div>
+              <div class="form-actions">
+                <button type="button" class="ghost-btn" id="prev-btn">Voltar</button>
+                <button type="button" class="primary-btn" id="next-btn">Continuar</button>
+              </div>
+              <p class="microcopy">A reserva fica pendente até confirmação do alojamento.</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="gallery-rail bottom" aria-label="Fotos dos quartos">
+        <div class="rail-track reverse" id="gallery-bottom"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/public-reservation.js"></script>
+</body>
+</html>

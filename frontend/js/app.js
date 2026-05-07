@@ -198,7 +198,7 @@ async function syncAllGcal() {
     const res = await apiPost('/api/calendar/sync-all', {});
     if (res.success) {
       const d = res.data;
-      toast(`✅ Sincronização completa: ${d.created} criados, ${d.updated} atualizados${d.errors ? ', ' + d.errors + ' erros' : ''}.`, 'success');
+      toast(`✅ Sincronização completa: ${d.created} criados, ${d.updated} atualizados${d.skipped ? ', ' + d.skipped + ' já ligados a outro membro' : ''}${d.errors ? ', ' + d.errors + ' erros' : ''}.`, 'success');
       await loadCalendarStatus();
     } else {
       toast('❌ ' + (res.error || 'Erro ao sincronizar.'), 'error');
@@ -234,13 +234,9 @@ async function initApp() {
 
   const pathView = window.location.pathname.replace(/^\/+|\/+$/g, '') || 'dashboard';
   showView(VIEW_TITLES[pathView] ? pathView : 'dashboard', false);
+  if (typeof enhanceCustomDatePickers === 'function') enhanceCustomDatePickers();
 
-  // Restore sub-states that can't be recovered from URL alone
-  if (pathView === 'alojamentos') {
-    const savedId  = SS.get('aloj:id', null);
-    const savedTab = SS.get('aloj:tab', 'info');
-    if (savedId && accommodations.find(a => a.id === savedId)) openAlojamento(savedId, savedTab);
-  }
+  // Restore list filters that can't be recovered from URL alone.
   if (pathView === 'alojamentos' || pathView === 'reservas') {
     const sv = (id, key) => { const el = document.getElementById(id); if (el && !el.value) el.value = SS.get(key, ''); };
     sv('aloj-search', 'aloj:q'); sv('aloj-filter-type', 'aloj:type'); sv('aloj-filter-link', 'aloj:link');

@@ -11,6 +11,37 @@ const INHERITED_FIELDS = ['address','postal_code','city','region','country',
 const COMMON_AREAS_KEY = 'areas_comuns';
 const COMMON_AREAS_LABEL = 'Áreas Comuns';
 
+function slugify(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 64) || `alojamento-${Date.now()}`;
+}
+
+function generatePublicSlug(name, idToExclude = '') {
+  const base = slugify(name);
+  let slug = base;
+  let idx = 1;
+  while (db.prepare('SELECT 1 FROM accommodations WHERE public_slug = ? AND id != ?').get(slug, idToExclude)) {
+    idx += 1;
+    slug = `${base}-${idx}`;
+  }
+  return slug;
+}
+
+function ensurePublicSlug(accommodation) {
+  if (!accommodation || accommodation.type !== 'alojamento') return accommodation?.public_slug || null;
+  if (accommodation.public_slug) return accommodation.public_slug;
+  const slug = generatePublicSlug(accommodation.name || accommodation.id, accommodation.id);
+  db.prepare('UPDATE accommodations SET public_slug = ? WHERE id = ? AND organization_id = ?')
+    .run(slug, accommodation.id, accommodation.organization_id);
+  accommodation.public_slug = slug;
+  return slug;
+}
+
 function normalizeSections(images) {
   const safe = images && typeof images === 'object' ? { ...images } : {};
   const sections = Array.isArray(safe._sections) ? [...safe._sections] : [];
@@ -92,7 +123,10 @@ function getResolvedAccommodationsForOrg(orgId) {
     return resolved;
   }
 
-  return base.map(row => resolveById(row.id));
+  return base.map(row => {
+    if (row.type === 'alojamento') ensurePublicSlug(row);
+    return resolveById(row.id);
+  });
 }
 
 // ─── GET ALL ───────────────────────────────────────────────
@@ -129,15 +163,17 @@ function create(req, res) {
   const guestsMax = Number(max_guests) || 2;
   const baseGuestsIncluded = Math.min(guestsMax, 2);
 
+  const publicSlug = (type || 'suite') === 'alojamento' ? generatePublicSlug(name) : null;
+
   db.prepare(`INSERT INTO accommodations (
       id, organization_id, name, type, price_per_night, max_guests, license_number, parent_id,
       base_guests_included, extra_bed_enabled, extra_bed_type, extra_bed_capacity, extra_bed_price, extra_bed_charge_type,
-      extra_occupancy_options, baby_age_limit, baby_price, child_age_limit, child_price
+      extra_occupancy_options, baby_age_limit, baby_price, child_age_limit, child_price, public_slug
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'sofa_cama', 0, 0, 'per_guest_night', '[]', 2, 0, 12, 0)`)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'sofa_cama', 0, 0, 'per_guest_night', '[]', 2, 0, 12, 0, ?)`)
     .run(id, req.user.organization_id, name, type || 'suite', price_per_night || 100, guestsMax,
       license_number || (process.env.LICENSE_NUMBER || '12345/AL'),
-      parent_id || null, baseGuestsIncluded);
+      parent_id || null, baseGuestsIncluded, publicSlug);
 
   const created = getResolvedAccommodationsForOrg(req.user.organization_id).find(a => a.id === id);
   res.status(201).json({ success: true, data: created });
