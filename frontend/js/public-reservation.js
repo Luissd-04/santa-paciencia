@@ -9,7 +9,6 @@ const state = {
   services: [],
   availability: [],
   selectedUnitId: '',
-  bookingType: 'unit',
   step: 1,
   bgIndex: 0,
   dateInput: null,
@@ -48,7 +47,7 @@ function nights() {
 }
 
 function selectedUnit() {
-  if (state.selectedUnitId === 'property') return null;
+  if (state.selectedUnitId === 'property' || !state.selectedUnitId) return null;
   return state.units.find(u => u.id === state.selectedUnitId) || null;
 }
 
@@ -135,35 +134,34 @@ function availabilityFor(unitId) {
 
 function renderUnits() {
   const container = $('unit-list');
-  if (state.bookingType === 'property') {
-    container.innerHTML = `
-      <div class="unit-card selected property-card" data-unit="property">
-        <img src="${state.property?.images?.[0]?.url || ''}" alt="">
+  const propertyCard = `
+    <div class="unit-card ${state.selectedUnitId === 'property' ? 'selected' : ''} property-card" data-unit="property">
+      <img src="${state.property?.images?.[0]?.url || ''}" alt="">
+      <div>
+        <h4>${state.property?.name || 'Alojamento completo'}</h4>
+        <p>Propriedade inteira para sua exclusividade</p>
+      </div>
+    </div>`;
+
+  const unitCards = state.units.map(unit => {
+    const av = availabilityFor(unit.id);
+    const blocked = av && !av.available;
+    const selected = state.selectedUnitId === unit.id && !blocked;
+    const reason = av?.over_capacity
+      ? `Capacidade máxima: ${unit.max_guests} hóspedes`
+      : av?.occupied ? 'Indisponível nas datas selecionadas' : `${unit.max_guests} hóspedes · ${unit.num_rooms || 1} quarto`;
+    return `
+      <div class="unit-card ${selected ? 'selected' : ''} ${blocked ? 'blocked' : ''}" data-unit="${unit.id}">
+        <img src="${unit.cover_image || unit.images?.[0]?.url || ''}" alt="">
         <div>
-          <h4>${state.property?.name || 'Alojamento completo'}</h4>
-          <p>Toda a propriedade para sua exclusividade</p>
+          <h4>${unit.name}</h4>
+          <p>${reason}</p>
         </div>
+        <div class="unit-price">${fmtCurrency(unit.price_per_night)}<small>/ noite</small></div>
       </div>`;
-    state.selectedUnitId = 'property';
-  } else {
-    container.innerHTML = state.units.map(unit => {
-      const av = availabilityFor(unit.id);
-      const blocked = av && !av.available;
-      const selected = state.selectedUnitId === unit.id && !blocked;
-      const reason = av?.over_capacity
-        ? `Capacidade máxima: ${unit.max_guests} hóspedes`
-        : av?.occupied ? 'Indisponível nas datas selecionadas' : `${unit.max_guests} hóspedes · ${unit.num_rooms || 1} quarto`;
-      return `
-        <div class="unit-card ${selected ? 'selected' : ''} ${blocked ? 'blocked' : ''}" data-unit="${unit.id}">
-          <img src="${unit.cover_image || unit.images?.[0]?.url || ''}" alt="">
-          <div>
-            <h4>${unit.name}</h4>
-            <p>${reason}</p>
-          </div>
-          <div class="unit-price">${fmtCurrency(unit.price_per_night)}<small>/ noite</small></div>
-        </div>`;
-    }).join('');
-  }
+  }).join('');
+
+  container.innerHTML = propertyCard + unitCards;
 }
 
 function bindEvents() {
@@ -181,12 +179,6 @@ function bindEvents() {
     renderExtraGuests();
     recalc();
   }));
-  $('pb-booking-type').addEventListener('change', (e) => {
-    state.bookingType = e.target.value;
-    renderUnits();
-    fetchAvailability();
-    recalc();
-  });
   $('unit-list').addEventListener('click', (e) => {
     const card = e.target.closest('.unit-card');
     if (!card || card.classList.contains('blocked')) return;
@@ -304,7 +296,7 @@ function recalc() {
   $('summary-guests').textContent = guests;
   $('summary-dates').textContent = iso($('pb-checkin').value) && iso($('pb-checkout').value) ? `${ptDate($('pb-checkin').value)} - ${ptDate($('pb-checkout').value)}` : '-';
   $('summary-nights').textContent = n ? `${n} noite${n !== 1 ? 's' : ''}` : '-';
-  if (state.bookingType === 'property') {
+  if (state.selectedUnitId === 'property') {
     $('summary-unit').textContent = state.property?.name || 'Alojamento completo';
     $('summary-media').style.backgroundImage = `url('${state.property?.images?.[0]?.url || ''}')`;
     const base = (state.property?.price_per_night || 0) * n;
@@ -389,7 +381,6 @@ function collectPayload() {
     arrival_time: $('pb-arrival').value || null,
     notes: $('pb-notes').value.trim() || null,
     rgpd_consent: $('pb-rgpd').checked,
-    booking_type: state.bookingType,
     guest: {
       name: $('pb-name').value.trim(),
       first_name: nameParts[0] || '',
@@ -414,7 +405,7 @@ function collectPayload() {
       };
     })
   };
-  if (state.bookingType === 'unit') payload.accommodation_id = state.selectedUnitId;
+  if (state.selectedUnitId !== 'property') payload.accommodation_id = state.selectedUnitId;
   return payload;
 }
 

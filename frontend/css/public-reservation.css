@@ -104,14 +104,14 @@ body {
   gap: 12px;
   width: max-content;
   min-width: 100%;
-  animation: railMove 90s linear infinite;
+  animation: railMove 180s linear infinite;
   will-change: transform;
   animation-play-state: running !important;
 }
 
 .rail-track.reverse {
   animation-direction: reverse;
-  animation-duration: 110s;
+  animation-duration: 220s;
 }
 
 .rail-img {
@@ -509,12 +509,8 @@ textarea { resize: vertical; }
 }
 
 @keyframes railMove {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(calc(-100% + 100vw));
-  }
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 
 @keyframes riseIn {
