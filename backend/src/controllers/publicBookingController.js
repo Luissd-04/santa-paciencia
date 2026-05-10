@@ -324,12 +324,12 @@ function createReservation(req, res, next) {
     if (!guest) {
       const guestId = uuidv4();
       db.prepare(`
-        INSERT INTO guests (id, organization_id, name, email, phone, first_name, last_name, birth_date, nif, country, address, postal_code, city, nationality)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO guests (id, organization_id, name, email, phone, first_name, last_name, birth_date, nif, id_type, country, address, postal_code, city, nationality)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         guestId, parent.organization_id, payload.guest.name, payload.guest.email, payload.guest.phone || null,
         payload.guest.first_name || null, payload.guest.last_name || null, normalizeDateValue(payload.guest.birth_date),
-        payload.guest.nif || null, payload.guest.country || payload.guest.nationality || null,
+        payload.guest.nif || null, payload.guest.id_type || null, payload.guest.country || payload.guest.nationality || null,
         payload.guest.address || null, payload.guest.postal_code || null, payload.guest.city || null,
         payload.guest.country || payload.guest.nationality || null
       );

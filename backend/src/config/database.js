@@ -175,16 +175,27 @@ function initDatabase() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS guests (
       id TEXT PRIMARY KEY,
+      organization_id TEXT,
       name TEXT NOT NULL,
+      first_name TEXT,
+      last_name TEXT,
       email TEXT NOT NULL,
       phone TEXT,
+      birth_date TEXT,
+      nif TEXT,
       document_type TEXT,
       document_number TEXT,
+      id_type TEXT,
+      country TEXT,
       nationality TEXT,
+      address TEXT,
+      postal_code TEXT,
+      city TEXT,
       rgpd_consent INTEGER DEFAULT 0,
       rgpd_consent_date TEXT,
       rgpd_consent_ip TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
     );
   `);
 
