@@ -68,9 +68,10 @@ async function init() {
     state.property = payload.data.property;
     state.units = payload.data.units || [];
     state.services = payload.data.services || [];
-    state.selectedUnitId = state.property?.id || state.units[0]?.id || '';
+    state.selectedUnitId = 'property';
     renderLanding();
     bindEvents();
+    updateIDFieldLabels();
     renderStep();
     recalc();
   } catch (err) {
@@ -134,13 +135,23 @@ function availabilityFor(unitId) {
 
 function renderUnits() {
   const container = $('unit-list');
+  const propertyAv = state.availability.find(a => a.type === 'property');
+  const propertyBlocked = propertyAv && !propertyAv.available;
+  const propertySelected = state.selectedUnitId === 'property' || state.selectedUnitId === state.property?.id;
+  const propertyReason = propertyAv?.occupied
+    ? 'Indisponível nas datas selecionadas'
+    : propertyAv?.over_capacity
+    ? `Capacidade máxima: ${propertyAv.max_guests} hóspedes`
+    : 'Propriedade inteira para sua exclusividade';
+
   const propertyCard = `
-    <div class="unit-card ${state.selectedUnitId === 'property' ? 'selected' : ''} property-card" data-unit="property">
+    <div class="unit-card ${propertySelected ? 'selected' : ''} ${propertyBlocked ? 'blocked' : ''} property-card" data-unit="property">
       <img src="${state.property?.images?.[0]?.url || ''}" alt="">
       <div>
         <h4>${state.property?.name || 'Alojamento completo'}</h4>
-        <p>Propriedade inteira para sua exclusividade</p>
+        <p>${propertyReason}</p>
       </div>
+      ${state.property?.price_per_night ? `<div class="unit-price">${fmtCurrency(state.property.price_per_night)}<small>/ noite</small></div>` : ''}
     </div>`;
 
   const unitCards = state.units.map(unit => {
@@ -164,6 +175,25 @@ function renderUnits() {
   container.innerHTML = propertyCard + unitCards;
 }
 
+function updateIDFieldLabels() {
+  const country = $('pb-country').value.trim();
+  const isStranger = country && country !== 'Portugal';
+  const nifLabel = $('pb-nif-label');
+  const idTypeLabel = $('pb-id-type-label');
+
+  if (isStranger) {
+    nifLabel.textContent = 'Documento de identidade *';
+    idTypeLabel.textContent = 'Tipo de documento *';
+    $('pb-nif').required = true;
+    $('pb-id-type').required = true;
+  } else {
+    nifLabel.textContent = 'NIF';
+    idTypeLabel.textContent = 'Tipo de documento';
+    $('pb-nif').required = false;
+    $('pb-id-type').required = false;
+  }
+}
+
 function bindEvents() {
   ['pb-checkin','pb-checkout','pb-birth'].forEach(id => {
     const input = $(id);
@@ -179,6 +209,25 @@ function bindEvents() {
     renderExtraGuests();
     recalc();
   }));
+  $('pb-country').addEventListener('change', () => {
+    updateIDFieldLabels();
+    renderExtraGuests();
+  });
+  const breakfastSvc = state.services.find(s => s.id === 'breakfast');
+  if (breakfastSvc && breakfastSvc.active === false) {
+    const breakfastSelect = $('pb-breakfast');
+    if (breakfastSelect) {
+      breakfastSelect.disabled = true;
+      breakfastSelect.value = 'false';
+      breakfastSelect.parentElement.style.opacity = '0.6';
+      const hint = document.createElement('small');
+      hint.textContent = 'Temporariamente sem serviço de pequeno-almoço';
+      hint.style.display = 'block';
+      hint.style.color = '#999';
+      hint.style.marginTop = '4px';
+      breakfastSelect.parentElement.appendChild(hint);
+    }
+  }
   $('unit-list').addEventListener('click', (e) => {
     const card = e.target.closest('.unit-card');
     if (!card || card.classList.contains('blocked')) return;
@@ -217,18 +266,25 @@ function renderExtraGuests() {
   const existing = Array.from(wrap.querySelectorAll('.extra-guest-box')).map(box => ({
     name: box.querySelector('[data-field="name"]')?.value || '',
     country: box.querySelector('[data-field="country"]')?.value || '',
-    birth_date: box.querySelector('[data-field="birth_date"]')?.value || ''
+    birth_date: box.querySelector('[data-field="birth_date"]')?.value || '',
+    nif: box.querySelector('[data-field="nif"]')?.value || ''
   }));
   wrap.innerHTML = '';
   for (let i = 2; i <= count; i++) {
     const prev = existing[i - 2] || {};
+    const country = prev.country || 'Portugal';
+    const isStranger = country !== 'Portugal';
     wrap.innerHTML += `
       <div class="extra-guest-box">
         <h4>Hóspede ${i}</h4>
-        <label><span>Nome completo</span><input data-field="name" value="${prev.name}" placeholder="Nome completo"></label>
+        <label><span>Nome completo *</span><input data-field="name" required value="${prev.name}" placeholder="Nome completo"></label>
         <div class="field-grid two">
-          <label><span>País</span><input data-field="country" value="${prev.country || 'Portugal'}"></label>
-          <label><span>Data de nascimento</span><input class="birth-input" data-field="birth_date" value="${prev.birth_date}" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa"><small class="rate-hint"></small></label>
+          <label><span>País *</span><input data-field="country" required value="${country}"></label>
+          <label><span>Data de nascimento *</span><input class="birth-input" data-field="birth_date" required value="${prev.birth_date}" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa"><small class="rate-hint"></small></label>
+        </div>
+        <div class="field-grid two">
+          <label><span>${isStranger ? 'Documento de identidade *' : 'Documento de identidade'}</span><input data-field="nif" ${isStranger ? 'required' : ''} value="${prev.nif}" placeholder="Número ou passaporte"></label>
+          <label><span>${isStranger ? 'Tipo de documento *' : 'Tipo de documento'}</span><select data-field="id_type" ${isStranger ? 'required' : ''}><option value="">Selecionar</option><option value="cc">Cartão de Cidadão</option><option value="passport">Passaporte</option><option value="other">Outro</option></select></label>
         </div>
       </div>`;
   }
@@ -239,6 +295,9 @@ function renderExtraGuests() {
       if (input.value.replace(/\D/g, '').length === 8) input.value = ptDate(input.value);
       recalc();
     });
+  });
+  wrap.querySelectorAll('[data-field="country"]').forEach(input => {
+    input.addEventListener('change', () => renderExtraGuests());
   });
 }
 
@@ -378,6 +437,9 @@ function validateStep() {
     const phone = $('pb-phone').value.trim();
     const birthDate = iso($('pb-birth').value);
     const country = $('pb-country').value.trim();
+    const isStranger = country && country !== 'Portugal';
+    const nif = $('pb-nif').value.trim();
+    const idType = $('pb-id-type').value.trim();
 
     if (!name || !email || !phone || !birthDate || !country) {
       return alert('Preencha todos os campos obrigatórios (*).'), false;
@@ -387,6 +449,10 @@ function validateStep() {
       return alert('Email inválido.'), false;
     }
 
+    if (isStranger && (!nif || !idType)) {
+      return alert('Estrangeiros devem indicar documento de identidade.'), false;
+    }
+
     const guests = Number($('pb-guests').value) || 1;
     const guestBoxes = Array.from(document.querySelectorAll('.extra-guest-box'));
     if (guestBoxes.length > 0) {
@@ -394,8 +460,17 @@ function validateStep() {
         const box = guestBoxes[i];
         const guestName = box.querySelector('[data-field="name"]').value.trim();
         const guestBirth = iso(box.querySelector('[data-field="birth_date"]').value);
-        if (!guestName || !guestBirth) {
-          return alert(`Preencha nome e data de nascimento do hóspede ${i + 2}.`), false;
+        const guestCountry = box.querySelector('[data-field="country"]').value.trim();
+        const guestNif = box.querySelector('[data-field="nif"]').value.trim();
+        const guestIdType = box.querySelector('[data-field="id_type"]').value.trim();
+        const guestIsStranger = guestCountry && guestCountry !== 'Portugal';
+
+        if (!guestName || !guestBirth || !guestCountry) {
+          return alert(`Preencha nome, país e data de nascimento do hóspede ${i + 2}.`), false;
+        }
+
+        if (guestIsStranger && (!guestNif || !guestIdType)) {
+          return alert(`Hóspede ${i + 2} (estrangeiro) deve indicar documento de identidade.`), false;
         }
       }
     }
@@ -427,6 +502,7 @@ function collectPayload() {
       nationality: $('pb-country').value.trim(),
       birth_date: iso($('pb-birth').value),
       nif: $('pb-nif').value.trim() || null,
+      id_type: $('pb-id-type').value.trim() || null,
       address: $('pb-address').value.trim() || null,
       postal_code: $('pb-postal').value.trim() || null,
       city: $('pb-city').value.trim() || null
@@ -440,7 +516,9 @@ function collectPayload() {
         last_name: parts.slice(1).join(' '),
         country: box.querySelector('[data-field="country"]').value.trim(),
         nationality: box.querySelector('[data-field="country"]').value.trim(),
-        birth_date: iso(box.querySelector('[data-field="birth_date"]').value)
+        birth_date: iso(box.querySelector('[data-field="birth_date"]').value),
+        nif: box.querySelector('[data-field="nif"]').value.trim() || null,
+        id_type: box.querySelector('[data-field="id_type"]').value.trim() || null
       };
     })
   };
