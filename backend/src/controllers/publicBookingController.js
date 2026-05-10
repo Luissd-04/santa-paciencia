@@ -242,16 +242,38 @@ function getAvailability(req, res) {
   const guests = Math.max(1, Number(req.query.num_guests) || 1);
   const children = getChildren(parent);
   const reservable = children.length ? children : [parent];
-  const available = reservable.map(unit => {
+
+  const available = [
+    {
+      id: parent.id,
+      name: 'Alojamento completo',
+      type: 'property',
+      available: !children.length || children.every(child => {
+        const conflict = checkIn && checkOut ? findConflict(parent.organization_id, child.id, checkIn, checkOut) : null;
+        return !conflict && guests <= Number(child.max_guests || 0);
+      }),
+      occupied: children.length && children.some(child => {
+        const conflict = checkIn && checkOut ? findConflict(parent.organization_id, child.id, checkIn, checkOut) : null;
+        return !!conflict;
+      }),
+      over_capacity: children.length && children.some(child => guests > Number(child.max_guests || 0)),
+      max_guests: Math.max(...reservable.map(u => Number(u.max_guests || 0)))
+    }
+  ];
+
+  reservable.forEach(unit => {
     const conflict = checkIn && checkOut ? findConflict(parent.organization_id, unit.id, checkIn, checkOut) : null;
-    return {
+    available.push({
       id: unit.id,
+      name: unit.name,
+      type: 'unit',
       available: !conflict && guests <= Number(unit.max_guests || 0),
       occupied: !!conflict,
       over_capacity: guests > Number(unit.max_guests || 0),
       max_guests: Number(unit.max_guests || 0)
-    };
+    });
   });
+
   res.json({ success: true, data: available });
 }
 
@@ -260,10 +282,17 @@ function createReservation(req, res, next) {
     const parent = getPropertyBySlug(req.params.slug);
     if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado.' });
     const payload = req.body || {};
-    const unit = db.prepare(`
-      SELECT * FROM accommodations
-      WHERE id = ? AND organization_id = ? AND (parent_id = ? OR id = ?)
-    `).get(payload.accommodation_id, parent.organization_id, parent.id, parent.id);
+
+    let unit;
+    if (payload.accommodation_id === 'property' || payload.accommodation_id === parent.id) {
+      const children = getChildren(parent);
+      unit = children.length > 0 ? children[0] : parent;
+    } else {
+      unit = db.prepare(`
+        SELECT * FROM accommodations
+        WHERE id = ? AND organization_id = ? AND (parent_id = ? OR id = ?)
+      `).get(payload.accommodation_id, parent.organization_id, parent.id, parent.id);
+    }
     if (!unit) return res.status(400).json({ success: false, error: 'Alojamento inválido.' });
     if (!payload.guest?.name || !payload.guest?.email || !payload.guest?.birth_date) {
       return res.status(400).json({ success: false, error: 'Dados do hóspede principal em falta.' });

@@ -73,30 +73,44 @@
                 <h2>Os seus dados</h2>
               </div>
               <label>
-                <span>Nome completo</span>
+                <span>Nome completo *</span>
                 <input id="pb-name" required placeholder="Nome completo">
               </label>
               <div class="field-grid two">
                 <label>
-                  <span>Email</span>
+                  <span>Email *</span>
                   <input id="pb-email" type="email" required placeholder="email@exemplo.com">
                 </label>
                 <label>
-                  <span>Telefone</span>
+                  <span>Telefone *</span>
                   <input id="pb-phone" type="tel" required placeholder="+351 912 345 678">
                 </label>
               </div>
               <div class="field-grid two">
                 <label>
-                  <span>País</span>
+                  <span>País *</span>
                   <input id="pb-country" required value="Portugal">
                 </label>
                 <label>
-                  <span>Data de nascimento</span>
-                  <input id="pb-birth" class="birth-input" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10">
+                  <span>Data de nascimento *</span>
+                  <input id="pb-birth" class="birth-input" type="text" inputmode="numeric" required placeholder="dd-mm-aaaa" maxlength="10">
                   <small class="rate-hint" id="pb-main-rate"></small>
                 </label>
               </div>
+              <div class="field-grid two">
+                <label>
+                  <span>Morada</span>
+                  <input id="pb-address" placeholder="Rua, número e complementos">
+                </label>
+                <label>
+                  <span>Código postal</span>
+                  <input id="pb-postal" placeholder="1000-000">
+                </label>
+              </div>
+              <label>
+                <span>Cidade</span>
+                <input id="pb-city" placeholder="Lisboa">
+              </label>
               <div id="extra-guests"></div>
             </section>
 

@@ -68,7 +68,7 @@ async function init() {
     state.property = payload.data.property;
     state.units = payload.data.units || [];
     state.services = payload.data.services || [];
-    state.selectedUnitId = state.units[0]?.id || '';
+    state.selectedUnitId = state.property?.id || state.units[0]?.id || '';
     renderLanding();
     bindEvents();
     renderStep();
@@ -296,34 +296,44 @@ function recalc() {
   $('summary-guests').textContent = guests;
   $('summary-dates').textContent = iso($('pb-checkin').value) && iso($('pb-checkout').value) ? `${ptDate($('pb-checkin').value)} - ${ptDate($('pb-checkout').value)}` : '-';
   $('summary-nights').textContent = n ? `${n} noite${n !== 1 ? 's' : ''}` : '-';
-  if (state.selectedUnitId === 'property') {
+
+  if (state.selectedUnitId === state.property?.id) {
     $('summary-unit').textContent = state.property?.name || 'Alojamento completo';
     $('summary-media').style.backgroundImage = `url('${state.property?.images?.[0]?.url || ''}')`;
-    const base = (state.property?.price_per_night || 0) * n;
-    const breakfastSvc = state.services.find(s => s.id === 'breakfast');
-    const taxSvc = state.services.find(s => s.id === 'tourist_tax');
-    const breakfast = $('pb-breakfast').value === 'true' ? (breakfastSvc?.value || 19) * guests * n : 0;
-    const tax = taxSvc?.active !== false ? (taxSvc?.value || 3) * guests * n : 0;
-    $('summary-base').textContent = n ? fmtCurrency(base) : '-';
-    $('summary-extras').textContent = '-';
-    $('summary-services').textContent = n ? fmtCurrency(breakfast + tax) : '-';
-    $('summary-total').textContent = n ? fmtCurrency(base + breakfast + tax) : '-';
+  } else if (unit) {
+    $('summary-unit').textContent = unit.name;
+    $('summary-media').style.backgroundImage = `url('${unit.cover_image || unit.images?.[0]?.url || ''}')`;
+  } else {
     return;
   }
-  if (!unit) return;
-  $('summary-unit').textContent = unit.name;
-  $('summary-media').style.backgroundImage = `url('${unit.cover_image || unit.images?.[0]?.url || ''}')`;
-  const base = unit.price_per_night * n;
-  const extras = extraCharge(unit, n);
+
+  if (!n) {
+    $('summary-base').textContent = '-';
+    $('summary-extras').textContent = '-';
+    $('summary-services').textContent = '-';
+    $('summary-total').textContent = '-';
+    return;
+  }
+
   const breakfastSvc = state.services.find(s => s.id === 'breakfast');
   const taxSvc = state.services.find(s => s.id === 'tourist_tax');
-  const breakfast = $('pb-breakfast').value === 'true' ? (breakfastSvc?.value || 19) * guests * n : 0;
-  const tax = taxSvc?.active !== false ? (taxSvc?.value || 3) * guests * n : 0;
-  $('summary-base').textContent = n ? fmtCurrency(base) : '-';
-  $('summary-extras').textContent = n ? fmtCurrency(extras) : '-';
-  $('summary-services').textContent = n ? fmtCurrency(breakfast + tax) : '-';
-  $('summary-total').textContent = n ? fmtCurrency(base + extras + breakfast + tax) : '-';
-  updateRateHints(unit);
+  const breakfast = $('pb-breakfast').value === 'true' ? (Number(breakfastSvc?.value) || 19) * guests * n : 0;
+  const tax = (taxSvc?.active !== false) ? (Number(taxSvc?.value) || 3) * guests * n : 0;
+
+  let base, extras;
+  if (state.selectedUnitId === state.property?.id) {
+    base = (state.property?.price_per_night || 0) * n;
+    extras = 0;
+  } else {
+    base = (unit?.price_per_night || 0) * n;
+    extras = extraCharge(unit, n);
+    updateRateHints(unit);
+  }
+
+  $('summary-base').textContent = fmtCurrency(base);
+  $('summary-extras').textContent = fmtCurrency(extras);
+  $('summary-services').textContent = fmtCurrency(breakfast + tax);
+  $('summary-total').textContent = fmtCurrency(base + extras + breakfast + tax);
 }
 
 function updateRateHints(unit) {
@@ -360,12 +370,35 @@ function prevStep() {
 function validateStep() {
   if (state.step === 1) {
     if (!iso($('pb-checkin').value) || !iso($('pb-checkout').value) || nights() <= 0) return alert('Escolha datas válidas.'), false;
-    if (!selectedUnit()) return alert('Escolha um quarto disponível.'), false;
+    if (!state.selectedUnitId) return alert('Escolha um alojamento disponível.'), false;
   }
   if (state.step === 2) {
-    if (!$('pb-name').value.trim() || !$('pb-email').value.trim() || !$('pb-phone').value.trim() || !iso($('pb-birth').value)) return alert('Preencha os dados principais, incluindo data de nascimento.'), false;
-    const missing = Array.from(document.querySelectorAll('.extra-guest-box')).some(box => !box.querySelector('[data-field="name"]').value.trim() || !iso(box.querySelector('[data-field="birth_date"]').value));
-    if (missing) return alert('Preencha nome e data de nascimento dos hóspedes adicionais.'), false;
+    const name = $('pb-name').value.trim();
+    const email = $('pb-email').value.trim();
+    const phone = $('pb-phone').value.trim();
+    const birthDate = iso($('pb-birth').value);
+    const country = $('pb-country').value.trim();
+
+    if (!name || !email || !phone || !birthDate || !country) {
+      return alert('Preencha todos os campos obrigatórios (*).'), false;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return alert('Email inválido.'), false;
+    }
+
+    const guests = Number($('pb-guests').value) || 1;
+    const guestBoxes = Array.from(document.querySelectorAll('.extra-guest-box'));
+    if (guestBoxes.length > 0) {
+      for (let i = 0; i < guestBoxes.length; i++) {
+        const box = guestBoxes[i];
+        const guestName = box.querySelector('[data-field="name"]').value.trim();
+        const guestBirth = iso(box.querySelector('[data-field="birth_date"]').value);
+        if (!guestName || !guestBirth) {
+          return alert(`Preencha nome e data de nascimento do hóspede ${i + 2}.`), false;
+        }
+      }
+    }
   }
   if (state.step === 3 && !$('pb-rgpd').checked) return alert('É necessário aceitar o RGPD.'), false;
   return true;
@@ -373,7 +406,10 @@ function validateStep() {
 
 function collectPayload() {
   const nameParts = $('pb-name').value.trim().split(' ');
+  const accommodationId = state.selectedUnitId === state.property?.id ? 'property' : state.selectedUnitId;
+
   const payload = {
+    accommodation_id: accommodationId,
     check_in: iso($('pb-checkin').value),
     check_out: iso($('pb-checkout').value),
     num_guests: Number($('pb-guests').value) || 1,
@@ -390,7 +426,10 @@ function collectPayload() {
       country: $('pb-country').value.trim(),
       nationality: $('pb-country').value.trim(),
       birth_date: iso($('pb-birth').value),
-      nif: $('pb-nif').value.trim() || null
+      nif: $('pb-nif').value.trim() || null,
+      address: $('pb-address').value.trim() || null,
+      postal_code: $('pb-postal').value.trim() || null,
+      city: $('pb-city').value.trim() || null
     },
     guests_data: Array.from(document.querySelectorAll('.extra-guest-box')).map(box => {
       const fullName = box.querySelector('[data-field="name"]').value.trim();
@@ -405,23 +444,30 @@ function collectPayload() {
       };
     })
   };
-  if (state.selectedUnitId !== 'property') payload.accommodation_id = state.selectedUnitId;
   return payload;
 }
 
 async function submitReservation() {
   try {
+    const payload = collectPayload();
     $('next-btn').disabled = true;
-    $('next-btn').textContent = 'A enviar...';
-    const payload = await api(`/api/public/booking/${state.slug}/reservations`, {
+    $('next-btn').textContent = 'A processar...';
+
+    const result = await api(`/api/public/booking/${state.slug}/reservations`, {
       method: 'POST',
-      body: JSON.stringify(collectPayload())
+      body: JSON.stringify(payload)
     });
+
     $('success-box').classList.add('show');
-    $('success-box').innerHTML = `Pedido enviado com sucesso.<br>A reserva ficou pendente de confirmação.<br><small>Referência: ${payload.data.id}</small>`;
+    $('success-box').innerHTML = `
+      <strong>Pedido enviado com sucesso!</strong><br>
+      A reserva ficou pendente de confirmação.<br>
+      <small>Referência: ${result.data.id}</small><br>
+      <small>Total: ${fmtCurrency(result.data.total_amount)}</small>
+    `;
     $('next-btn').style.display = 'none';
   } catch (err) {
-    alert(err.message);
+    alert('Erro ao enviar pedido: ' + err.message);
     $('next-btn').disabled = false;
     $('next-btn').textContent = 'Enviar pedido';
   }
