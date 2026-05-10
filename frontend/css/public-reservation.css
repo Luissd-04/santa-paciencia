@@ -34,16 +34,14 @@ body {
 .ambient-bg {
   background-size: cover;
   background-position: center;
-  transform: scale(1.04);
-  filter: saturate(.98);
-  transition: background-image 900ms ease, opacity 900ms ease;
+  transition: background-image 1200ms ease, opacity 1200ms ease;
+  will-change: background-image;
 }
 
 .ambient-overlay {
   background:
     linear-gradient(180deg, rgba(8,7,6,.42), rgba(8,7,6,.22) 34%, rgba(8,7,6,.58)),
     radial-gradient(circle at 50% 45%, rgba(255,255,255,.26), transparent 38%);
-  backdrop-filter: blur(2px);
 }
 
 .booking-hero {
@@ -95,6 +93,7 @@ body {
   margin: 0 auto 18px;
   overflow: hidden;
   border-radius: 22px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
 }
 
@@ -104,10 +103,16 @@ body {
   display: flex;
   gap: 12px;
   width: max-content;
-  animation: railMove 45s linear infinite;
+  min-width: 100%;
+  animation: railMove 90s linear infinite;
+  will-change: transform;
+  animation-play-state: running !important;
 }
 
-.rail-track.reverse { animation-direction: reverse; animation-duration: 55s; }
+.rail-track.reverse {
+  animation-direction: reverse;
+  animation-duration: 110s;
+}
 
 .rail-img {
   width: clamp(160px, 20vw, 260px);
@@ -124,10 +129,10 @@ body {
   padding: 18px;
   border: 1px solid rgba(255,255,255,.28);
   border-radius: 30px;
-  background: rgba(255,255,255,.24);
-  box-shadow: 0 30px 90px rgba(0,0,0,.26);
-  backdrop-filter: blur(22px);
+  background: rgba(255,255,255,.92);
+  box-shadow: 0 30px 90px rgba(0,0,0,.12);
   animation: riseIn .65s .1s ease both;
+  will-change: transform;
 }
 
 .stepbar {
@@ -254,6 +259,7 @@ textarea { resize: vertical; }
   background: rgba(255,255,255,.58);
   cursor: pointer;
   transition: transform .18s, border-color .18s, background .18s;
+  will-change: transform, background;
 }
 
 .unit-card:not(.blocked):hover,
@@ -298,6 +304,14 @@ textarea { resize: vertical; }
   display: block;
   color: var(--muted);
   font-weight: 600;
+}
+
+.property-card {
+  grid-template-columns: 120px 1fr;
+}
+
+.property-card .unit-price {
+  display: none;
 }
 
 .rate-hint {
@@ -495,8 +509,12 @@ textarea { resize: vertical; }
 }
 
 @keyframes railMove {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-100% + 100vw));
+  }
 }
 
 @keyframes riseIn {

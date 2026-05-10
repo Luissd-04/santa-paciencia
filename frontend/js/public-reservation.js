@@ -9,10 +9,12 @@ const state = {
   services: [],
   availability: [],
   selectedUnitId: '',
+  bookingType: 'unit',
   step: 1,
   bgIndex: 0,
   dateInput: null,
-  dateMonth: null
+  dateMonth: null,
+  lastBgChange: 0
 };
 
 const $ = id => document.getElementById(id);
@@ -46,6 +48,7 @@ function nights() {
 }
 
 function selectedUnit() {
+  if (state.selectedUnitId === 'property') return null;
   return state.units.find(u => u.id === state.selectedUnitId) || null;
 }
 
@@ -99,18 +102,31 @@ function renderLanding() {
   $('ambient-bg').style.backgroundImage = `url('${imgs[0] || fallback}')`;
   renderRail('gallery-top', imgs.length ? imgs : [fallback]);
   renderRail('gallery-bottom', imgs.length ? imgs.slice().reverse() : [fallback]);
-  setInterval(() => {
-    const pool = allImages();
-    if (!pool.length) return;
-    state.bgIndex = (state.bgIndex + 1) % pool.length;
-    $('ambient-bg').style.backgroundImage = `url('${pool[state.bgIndex]}')`;
-  }, 6500);
+  rotateBackground();
   renderUnits();
 }
 
+function rotateBackground() {
+  const now = Date.now();
+  if (now - state.lastBgChange < 8000) return;
+  const pool = allImages();
+  if (!pool.length) return;
+  state.bgIndex = (state.bgIndex + 1) % pool.length;
+  $('ambient-bg').style.backgroundImage = `url('${pool[state.bgIndex]}')`;
+  state.lastBgChange = now;
+  setTimeout(rotateBackground, 8000);
+}
+
 function renderRail(id, imgs) {
-  const doubled = [...imgs, ...imgs, ...imgs].slice(0, Math.max(12, imgs.length * 2));
-  $(id).innerHTML = doubled.map(url => `<img class="rail-img" src="${url}" alt="">`).join('');
+  const rail = $(id);
+  if (!imgs.length) return;
+  const doubled = [...imgs, ...imgs, ...imgs, ...imgs].slice(0, Math.max(16, imgs.length * 3));
+  rail.innerHTML = doubled.map(url => `<img class="rail-img" src="${url}" alt="" loading="lazy">`).join('');
+  rail.classList.remove('paused');
+  void rail.offsetHeight;
+  rail.style.animation = 'none';
+  void rail.offsetHeight;
+  rail.style.animation = '';
 }
 
 function availabilityFor(unitId) {
@@ -118,31 +134,36 @@ function availabilityFor(unitId) {
 }
 
 function renderUnits() {
-  $('unit-list').innerHTML = state.units.map(unit => {
-    const av = availabilityFor(unit.id);
-    const blocked = av && !av.available;
-    const selected = state.selectedUnitId === unit.id && !blocked;
-    const reason = av?.over_capacity
-      ? `Capacidade máxima: ${unit.max_guests} hóspedes`
-      : av?.occupied ? 'Indisponível nas datas selecionadas' : `${unit.max_guests} hóspedes · ${unit.num_rooms || 1} quarto`;
-    return `
-      <div class="unit-card ${selected ? 'selected' : ''} ${blocked ? 'blocked' : ''}" data-unit="${unit.id}">
-        <img src="${unit.cover_image || unit.images?.[0]?.url || ''}" alt="">
+  const container = $('unit-list');
+  if (state.bookingType === 'property') {
+    container.innerHTML = `
+      <div class="unit-card selected property-card" data-unit="property">
+        <img src="${state.property?.images?.[0]?.url || ''}" alt="">
         <div>
-          <h4>${unit.name}</h4>
-          <p>${reason}</p>
+          <h4>${state.property?.name || 'Alojamento completo'}</h4>
+          <p>Toda a propriedade para sua exclusividade</p>
         </div>
-        <div class="unit-price">${fmtCurrency(unit.price_per_night)}<small>/ noite</small></div>
       </div>`;
-  }).join('');
-  document.querySelectorAll('.unit-card').forEach(card => {
-    card.addEventListener('click', () => {
-      if (card.classList.contains('blocked')) return;
-      state.selectedUnitId = card.dataset.unit;
-      renderUnits();
-      recalc();
-    });
-  });
+    state.selectedUnitId = 'property';
+  } else {
+    container.innerHTML = state.units.map(unit => {
+      const av = availabilityFor(unit.id);
+      const blocked = av && !av.available;
+      const selected = state.selectedUnitId === unit.id && !blocked;
+      const reason = av?.over_capacity
+        ? `Capacidade máxima: ${unit.max_guests} hóspedes`
+        : av?.occupied ? 'Indisponível nas datas selecionadas' : `${unit.max_guests} hóspedes · ${unit.num_rooms || 1} quarto`;
+      return `
+        <div class="unit-card ${selected ? 'selected' : ''} ${blocked ? 'blocked' : ''}" data-unit="${unit.id}">
+          <img src="${unit.cover_image || unit.images?.[0]?.url || ''}" alt="">
+          <div>
+            <h4>${unit.name}</h4>
+            <p>${reason}</p>
+          </div>
+          <div class="unit-price">${fmtCurrency(unit.price_per_night)}<small>/ noite</small></div>
+        </div>`;
+    }).join('');
+  }
 }
 
 function bindEvents() {
@@ -160,6 +181,19 @@ function bindEvents() {
     renderExtraGuests();
     recalc();
   }));
+  $('pb-booking-type').addEventListener('change', (e) => {
+    state.bookingType = e.target.value;
+    renderUnits();
+    fetchAvailability();
+    recalc();
+  });
+  $('unit-list').addEventListener('click', (e) => {
+    const card = e.target.closest('.unit-card');
+    if (!card || card.classList.contains('blocked')) return;
+    state.selectedUnitId = card.dataset.unit;
+    renderUnits();
+    recalc();
+  });
   $('next-btn').addEventListener('click', nextStep);
   $('prev-btn').addEventListener('click', prevStep);
   document.addEventListener('click', e => {
@@ -270,6 +304,20 @@ function recalc() {
   $('summary-guests').textContent = guests;
   $('summary-dates').textContent = iso($('pb-checkin').value) && iso($('pb-checkout').value) ? `${ptDate($('pb-checkin').value)} - ${ptDate($('pb-checkout').value)}` : '-';
   $('summary-nights').textContent = n ? `${n} noite${n !== 1 ? 's' : ''}` : '-';
+  if (state.bookingType === 'property') {
+    $('summary-unit').textContent = state.property?.name || 'Alojamento completo';
+    $('summary-media').style.backgroundImage = `url('${state.property?.images?.[0]?.url || ''}')`;
+    const base = (state.property?.price_per_night || 0) * n;
+    const breakfastSvc = state.services.find(s => s.id === 'breakfast');
+    const taxSvc = state.services.find(s => s.id === 'tourist_tax');
+    const breakfast = $('pb-breakfast').value === 'true' ? (breakfastSvc?.value || 19) * guests * n : 0;
+    const tax = taxSvc?.active !== false ? (taxSvc?.value || 3) * guests * n : 0;
+    $('summary-base').textContent = n ? fmtCurrency(base) : '-';
+    $('summary-extras').textContent = '-';
+    $('summary-services').textContent = n ? fmtCurrency(breakfast + tax) : '-';
+    $('summary-total').textContent = n ? fmtCurrency(base + breakfast + tax) : '-';
+    return;
+  }
   if (!unit) return;
   $('summary-unit').textContent = unit.name;
   $('summary-media').style.backgroundImage = `url('${unit.cover_image || unit.images?.[0]?.url || ''}')`;
@@ -333,8 +381,7 @@ function validateStep() {
 
 function collectPayload() {
   const nameParts = $('pb-name').value.trim().split(' ');
-  return {
-    accommodation_id: state.selectedUnitId,
+  const payload = {
     check_in: iso($('pb-checkin').value),
     check_out: iso($('pb-checkout').value),
     num_guests: Number($('pb-guests').value) || 1,
@@ -342,6 +389,7 @@ function collectPayload() {
     arrival_time: $('pb-arrival').value || null,
     notes: $('pb-notes').value.trim() || null,
     rgpd_consent: $('pb-rgpd').checked,
+    booking_type: state.bookingType,
     guest: {
       name: $('pb-name').value.trim(),
       first_name: nameParts[0] || '',
@@ -366,6 +414,8 @@ function collectPayload() {
       };
     })
   };
+  if (state.bookingType === 'unit') payload.accommodation_id = state.selectedUnitId;
+  return payload;
 }
 
 async function submitReservation() {

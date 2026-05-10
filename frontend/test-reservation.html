@@ -3,21 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reservar estadia</title>
+  <title>Teste Reserva</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/public-reservation.css">
+  <style>
+    body { background: #f5f5f5; }
+    .test-wrapper { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    .test-btn { padding: 10px 20px; margin: 10px 5px 10px 0; background: #843424; color: white; border: 0; border-radius: 8px; cursor: pointer; font-weight: 600; }
+  </style>
 </head>
 <body>
+  <div class="test-wrapper">
+    <h1>Teste de Página de Reservas</h1>
+    <button class="test-btn" onclick="testRender()">Renderizar Teste</button>
+    <button class="test-btn" onclick="console.log(state)">Ver Estado</button>
+    <button class="test-btn" onclick="location.reload()">Recarregar</button>
+  </div>
+
   <div class="booking-page">
     <div class="ambient-bg" id="ambient-bg"></div>
     <div class="ambient-overlay"></div>
 
     <header class="booking-hero">
-      <div class="brand-pill" id="property-location">A carregar...</div>
-      <h1 id="property-name">Reserve a sua estadia</h1>
-      <p id="property-description">Escolha as datas, veja os quartos disponíveis e envie o pedido de reserva.</p>
+      <div class="brand-pill" id="property-location">Portugal · Algarve</div>
+      <h1 id="property-name">Quinta da Santa Paciência</h1>
+      <p id="property-description">Reserve sua estadia em um lugar único. Escolha as datas e envie o pedido.</p>
     </header>
 
     <main class="booking-shell">
@@ -75,65 +87,6 @@
               </div>
               <div class="unit-list" id="unit-list"></div>
             </section>
-
-            <section class="form-step" data-step="2">
-              <div class="step-heading">
-                <span>Hóspedes</span>
-                <h2>Os seus dados</h2>
-              </div>
-              <label>
-                <span>Nome completo</span>
-                <input id="pb-name" required placeholder="Nome completo">
-              </label>
-              <div class="field-grid two">
-                <label>
-                  <span>Email</span>
-                  <input id="pb-email" type="email" required placeholder="email@exemplo.com">
-                </label>
-                <label>
-                  <span>Telefone</span>
-                  <input id="pb-phone" type="tel" required placeholder="+351 912 345 678">
-                </label>
-              </div>
-              <div class="field-grid two">
-                <label>
-                  <span>País</span>
-                  <input id="pb-country" required value="Portugal">
-                </label>
-                <label>
-                  <span>Data de nascimento</span>
-                  <input id="pb-birth" class="birth-input" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10">
-                  <small class="rate-hint" id="pb-main-rate"></small>
-                </label>
-              </div>
-              <div id="extra-guests"></div>
-            </section>
-
-            <section class="form-step" data-step="3">
-              <div class="step-heading">
-                <span>Confirmar</span>
-                <h2>Últimos detalhes</h2>
-              </div>
-              <div class="field-grid two">
-                <label>
-                  <span>Hora prevista de chegada</span>
-                  <input id="pb-arrival" type="time">
-                </label>
-                <label>
-                  <span>NIF</span>
-                  <input id="pb-nif" placeholder="Opcional">
-                </label>
-              </div>
-              <label>
-                <span>Notas ou pedidos especiais</span>
-                <textarea id="pb-notes" rows="4" placeholder="Algum pedido especial?"></textarea>
-              </label>
-              <label class="rgpd-check">
-                <input id="pb-rgpd" type="checkbox">
-                <span>Autorizo o tratamento dos meus dados para gestão da reserva e comunicações relacionadas com a estadia.</span>
-              </label>
-              <div class="success-box" id="success-box"></div>
-            </section>
           </form>
 
           <aside class="summary-panel">
@@ -144,15 +97,7 @@
               <div class="summary-row"><span>Datas</span><strong id="summary-dates">-</strong></div>
               <div class="summary-row"><span>Noites</span><strong id="summary-nights">-</strong></div>
               <div class="summary-row"><span>Hóspedes</span><strong id="summary-guests">2</strong></div>
-              <div class="summary-row muted"><span>Base</span><strong id="summary-base">-</strong></div>
-              <div class="summary-row muted"><span>Extras</span><strong id="summary-extras">-</strong></div>
-              <div class="summary-row muted"><span>Taxas/serviços</span><strong id="summary-services">-</strong></div>
               <div class="summary-total"><span>Total estimado</span><strong id="summary-total">-</strong></div>
-              <div class="form-actions">
-                <button type="button" class="ghost-btn" id="prev-btn">Voltar</button>
-                <button type="button" class="primary-btn" id="next-btn">Continuar</button>
-              </div>
-              <p class="microcopy">A reserva fica pendente até confirmação do alojamento.</p>
             </div>
           </aside>
         </div>
@@ -164,7 +109,79 @@
     </main>
   </div>
 
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="/js/public-reservation.js"></script>
+  <script>
+    const testImages = [
+      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=80',
+      'https://images.unsplash.com/photo-1568602471122-7832951cc4c5?auto=format&fit=crop&w=1600&q=80',
+      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1600&q=80',
+      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1600&q=80',
+    ];
+
+    const state = {
+      property: {
+        name: 'Quinta da Santa Paciência',
+        images: testImages.map(url => ({ url }))
+      },
+      units: [
+        { id: 'u1', name: 'Quarto Deluxe', price_per_night: 150, max_guests: 2, cover_image: testImages[0] },
+        { id: 'u2', name: 'Suite Premium', price_per_night: 200, max_guests: 4, cover_image: testImages[1] },
+      ],
+      bookingType: 'unit',
+      selectedUnitId: 'u1'
+    };
+
+    function testRender() {
+      renderRail('gallery-top', testImages);
+      renderRail('gallery-bottom', testImages.reverse());
+      renderUnits();
+      console.log('Teste renderizado com sucesso');
+    }
+
+    function renderRail(id, imgs) {
+      const rail = document.getElementById(id);
+      if (!imgs.length) return;
+      const doubled = [...imgs, ...imgs, ...imgs, ...imgs].slice(0, Math.max(16, imgs.length * 3));
+      rail.innerHTML = doubled.map(url => `<img class="rail-img" src="${url}" alt="" loading="lazy">`).join('');
+      rail.style.animation = 'none';
+      setTimeout(() => {
+        rail.style.animation = '';
+      }, 10);
+      console.log(`Rail renderizado: ${doubled.length} imagens`);
+    }
+
+    function renderUnits() {
+      const container = document.getElementById('unit-list');
+      if (state.bookingType === 'property') {
+        container.innerHTML = `
+          <div class="unit-card selected property-card" data-unit="property">
+            <img src="${state.property.images?.[0]?.url || ''}" alt="">
+            <div>
+              <h4>${state.property?.name || 'Alojamento completo'}</h4>
+              <p>Toda a propriedade para sua exclusividade</p>
+            </div>
+          </div>`;
+      } else {
+        container.innerHTML = state.units.map(unit => `
+          <div class="unit-card selected" data-unit="${unit.id}">
+            <img src="${unit.cover_image}" alt="">
+            <div>
+              <h4>${unit.name}</h4>
+              <p>${unit.max_guests} hóspedes</p>
+            </div>
+            <div class="unit-price">€${unit.price_per_night}<small>/ noite</small></div>
+          </div>`).join('');
+      }
+      console.log('Unidades renderizadas');
+    }
+
+    document.getElementById('pb-booking-type').addEventListener('change', (e) => {
+      state.bookingType = e.target.value;
+      renderUnits();
+      console.log('Tipo de reserva alterado:', state.bookingType);
+    });
+
+    // Renderizar no load
+    testRender();
+  </script>
 </body>
 </html>
