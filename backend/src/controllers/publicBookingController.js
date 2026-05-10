@@ -283,10 +283,10 @@ function createReservation(req, res, next) {
     if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado.' });
     const payload = req.body || {};
 
-    let unit;
-    if (payload.accommodation_id === 'property' || payload.accommodation_id === parent.id) {
-      const children = getChildren(parent);
-      unit = children.length > 0 ? children[0] : parent;
+    let unit, isCompleteProperty = false;
+    if (payload.accommodation_id === 'property') {
+      unit = parent;
+      isCompleteProperty = true;
     } else {
       unit = db.prepare(`
         SELECT * FROM accommodations
@@ -294,6 +294,16 @@ function createReservation(req, res, next) {
       `).get(payload.accommodation_id, parent.organization_id, parent.id, parent.id);
     }
     if (!unit) return res.status(400).json({ success: false, error: 'Alojamento inválido.' });
+
+    if (isCompleteProperty) {
+      const children = getChildren(parent);
+      for (const child of children) {
+        const conflict = findConflict(parent.organization_id, child.id, payload.check_in, payload.check_out);
+        if (conflict) {
+          return res.status(409).json({ success: false, error: `${child.name} já está ocupado nessas datas.` });
+        }
+      }
+    }
     if (!payload.guest?.name || !payload.guest?.email || !payload.guest?.birth_date) {
       return res.status(400).json({ success: false, error: 'Dados do hóspede principal em falta.' });
     }
@@ -305,7 +315,7 @@ function createReservation(req, res, next) {
       }
     }
     const totals = calculateTotal(unit, parent.organization_id, payload);
-    if (findConflict(parent.organization_id, unit.id, totals.checkIn, totals.checkOut)) {
+    if (!isCompleteProperty && findConflict(parent.organization_id, unit.id, totals.checkIn, totals.checkOut)) {
       return res.status(409).json({ success: false, error: 'Este alojamento já está ocupado nessas datas.' });
     }
     if (!payload.rgpd_consent) return res.status(400).json({ success: false, error: 'É necessário aceitar o RGPD.' });
@@ -330,18 +340,40 @@ function createReservation(req, res, next) {
     const reservationId = `SP-${Date.now()}`;
     const token = crypto.randomBytes(32).toString('hex');
     const normalizedGuestsData = guestsData.map(g => ({ ...g, birth_date: normalizeDateValue(g.birth_date) }));
-    db.prepare(`
-      INSERT INTO reservations (
-        id, organization_id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
-        total_amount, breakfast_included, tourist_tax, channel, payment_method, notes, license_number, status,
-        guests_data, amount_paid, payment_status, public_token, arrival_time
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, 0, 'pendente', ?, ?)
-    `).run(
-      reservationId, parent.organization_id, guest.id, unit.id, totals.checkIn, totals.checkOut, totals.nights, totals.guests,
-      totals.totalAmount, payload.breakfast_included ? 1 : 0, totals.touristTax,
-      'website', null, payload.notes || null, unit.license_number,
-      JSON.stringify(normalizedGuestsData), token, payload.arrival_time || null
-    );
+
+    if (isCompleteProperty) {
+      const children = getChildren(parent);
+      const accommodationsToReserve = children.length ? children : [parent];
+
+      for (const accom of accommodationsToReserve) {
+        db.prepare(`
+          INSERT INTO reservations (
+            id, organization_id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
+            total_amount, breakfast_included, tourist_tax, channel, payment_method, notes, license_number, status,
+            guests_data, amount_paid, payment_status, public_token, arrival_time
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, 0, 'pendente', ?, ?)
+        `).run(
+          `${reservationId}-${accom.id}`, parent.organization_id, guest.id, accom.id, totals.checkIn, totals.checkOut, totals.nights, totals.guests,
+          totals.totalAmount, payload.breakfast_included ? 1 : 0, totals.touristTax,
+          'website', null, payload.notes || null, accom.license_number,
+          JSON.stringify(normalizedGuestsData), token, payload.arrival_time || null
+        );
+      }
+    } else {
+      db.prepare(`
+        INSERT INTO reservations (
+          id, organization_id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
+          total_amount, breakfast_included, tourist_tax, channel, payment_method, notes, license_number, status,
+          guests_data, amount_paid, payment_status, public_token, arrival_time
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, 0, 'pendente', ?, ?)
+      `).run(
+        reservationId, parent.organization_id, guest.id, unit.id, totals.checkIn, totals.checkOut, totals.nights, totals.guests,
+        totals.totalAmount, payload.breakfast_included ? 1 : 0, totals.touristTax,
+        'website', null, payload.notes || null, unit.license_number,
+        JSON.stringify(normalizedGuestsData), token, payload.arrival_time || null
+      );
+    }
+
     res.status(201).json({
       success: true,
       data: {
