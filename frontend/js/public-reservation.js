@@ -18,6 +18,52 @@ const state = {
 
 const $ = id => document.getElementById(id);
 
+const COUNTRIES = [
+  { name: 'Portugal', code: '+351', flag: '🇵🇹' },
+  { name: 'Espanha', code: '+34', flag: '🇪🇸' },
+  { name: 'França', code: '+33', flag: '🇫🇷' },
+  { name: 'Itália', code: '+39', flag: '🇮🇹' },
+  { name: 'Alemanha', code: '+49', flag: '🇩🇪' },
+  { name: 'Bélgica', code: '+32', flag: '🇧🇪' },
+  { name: 'Holanda', code: '+31', flag: '🇳🇱' },
+  { name: 'Polónia', code: '+48', flag: '🇵🇱' },
+  { name: 'Suíça', code: '+41', flag: '🇨🇭' },
+  { name: 'Áustria', code: '+43', flag: '🇦🇹' },
+  { name: 'Brasil', code: '+55', flag: '🇧🇷' },
+  { name: 'Angola', code: '+244', flag: '🇦🇴' },
+  { name: 'Moçambique', code: '+258', flag: '🇲🇿' },
+  { name: 'Cabo Verde', code: '+238', flag: '🇨🇻' },
+  { name: 'Timor-Leste', code: '+670', flag: '🇹🇱' },
+  { name: 'Guiné Bissau', code: '+245', flag: '🇬🇼' },
+  { name: 'São Tomé e Príncipe', code: '+239', flag: '🇸🇹' },
+  { name: 'Reino Unido', code: '+44', flag: '🇬🇧' },
+  { name: 'Irlanda', code: '+353', flag: '🇮🇪' },
+  { name: 'Grécia', code: '+30', flag: '🇬🇷' },
+  { name: 'Suécia', code: '+46', flag: '🇸🇪' },
+  { name: 'Noruega', code: '+47', flag: '🇳🇴' },
+  { name: 'Dinamarca', code: '+45', flag: '🇩🇰' },
+  { name: 'Finlândia', code: '+358', flag: '🇫🇮' },
+  { name: 'EUA', code: '+1', flag: '🇺🇸' },
+  { name: 'Canadá', code: '+1', flag: '🇨🇦' },
+  { name: 'México', code: '+52', flag: '🇲🇽' },
+  { name: 'Argentina', code: '+54', flag: '🇦🇷' },
+  { name: 'Chile', code: '+56', flag: '🇨🇱' },
+  { name: 'Colômbia', code: '+57', flag: '🇨🇴' },
+];
+
+function fuzzyMatch(search, target) {
+  const s = search.toLowerCase();
+  const t = target.toLowerCase();
+  if (t.startsWith(s)) return 100 + (100 - t.indexOf(s));
+  if (t.includes(s)) return 50;
+  let score = 0;
+  let si = 0;
+  for (let i = 0; i < t.length && si < s.length; i++) {
+    if (t[i] === s[si]) { score += 10; si++; }
+  }
+  return si === s.length ? score : 0;
+}
+
 function iso(value) {
   const raw = String(value || '').trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
@@ -144,6 +190,9 @@ function renderUnits() {
     ? `Capacidade máxima: ${propertyAv.max_guests} hóspedes`
     : 'Propriedade inteira para sua exclusividade';
 
+  const propertyPrice = Number(state.property?.price_per_night) || 0;
+  const priceHtml = propertyPrice > 0 ? `<div class="unit-price">${fmtCurrency(propertyPrice)}<small>/ noite</small></div>` : '';
+
   const propertyCard = `
     <div class="unit-card ${propertySelected ? 'selected' : ''} ${propertyBlocked ? 'blocked' : ''} property-card" data-unit="property">
       <img src="${state.property?.images?.[0]?.url || ''}" alt="">
@@ -151,7 +200,7 @@ function renderUnits() {
         <h4>${state.property?.name || 'Alojamento completo'}</h4>
         <p>${propertyReason}</p>
       </div>
-      ${state.property?.price_per_night ? `<div class="unit-price">${fmtCurrency(state.property.price_per_night)}<small>/ noite</small></div>` : ''}
+      ${priceHtml}
     </div>`;
 
   const unitCards = state.units.map(unit => {
@@ -179,22 +228,80 @@ function updateIDFieldLabels() {
   const country = $('pb-country').value.trim();
   const isStranger = country && country !== 'Portugal';
   const nifLabel = $('pb-nif-label');
-  const idTypeLabel = $('pb-id-type-label');
 
   if (isStranger) {
     nifLabel.textContent = 'Documento de identidade *';
-    idTypeLabel.textContent = 'Tipo de documento *';
     $('pb-nif').required = true;
-    $('pb-id-type').required = true;
   } else {
     nifLabel.textContent = 'NIF';
-    idTypeLabel.textContent = 'Tipo de documento';
     $('pb-nif').required = false;
-    $('pb-id-type').required = false;
+  }
+}
+
+function setupCountrySearch(inputId, dropdownId) {
+  const input = $(inputId);
+  const dropdown = $(dropdownId);
+
+  input.addEventListener('focus', () => {
+    renderCountryDropdown(input.value, dropdown);
+    dropdown.style.display = 'block';
+  });
+
+  input.addEventListener('input', () => {
+    renderCountryDropdown(input.value, dropdown);
+    if (input.value.trim()) dropdown.style.display = 'block';
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target) && e.target !== input) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function renderCountryDropdown(search, dropdown) {
+  const results = search.trim()
+    ? COUNTRIES.filter(c => fuzzyMatch(search, c.name) > 0)
+        .sort((a, b) => fuzzyMatch(search, b.name) - fuzzyMatch(search, a.name))
+        .slice(0, 10)
+    : COUNTRIES;
+
+  dropdown.innerHTML = results.map(country => `
+    <div class="country-dropdown-item" data-country="${country.name}" data-code="${country.code}">
+      <span>${country.flag}</span>
+      <span>${country.name}</span>
+      <span style="color: #999; margin-left: auto;">${country.code}</span>
+    </div>
+  `).join('');
+
+  dropdown.querySelectorAll('.country-dropdown-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const countryName = item.dataset.country;
+      const input = dropdown.previousElementSibling.querySelector('.country-input');
+      input.value = countryName;
+      dropdown.style.display = 'none';
+
+      if (input.id === 'pb-country') {
+        updateIDFieldLabels();
+        setupPhoneCode(countryName);
+        renderExtraGuests();
+      }
+    });
+  });
+}
+
+function setupPhoneCode(country) {
+  const countryData = COUNTRIES.find(c => c.name === country);
+  if (countryData) {
+    $('pb-phone-code').value = countryData.code;
+    $('pb-phone-code').innerHTML = `<option value="${countryData.code}">${countryData.flag} ${countryData.code} ${country}</option>`;
   }
 }
 
 function bindEvents() {
+  setupCountrySearch('pb-country', 'pb-country-dropdown');
+  setupCountrySearch('pb-id-country', 'pb-id-country-dropdown');
+
   ['pb-checkin','pb-checkout','pb-birth'].forEach(id => {
     const input = $(id);
     input.addEventListener('focus', () => openDatePicker(input));
@@ -209,10 +316,6 @@ function bindEvents() {
     renderExtraGuests();
     recalc();
   }));
-  $('pb-country').addEventListener('change', () => {
-    updateIDFieldLabels();
-    renderExtraGuests();
-  });
   const breakfastSvc = state.services.find(s => s.id === 'breakfast');
   if (breakfastSvc && breakfastSvc.active === false) {
     const breakfastSelect = $('pb-breakfast');
@@ -482,6 +585,8 @@ function validateStep() {
 function collectPayload() {
   const nameParts = $('pb-name').value.trim().split(' ');
   const accommodationId = state.selectedUnitId === state.property?.id ? 'property' : state.selectedUnitId;
+  const phoneCode = $('pb-phone-code').value;
+  const phone = $('pb-phone').value.trim();
 
   const payload = {
     accommodation_id: accommodationId,
@@ -497,12 +602,14 @@ function collectPayload() {
       first_name: nameParts[0] || '',
       last_name: nameParts.slice(1).join(' '),
       email: $('pb-email').value.trim(),
-      phone: $('pb-phone').value.trim(),
+      phone: phone ? `${phoneCode} ${phone}` : null,
       country: $('pb-country').value.trim(),
       nationality: $('pb-country').value.trim(),
       birth_date: iso($('pb-birth').value),
+      birth_city: $('pb-birth-city').value.trim() || null,
       nif: $('pb-nif').value.trim() || null,
       id_type: $('pb-id-type').value.trim() || null,
+      id_country: $('pb-id-country').value.trim() || null,
       address: $('pb-address').value.trim() || null,
       postal_code: $('pb-postal').value.trim() || null,
       city: $('pb-city').value.trim() || null

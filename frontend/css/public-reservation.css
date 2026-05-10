@@ -307,11 +307,63 @@ textarea { resize: vertical; }
 }
 
 .property-card {
-  grid-template-columns: 120px 1fr;
+  grid-template-columns: 120px 1fr auto;
 }
 
-.property-card .unit-price {
-  display: none;
+.phone-input-group {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 8px;
+  width: 100%;
+}
+
+.phone-input-group select {
+  width: 100%;
+}
+
+.country-search {
+  position: relative;
+  width: 100%;
+}
+
+.country-input {
+  width: 100%;
+}
+
+.country-dropdown {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid rgba(132,52,36,.2);
+  border-radius: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+}
+
+.country-dropdown-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(0,0,0,.06);
+}
+
+.country-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.country-dropdown-item:hover {
+  background: rgba(132,52,36,.06);
+}
+
+.country-dropdown-item.highlighted {
+  background: rgba(132,52,36,.12);
 }
 
 .rate-hint {

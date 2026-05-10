@@ -83,13 +83,21 @@
                 </label>
                 <label>
                   <span>Telefone *</span>
-                  <input id="pb-phone" type="tel" required placeholder="+351 912 345 678">
+                  <div class="phone-input-group">
+                    <select id="pb-phone-code" required>
+                      <option value="+351">🇵🇹 +351 Portugal</option>
+                    </select>
+                    <input id="pb-phone" type="tel" required placeholder="912 345 678">
+                  </div>
                 </label>
               </div>
               <div class="field-grid two">
                 <label>
-                  <span>País *</span>
-                  <input id="pb-country" required value="Portugal">
+                  <span>País de residência *</span>
+                  <div class="country-search">
+                    <input id="pb-country" class="country-input" required placeholder="Portugal" autocomplete="off">
+                    <div id="pb-country-dropdown" class="country-dropdown" style="display: none;"></div>
+                  </div>
                 </label>
                 <label>
                   <span>Data de nascimento *</span>
@@ -99,9 +107,15 @@
               </div>
               <div class="field-grid two">
                 <label>
+                  <span>Local de nascimento</span>
+                  <input id="pb-birth-city" placeholder="Cidade de nascimento">
+                </label>
+                <label>
                   <span id="pb-nif-label">NIF</span>
                   <input id="pb-nif" placeholder="Número ou passaporte">
                 </label>
+              </div>
+              <div class="field-grid two">
                 <label>
                   <span id="pb-id-type-label">Tipo de documento</span>
                   <select id="pb-id-type">
@@ -110,6 +124,13 @@
                     <option value="passport">Passaporte</option>
                     <option value="other">Outro</option>
                   </select>
+                </label>
+                <label>
+                  <span>País emissor do documento</span>
+                  <div class="country-search">
+                    <input id="pb-id-country" class="country-input" placeholder="País" autocomplete="off">
+                    <div id="pb-id-country-dropdown" class="country-dropdown" style="display: none;"></div>
+                  </div>
                 </label>
               </div>
               <div class="field-grid two">
