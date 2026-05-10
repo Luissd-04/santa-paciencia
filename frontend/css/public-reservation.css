@@ -312,13 +312,19 @@ textarea { resize: vertical; }
 
 .phone-input-group {
   display: grid;
-  grid-template-columns: 100px 1fr;
+  grid-template-columns: 80px 1fr;
   gap: 8px;
   width: 100%;
 }
 
+.phone-input-group input,
 .phone-input-group select {
   width: 100%;
+}
+
+#pb-phone-code {
+  position: relative;
+  cursor: pointer;
 }
 
 .country-search {

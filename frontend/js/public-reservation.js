@@ -19,36 +19,140 @@ const state = {
 const $ = id => document.getElementById(id);
 
 const COUNTRIES = [
-  { name: 'Portugal', code: '+351', flag: '🇵🇹' },
-  { name: 'Espanha', code: '+34', flag: '🇪🇸' },
-  { name: 'França', code: '+33', flag: '🇫🇷' },
-  { name: 'Itália', code: '+39', flag: '🇮🇹' },
-  { name: 'Alemanha', code: '+49', flag: '🇩🇪' },
-  { name: 'Bélgica', code: '+32', flag: '🇧🇪' },
-  { name: 'Holanda', code: '+31', flag: '🇳🇱' },
-  { name: 'Polónia', code: '+48', flag: '🇵🇱' },
-  { name: 'Suíça', code: '+41', flag: '🇨🇭' },
-  { name: 'Áustria', code: '+43', flag: '🇦🇹' },
-  { name: 'Brasil', code: '+55', flag: '🇧🇷' },
-  { name: 'Angola', code: '+244', flag: '🇦🇴' },
-  { name: 'Moçambique', code: '+258', flag: '🇲🇿' },
-  { name: 'Cabo Verde', code: '+238', flag: '🇨🇻' },
-  { name: 'Timor-Leste', code: '+670', flag: '🇹🇱' },
-  { name: 'Guiné Bissau', code: '+245', flag: '🇬🇼' },
-  { name: 'São Tomé e Príncipe', code: '+239', flag: '🇸🇹' },
-  { name: 'Reino Unido', code: '+44', flag: '🇬🇧' },
-  { name: 'Irlanda', code: '+353', flag: '🇮🇪' },
-  { name: 'Grécia', code: '+30', flag: '🇬🇷' },
-  { name: 'Suécia', code: '+46', flag: '🇸🇪' },
-  { name: 'Noruega', code: '+47', flag: '🇳🇴' },
-  { name: 'Dinamarca', code: '+45', flag: '🇩🇰' },
-  { name: 'Finlândia', code: '+358', flag: '🇫🇮' },
-  { name: 'EUA', code: '+1', flag: '🇺🇸' },
-  { name: 'Canadá', code: '+1', flag: '🇨🇦' },
-  { name: 'México', code: '+52', flag: '🇲🇽' },
-  { name: 'Argentina', code: '+54', flag: '🇦🇷' },
-  { name: 'Chile', code: '+56', flag: '🇨🇱' },
-  { name: 'Colômbia', code: '+57', flag: '🇨🇴' },
+  { name: 'Portugal', flag: '🇵🇹' },
+  { name: 'Espanha', flag: '🇪🇸' },
+  { name: 'França', flag: '🇫🇷' },
+  { name: 'Itália', flag: '🇮🇹' },
+  { name: 'Alemanha', flag: '🇩🇪' },
+  { name: 'Bélgica', flag: '🇧🇪' },
+  { name: 'Holanda', flag: '🇳🇱' },
+  { name: 'Polónia', flag: '🇵🇱' },
+  { name: 'Suíça', flag: '🇨🇭' },
+  { name: 'Áustria', flag: '🇦🇹' },
+  { name: 'República Checa', flag: '🇨🇿' },
+  { name: 'Eslováquia', flag: '🇸🇰' },
+  { name: 'Hungria', flag: '🇭🇺' },
+  { name: 'Roménia', flag: '🇷🇴' },
+  { name: 'Bulgária', flag: '🇧🇬' },
+  { name: 'Croácia', flag: '🇭🇷' },
+  { name: 'Sérvia', flag: '🇷🇸' },
+  { name: 'Grécia', flag: '🇬🇷' },
+  { name: 'Suécia', flag: '🇸🇪' },
+  { name: 'Noruega', flag: '🇳🇴' },
+  { name: 'Dinamarca', flag: '🇩🇰' },
+  { name: 'Finlândia', flag: '🇫🇮' },
+  { name: 'Reino Unido', flag: '🇬🇧' },
+  { name: 'Irlanda', flag: '🇮🇪' },
+  { name: 'Brasil', flag: '🇧🇷' },
+  { name: 'Argentina', flag: '🇦🇷' },
+  { name: 'Chile', flag: '🇨🇱' },
+  { name: 'Colômbia', flag: '🇨🇴' },
+  { name: 'Peru', flag: '🇵🇪' },
+  { name: 'Venezuela', flag: '🇻🇪' },
+  { name: 'Uruguai', flag: '🇺🇾' },
+  { name: 'Paraguai', flag: '🇵🇾' },
+  { name: 'Equador', flag: '🇪🇨' },
+  { name: 'Bolívia', flag: '🇧🇴' },
+  { name: 'Guiana', flag: '🇬🇾' },
+  { name: 'Suriname', flag: '🇸🇷' },
+  { name: 'México', flag: '🇲🇽' },
+  { name: 'EUA', flag: '🇺🇸' },
+  { name: 'Canadá', flag: '🇨🇦' },
+  { name: 'China', flag: '🇨🇳' },
+  { name: 'Japão', flag: '🇯🇵' },
+  { name: 'Coreia do Sul', flag: '🇰🇷' },
+  { name: 'Vietname', flag: '🇻🇳' },
+  { name: 'Tailândia', flag: '🇹🇭' },
+  { name: 'Indonésia', flag: '🇮🇩' },
+  { name: 'Malásia', flag: '🇲🇾' },
+  { name: 'Singapura', flag: '🇸🇬' },
+  { name: 'Filipinas', flag: '🇵🇭' },
+  { name: 'Hong Kong', flag: '🇭🇰' },
+  { name: 'Índia', flag: '🇮🇳' },
+  { name: 'Paquistão', flag: '🇵🇰' },
+  { name: 'Bangladeche', flag: '🇧🇩' },
+  { name: 'Sri Lanka', flag: '🇱🇰' },
+  { name: 'Turquia', flag: '🇹🇷' },
+  { name: 'Israel', flag: '🇮🇱' },
+  { name: 'Egito', flag: '🇪🇬' },
+  { name: 'África do Sul', flag: '🇿🇦' },
+  { name: 'Nigéria', flag: '🇳🇬' },
+  { name: 'Angola', flag: '🇦🇴' },
+  { name: 'Moçambique', flag: '🇲🇿' },
+  { name: 'Cabo Verde', flag: '🇨🇻' },
+  { name: 'Timor-Leste', flag: '🇹🇱' },
+  { name: 'Guiné Bissau', flag: '🇬🇼' },
+  { name: 'São Tomé e Príncipe', flag: '🇸🇹' },
+  { name: 'Austrália', flag: '🇦🇺' },
+  { name: 'Nova Zelândia', flag: '🇳🇿' },
+];
+
+const PHONE_CODES = [
+  { code: '+351', country: 'Portugal', flag: '🇵🇹' },
+  { code: '+34', country: 'Espanha', flag: '🇪🇸' },
+  { code: '+33', country: 'França', flag: '🇫🇷' },
+  { code: '+39', country: 'Itália', flag: '🇮🇹' },
+  { code: '+49', country: 'Alemanha', flag: '🇩🇪' },
+  { code: '+32', country: 'Bélgica', flag: '🇧🇪' },
+  { code: '+31', country: 'Holanda', flag: '🇳🇱' },
+  { code: '+48', country: 'Polónia', flag: '🇵🇱' },
+  { code: '+41', country: 'Suíça', flag: '🇨🇭' },
+  { code: '+43', country: 'Áustria', flag: '🇦🇹' },
+  { code: '+420', country: 'República Checa', flag: '🇨🇿' },
+  { code: '+421', country: 'Eslováquia', flag: '🇸🇰' },
+  { code: '+36', country: 'Hungria', flag: '🇭🇺' },
+  { code: '+40', country: 'Roménia', flag: '🇷🇴' },
+  { code: '+359', country: 'Bulgária', flag: '🇧🇬' },
+  { code: '+385', country: 'Croácia', flag: '🇭🇷' },
+  { code: '+381', country: 'Sérvia', flag: '🇷🇸' },
+  { code: '+30', country: 'Grécia', flag: '🇬🇷' },
+  { code: '+46', country: 'Suécia', flag: '🇸🇪' },
+  { code: '+47', country: 'Noruega', flag: '🇳🇴' },
+  { code: '+45', country: 'Dinamarca', flag: '🇩🇰' },
+  { code: '+358', country: 'Finlândia', flag: '🇫🇮' },
+  { code: '+44', country: 'Reino Unido', flag: '🇬🇧' },
+  { code: '+353', country: 'Irlanda', flag: '🇮🇪' },
+  { code: '+55', country: 'Brasil', flag: '🇧🇷' },
+  { code: '+54', country: 'Argentina', flag: '🇦🇷' },
+  { code: '+56', country: 'Chile', flag: '🇨🇱' },
+  { code: '+57', country: 'Colômbia', flag: '🇨🇴' },
+  { code: '+51', country: 'Peru', flag: '🇵🇪' },
+  { code: '+58', country: 'Venezuela', flag: '🇻🇪' },
+  { code: '+598', country: 'Uruguai', flag: '🇺🇾' },
+  { code: '+595', country: 'Paraguai', flag: '🇵🇾' },
+  { code: '+593', country: 'Equador', flag: '🇪🇨' },
+  { code: '+591', country: 'Bolívia', flag: '🇧🇴' },
+  { code: '+592', country: 'Guiana', flag: '🇬🇾' },
+  { code: '+597', country: 'Suriname', flag: '🇸🇷' },
+  { code: '+52', country: 'México', flag: '🇲🇽' },
+  { code: '+1', country: 'EUA/Canadá', flag: '🇺🇸' },
+  { code: '+86', country: 'China', flag: '🇨🇳' },
+  { code: '+81', country: 'Japão', flag: '🇯🇵' },
+  { code: '+82', country: 'Coreia do Sul', flag: '🇰🇷' },
+  { code: '+84', country: 'Vietname', flag: '🇻🇳' },
+  { code: '+66', country: 'Tailândia', flag: '🇹🇭' },
+  { code: '+62', country: 'Indonésia', flag: '🇮🇩' },
+  { code: '+60', country: 'Malásia', flag: '🇲🇾' },
+  { code: '+65', country: 'Singapura', flag: '🇸🇬' },
+  { code: '+63', country: 'Filipinas', flag: '🇵🇭' },
+  { code: '+852', country: 'Hong Kong', flag: '🇭🇰' },
+  { code: '+91', country: 'Índia', flag: '🇮🇳' },
+  { code: '+92', country: 'Paquistão', flag: '🇵🇰' },
+  { code: '+880', country: 'Bangladeche', flag: '🇧🇩' },
+  { code: '+94', country: 'Sri Lanka', flag: '🇱🇰' },
+  { code: '+90', country: 'Turquia', flag: '🇹🇷' },
+  { code: '+972', country: 'Israel', flag: '🇮🇱' },
+  { code: '+20', country: 'Egito', flag: '🇪🇬' },
+  { code: '+27', country: 'África do Sul', flag: '🇿🇦' },
+  { code: '+234', country: 'Nigéria', flag: '🇳🇬' },
+  { code: '+244', country: 'Angola', flag: '🇦🇴' },
+  { code: '+258', country: 'Moçambique', flag: '🇲🇿' },
+  { code: '+238', country: 'Cabo Verde', flag: '🇨🇻' },
+  { code: '+670', country: 'Timor-Leste', flag: '🇹🇱' },
+  { code: '+245', country: 'Guiné Bissau', flag: '🇬🇼' },
+  { code: '+239', country: 'São Tomé e Príncipe', flag: '🇸🇹' },
+  { code: '+61', country: 'Austrália', flag: '🇦🇺' },
+  { code: '+64', country: 'Nova Zelândia', flag: '🇳🇿' },
 ];
 
 function fuzzyMatch(search, target) {
@@ -243,12 +347,12 @@ function setupCountrySearch(inputId, dropdownId) {
   const dropdown = $(dropdownId);
 
   input.addEventListener('focus', () => {
-    renderCountryDropdown(input.value, dropdown);
+    renderCountryDropdown(input.value, dropdown, inputId);
     dropdown.style.display = 'block';
   });
 
   input.addEventListener('input', () => {
-    renderCountryDropdown(input.value, dropdown);
+    renderCountryDropdown(input.value, dropdown, inputId);
     if (input.value.trim()) dropdown.style.display = 'block';
   });
 
@@ -259,48 +363,94 @@ function setupCountrySearch(inputId, dropdownId) {
   });
 }
 
-function renderCountryDropdown(search, dropdown) {
+function renderCountryDropdown(search, dropdown, inputId) {
   const results = search.trim()
     ? COUNTRIES.filter(c => fuzzyMatch(search, c.name) > 0)
         .sort((a, b) => fuzzyMatch(search, b.name) - fuzzyMatch(search, a.name))
-        .slice(0, 10)
-    : COUNTRIES;
+        .slice(0, 15)
+    : COUNTRIES.slice(0, 15);
 
   dropdown.innerHTML = results.map(country => `
-    <div class="country-dropdown-item" data-country="${country.name}" data-code="${country.code}">
+    <div class="country-dropdown-item" data-country="${country.name}">
       <span>${country.flag}</span>
       <span>${country.name}</span>
-      <span style="color: #999; margin-left: auto;">${country.code}</span>
     </div>
   `).join('');
 
   dropdown.querySelectorAll('.country-dropdown-item').forEach(item => {
-    item.addEventListener('click', () => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
       const countryName = item.dataset.country;
-      const input = dropdown.previousElementSibling.querySelector('.country-input');
+      const input = $(inputId);
       input.value = countryName;
       dropdown.style.display = 'none';
 
-      if (input.id === 'pb-country') {
+      if (inputId === 'pb-country') {
         updateIDFieldLabels();
-        setupPhoneCode(countryName);
         renderExtraGuests();
       }
     });
   });
 }
 
-function setupPhoneCode(country) {
-  const countryData = COUNTRIES.find(c => c.name === country);
-  if (countryData) {
-    $('pb-phone-code').value = countryData.code;
-    $('pb-phone-code').innerHTML = `<option value="${countryData.code}">${countryData.flag} ${countryData.code} ${country}</option>`;
-  }
+function setupPhoneCodeSearch() {
+  const input = $('pb-phone-code');
+  const dropdown = document.createElement('div');
+  dropdown.className = 'country-dropdown';
+  dropdown.style.display = 'none';
+  dropdown.id = 'pb-phone-code-dropdown';
+  input.parentElement.appendChild(dropdown);
+
+  input.addEventListener('focus', () => {
+    renderPhoneCodeDropdown(input.value, dropdown);
+    dropdown.style.display = 'block';
+  });
+
+  input.addEventListener('input', () => {
+    renderPhoneCodeDropdown(input.value, dropdown);
+    if (input.value.trim()) dropdown.style.display = 'block';
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target) && e.target !== input) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function renderPhoneCodeDropdown(search, dropdown) {
+  const results = search.trim()
+    ? PHONE_CODES.filter(c => fuzzyMatch(search, c.code) > 0 || fuzzyMatch(search, c.country) > 0)
+        .sort((a, b) => {
+          const scoreA = Math.max(fuzzyMatch(search, a.code), fuzzyMatch(search, a.country));
+          const scoreB = Math.max(fuzzyMatch(search, b.code), fuzzyMatch(search, b.country));
+          return scoreB - scoreA;
+        })
+        .slice(0, 15)
+    : PHONE_CODES.slice(0, 15);
+
+  dropdown.innerHTML = results.map(phone => `
+    <div class="country-dropdown-item" data-code="${phone.code}" data-country="${phone.country}">
+      <span>${phone.flag}</span>
+      <span>${phone.code}</span>
+      <span style="color: #999; margin-left: auto;">${phone.country}</span>
+    </div>
+  `).join('');
+
+  dropdown.querySelectorAll('.country-dropdown-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const code = item.dataset.code;
+      $('pb-phone-code').value = code;
+      dropdown.style.display = 'none';
+    });
+  });
 }
 
 function bindEvents() {
   setupCountrySearch('pb-country', 'pb-country-dropdown');
   setupCountrySearch('pb-id-country', 'pb-id-country-dropdown');
+  setupPhoneCodeSearch();
 
   ['pb-checkin','pb-checkout','pb-birth'].forEach(id => {
     const input = $(id);
