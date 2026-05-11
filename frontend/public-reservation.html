@@ -84,7 +84,11 @@
                 <label>
                   <span>Telefone *</span>
                   <div class="phone-input-group">
-                    <input id="pb-phone-code" type="text" required placeholder="+351" value="+351" autocomplete="off">
+                    <div class="phone-code-wrap">
+                      <button type="button" class="phone-code-btn" id="pb-phone-code-btn">🇵🇹 +351</button>
+                      <input type="hidden" id="pb-phone-code" value="+351">
+                      <div class="country-dropdown" id="pb-phone-code-dropdown" style="display:none;"></div>
+                    </div>
                     <input id="pb-phone" type="tel" required placeholder="912 345 678">
                   </div>
                 </label>
@@ -116,12 +120,11 @@
               <div class="field-grid two">
                 <label>
                   <span id="pb-id-type-label">Tipo de documento</span>
-                  <select id="pb-id-type">
-                    <option value="">Selecionar</option>
-                    <option value="cc">Cartão de Cidadão</option>
-                    <option value="passport">Passaporte</option>
-                    <option value="other">Outro</option>
-                  </select>
+                  <div class="doc-type-wrap" style="position: relative;">
+                    <button type="button" class="doc-type-btn" id="pb-id-type-btn">Selecionar</button>
+                    <input type="hidden" id="pb-id-type" value="">
+                    <div id="pb-id-type-dropdown" class="doc-type-dropdown" style="display: none;"></div>
+                  </div>
                 </label>
                 <label>
                   <span>País emissor do documento</span>
