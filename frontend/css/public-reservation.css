@@ -653,6 +653,24 @@ textarea { resize: vertical; }
   color: #fff;
 }
 
+.is-loading {
+  pointer-events: none;
+}
+
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spinSmooth 0.8s linear infinite;
+}
+
+@keyframes spinSmooth {
+  to { transform: rotate(360deg); }
+}
+
 @keyframes railMove {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }

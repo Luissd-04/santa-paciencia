@@ -1,120 +1,27 @@
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
-
-function getExtraOccupancyCharge(accommodation, guests, nights, birthDates = [], checkIn = null) {
-  if (!accommodation) return 0;
-  const options = normalizeExtraOccupancyOptions(accommodation);
-  const maxGuests = Number(accommodation.max_guests) || guests;
-  const included = Math.max(1, Math.min(
-    Number(accommodation.base_guests_included) || Math.min(maxGuests, 2),
-    maxGuests
-  ));
-  let remainingGuests = Math.max(0, guests - included);
-  if (!remainingGuests) return 0;
-  const specialRates = getAgeSpecialRates(accommodation, birthDates.slice(included), checkIn).slice(0, remainingGuests);
-  let total = specialRates.reduce((sum, rate) => sum + (rate * nights), 0);
-  remainingGuests -= specialRates.length;
-
-  return options.reduce((runningTotal, option) => {
-    if (remainingGuests <= 0) return runningTotal;
-    const capacity = Math.max(0, Number(option.capacity) || 0);
-    if (!capacity) return runningTotal;
-    const guestsCovered = Math.min(remainingGuests, capacity);
-    remainingGuests -= guestsCovered;
-    const price = Number(option.price) || 0;
-    if (option.charge_type === 'per_bed_night') return runningTotal + (price * nights);
-    return runningTotal + (price * guestsCovered * nights);
-  }, total);
-}
-
-function normalizeExtraOccupancyOptions(accommodation) {
-  let options = [];
-  const raw = accommodation.extra_occupancy_options;
-  if (Array.isArray(raw)) {
-    options = raw;
-  } else if (typeof raw === 'string' && raw.trim()) {
-    try { options = JSON.parse(raw); } catch { options = []; }
-  }
-
-  if (!options.length && accommodation.extra_bed_enabled) {
-    options = [{
-      type: accommodation.extra_bed_type || 'sofa_cama',
-      capacity: Number(accommodation.extra_bed_capacity) || 0,
-      price: Number(accommodation.extra_bed_price) || 0,
-      charge_type: accommodation.extra_bed_charge_type || 'per_guest_night'
-    }];
-  }
-
-  return options.map(option => ({
-    capacity: Math.max(0, Number(option?.capacity) || 0),
-    price: Math.max(0, Number(option?.price) || 0),
-    charge_type: option?.charge_type === 'per_bed_night' ? 'per_bed_night' : 'per_guest_night'
-  }));
-}
-
-function getAgeSpecialRates(accommodation, birthDates = [], checkIn = null) {
-  const babyLimit = Number(accommodation.baby_age_limit ?? 2);
-  const childLimit = Number(accommodation.child_age_limit ?? 12);
-  const babyPrice = Number(accommodation.baby_price ?? 0);
-  const childPrice = Number(accommodation.child_price ?? 0);
-  return birthDates
-    .map(date => {
-      const age = getAgeAtDate(date, checkIn);
-      if (age === null) return null;
-      if (age < babyLimit) return { age, rate: babyPrice };
-      if (age >= babyLimit && age < childLimit) return { age, rate: childPrice };
-      return null;
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.age - b.age)
-    .map(item => item.rate);
-}
-
-function getAgeAtDate(birthDate, refDate) {
-  if (!birthDate || !refDate) return null;
-  const birthIso = normalizeDateValue(birthDate);
-  const refIso = normalizeDateValue(refDate);
-  if (!birthIso || !refIso) return null;
-  const birth = new Date(`${birthIso}T12:00:00`);
-  const ref = new Date(`${refIso}T12:00:00`);
-  if (Number.isNaN(birth.getTime()) || Number.isNaN(ref.getTime()) || birth > ref) return null;
-  let age = ref.getFullYear() - birth.getFullYear();
-  const monthDiff = ref.getMonth() - birth.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && ref.getDate() < birth.getDate())) age--;
-  return age;
-}
-
-function normalizeDateValue(value) {
-  const raw = String(value || '').trim();
-  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (iso) return raw;
-  const pt = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (pt) return `${pt[3]}-${pt[2]}-${pt[1]}`;
-  const digits = raw.replace(/\D/g, '');
-  if (digits.length === 8) return `${digits.slice(4, 8)}-${digits.slice(2, 4)}-${digits.slice(0, 2)}`;
-  return '';
-}
-
-function getReservationBirthDates(guest = {}, guestsData = []) {
-  const extra = Array.isArray(guestsData) ? guestsData : [];
-  return [guest.birth_date, ...extra.map(g => g?.birth_date)].filter(Boolean);
-}
-
-function validateReservationBirthDates(numGuests, guest = {}, guestsData = []) {
-  const totalGuests = Math.max(1, Number(numGuests) || 1);
-  if (!guest.birth_date) return 'A data de nascimento do hóspede principal é obrigatória.';
-  const extra = Array.isArray(guestsData) ? guestsData : [];
-  for (let i = 0; i < Math.max(0, totalGuests - 1); i++) {
-    if (!extra[i]?.birth_date) return `A data de nascimento do hóspede ${i + 2} é obrigatória.`;
-  }
-  return null;
-}
+const {
+  calculateReservationTotals,
+  getPaymentStatus,
+  getReservationBirthDates,
+  validateReservationBirthDates,
+} = require('../services/reservationRules');
+const {
+  getAccommodationScope,
+  getUnavailableAccommodationIds,
+} = require('../services/availabilityRules');
 
 function safeJson(value, fallback) {
   if (!value) return fallback;
   if (typeof value === 'object') return value;
   try { return JSON.parse(value); } catch { return fallback; }
 }
+
+function getOrganizationServices(organizationId) {
+  const row = db.prepare("SELECT value FROM organization_settings WHERE organization_id = ? AND key = 'services'").get(organizationId);
+  return row ? safeJson(row.value, []) : [];
+}
+
 const { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } = require('../services/calendarService');
 const { sendConfirmationEmail, sendCancellationEmail, sendPaymentConfirmationEmail } = require('../services/emailService');
 const { recordConsent } = require('../services/rgpdService');
@@ -122,20 +29,11 @@ const { recordConsent } = require('../services/rgpdService');
 // Returns conflicting reservation ID (if any) for the given accommodation + date range.
 // Uses parent_id hierarchy: booking an alojamento blocks all child suites and vice versa.
 function findConflict(organizationId, accommodationId, checkIn, checkOut, excludeId) {
-  const accom = db.prepare('SELECT id, type, parent_id FROM accommodations WHERE id = ? AND organization_id = ?').get(accommodationId, organizationId);
-  if (!accom) return null;
+  const accommodations = db.prepare('SELECT id, type, parent_id FROM accommodations WHERE organization_id = ?').all(organizationId);
+  const idsToCheck = getAccommodationScope(accommodations, accommodationId);
+  if (!idsToCheck.length) return null;
 
-  const idsToCheck = new Set([accommodationId]);
-  if (accom.parent_id) {
-    // Child suite — also check if parent alojamento is booked
-    idsToCheck.add(accom.parent_id);
-  } else if (accom.type === 'alojamento') {
-    // Parent alojamento — also check all child suites
-    db.prepare('SELECT id FROM accommodations WHERE organization_id = ? AND parent_id = ?').all(organizationId, accommodationId)
-      .forEach(c => idsToCheck.add(c.id));
-  }
-
-  const placeholders = [...idsToCheck].map(() => '?').join(',');
+  const placeholders = idsToCheck.map(() => '?').join(',');
   let query = `
     SELECT r.id FROM reservations r
     WHERE r.status != 'cancelada'
@@ -144,7 +42,7 @@ function findConflict(organizationId, accommodationId, checkIn, checkOut, exclud
       AND r.check_out > ?
       AND r.accommodation_id IN (${placeholders})
   `;
-  const params = [organizationId, checkOut, checkIn, ...[...idsToCheck]];
+  const params = [organizationId, checkOut, checkIn, ...idsToCheck];
   if (excludeId) { query += ' AND r.id != ?'; params.push(excludeId); }
   return db.prepare(query).get(...params) || null;
 }
@@ -166,23 +64,7 @@ async function getAvailability(req, res, next) {
     if (!conflicting.length) return res.json({ success: true, data: { unavailable: [] } });
 
     const allAccom = db.prepare('SELECT id, type, parent_id FROM accommodations WHERE organization_id = ?').all(organizationId);
-    const unavailable = new Set(conflicting);
-
-    // Propagate using parent_id hierarchy (single pass, no cascade)
-    for (const conflictId of conflicting) {
-      const acc = allAccom.find(a => a.id === conflictId);
-      if (!acc) continue;
-      if (acc.parent_id) {
-        // Child suite directly booked → parent unavailable (can't book whole property)
-        // Siblings are NOT affected
-        unavailable.add(acc.parent_id);
-      } else if (acc.type === 'alojamento') {
-        // Parent directly booked → all children unavailable
-        allAccom.filter(a => a.parent_id === conflictId).forEach(c => unavailable.add(c.id));
-      }
-    }
-
-    res.json({ success: true, data: { unavailable: [...unavailable] } });
+    res.json({ success: true, data: { unavailable: getUnavailableAccommodationIds(allAccom, conflicting) } });
   } catch (err) {
     next(err);
   }
@@ -310,40 +192,30 @@ async function create(req, res, next) {
       return res.status(400).json({ error: `Este alojamento permite no máximo ${accommodation.max_guests} hóspedes.` });
     }
 
-    const checkIn = new Date(check_in);
-    const checkOut = new Date(check_out);
-    const nights = Math.round((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-
-    if (nights <= 0) return res.status(400).json({ error: 'Datas inválidas' });
+    let totals;
+    try {
+      totals = calculateReservationTotals(accommodation, getOrganizationServices(organizationId), {
+        check_in,
+        check_out,
+        num_guests,
+        breakfast_included,
+        guest,
+        guests_data: guests_data || [],
+      });
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
 
     // Verificar disponibilidade (anti double-booking)
-    const conflict = findConflict(organizationId, accommodation_id, check_in, check_out, null);
+    const conflict = findConflict(organizationId, accommodation_id, totals.checkIn, totals.checkOut, null);
     if (conflict) {
       return res.status(409).json({
         error: `Este alojamento já está ocupado nessas datas (reserva ${conflict.id}).`
       });
     }
 
-    // Ler serviços e taxas das configurações
-    const settingsRow = db.prepare("SELECT value FROM organization_settings WHERE organization_id = ? AND key = 'services'").get(organizationId);
-    const services = settingsRow ? JSON.parse(settingsRow.value) : [];
-    const taxSvc = services.find(s => s.id === 'tourist_tax');
-    const bkfSvc = services.find(s => s.id === 'breakfast');
-    const bkfRate = bkfSvc?.value ?? 19;
-    const bkfOn   = breakfast_included ? 1 : 0;
-
-    const touristTax    = (taxSvc?.active !== false) ? (taxSvc?.value ?? 3) * num_guests * nights : 0;
-    const breakfastCost = bkfOn ? bkfRate * num_guests * nights : 0;
-    const birthDates = getReservationBirthDates(guest, guests_data || []);
-    const extraOccupancyCost = getExtraOccupancyCharge(accommodation, num_guests, nights, birthDates, check_in);
-    const totalAmount   = (accommodation.price_per_night * nights) + extraOccupancyCost + touristTax + breakfastCost;
-
     const paidAmt = Number(amount_paid) || 0;
-    const autoPaymentStatus = paidAmt >= totalAmount && paidAmt > 0
-      ? 'confirmado'
-      : paidAmt > 0
-        ? 'parcial'
-        : (reqPaymentStatus || 'pendente');
+    const autoPaymentStatus = getPaymentStatus(paidAmt, totals.totalAmount, reqPaymentStatus || 'pendente');
 
     // Criar reserva
     const reservationId = `SP-${Date.now()}`;
@@ -354,9 +226,9 @@ async function create(req, res, next) {
         notes, license_number, guests_data, amount_paid, payment_date, payment_status
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      reservationId, organizationId, guestRecord.id, accommodation_id, check_in, check_out,
-      nights, num_guests, totalAmount, bkfOn,
-      touristTax, channel || 'direto', payment_method || null,
+      reservationId, organizationId, guestRecord.id, accommodation_id, totals.checkIn, totals.checkOut,
+      totals.nights, totals.guests, totals.totalAmount, totals.breakfastIncluded,
+      totals.touristTax, channel || 'direto', payment_method || null,
       notes || null, accommodation.license_number,
       JSON.stringify(guests_data || []),
       paidAmt, payment_date || null, autoPaymentStatus
@@ -406,22 +278,8 @@ async function update(req, res, next) {
 
     const newCheckIn = check_in || existing.check_in;
     const newCheckOut = check_out || existing.check_out;
-    const nights = Math.round(
-      (new Date(newCheckOut) - new Date(newCheckIn)) / (1000 * 60 * 60 * 24)
-    );
     const guests = num_guests || existing.num_guests;
-    if (Number(guests) > Number(accommodation.max_guests || 0)) {
-      return res.status(400).json({ error: `Este alojamento permite no máximo ${accommodation.max_guests} hóspedes.` });
-    }
     const bkfOn2 = breakfast_included !== undefined ? (breakfast_included ? 1 : 0) : existing.breakfast_included;
-    // Ler taxas das configurações
-    const settingsRow2 = db.prepare("SELECT value FROM organization_settings WHERE organization_id = ? AND key = 'services'").get(organizationId);
-    const services2 = settingsRow2 ? JSON.parse(settingsRow2.value) : [];
-    const taxSvc2 = services2.find(s => s.id === 'tourist_tax');
-    const bkfSvc2 = services2.find(s => s.id === 'breakfast');
-    const bkfRate2 = bkfSvc2?.value ?? 19;
-    const touristTax = (taxSvc2?.active !== false) ? (taxSvc2?.value ?? 3) * guests * nights : 0;
-    const breakfastCost = bkfOn2 ? bkfRate2 * guests * nights : 0;
     const incomingGuestsData = guests_data !== undefined ? guests_data : safeJson(existing.guests_data, []);
     const existingGuest = db.prepare('SELECT birth_date FROM guests WHERE id = ? AND organization_id = ?').get(existing.guest_id, organizationId) || {};
     const guestForBirthDates = guest || { birth_date: existingGuest.birth_date };
@@ -429,11 +287,21 @@ async function update(req, res, next) {
       const birthDateError = validateReservationBirthDates(guests, guestForBirthDates, incomingGuestsData);
       if (birthDateError) return res.status(400).json({ error: birthDateError });
     }
-    const birthDates = getReservationBirthDates(guestForBirthDates, incomingGuestsData);
-    const extraOccupancyCost = getExtraOccupancyCharge(accommodation, guests, nights, birthDates, newCheckIn);
+    let totals;
+    try {
+      totals = calculateReservationTotals(accommodation, getOrganizationServices(organizationId), {
+        check_in: newCheckIn,
+        check_out: newCheckOut,
+        num_guests: guests,
+        breakfast_included: bkfOn2,
+        birth_dates: getReservationBirthDates(guestForBirthDates, incomingGuestsData),
+      });
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
 
     // Verificar disponibilidade (excluir a própria reserva)
-    const conflict2 = findConflict(organizationId, newAccommodationId, newCheckIn, newCheckOut, req.params.id);
+    const conflict2 = findConflict(organizationId, newAccommodationId, totals.checkIn, totals.checkOut, req.params.id);
     if (conflict2) {
       return res.status(409).json({
         error: `Este alojamento já está ocupado nessas datas (reserva ${conflict2.id}).`
@@ -464,14 +332,8 @@ async function update(req, res, next) {
         organizationId
       );
     }
-    const totalAmount = (accommodation.price_per_night * nights) + extraOccupancyCost + touristTax + breakfastCost;
-
     const newPaidAmt = amount_paid !== undefined ? Number(amount_paid) : (existing.amount_paid || 0);
-    const autoPaymentStatus2 = newPaidAmt >= totalAmount && newPaidAmt > 0
-      ? 'confirmado'
-      : newPaidAmt > 0
-        ? 'parcial'
-        : (payment_status || existing.payment_status || 'pendente');
+    const autoPaymentStatus2 = getPaymentStatus(newPaidAmt, totals.totalAmount, payment_status || existing.payment_status || 'pendente');
 
     db.prepare(`
       UPDATE reservations SET
@@ -483,8 +345,8 @@ async function update(req, res, next) {
       WHERE id = ? AND organization_id = ?
     `).run(
       newAccommodationId,
-      newCheckIn, newCheckOut, nights, guests, totalAmount, bkfOn2,
-      touristTax,
+      totals.checkIn, totals.checkOut, totals.nights, totals.guests, totals.totalAmount, totals.breakfastIncluded,
+      totals.touristTax,
       channel || existing.channel, payment_method || existing.payment_method,
       notes !== undefined ? notes : existing.notes, status || existing.status,
       autoPaymentStatus2,

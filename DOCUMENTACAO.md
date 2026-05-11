@@ -1,6 +1,6 @@
 # Santa Paciência — Documentação Técnica Completa
 
-> Gerado em 2026-05-04. Atualizar sempre que houver alterações estruturais significativas.
+> Atualizado em 2026-05-11. Atualizar sempre que houver alterações estruturais significativas.
 
 ---
 
@@ -19,7 +19,7 @@
 
 ### Frontend
 Vanilla HTML + CSS + JavaScript puro. Sem frameworks (sem React, Vue, Angular, etc.).
-Ícones via **Lucide** (CDN). Bibliotecas opcionais para export: **SheetJS (XLSX)** e **jsPDF** (CDN).
+Ícones via **Lucide** (CDN). Bibliotecas auxiliares: **Chart.js** para relatórios, **Leaflet** para mapa/geocoding visual, **SheetJS (XLSX)** e **jsPDF + AutoTable** para exportação.
 
 Em 2026-05-04 o frontend passou a usar uma estrutura de CSS segmentada:
 - `css/styles.css` — legado / base histórica ainda usada pelas views não migradas
@@ -85,7 +85,7 @@ santa_paciencia/
     │   ├── authService.js      hash de password, sessões, utilizadores
     │   ├── calendarService.js  Criação/update/delete de eventos no Google Calendar
     │   ├── emailService.js     Envio de emails HTML com placeholders + branding
-    │   ├── emailScheduler.js   Scheduler: corre a cada 30min, envia emails automáticos
+    │   ├── emailScheduler.js   Scheduler disponível: corre de hora em hora quando invocado
     │   ├── orgService.js       organizações, memberships e convites
     │   └── rgpdService.js      Geração de doc RGPD + registo de consentimento
     └── middleware/
@@ -110,6 +110,10 @@ frontend/
 │       ├── reservas.css
 │       └── despesas.css
 └── js/
+    ├── domain/
+    │   ├── dates.js        Regras reutilizáveis de datas, noites e idade
+    │   └── pricing.js      Regras reutilizáveis de totais, taxas e ocupação extra
+    ├── ui.js               Helpers UI reutilizáveis: loading de botões, dropdowns e modais simples
     ├── state.js            Variáveis globais: reservas[], accommodations[],
     │                       editingId, calYear/Month, servicosData[]
     ├── helpers.js          badgeEstado(), badgePagamento(), toast(),
@@ -125,9 +129,36 @@ frontend/
     │                       pai→filho, comodidades, mapa, serviços/taxas
     ├── calendario.js       ~308 linhas — vista mensal, blocos por suite
     ├── despesas.js         ~163 linhas — CRUD despesas + resumo
-    ├── emails.js           ~455 linhas — templates, editor, log, envio de teste
+    ├── emails.js           ~455 linhas — templates, editor, preview e settings
+    ├── relatorios.js       ~585 linhas — relatórios financeiros, despesas e lucro
     └── team.js             convites, listagem de membros, gestão de papéis
 ```
+
+---
+
+## Estado Implementado — Resumo Atual
+
+### Backoffice
+- Autenticação por email/password, sessões em cookie `HttpOnly`, organizações, memberships e convites.
+- Dashboard operacional com KPIs, chegadas próximas, ocupação e atalhos de backup.
+- Reservas completas: criação/edição/cancelamento/reativação, disponibilidade, anti-overbooking, hóspedes adicionais, RGPD, pagamentos parciais e integração Google Calendar.
+- Alojamentos com hierarquia pai→filhos, campos herdados, comodidades próprias/herdadas, imagens por secção, capa, áreas comuns herdadas, serviços/taxas e preços especiais por idade.
+- Hóspedes com pesquisa, ficha, histórico, flags e importação/exportação.
+- Calendário mensal e timeline anual com filtros, drag & drop e validação de conflitos.
+- Despesas com CRUD, resumo e integração nos relatórios.
+- Relatórios financeiros: receita mensal, receita por canal/alojamento, despesas por mês/categoria e lucro.
+- Emails/templates por organização, settings de horários/redes sociais e preview por email.
+- Google Calendar OAuth por utilizador/organização, status e sync manual.
+- Backup ZIP de dados + imagens e import substitutivo por organização.
+
+### Público
+- Página pública de reservas por `public_slug`: `/reservar/:slug`.
+- Endpoints públicos para landing, disponibilidade e criação de reserva pendente.
+- Cálculo de preço com datas, hóspedes, ocupação extra, bebé/criança, pequeno-almoço e taxa turística.
+- Criação de reserva pública com `public_token` para futura gestão segura.
+
+### Ainda Parcial / Atenção
+- O ficheiro `emailScheduler.js` existe, mas o `server.js` atual não chama `startScheduler()`. Emails imediatos podem ser enviados pelas ações de reserva, mas emails agendados de check-in/check-out só correm se o scheduler for ligado explicitamente.
 
 ---
 
@@ -392,11 +423,11 @@ created_at      TEXT
 ### `/api/email-templates`
 | Método | Path |
 |---|---|
-| GET | `/` |
-| GET | `/:slug` |
-| PUT | `/:slug` |
-| DELETE | `/:slug` |
-| POST | `/:slug/test` — envia email de teste para EMAIL_USER |
+| GET | `/` — lista templates da organização e devolve settings |
+| GET | `/email-settings` — horários e links sociais da organização |
+| PUT | `/email-settings` — guarda horários e links sociais |
+| PUT | `/:slug` — atualiza assunto/corpo/timing/traduções/ativo |
+| POST | `/:slug/preview` — envia preview para `body.to` ou `EMAIL_USER` |
 
 ### `/api/expenses`
 | Método | Path |
@@ -432,8 +463,15 @@ created_at      TEXT
 |---|---|
 | GET | `/` — resumo de membros e convites da organização atual |
 | POST | `/invitations` — owner convida gestor/funcionário |
-| PATCH | `/members/:id/role` — owner altera papel |
+| DELETE | `/invitations/:id` — remove convite pendente |
+| PATCH | `/members/:id` — owner altera papel |
 | DELETE | `/members/:id` — owner remove membro |
+
+### `/api/reports`
+| Método | Path |
+|---|---|
+| GET | `/financial` — relatório anual: meses, canais, alojamentos, totais, ocupação média e RevPAR |
+| GET | `/expenses` — relatório anual de despesas por mês e categoria |
 
 ### `/api/backup`
 | Método | Path |
@@ -616,7 +654,8 @@ created_at      TEXT
 | `coordenadas` | Envio das coordenadas | 1 dia antes do checkin |
 
 **Scheduler** (`emailScheduler.js`):
-- Corre a cada 30 minutos via `setInterval` em `server.js`
+- Quando invocado por `startScheduler()`, corre de hora em hora via `setInterval`
+- Atenção: no estado atual do `server.js`, o scheduler ainda não está ligado no arranque
 - Só processa templates com `timing_event` = `checkin` ou `checkout`
 - Janela de envio: eventos entre agora e 8 dias no passado (para recuperar atrasos)
 - `email_log` com UNIQUE(slug, reservation_id) garante que cada email é enviado no máximo uma vez
@@ -811,6 +850,65 @@ LICENSE_NUMBER=12345/AL
 
 ---
 
+## Revisão de Código — Estado e Melhorias
+
+### O que Está Bom
+- O domínio funcional está bem separado no backend: rotas finas, controllers por área e services para autenticação, organizações, calendário, email e RGPD.
+- Regras de datas/preços/pagamento de reservas começaram a ser centralizadas em `backend/src/services/reservationRules.js`, usado pelo backoffice e pelo motor público.
+- Regras puras de disponibilidade/hierarquia começaram a ser centralizadas em `backend/src/services/availabilityRules.js`, com testes de parent/child e back-to-back.
+- No frontend, `frontend/js/domain/dates.js` e `frontend/js/domain/pricing.js` começaram a substituir lógica duplicada entre reservas e página pública.
+- O frontend já tem `AppUI.enhanceSelect()` para transformar selects normais em dropdowns pesquisáveis com o visual da página pública, mantendo o `<select>` como fonte de verdade.
+- O SQLite com migrations não-destrutivas torna a app simples de instalar e manter, especialmente para uma operação pequena/média.
+- A regra de disponibilidade está no backend, não só no frontend. Isto é correto: o frontend ajuda, mas quem decide conflitos é a API.
+- A autenticação por organização já prepara o produto para multi-tenant, convites e papéis de equipa.
+- O frontend, apesar de vanilla, está organizado por áreas (`reservas`, `alojamentos`, `calendario`, etc.), o que facilita migração gradual.
+- O CSS começou a sair do ficheiro monolítico para camadas (`base`, `layout`, `components`, `themes`, `views`), que é o caminho certo.
+
+### Bugs / Riscos Encontrados
+- `emailScheduler.js` não está ligado no `server.js`; emails agendados podem nunca ser enviados automaticamente.
+- `frontend/api.js` existe como wrapper, mas a SPA usa sobretudo helpers em `frontend/js/helpers.js`; isto cria duas fontes possíveis para o mesmo padrão de fetch.
+- Há muitos `onclick` inline no `index.html`. Funciona, mas dificulta reutilização, testes e cleanup de listeners.
+- Existem credenciais reais no `.env` local. Não devem ser commitadas nem partilhadas; se já foram expostas, devem ser rodadas.
+
+### Segmentação Recomendada no Frontend
+- Criar `frontend/js/ui/` para componentes reutilizáveis em vanilla:
+  - `buttons.js`: helpers para botões com ícone, estados `loading/disabled`, classes base.
+  - `modal.js`: abrir/fechar modal, backdrop, escape key, foco inicial.
+  - `form.js`: leitura/normalização de campos, erros por campo, validações comuns.
+  - `date-picker.js`: calendário custom usado em reservas e página pública.
+  - `dropdown.js`: dropdown pesquisável usado em países, indicativos e documentos.
+  - `table.js`: ordenação, empty state, ações e render de linhas.
+  - `cards.js`: badges, chips de alojamento, estados de reserva/pagamento.
+- Criar `frontend/js/domain/` para regras puras:
+  - `pricing.js`: noites, taxas, pequeno-almoço, bebé/criança, ocupação extra.
+  - `availability.js`: overlap de datas, hierarquia pai/filhos, bloqueios.
+  - `dates.js`: `dd-mm-aaaa` ↔ `yyyy-mm-dd`, idade, formatação PT.
+  - `guests.js`: nome completo, documento obrigatório para estrangeiros, telefone.
+- Deixar os ficheiros de views (`reservas.js`, `alojamentos.js`, `public-reservation.js`) como orquestradores: carregam dados, chamam helpers e renderizam blocos, mas não devem concentrar todas as regras.
+
+### Reutilização de UI / CSS
+- Consolidar botões em `.btn`, `.btn-primary`, `.btn-ghost`, `.btn-danger`, `.btn-success`, `.btn-sm`, `.btn-icon`; evitar novos estilos ad hoc por view.
+- Consolidar animações em 4 tokens: `viewFadeIn`, `softIn`, `slideUpSmooth`, `spinSmooth`. Hoje há animações repetidas em `styles.css`, `components.css`, `operations.css` e `public-reservation.css`.
+- Usar tokens para raios e sombras: `--radius-sm`, `--radius-md`, `--radius-lg`, `--shadow-soft`, `--shadow-card`; reduzir `border-radius` solto em dezenas de valores.
+- Mover padrões comuns de cards/listas para `components.css`; deixar `views/*.css` só com layout específico daquela vista.
+- Evitar estilos inline no HTML para botões, ícones e displays; preferir classes reutilizáveis e atributos `hidden`.
+
+### Segmentação Recomendada no Backend
+- Extrair regras de reserva para `services/reservationRules.js`: conflitos, hierarquia, cálculo de total, status de pagamento.
+- Extrair upload/imagens para `services/imageService.js`: base64, limite de tamanho, extensão, apagar ficheiro, mover entre secções.
+- Extrair validação para `services/validators.js` ou middleware por rota: email, datas, roles, IDs, payloads de alojamento/reserva.
+- Separar queries longas para pequenos repositórios (`repositories/reservationsRepo.js`, `accommodationsRepo.js`) se os controllers continuarem a crescer.
+- Uniformizar resposta da API: todos os endpoints devem devolver `{ success, data, error }` de forma consistente.
+
+### Prioridades Práticas
+1. Decidir se emails agendados devem correr; se sim, ligar `startScheduler()` no `server.js`.
+2. Continuar a trocar chamadas locais para `ReservationDates` e `ReservationPricing` até remover as funções duplicadas antigas.
+3. Continuar a trocar modais simples para `AppUI.openModal()` / `AppUI.closeModal()`.
+4. Consolidar `.btn` e animações em `components.css`, reduzindo duplicação em `styles.css`.
+5. Alargar testes para disponibilidade/hierarquia pai-filhos antes de refatorar ficheiros grandes.
+
+---
+
 ## Pontos de Atenção Técnica
 
 1. **IDs de reservas**: formato `SP-{Date.now()}` — legíveis mas podem colidir em criações simultâneas muito rápidas. Para produção com volume alto considerar UUID.
@@ -819,7 +917,7 @@ LICENSE_NUMBER=12345/AL
 
 3. **Imagens em base64**: as fotos são enviadas do frontend para o backend em base64 e guardadas como ficheiros. Ficheiros grandes (>5MB) são rejeitados. Em volume alto, considerar S3 ou similar.
 
-4. **Email scheduler**: corre em memória com `setInterval(30min)`. Se o processo reiniciar, o próximo ciclo ocorre 30min depois. Não há fila persistente — se o email falhar, o `email_log` não regista o envio e tentará de novo no ciclo seguinte (desde que a janela de 8 dias ainda cubra a reserva).
+4. **Email scheduler**: o módulo existe e usa `setInterval(60min)`, mas no estado atual não está ligado no `server.js`. Se for ativado, continuará a não ter fila persistente: se o email falhar, o `email_log` não regista o envio e tentará de novo no ciclo seguinte (desde que a janela de envio ainda cubra a reserva).
 
 5. **CORS**: configurado para `localhost`, `ngrok`, `trycloudflare.com` e `santapaciencia.xyz`. Adicionar novos domínios em `app.js` no array `allowed`.
 
@@ -836,7 +934,6 @@ LICENSE_NUMBER=12345/AL
 - **Recuperação de password** — ainda não existe fluxo de reset
 - **Rate limiting / brute-force protection** no login
 - **Faturação** — geração de PDF de fatura/recibo por reserva
-- **Relatórios financeiros** — gráficos de receita mensal, ocupação histórica, receita por canal/suite
 - **Envio manual de email** a partir de uma reserva específica
 - **Notas internas por hóspede** (separadas das notas de reserva)
 - **Integração com canais** (Airbnb/Booking via API iCal ou API oficial)
@@ -844,7 +941,6 @@ LICENSE_NUMBER=12345/AL
 - **Preços dinâmicos** por época, dia da semana ou período mínimo de estadia
 - **Ficha SEF/AIMA** — geração automática do relatório de hóspedes estrangeiros
 - **Backups automáticos locais** — export periódico para o PC dos proprietários, com intervalo configurável
-- **Motor público de reservas** — página externa onde clientes escolhem datas/alojamento e criam reservas como `pendente`
 - **Portal/link público da reserva** — token seguro para o cliente editar dados permitidos após criar a reserva
 - **Integração com website externo** — decidir entre redirect, iframe/embed ou formulário nativo via API pública
 - **PWA** — o frontend é responsivo mas não é instalável como app

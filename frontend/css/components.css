@@ -16,6 +16,118 @@
   transform: translateY(-1px);
 }
 
+.btn.is-loading {
+  pointer-events: none;
+}
+
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spinSmooth 0.8s linear infinite;
+}
+
+.app-select {
+  position: relative;
+  width: 100%;
+}
+
+.app-native-select {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.app-select-button {
+  width: 100%;
+  min-height: 44px;
+  padding: 11px 38px 11px 13px;
+  border: 1.5px solid rgba(26,46,74,.14);
+  border-radius: 12px;
+  background: var(--branco);
+  color: var(--azul);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.app-select-button::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 1.8px solid currentColor;
+  border-bottom: 1.8px solid currentColor;
+  transform: translateY(-65%) rotate(45deg);
+  opacity: .55;
+}
+
+.app-select-button:hover,
+.app-select-button:focus {
+  border-color: rgba(132,52,36,.42);
+  box-shadow: 0 0 0 4px rgba(132,52,36,.08);
+  outline: none;
+}
+
+.app-select-menu {
+  position: absolute;
+  z-index: 220;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  padding: 8px;
+  border: 1px solid rgba(132,52,36,.18);
+  border-radius: 12px;
+  background: var(--branco);
+  box-shadow: 0 12px 30px rgba(0,0,0,.14);
+}
+
+.app-select-search {
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 9px 10px;
+  border: 1px solid rgba(26,46,74,.12);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.app-select-options {
+  max-height: 196px;
+  overflow-y: auto;
+}
+
+.app-select-option {
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--azul);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-select-option:hover,
+.app-select-option.is-selected {
+  background: rgba(132,52,36,.08);
+}
+
 .btn-primary {
   background: linear-gradient(135deg, var(--marca), var(--marca-claro));
   box-shadow: 0 10px 24px rgba(139, 58, 36, 0.18);
@@ -149,3 +261,144 @@ table td {
     transform: translateY(0);
   }
 }
+
+/* ── Date picker popup (shared across backoffice) ── */
+.date-pop {
+  position: fixed;
+  z-index: 9000;
+  width: 286px;
+  padding: 12px;
+  border: 1px solid rgba(132,52,36,.14);
+  border-radius: 18px;
+  background: var(--branco);
+  box-shadow: 0 18px 44px rgba(45,34,28,.18);
+}
+
+.date-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.date-head > button {
+  width: 28px; height: 28px; flex-shrink: 0;
+  border: 0; border-radius: 8px;
+  background: var(--cinza-claro);
+  cursor: pointer;
+  font-weight: 700; font-size: 13px;
+}
+.date-head > button:hover { background: var(--creme); }
+
+.dp-month, .dp-year {
+  flex: 1;
+  padding: 5px 6px;
+  border: 1px solid rgba(0,0,0,.1);
+  border-radius: 8px;
+  font-size: 12px; font-weight: 600;
+  background: var(--branco);
+  cursor: pointer;
+}
+
+.date-week, .date-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  text-align: center;
+}
+
+.date-week {
+  margin-bottom: 4px;
+  color: var(--cinza);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .4px;
+}
+
+.dp-day {
+  height: 30px;
+  border: 0; border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px; font-weight: 500;
+}
+.dp-day:hover            { background: var(--creme); }
+.dp-day.selected         { background: var(--marca); color: #fff; }
+.dp-day.dp-disabled      { opacity: .3; cursor: default; pointer-events: none; }
+
+/* ── Password show/hide toggle ── */
+.pw-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pw-wrap .form-input,
+.pw-wrap .form-control {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.pw-toggle {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--text-muted, #888);
+  display: flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.pw-toggle:hover { color: var(--marca); }
+.pw-toggle i { width: 16px; height: 16px; pointer-events: none; }
+
+/* ── Auth link button (forgot password) ── */
+.auth-link-btn {
+  background: none;
+  border: none;
+  color: var(--marca);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  padding: 0;
+  opacity: .8;
+}
+.auth-link-btn:hover { opacity: 1; text-decoration: underline; }
+
+/* ── User menu dropdown ── */
+#auth-user-chip {
+  position: relative;
+  gap: 6px;
+}
+
+.user-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 200px;
+  background: var(--branco);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.14);
+  padding: 6px;
+  z-index: 300;
+}
+
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--azul);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.user-menu-item:hover { background: rgba(132,52,36,.08); }

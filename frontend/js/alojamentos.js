@@ -661,12 +661,18 @@ async function removeImgSection(idx) {
   const imgCount = (imgs[sec.key] || []).length;
   if (imgCount > 0 && !confirm(`A divisão "${sec.label}" tem ${imgCount} foto(s). Remover mesmo assim? As fotos serão eliminadas.`)) return;
 
+  const prevImgs = JSON.parse(JSON.stringify(imgs));
   const newSections = sections.filter((_, i) => i !== idx);
   if (imgs[sec.key]) delete imgs[sec.key];
   imgs._sections = newSections;
   alojImagens[id] = imgs;
   renderImagens();
-  await saveImgSections(id, imgs);
+  try {
+    await saveImgSections(id, imgs);
+  } catch {
+    alojImagens[id] = prevImgs;
+    renderImagens();
+  }
 }
 
 async function addImgSection() {
@@ -674,12 +680,13 @@ async function addImgSection() {
   if (!id) return;
   const nameEl = document.getElementById('new-section-name');
   const name = (nameEl.value || '').trim();
-  if (!name) { toast('Escreva o nome da divisão.', 'error'); return; }
+  if (!name) { toast('Escreve o nome da divisão.', 'error'); return; }
 
   const key = name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') + '_' + Date.now().toString().slice(-4);
 
   const imgs = alojImagens[id] || {};
+  const prevImgs = JSON.parse(JSON.stringify(imgs));
   const sections = getImgSections(id);
   sections.push({ key, label: name });
   imgs._sections = sections;
@@ -687,7 +694,13 @@ async function addImgSection() {
   alojImagens[id] = imgs;
   nameEl.value = '';
   renderImagens();
-  await saveImgSections(id, imgs);
+  try {
+    await saveImgSections(id, imgs);
+  } catch {
+    alojImagens[id] = prevImgs;
+    nameEl.value = name;
+    renderImagens();
+  }
 }
 
 async function saveImgSections(id, imgs) {
@@ -700,6 +713,7 @@ async function saveImgSections(id, imgs) {
     });
   } catch (err) {
     toast('❌ Erro ao guardar secções.', 'error');
+    throw err;
   }
 }
 

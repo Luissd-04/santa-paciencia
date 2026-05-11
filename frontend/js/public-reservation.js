@@ -230,20 +230,11 @@ function fuzzyMatch(search, target) {
 }
 
 function iso(value) {
-  const raw = String(value || '').trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  const pt = raw.match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/);
-  if (pt) return `${pt[3]}-${pt[2]}-${pt[1]}`;
-  const digits = raw.replace(/\D/g, '');
-  if (digits.length === 8) return `${digits.slice(4)}-${digits.slice(2,4)}-${digits.slice(0,2)}`;
-  return '';
+  return window.ReservationDates?.normalizeIsoDate(value) || '';
 }
 
 function ptDate(value) {
-  const v = iso(value);
-  if (!v) return value || '';
-  const [y, m, d] = v.split('-');
-  return `${d}-${m}-${y}`;
+  return window.ReservationDates?.formatPtDate(value) || value || '';
 }
 
 function fmtCurrency(value) {
@@ -251,10 +242,7 @@ function fmtCurrency(value) {
 }
 
 function nights() {
-  const ci = iso($('pb-checkin').value);
-  const co = iso($('pb-checkout').value);
-  if (!ci || !co) return 0;
-  return Math.max(0, Math.round((new Date(`${co}T12:00:00`) - new Date(`${ci}T12:00:00`)) / 86400000));
+  return window.ReservationDates?.countNights($('pb-checkin').value, $('pb-checkout').value) || 0;
 }
 
 function selectedUnit() {
@@ -960,14 +948,7 @@ function specialRate(unit, birthDate, index) {
 }
 
 function ageAt(birthIso, refIso) {
-  if (!birthIso || !refIso) return null;
-  const birth = new Date(`${birthIso}T12:00:00`);
-  const ref = new Date(`${refIso}T12:00:00`);
-  if (Number.isNaN(birth.getTime()) || Number.isNaN(ref.getTime())) return null;
-  let age = ref.getFullYear() - birth.getFullYear();
-  const m = ref.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && ref.getDate() < birth.getDate())) age--;
-  return age;
+  return window.ReservationDates?.ageAtDate(birthIso, refIso) ?? null;
 }
 
 function getBirthDates() {
@@ -978,21 +959,13 @@ function getBirthDates() {
 }
 
 function extraCharge(unit, n) {
-  const count = Math.max(1, Number($('pb-guests').value) || 1);
-  const included = Math.max(1, Math.min(unit.base_guests_included || 2, unit.max_guests || 2));
-  let remaining = Math.max(0, count - included);
-  if (!remaining) return 0;
-  const special = getBirthDates().slice(included).map(d => specialRate(unit, d, included)).filter(Boolean).slice(0, remaining);
-  let total = special.reduce((sum, s) => sum + s.price * n, 0);
-  remaining -= special.length;
-  for (const option of unit.extra_occupancy_options || []) {
-    if (remaining <= 0) break;
-    const covered = Math.min(remaining, Number(option.capacity) || 0);
-    remaining -= covered;
-    if (option.charge_type === 'per_bed_night') total += (Number(option.price) || 0) * n;
-    else total += (Number(option.price) || 0) * covered * n;
-  }
-  return total;
+  return window.ReservationPricing?.getExtraOccupancyCharge(
+    unit,
+    Number($('pb-guests').value) || 1,
+    n,
+    getBirthDates(),
+    iso($('pb-checkin').value)
+  ) || 0;
 }
 
 function recalc() {
@@ -1023,25 +996,35 @@ function recalc() {
     return;
   }
 
-  const breakfastSvc = state.services.find(s => s.id === 'breakfast');
-  const taxSvc = state.services.find(s => s.id === 'tourist_tax');
-  const breakfast = $('pb-breakfast').value === 'true' ? (Number(breakfastSvc?.value) || 19) * guests * n : 0;
-  const tax = (taxSvc?.active !== false) ? (Number(taxSvc?.value) || 3) * guests * n : 0;
-
-  let base, extras;
+  let totals;
   if (isPropertySelected) {
-    base = (state.property?.price_per_night || 0) * n;
-    extras = 0;
+    const rawTotals = window.ReservationPricing.calculateReservationTotal(state.property, state.services, {
+      check_in: iso($('pb-checkin').value),
+      check_out: iso($('pb-checkout').value),
+      num_guests: guests,
+      breakfast_included: $('pb-breakfast').value === 'true',
+      birth_dates: []
+    });
+    totals = {
+      ...rawTotals,
+      extraOccupancyCost: 0,
+      totalAmount: rawTotals.baseAmount + rawTotals.breakfastCost + rawTotals.touristTax
+    };
   } else {
-    base = (unit?.price_per_night || 0) * n;
-    extras = extraCharge(unit, n);
+    totals = window.ReservationPricing.calculateReservationTotal(unit, state.services, {
+      check_in: iso($('pb-checkin').value),
+      check_out: iso($('pb-checkout').value),
+      num_guests: guests,
+      breakfast_included: $('pb-breakfast').value === 'true',
+      birth_dates: getBirthDates()
+    });
     updateRateHints(unit);
   }
 
-  $('summary-base').textContent = fmtCurrency(base);
-  $('summary-extras').textContent = fmtCurrency(extras);
-  $('summary-services').textContent = fmtCurrency(breakfast + tax);
-  $('summary-total').textContent = fmtCurrency(base + extras + breakfast + tax);
+  $('summary-base').textContent = fmtCurrency(totals.baseAmount);
+  $('summary-extras').textContent = fmtCurrency(totals.extraOccupancyCost);
+  $('summary-services').textContent = fmtCurrency(totals.breakfastCost + totals.touristTax);
+  $('summary-total').textContent = fmtCurrency(totals.totalAmount);
 }
 
 function updateRateHints(unit) {
@@ -1198,10 +1181,10 @@ function collectPayload() {
 }
 
 async function submitReservation() {
+  const btn = $('next-btn');
   try {
     const payload = collectPayload();
-    $('next-btn').disabled = true;
-    $('next-btn').textContent = 'A processar...';
+    AppUI.setButtonLoading(btn, true, 'A processar...');
 
     const result = await api(`/api/public/booking/${state.slug}/reservations`, {
       method: 'POST',
@@ -1218,8 +1201,7 @@ async function submitReservation() {
     $('next-btn').style.display = 'none';
   } catch (err) {
     alert('Erro ao enviar pedido: ' + err.message);
-    $('next-btn').disabled = false;
-    $('next-btn').textContent = 'Enviar pedido';
+    AppUI.setButtonLoading(btn, false);
   }
 }
 

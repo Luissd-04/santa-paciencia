@@ -2373,6 +2373,15 @@ select.form-control { cursor:pointer; }
   border-right: none;
   font-size: 13px;
 }
+/* wrapper criado pelo AppUI.enhanceSelect */
+.phone-group .app-select {
+  width: 110px; min-width: 110px; flex-shrink: 0;
+}
+.phone-group .app-select .app-select-button {
+  border-radius: var(--raio) 0 0 var(--raio);
+  border-right: none;
+  font-size: 13px;
+}
 .phone-group .phone-number {
   flex: 1;
   border-radius: 0 var(--raio) var(--raio) 0;

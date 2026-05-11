@@ -2,6 +2,11 @@ const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
 const { recordConsent } = require('../services/rgpdService');
+const {
+  calculateReservationTotals,
+  normalizeDateValue,
+} = require('../services/reservationRules');
+const { getAccommodationScope } = require('../services/availabilityRules');
 
 const COMMON_AREAS_KEY = 'areas_comuns';
 
@@ -104,17 +109,11 @@ function getChildren(parent) {
 }
 
 function findConflict(organizationId, accommodationId, checkIn, checkOut) {
-  const accom = db.prepare('SELECT id, type, parent_id FROM accommodations WHERE id = ? AND organization_id = ?').get(accommodationId, organizationId);
-  if (!accom) return null;
+  const accommodations = db.prepare('SELECT id, type, parent_id FROM accommodations WHERE organization_id = ?').all(organizationId);
+  const idsToCheck = getAccommodationScope(accommodations, accommodationId);
+  if (!idsToCheck.length) return null;
 
-  const idsToCheck = new Set([accommodationId]);
-  if (accom.parent_id) idsToCheck.add(accom.parent_id);
-  else if (accom.type === 'alojamento') {
-    db.prepare('SELECT id FROM accommodations WHERE organization_id = ? AND parent_id = ?').all(organizationId, accommodationId)
-      .forEach(c => idsToCheck.add(c.id));
-  }
-
-  const placeholders = [...idsToCheck].map(() => '?').join(',');
+  const placeholders = idsToCheck.map(() => '?').join(',');
   return db.prepare(`
     SELECT id FROM reservations
     WHERE status != 'cancelada'
@@ -126,95 +125,13 @@ function findConflict(organizationId, accommodationId, checkIn, checkOut) {
   `).get(organizationId, checkOut, checkIn, ...idsToCheck);
 }
 
-function normalizeDateValue(value) {
-  const raw = String(value || '').trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  const pt = raw.match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/);
-  if (pt) return `${pt[3]}-${pt[2]}-${pt[1]}`;
-  const digits = raw.replace(/\D/g, '');
-  if (digits.length === 8) return `${digits.slice(4, 8)}-${digits.slice(2, 4)}-${digits.slice(0, 2)}`;
-  return '';
-}
-
-function ageAt(birthDate, refDate) {
-  const birthIso = normalizeDateValue(birthDate);
-  const refIso = normalizeDateValue(refDate);
-  if (!birthIso || !refIso) return null;
-  const birth = new Date(`${birthIso}T12:00:00`);
-  const ref = new Date(`${refIso}T12:00:00`);
-  if (Number.isNaN(birth.getTime()) || Number.isNaN(ref.getTime()) || birth > ref) return null;
-  let age = ref.getFullYear() - birth.getFullYear();
-  const monthDiff = ref.getMonth() - birth.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && ref.getDate() < birth.getDate())) age--;
-  return age;
-}
-
-function getSpecialRates(accommodation, birthDates, checkIn) {
-  const babyLimit = Number(accommodation.baby_age_limit ?? 2);
-  const childLimit = Number(accommodation.child_age_limit ?? 12);
-  return birthDates
-    .map(date => {
-      const age = ageAt(date, checkIn);
-      if (age === null) return null;
-      if (age < babyLimit) return Number(accommodation.baby_price ?? 0);
-      if (age >= babyLimit && age < childLimit) return Number(accommodation.child_price ?? 0);
-      return null;
-    })
-    .filter(rate => rate !== null);
-}
-
-function getExtraOccupancyCharge(accommodation, guests, nights, birthDates, checkIn) {
-  const options = normalizeExtraOccupancyOptions(accommodation);
-  const maxGuests = Number(accommodation.max_guests) || guests;
-  const included = Math.max(1, Math.min(Number(accommodation.base_guests_included) || Math.min(maxGuests, 2), maxGuests));
-  let remaining = Math.max(0, guests - included);
-  if (!remaining) return 0;
-  const specialRates = getSpecialRates(accommodation, birthDates.slice(included), checkIn).slice(0, remaining);
-  let total = specialRates.reduce((sum, rate) => sum + rate * nights, 0);
-  remaining -= specialRates.length;
-  return options.reduce((sum, option) => {
-    if (remaining <= 0) return sum;
-    const capacity = Math.max(0, Number(option.capacity) || 0);
-    if (!capacity) return sum;
-    const covered = Math.min(remaining, capacity);
-    remaining -= covered;
-    const price = Number(option.price) || 0;
-    if (option.charge_type === 'per_bed_night') return sum + price * nights;
-    return sum + price * covered * nights;
-  }, total);
-}
-
 function getServices(organizationId) {
   const row = db.prepare("SELECT value FROM organization_settings WHERE organization_id = ? AND key = 'services'").get(organizationId);
   return row ? parseJson(row.value, []) : [];
 }
 
 function calculateTotal(accommodation, organizationId, payload) {
-  const checkIn = normalizeDateValue(payload.check_in);
-  const checkOut = normalizeDateValue(payload.check_out);
-  const guests = Math.max(1, Number(payload.num_guests) || 1);
-  const nights = Math.round((new Date(`${checkOut}T12:00:00`) - new Date(`${checkIn}T12:00:00`)) / 86400000);
-  if (!checkIn || !checkOut || nights <= 0) throw new Error('Datas inválidas.');
-  if (guests > Number(accommodation.max_guests || 0)) throw new Error(`Capacidade máxima: ${accommodation.max_guests} hóspedes.`);
-
-  const services = getServices(organizationId);
-  const taxSvc = services.find(s => s.id === 'tourist_tax');
-  const bkfSvc = services.find(s => s.id === 'breakfast');
-  const breakfast = payload.breakfast_included === true || payload.breakfast_included === 'true';
-  const birthDates = [payload.guest?.birth_date, ...(payload.guests_data || []).map(g => g.birth_date)].filter(Boolean);
-  const touristTax = (taxSvc?.active !== false) ? (Number(taxSvc?.value ?? 3) * guests * nights) : 0;
-  const breakfastCost = breakfast ? (Number(bkfSvc?.value ?? 19) * guests * nights) : 0;
-  const extraOccupancyCost = getExtraOccupancyCharge(accommodation, guests, nights, birthDates, checkIn);
-  return {
-    checkIn,
-    checkOut,
-    guests,
-    nights,
-    touristTax,
-    breakfastCost,
-    extraOccupancyCost,
-    totalAmount: (Number(accommodation.price_per_night || 0) * nights) + touristTax + breakfastCost + extraOccupancyCost
-  };
+  return calculateReservationTotals(accommodation, getServices(organizationId), payload);
 }
 
 function getLanding(req, res) {

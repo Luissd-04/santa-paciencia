@@ -51,9 +51,7 @@ async function apiDelete(path, config) {
 
 // ── FORMAT ──
 function formatDate(s) {
-  if (!s) return '—';
-  const d = new Date(s + 'T12:00:00');
-  return d.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
+  return window.ReservationDates?.formatShortPtDate(s) || '—';
 }
 
 function badgeEstado(e) {

@@ -5,15 +5,42 @@ const requireAuth = require('../middleware/requireAuth');
 const requireRole = require('../middleware/requireRole');
 const {
   SESSION_COOKIE,
+  consumeResetToken,
+  createPasswordResetToken,
   createSession,
   createUser,
   deleteSession,
+  getResetToken,
   getUserByEmail,
+  hashPassword,
   isValidEmail,
   publicUser,
   validatePassword,
   verifyPassword,
 } = require('../services/authService');
+
+const transporter = (() => {
+  try { return require('../config/email'); } catch { return null; }
+})();
+
+function canSendEmail() {
+  return transporter && process.env.EMAIL_ENABLED !== 'false' && process.env.EMAIL_FROM;
+}
+
+function appUrl() {
+  return process.env.PUBLIC_APP_URL || process.env.FRONTEND_PUBLIC_URL || '';
+}
+
+function emailWrap(title, body) {
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;color:#2a2520;">
+      <h2 style="color:#843424;margin-bottom:8px;">${title}</h2>
+      ${body}
+      <hr style="border:none;border-top:1px solid #e8ddd0;margin:24px 0;">
+      <p style="font-size:12px;color:#888;">Santa Paciência · Gestão de Alojamento Local</p>
+    </div>
+  `;
+}
 const {
   acceptInvitation,
   buildInvitationUrl,
@@ -167,6 +194,21 @@ router.post('/register', (req, res) => {
     const { sessionId } = createSession(user.id, organization.id);
     setSessionCookie(res, sessionId);
     const sessionUser = require('../services/authService').getSessionUser(sessionId);
+
+    if (canSendEmail()) {
+      transporter.sendMail({
+        from: process.env.EMAIL_FROM,
+        to: normalizedEmail,
+        subject: `Bem-vindo ao Santa Paciência, ${trimmedName.split(' ')[0]}!`,
+        html: emailWrap(
+          `Bem-vindo, ${trimmedName.split(' ')[0]}!`,
+          `<p>O teu espaço <strong>${orgName}</strong> está pronto a usar.</p>
+           <p>Podes agora começar a registar reservas, gerir hóspedes e convidar a tua equipa.</p>
+           <p><a href="${appUrl()}" style="color:#843424;">Aceder ao Santa Paciência →</a></p>`
+        ),
+      }).catch(err => console.warn('Erro ao enviar email de boas-vindas:', err.message));
+    }
+
     res.status(201).json({ success: true, data: { user: serializeUser(sessionUser) } });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -288,6 +330,83 @@ router.post('/logout', requireAuth, (req, res) => {
 
 router.get('/me', requireAuth, (req, res) => {
   res.json({ success: true, data: { user: serializeUser(req.user) } });
+});
+
+router.post('/forgot-password', async (req, res) => {
+  const email = normalizeEmail(req.body?.email);
+  const user = getUserByEmail(email);
+  if (user && user.active) {
+    try {
+      const token = createPasswordResetToken(user.id);
+      const resetUrl = `${appUrl()}/?reset=${token}`;
+      if (canSendEmail()) {
+        await transporter.sendMail({
+          from: process.env.EMAIL_FROM,
+          to: email,
+          subject: 'Recuperar palavra-passe — Santa Paciência',
+          html: emailWrap(
+            'Recuperar palavra-passe',
+            `<p>Olá, ${user.name.split(' ')[0]}.</p>
+             <p>Recebemos um pedido para recuperar a tua palavra-passe.</p>
+             <p style="margin:24px 0;">
+               <a href="${resetUrl}" style="background:#843424;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
+                 Definir nova palavra-passe
+               </a>
+             </p>
+             <p style="color:#888;font-size:13px;">Este link expira em 1 hora. Se não pediste a recuperação, ignora este email — a tua conta está segura.</p>`
+          ),
+        });
+      }
+    } catch (err) {
+      console.error('Erro ao enviar email de recuperação:', err.message);
+    }
+  }
+  // Always respond success to prevent email enumeration
+  res.json({ success: true });
+});
+
+router.get('/reset-password/:token', (req, res) => {
+  const row = getResetToken(req.params.token);
+  if (!row) return res.status(410).json({ success: false, error: 'Este link de recuperação é inválido ou já expirou.' });
+  res.json({ success: true, data: { email: row.email } });
+});
+
+router.post('/reset-password', (req, res) => {
+  const { token, password, confirm_password } = req.body || {};
+  if (!token || !password || !confirm_password) {
+    return res.status(400).json({ success: false, error: 'Preenche todos os campos.' });
+  }
+  if (password !== confirm_password) {
+    return res.status(400).json({ success: false, error: 'As passwords não coincidem.' });
+  }
+  try {
+    consumeResetToken(token, password);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/change-password', requireAuth, (req, res) => {
+  const { current_password, password, confirm_password } = req.body || {};
+  if (!current_password || !password || !confirm_password) {
+    return res.status(400).json({ success: false, error: 'Preenche todos os campos.' });
+  }
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  if (!verifyPassword(String(current_password), user.password_hash)) {
+    return res.status(401).json({ success: false, error: 'Palavra-passe atual incorreta.' });
+  }
+  if (password !== confirm_password) {
+    return res.status(400).json({ success: false, error: 'As passwords não coincidem.' });
+  }
+  try {
+    validatePassword(password);
+  } catch (err) {
+    return res.status(400).json({ success: false, error: err.message });
+  }
+  db.prepare(`UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?`)
+    .run(hashPassword(password), req.user.id);
+  res.json({ success: true });
 });
 
 router.get('/google', requireAuth, (req, res) => {

@@ -108,9 +108,14 @@ function populateAccommodationSelects() {
     if (!el) return;
     const isFilter = id !== 'f-aloj';
     el.innerHTML = isFilter ? '<option value="">Todas as suites</option>' : '';
+    const frag = document.createDocumentFragment();
     accommodations.forEach(a => {
-      el.innerHTML += `<option value="${a.id}">${a.name}</option>`;
+      const opt = document.createElement('option');
+      opt.value = a.id;
+      opt.textContent = a.name;
+      frag.appendChild(opt);
     });
+    el.appendChild(frag);
   });
 }
 
@@ -193,7 +198,7 @@ async function disconnectGcal() {
 
 async function syncAllGcal() {
   const btn = document.getElementById('gcal-sync-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'A sincronizar…'; }
+  AppUI.setButtonLoading(btn, true, 'A sincronizar...');
   try {
     const res = await apiPost('/api/calendar/sync-all', {});
     if (res.success) {
@@ -206,8 +211,7 @@ async function syncAllGcal() {
   } catch (e) {
     toast('❌ Erro de ligação.', 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = lcIcon('refresh-cw', 14) + ' Sincronizar tudo'; }
-    if (window.lucide) lucide.createIcons();
+    AppUI.setButtonLoading(btn, false);
   }
 }
 
@@ -234,7 +238,14 @@ async function initApp() {
 
   const pathView = window.location.pathname.replace(/^\/+|\/+$/g, '') || 'dashboard';
   showView(VIEW_TITLES[pathView] ? pathView : 'dashboard', false);
-  if (typeof enhanceCustomDatePickers === 'function') enhanceCustomDatePickers();
+  if (window.AppDatePicker) {
+    ['f-checkin','f-checkout','f-payment-date','despesa-date','filter-date-from','filter-date-to'].forEach(id => {
+      AppDatePicker.attach(document.getElementById(id));
+    });
+    ['f-nascimento','gedit-birth-date'].forEach(id => {
+      AppDatePicker.attach(document.getElementById(id), { isBirthDate: true });
+    });
+  }
 
   // Restore list filters that can't be recovered from URL alone.
   if (pathView === 'alojamentos' || pathView === 'reservas') {

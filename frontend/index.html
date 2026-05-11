@@ -51,14 +51,39 @@
           <span>Email</span>
           <input class="form-input" type="email" id="login-email" name="username" placeholder="gestao@santapaciencia.xyz" autocomplete="username" required>
         </label>
-        <label class="auth-field">
+        <label class="auth-field auth-no-reset" id="auth-password-wrap">
           <span>Password</span>
-          <input class="form-input" type="password" id="login-password" name="password" placeholder="A tua password" autocomplete="current-password" required>
+          <div class="pw-wrap">
+            <input class="form-input" type="password" id="login-password" name="password" placeholder="A tua password" autocomplete="current-password" required>
+            <button type="button" class="pw-toggle" onclick="togglePw('login-password',this)" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button>
+          </div>
         </label>
         <label class="auth-field auth-register-only is-hidden" id="register-confirm-wrap">
           <span>Confirmar password</span>
-          <input class="form-input" type="password" id="register-confirm-password" name="confirm-password" placeholder="Repete a password" autocomplete="new-password">
+          <div class="pw-wrap">
+            <input class="form-input" type="password" id="register-confirm-password" name="confirm-password" placeholder="Repete a password" autocomplete="new-password">
+            <button type="button" class="pw-toggle" onclick="togglePw('register-confirm-password',this)" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button>
+          </div>
         </label>
+        <!-- Reset mode: new password fields -->
+        <label class="auth-field is-hidden" id="reset-password-wrap">
+          <span>Nova palavra-passe</span>
+          <div class="pw-wrap">
+            <input class="form-input" type="password" id="reset-password" name="reset-password" placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+            <button type="button" class="pw-toggle" onclick="togglePw('reset-password',this)" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button>
+          </div>
+        </label>
+        <label class="auth-field is-hidden" id="reset-confirm-wrap">
+          <span>Confirmar nova palavra-passe</span>
+          <div class="pw-wrap">
+            <input class="form-input" type="password" id="reset-confirm-password" name="reset-confirm-password" placeholder="Repete a nova password" autocomplete="new-password">
+            <button type="button" class="pw-toggle" onclick="togglePw('reset-confirm-password',this)" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button>
+          </div>
+        </label>
+        <!-- Forgot mode: link -->
+        <div id="forgot-link-wrap" style="text-align:right;margin-top:-4px;">
+          <button type="button" class="auth-link-btn" id="forgot-link" onclick="setAuthMode('forgot')">Esqueci a palavra-passe</button>
+        </div>
         <button class="btn btn-primary auth-submit" id="login-submit" type="submit">
           <i data-lucide="log-in"></i> Entrar
         </button>
@@ -137,14 +162,6 @@
         <span class="topbar-subtitle">Operação centralizada por espaço</span>
       </div>
       <div class="topbar-actions">
-        <button class="theme-toggle" id="theme-toggle" type="button" onclick="toggleTheme()" aria-label="Alternar tema">
-          <span class="theme-toggle-track">
-            <i data-lucide="sun-medium" class="theme-toggle-icon theme-toggle-icon-sun"></i>
-            <i data-lucide="moon-star" class="theme-toggle-icon theme-toggle-icon-moon"></i>
-            <span class="theme-toggle-thumb"></span>
-          </span>
-          <span class="theme-toggle-label" id="theme-toggle-label">Modo escuro</span>
-        </button>
         <div class="notif-wrap" id="notif-wrap">
           <button class="notif-bell" onclick="toggleNotif(event)" aria-label="Notificações">
             <i data-lucide="bell" style="width:18px;height:18px;"></i>
@@ -152,10 +169,16 @@
           </button>
           <div class="notif-dropdown" id="notif-dropdown" style="display:none;"></div>
         </div>
-        <div class="auth-user-chip" id="auth-user-chip">
+        <div class="auth-user-chip" id="auth-user-chip" onclick="toggleUserMenu(event)" style="cursor:pointer;" title="Opções de conta">
           <div class="auth-user-copy">
             <strong id="auth-user-name">Sessão</strong>
             <span id="auth-user-role"></span>
+          </div>
+          <i data-lucide="chevron-down" style="width:13px;height:13px;opacity:.5;flex-shrink:0;"></i>
+          <div class="user-menu" id="user-menu" style="display:none;" onclick="event.stopPropagation()">
+            <button class="user-menu-item" onclick="openChangePasswordModal()">
+              <i data-lucide="key-round" style="width:14px;height:14px;"></i> Alterar palavra-passe
+            </button>
           </div>
         </div>
         <button class="btn btn-primary" onclick="showView('reservas'); setTimeout(()=>openModal(),100)" style="background:var(--marca);">
@@ -1725,8 +1748,8 @@
             <div class="form-group">
               <label class="form-label">Data de Nascimento <span class="req-star">*</span></label>
               <div class="birth-date-control">
-                <input class="form-control birth-date-input" id="f-nascimento" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" onfocus="openBirthDateCalendar(this)" onclick="openBirthDateCalendar(this)" oninput="handleBirthDateInput(this)" onblur="normalizeBirthDateInput(this);calcTotal();updateSpecialRateHints()">
-                <button class="birth-date-picker-btn" type="button" onclick="openBirthDateCalendar(document.getElementById('f-nascimento'))" aria-label="Abrir calendário">
+                <input class="form-control birth-date-input" id="f-nascimento" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" oninput="handleBirthDateInput(this)" onblur="normalizeBirthDateInput(this);calcTotal();updateSpecialRateHints()">
+                <button class="birth-date-picker-btn" type="button" onclick="AppDatePicker.open(document.getElementById('f-nascimento'),{isBirthDate:true})" aria-label="Abrir calendário">
                   <i data-lucide="calendar-days"></i>
                 </button>
               </div>
@@ -1877,11 +1900,11 @@
 </div>
 
 <!-- MODAL DETALHE RESERVA -->
-<div class="modal-bg" id="detail-bg" onclick="if(event.target===this)this.classList.remove('open')">
+<div class="modal-bg" id="detail-bg" onclick="if(event.target===this)AppUI.closeModal(this)">
   <div class="modal">
     <div class="modal-header">
       <span class="modal-title" id="detail-title">Reserva</span>
-      <button class="modal-close" onclick="document.getElementById('detail-bg').classList.remove('open')">
+      <button class="modal-close" onclick="AppUI.closeModal('detail-bg')">
         <i data-lucide="x" style="width:20px;height:20px;"></i>
       </button>
     </div>
@@ -1958,11 +1981,49 @@
   </div>
 </div>
 
+<script src="js/pubsub.js"></script>
 <script src="js/state.js"></script>
+<script src="js/domain/dates.js"></script>
+<script src="js/domain/pricing.js"></script>
+<script src="js/domain/date-picker.js"></script>
 <script src="js/helpers.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/validators.js"></script>
+<!-- Change Password Modal -->
+<div id="change-password-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeChangePasswordModal()">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-header">
+      <h3 class="modal-title">Alterar palavra-passe</h3>
+      <button class="modal-close" onclick="closeChangePasswordModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Palavra-passe atual</label>
+        <div class="pw-wrap"><input type="password" id="cp-current" class="form-control" placeholder="Palavra-passe atual" autocomplete="current-password"><button type="button" class="pw-toggle" onclick="togglePw('cp-current',this)" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nova palavra-passe</label>
+        <div class="pw-wrap"><input type="password" id="cp-new" class="form-control" placeholder="Mínimo 8 caracteres" autocomplete="new-password"><button type="button" class="pw-toggle" onclick="togglePw('cp-new',this)" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirmar nova palavra-passe</label>
+        <div class="pw-wrap"><input type="password" id="cp-confirm" class="form-control" placeholder="Repete a nova password" autocomplete="new-password"><button type="button" class="pw-toggle" onclick="togglePw('cp-confirm',this)" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
+      </div>
+      <div id="cp-feedback" style="display:none;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeChangePasswordModal()">Cancelar</button>
+      <button class="btn btn-primary" id="cp-save-btn" onclick="submitChangePassword()">
+        <i data-lucide="key-round" style="width:14px;height:14px;"></i> Alterar
+      </button>
+    </div>
+  </div>
+</div>
+
 <script src="js/auth.js"></script>
 <script src="js/dashboard.js"></script>
-<script src="js/reservas.js"></script>
+<script src="js/reserva-wizard.js"></script>
+<script src="js/reserva-lista.js"></script>
 <script src="js/calendario.js"></script>
 <script src="js/alojamentos.js"></script>
 <script src="js/hospedes.js"></script>

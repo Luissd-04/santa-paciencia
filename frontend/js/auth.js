@@ -2,6 +2,7 @@ let appBootstrapped = false;
 let authMode = 'login';
 let inviteToken = null;
 let inviteUserExists = false;
+let resetToken = null;
 
 function setAuthScreenMessage(message, type = '', detail = '') {
   const el = document.getElementById('login-message');
@@ -95,21 +96,28 @@ function setAuthenticatedLayout(isAuthenticated) {
 function setAuthMode(mode) {
   authMode = mode;
   const isRegister = mode === 'register';
-  const isInvite = mode === 'invite';
-  const form = document.getElementById('login-form');
-  const nameWrap = document.getElementById('register-name-wrap');
-  const orgWrap = document.getElementById('register-org-wrap');
-  const confirmWrap = document.getElementById('register-confirm-wrap');
-  const copy = document.getElementById('auth-copy');
-  const helper = document.getElementById('auth-helper-text');
-  const submitBtn = document.getElementById('login-submit');
-  const emailInput = document.getElementById('login-email');
-  const passwordInput = document.getElementById('login-password');
+  const isInvite   = mode === 'invite';
+  const isForgot   = mode === 'forgot';
+  const isReset    = mode === 'reset';
+
+  const form         = document.getElementById('login-form');
+  const nameWrap     = document.getElementById('register-name-wrap');
+  const orgWrap      = document.getElementById('register-org-wrap');
+  const confirmWrap  = document.getElementById('register-confirm-wrap');
+  const pwWrap       = document.getElementById('auth-password-wrap');
+  const resetPwWrap  = document.getElementById('reset-password-wrap');
+  const resetCfWrap  = document.getElementById('reset-confirm-wrap');
+  const forgotLink   = document.getElementById('forgot-link-wrap');
+  const copy         = document.getElementById('auth-copy');
+  const helper       = document.getElementById('auth-helper-text');
+  const submitBtn    = document.getElementById('login-submit');
+  const emailInput   = document.getElementById('login-email');
+  const passwordInput= document.getElementById('login-password');
   const confirmInput = document.getElementById('register-confirm-password');
-  const nameInput = document.getElementById('register-name');
-  const orgInput = document.getElementById('register-organization-name');
-  const tabLogin = document.getElementById('tab-login');
-  const tabRegister = document.getElementById('tab-register');
+  const nameInput    = document.getElementById('register-name');
+  const orgInput     = document.getElementById('register-organization-name');
+  const tabLogin     = document.getElementById('tab-login');
+  const tabRegister  = document.getElementById('tab-register');
   const inviteBanner = document.getElementById('auth-invite-banner');
 
   if (form) {
@@ -117,43 +125,78 @@ function setAuthMode(mode) {
     setTimeout(() => form.classList.remove('mode-switching'), 380);
   }
 
-  const isNewInvite = isInvite && !inviteUserExists;
+  const isNewInvite      = isInvite && !inviteUserExists;
   const isExistingInvite = isInvite && inviteUserExists;
-  if (nameWrap) nameWrap.classList.toggle('is-hidden', !(isRegister || isNewInvite));
-  if (orgWrap) orgWrap.classList.toggle('is-hidden', !isRegister);
+  const hideForReset     = isForgot || isReset;
+
+  if (nameWrap)    nameWrap.classList.toggle('is-hidden', !(isRegister || isNewInvite));
+  if (orgWrap)     orgWrap.classList.toggle('is-hidden', !isRegister);
   if (confirmWrap) confirmWrap.classList.toggle('is-hidden', !(isRegister || isNewInvite));
+  if (pwWrap)      pwWrap.classList.toggle('is-hidden', hideForReset);
+  if (resetPwWrap) resetPwWrap.classList.toggle('is-hidden', !isReset);
+  if (resetCfWrap) resetCfWrap.classList.toggle('is-hidden', !isReset);
+  if (forgotLink)  forgotLink.style.display = (mode === 'login') ? '' : 'none';
+
+  const emailHidden = isReset;
+  const emailWrap = emailInput?.closest('.auth-field');
+  if (emailWrap) emailWrap.classList.toggle('is-hidden', emailHidden);
+
   if (copy) {
-    copy.textContent = isExistingInvite
-      ? 'Já tens conta no Santa Paciência. Confirma a tua identidade com a tua password para aceitar o convite.'
-      : isInvite
-        ? 'Aceita o convite e entra diretamente no espaço para o qual foste convidado.'
-        : isRegister
-          ? 'Cria o teu espaço de proprietário. Depois poderás convidar gestores e funcionários.'
-          : 'Entra na operação, gere a tua equipa e mantém cada propriedade organizada num espaço próprio.';
+    copy.textContent = isReset
+      ? 'Define uma nova palavra-passe para a tua conta.'
+      : isForgot
+        ? 'Indica o email da tua conta e enviamos-te um link para recuperar a palavra-passe.'
+        : isExistingInvite
+          ? 'Já tens conta no Santa Paciência. Confirma a tua identidade com a tua password para aceitar o convite.'
+          : isInvite
+            ? 'Aceita o convite e entra diretamente no espaço para o qual foste convidado.'
+            : isRegister
+              ? 'Cria o teu espaço de proprietário. Depois poderás convidar gestores e funcionários.'
+              : 'Entra na operação, gere a tua equipa e mantém cada propriedade organizada num espaço próprio.';
   }
   if (helper) {
-    helper.textContent = isInvite
-      ? 'O papel é definido pelo proprietário. Só precisas de criar a tua conta.'
-      : 'Cada proprietário cria o seu próprio espaço. Gestores e funcionários entram por convite.';
+    helper.textContent = isForgot || isReset
+      ? ''
+      : isInvite
+        ? 'O papel é definido pelo proprietário. Só precisas de criar a tua conta.'
+        : 'Cada proprietário cria o seu próprio espaço. Gestores e funcionários entram por convite.';
   }
-  if (submitBtn) submitBtn.innerHTML = isInvite
-    ? `${lcIcon('user-check', 14)} Aceitar convite`
-    : isRegister
-      ? `${lcIcon('building-2', 14)} Criar espaço`
-      : `${lcIcon('log-in', 14)} Entrar`;
-  if (tabLogin) tabLogin.classList.toggle('active', mode === 'login');
-  if (tabRegister) tabRegister.classList.toggle('active', mode === 'register');
-  if (tabLogin) tabLogin.style.display = isInvite ? 'none' : '';
-  if (tabRegister) tabRegister.style.display = isInvite ? 'none' : '';
+  if (submitBtn) submitBtn.innerHTML = isReset
+    ? `${lcIcon('key-round', 14)} Guardar nova palavra-passe`
+    : isForgot
+      ? `${lcIcon('mail', 14)} Enviar link de recuperação`
+      : isInvite
+        ? `${lcIcon('user-check', 14)} Aceitar convite`
+        : isRegister
+          ? `${lcIcon('building-2', 14)} Criar espaço`
+          : `${lcIcon('log-in', 14)} Entrar`;
+
+  const hideTabs = isInvite || isForgot || isReset;
+  if (tabLogin)    { tabLogin.classList.toggle('active', mode === 'login'); tabLogin.style.display = hideTabs ? 'none' : ''; }
+  if (tabRegister) { tabRegister.classList.toggle('active', mode === 'register'); tabRegister.style.display = hideTabs ? 'none' : ''; }
   if (inviteBanner) inviteBanner.style.display = isInvite ? '' : 'none';
+
   if (passwordInput) passwordInput.autocomplete = (mode === 'login' || isExistingInvite) ? 'current-password' : 'new-password';
-  if (confirmInput) confirmInput.required = isRegister || isNewInvite;
-  if (nameInput) nameInput.required = isRegister || isNewInvite;
-  if (orgInput) orgInput.required = isRegister;
-  if (emailInput) {
-    emailInput.readOnly = isInvite;
-    emailInput.focus();
+  if (confirmInput)  confirmInput.required = isRegister || isNewInvite;
+  if (nameInput)     nameInput.required = isRegister || isNewInvite;
+  if (orgInput)      orgInput.required = isRegister;
+  if (emailInput)    { emailInput.readOnly = isInvite; if (!emailHidden) emailInput.focus(); }
+
+  if (isForgot && !isReset) {
+    const backBtn = document.getElementById('auth-back-btn');
+    if (!backBtn) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.id = 'auth-back-btn';
+      btn.className = 'auth-link-btn';
+      btn.textContent = '← Voltar ao login';
+      btn.onclick = () => { setAuthMode('login'); btn.remove(); };
+      submitBtn?.after(btn);
+    }
+  } else {
+    document.getElementById('auth-back-btn')?.remove();
   }
+
   setAuthScreenMessage('');
   clearFieldErrors();
   if (window.lucide) lucide.createIcons();
@@ -231,6 +274,50 @@ async function handleLoginSubmit(event) {
       setAuthScreenMessage('As passwords não coincidem. Verifica e tenta de novo.', 'error');
       return;
     }
+  }
+
+  // ── Forgot password mode ──
+  if (authMode === 'forgot') {
+    if (!email) {
+      setFieldError('login-email', true, 'Introduz o teu email.');
+      setAuthScreenMessage('Introduz o email da tua conta.', 'error');
+      return;
+    }
+    const submitBtn = document.getElementById('login-submit');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'A enviar…'; }
+    try {
+      await apiPost('/auth/forgot-password', { email }, { skipAuthRedirect: true });
+      setAuthScreenMessage('Se o email existir, receberás um link de recuperação em breve. Verifica a caixa de entrada.', 'success');
+    } catch {
+      setAuthScreenMessage('Não foi possível processar o pedido. Tenta de novo.', 'error');
+    } finally {
+      if (submitBtn) { submitBtn.disabled = false; setAuthMode('forgot'); }
+    }
+    return;
+  }
+
+  // ── Reset password mode ──
+  if (authMode === 'reset') {
+    const newPw  = document.getElementById('reset-password')?.value || '';
+    const cfmPw  = document.getElementById('reset-confirm-password')?.value || '';
+    if (!newPw) { setFieldError('reset-password', true, 'Escolhe uma nova palavra-passe.'); return; }
+    if (newPw.length < 8) { setFieldError('reset-password', true, 'Mínimo de 8 caracteres.'); return; }
+    if (!cfmPw) { setFieldError('reset-confirm-password', true, 'Confirma a nova palavra-passe.'); return; }
+    if (newPw !== cfmPw) { setFieldError('reset-confirm-password', true, 'Não coincide.'); return; }
+    const submitBtn = document.getElementById('login-submit');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'A guardar…'; }
+    try {
+      await apiPost('/auth/reset-password', { token: resetToken, password: newPw, confirm_password: cfmPw }, { skipAuthRedirect: true });
+      resetToken = null;
+      history.replaceState({}, '', '/');
+      setAuthScreenMessage('Palavra-passe alterada com sucesso! Podes entrar agora.', 'success');
+      setAuthMode('login');
+    } catch (err) {
+      setAuthScreenMessage(friendlyAuthError(err), 'error');
+    } finally {
+      if (submitBtn) { submitBtn.disabled = false; }
+    }
+    return;
   }
 
   const submitBtn = document.getElementById('login-submit');
@@ -407,22 +494,104 @@ async function prepareInviteMode(token) {
   }
 }
 
+function togglePw(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  const icon = btn.querySelector('i[data-lucide]');
+  if (icon) { icon.setAttribute('data-lucide', show ? 'eye-off' : 'eye'); if (window.lucide) lucide.createIcons(); }
+}
+
+async function prepareResetMode(token) {
+  try {
+    const payload = await apiGet(`/auth/reset-password/${token}`, { skipAuthRedirect: true });
+    resetToken = token;
+    const emailInput = document.getElementById('login-email');
+    if (emailInput) emailInput.value = payload?.data?.email || '';
+    setAuthMode('reset');
+  } catch (err) {
+    resetToken = null;
+    setAuthMode('login');
+    setAuthScreenMessage(err?.payload?.error || 'Este link de recuperação é inválido ou já expirou.', 'error');
+  }
+}
+
+function toggleUserMenu(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('user-menu');
+  if (!menu) return;
+  menu.style.display = menu.style.display === 'none' ? '' : 'none';
+}
+
+function openChangePasswordModal() {
+  document.getElementById('user-menu').style.display = 'none';
+  ['cp-current', 'cp-new', 'cp-confirm'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const fb = document.getElementById('cp-feedback');
+  if (fb) { fb.style.display = 'none'; fb.textContent = ''; }
+  document.getElementById('change-password-modal').style.display = 'flex';
+  document.getElementById('cp-current')?.focus();
+}
+
+function closeChangePasswordModal() {
+  document.getElementById('change-password-modal').style.display = 'none';
+}
+
+async function submitChangePassword() {
+  const current = document.getElementById('cp-current')?.value || '';
+  const newPw   = document.getElementById('cp-new')?.value || '';
+  const confirm = document.getElementById('cp-confirm')?.value || '';
+  const fb      = document.getElementById('cp-feedback');
+
+  function showCpMsg(msg, ok) {
+    fb.textContent = msg;
+    fb.style.display = '';
+    fb.style.color = ok ? 'var(--verde, #2a7d4f)' : 'var(--vermelho, #c0392b)';
+  }
+
+  if (!current || !newPw || !confirm) { showCpMsg('Preenche todos os campos.'); return; }
+  if (newPw.length < 8) { showCpMsg('A nova password precisa de ter pelo menos 8 caracteres.'); return; }
+  if (newPw !== confirm) { showCpMsg('As passwords não coincidem.'); return; }
+
+  const btn = document.getElementById('cp-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'A guardar…'; }
+  try {
+    await apiPost('/auth/change-password', { current_password: current, password: newPw, confirm_password: confirm });
+    showCpMsg('Palavra-passe alterada com sucesso!', true);
+    setTimeout(() => closeChangePasswordModal(), 1500);
+  } catch (err) {
+    showCpMsg(err?.payload?.error || 'Não foi possível alterar a palavra-passe.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="key-round" style="width:14px;height:14px;"></i> Alterar'; if (window.lucide) lucide.createIcons(); }
+  }
+}
+
 async function boot() {
   const form = document.getElementById('login-form');
   if (form) form.addEventListener('submit', handleLoginSubmit);
   document.getElementById('tab-login')?.addEventListener('click', () => setAuthMode('login'));
   document.getElementById('tab-register')?.addEventListener('click', () => setAuthMode('register'));
   document.addEventListener('click', function(e) {
-    const menu = document.getElementById('org-menu');
-    if (menu && menu.style.display !== 'none') {
-      if (!menu.closest('.org-switcher-dropdown')?.contains(e.target)) menu.style.display = 'none';
+    const orgMenu = document.getElementById('org-menu');
+    if (orgMenu && orgMenu.style.display !== 'none') {
+      if (!orgMenu.closest('.org-switcher-dropdown')?.contains(e.target)) orgMenu.style.display = 'none';
+    }
+    const userMenu = document.getElementById('user-menu');
+    if (userMenu && userMenu.style.display !== 'none') {
+      if (!e.target.closest('#auth-user-chip')) userMenu.style.display = 'none';
     }
   });
 
   const params = new URLSearchParams(window.location.search);
-  const token = params.get('invite');
-  if (token) {
-    await prepareInviteMode(token);
+  const inviteParam = params.get('invite');
+  const resetParam  = params.get('reset');
+  if (inviteParam) {
+    await prepareInviteMode(inviteParam);
+  } else if (resetParam) {
+    await prepareResetMode(resetParam);
   } else {
     setAuthMode('login');
   }

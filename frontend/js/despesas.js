@@ -111,7 +111,7 @@ function openDespesaModal(id) {
   document.getElementById('despesa-amount').value      = d ? d.amount      : '';
   document.getElementById('despesa-payment').value     = d ? (d.payment_method || 'numerário') : 'numerário';
   document.getElementById('despesa-notes').value       = d ? (d.notes || '') : '';
-  document.getElementById('despesa-modal-bg').classList.add('open');
+  AppUI.openModal('despesa-modal-bg');
   if (window.lucide) lucide.createIcons();
 }
 
@@ -119,7 +119,7 @@ function closeDespesaModal() {
   const bg = document.getElementById('despesa-modal-bg');
   const modal = bg.querySelector('.modal');
   modal.classList.add('modal-closing');
-  setTimeout(() => { bg.classList.remove('open'); modal.classList.remove('modal-closing'); despesaEditId = null; }, 320);
+  setTimeout(() => { AppUI.closeModal(bg); modal.classList.remove('modal-closing'); despesaEditId = null; }, 320);
 }
 
 async function saveDespesa() {

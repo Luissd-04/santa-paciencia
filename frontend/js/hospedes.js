@@ -359,7 +359,7 @@ async function showHospedeDetail(id) {
       <div style="margin-top:20px;">
         <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);margin-bottom:10px;">Histórico de reservas</div>
         ${reservations.map(r => `
-          <div onclick="document.getElementById('detail-bg').classList.remove('open');showDetail('${r.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--cinza-claro);border-radius:8px;margin-bottom:6px;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='var(--creme)'" onmouseout="this.style.background='var(--cinza-claro)'">
+          <div onclick="AppUI.closeModal('detail-bg');showDetail('${r.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--cinza-claro);border-radius:8px;margin-bottom:6px;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='var(--creme)'" onmouseout="this.style.background='var(--cinza-claro)'">
             <div>
               <span style="font-size:12px;color:var(--azul-claro);font-family:monospace;">${r.id}</span>
               <span style="font-size:13px;color:var(--texto);margin-left:8px;">${r.accommodation_name}</span>
@@ -373,16 +373,16 @@ async function showHospedeDetail(id) {
       </div>` : ''}
     `;
     document.getElementById('detail-footer').innerHTML = `
-      <button class="btn btn-ghost" onclick="document.getElementById('detail-bg').classList.remove('open')">Fechar</button>
-      <button class="btn btn-danger" onclick="document.getElementById('detail-bg').classList.remove('open');deleteGuest('${g.id}','${g.name.replace(/'/g, "\\'")}')">
+      <button class="btn btn-ghost" onclick="AppUI.closeModal('detail-bg')">Fechar</button>
+      <button class="btn btn-danger" onclick="AppUI.closeModal('detail-bg');deleteGuest('${g.id}','${g.name.replace(/'/g, "\\'")}')">
         ${lcIcon('trash-2', 13)} Remover
       </button>
-      <button class="btn btn-primary" onclick="document.getElementById('detail-bg').classList.remove('open');openGuestEdit('${g.id}')">
+      <button class="btn btn-primary" onclick="AppUI.closeModal('detail-bg');openGuestEdit('${g.id}')">
         ${lcIcon('pencil', 13)} Editar
       </button>
     `;
     if (window.lucide) lucide.createIcons();
-    document.getElementById('detail-bg').classList.add('open');
+    AppUI.openModal('detail-bg');
   } catch (e) {
     toast('❌ Erro ao carregar hóspede.', 'error');
   }
@@ -402,6 +402,11 @@ function populateGuestEditSelects() {
     prefixSel.innerHTML = DIAL_COUNTRIES.map(c =>
       `<option value="${c.dial}">${c.flag} ${c.dial}</option>`
     ).join('');
+  }
+  if (window.AppUI) {
+    AppUI.enhanceSelect(countrySel, { placeholder: 'País' });
+    AppUI.enhanceSelect(prefixSel, { placeholder: '+351' });
+    AppUI.enhanceSelect(document.getElementById('gedit-doc-type'), { placeholder: 'Tipo de documento' });
   }
 }
 
@@ -450,7 +455,8 @@ async function openGuestEdit(id) {
     }
 
     if (window.lucide) lucide.createIcons();
-    document.getElementById('guest-modal-bg').classList.add('open');
+    AppUI.refreshDropdowns(document.getElementById('guest-modal-bg'));
+    AppUI.openModal('guest-modal-bg');
   } catch (e) {
     toast('❌ Erro ao carregar hóspede.', 'error');
   }
@@ -460,22 +466,19 @@ function closeGuestModal() {
   const bg = document.getElementById('guest-modal-bg');
   const modal = bg.querySelector('.modal');
   modal.classList.add('modal-closing');
-  setTimeout(() => { bg.classList.remove('open'); modal.classList.remove('modal-closing'); editingGuestId = null; }, 320);
+  setTimeout(() => { AppUI.closeModal(bg); modal.classList.remove('modal-closing'); editingGuestId = null; }, 320);
 }
 
 // ── DELETE ──
 async function deleteGuest(id, name) {
   if (!confirm(`Tem a certeza que quer remover o hóspede "${name}"?\n\nEsta ação não pode ser desfeita.`)) return;
   try {
-    const res = await apiDelete(`/api/guests/${id}`);
-    if (res.success) {
-      toast('🗑 Hóspede removido.', 'info');
-      await loadHospedes();
-    } else {
-      toast('❌ ' + (res.error || 'Erro ao remover hóspede.'), 'error');
-    }
+    await apiDelete(`/api/guests/${id}`);
+    toast('🗑 Hóspede removido.', 'info');
+    await loadHospedes();
   } catch (e) {
-    toast('❌ Erro de ligação ao servidor.', 'error');
+    const msg = e?.payload?.error || e?.message || 'Erro de ligação ao servidor.';
+    toast('❌ ' + msg, 'error');
   }
 }
 
@@ -603,7 +606,7 @@ async function saveGuestEdit() {
   if (!country)   { toast('Selecione o país.', 'error'); return; }
 
   const btn = document.getElementById('btn-guardar-hospede');
-  btn.disabled = true; btn.textContent = '⏳ A guardar...';
+  AppUI.setButtonLoading(btn, true, 'A guardar...');
 
   try {
     const body = {
@@ -637,8 +640,6 @@ async function saveGuestEdit() {
   } catch (e) {
     toast('❌ Erro de ligação ao servidor.', 'error');
   } finally {
-    btn.disabled = false;
-    btn.innerHTML = `${lcIcon('save', 14)} Guardar`;
-    if (window.lucide) lucide.createIcons();
+    AppUI.setButtonLoading(btn, false);
   }
 }

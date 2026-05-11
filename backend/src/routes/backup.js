@@ -164,7 +164,7 @@ function upsertImportedUsers(users = []) {
       updateUser.run(
         imported.name || target.name,
         imported.email,
-        imported.password_hash || target.password_hash,
+        target.password_hash,
         imported.role || target.role || 'admin',
         imported.active !== undefined ? imported.active : (target.active ?? 1),
         imported.updated_at || new Date().toISOString(),

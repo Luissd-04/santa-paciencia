@@ -141,12 +141,45 @@ function publicUser(user) {
   };
 }
 
+function createPasswordResetToken(userId) {
+  db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ?').run(userId);
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + 3600000).toISOString();
+  db.prepare(`
+    INSERT INTO password_reset_tokens (id, user_id, token, expires_at)
+    VALUES (?, ?, ?, ?)
+  `).run(crypto.randomUUID(), userId, token, expiresAt);
+  return token;
+}
+
+function getResetToken(token) {
+  return db.prepare(`
+    SELECT rt.*, u.email, u.name
+    FROM password_reset_tokens rt
+    JOIN users u ON u.id = rt.user_id
+    WHERE rt.token = ? AND rt.used_at IS NULL AND datetime(rt.expires_at) > datetime('now')
+  `).get(token);
+}
+
+function consumeResetToken(token, newPassword) {
+  const row = getResetToken(token);
+  if (!row) throw new Error('Link inválido ou expirado. Pede um novo email de recuperação.');
+  validatePassword(newPassword);
+  const hash = hashPassword(newPassword);
+  db.prepare(`UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?`).run(hash, row.user_id);
+  db.prepare(`UPDATE password_reset_tokens SET used_at = datetime('now') WHERE token = ?`).run(token);
+  db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').run(row.user_id);
+}
+
 module.exports = {
   SESSION_COOKIE,
   clearExpiredSessions,
+  consumeResetToken,
+  createPasswordResetToken,
   createSession,
   createUser,
   deleteSession,
+  getResetToken,
   getSessionUser,
   getUserByEmail,
   hashPassword,
