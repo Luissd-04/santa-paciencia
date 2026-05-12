@@ -5,6 +5,7 @@ const requireRole = require('../middleware/requireRole');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 
 const ORG_TABLES = [
@@ -14,10 +15,12 @@ const ORG_TABLES = [
   'accommodations',
   'guests',
   'expenses',
-  'reservations'
+  'reservations',
+  'operational_events'
 ];
 
 const DELETE_ORDER = [
+  'operational_events',
   'reservations',
   'expenses',
   'organization_email_log',
@@ -34,7 +37,8 @@ const INSERT_ORDER = [
   'accommodations',
   'guests',
   'expenses',
-  'reservations'
+  'reservations',
+  'operational_events'
 ];
 
 const UPLOADS_DIR = path.resolve('./data/uploads');
@@ -102,36 +106,11 @@ function buildBackupPayload(orgId) {
     }
   }
 
-  const memberships = db.prepare(`
-    SELECT * FROM memberships
-    WHERE organization_id = ?
-  `).all(orgId);
-
-  const invitations = db.prepare(`
-    SELECT * FROM invitations
-    WHERE organization_id = ?
-  `).all(orgId);
-
-  const users = db.prepare(`
-    SELECT DISTINCT u.*
-    FROM users u
-    INNER JOIN memberships m ON m.user_id = u.id
-    WHERE m.organization_id = ?
-    ORDER BY u.created_at
-  `).all(orgId);
-
-  const organization = db.prepare(`
-    SELECT id, name, slug, created_at, updated_at
-    FROM organizations
-    WHERE id = ?
-  `).get(orgId);
-
   return {
     exported_at: new Date().toISOString(),
-    version: 2,
-    organization,
-    tables,
-    team: { users, memberships, invitations }
+    version: 3,
+    scope: 'client-data',
+    tables
   };
 }
 
@@ -139,54 +118,80 @@ function ensureTableRows(rows) {
   return Array.isArray(rows) ? rows : [];
 }
 
-function upsertImportedUsers(users = []) {
-  const map = new Map();
-  const findByEmail = db.prepare('SELECT * FROM users WHERE lower(email) = lower(?)');
-  const findById = db.prepare('SELECT * FROM users WHERE id = ?');
-  const insertUser = db.prepare(`
-    INSERT INTO users (id, name, email, password_hash, role, active, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const updateUser = db.prepare(`
-    UPDATE users
-    SET name = ?, email = ?, password_hash = ?, role = ?, active = ?, updated_at = ?
-    WHERE id = ?
-  `);
+function tableHasId(table) {
+  try {
+    return db.pragma(`table_info(${table})`).some(col => col.name === 'id');
+  } catch {
+    return false;
+  }
+}
 
-  for (const imported of users) {
-    if (!imported?.email) continue;
-    const existingByEmail = findByEmail.get(imported.email);
-    const existingById = findById.get(imported.id);
-    const target = existingByEmail || existingById;
-    const targetId = target?.id || imported.id;
+function idBelongsToOtherOrg(table, id, orgId) {
+  if (!id || !tableHasId(table)) return false;
+  try {
+    const row = db.prepare(`SELECT organization_id FROM ${table} WHERE id = ?`).get(id);
+    return !!row && row.organization_id !== orgId;
+  } catch {
+    return false;
+  }
+}
 
-    if (target) {
-      updateUser.run(
-        imported.name || target.name,
-        imported.email,
-        target.password_hash,
-        imported.role || target.role || 'admin',
-        imported.active !== undefined ? imported.active : (target.active ?? 1),
-        imported.updated_at || new Date().toISOString(),
-        targetId
-      );
-    } else {
-      insertUser.run(
-        targetId,
-        imported.name || imported.email,
-        imported.email,
-        imported.password_hash || '',
-        imported.role || 'admin',
-        imported.active !== undefined ? imported.active : 1,
-        imported.created_at || new Date().toISOString(),
-        imported.updated_at || new Date().toISOString()
-      );
-    }
+function makeImportedId(table, oldId) {
+  if (table === 'reservations') return `${oldId}-IMP-${crypto.randomBytes(3).toString('hex')}`;
+  return crypto.randomUUID();
+}
 
-    map.set(imported.id, targetId);
+function remapImportedRowsForOrg(tables, orgId) {
+  const next = {};
+  for (const table of Object.keys(tables || {})) {
+    next[table] = ensureTableRows(tables[table]).map(row => ({ ...row }));
   }
 
-  return map;
+  const maps = {
+    accommodations: new Map(),
+    guests: new Map(),
+    reservations: new Map(),
+    expenses: new Map(),
+    operational_events: new Map(),
+    organization_email_log: new Map(),
+  };
+
+  for (const table of Object.keys(maps)) {
+    for (const row of ensureTableRows(next[table])) {
+      if (idBelongsToOtherOrg(table, row.id, orgId)) {
+        const newId = makeImportedId(table, row.id);
+        maps[table].set(row.id, newId);
+        row.id = newId;
+      }
+    }
+  }
+
+  for (const row of ensureTableRows(next.accommodations)) {
+    if (maps.accommodations.has(row.parent_id)) row.parent_id = maps.accommodations.get(row.parent_id);
+  }
+  for (const row of ensureTableRows(next.reservations)) {
+    if (maps.guests.has(row.guest_id)) row.guest_id = maps.guests.get(row.guest_id);
+    if (maps.accommodations.has(row.accommodation_id)) row.accommodation_id = maps.accommodations.get(row.accommodation_id);
+    if (row.google_event_id) row.google_event_id = null;
+    if (row.google_calendar_user_id) row.google_calendar_user_id = null;
+  }
+  for (const row of ensureTableRows(next.operational_events)) {
+    if (maps.accommodations.has(row.accommodation_id)) row.accommodation_id = maps.accommodations.get(row.accommodation_id);
+    if (maps.reservations.has(row.reservation_id)) row.reservation_id = maps.reservations.get(row.reservation_id);
+    if (row.auto_key && row.reservation_id) {
+      const parts = String(row.auto_key).split(':');
+      if (parts.length >= 4) {
+        parts[0] = row.reservation_id;
+        parts[3] = row.accommodation_id || 'geral';
+        row.auto_key = parts.join(':');
+      }
+    }
+  }
+  for (const row of ensureTableRows(next.organization_email_log)) {
+    if (maps.reservations.has(row.reservation_id)) row.reservation_id = maps.reservations.get(row.reservation_id);
+  }
+
+  return next;
 }
 
 // GET /api/backup/export
@@ -236,12 +241,12 @@ router.post('/import', (req, res) => {
     }
 
     const payload = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-    const tables = payload.tables;
-    const team = payload.team || {};
+    let tables = payload.tables;
     if (!tables || typeof tables !== 'object') {
       cleanupTempDir(tempDir);
       return res.status(400).json({ success: false, error: 'Ficheiro inválido: sem dados.' });
     }
+    tables = remapImportedRowsForOrg(tables, orgId);
 
     const oldOrgUploads = getOrgUploadUrls(orgId);
     const otherOrgUploads = getOtherOrgUploadUrls(orgId);
@@ -249,51 +254,10 @@ router.post('/import', (req, res) => {
     const importedUploadsDir = path.join(extractDir, 'uploads');
 
     db.transaction(() => {
-      const userIdMap = upsertImportedUsers(ensureTableRows(team.users));
-
-      db.prepare('DELETE FROM invitations WHERE organization_id = ?').run(orgId);
-      db.prepare('DELETE FROM memberships WHERE organization_id = ?').run(orgId);
       for (const table of DELETE_ORDER) {
         try {
           db.prepare(`DELETE FROM ${table} WHERE organization_id = ?`).run(orgId);
         } catch {}
-      }
-
-      if (payload.organization?.name) {
-        db.prepare(`
-          UPDATE organizations
-          SET name = ?, updated_at = ?
-          WHERE id = ?
-        `).run(payload.organization.name, new Date().toISOString(), orgId);
-      }
-
-      const memberships = ensureTableRows(team.memberships);
-      if (memberships.length) {
-        const cols = Object.keys(memberships[0]);
-        const stmt = db.prepare(`INSERT OR REPLACE INTO memberships (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`);
-        for (const row of memberships) {
-          const scopedRow = {
-            ...row,
-            organization_id: orgId,
-            user_id: userIdMap.get(row.user_id) || row.user_id,
-            invited_by_user_id: row.invited_by_user_id ? (userIdMap.get(row.invited_by_user_id) || row.invited_by_user_id) : null
-          };
-          stmt.run(cols.map(c => scopedRow[c] ?? null));
-        }
-      }
-
-      const invitations = ensureTableRows(team.invitations);
-      if (invitations.length) {
-        const cols = Object.keys(invitations[0]);
-        const stmt = db.prepare(`INSERT OR REPLACE INTO invitations (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`);
-        for (const row of invitations) {
-          const scopedRow = {
-            ...row,
-            organization_id: orgId,
-            invited_by_user_id: row.invited_by_user_id ? (userIdMap.get(row.invited_by_user_id) || row.invited_by_user_id) : null
-          };
-          stmt.run(cols.map(c => scopedRow[c] ?? null));
-        }
       }
 
       for (const table of INSERT_ORDER) {

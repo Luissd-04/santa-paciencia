@@ -111,6 +111,8 @@ function openDespesaModal(id) {
   document.getElementById('despesa-amount').value      = d ? d.amount      : '';
   document.getElementById('despesa-payment').value     = d ? (d.payment_method || 'numerário') : 'numerário';
   document.getElementById('despesa-notes').value       = d ? (d.notes || '') : '';
+  AppUI.enhanceSelects(document.getElementById('despesa-modal-bg'));
+  AppUI.refreshDropdowns(document.getElementById('despesa-modal-bg'));
   AppUI.openModal('despesa-modal-bg');
   if (window.lucide) lucide.createIcons();
 }

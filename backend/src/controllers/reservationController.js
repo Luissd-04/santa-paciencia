@@ -25,6 +25,10 @@ function getOrganizationServices(organizationId) {
 const { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } = require('../services/calendarService');
 const { sendConfirmationEmail, sendCancellationEmail, sendPaymentConfirmationEmail } = require('../services/emailService');
 const { recordConsent } = require('../services/rgpdService');
+const {
+  syncReservationOperationalTasks,
+  syncOrganizationOperationalTasks,
+} = require('../services/operationalTasksService');
 
 // Returns conflicting reservation ID (if any) for the given accommodation + date range.
 // Uses parent_id hierarchy: booking an alojamento blocks all child suites and vice versa.
@@ -235,6 +239,11 @@ async function create(req, res, next) {
     );
 
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservationId, organizationId);
+    syncReservationOperationalTasks({
+      ...reservation,
+      guest_name: guestRecord.name,
+      accommodation_name: accommodation.name,
+    }, req.user.id);
 
     // Google Calendar (async, não bloqueia resposta)
     createCalendarEvent(reservation, { userId: req.user.id, organizationId }).then(eventId => {
@@ -358,6 +367,10 @@ async function update(req, res, next) {
     );
 
     const updated = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
+    syncReservationOperationalTasks({
+      ...updated,
+      accommodation_name: accommodation.name,
+    }, req.user.id);
 
     // Atualizar no Google Calendar
     updateCalendarEvent(updated, {
@@ -388,6 +401,7 @@ async function cancel(req, res, next) {
     db.prepare(`
       UPDATE reservations SET status = 'cancelada', updated_at = datetime('now') WHERE id = ? AND organization_id = ?
     `).run(req.params.id, organizationId);
+    syncReservationOperationalTasks({ ...reservation, status: 'cancelada' }, req.user.id);
 
     // Remover do Google Calendar
     deleteCalendarEvent(reservation, {
@@ -458,6 +472,7 @@ async function getDashboardStats(req, res, next) {
 function getNotifications(req, res, next) {
   try {
     const orgId = req.user.organization_id;
+    syncOrganizationOperationalTasks(orgId);
     const today    = new Date().toISOString().slice(0, 10);
     const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
@@ -474,6 +489,18 @@ function getNotifications(req, res, next) {
     const checkoutsToday   = db.prepare(`${baseSelect} AND r.check_out = ? AND r.status != 'cancelada'`).all(orgId, today);
     const pending          = db.prepare(`${baseSelect} AND r.status = 'pendente'`).all(orgId);
     const unpaid           = db.prepare(`${baseSelect} AND r.status = 'confirmada' AND r.total_amount > 0 AND r.amount_paid < r.total_amount`).all(orgId);
+    const importantTasks   = db.prepare(`
+      SELECT e.id, e.title, e.date, e.start_time, e.type, e.reservation_id,
+             a.name AS accommodation_name
+      FROM operational_events e
+      LEFT JOIN accommodations a ON a.id = e.accommodation_id AND a.organization_id = e.organization_id
+      WHERE e.organization_id = ?
+        AND e.status = 'planeado'
+        AND e.important = 1
+        AND e.date >= ?
+        AND e.date <= ?
+      ORDER BY e.date ASC, COALESCE(e.start_time, '99:99') ASC
+    `).all(orgId, today, tomorrow);
 
     const notifications = [];
 
@@ -490,7 +517,7 @@ function getNotifications(req, res, next) {
       reservation_id: r.id,
     }));
     checkinsTomorrow.forEach(r => notifications.push({
-      type: 'checkin_tomorrow', priority: 'medium', icon: 'calendar-clock',
+      type: 'checkin_tomorrow', priority: 'high', icon: 'calendar-clock',
       title: 'Check-in amanhã',
       subtitle: `${r.guest_name} · ${r.accommodation_name}`,
       reservation_id: r.id,
@@ -509,6 +536,15 @@ function getNotifications(req, res, next) {
       title: 'Reserva pendente',
       subtitle: `${r.guest_name} · ${r.accommodation_name}`,
       reservation_id: r.id,
+    }));
+    importantTasks.forEach(e => notifications.push({
+      type: 'important_task',
+      priority: e.date === today ? 'high' : 'medium',
+      icon: e.type === 'limpeza' ? 'sparkles' : 'circle-alert',
+      title: e.type === 'limpeza' ? 'Limpeza importante' : 'Tarefa importante',
+      subtitle: `${e.title}${e.date === tomorrow ? ' · amanhã' : ''}${e.accommodation_name ? ` · ${e.accommodation_name}` : ''}`,
+      reservation_id: e.reservation_id,
+      event_id: e.id,
     }));
 
     res.json({ success: true, data: { notifications } });

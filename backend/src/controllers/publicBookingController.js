@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
 const { recordConsent } = require('../services/rgpdService');
+const { syncReservationOperationalTasks } = require('../services/operationalTasksService');
 const {
   calculateReservationTotals,
   normalizeDateValue,
@@ -275,6 +276,13 @@ function createReservation(req, res, next) {
           'website', null, payload.notes || null, accom.license_number,
           JSON.stringify(normalizedGuestsData), token, payload.arrival_time || null
         );
+        const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?')
+          .get(`${reservationId}-${accom.id}`, parent.organization_id);
+        syncReservationOperationalTasks({
+          ...reservation,
+          guest_name: guest.name,
+          accommodation_name: accom.name,
+        }, null);
       }
     } else {
       db.prepare(`
@@ -289,6 +297,13 @@ function createReservation(req, res, next) {
         'website', null, payload.notes || null, unit.license_number,
         JSON.stringify(normalizedGuestsData), token, payload.arrival_time || null
       );
+      const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?')
+        .get(reservationId, parent.organization_id);
+      syncReservationOperationalTasks({
+        ...reservation,
+        guest_name: guest.name,
+        accommodation_name: unit.name,
+      }, null);
     }
 
     res.status(201).json({

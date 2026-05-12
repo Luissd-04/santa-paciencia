@@ -15,6 +15,20 @@
   margin-bottom: 0;
 }
 
+.reservas-view-toggle {
+  position: relative;
+}
+
+.reservas-view-toggle .cal-mode-btn {
+  position: relative;
+  z-index: 1;
+}
+
+.reservas-view-toggle .cal-mode-btn.active {
+  background: none;
+  box-shadow: none;
+}
+
 .reservas-search-box {
   min-width: min(100%, 320px);
 }
@@ -24,33 +38,18 @@
   padding: 0;
 }
 
-.reservas-table-headline {
-  display: flex;
-  justify-content: space-between;
-  align-items: end;
-  gap: 16px;
-  padding: 24px 24px 0;
-}
-
-.reservas-table-headline h3 {
-  font-family: 'Playfair Display', serif;
-  font-size: 24px;
-  color: var(--text-main);
-  margin-bottom: 6px;
-}
-
-.reservas-table-headline p {
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
 .reservas-table-wrap {
-  padding: 18px 24px 24px;
+  padding: 24px;
 }
 
 .reservas-mobile-layout {
   display: grid;
   gap: 16px;
+}
+
+.reservas-mobile-search,
+.reservas-mobile-chips {
+  display: none;
 }
 
 .reservas-mobile-search {
@@ -64,6 +63,7 @@
 .reservas-mobile-cards {
   display: grid;
   gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
 }
 
 #mobile-res-cards .m-res-card,
@@ -74,16 +74,65 @@
   box-shadow: var(--shadow-soft);
 }
 
+.reserva-detail-page {
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 24px;
+  box-shadow: var(--shadow-soft);
+  padding: 24px;
+}
+
+.reserva-detail-hero {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.reserva-detail-title span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+}
+
+.reserva-detail-title h2 {
+  color: var(--text-main);
+  font-family: 'Playfair Display', serif;
+  font-size: 30px;
+  margin: 0;
+}
+
+.reserva-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 [data-theme="dark"] .reservas-filter-panel {
   background: var(--surface-card);
 }
 
 @media (max-width: 900px) {
-  .reservas-table-headline {
-    padding: 22px 20px 0;
+  .reservas-table-wrap {
+    padding: 20px;
   }
 
-  .reservas-table-wrap {
-    padding: 16px 20px 20px;
+  .reserva-detail-page {
+    padding: 18px;
+  }
+
+  .reserva-detail-hero {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .reserva-detail-actions {
+    justify-content: flex-start;
   }
 }

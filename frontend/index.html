@@ -120,8 +120,14 @@
       <div class="nav-item" onclick="showView('calendario')">
         <span class="icon"><i data-lucide="calendar-days"></i></span><span class="nav-label"> Calendário</span>
       </div>
+      <div class="nav-item" onclick="showView('eventos')">
+        <span class="icon"><i data-lucide="calendar-range"></i></span><span class="nav-label"> Eventos</span>
+      </div>
       <div class="nav-item" onclick="showView('hospedes')">
         <span class="icon"><i data-lucide="users"></i></span><span class="nav-label"> Hóspedes</span>
+      </div>
+      <div class="nav-item" onclick="showView('notificacoes')">
+        <span class="icon"><i data-lucide="bell"></i></span><span class="nav-label"> Notificações</span>
       </div>
       <div class="nav-section sb-label">Gestão</div>
       <div class="nav-item" onclick="showView('alojamentos')">
@@ -136,13 +142,12 @@
       <div class="nav-item" onclick="showView('emails')">
         <span class="icon"><i data-lucide="mail"></i></span><span class="nav-label"> Emails</span>
       </div>
-      <div class="nav-item" onclick="showView('gcal')">
-        <span class="icon"><i data-lucide="calendar-sync"></i></span><span class="nav-label"> Google Calendar</span>
-      </div>
-      <div class="nav-item" data-owner-only="true" style="display:none;" onclick="showView('equipa')">
-        <span class="icon"><i data-lucide="users-round"></i></span><span class="nav-label"> Equipa</span>
-      </div>
     </nav>
+    <div class="sidebar-settings-nav">
+      <div class="nav-item" onclick="showView('definicoes')">
+        <span class="icon"><i data-lucide="settings"></i></span><span class="nav-label"> Definições</span>
+      </div>
+    </div>
     <div class="sidebar-footer sb-label">
       v1.0 · Santa Paciência
     </div>
@@ -181,9 +186,23 @@
             </button>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="showView('reservas'); setTimeout(()=>openModal(),100)" style="background:var(--marca);">
-          <i data-lucide="plus" style="width:14px;height:14px;"></i> Nova Reserva
-        </button>
+        <div class="quick-action-wrap">
+          <button class="btn btn-primary" onclick="toggleQuickActionMenu(event)" style="background:var(--marca);">
+            <i data-lucide="plus" style="width:14px;height:14px;"></i> Ação Rápida
+            <i data-lucide="chevron-down" style="width:13px;height:13px;"></i>
+          </button>
+          <div class="quick-action-menu" id="quick-action-menu" style="display:none;">
+            <button type="button" onclick="quickActionNovaReserva()">
+              <i data-lucide="clipboard-plus"></i> Nova reserva
+            </button>
+            <button type="button" onclick="quickActionNovoEvento()">
+              <i data-lucide="calendar-plus"></i> Nova tarefa
+            </button>
+            <button type="button" onclick="quickActionNovaNotificacao()">
+              <i data-lucide="bell-plus"></i> Nova notificação
+            </button>
+          </div>
+        </div>
         <button class="btn btn-ghost" onclick="logout()">
           <i data-lucide="log-out" style="width:14px;height:14px;"></i> Sair
         </button>
@@ -195,19 +214,6 @@
       <!-- ══ DASHBOARD ══ -->
       <div class="view active" id="view-dashboard">
         <section class="dashboard-shell">
-          <div class="view-toolbar view-toolbar-dashboard">
-            <div class="view-toolbar-spacer"></div>
-            <div class="view-toolbar-actions">
-              <button class="btn btn-ghost btn-sm" onclick="exportDB()" title="Exportar backup ZIP com dados e imagens">
-                <i data-lucide="download" style="width:13px;height:13px;"></i> Exportar BD
-              </button>
-              <label class="btn btn-ghost btn-sm" style="cursor:pointer;margin:0;" title="Importar backup ZIP completo (substitui dados e imagens existentes)">
-                <i data-lucide="upload" style="width:13px;height:13px;"></i> Importar BD
-                <input type="file" accept=".zip,application/zip" style="display:none" onchange="importDB(this)">
-              </label>
-            </div>
-          </div>
-
           <div id="dash-mobile" class="dashboard-mobile-layout" style="display:none">
             <div class="dashboard-mobile-highlight" onclick="showView('reservas')">
               <div class="dashboard-mobile-highlight-copy">
@@ -329,6 +335,59 @@
             </div>
           </div>
 
+          <div class="reservas-filter-panel">
+            <div class="toolbar reservas-toolbar">
+              <div class="search-box reservas-search-box">
+                <i data-lucide="search"></i>
+                <input type="text" id="search-input" placeholder="Pesquisar hóspede, ID..." oninput="renderTabela()">
+              </div>
+              <select class="form-control" id="filter-estado" data-enhance-select data-app-select-class="app-select--filter" onchange="renderTabela()">
+                <option value="">Todos os estados</option>
+                <option value="confirmada">Confirmada</option>
+                <option value="pendente">Pendente</option>
+                <option value="cancelada">Cancelada</option>
+              </select>
+              <select class="form-control" id="filter-suite" data-enhance-select data-app-select-class="app-select--filter app-select--filter-wide" onchange="renderTabela()">
+                <option value="">Todas as suites</option>
+              </select>
+              <select class="form-control" id="filter-canal" data-enhance-select data-app-select-class="app-select--filter" onchange="renderTabela()">
+                <option value="">Todos os canais</option>
+                <option value="airbnb">Airbnb</option>
+                <option value="booking">Booking.com</option>
+                <option value="direto">Direto</option>
+                <option value="expedia">Expedia</option>
+                <option value="vrbo">VRBO</option>
+                <option value="outro">Outro</option>
+              </select>
+              <select class="form-control" id="filter-pagamento" data-enhance-select data-app-select-class="app-select--filter app-select--filter-wide" onchange="renderTabela()">
+                <option value="">Todos os pagamentos</option>
+                <option value="confirmado">Confirmado</option>
+                <option value="parcial">Parcial</option>
+                <option value="pendente">Pendente</option>
+              </select>
+              <input type="date" class="form-control" id="filter-date-from" title="Check-in a partir de" onchange="renderTabela()" style="width:auto;">
+              <input type="date" class="form-control" id="filter-date-to" title="Check-out até" onchange="renderTabela()" style="width:auto;">
+              <div class="cal-mode-toggle reservas-view-toggle" id="reservas-view-toggle">
+                <span class="cal-mode-pill" id="reservas-view-pill"></span>
+                <button class="cal-mode-btn active" data-res-view="card" onclick="setReservasViewMode('card')">
+                  <i data-lucide="layout-grid"></i> Cartão
+                </button>
+                <button class="cal-mode-btn" data-res-view="list" onclick="setReservasViewMode('list')">
+                  <i data-lucide="list"></i> Lista
+                </button>
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="clearReservasFilters()" title="Limpar filtros">
+                <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="exportReservasXLS()" title="Exportar Excel">
+                <i data-lucide="table-2"></i> XLS
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="exportReservasPDF()" title="Exportar PDF">
+                <i data-lucide="file-text"></i> PDF
+              </button>
+            </div>
+          </div>
+
           <div id="reservas-mobile" class="reservas-mobile-layout" style="display:none">
             <div class="m-search-box reservas-mobile-search">
               <i data-lucide="search"></i>
@@ -344,61 +403,7 @@
           </div>
 
           <div id="reservas-desktop" class="reservas-desktop-layout">
-            <div class="reservas-filter-panel">
-              <div class="toolbar reservas-toolbar">
-                <div class="search-box reservas-search-box">
-                  <i data-lucide="search"></i>
-                  <input type="text" id="search-input" placeholder="Pesquisar hóspede, ID..." oninput="renderTabela()">
-                </div>
-                <select class="form-control" id="filter-estado" style="width:auto;" onchange="renderTabela()">
-                  <option value="">Todos os estados</option>
-                  <option value="confirmada">Confirmada</option>
-                  <option value="pendente">Pendente</option>
-                  <option value="cancelada">Cancelada</option>
-                </select>
-                <select class="form-control" id="filter-suite" style="width:auto;" onchange="renderTabela()">
-                  <option value="">Todas as suites</option>
-                </select>
-                <select class="form-control" id="filter-canal" style="width:auto;" onchange="renderTabela()">
-                  <option value="">Todos os canais</option>
-                  <option value="airbnb">Airbnb</option>
-                  <option value="booking">Booking.com</option>
-                  <option value="direto">Direto</option>
-                  <option value="expedia">Expedia</option>
-                  <option value="vrbo">VRBO</option>
-                  <option value="outro">Outro</option>
-                </select>
-                <select class="form-control" id="filter-pagamento" style="width:auto;" onchange="renderTabela()">
-                  <option value="">Todos os pagamentos</option>
-                  <option value="confirmado">Confirmado</option>
-                  <option value="parcial">Parcial</option>
-                  <option value="pendente">Pendente</option>
-                </select>
-                <input type="date" class="form-control" id="filter-date-from" title="Check-in a partir de" onchange="renderTabela()" style="width:auto;">
-                <input type="date" class="form-control" id="filter-date-to" title="Check-out até" onchange="renderTabela()" style="width:auto;">
-                <button class="btn btn-ghost btn-sm" onclick="document.getElementById('filter-date-from').value='';document.getElementById('filter-date-to').value='';renderTabela();" title="Limpar filtros">
-                  <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar
-                </button>
-                <button class="btn btn-ghost btn-sm" onclick="exportReservasXLS()" title="Exportar Excel">
-                  <i data-lucide="table-2"></i> XLS
-                </button>
-                <button class="btn btn-ghost btn-sm" onclick="exportReservasPDF()" title="Exportar PDF">
-                  <i data-lucide="file-text"></i> PDF
-                </button>
-              </div>
-            </div>
-
             <div class="card reservas-table-card">
-            <div class="reservas-table-headline">
-              <div>
-                <h3>Reservas ativas e histórico</h3>
-                <p>Ordena qualquer coluna e mantém o controlo por alojamento, canal e estado.</p>
-              </div>
-              <span class="view-stat-chip reservas-results-chip">
-                <strong id="reservas-results-total">0</strong>
-                <span id="reservas-results-detail">resultados visíveis</span>
-              </span>
-            </div>
               <div class="table-wrap reservas-table-wrap">
                 <table>
                   <thead>
@@ -429,6 +434,13 @@
               </div>
             </div>
           </div>
+
+          <article id="reserva-detail-page" class="reserva-detail-page" style="display:none;">
+            <div class="reserva-detail-loading loading">
+              <div class="spinner"></div> A carregar reserva...
+            </div>
+            <div id="reserva-detail-content"></div>
+          </article>
         </section>
       </div>
 
@@ -446,15 +458,15 @@
               <button class="btn btn-ghost btn-sm" onclick="calNext()">
                 Próximo <i data-lucide="chevron-right"></i>
               </button>
-              <select class="form-control" id="cal-suite-filter" style="width:auto;" onchange="renderCalView()">
+              <select class="form-control" id="cal-suite-filter" data-enhance-select data-app-select-class="app-select--filter app-select--filter-wide" onchange="renderCalView()">
                 <option value="">Todas as Suites</option>
               </select>
-              <select class="form-control" id="cal-status-filter" style="width:auto;" onchange="renderCalView()">
+              <select class="form-control" id="cal-status-filter" data-enhance-select data-app-select-class="app-select--filter" onchange="renderCalView()">
                 <option value="">Todos os estados</option>
                 <option value="confirmada">Confirmadas</option>
                 <option value="pendente">Pendentes</option>
               </select>
-              <select class="form-control" id="cal-channel-filter" style="width:auto;" onchange="renderCalView()">
+              <select class="form-control" id="cal-channel-filter" data-enhance-select data-app-select-class="app-select--filter" onchange="renderCalView()">
                 <option value="">Todos os canais</option>
                 <option value="airbnb">Airbnb</option>
                 <option value="booking">Booking.com</option>
@@ -496,6 +508,155 @@
             </div>
             <div class="calendar-agenda-mobile" id="calendar-agenda-mobile"></div>
             <div id="timeline-wrap" style="display:none;"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ══ ALOJAMENTOS — LISTA ══ -->
+      <div class="view" id="view-eventos">
+        <section class="calendar-shell eventos-shell">
+          <div class="report-tabs eventos-tabs">
+            <button class="report-tab active" data-eventos-view="calendar" onclick="setEventosView('calendar')">
+              <i data-lucide="calendar-days" style="width:14px;height:14px;"></i> Calendário
+            </button>
+            <button class="report-tab" data-eventos-view="list" onclick="setEventosView('list')">
+              <i data-lucide="list-checks" style="width:14px;height:14px;"></i> Lista
+            </button>
+          </div>
+
+          <div class="eventos-panel active" id="eventos-panel-calendar">
+            <div class="view-toolbar calendar-toolbar">
+              <div class="view-toolbar-actions">
+                <button class="btn btn-ghost btn-sm" onclick="eventosPrev()">
+                  <i data-lucide="chevron-left"></i> Anterior
+                </button>
+                <button class="btn btn-ghost btn-sm" onclick="eventosToday()">
+                  <i data-lucide="calendar-check"></i> Hoje
+                </button>
+                <button class="btn btn-ghost btn-sm" onclick="eventosNext()">
+                  Próximo <i data-lucide="chevron-right"></i>
+                </button>
+                <select class="form-control" id="eventos-type-filter" data-enhance-select data-app-select-class="app-select--filter" onchange="renderEventosView()">
+                  <option value="">Todos os eventos</option>
+                  <option value="limpeza">Limpezas</option>
+                  <option value="reuniao">Reuniões</option>
+                  <option value="pequeno_almoco">Pequenos-almoços</option>
+                  <option value="checkin">Check-ins</option>
+                  <option value="checkout">Check-outs</option>
+                  <option value="manutencao">Manutenção</option>
+                  <option value="outro">Outro</option>
+                </select>
+                <div class="cal-mode-toggle" id="eventos-mode-toggle">
+                  <span class="cal-mode-pill" id="eventos-mode-pill"></span>
+                  <button class="cal-mode-btn active" data-eventos-mode="calendar" onclick="setEventosMode('calendar')">
+                    <i data-lucide="calendar-days"></i> Calendário
+                  </button>
+                  <button class="cal-mode-btn" data-eventos-mode="timeline" onclick="setEventosMode('timeline')">
+                    <i data-lucide="gantt-chart"></i> Timeline
+                  </button>
+                </div>
+                <div class="cal-mode-toggle" id="eventos-range-toggle" style="display:none;">
+                  <button class="cal-mode-btn" data-eventos-range="7" onclick="setEventosTimelineRange(7)">Grande</button>
+                  <button class="cal-mode-btn active" data-eventos-range="14" onclick="setEventosTimelineRange(14)">Médio</button>
+                  <button class="cal-mode-btn" data-eventos-range="30" onclick="setEventosTimelineRange(30)">Pequeno</button>
+                </div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="openEventoModal()">
+                <i data-lucide="plus"></i> Adicionar Evento
+              </button>
+            </div>
+
+            <div class="section-card section-card-calendar section-card-eventos">
+              <div class="section-card-head">
+                <h3 class="section-card-title calendar-month-title" id="eventos-label"></h3>
+              </div>
+              <div class="cal-wrap" id="eventos-cal-wrap">
+                <div class="cal-header">
+                  <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+                </div>
+                <div class="cal-grid" id="eventos-cal-grid"></div>
+              </div>
+              <div id="eventos-timeline-wrap" style="display:none;"></div>
+            </div>
+          </div>
+
+          <div class="eventos-panel" id="eventos-panel-list">
+            <div class="view-toolbar eventos-list-toolbar">
+              <div class="view-toolbar-actions">
+                <div class="search-box eventos-search-box">
+                  <i data-lucide="search"></i>
+                  <input type="text" id="eventos-search" placeholder="Pesquisar evento, responsável..." oninput="renderEventosList()">
+                </div>
+                <select class="form-control" id="eventos-list-type-filter" data-enhance-select data-app-select-class="app-select--filter" onchange="renderEventosList()">
+                  <option value="">Todos os tipos</option>
+                  <option value="limpeza">Limpeza</option>
+                  <option value="reuniao">Reunião</option>
+                  <option value="pequeno_almoco">Pequeno-almoço</option>
+                  <option value="checkin">Check-in</option>
+                  <option value="checkout">Check-out</option>
+                  <option value="manutencao">Manutenção</option>
+                  <option value="outro">Outro</option>
+                </select>
+                <select class="form-control" id="eventos-list-acc-filter" data-enhance-select data-app-select-class="app-select--filter app-select--filter-wide" onchange="renderEventosList()">
+                  <option value="">Todos os alojamentos</option>
+                </select>
+                <select class="form-control" id="eventos-list-status-filter" data-enhance-select data-app-select-class="app-select--filter" onchange="renderEventosList()">
+                  <option value="">Todos os estados</option>
+                  <option value="planeado">Planeado</option>
+                  <option value="concluido">Concluído</option>
+                </select>
+                <select class="form-control" id="eventos-list-date-filter" data-enhance-select data-app-select-class="app-select--filter" onchange="renderEventosList()">
+                  <option value="upcoming">Próximos</option>
+                  <option value="today">Hoje</option>
+                  <option value="week">Esta semana</option>
+                  <option value="month">Este mês</option>
+                  <option value="all">Todos</option>
+                </select>
+                <button class="btn btn-primary btn-sm" onclick="openEventoModal()">
+                  <i data-lucide="plus"></i> Adicionar Evento
+                </button>
+              </div>
+            </div>
+
+            <div class="card eventos-list-card">
+              <div class="table-wrap">
+                <table class="eventos-table">
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Evento</th>
+                      <th>Alojamento</th>
+                      <th>Responsável</th>
+                      <th>Estado</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="eventos-list-body"></tbody>
+                </table>
+              </div>
+              <div id="eventos-list-empty" class="empty-state" style="display:none;">
+                <div class="es-icon">📅</div>
+                <h3>Sem eventos</h3>
+                <p>Adiciona uma limpeza, reunião ou outra tarefa operacional.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="view" id="view-notificacoes">
+        <section class="notifications-page-shell">
+          <div class="card notifications-page-card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="bell"></i> Notificações</span>
+              <button class="btn btn-ghost btn-sm" onclick="loadNotifications()">
+                <i data-lucide="refresh-cw"></i> Atualizar
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="openManualNotificationModal()">
+                <i data-lucide="bell-plus"></i> Adicionar
+              </button>
+            </div>
+            <div id="notifications-page-list" class="notifications-page-list"></div>
           </div>
         </section>
       </div>
@@ -559,18 +720,6 @@
             <button class="btn btn-ghost btn-sm" onclick="addAlojamento()">
               <i data-lucide="plus"></i> Adicionar alojamento
             </button>
-            <div style="margin-left:auto;display:flex;gap:8px;">
-              <button class="btn btn-ghost btn-sm" onclick="exportAlojamentosXLS()" title="Exportar Excel">
-                <i data-lucide="table-2"></i> XLS
-              </button>
-              <button class="btn btn-ghost btn-sm" onclick="exportAlojamentosPDF()" title="Exportar PDF">
-                <i data-lucide="file-text"></i> PDF
-              </button>
-              <label class="btn btn-ghost btn-sm" title="Importar Excel" style="cursor:pointer;">
-                <i data-lucide="upload"></i> Importar XLS
-                <input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importAlojamentosXLS(this)">
-              </label>
-            </div>
           </div>
         </div>
 
@@ -1030,16 +1179,6 @@
                   <i data-lucide="list"></i> Lista
                 </button>
               </div>
-              <button class="btn btn-ghost btn-sm" onclick="exportHospedesXLS()" title="Exportar Excel">
-                <i data-lucide="table-2"></i> XLS
-              </button>
-              <button class="btn btn-ghost btn-sm" onclick="exportHospedesPDF()" title="Exportar PDF">
-                <i data-lucide="file-text"></i> PDF
-              </button>
-              <label class="btn btn-ghost btn-sm hospedes-import-btn" title="Importar Excel" style="cursor:pointer;">
-                <i data-lucide="upload"></i> Importar XLS
-                <input type="file" accept=".xlsx,.xls,.csv" style="display:none;" onchange="importHospedesXLS(this)">
-              </label>
             </div>
           </div>
 
@@ -1164,8 +1303,8 @@
         <div class="report-tab-panel" id="rtab-faturamento">
           <div class="report-toolbar">
             <div class="report-filters">
-              <select class="form-control" id="report-year-sel" onchange="setReportYear(this.value)" style="width:auto;"></select>
-              <select class="form-control" id="report-acc-sel" onchange="setReportAccId(this.value)" style="width:auto;"></select>
+              <select class="form-control" id="report-year-sel" data-enhance-select data-app-select-class="app-select--filter" onchange="setReportYear(this.value)"></select>
+              <select class="form-control" id="report-acc-sel" data-enhance-select data-app-select-class="app-select--filter app-select--filter-wide" onchange="setReportAccId(this.value)"></select>
             </div>
           </div>
           <div class="report-kpis" id="report-kpis">
@@ -1222,7 +1361,7 @@
         <div class="report-tab-panel" id="rtab-despesas" style="display:none;">
           <div class="report-toolbar">
             <div class="report-filters">
-              <select class="form-control" id="desp-year-sel" onchange="setDespYear(this.value)" style="width:auto;"></select>
+              <select class="form-control" id="desp-year-sel" data-enhance-select data-app-select-class="app-select--filter" onchange="setDespYear(this.value)"></select>
             </div>
           </div>
           <div class="report-kpis" id="desp-kpis">
@@ -1269,8 +1408,8 @@
         <div class="report-tab-panel" id="rtab-lucro" style="display:none;">
           <div class="report-toolbar">
             <div class="report-filters">
-              <select class="form-control" id="lucro-year-sel" onchange="setLucroYear(this.value)" style="width:auto;"></select>
-              <select class="form-control" id="lucro-acc-sel" onchange="setLucroAccId(this.value)" style="width:auto;"></select>
+              <select class="form-control" id="lucro-year-sel" data-enhance-select data-app-select-class="app-select--filter" onchange="setLucroYear(this.value)"></select>
+              <select class="form-control" id="lucro-acc-sel" data-enhance-select data-app-select-class="app-select--filter app-select--filter-wide" onchange="setLucroAccId(this.value)"></select>
             </div>
           </div>
           <div class="report-kpis" id="lucro-kpis">
@@ -1307,91 +1446,268 @@
 
       </div>
 
-      <!-- ══ GOOGLE CALENDAR ══ -->
-      <div class="view" id="view-gcal">
-        <div class="gcal-banner">
-          <div class="gcal-icon">
-            <i data-lucide="calendar-sync"></i>
-          </div>
-          <div class="gcal-text">
-            <h3>Integração Google Calendar</h3>
-            <p>Ligue o seu próprio Google Calendar. As reservas criadas por si são sincronizadas com o calendário da sua conta.</p>
-          </div>
-          <div class="gcal-actions">
-            <button id="gcal-connect-btn" class="btn btn-gcal-outline btn-sm" onclick="connectGcal()">
-              <i data-lucide="link"></i> Ligar Google Calendar
+      <!-- ══ DEFINIÇÕES ══ -->
+      <div class="view" id="view-definicoes">
+        <section class="settings-shell">
+          <div class="settings-tabs">
+            <button class="settings-tab active" data-settings-tab="gcal" onclick="switchSettingsTab('gcal')">
+              <i data-lucide="calendar-sync"></i> Google Calendar
             </button>
-            <button id="gcal-disconnect-btn" class="btn btn-ghost btn-sm" style="display:none;" onclick="disconnectGcal()">
-              <i data-lucide="unlink"></i> Desligar
+            <button class="settings-tab" data-settings-tab="database" onclick="switchSettingsTab('database')">
+              <i data-lucide="database"></i> Base de dados
             </button>
-            <button id="gcal-sync-btn" class="btn btn-primary btn-sm" style="display:none;" onclick="syncAllGcal()">
-              <i data-lucide="refresh-cw"></i> Sincronizar tudo
+            <button class="settings-tab" data-settings-tab="operations" onclick="switchSettingsTab('operations')">
+              <i data-lucide="list-checks"></i> Tarefas
+            </button>
+            <button class="settings-tab" data-settings-tab="equipa" data-owner-only="true" style="display:none;" onclick="switchSettingsTab('equipa')">
+              <i data-lucide="users-round"></i> Equipa
             </button>
           </div>
-        </div>
 
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">
-              <i data-lucide="refresh-cw"></i> Estado da Sincronização
-            </span>
-            <span id="gcal-badge" class="gcal-status"><span class="dot dot-red"></span> Desligado</span>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
-            <div style="background:var(--cinza-claro);border-radius:10px;padding:16px;text-align:center;">
-              <div style="font-size:28px;font-weight:700;color:var(--azul);" id="sync-total">—</div>
-              <div style="font-size:12px;color:var(--cinza);">Total de Reservas Ativas</div>
+          <div class="settings-panel active" id="settings-gcal">
+            <div class="gcal-banner">
+              <div class="gcal-icon">
+                <i data-lucide="calendar-sync"></i>
+              </div>
+              <div class="gcal-text">
+                <h3>Integração Google Calendar</h3>
+                <p>Ligue o seu próprio Google Calendar. As reservas criadas por si são sincronizadas com o calendário da sua conta.</p>
+              </div>
+              <div class="gcal-actions">
+                <button id="gcal-connect-btn" class="btn btn-gcal-outline btn-sm" onclick="connectGcal()">
+                  <i data-lucide="link"></i> Ligar Google Calendar
+                </button>
+                <button id="gcal-disconnect-btn" class="btn btn-ghost btn-sm" style="display:none;" onclick="disconnectGcal()">
+                  <i data-lucide="unlink"></i> Desligar
+                </button>
+                <button id="gcal-sync-btn" class="btn btn-primary btn-sm" style="display:none;" onclick="syncAllGcal()">
+                  <i data-lucide="refresh-cw"></i> Sincronizar tudo
+                </button>
+              </div>
             </div>
-            <div style="background:var(--cinza-claro);border-radius:10px;padding:16px;text-align:center;">
-              <div style="font-size:28px;font-weight:700;color:var(--verde);" id="sync-ok">—</div>
-              <div style="font-size:12px;color:var(--cinza);">No Google Calendar</div>
-            </div>
-            <div style="background:var(--cinza-claro);border-radius:10px;padding:16px;text-align:center;">
-              <div style="font-size:28px;font-weight:700;color:var(--vermelho);" id="sync-removed">—</div>
-              <div style="font-size:12px;color:var(--cinza);">Canceladas (removidas)</div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      <div class="view" id="view-equipa">
-        <div class="card" style="margin-bottom:24px;">
-          <div class="card-header">
-            <span class="card-title"><i data-lucide="users-round"></i> Equipa</span>
-          </div>
-          <div class="form-grid" style="grid-template-columns:2fr 1fr auto;align-items:end;">
-            <div class="form-group">
-              <label class="form-label">Convidar por email</label>
-              <input class="form-control" id="team-invite-email" type="email" placeholder="colaborador@empresa.com">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">
+                  <i data-lucide="refresh-cw"></i> Estado da Sincronização
+                </span>
+                <span id="gcal-badge" class="gcal-status"><span class="dot dot-red"></span> Desligado</span>
+              </div>
+              <div class="settings-sync-grid">
+                <div class="settings-stat">
+                  <strong id="sync-total">—</strong>
+                  <span>Total de Reservas Ativas</span>
+                </div>
+                <div class="settings-stat">
+                  <strong id="sync-ok">—</strong>
+                  <span>No Google Calendar</span>
+                </div>
+                <div class="settings-stat">
+                  <strong id="sync-removed">—</strong>
+                  <span>Canceladas (removidas)</span>
+                </div>
+              </div>
             </div>
-            <div class="form-group">
-              <label class="form-label">Papel</label>
-              <select class="form-control" id="team-invite-role">
-                <option value="staff">Funcionário</option>
-                <option value="manager">Gestor</option>
-              </select>
-            </div>
-            <button class="btn btn-primary" onclick="inviteTeamMember()">
-              <i data-lucide="send"></i> Enviar convite
-            </button>
           </div>
-          <div id="team-invite-feedback" style="margin-top:12px;font-size:13px;color:var(--cinza);"></div>
-        </div>
 
-        <div class="dashboard-grid">
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title"><i data-lucide="shield-check"></i> Membros</span>
+          <div class="settings-panel" id="settings-database">
+            <div class="settings-db-grid">
+              <div class="card settings-db-card">
+                <div class="card-header">
+                  <span class="card-title"><i data-lucide="home"></i> Alojamentos</span>
+                </div>
+                <div class="settings-db-actions">
+                  <button class="btn btn-ghost btn-sm" onclick="exportAlojamentosXLS()"><i data-lucide="table-2"></i> XLS</button>
+                  <button class="btn btn-ghost btn-sm" onclick="exportAlojamentosPDF()"><i data-lucide="file-text"></i> PDF</button>
+                  <label class="btn btn-ghost btn-sm settings-file-btn">
+                    <i data-lucide="upload"></i> Importar XLS
+                    <input type="file" accept=".xlsx,.xls" onchange="importAlojamentosXLS(this)">
+                  </label>
+                </div>
+                <div class="settings-export-reminders">
+                  <label>
+                    <span>Lembrete XLS</span>
+                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="alojamentos_xls" onchange="setExportReminder('alojamentos_xls', this.value)">
+                      <option value="">Desligado</option>
+                      <option value="7">7 dias</option>
+                      <option value="15">15 dias</option>
+                      <option value="30">1 mês</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Lembrete PDF</span>
+                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="alojamentos_pdf" onchange="setExportReminder('alojamentos_pdf', this.value)">
+                      <option value="">Desligado</option>
+                      <option value="7">7 dias</option>
+                      <option value="15">15 dias</option>
+                      <option value="30">1 mês</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div class="card settings-db-card">
+                <div class="card-header">
+                  <span class="card-title"><i data-lucide="clipboard-list"></i> Reservas</span>
+                </div>
+                <div class="settings-db-actions">
+                  <button class="btn btn-ghost btn-sm" onclick="exportReservasXLS()"><i data-lucide="table-2"></i> XLS</button>
+                  <button class="btn btn-ghost btn-sm" onclick="exportReservasPDF()"><i data-lucide="file-text"></i> PDF</button>
+                  <label class="btn btn-ghost btn-sm settings-file-btn">
+                    <i data-lucide="upload"></i> Importar XLS
+                    <input type="file" accept=".xlsx,.xls" onchange="importReservasXLS(this)">
+                  </label>
+                </div>
+                <div class="settings-export-reminders">
+                  <label>
+                    <span>Lembrete XLS</span>
+                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="reservas_xls" onchange="setExportReminder('reservas_xls', this.value)">
+                      <option value="">Desligado</option>
+                      <option value="7">7 dias</option>
+                      <option value="15">15 dias</option>
+                      <option value="30">1 mês</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Lembrete PDF</span>
+                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="reservas_pdf" onchange="setExportReminder('reservas_pdf', this.value)">
+                      <option value="">Desligado</option>
+                      <option value="7">7 dias</option>
+                      <option value="15">15 dias</option>
+                      <option value="30">1 mês</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div class="card settings-db-card">
+                <div class="card-header">
+                  <span class="card-title"><i data-lucide="users"></i> Hóspedes</span>
+                </div>
+                <div class="settings-db-actions">
+                  <button class="btn btn-ghost btn-sm" onclick="exportHospedesXLS()"><i data-lucide="table-2"></i> XLS</button>
+                  <button class="btn btn-ghost btn-sm" onclick="exportHospedesPDF()"><i data-lucide="file-text"></i> PDF</button>
+                  <label class="btn btn-ghost btn-sm settings-file-btn">
+                    <i data-lucide="upload"></i> Importar XLS
+                    <input type="file" accept=".xlsx,.xls" onchange="importHospedesXLS(this)">
+                  </label>
+                </div>
+                <div class="settings-export-reminders">
+                  <label>
+                    <span>Lembrete XLS</span>
+                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="hospedes_xls" onchange="setExportReminder('hospedes_xls', this.value)">
+                      <option value="">Desligado</option>
+                      <option value="7">7 dias</option>
+                      <option value="15">15 dias</option>
+                      <option value="30">1 mês</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Lembrete PDF</span>
+                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="hospedes_pdf" onchange="setExportReminder('hospedes_pdf', this.value)">
+                      <option value="">Desligado</option>
+                      <option value="7">7 dias</option>
+                      <option value="15">15 dias</option>
+                      <option value="30">1 mês</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div class="card settings-db-card settings-db-card-full">
+                <div class="card-header">
+                  <span class="card-title"><i data-lucide="archive"></i> Dados do cliente</span>
+                </div>
+                <div class="settings-db-actions">
+                  <button class="btn btn-primary btn-sm" onclick="exportDB()" title="Exportar backup ZIP com reservas, alojamentos, hóspedes, despesas, eventos, definições do cliente e imagens">
+                    <i data-lucide="download"></i> Exportar BD
+                  </button>
+                  <label class="btn btn-ghost btn-sm settings-file-btn" title="Importar backup ZIP do cliente (não altera contas, equipa ou acessos)">
+                    <i data-lucide="upload"></i> Importar BD
+                    <input type="file" accept=".zip,application/zip" onchange="importDB(this)">
+                  </label>
+                </div>
+                <div class="settings-export-reminders settings-export-reminders-full">
+                  <label>
+                    <span>Lembrete backup ZIP</span>
+                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="cliente_zip" onchange="setExportReminder('cliente_zip', this.value)">
+                      <option value="">Desligado</option>
+                      <option value="7">7 dias</option>
+                      <option value="15">15 dias</option>
+                      <option value="30">1 mês</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
             </div>
-            <div id="team-members-list"><div class="loading"><div class="spinner"></div> A carregar equipa...</div></div>
           </div>
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title"><i data-lucide="mail-plus"></i> Convites pendentes</span>
+
+          <div class="settings-panel" id="settings-operations">
+            <div class="card settings-db-card settings-db-card-full">
+              <div class="card-header">
+                <span class="card-title"><i data-lucide="list-checks"></i> Tarefas automáticas</span>
+              </div>
+              <div class="settings-auto-tasks">
+                <label class="settings-toggle-row">
+                  <span><strong>Pequeno-almoço</strong><small>Tarefas nas manhãs da estadia quando a reserva inclui pequeno-almoço.</small></span>
+                  <input type="checkbox" id="auto-task-breakfast" onchange="saveAutoTaskSettings()">
+                </label>
+                <label class="settings-toggle-row">
+                  <span><strong>Limpezas</strong><small>Limpeza importante na tarde do check-out.</small></span>
+                  <input type="checkbox" id="auto-task-cleaning" onchange="saveAutoTaskSettings()">
+                </label>
+                <label class="settings-toggle-row">
+                  <span><strong>Check-ins</strong><small>Tarefa na manhã de chegada.</small></span>
+                  <input type="checkbox" id="auto-task-checkin" onchange="saveAutoTaskSettings()">
+                </label>
+                <label class="settings-toggle-row">
+                  <span><strong>Check-outs</strong><small>Tarefa na manhã de saída.</small></span>
+                  <input type="checkbox" id="auto-task-checkout" onchange="saveAutoTaskSettings()">
+                </label>
+              </div>
             </div>
-            <div id="team-invitations-list"><div class="loading"><div class="spinner"></div> A carregar convites...</div></div>
           </div>
-        </div>
+
+          <div class="settings-panel" id="settings-equipa" data-owner-only="true" style="display:none;">
+            <div class="card" style="margin-bottom:24px;">
+              <div class="card-header">
+                <span class="card-title"><i data-lucide="users-round"></i> Equipa</span>
+              </div>
+              <div class="form-grid settings-team-form">
+                <div class="form-group">
+                  <label class="form-label">Convidar por email</label>
+                  <input class="form-control" id="team-invite-email" type="email" placeholder="colaborador@empresa.com">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Papel</label>
+                  <select class="form-control" id="team-invite-role" data-enhance-select data-app-select-class="app-select--filter">
+                    <option value="staff">Funcionário</option>
+                    <option value="manager">Gestor</option>
+                  </select>
+                </div>
+                <button class="btn btn-primary" onclick="inviteTeamMember()">
+                  <i data-lucide="send"></i> Enviar convite
+                </button>
+              </div>
+              <div id="team-invite-feedback" style="margin-top:12px;font-size:13px;color:var(--cinza);"></div>
+            </div>
+
+            <div class="dashboard-grid">
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title"><i data-lucide="shield-check"></i> Membros</span>
+                </div>
+                <div id="team-members-list"><div class="loading"><div class="spinner"></div> A carregar equipa...</div></div>
+              </div>
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title"><i data-lucide="mail-plus"></i> Convites pendentes</span>
+                </div>
+                <div id="team-invitations-list"><div class="loading"><div class="spinner"></div> A carregar convites...</div></div>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
 
     </div><!-- /content -->
@@ -1527,6 +1843,117 @@
   </div>
 </div>
 
+<!-- MODAL EVENTO -->
+<div class="modal-bg" id="evento-modal-bg" onclick="if(event.target===this)closeEventoModal()">
+  <div class="modal" style="max-width:620px;">
+    <div class="modal-header">
+      <span class="modal-title" id="evento-modal-title">Novo Evento</span>
+      <button class="modal-close" onclick="closeEventoModal()">
+        <i data-lucide="x" style="width:20px;height:20px;"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full">
+          <label class="form-label">Título</label>
+          <input class="form-control" id="evento-title" placeholder="Ex: Limpeza suite principal">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo</label>
+          <select class="form-control" id="evento-type" data-enhance-select data-app-select-class="app-select--modal">
+            <option value="limpeza">Limpeza</option>
+            <option value="reuniao">Reunião</option>
+            <option value="pequeno_almoco">Pequeno-almoço</option>
+            <option value="checkin">Check-in</option>
+            <option value="checkout">Check-out</option>
+            <option value="manutencao">Manutenção</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estado</label>
+          <select class="form-control" id="evento-status" data-enhance-select data-app-select-class="app-select--modal">
+            <option value="planeado">Planeado</option>
+            <option value="concluido">Concluído</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data</label>
+          <input class="form-control" id="evento-date" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hora início</label>
+          <input class="form-control" id="evento-start-time" type="time">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hora fim</label>
+          <input class="form-control" id="evento-end-time" type="time">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Alojamento</label>
+          <select class="form-control" id="evento-accommodation" data-enhance-select data-app-select-class="app-select--modal">
+            <option value="">Sem alojamento</option>
+          </select>
+        </div>
+        <div class="form-group form-full">
+          <label class="form-label">Responsável</label>
+          <select class="form-control" id="evento-responsible" data-enhance-select data-app-select-class="app-select--modal">
+            <option value="">Sem responsável</option>
+          </select>
+        </div>
+        <div class="form-group form-full">
+          <label class="form-label">Notas</label>
+          <textarea class="form-control" id="evento-notes" rows="3" placeholder="Notas internas..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeEventoModal()">Cancelar</button>
+      <button class="btn btn-primary" id="evento-save-btn" onclick="saveEvento()">
+        <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOTIFICAÇÃO MANUAL -->
+<div class="modal-bg" id="manual-notification-modal-bg" onclick="if(event.target===this)closeManualNotificationModal()">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <span class="modal-title">Nova Notificação</span>
+      <button class="modal-close" onclick="closeManualNotificationModal()">
+        <i data-lucide="x" style="width:20px;height:20px;"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full">
+          <label class="form-label">Título</label>
+          <input class="form-control" id="manual-notification-title" placeholder="Ex: Comprar pão para amanhã">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data</label>
+          <input class="form-control" id="manual-notification-date" type="date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hora</label>
+          <input class="form-control" id="manual-notification-time" type="time">
+        </div>
+        <div class="form-group form-full">
+          <label class="form-label">Notas</label>
+          <textarea class="form-control" id="manual-notification-notes" rows="3" placeholder="Detalhes internos..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeManualNotificationModal()">Cancelar</button>
+      <button class="btn btn-primary" id="manual-notification-save-btn" onclick="saveManualNotification()">
+        <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL DESPESA -->
 <div class="modal-bg" id="despesa-modal-bg" onclick="if(event.target===this)closeDespesaModal()">
   <div class="modal" style="max-width:500px;">
@@ -1544,7 +1971,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Categoria</label>
-          <select class="form-control" id="despesa-category">
+          <select class="form-control" id="despesa-category" data-enhance-select data-app-select-class="app-select--modal">
             <option value="limpeza">Limpeza</option>
             <option value="manutencao">Manutenção</option>
             <option value="marketing">Marketing</option>
@@ -1560,11 +1987,11 @@
         </div>
         <div class="form-group">
           <label class="form-label">Valor (€)</label>
-          <input class="form-control" id="despesa-amount" type="number" step="0.01" min="0" placeholder="0.00">
+          <input class="form-control no-number-spin" id="despesa-amount" type="number" step="0.01" min="0" placeholder="0.00">
         </div>
         <div class="form-group">
           <label class="form-label">Método de pagamento</label>
-          <select class="form-control" id="despesa-payment">
+          <select class="form-control" id="despesa-payment" data-enhance-select data-app-select-class="app-select--modal">
             <option value="numerário">Numerário</option>
             <option value="transferencia">Transferência</option>
             <option value="mbway">MBWay</option>
@@ -1899,11 +2326,11 @@
   </div>
 </div>
 
-<!-- MODAL DETALHE RESERVA -->
+<!-- MODAL DETALHE HÓSPEDE -->
 <div class="modal-bg" id="detail-bg" onclick="if(event.target===this)AppUI.closeModal(this)">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title" id="detail-title">Reserva</span>
+      <span class="modal-title" id="detail-title">Detalhe</span>
       <button class="modal-close" onclick="AppUI.closeModal('detail-bg')">
         <i data-lucide="x" style="width:20px;height:20px;"></i>
       </button>
@@ -1957,8 +2384,14 @@
   <div class="side-drawer-item" onclick="showView('calendario');closeSideDrawer()">
     <i data-lucide="calendar-days"></i> Calendário
   </div>
+  <div class="side-drawer-item" onclick="showView('eventos');closeSideDrawer()">
+    <i data-lucide="calendar-range"></i> Eventos
+  </div>
   <div class="side-drawer-item" onclick="showView('hospedes');closeSideDrawer()">
     <i data-lucide="users"></i> Hóspedes
+  </div>
+  <div class="side-drawer-item" onclick="showView('notificacoes');closeSideDrawer()">
+    <i data-lucide="bell"></i> Notificações
   </div>
   <div class="side-drawer-section">Gestão</div>
   <div class="side-drawer-item" onclick="showView('alojamentos');closeSideDrawer()">
@@ -1973,11 +2406,9 @@
   <div class="side-drawer-item" onclick="showView('emails');closeSideDrawer()">
     <i data-lucide="mail"></i> Emails
   </div>
-  <div class="side-drawer-item" onclick="showView('gcal');closeSideDrawer()">
-    <i data-lucide="calendar-sync"></i> Google Calendar
-  </div>
-  <div class="side-drawer-item" data-owner-only="true" style="display:none;" onclick="showView('equipa');closeSideDrawer()">
-    <i data-lucide="users-round"></i> Equipa
+  <div class="side-drawer-section">Sistema</div>
+  <div class="side-drawer-item" onclick="showView('definicoes');closeSideDrawer()">
+    <i data-lucide="settings"></i> Definições
   </div>
 </div>
 
@@ -2025,6 +2456,7 @@
 <script src="js/reserva-wizard.js"></script>
 <script src="js/reserva-lista.js"></script>
 <script src="js/calendario.js"></script>
+<script src="js/eventos.js"></script>
 <script src="js/alojamentos.js"></script>
 <script src="js/hospedes.js"></script>
 <script src="js/emails.js"></script>

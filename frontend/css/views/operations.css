@@ -86,6 +86,20 @@
   row-gap: 10px;
 }
 
+.hospedes-toolbar .view-toolbar-actions {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.hospedes-toolbar .hospedes-search-box {
+  order: 1;
+}
+
+.hospedes-toolbar .hospedes-view-toggle {
+  order: 2;
+  flex-shrink: 0;
+}
+
 .calendar-toolbar {
   justify-content: flex-start;
 }
@@ -98,8 +112,10 @@
   padding: 18px 24px 24px;
 }
 
-.section-card-calendar #timeline-wrap {
+.section-card-calendar #timeline-wrap,
+.section-card-calendar #eventos-timeline-wrap {
   margin: 18px 24px 24px;
+  max-width: calc(100% - 48px);
 }
 
 .calendar-legend {
@@ -488,8 +504,326 @@
   font-size: 18px;
 }
 
-#timeline-wrap {
+#timeline-wrap,
+#eventos-timeline-wrap {
   border: 1px solid var(--border-soft);
+  cursor: grab;
+  background: var(--branco);
+  border-radius: var(--raio-grande);
+  box-shadow: var(--sombra);
+  touch-action: pan-y;
+  user-select: none;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+#timeline-wrap.tl-panning,
+#eventos-timeline-wrap.tl-panning {
+  cursor: grabbing;
+}
+
+body.tl-is-panning,
+body.tl-is-panning * {
+  user-select: none !important;
+}
+
+#timeline-wrap .tl-block,
+#timeline-wrap .tl-resize-handle {
+  cursor: pointer;
+}
+
+#eventos-mode-toggle {
+  position: relative;
+}
+
+#eventos-mode-toggle .cal-mode-btn {
+  position: relative;
+  z-index: 1;
+}
+
+#eventos-mode-toggle .cal-mode-btn.active {
+  background: none;
+  box-shadow: none;
+}
+
+#eventos-range-toggle {
+  flex-wrap: nowrap;
+}
+
+#eventos-range-toggle .cal-mode-btn {
+  min-width: 70px;
+}
+
+#eventos-range-toggle .cal-mode-btn.active {
+  background: var(--marca);
+  color: #fff;
+}
+
+.eventos-panel {
+  display: none;
+  min-width: 0;
+}
+
+.eventos-panel.active {
+  display: block;
+  min-width: 0;
+}
+
+.eventos-list-toolbar {
+  justify-content: flex-start;
+}
+
+.eventos-list-toolbar .view-toolbar-actions {
+  align-items: center;
+}
+
+.eventos-search-box {
+  min-width: 260px;
+}
+
+.eventos-list-card {
+  overflow: hidden;
+}
+
+.eventos-table {
+  table-layout: fixed;
+  min-width: 980px;
+  width: 100%;
+}
+
+.eventos-table th:nth-child(1) { width: 140px; }
+.eventos-table th:nth-child(2) { width: 300px; }
+.eventos-table th:nth-child(3) { width: 180px; }
+.eventos-table th:nth-child(4) { width: 150px; }
+.eventos-table th:nth-child(5) { width: 120px; }
+.eventos-table th:nth-child(6) { width: 250px; }
+
+.eventos-date-cell,
+.eventos-title-cell {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.eventos-date-cell strong,
+.eventos-title-cell strong,
+.eventos-title-cell small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eventos-date-cell span,
+.eventos-title-cell small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.eventos-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#eventos-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.eventos-day {
+  min-height: 96px;
+}
+
+.eventos-day-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.eventos-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--marca);
+  background: rgba(132, 52, 36, 0.1);
+  border: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.eventos-pill i[data-lucide] {
+  width: 12px;
+  height: 12px;
+}
+
+.eventos-pill-reuniao {
+  color: var(--azul-claro);
+  background: rgba(74, 127, 165, 0.12);
+}
+
+.eventos-pill-pequeno_almoco {
+  color: var(--dourado);
+  background: rgba(201, 168, 76, 0.15);
+}
+
+.eventos-pill-manutencao {
+  color: #c46a2d;
+  background: rgba(196, 106, 45, .13);
+}
+
+.eventos-pill-outro {
+  color: var(--cinza);
+  background: rgba(70, 70, 70, .1);
+}
+
+.eventos-pill-checkin {
+  color: #2f6f4e;
+  background: rgba(79, 143, 107, .13);
+}
+
+.eventos-pill-checkout {
+  color: #5d58a6;
+  background: rgba(111, 107, 179, .14);
+}
+
+.eventos-pill-important {
+  box-shadow: inset 0 0 0 1px rgba(192, 57, 43, .35);
+}
+
+.eventos-important {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: max-content;
+  color: #b23b2e;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.eventos-important i {
+  width: 13px;
+  height: 13px;
+}
+
+.settings-auto-tasks {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+}
+
+.settings-toggle-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--raio);
+  background: var(--surface-soft);
+}
+
+.settings-toggle-row span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.settings-toggle-row small {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.settings-toggle-row input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--marca);
+}
+
+.notifications-page-shell {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+.notifications-page-card {
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+}
+
+.notifications-page-list {
+  display: grid;
+}
+
+.notifications-page-item {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 14px 18px;
+  border: 0;
+  border-bottom: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+}
+
+.notifications-page-item:hover {
+  background: rgba(132, 52, 36, 0.05);
+}
+
+.notifications-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.notifications-page-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.notifications-page-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notifications-page-copy small {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .notifications-page-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .notifications-page-actions,
+  .notifications-page-item > .btn {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
 }
 
 .tl-header {
@@ -562,6 +896,14 @@
   text-overflow: ellipsis;
 }
 
+#eventos-timeline-wrap .eventos-tl-block {
+  color: var(--text-main);
+}
+
+#eventos-timeline-wrap .eventos-tl-block.eventos-tl-done {
+  opacity: .72;
+}
+
 #timeline-range-toggle {
   flex-wrap: nowrap;
 }
@@ -576,6 +918,7 @@
 
 [data-theme="dark"] .legend-pill,
 [data-theme="dark"] #timeline-wrap,
+[data-theme="dark"] #eventos-timeline-wrap,
 [data-theme="dark"] .tl-label,
 [data-theme="dark"] .tl-header {
   color: var(--text-main);
@@ -615,6 +958,7 @@
 
   .section-card-calendar .cal-wrap,
   .section-card-calendar #timeline-wrap,
+  .section-card-calendar #eventos-timeline-wrap,
   .aloj-list-card .table-wrap,
   .hospedes-card-board .table-wrap,
   #view-hospedes #hospedes-cards-view {
@@ -647,6 +991,10 @@
   .calendar-toolbar .view-toolbar-actions {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .hospedes-toolbar .view-toolbar-actions {
+    flex-wrap: wrap;
   }
 
   .aloj-detail-header {
@@ -756,7 +1104,8 @@
     min-width: 680px;
   }
 
-  #timeline-wrap {
+  #timeline-wrap,
+  #eventos-timeline-wrap {
     max-width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -912,30 +1261,37 @@
     font-size: 13px;
   }
 
-  #timeline-wrap {
+  #timeline-wrap,
+  #eventos-timeline-wrap {
     border-radius: 14px;
   }
 
-  #timeline-wrap .tl-label {
+  #timeline-wrap .tl-label,
+  #eventos-timeline-wrap .tl-label {
     min-width: 132px !important;
     max-width: 132px !important;
     padding: 10px;
   }
 
-  #timeline-wrap .tl-label-title {
+  #timeline-wrap .tl-label-title,
+  #eventos-timeline-wrap .tl-label-title {
     font-size: 12px;
   }
 
   #timeline-wrap .tl-label-sub,
-  #timeline-wrap .tl-block-meta {
+  #timeline-wrap .tl-block-meta,
+  #eventos-timeline-wrap .tl-label-sub,
+  #eventos-timeline-wrap .tl-block-meta {
     display: none;
   }
 
-  #timeline-wrap .tl-days-area {
+  #timeline-wrap .tl-days-area,
+  #eventos-timeline-wrap .tl-days-area {
     height: 60px;
   }
 
-  #timeline-wrap .tl-block {
+  #timeline-wrap .tl-block,
+  #eventos-timeline-wrap .tl-block {
     height: 44px;
     padding: 6px 8px;
   }

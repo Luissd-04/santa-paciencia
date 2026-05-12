@@ -3,13 +3,14 @@ const VIEW_TITLES = {
   dashboard:  'Dashboard',
   reservas:   'Reservas',
   calendario: 'Calendário',
+  eventos:    'Eventos',
   hospedes:   'Hóspedes',
+  notificacoes:'Notificações',
   alojamentos:'Alojamentos & Serviços',
   despesas:   'Despesas',
   relatorios: 'Relatórios Financeiros',
   emails:     'Templates de Email',
-  gcal:       'Google Calendar',
-  equipa:     'Equipa'
+  definicoes: 'Definições'
 };
 
 const THEME_KEY = 'sp-theme';
@@ -36,8 +37,17 @@ function toggleTheme() {
 }
 
 function showView(v, pushState = true) {
+  if (v === 'gcal') {
+    switchSettingsTab('gcal', false);
+    v = 'definicoes';
+  }
+  if (v === 'equipa') {
+    switchSettingsTab('equipa', false);
+    v = 'definicoes';
+  }
   document.querySelectorAll('.view').forEach(x => x.classList.remove('active', 'view-entering'));
   const nextView = document.getElementById('view-' + v);
+  if (!nextView) return;
   nextView.classList.add('active');
   void nextView.offsetWidth;
   nextView.classList.add('view-entering');
@@ -49,19 +59,25 @@ function showView(v, pushState = true) {
   if (pushState) history.pushState({ view: v }, '', '/' + (v === 'dashboard' ? '' : v));
   if (window.lucide) lucide.createIcons();
   if (v === 'dashboard') renderDashboard();
-  if (v === 'reservas') loadReservas();
+  if (v === 'reservas') {
+    if (!window.__openingReservationDetail && typeof showReservasList === 'function') showReservasList();
+    loadReservas();
+  }
   if (v === 'calendario') loadReservas().then(() => renderCalView());
+  if (v === 'eventos') loadEventos();
   if (v === 'hospedes') loadHospedes();
+  if (v === 'notificacoes') { loadNotifications(); renderNotificationsPage(); }
   if (v === 'alojamentos') { renderAlojamentos(); initAlojDrag(); loadServicos(); }
   if (v === 'despesas')   loadDespesas();
   if (v === 'relatorios') loadRelatorios();
   if (v === 'emails') loadEmailTemplates();
-  if (v === 'gcal') loadCalendarStatus();
-  if (v === 'equipa' && currentUser?.role === 'owner') loadTeamOverview();
+  if (v === 'definicoes') renderSettingsView();
 }
 
 window.addEventListener('popstate', (e) => {
-  const v = e.state?.view || 'dashboard';
+  let v = e.state?.view || 'dashboard';
+  if (v === 'gcal') { settingsTab = 'gcal'; v = 'definicoes'; }
+  if (v === 'equipa') { settingsTab = 'equipa'; v = 'definicoes'; }
   if (VIEW_TITLES[v]) showView(v, false);
 });
 
@@ -89,12 +105,82 @@ function closeSideDrawer() {
   document.body.style.overflow = '';
 }
 
+function toggleQuickActionMenu(event) {
+  event.stopPropagation();
+  const menu = document.getElementById('quick-action-menu');
+  if (!menu) return;
+  menu.style.display = menu.style.display === 'none' || !menu.style.display ? 'block' : 'none';
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeQuickActionMenu() {
+  const menu = document.getElementById('quick-action-menu');
+  if (menu) menu.style.display = 'none';
+}
+
+function quickActionNovaReserva() {
+  closeQuickActionMenu();
+  showView('reservas');
+  setTimeout(() => openModal(), 100);
+}
+
+function quickActionNovoEvento() {
+  closeQuickActionMenu();
+  showView('eventos');
+  setTimeout(() => openEventoModal(), 100);
+}
+
+function quickActionNovaNotificacao() {
+  closeQuickActionMenu();
+  showView('notificacoes');
+  setTimeout(() => openManualNotificationModal(), 100);
+}
+
+document.addEventListener('click', event => {
+  if (!event.target.closest?.('.quick-action-wrap')) closeQuickActionMenu();
+});
+
+// ── SETTINGS ──
+let settingsTab = SS.get('settings:tab', 'gcal');
+
+function switchSettingsTab(tab, render = true) {
+  if (tab === 'equipa' && currentUser?.role !== 'owner') tab = 'gcal';
+  settingsTab = ['gcal', 'database', 'operations', 'equipa'].includes(tab) ? tab : 'gcal';
+  SS.set('settings:tab', settingsTab);
+
+  document.querySelectorAll('[data-settings-tab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.settingsTab === settingsTab);
+  });
+  document.querySelectorAll('.settings-panel').forEach(panel => {
+    panel.classList.toggle('active', panel.id === 'settings-' + settingsTab);
+  });
+
+  if (render) renderSettingsView();
+}
+
+function renderSettingsView() {
+  if (settingsTab === 'equipa' && currentUser?.role !== 'owner') settingsTab = 'gcal';
+  switchSettingsTab(settingsTab, false);
+  AppUI.enhanceSelects(document.getElementById('view-definicoes'));
+  AppUI.refreshDropdowns(document.getElementById('view-definicoes'));
+  if (settingsTab === 'gcal') loadCalendarStatus();
+  if (settingsTab === 'database') {
+    if (!reservas?.length) loadReservas();
+    if (!hospedes?.length) loadHospedes();
+    if (typeof initExportReminderControls === 'function') initExportReminderControls();
+  }
+  if (settingsTab === 'operations' && typeof loadAutoTaskSettings === 'function') loadAutoTaskSettings();
+  if (settingsTab === 'equipa' && currentUser?.role === 'owner') loadTeamOverview();
+  if (window.lucide) lucide.createIcons();
+}
+
 // ── ACCOMMODATIONS ──
 async function loadAccommodations() {
   try {
     const data = await apiGet('/api/accommodations');
     accommodations = data.data || [];
     populateAccommodationSelects();
+    AppUI.refreshDropdowns(document);
     renderAlojamentos();
     initAlojDrag();
   } catch (e) {
@@ -103,11 +189,13 @@ async function loadAccommodations() {
 }
 
 function populateAccommodationSelects() {
-  ['f-aloj', 'filter-suite', 'cal-suite-filter'].forEach(id => {
+  ['f-aloj', 'filter-suite', 'cal-suite-filter', 'eventos-list-acc-filter', 'evento-accommodation'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    const isFilter = id !== 'f-aloj';
-    el.innerHTML = isFilter ? '<option value="">Todas as suites</option>' : '';
+    const isFilter = id !== 'f-aloj' && id !== 'evento-accommodation';
+    el.innerHTML = isFilter
+      ? `<option value="">${id === 'eventos-list-acc-filter' ? 'Todos os alojamentos' : 'Todas as suites'}</option>`
+      : (id === 'evento-accommodation' ? '<option value="">Sem alojamento</option>' : '');
     const frag = document.createDocumentFragment();
     accommodations.forEach(a => {
       const opt = document.createElement('option');
@@ -225,6 +313,7 @@ async function initApp() {
   const imgInput = document.getElementById('img-input');
   if (imgInput) imgInput.addEventListener('change', handleImgSelect);
 
+  AppUI.enhanceSelects(document);
   await loadAccommodations();
   await renderDashboard();
   loadCalendarStatus();
@@ -236,10 +325,12 @@ async function initApp() {
     if (icon) { icon.setAttribute('data-lucide', 'panel-left-open'); lucide.createIcons(); }
   }
 
-  const pathView = window.location.pathname.replace(/^\/+|\/+$/g, '') || 'dashboard';
+  let pathView = window.location.pathname.replace(/^\/+|\/+$/g, '') || 'dashboard';
+  if (pathView === 'gcal') { settingsTab = 'gcal'; pathView = 'definicoes'; }
+  if (pathView === 'equipa') { settingsTab = 'equipa'; pathView = 'definicoes'; }
   showView(VIEW_TITLES[pathView] ? pathView : 'dashboard', false);
   if (window.AppDatePicker) {
-    ['f-checkin','f-checkout','f-payment-date','despesa-date','filter-date-from','filter-date-to'].forEach(id => {
+    ['f-checkin','f-checkout','f-payment-date','despesa-date','evento-date','manual-notification-date','filter-date-from','filter-date-to'].forEach(id => {
       AppDatePicker.attach(document.getElementById(id));
     });
     ['f-nascimento','gedit-birth-date'].forEach(id => {

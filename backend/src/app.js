@@ -17,6 +17,7 @@ const backupRoutes = require('./routes/backup');
 const teamRoutes   = require('./routes/team');
 const reportRoutes = require('./routes/reports');
 const publicBookingRoutes = require('./routes/publicBooking');
+const eventRoutes = require('./routes/events');
 
 const app = express();
 
@@ -70,6 +71,7 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/backup', backupRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/events', eventRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

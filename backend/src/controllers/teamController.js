@@ -16,6 +16,16 @@ function getOverview(req, res) {
   });
 }
 
+function getMembers(req, res) {
+  const organizationId = req.user.organization_id;
+  res.json({
+    success: true,
+    data: {
+      members: listMembers(organizationId).filter(member => member.active),
+    }
+  });
+}
+
 async function invite(req, res) {
   const organizationId = req.user.organization_id;
   const email = String(req.body.email || '').trim().toLowerCase();
@@ -134,6 +144,7 @@ function removeInvitation(req, res) {
 
 module.exports = {
   getOverview,
+  getMembers,
   invite,
   removeInvitation,
   removeMember,

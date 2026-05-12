@@ -1180,11 +1180,64 @@ async function importAlojamentosXLS(input) {
   reader.readAsArrayBuffer(file);
 }
 
+function absoluteAssetUrl(url) {
+  if (!url) return '';
+  try { return new URL(url, window.location.origin).href; } catch { return String(url); }
+}
+
+function getAlojamentoImageUrls(a) {
+  const urls = [];
+  const add = url => {
+    const abs = absoluteAssetUrl(url);
+    if (abs && !urls.includes(abs)) urls.push(abs);
+  };
+  add(a.cover_image);
+  Object.values(a.own_images || a.images || {}).forEach(list => {
+    if (Array.isArray(list)) list.forEach(add);
+  });
+  (a.common_area_images || []).forEach(add);
+  return urls;
+}
+
+function getAlojamentoCoverUrl(a) {
+  return absoluteAssetUrl(a.cover_image) || getAlojamentoImageUrls(a)[0] || '';
+}
+
+function hexToRgb(hex, fallback = [132, 52, 36]) {
+  const clean = String(hex || '').replace('#', '').trim();
+  if (!/^[0-9a-f]{6}$/i.test(clean)) return fallback;
+  return [
+    parseInt(clean.slice(0, 2), 16),
+    parseInt(clean.slice(2, 4), 16),
+    parseInt(clean.slice(4, 6), 16),
+  ];
+}
+
+async function imageUrlToDataUrl(url) {
+  if (!url) return null;
+  try {
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 function exportAlojamentosXLS() {
   if (typeof XLSX === 'undefined') { toast('❌ Biblioteca XLSX não carregada.', 'error'); return; }
   const rows = accommodations.map(a => ({
     'Nome':           a.name,
     'Tipo':           a.type || '',
+    'Cor':            a.color || '',
+    'Imagem capa':    getAlojamentoCoverUrl(a),
+    'Imagens':        getAlojamentoImageUrls(a).join('\n'),
     'Preço/noite':    a.price_per_night || 0,
     'Capacidade':     a.max_guests || '',
     'Hóspedes incluídos': a.base_guests_included || Math.min(a.max_guests || 2, 2),
@@ -1207,13 +1260,20 @@ function exportAlojamentosXLS() {
     'Wi-Fi':          a.wifi_name || '',
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let r = 1; r <= range.e.r; r++) {
+    ['D', 'E'].forEach(col => {
+      const cell = ws[`${col}${r + 1}`];
+      if (cell?.v) cell.l = { Target: String(cell.v).split('\n')[0], Tooltip: 'Abrir imagem' };
+    });
+  }
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Alojamentos');
   XLSX.writeFile(wb, `alojamentos_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast('📊 Excel exportado!', 'success');
 }
 
-function exportAlojamentosPDF() {
+async function exportAlojamentosPDF() {
   if (typeof window.jspdf === 'undefined') { toast('❌ Biblioteca jsPDF não carregada.', 'error'); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'landscape' });
@@ -1222,10 +1282,11 @@ function exportAlojamentosPDF() {
   doc.setFontSize(10);
   doc.text(`Exportado em ${new Date().toLocaleDateString('pt-PT')}`, 14, 26);
 
-  const head = [['Nome', 'Tipo', '€/noite', 'Capac.', 'Licença', 'Cidade', 'Check-in', 'Check-out']];
+  const head = [['Nome', 'Tipo', 'Cor', '€/noite', 'Capac.', 'Licença', 'Cidade', 'Check-in', 'Check-out']];
   const body = accommodations.map(a => [
     a.name,
     a.type || '—',
+    a.color || '—',
     `€${a.price_per_night || 0}`,
     String(a.max_guests || '—'),
     a.license_number || '—',
@@ -1235,6 +1296,39 @@ function exportAlojamentosPDF() {
   ]);
 
   doc.autoTable({ head, body, startY: 32, styles: { fontSize: 9 }, headStyles: { fillColor: [132, 52, 36] } });
+  let y = doc.lastAutoTable.finalY + 12;
+  doc.setFontSize(13);
+  doc.text('Imagens dos alojamentos', 14, y);
+  y += 8;
+
+  for (const a of accommodations) {
+    if (y > 178) { doc.addPage(); y = 18; }
+    const color = a.color || '#843424';
+    doc.setFontSize(10);
+    doc.setTextColor(40);
+    doc.text(a.name || 'Alojamento', 14, y + 6);
+    doc.setFillColor(...hexToRgb(color));
+    doc.rect(72, y + 1, 12, 7, 'F');
+    doc.setTextColor(95);
+    doc.text(color, 88, y + 6);
+
+    const cover = getAlojamentoCoverUrl(a);
+    const imageData = await imageUrlToDataUrl(cover);
+    if (imageData) {
+      try { doc.addImage(imageData, 'JPEG', 130, y, 32, 22); }
+      catch {
+        try { doc.addImage(imageData, 'PNG', 130, y, 32, 22); } catch {}
+      }
+    } else {
+      doc.setTextColor(120);
+      doc.text('Sem imagem', 130, y + 6);
+    }
+    const galleryCount = getAlojamentoImageUrls(a).length;
+    doc.setTextColor(95);
+    doc.text(`${galleryCount} imagem${galleryCount !== 1 ? 's' : ''}`, 170, y + 6);
+    y += 28;
+  }
+  doc.setTextColor(40);
   doc.save(`alojamentos_${new Date().toISOString().slice(0,10)}.pdf`);
   toast('📄 PDF exportado!', 'success');
 }

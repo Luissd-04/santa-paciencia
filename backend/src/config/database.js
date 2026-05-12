@@ -272,6 +272,7 @@ function initDatabase() {
   migrateMemberships();
   migrateInvitations();
   migrateOrgScopedTables();
+  migrateOperationalEvents();
   migrateGoogleCalendarConnections();
   migrateLegacyDataToOrganizations();
 
@@ -632,6 +633,59 @@ function migrateExpenses() {
       notes TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     )
+  `);
+}
+
+function migrateOperationalEvents() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS operational_events (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT,
+      title TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'outro',
+      date TEXT NOT NULL,
+      start_time TEXT,
+      end_time TEXT,
+      accommodation_id TEXT,
+      status TEXT NOT NULL DEFAULT 'planeado',
+      responsible TEXT,
+      notes TEXT,
+      reservation_id TEXT,
+      created_by_user_id TEXT,
+      completed_at TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+      FOREIGN KEY (accommodation_id) REFERENCES accommodations(id) ON DELETE SET NULL,
+      FOREIGN KEY (reservation_id) REFERENCES reservations(id) ON DELETE SET NULL,
+      FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+    )
+  `);
+
+  const existing = db.pragma('table_info(operational_events)').map(c => c.name);
+  const cols = [
+    ['organization_id', 'TEXT'],
+    ['start_time', 'TEXT'],
+    ['end_time', 'TEXT'],
+    ['accommodation_id', 'TEXT'],
+    ['responsible', 'TEXT'],
+    ['notes', 'TEXT'],
+    ['reservation_id', 'TEXT'],
+    ['created_by_user_id', 'TEXT'],
+    ['completed_at', 'TEXT'],
+    ['auto_generated', 'INTEGER NOT NULL DEFAULT 0'],
+    ['auto_kind', 'TEXT'],
+    ['auto_key', 'TEXT'],
+    ['important', 'INTEGER NOT NULL DEFAULT 0'],
+    ['updated_at', "TEXT DEFAULT (datetime('now'))"],
+  ];
+  for (const [col, type] of cols) {
+    if (!existing.includes(col)) db.exec(`ALTER TABLE operational_events ADD COLUMN ${col} ${type}`);
+  }
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_operational_events_auto_key
+    ON operational_events (organization_id, auto_key)
+    WHERE auto_key IS NOT NULL
   `);
 }
 

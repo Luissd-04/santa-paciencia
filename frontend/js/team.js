@@ -28,7 +28,7 @@ function renderTeamMembers(members) {
       ${member.role === 'owner' ? `
         <div><span class="badge badge-confirmada">Proprietário</span></div>
       ` : `
-        <select class="form-control" onchange="updateTeamRole('${member.id}', this.value)">
+        <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" onchange="updateTeamRole('${member.id}', this.value)">
           <option value="manager" ${member.role === 'manager' ? 'selected' : ''}>Gestor</option>
           <option value="staff" ${member.role === 'staff' ? 'selected' : ''}>Funcionário</option>
         </select>
@@ -40,6 +40,8 @@ function renderTeamMembers(members) {
       `}
     </div>
   `).join('');
+  AppUI.enhanceSelects(container);
+  AppUI.refreshDropdowns(container);
   if (window.lucide) lucide.createIcons();
 }
 

@@ -23,7 +23,7 @@ async function importDB(input) {
     input.value = '';
     return;
   }
-  if (!confirm('⚠️ Isto vai SUBSTITUIR toda a base de dados atual pelos dados do ficheiro. Tem a certeza?')) {
+  if (!confirm('⚠️ Isto vai SUBSTITUIR os dados do cliente neste espaço pelos dados do ficheiro. Contas, equipa e acessos da plataforma não serão alterados. Tem a certeza?')) {
     input.value = '';
     return;
   }

@@ -1,5 +1,6 @@
 let calMode = SS.get('calMode', 'calendar');
 let tlPointerDrag = null;
+let tlPanDrag = null;
 let timelineDays  = SS.get('tlDays', 14);
 const TL_LABEL_W  = 190;
 const TL_ZOOM     = { 7: 80, 14: 48, 30: 24 };
@@ -47,6 +48,7 @@ function toggleCalendarLegendFilter(status) {
   const select = document.getElementById('cal-status-filter');
   if (!select) return;
   select.value = select.value === status ? '' : status;
+  AppUI.refreshSelect(select);
   updateCalendarLegendUi();
   renderCalView();
 }
@@ -510,7 +512,91 @@ function renderTimeline(autoScroll = true) {
     </div>`;
 
   if (window.lucide) lucide.createIcons();
+  attachTimelinePan();
   if (autoScroll) requestAnimationFrame(() => scrollTimelineToToday(dayW));
+}
+
+function attachTimelinePan() {
+  const wrap = document.getElementById('timeline-wrap');
+  if (!wrap || wrap.dataset.panReady === '1') return;
+  wrap.dataset.panReady = '1';
+  wrap.addEventListener('pointerdown', tlPanPointerDown);
+  wrap.addEventListener('click', tlPanClickCapture, true);
+}
+
+function tlPanPointerDown(e) {
+  if (e.button !== 0 || tlPointerDrag) return;
+  if (e.target.closest('.tl-block, .tl-resize-handle, button, a, input, select, textarea')) return;
+  e.preventDefault();
+
+  const wrap = e.currentTarget;
+  tlPanDrag = {
+    pointerId: e.pointerId,
+    startX: e.clientX,
+    startY: e.clientY,
+    scrollLeft: wrap.scrollLeft,
+    moved: false,
+    suppressClick: false,
+    wrap,
+  };
+
+  wrap.setPointerCapture?.(e.pointerId);
+  wrap.classList.add('tl-panning');
+  document.body.classList.add('tl-is-panning');
+  window.getSelection?.()?.removeAllRanges?.();
+  wrap.addEventListener('pointermove', tlPanPointerMove);
+  wrap.addEventListener('pointerup', tlPanPointerUp);
+  wrap.addEventListener('pointercancel', tlPanPointerCancel);
+}
+
+function tlPanPointerMove(e) {
+  const d = tlPanDrag;
+  if (!d) return;
+  const dx = e.clientX - d.startX;
+  const dy = e.clientY - d.startY;
+  if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+    d.moved = true;
+    d.suppressClick = true;
+  }
+  if (!d.moved) return;
+  e.preventDefault();
+  window.getSelection?.()?.removeAllRanges?.();
+  d.wrap.scrollLeft = d.scrollLeft - dx;
+}
+
+function tlPanPointerUp(e) {
+  const d = tlPanDrag;
+  if (!d) return;
+  cleanupTimelinePan(e);
+  if (d.suppressClick) {
+    d.wrap.dataset.suppressClick = '1';
+    setTimeout(() => {
+      if (d.wrap.dataset.suppressClick === '1') delete d.wrap.dataset.suppressClick;
+    }, 0);
+  }
+}
+
+function tlPanPointerCancel(e) {
+  cleanupTimelinePan(e);
+}
+
+function cleanupTimelinePan(e) {
+  const d = tlPanDrag;
+  if (!d) return;
+  d.wrap.releasePointerCapture?.(d.pointerId || e?.pointerId);
+  d.wrap.classList.remove('tl-panning');
+  document.body.classList.remove('tl-is-panning');
+  d.wrap.removeEventListener('pointermove', tlPanPointerMove);
+  d.wrap.removeEventListener('pointerup', tlPanPointerUp);
+  d.wrap.removeEventListener('pointercancel', tlPanPointerCancel);
+  tlPanDrag = null;
+}
+
+function tlPanClickCapture(e) {
+  if (e.currentTarget.dataset.suppressClick !== '1') return;
+  e.preventDefault();
+  e.stopPropagation();
+  delete e.currentTarget.dataset.suppressClick;
 }
 
 // ── TIMELINE DRAG (pointer-based) ──

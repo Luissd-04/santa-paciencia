@@ -74,7 +74,9 @@
     }
 
     select.dataset.appSelect = '1';
-    select.dataset.placeholder = options.placeholder || select.dataset.placeholder || 'Selecionar';
+    if (options.placeholder || select.dataset.placeholder) {
+      select.dataset.placeholder = options.placeholder || select.dataset.placeholder;
+    }
     select.classList.add('app-native-select');
 
     const wrapper = document.createElement('div');
@@ -134,6 +136,15 @@
     return select._appSelectApi;
   }
 
+  function enhanceSelects(root = document, selector = 'select[data-enhance-select]') {
+    root.querySelectorAll(selector).forEach(select => {
+      enhanceSelect(select, {
+        placeholder: select.dataset.appSelectPlaceholder || select.dataset.placeholder,
+        className: select.dataset.appSelectClass || '',
+      });
+    });
+  }
+
   function refreshSelect(select) {
     select?._appSelectApi?.refresh();
   }
@@ -174,6 +185,7 @@
     showElement,
     hideElement,
     enhanceSelect,
+    enhanceSelects,
     refreshSelect,
     refreshDropdowns,
     openModal,

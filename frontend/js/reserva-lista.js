@@ -1,6 +1,8 @@
 let sortCol = SS.get('res:sort', 'check_in');
 let sortAsc = SS.get('res:asc', true);
 let mobileChipFilter = SS.get('res:chip', '');
+let reservasViewMode = SS.get('res:view', 'card');
+let reservasDetailOpen = false;
 
 function setMobileChip(el, filter) {
   mobileChipFilter = filter;
@@ -71,13 +73,25 @@ function renderMobileCards() {
   const container = document.getElementById('mobile-res-cards');
   if (!container) return;
 
-  const q = (document.getElementById('mobile-search-input') || { value: '' }).value.toLowerCase();
+  const searchEl = document.getElementById('search-input') || document.getElementById('mobile-search-input');
+  const q = (searchEl?.value || '').toLowerCase();
+  const fe = document.getElementById('filter-estado')?.value || '';
+  const fs = document.getElementById('filter-suite')?.value || '';
+  const fc = document.getElementById('filter-canal')?.value || '';
+  const fp = document.getElementById('filter-pagamento')?.value || '';
+  const fd = normalizeIsoDateValue(document.getElementById('filter-date-from')?.value || '');
+  const ft = normalizeIsoDateValue(document.getElementById('filter-date-to')?.value || '');
   const filtered = reservas.filter(r => {
-    const matchQ = !q || (r.guest_name + ' ' + r.id + ' ' + r.accommodation_name).toLowerCase().includes(q);
-    const matchS = !mobileChipFilter || r.status === mobileChipFilter;
-    return matchQ && matchS;
+    const matchQ = !q || (r.guest_name + ' ' + r.id + ' ' + (r.guest_email || '') + ' ' + r.accommodation_name).toLowerCase().includes(q);
+    const matchE = !fe || r.status === fe;
+    const matchS = !fs || r.accommodation_id === fs;
+    const matchC = !fc || r.channel === fc;
+    const matchP = !fp || r.payment_status === fp;
+    const matchD = !fd || r.check_in >= fd;
+    const matchT = !ft || r.check_out <= ft;
+    return matchQ && matchE && matchS && matchC && matchP && matchD && matchT;
   }).sort((a, b) => new Date(b.check_in) - new Date(a.check_in));
-  updateReservasSummary(filtered.length, mobileChipFilter ? `filtro ${mobileChipFilter}` : 'resultados visíveis');
+  updateReservasSummary(filtered.length, filtered.length === 1 ? 'reserva visível' : 'resultados visíveis');
 
   if (filtered.length === 0) {
     container.innerHTML = '<div class="empty-state"><div class="es-icon">📭</div><h3>Sem reservas</h3><p>Nenhuma reserva encontrada.</p></div>';
@@ -88,6 +102,41 @@ function renderMobileCards() {
   if (window.lucide) lucide.createIcons();
 }
 
+function updateReservasViewToggle() {
+  document.querySelectorAll('[data-res-view]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.resView === reservasViewMode);
+  });
+  moveReservasViewPill();
+}
+
+function moveReservasViewPill() {
+  const pill = document.getElementById('reservas-view-pill');
+  const toggle = document.getElementById('reservas-view-toggle');
+  if (!pill || !toggle) return;
+  const activeBtn = toggle.querySelector(`.cal-mode-btn[data-res-view="${reservasViewMode}"]`);
+  if (!activeBtn) return;
+  const toggleRect = toggle.getBoundingClientRect();
+  const btnRect = activeBtn.getBoundingClientRect();
+  pill.style.left = (btnRect.left - toggleRect.left) + 'px';
+  pill.style.width = btnRect.width + 'px';
+}
+
+function applyReservasViewMode() {
+  if (reservasDetailOpen) return;
+  const cards = document.getElementById('reservas-mobile');
+  const list = document.getElementById('reservas-desktop');
+  if (cards) cards.style.setProperty('display', reservasViewMode === 'card' ? 'block' : 'none', 'important');
+  if (list) list.style.setProperty('display', reservasViewMode === 'list' ? 'block' : 'none', 'important');
+  updateReservasViewToggle();
+}
+
+function setReservasViewMode(mode) {
+  reservasViewMode = mode === 'list' ? 'list' : 'card';
+  SS.set('res:view', reservasViewMode);
+  renderTabela();
+  requestAnimationFrame(moveReservasViewPill);
+}
+
 
 async function loadReservas() {
   // Restore persisted filters
@@ -95,6 +144,7 @@ async function loadReservas() {
   sv('search-input', 'res:q'); sv('filter-estado', 'res:fe'); sv('filter-suite', 'res:fs');
   sv('filter-canal', 'res:fc'); sv('filter-pagamento', 'res:fp');
   sv('filter-date-from', 'res:fd'); sv('filter-date-to', 'res:ft');
+  AppUI.refreshDropdowns(document.getElementById('view-reservas'));
   // Restore sort icon
   document.querySelectorAll('.sort-icon').forEach(el => el.textContent = '');
   const sIcon = document.getElementById('sort-' + sortCol);
@@ -176,6 +226,7 @@ function renderTabela() {
     tbody.innerHTML = '';
     empty.style.display = 'block';
     renderMobileCards();
+    applyReservasViewMode();
     return;
   }
   empty.style.display = 'none';
@@ -213,6 +264,7 @@ function renderTabela() {
       </td>
     </tr>`).join('');
   if (window.lucide) lucide.createIcons();
+  applyReservasViewMode();
 }
 
 function updateReservasSummary(total, detailText) {
@@ -220,6 +272,40 @@ function updateReservasSummary(total, detailText) {
   const detailEl = document.getElementById('reservas-results-detail');
   if (totalEl) totalEl.textContent = String(total ?? 0);
   if (detailEl) detailEl.textContent = detailText || 'resultados visíveis';
+}
+
+function setReservasDetailMode(isDetail) {
+  reservasDetailOpen = isDetail;
+  document.querySelectorAll('.view-toolbar-reservas, .reservas-filter-panel, #reservas-mobile, #reservas-desktop').forEach(el => {
+    el.style.setProperty('display', isDetail ? 'none' : '', isDetail ? 'important' : '');
+  });
+  const detailPage = document.getElementById('reserva-detail-page');
+  if (detailPage) detailPage.style.display = isDetail ? 'block' : 'none';
+  if (!isDetail) applyReservasViewMode();
+}
+
+function showReservasList() {
+  setReservasDetailMode(false);
+  AppUI.closeModal('detail-bg');
+  if (window.innerWidth <= 700) renderMobileCards();
+}
+
+function clearReservasFilters() {
+  ['search-input', 'filter-date-from', 'filter-date-to', 'mobile-search-input'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  ['filter-estado', 'filter-suite', 'filter-canal', 'filter-pagamento'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  ['res:q', 'res:fe', 'res:fs', 'res:fc', 'res:fp', 'res:fd', 'res:ft', 'res:chip'].forEach(key => SS.set(key, ''));
+  mobileChipFilter = '';
+  document.querySelectorAll('.mobile-filter-chips .chip').forEach((chip, index) => {
+    chip.classList.toggle('active', index === 0);
+  });
+  AppUI.refreshDropdowns(document.getElementById('view-reservas'));
+  renderTabela();
 }
 
 async function deleteReserva(id) {
@@ -241,10 +327,46 @@ async function deleteReserva(id) {
 
 async function showDetail(id) {
   try {
+    if (!document.getElementById('view-reservas')?.classList.contains('active')) {
+      window.__openingReservationDetail = true;
+      showView('reservas');
+      window.__openingReservationDetail = false;
+    }
+    setReservasDetailMode(true);
+    const detailContent = document.getElementById('reserva-detail-content');
+    const detailLoading = document.querySelector('#reserva-detail-page .reserva-detail-loading');
+    if (detailContent) detailContent.innerHTML = '';
+    if (detailLoading) detailLoading.style.display = 'flex';
     const data = await apiGet(`/api/reservations/${id}`);
     const r = data.data;
-    document.getElementById('detail-title').textContent = r.id + ' — ' + r.guest_name;
-    document.getElementById('detail-body').innerHTML = `
+    const guestsData = typeof r.guests_data === 'string' ? JSON.parse(r.guests_data || '[]') : (r.guests_data || []);
+    const acc = accommodations.find(a => a.id === r.accommodation_id);
+    const paid = Number(r.amount_paid || 0);
+    const total = Number(r.total_amount || 0);
+    const remaining = total - paid;
+    if (detailLoading) detailLoading.style.display = 'none';
+    detailContent.innerHTML = `
+      <div class="reserva-detail-hero">
+        <button class="btn btn-ghost btn-sm" onclick="showReservasList()">
+          ${lcIcon('arrow-left', 14)} Voltar
+        </button>
+        <div class="reserva-detail-title">
+          <span>${r.id}</span>
+          <h2>${r.guest_name}</h2>
+        </div>
+        <div class="reserva-detail-actions">
+          <button class="btn btn-primary" onclick="openEditModal('${r.id}')">
+            ${lcIcon('pencil', 13)} Editar
+          </button>
+          ${r.status === 'cancelada'
+            ? `<button class="btn btn-success" onclick="reativarReserva('${r.id}')">
+                ${lcIcon('refresh-cw', 13)} Reativar Reserva
+               </button>`
+            : `<button class="btn btn-danger" onclick="cancelarReserva('${r.id}')">
+                ${lcIcon('x-circle', 13)} Cancelar Reserva
+               </button>`}
+        </div>
+      </div>
       <div class="detail-grid">
         <div class="detail-row"><div class="detail-label">Hóspede</div><div class="detail-val"><b>${r.guest_name}</b></div></div>
         <div class="detail-row"><div class="detail-label">Email</div><div class="detail-val">${r.guest_email || '—'}</div></div>
@@ -260,11 +382,10 @@ async function showDetail(id) {
         ${r.payment_date ? `<div class="detail-row"><div class="detail-label">Data Pagamento</div><div class="detail-val">${formatDate(r.payment_date)}</div></div>` : ''}
       </div>
       ${(() => {
-        const gd = typeof r.guests_data === 'string' ? JSON.parse(r.guests_data || '[]') : (r.guests_data || []);
-        if (!gd.length) return '';
+        if (!guestsData.length) return '';
         return `<div style="margin-top:16px;">
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);margin-bottom:8px;">Hóspedes Adicionais</div>
-          ${gd.map((g, i) => `<div style="background:var(--cinza-claro);border-radius:8px;padding:10px 14px;margin-bottom:6px;font-size:13px;">
+          ${guestsData.map((g, i) => `<div style="background:var(--cinza-claro);border-radius:8px;padding:10px 14px;margin-bottom:6px;font-size:13px;">
             <b>Hóspede ${i + 2}</b> — ${g.name || '—'}
             ${g.email ? `· ${g.email}` : ''}${g.phone ? ` · ${g.phone}` : ''}${g.nationality ? ` · ${g.nationality}` : ''}
           </div>`).join('')}
@@ -272,9 +393,8 @@ async function showDetail(id) {
       })()}
       <div style="margin-top:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;">
         ${(() => {
-          const acc = accommodations.find(a => a.id === r.accommodation_id);
           return [['Alojamento', (acc?.price_per_night || 0) * r.nights, false],
-           ['Ocupação extra', getExtraOccupancyCharge(acc, r.num_guests || 1, r.nights || 0, (typeof r.guests_data === 'string' ? JSON.parse(r.guests_data || '[]') : (r.guests_data || [])).map(g => g.birth_date).filter(Boolean), r.check_in), false],
+           ['Ocupação extra', getExtraOccupancyCharge(acc, r.num_guests || 1, r.nights || 0, guestsData.map(g => g.birth_date).filter(Boolean), r.check_in), false],
            ['Taxa Turística', r.tourist_tax || 0, false],
            ['Pequeno-almoço', r.breakfast_included ? r.num_guests * r.nights * (servicosData.find(s => s.id === 'breakfast')?.value ?? 19) : 0, false],
            ['Total', r.total_amount || 0, false]];
@@ -284,9 +404,6 @@ async function showDetail(id) {
             <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--azul);">€${Number(v).toFixed(2)}</div>
           </div>`).join('')}
         ${(() => {
-          const paid = Number(r.amount_paid || 0);
-          const total = Number(r.total_amount || 0);
-          const remaining = total - paid;
           if (paid <= 0) return '';
           return `
           <div style="background:rgba(46,125,82,.08);border-radius:10px;padding:14px;text-align:center;border:1px solid rgba(46,125,82,.2);">
@@ -305,23 +422,10 @@ async function showDetail(id) {
         ${lcIcon('calendar', 12)} ${r.google_event_id ? 'Sincronizado com Google Calendar' : 'Não sincronizado com Google Calendar'}
       </div>
     `;
-    document.getElementById('detail-footer').innerHTML = `
-      <button class="btn btn-ghost" onclick="AppUI.closeModal('detail-bg')">Fechar</button>
-      <button class="btn btn-primary" onclick="AppUI.closeModal('detail-bg');openEditModal('${r.id}')">
-        ${lcIcon('pencil', 13)} Editar
-      </button>
-      ${r.status === 'cancelada'
-        ? `<button class="btn btn-success" onclick="reativarReserva('${r.id}')">
-            ${lcIcon('refresh-cw', 13)} Reativar Reserva
-           </button>`
-        : `<button class="btn btn-danger" onclick="cancelarReserva('${r.id}')">
-            ${lcIcon('x-circle', 13)} Cancelar Reserva
-           </button>`}
-    `;
     if (window.lucide) lucide.createIcons();
-    AppUI.openModal('detail-bg');
   } catch (e) {
     toast('❌ Erro ao carregar detalhe.', 'error');
+    showReservasList();
   }
 }
 
@@ -331,6 +435,7 @@ async function cancelarReserva(id) {
     const res = await apiDelete(`/api/reservations/${id}`);
     if (res.success) {
       AppUI.closeModal('detail-bg');
+      showReservasList();
       toast('❌ Reserva cancelada.', 'info');
       await loadReservas();
       if (typeof renderCalView === 'function') renderCalView();
@@ -350,6 +455,7 @@ async function reativarReserva(id) {
     if (res.success) {
       const detailBg = document.getElementById('detail-bg');
       if (detailBg?.classList.contains('open')) detailBg.classList.remove('open');
+      showReservasList();
       toast('✅ Reserva reativada!', 'success');
       await loadReservas();
       if (typeof renderCalView === 'function') renderCalView();
@@ -407,6 +513,101 @@ function exportReservasXLS() {
   XLSX.utils.book_append_sheet(wb, ws, 'Reservas');
   XLSX.writeFile(wb, `reservas_${new Date().toISOString().slice(0,10)}.xlsx`);
   toast('📊 Excel exportado!', 'success');
+}
+
+async function importReservasXLS(input) {
+  if (typeof XLSX === 'undefined') { toast('❌ Biblioteca XLSX não carregada.', 'error'); return; }
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (!rows.length) { toast('⚠️ Ficheiro vazio.', 'error'); return; }
+
+      const pick = (row, ...keys) => {
+        for (const k of keys) {
+          if (row[k] !== undefined && row[k] !== '') return String(row[k]).trim();
+        }
+        return '';
+      };
+      const normalizeStatus = value => {
+        const v = String(value || '').toLowerCase();
+        if (v.includes('cancel')) return 'cancelada';
+        if (v.includes('pend')) return 'pendente';
+        return 'confirmada';
+      };
+      const normalizePayment = value => {
+        const v = String(value || '').toLowerCase();
+        if (v.includes('confirm') || v.includes('pago')) return 'confirmado';
+        if (v.includes('parc')) return 'parcial';
+        return 'pendente';
+      };
+      const normalizeImportDate = value => {
+        const iso = normalizeIsoDateValue(value);
+        if (iso) return iso;
+        const serial = Number(value);
+        const parsed = Number.isFinite(serial) && serial > 20000 ? XLSX.SSF?.parse_date_code?.(serial) : null;
+        if (!parsed) return '';
+        return `${parsed.y}-${String(parsed.m).padStart(2, '0')}-${String(parsed.d).padStart(2, '0')}`;
+      };
+      const asAmount = value => parseFloat(String(value || '').replace(',', '.')) || 0;
+
+      let created = 0, skipped = 0;
+      for (const row of rows) {
+        const guestName = pick(row, 'Hóspede', 'Hospede', 'guest_name', 'Nome');
+        const guestEmail = pick(row, 'Email', 'guest_email') || `reserva_${Date.now()}_${created}@sem-email.local`;
+        const checkIn = normalizeImportDate(pick(row, 'Check-in', 'check_in'));
+        const checkOut = normalizeImportDate(pick(row, 'Check-out', 'check_out'));
+        const accKey = pick(row, 'Alojamento', 'accommodation_name', 'accommodation_id');
+        const acc = accommodations.find(a => a.id === accKey || a.name === accKey);
+        if (!guestName || !checkIn || !checkOut || !acc) { skipped++; continue; }
+
+        const parts = guestName.split(' ');
+        const amountPaid = asAmount(pick(row, 'Pago (€)', 'Pago', 'amount_paid'));
+        try {
+          await apiPost('/api/reservations', {
+            guest: {
+              name: guestName,
+              first_name: parts[0] || guestName,
+              last_name: parts.slice(1).join(' '),
+              email: guestEmail,
+              phone: pick(row, 'Telefone', 'Phone', 'phone') || null,
+              country: pick(row, 'País', 'Pais', 'country') || null,
+              nationality: pick(row, 'País', 'Pais', 'country') || null,
+            },
+            accommodation_id: acc.id,
+            check_in: checkIn,
+            check_out: checkOut,
+            num_guests: parseInt(pick(row, 'Hóspedes', 'Hospedes', 'num_guests'), 10) || 1,
+            breakfast_included: false,
+            channel: pick(row, 'Canal', 'channel') || 'direto',
+            status: normalizeStatus(pick(row, 'Estado', 'status')),
+            payment_status: normalizePayment(pick(row, 'Pagamento', 'payment_status')),
+            payment_method: pick(row, 'Método pagamento', 'Metodo pagamento', 'payment_method') || null,
+            amount_paid: amountPaid,
+            notes: pick(row, 'Notas', 'notes'),
+            rgpd_consent: true,
+            guests_data: [],
+          });
+          created++;
+        } catch {
+          skipped++;
+        }
+      }
+      toast(`✅ ${created} reservas importadas${skipped ? `, ${skipped} ignoradas` : ''}.`, 'success');
+      await loadReservas();
+      if (typeof renderCalView === 'function') renderCalView();
+      if (typeof renderDashboard === 'function') renderDashboard();
+    } catch (err) {
+      toast('❌ Erro ao ler ficheiro: ' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function exportReservasPDF() {

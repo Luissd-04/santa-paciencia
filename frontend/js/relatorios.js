@@ -38,6 +38,7 @@ function switchReportTab(tab) {
 }
 
 async function loadRelatorios() {
+  AppUI.enhanceSelects(document.getElementById('view-relatorios'));
   switchReportTab(_reportTab);
 }
 
@@ -73,6 +74,7 @@ function _renderFatFilters(availableYears) {
       `<option value="${y}"${y === _reportYear ? ' selected' : ''}>${y}</option>`
     ).join('');
     sel.dataset.filled = '1';
+    AppUI.refreshSelect(sel);
   }
   const accSel = document.getElementById('report-acc-sel');
   if (accSel && !accSel.dataset.filled) {
@@ -80,6 +82,7 @@ function _renderFatFilters(availableYears) {
       accommodations.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
     accSel.value = _reportAccId;
     accSel.dataset.filled = '1';
+    AppUI.refreshSelect(accSel);
   }
 }
 
@@ -279,6 +282,7 @@ function _renderDespFilters(availableYears) {
   sel.innerHTML = availableYears.map(y =>
     `<option value="${y}"${y === _despYear ? ' selected' : ''}>${y}</option>`
   ).join('');
+  AppUI.refreshSelect(sel);
 }
 
 function _renderDespKPIs(totals, byCategory) {
@@ -439,6 +443,7 @@ function _renderLucroFilters(availableYears) {
     sel.innerHTML = availableYears.map(y =>
       `<option value="${y}"${y === _lucroYear ? ' selected' : ''}>${y}</option>`
     ).join('');
+    AppUI.refreshSelect(sel);
   }
   const accSel = document.getElementById('lucro-acc-sel');
   if (accSel && !accSel.dataset.filled) {
@@ -446,6 +451,7 @@ function _renderLucroFilters(availableYears) {
       accommodations.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
     accSel.value = _lucroAccId;
     accSel.dataset.filled = '1';
+    AppUI.refreshSelect(accSel);
   }
 }
 

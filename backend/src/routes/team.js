@@ -2,6 +2,8 @@ const router = require('express').Router();
 const requireRole = require('../middleware/requireRole');
 const ctrl = require('../controllers/teamController');
 
+router.get('/members', requireRole('staff'), ctrl.getMembers);
+
 router.use(requireRole('owner'));
 
 router.get('/', ctrl.getOverview);
