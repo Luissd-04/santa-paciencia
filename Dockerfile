@@ -1,7 +1,8 @@
 FROM node:20-alpine
 
-# better-sqlite3 é um módulo nativo — precisa de ferramentas de compilação
-RUN apk add --no-cache python3 make g++
+# better-sqlite3 é um módulo nativo — precisa de ferramentas de compilação.
+# zip/unzip são usados pelo export/import de backup.
+RUN apk add --no-cache python3 make g++ zip unzip
 
 WORKDIR /app
 

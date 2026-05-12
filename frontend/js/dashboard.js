@@ -1,7 +1,14 @@
 async function exportDB() {
   try {
     const res = await fetch(API_BASE + '/api/backup/export', { credentials: 'include' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      let message = `HTTP ${res.status}`;
+      try {
+        const payload = await res.json();
+        message = payload?.error || message;
+      } catch (_) {}
+      throw new Error(message);
+    }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -11,7 +18,7 @@ async function exportDB() {
     URL.revokeObjectURL(url);
     toast('✅ Backup ZIP exportado com imagens!', 'success');
   } catch (e) {
-    toast('❌ Erro ao exportar backup ZIP.', 'error');
+    toast('❌ Erro ao exportar backup ZIP: ' + (e.message || 'erro desconhecido'), 'error');
   }
 }
 
