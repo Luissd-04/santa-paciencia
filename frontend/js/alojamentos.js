@@ -1139,19 +1139,21 @@ async function importAlojamentosXLS(input) {
   const file = input.files[0];
   if (!file) return;
   input.value = '';
+  showOperationProgress('A importar alojamentos', 'A ler ficheiro...', 8);
 
   const reader = new FileReader();
   reader.onload = async e => {
     try {
+      updateOperationProgress(20, 'A interpretar Excel...');
       const wb   = XLSX.read(e.target.result, { type: 'array' });
       const ws   = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-      if (!rows.length) { toast('⚠️ Ficheiro vazio.', 'error'); return; }
+      if (!rows.length) { toast('⚠️ Ficheiro vazio.', 'error'); hideOperationProgress(); return; }
 
       const pick = (row, ...keys) => { for (const k of keys) if (row[k] !== undefined && row[k] !== '') return String(row[k]); return ''; };
 
       let created = 0, skipped = 0;
-      for (const row of rows) {
+      for (const [idx, row] of rows.entries()) {
         const nome = pick(row, 'Nome', 'name', 'Name');
         if (!nome) { skipped++; continue; }
         try {
@@ -1170,11 +1172,16 @@ async function importAlojamentosXLS(input) {
           });
           created++;
         } catch { skipped++; }
+        updateOperationProgress(25 + ((idx + 1) / rows.length) * 65, `A importar ${idx + 1}/${rows.length} alojamentos...`);
       }
+      updateOperationProgress(95, 'A atualizar lista...');
       toast(`✅ ${created} alojamentos importados${skipped ? `, ${skipped} ignorados` : ''}.`, 'success');
       await loadAccommodations();
+      updateOperationProgress(100, 'Concluído.');
     } catch (err) {
       toast('❌ Erro ao ler ficheiro: ' + err.message, 'error');
+    } finally {
+      hideOperationProgress();
     }
   };
   reader.readAsArrayBuffer(file);
@@ -1232,6 +1239,7 @@ async function imageUrlToDataUrl(url) {
 
 function exportAlojamentosXLS() {
   if (typeof XLSX === 'undefined') { toast('❌ Biblioteca XLSX não carregada.', 'error'); return; }
+  showOperationProgress('A exportar alojamentos XLS', 'A preparar dados...', 15);
   const rows = accommodations.map(a => ({
     'Nome':           a.name,
     'Tipo':           a.type || '',
@@ -1259,6 +1267,7 @@ function exportAlojamentosXLS() {
     'Check-out':      a.checkout_time || '',
     'Wi-Fi':          a.wifi_name || '',
   }));
+  updateOperationProgress(55, 'A gerar Excel...');
   const ws = XLSX.utils.json_to_sheet(rows);
   const range = XLSX.utils.decode_range(ws['!ref']);
   for (let r = 1; r <= range.e.r; r++) {
@@ -1269,12 +1278,16 @@ function exportAlojamentosXLS() {
   }
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Alojamentos');
+  updateOperationProgress(90, 'A iniciar download...');
   XLSX.writeFile(wb, `alojamentos_${new Date().toISOString().slice(0,10)}.xlsx`);
+  updateOperationProgress(100, 'Concluído.');
+  hideOperationProgress();
   toast('📊 Excel exportado!', 'success');
 }
 
 async function exportAlojamentosPDF() {
   if (typeof window.jspdf === 'undefined') { toast('❌ Biblioteca jsPDF não carregada.', 'error'); return; }
+  showOperationProgress('A exportar alojamentos PDF', 'A preparar documento...', 10);
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'landscape' });
   doc.setFontSize(16);
@@ -1301,7 +1314,7 @@ async function exportAlojamentosPDF() {
   doc.text('Imagens dos alojamentos', 14, y);
   y += 8;
 
-  for (const a of accommodations) {
+  for (const [idx, a] of accommodations.entries()) {
     if (y > 178) { doc.addPage(); y = 18; }
     const color = a.color || '#843424';
     doc.setFontSize(10);
@@ -1327,9 +1340,13 @@ async function exportAlojamentosPDF() {
     doc.setTextColor(95);
     doc.text(`${galleryCount} imagem${galleryCount !== 1 ? 's' : ''}`, 170, y + 6);
     y += 28;
+    updateOperationProgress(25 + ((idx + 1) / Math.max(accommodations.length, 1)) * 60, `A inserir imagens ${idx + 1}/${accommodations.length}...`);
   }
   doc.setTextColor(40);
+  updateOperationProgress(92, 'A iniciar download...');
   doc.save(`alojamentos_${new Date().toISOString().slice(0,10)}.pdf`);
+  updateOperationProgress(100, 'Concluído.');
+  hideOperationProgress();
   toast('📄 PDF exportado!', 'success');
 }
 

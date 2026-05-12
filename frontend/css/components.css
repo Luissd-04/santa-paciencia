@@ -432,3 +432,54 @@ table td {
   cursor: pointer;
 }
 .user-menu-item:hover { background: rgba(132,52,36,.08); }
+
+/* ── Operation progress ── */
+.operation-progress {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 4000;
+  width: min(420px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.operation-progress-card {
+  padding: 14px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--branco);
+  box-shadow: 0 18px 50px rgba(0,0,0,.18);
+}
+
+.operation-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+  color: var(--azul);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.operation-progress-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(132,52,36,.12);
+}
+
+.operation-progress-bar {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--marca), var(--dourado));
+  transition: width .22s ease;
+}
+
+.operation-progress-detail {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}

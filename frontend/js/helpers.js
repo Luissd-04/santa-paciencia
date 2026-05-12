@@ -85,3 +85,45 @@ function toast(msg, type = 'info', dur = 3500) {
 function lcIcon(name, size = 14) {
   return `<i data-lucide="${name}" style="width:${size}px;height:${size}px;"></i>`;
 }
+
+function showOperationProgress(title = 'A processar...', detail = 'A preparar...', percent = 5) {
+  const wrap = document.getElementById('operation-progress');
+  if (!wrap) return;
+  wrap.hidden = false;
+  updateOperationProgress(percent, detail, title);
+}
+
+function updateOperationProgress(percent = 0, detail = '', title = '') {
+  const wrap = document.getElementById('operation-progress');
+  if (!wrap) return;
+  const pct = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+  const titleEl = document.getElementById('operation-progress-title');
+  const percentEl = document.getElementById('operation-progress-percent');
+  const detailEl = document.getElementById('operation-progress-detail');
+  const bar = document.getElementById('operation-progress-bar');
+  if (title && titleEl) titleEl.textContent = title;
+  if (percentEl) percentEl.textContent = `${pct}%`;
+  if (detailEl) detailEl.textContent = detail || '';
+  if (bar) bar.style.width = `${pct}%`;
+}
+
+function hideOperationProgress(delay = 450) {
+  const wrap = document.getElementById('operation-progress');
+  if (!wrap) return;
+  setTimeout(() => {
+    wrap.hidden = true;
+    updateOperationProgress(0, 'A preparar...');
+  }, delay);
+}
+
+async function runWithOperationProgress(title, steps, work) {
+  showOperationProgress(title, steps?.[0]?.detail || 'A preparar...', steps?.[0]?.percent || 5);
+  try {
+    const setProgress = (percent, detail) => updateOperationProgress(percent, detail, title);
+    const result = await work(setProgress);
+    updateOperationProgress(100, 'Concluído.', title);
+    return result;
+  } finally {
+    hideOperationProgress();
+  }
+}

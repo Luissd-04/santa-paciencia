@@ -1,4 +1,5 @@
 async function exportDB() {
+  showOperationProgress('A exportar base de dados', 'A preparar ZIP...', 8);
   try {
     const res = await fetch(API_BASE + '/api/backup/export', { credentials: 'include' });
     if (!res.ok) {
@@ -9,16 +10,38 @@ async function exportDB() {
       } catch (_) {}
       throw new Error(message);
     }
-    const blob = await res.blob();
+    let blob;
+    const total = Number(res.headers.get('content-length') || 0);
+    if (res.body && total > 0) {
+      const reader = res.body.getReader();
+      const chunks = [];
+      let received = 0;
+      updateOperationProgress(20, 'A receber ficheiro...');
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        updateOperationProgress(20 + (received / total) * 70, 'A receber ficheiro...');
+      }
+      blob = new Blob(chunks, { type: res.headers.get('content-type') || 'application/zip' });
+    } else {
+      updateOperationProgress(45, 'A receber ficheiro...');
+      blob = await res.blob();
+    }
+    updateOperationProgress(92, 'A iniciar download...');
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `santa_paciencia_${new Date().toISOString().slice(0,10)}.zip`;
     a.click();
     URL.revokeObjectURL(url);
+    updateOperationProgress(100, 'Concluído.');
     toast('✅ Backup ZIP exportado com imagens!', 'success');
   } catch (e) {
     toast('❌ Erro ao exportar backup ZIP: ' + (e.message || 'erro desconhecido'), 'error');
+  } finally {
+    hideOperationProgress();
   }
 }
 
@@ -34,22 +57,27 @@ async function importDB(input) {
     input.value = '';
     return;
   }
+  showOperationProgress('A importar base de dados', 'A ler ficheiro ZIP...', 8);
   try {
     const bytes = await file.arrayBuffer();
+    updateOperationProgress(25, 'A preparar ficheiro...');
     let binary = '';
     const chunkSize = 0x8000;
     const uint8 = new Uint8Array(bytes);
     for (let i = 0; i < uint8.length; i += chunkSize) {
       const chunk = uint8.subarray(i, i + chunkSize);
       binary += String.fromCharCode(...chunk);
+      updateOperationProgress(25 + Math.min(35, (i / Math.max(uint8.length, 1)) * 35), 'A preparar ficheiro...');
     }
     const archiveBase64 = btoa(binary);
 
+    updateOperationProgress(65, 'A enviar e restaurar dados...');
     const res = await apiPost('/api/backup/import', {
       filename: file.name,
       archiveBase64
     });
     if (res.success) {
+      updateOperationProgress(100, 'Concluído. A recarregar...');
       toast('✅ Base de dados importada! A recarregar...', 'success');
       setTimeout(() => window.location.reload(), 1500);
     } else {
@@ -57,6 +85,8 @@ async function importDB(input) {
     }
   } catch (e) {
     toast('❌ ZIP inválido ou erro de ligação.', 'error');
+  } finally {
+    hideOperationProgress();
   }
   input.value = '';
 }

@@ -1671,6 +1671,7 @@ function _getFilteredReservasForExport() {
 
 function exportReservasXLS() {
   if (typeof XLSX === 'undefined') { toast('❌ Biblioteca XLSX não carregada.', 'error'); return; }
+  showOperationProgress('A exportar reservas XLS', 'A preparar dados...', 15);
   const data = _getFilteredReservasForExport();
   const rows = data.map(r => ({
     'ID':             r.id,
@@ -1689,10 +1690,14 @@ function exportReservasXLS() {
     'Em falta (€)':   Math.max(0, r.total_amount - r.amount_paid),
     'Notas':          r.notes || '',
   }));
+  updateOperationProgress(60, 'A gerar Excel...');
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Reservas');
+  updateOperationProgress(90, 'A iniciar download...');
   XLSX.writeFile(wb, `reservas_${new Date().toISOString().slice(0,10)}.xlsx`);
+  updateOperationProgress(100, 'Concluído.');
+  hideOperationProgress();
   toast('📊 Excel exportado!', 'success');
 }
 
@@ -1701,14 +1706,16 @@ async function importReservasXLS(input) {
   const file = input.files[0];
   if (!file) return;
   input.value = '';
+  showOperationProgress('A importar reservas', 'A ler ficheiro...', 8);
 
   const reader = new FileReader();
   reader.onload = async e => {
     try {
+      updateOperationProgress(20, 'A interpretar Excel...');
       const wb = XLSX.read(e.target.result, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-      if (!rows.length) { toast('⚠️ Ficheiro vazio.', 'error'); return; }
+      if (!rows.length) { toast('⚠️ Ficheiro vazio.', 'error'); hideOperationProgress(); return; }
 
       const pick = (row, ...keys) => {
         for (const k of keys) {
@@ -1739,7 +1746,7 @@ async function importReservasXLS(input) {
       const asAmount = value => parseFloat(String(value || '').replace(',', '.')) || 0;
 
       let created = 0, skipped = 0;
-      for (const row of rows) {
+      for (const [idx, row] of rows.entries()) {
         const guestName = pick(row, 'Hóspede', 'Hospede', 'guest_name', 'Nome');
         const guestEmail = pick(row, 'Email', 'guest_email') || `reserva_${Date.now()}_${created}@sem-email.local`;
         const checkIn = normalizeImportDate(pick(row, 'Check-in', 'check_in'));
@@ -1779,13 +1786,18 @@ async function importReservasXLS(input) {
         } catch {
           skipped++;
         }
+        updateOperationProgress(25 + ((idx + 1) / rows.length) * 65, `A importar ${idx + 1}/${rows.length} reservas...`);
       }
+      updateOperationProgress(94, 'A atualizar vistas...');
       toast(`✅ ${created} reservas importadas${skipped ? `, ${skipped} ignoradas` : ''}.`, 'success');
       await loadReservas();
       if (typeof renderCalView === 'function') renderCalView();
       if (typeof renderDashboard === 'function') renderDashboard();
+      updateOperationProgress(100, 'Concluído.');
     } catch (err) {
       toast('❌ Erro ao ler ficheiro: ' + err.message, 'error');
+    } finally {
+      hideOperationProgress();
     }
   };
   reader.readAsArrayBuffer(file);
@@ -1793,6 +1805,7 @@ async function importReservasXLS(input) {
 
 function exportReservasPDF() {
   if (typeof window.jspdf === 'undefined') { toast('❌ Biblioteca jsPDF não carregada.', 'error'); return; }
+  showOperationProgress('A exportar reservas PDF', 'A preparar documento...', 15);
   const { jsPDF } = window.jspdf;
   const doc  = new jsPDF({ orientation: 'landscape' });
   const data = _getFilteredReservasForExport();
@@ -1810,6 +1823,9 @@ function exportReservasPDF() {
       '€' + Number(r.total_amount).toFixed(2),
     ]),
   });
+  updateOperationProgress(90, 'A iniciar download...');
   doc.save(`reservas_${new Date().toISOString().slice(0,10)}.pdf`);
+  updateOperationProgress(100, 'Concluído.');
+  hideOperationProgress();
   toast('📄 PDF exportado!', 'success');
 }

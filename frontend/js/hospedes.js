@@ -483,6 +483,7 @@ async function deleteGuest(id, name) {
 // ── EXPORT ──
 function exportHospedesXLS() {
   if (typeof XLSX === 'undefined') { toast('❌ Biblioteca XLSX não carregada.', 'error'); return; }
+  showOperationProgress('A exportar hóspedes XLS', 'A preparar dados...', 15);
   const rows = hospedes.map(g => ({
     'Nome':        g.name,
     'Email':       g.email || '',
@@ -499,10 +500,14 @@ function exportHospedesXLS() {
     'VIP':         g.is_vip ? 'Sim' : 'Não',
     'Não desejado': g.is_unwanted ? 'Sim' : 'Não',
   }));
+  updateOperationProgress(60, 'A gerar Excel...');
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Hóspedes');
+  updateOperationProgress(90, 'A iniciar download...');
   XLSX.writeFile(wb, `hospedes_${new Date().toISOString().slice(0,10)}.xlsx`);
+  updateOperationProgress(100, 'Concluído.');
+  hideOperationProgress();
   toast('📊 Excel exportado!', 'success');
 }
 
@@ -511,14 +516,16 @@ async function importHospedesXLS(input) {
   const file = input.files[0];
   if (!file) return;
   input.value = '';
+  showOperationProgress('A importar hóspedes', 'A ler ficheiro...', 8);
 
   const reader = new FileReader();
   reader.onload = async e => {
     try {
+      updateOperationProgress(20, 'A interpretar Excel...');
       const wb  = XLSX.read(e.target.result, { type: 'array' });
       const ws  = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-      if (!rows.length) { toast('⚠️ Ficheiro vazio.', 'error'); return; }
+      if (!rows.length) { toast('⚠️ Ficheiro vazio.', 'error'); hideOperationProgress(); return; }
 
       const COL = {
         nome:      ['Nome', 'Name', 'nome'],
@@ -533,7 +540,7 @@ async function importHospedesXLS(input) {
       const pick = (row, keys) => { for (const k of keys) if (row[k] !== undefined && row[k] !== '') return String(row[k]); return ''; };
 
       let created = 0, skipped = 0;
-      for (const row of rows) {
+      for (const [idx, row] of rows.entries()) {
         const nome  = pick(row, COL.nome);
         const email = pick(row, COL.email);
         if (!nome) { skipped++; continue; }
@@ -553,11 +560,16 @@ async function importHospedesXLS(input) {
           });
           created++;
         } catch { skipped++; }
+        updateOperationProgress(25 + ((idx + 1) / rows.length) * 65, `A importar ${idx + 1}/${rows.length} hóspedes...`);
       }
+      updateOperationProgress(95, 'A atualizar lista...');
       toast(`✅ ${created} hóspedes importados${skipped ? `, ${skipped} ignorados` : ''}.`, 'success');
       await loadHospedes();
+      updateOperationProgress(100, 'Concluído.');
     } catch (err) {
       toast('❌ Erro ao ler ficheiro: ' + err.message, 'error');
+    } finally {
+      hideOperationProgress();
     }
   };
   reader.readAsArrayBuffer(file);
@@ -565,6 +577,7 @@ async function importHospedesXLS(input) {
 
 function exportHospedesPDF() {
   if (typeof window.jspdf === 'undefined') { toast('❌ Biblioteca jsPDF não carregada.', 'error'); return; }
+  showOperationProgress('A exportar hóspedes PDF', 'A preparar documento...', 15);
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'landscape' });
   doc.setFontSize(16);
@@ -583,8 +596,12 @@ function exportHospedesPDF() {
     [g.is_favorite?'⭐':'', g.is_vip?'👑':'', g.is_unwanted?'🚫':''].filter(Boolean).join(' ') || '—',
   ]);
 
+  updateOperationProgress(70, 'A gerar PDF...');
   doc.autoTable({ head, body, startY: 32, styles: { fontSize: 9 }, headStyles: { fillColor: [132, 52, 36] } });
+  updateOperationProgress(90, 'A iniciar download...');
   doc.save(`hospedes_${new Date().toISOString().slice(0,10)}.pdf`);
+  updateOperationProgress(100, 'Concluído.');
+  hideOperationProgress();
   toast('📄 PDF exportado!', 'success');
 }
 
