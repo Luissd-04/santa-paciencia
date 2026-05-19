@@ -373,7 +373,11 @@ async function showDetail(id) {
         <div class="detail-row"><div class="detail-label">Telefone</div><div class="detail-val">${r.guest_phone || '—'}</div></div>
         <div class="detail-row"><div class="detail-label">Alojamento</div><div class="detail-val">${accomChip(r)}</div></div>
         <div class="detail-row"><div class="detail-label">Canal</div><div class="detail-val">${r.channel}</div></div>
-        <div class="detail-row"><div class="detail-label">Hóspedes</div><div class="detail-val">${r.num_guests}</div></div>
+        <div class="detail-row"><div class="detail-label">Hóspedes</div><div class="detail-val">${
+          r.num_adults != null
+            ? r.num_adults + ' adulto' + (r.num_adults !== 1 ? 's' : '') + (r.num_children > 0 ? ' + ' + r.num_children + ' criança' + (r.num_children !== 1 ? 's' : '') : '')
+            : r.num_guests
+        }</div></div>
         <div class="detail-row"><div class="detail-label">Check-in</div><div class="detail-val">${formatDate(r.check_in)}</div></div>
         <div class="detail-row"><div class="detail-label">Check-out</div><div class="detail-val">${formatDate(r.check_out)}</div></div>
         <div class="detail-row"><div class="detail-label">Noites</div><div class="detail-val">${r.nights}</div></div>

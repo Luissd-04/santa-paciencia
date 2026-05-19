@@ -1,5 +1,10 @@
 const router = require('express').Router();
 const { deleteTokens, getOAuth2Client, isAuthenticated, saveTokens } = require('../config/google');
+const {
+  getEmailOAuth2Client, saveEmailTokens, deleteEmailTokens,
+  isEmailAuthenticated, getEmailConnectionInfo, GMAIL_SCOPES,
+} = require('../config/googleEmail');
+const { google } = require('googleapis');
 const { db } = require('../config/database');
 const requireAuth = require('../middleware/requireAuth');
 const requireRole = require('../middleware/requireRole');
@@ -451,6 +456,81 @@ router.get('/google/status', requireAuth, (req, res) => {
 router.delete('/google', requireAuth, (req, res) => {
   deleteTokens(req.user.id, req.user.organization_id);
   res.json({ success: true, message: 'Google Calendar desligado' });
+});
+
+// ── GMAIL OAUTH ──
+router.get('/google-email', requireAuth, (req, res) => {
+  if (!process.env.GOOGLE_EMAIL_REDIRECT_URI) {
+    return res.status(500).send('GOOGLE_EMAIL_REDIRECT_URI não configurado no .env');
+  }
+  const oAuth2Client = getEmailOAuth2Client();
+  const authUrl = oAuth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: GMAIL_SCOPES,
+    prompt: 'consent',
+  });
+  res.redirect(authUrl);
+});
+
+router.get('/google-email/callback', requireAuth, async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.status(400).send('Código de autorização em falta.');
+  try {
+    const oAuth2Client = getEmailOAuth2Client();
+    const { tokens } = await oAuth2Client.getToken(code);
+    oAuth2Client.setCredentials(tokens);
+
+    // Obter endereço de email da conta
+    let email = null;
+    try {
+      const oauth2 = google.oauth2({ version: 'v2', auth: oAuth2Client });
+      const { data } = await oauth2.userinfo.get();
+      email = data.email;
+    } catch { /* não crítico */ }
+
+    saveEmailTokens(req.user.organization_id, tokens, email);
+    console.log(`✅ Gmail ligado: ${email}`);
+    res.send(`
+      <html><body style="font-family:sans-serif;text-align:center;padding:50px;">
+        <h1>✅ Gmail ligado!</h1>
+        <p>${email ? `A enviar emails como <strong>${email}</strong>.` : ''}</p>
+        <p>Podes fechar esta janela e voltar ao dashboard.</p>
+        <script>setTimeout(() => window.close(), 3000);</script>
+      </body></html>
+    `);
+  } catch (err) {
+    console.error('Erro no OAuth Gmail:', err);
+    res.status(500).send('Erro ao autenticar com o Gmail: ' + err.message);
+  }
+});
+
+router.get('/google-email/status', requireAuth, (req, res) => {
+  const info = getEmailConnectionInfo(req.user.organization_id);
+  res.json({ success: true, data: info });
+});
+
+router.delete('/google-email', requireAuth, (req, res) => {
+  deleteEmailTokens(req.user.organization_id);
+  res.json({ success: true, message: 'Gmail desligado' });
+});
+
+router.post('/google-email/test', requireAuth, async (req, res) => {
+  try {
+    const { sendViaGmail } = require('../config/googleEmail');
+    const info = getEmailConnectionInfo(req.user.organization_id);
+    if (!info.connected) return res.status(400).json({ error: 'Gmail não ligado' });
+    const to = info.email || req.user.email;
+    if (!to) return res.status(400).json({ error: 'Sem endereço de destino — desliga e volta a ligar o Gmail.' });
+    await sendViaGmail(req.user.organization_id, {
+      to,
+      subject: 'Teste de email - Santa Paciencia',
+      html: '<p>O email esta a funcionar correctamente a partir do Gmail ligado.</p>',
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Gmail test error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

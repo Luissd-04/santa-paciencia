@@ -274,6 +274,9 @@ function initDatabase() {
   migrateOrgScopedTables();
   migrateOperationalEvents();
   migrateGoogleCalendarConnections();
+  migrateGoogleEmailConnections();
+  migrateVouchers();
+  migratePricingPeriods();
   migrateLegacyDataToOrganizations();
 
   console.log('✅ Base de dados inicializada');
@@ -455,6 +458,8 @@ function migrateReservations() {
     ['google_calendar_user_id', 'TEXT'],
     ['public_token', 'TEXT'],
     ['arrival_time', 'TEXT'],
+    ['num_adults',   'INTEGER'],
+    ['num_children', 'INTEGER DEFAULT 0'],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {
@@ -678,6 +683,8 @@ function migrateOperationalEvents() {
     ['auto_key', 'TEXT'],
     ['important', 'INTEGER NOT NULL DEFAULT 0'],
     ['updated_at', "TEXT DEFAULT (datetime('now'))"],
+    ['google_event_id', 'TEXT'],
+    ['google_calendar_user_id', 'TEXT'],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) db.exec(`ALTER TABLE operational_events ADD COLUMN ${col} ${type}`);
@@ -689,5 +696,61 @@ function migrateOperationalEvents() {
   `);
 }
 
+
+function migrateVouchers() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS vouchers (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      code TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'discount_pct',
+      value REAL NOT NULL,
+      description TEXT,
+      valid_from TEXT,
+      valid_until TEXT,
+      min_nights INTEGER DEFAULT 1,
+      accommodation_id TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      used_at TEXT,
+      used_in_reservation_id TEXT,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+    )
+  `);
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_vouchers_org_code ON vouchers (organization_id, code)`);
+}
+
+function migrateGoogleEmailConnections() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS google_email_connections (
+      organization_id TEXT NOT NULL PRIMARY KEY,
+      email           TEXT,
+      tokens          TEXT NOT NULL,
+      created_at      TEXT DEFAULT (datetime('now')),
+      updated_at      TEXT DEFAULT (datetime('now'))
+    )
+  `);
+}
+
+function migratePricingPeriods() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pricing_periods (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      accommodation_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      start_date TEXT NOT NULL,
+      end_date TEXT NOT NULL,
+      price_per_night REAL NOT NULL,
+      min_nights INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+      FOREIGN KEY (accommodation_id) REFERENCES accommodations(id) ON DELETE CASCADE
+    )
+  `);
+}
 
 module.exports = { db, initDatabase };

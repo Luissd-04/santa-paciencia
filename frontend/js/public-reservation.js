@@ -245,6 +245,10 @@ function nights() {
   return window.ReservationDates?.countNights($('pb-checkin').value, $('pb-checkout').value) || 0;
 }
 
+function totalGuests() {
+  return (Number($('pb-adults').value) || 1) + (Number($('pb-children').value) || 0);
+}
+
 function selectedUnit() {
   if (state.selectedUnitId === 'property' || !state.selectedUnitId) return null;
   return state.units.find(u => u.id === state.selectedUnitId) || null;
@@ -622,43 +626,6 @@ function setupGuestDocTypeSearch(btn, input, dropdown) {
   renderDocTypeDropdown('', dropdown);
 }
 
-function setupGuestDocTypeSearch(btn, input, dropdown) {
-  if (!btn || !input || !dropdown) return;
-
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const open = dropdown.style.display === 'block';
-    dropdown.style.display = open ? 'none' : 'block';
-    if (!open) renderDocTypeDropdown('', dropdown);
-  });
-
-  btn.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { dropdown.style.display = 'none'; return; }
-    if (e.key.length === 1) {
-      renderDocTypeDropdown(e.key, dropdown);
-      dropdown.style.display = 'block';
-    }
-  });
-
-  dropdown.addEventListener('mousedown', (e) => {
-    const item = e.target.closest('.doc-type-item');
-    if (!item) return;
-    e.preventDefault();
-    const docType = DOC_TYPES.find(d => d.value === item.dataset.value);
-    input.value = item.dataset.value;
-    btn.textContent = docType.label;
-    dropdown.style.display = 'none';
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!btn.contains(e.target) && !dropdown.contains(e.target)) {
-      dropdown.style.display = 'none';
-    }
-  });
-
-  renderDocTypeDropdown('', dropdown);
-}
-
 function setupGuestPhoneCodeSearch(guestIndex) {
   const guestSection = document.querySelector(`[data-guest-index="${guestIndex}"]`);
   if (!guestSection) return;
@@ -715,6 +682,60 @@ function setupGuestPhoneCodeSearch(guestIndex) {
   renderPhoneCodeDropdown('', finalDropdown);
 }
 
+let _voucherData = null;
+
+async function applyVoucher() {
+  const code = ($('pb-voucher')?.value || '').trim().toUpperCase();
+  const statusEl = $('pb-voucher-status');
+  if (!statusEl) return;
+  if (!code) {
+    _voucherData = null;
+    statusEl.style.display = 'none';
+    recalc();
+    return;
+  }
+  statusEl.style.display = '';
+  statusEl.style.background = '#f5f5f5';
+  statusEl.style.color = '#666';
+  statusEl.textContent = 'A verificar...';
+  try {
+    const res = await api(`/api/public/booking/${state.slug}/voucher?code=${encodeURIComponent(code)}`);
+    _voucherData = res.data;
+    const disc = _voucherData.type === 'discount_pct'
+      ? `${_voucherData.value}% de desconto`
+      : `€${Number(_voucherData.value).toFixed(2)} de desconto`;
+    statusEl.style.background = '#f0faf4';
+    statusEl.style.color = '#2d6a4f';
+    statusEl.textContent = `✓ ${_voucherData.description ? _voucherData.description + ' · ' : ''}${disc}`;
+    recalc();
+  } catch (err) {
+    _voucherData = null;
+    statusEl.style.background = '#fef0f0';
+    statusEl.style.color = '#c0392b';
+    statusEl.textContent = err.message;
+    recalc();
+  }
+}
+
+let _availTimer = null;
+function scheduleAvailabilityFetch() {
+  clearTimeout(_availTimer);
+  _availTimer = setTimeout(fetchAvailability, 300);
+}
+
+function showStepError(msg) {
+  const el = $('step-error');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = '';
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function clearStepError() {
+  const el = $('step-error');
+  if (el) el.style.display = 'none';
+}
+
 function bindEvents() {
   setupCountrySearch('pb-country', 'pb-country-dropdown', () => {
     updateIDFieldLabels();
@@ -733,26 +754,11 @@ function bindEvents() {
       recalc();
     });
   });
-  ['pb-checkin','pb-checkout','pb-guests','pb-breakfast','pb-birth'].forEach(id => $(id).addEventListener('change', () => {
-    fetchAvailability();
+  ['pb-checkin','pb-checkout','pb-adults','pb-children','pb-birth'].forEach(id => $(id).addEventListener('change', () => {
+    scheduleAvailabilityFetch();
     renderExtraGuests();
     recalc();
   }));
-  const breakfastSvc = state.services.find(s => s.id === 'breakfast');
-  if (breakfastSvc && breakfastSvc.active === false) {
-    const breakfastSelect = $('pb-breakfast');
-    if (breakfastSelect) {
-      breakfastSelect.disabled = true;
-      breakfastSelect.value = 'false';
-      breakfastSelect.parentElement.style.opacity = '0.6';
-      const hint = document.createElement('small');
-      hint.textContent = 'Temporariamente sem serviço de pequeno-almoço';
-      hint.style.display = 'block';
-      hint.style.color = '#999';
-      hint.style.marginTop = '4px';
-      breakfastSelect.parentElement.appendChild(hint);
-    }
-  }
   $('unit-list').addEventListener('click', (e) => {
     const card = e.target.closest('.unit-card');
     if (!card || card.classList.contains('blocked')) return;
@@ -760,6 +766,7 @@ function bindEvents() {
     renderUnits();
     recalc();
   });
+  $('pb-voucher')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyVoucher(); } });
   $('next-btn').addEventListener('click', nextStep);
   $('prev-btn').addEventListener('click', prevStep);
   document.addEventListener('click', e => {
@@ -776,7 +783,7 @@ async function fetchAvailability() {
     renderUnits();
     return;
   }
-  const guests = Number($('pb-guests').value) || 1;
+  const guests = totalGuests();
   const payload = await api(`/api/public/booking/${state.slug}/availability?check_in=${ci}&check_out=${co}&num_guests=${guests}`).catch(() => null);
   state.availability = payload?.data || [];
   if (availabilityFor(state.selectedUnitId) && !availabilityFor(state.selectedUnitId).available) {
@@ -786,7 +793,7 @@ async function fetchAvailability() {
 }
 
 function renderExtraGuests() {
-  const count = Math.max(1, Number($('pb-guests').value) || 1);
+  const count = Math.max(1, totalGuests());
   const wrap = $('extra-guests');
   const existing = Array.from(wrap.querySelectorAll('[data-guest-index]')).map((section, idx) => {
     const index = Number(section.dataset.guestIndex);
@@ -808,13 +815,13 @@ function renderExtraGuests() {
     };
   });
 
-  wrap.innerHTML = '';
+  const parts = [];
   for (let i = 2; i <= count; i++) {
     const prev = existing.find(g => g.index === i) || {};
     const country = prev.country || 'Portugal';
     const isStranger = country && country !== 'Portugal';
 
-    wrap.innerHTML += `
+    parts.push(`
       <div data-guest-index="${i}" style="border-top: 1px solid var(--line); padding-top: 18px; margin-top: 18px;">
         <h3 style="margin: 0 0 18px; font-size: 18px; color: var(--brand);">Hóspede ${i}</h3>
         <label>
@@ -892,8 +899,9 @@ function renderExtraGuests() {
           <span>Cidade</span>
           <input data-field="city" value="${prev.city || ''}" placeholder="Lisboa">
         </label>
-      </div>`;
+      </div>`);
   }
+  wrap.innerHTML = parts.join('');
 
   // Setup date pickers for all guest birth dates
   wrap.querySelectorAll('.guest-birth-input').forEach(input => {
@@ -941,9 +949,9 @@ function specialRate(unit, birthDate, index) {
   const age = ageAt(iso(birthDate), ci);
   if (age === null) return null;
   const included = Math.max(1, Math.min(unit.base_guests_included || 2, unit.max_guests || 2));
-  const applied = index >= included;
-  if (age < unit.baby_age_limit) return { label: `Preço de bebé aplicado${applied ? '' : ' se for hóspede adicional'}`, price: unit.baby_price || 0, applied };
-  if (age >= unit.baby_age_limit && age < unit.child_age_limit) return { label: `Preço de criança aplicado${applied ? '' : ' se for hóspede adicional'}`, price: unit.child_price || 0, applied };
+  if (index < included) return null;
+  if (age < unit.baby_age_limit) return { label: 'Preço de bebé aplicado', price: unit.baby_price || 0 };
+  if (age >= unit.baby_age_limit && age < unit.child_age_limit) return { label: 'Preço de criança aplicado', price: unit.child_price || 0 };
   return null;
 }
 
@@ -961,7 +969,7 @@ function getBirthDates() {
 function extraCharge(unit, n) {
   return window.ReservationPricing?.getExtraOccupancyCharge(
     unit,
-    Number($('pb-guests').value) || 1,
+    totalGuests(),
     n,
     getBirthDates(),
     iso($('pb-checkin').value)
@@ -971,12 +979,23 @@ function extraCharge(unit, n) {
 function recalc() {
   const unit = selectedUnit();
   const n = nights();
-  const guests = Number($('pb-guests').value) || 1;
+  const adults = Number($('pb-adults').value) || 1;
+  const children = Number($('pb-children').value) || 0;
+  const guests = adults + children;
   const isPropertySelected = state.selectedUnitId === 'property' || state.selectedUnitId === state.property?.id;
+  const hasDates = !!n;
 
-  $('summary-guests').textContent = guests;
+  $('summary-guests').textContent = children > 0
+    ? `${adults} adulto${adults !== 1 ? 's' : ''} · ${children} criança${children !== 1 ? 's' : ''}`
+    : `${adults} adulto${adults !== 1 ? 's' : ''}`;
   $('summary-dates').textContent = iso($('pb-checkin').value) && iso($('pb-checkout').value) ? `${ptDate($('pb-checkin').value)} - ${ptDate($('pb-checkout').value)}` : '-';
   $('summary-nights').textContent = n ? `${n} noite${n !== 1 ? 's' : ''}` : '-';
+
+  document.querySelectorAll('.summary-row.muted').forEach(row => row.style.display = hasDates ? '' : 'none');
+  const totalRow = document.querySelector('.summary-total');
+  if (totalRow) totalRow.style.display = hasDates ? '' : 'none';
+  const note = $('summary-dates-note');
+  if (note) note.style.display = hasDates ? '' : 'none';
 
   if (isPropertySelected) {
     $('summary-unit').textContent = state.property?.name || 'Alojamento completo';
@@ -988,13 +1007,7 @@ function recalc() {
     return;
   }
 
-  if (!n) {
-    $('summary-base').textContent = '-';
-    $('summary-extras').textContent = '-';
-    $('summary-services').textContent = '-';
-    $('summary-total').textContent = '-';
-    return;
-  }
+  if (!n) return;
 
   let totals;
   if (isPropertySelected) {
@@ -1002,8 +1015,9 @@ function recalc() {
       check_in: iso($('pb-checkin').value),
       check_out: iso($('pb-checkout').value),
       num_guests: guests,
-      breakfast_included: $('pb-breakfast').value === 'true',
-      birth_dates: []
+      breakfast_included: false,
+      birth_dates: [],
+      pricing_periods: state.property?.pricing_periods || []
     });
     totals = {
       ...rawTotals,
@@ -1015,16 +1029,31 @@ function recalc() {
       check_in: iso($('pb-checkin').value),
       check_out: iso($('pb-checkout').value),
       num_guests: guests,
-      breakfast_included: $('pb-breakfast').value === 'true',
-      birth_dates: getBirthDates()
+      breakfast_included: false,
+      birth_dates: getBirthDates(),
+      pricing_periods: unit.pricing_periods || []
     });
     updateRateHints(unit);
   }
 
+  const discountAmount = _voucherData ? (
+    _voucherData.type === 'discount_pct'
+      ? totals.totalAmount * (_voucherData.value / 100)
+      : Math.min(_voucherData.value, totals.totalAmount)
+  ) : 0;
+  const finalTotal = Math.max(0, totals.totalAmount - discountAmount);
+
   $('summary-base').textContent = fmtCurrency(totals.baseAmount);
   $('summary-extras').textContent = fmtCurrency(totals.extraOccupancyCost);
   $('summary-services').textContent = fmtCurrency(totals.breakfastCost + totals.touristTax);
-  $('summary-total').textContent = fmtCurrency(totals.totalAmount);
+
+  const discRow = $('summary-discount-row');
+  if (discRow) {
+    discRow.style.display = discountAmount > 0 ? '' : 'none';
+    if ($('summary-discount')) $('summary-discount').textContent = `−${fmtCurrency(discountAmount)}`;
+  }
+
+  $('summary-total').textContent = fmtCurrency(finalTotal);
 }
 
 function updateRateHints(unit) {
@@ -1059,9 +1088,10 @@ function prevStep() {
 }
 
 function validateStep() {
+  clearStepError();
   if (state.step === 1) {
-    if (!iso($('pb-checkin').value) || !iso($('pb-checkout').value) || nights() <= 0) return alert('Escolha datas válidas.'), false;
-    if (!state.selectedUnitId) return alert('Escolha um alojamento disponível.'), false;
+    if (!iso($('pb-checkin').value) || !iso($('pb-checkout').value) || nights() <= 0) { showStepError('Escolha datas válidas.'); return false; }
+    if (!state.selectedUnitId) { showStepError('Escolha um alojamento disponível.'); return false; }
   }
   if (state.step === 2) {
     const name = $('pb-name').value.trim();
@@ -1076,48 +1106,48 @@ function validateStep() {
     const idCountry = $('pb-id-country').value.trim();
 
     if (!name || !email || !phone || !birthDate || !country) {
-      return alert('Preencha todos os campos obrigatórios (*) do hóspede principal.'), false;
+      showStepError('Preencha todos os campos obrigatórios (*) do hóspede principal.');
+      return false;
     }
-
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return alert('Email inválido.'), false;
+      showStepError('Email inválido.');
+      return false;
     }
-
     if (isStranger && (!birthCity || !nif || !idType || !idCountry)) {
-      return alert('Estrangeiros devem indicar local de nascimento, documento de identidade e país emissor.'), false;
+      showStepError('Estrangeiros devem indicar local de nascimento, documento de identidade e país emissor.');
+      return false;
     }
 
     const guestSections = Array.from(document.querySelectorAll('[data-guest-index]'));
-    if (guestSections.length > 0) {
-      for (let i = 0; i < guestSections.length; i++) {
-        const section = guestSections[i];
-        const idx = Number(section.dataset.guestIndex);
-        const guestName = section.querySelector('[data-field="name"]').value.trim();
-        const guestEmail = section.querySelector('[data-field="email"]').value.trim();
-        const guestPhone = section.querySelector('[data-field="phone"]').value.trim();
-        const guestBirth = iso(section.querySelector('[data-field="birth_date"]').value);
-        const guestCountry = section.querySelector('[data-field="country"]').value.trim();
-        const guestBirthCity = section.querySelector('[data-field="birth_city"]').value.trim();
-        const guestNif = section.querySelector('[data-field="nif"]').value.trim();
-        const guestIdType = section.querySelector('[data-field="id_type"]').value.trim();
-        const guestIdCountry = section.querySelector('[data-field="id_country"]').value.trim();
-        const guestIsStranger = guestCountry && guestCountry !== 'Portugal';
+    for (let i = 0; i < guestSections.length; i++) {
+      const section = guestSections[i];
+      const idx = Number(section.dataset.guestIndex);
+      const guestName = section.querySelector('[data-field="name"]').value.trim();
+      const guestEmail = section.querySelector('[data-field="email"]').value.trim();
+      const guestPhone = section.querySelector('[data-field="phone"]').value.trim();
+      const guestBirth = iso(section.querySelector('[data-field="birth_date"]').value);
+      const guestCountry = section.querySelector('[data-field="country"]').value.trim();
+      const guestBirthCity = section.querySelector('[data-field="birth_city"]').value.trim();
+      const guestNif = section.querySelector('[data-field="nif"]').value.trim();
+      const guestIdType = section.querySelector('[data-field="id_type"]').value.trim();
+      const guestIdCountry = section.querySelector('[data-field="id_country"]').value.trim();
+      const guestIsStranger = guestCountry && guestCountry !== 'Portugal';
 
-        if (!guestName || !guestEmail || !guestPhone || !guestBirth || !guestCountry) {
-          return alert(`Preencha todos os campos obrigatórios (*) do hóspede ${idx}.`), false;
-        }
-
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
-          return alert(`Email inválido para hóspede ${idx}.`), false;
-        }
-
-        if (guestIsStranger && (!guestBirthCity || !guestNif || !guestIdType || !guestIdCountry)) {
-          return alert(`Hóspede ${idx} (estrangeiro) deve indicar local de nascimento, documento de identidade e país emissor.`), false;
-        }
+      if (!guestName || !guestEmail || !guestPhone || !guestBirth || !guestCountry) {
+        showStepError(`Preencha todos os campos obrigatórios (*) do hóspede ${idx}.`);
+        return false;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+        showStepError(`Email inválido para hóspede ${idx}.`);
+        return false;
+      }
+      if (guestIsStranger && (!guestBirthCity || !guestNif || !guestIdType || !guestIdCountry)) {
+        showStepError(`Hóspede ${idx} (estrangeiro) deve indicar local de nascimento, documento de identidade e país emissor.`);
+        return false;
       }
     }
   }
-  if (state.step === 3 && !$('pb-rgpd').checked) return alert('É necessário aceitar o RGPD.'), false;
+  if (state.step === 3 && !$('pb-rgpd').checked) { showStepError('É necessário aceitar o RGPD.'); return false; }
   return true;
 }
 
@@ -1131,8 +1161,11 @@ function collectPayload() {
     accommodation_id: accommodationId,
     check_in: iso($('pb-checkin').value),
     check_out: iso($('pb-checkout').value),
-    num_guests: Number($('pb-guests').value) || 1,
-    breakfast_included: $('pb-breakfast').value === 'true',
+    num_guests: totalGuests(),
+    num_adults: Number($('pb-adults').value) || 1,
+    num_children: Number($('pb-children').value) || 0,
+    breakfast_included: false,
+    voucher_code: _voucherData?.code || null,
     arrival_time: $('pb-arrival').value || null,
     notes: $('pb-notes').value.trim() || null,
     rgpd_consent: $('pb-rgpd').checked,
@@ -1200,7 +1233,7 @@ async function submitReservation() {
     `;
     $('next-btn').style.display = 'none';
   } catch (err) {
-    alert('Erro ao enviar pedido: ' + err.message);
+    showStepError('Erro ao enviar pedido: ' + err.message);
     AppUI.setButtonLoading(btn, false);
   }
 }
@@ -1229,11 +1262,15 @@ function shiftYear(delta) {
 
 function chooseDate(day) {
   const d = new Date(state.dateMonth.getFullYear(), state.dateMonth.getMonth(), day, 12);
+  const wasCheckin = state.dateInput === $('pb-checkin');
   state.dateInput.value = ptDate(d.toISOString().slice(0, 10));
   state.dateInput.dispatchEvent(new Event('change', { bubbles: true }));
   closeDatePicker();
-  fetchAvailability();
   recalc();
+  if (wasCheckin && !iso($('pb-checkout').value)) {
+    state.dateMonth = d;
+    setTimeout(() => { state.dateInput = $('pb-checkout'); renderDatePicker(); }, 60);
+  }
 }
 
 function renderDatePicker() {

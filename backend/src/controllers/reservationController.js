@@ -22,13 +22,43 @@ function getOrganizationServices(organizationId) {
   return row ? safeJson(row.value, []) : [];
 }
 
-const { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } = require('../services/calendarService');
+const { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, createTaskCalendarEvent, updateTaskCalendarEvent } = require('../services/calendarService');
 const { sendConfirmationEmail, sendCancellationEmail, sendPaymentConfirmationEmail } = require('../services/emailService');
 const { recordConsent } = require('../services/rgpdService');
 const {
   syncReservationOperationalTasks,
   syncOrganizationOperationalTasks,
 } = require('../services/operationalTasksService');
+
+const { isAuthenticated } = require('../config/google');
+
+function getGcalSyncTasks(organizationId) {
+  const row = db.prepare("SELECT value FROM organization_settings WHERE organization_id = ? AND key = 'gcal_sync_tasks'").get(organizationId);
+  return row?.value === '1';
+}
+
+async function syncReservationTasksToCalendar(reservationId, organizationId, userId) {
+  if (!isAuthenticated(userId, organizationId)) return;
+  if (!getGcalSyncTasks(organizationId)) return;
+  try {
+    const tasks = db.prepare(
+      "SELECT * FROM operational_events WHERE reservation_id = ? AND organization_id = ? AND auto_generated = 1 AND status != 'concluido'"
+    ).all(reservationId, organizationId);
+    for (const task of tasks) {
+      if (task.google_event_id && task.google_calendar_user_id === userId) {
+        await updateTaskCalendarEvent(task, { userId, organizationId });
+      } else if (!task.google_event_id) {
+        const eventId = await createTaskCalendarEvent(task, { userId, organizationId });
+        if (eventId) {
+          db.prepare('UPDATE operational_events SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ?')
+            .run(eventId, userId, task.id);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao sincronizar tarefas da reserva:', err.message);
+  }
+}
 
 // Returns conflicting reservation ID (if any) for the given accommodation + date range.
 // Uses parent_id hierarchy: booking an alojamento blocks all child suites and vice versa.
@@ -129,21 +159,25 @@ async function create(req, res, next) {
   try {
     const {
       guest, accommodation_id, check_in, check_out,
-      num_guests, breakfast_included, channel, payment_method,
-      notes, rgpd_consent, rgpd_ip, guests_data,
+      num_guests, num_adults, num_children, breakfast_included, channel, payment_method,
+      notes, rgpd_consent, rgpd_ip, guests_data, voucher_code,
       amount_paid, payment_date, payment_status: reqPaymentStatus
     } = req.body;
+    const totalGuests = (num_adults != null && num_children != null)
+      ? (Number(num_adults) + Number(num_children))
+      : (num_guests || 1);
     const organizationId = req.user.organization_id;
 
-    // Validação básica
-    if (!guest?.name || !guest?.email || !accommodation_id || !check_in || !check_out) {
-      return res.status(400).json({ error: 'Campos obrigatórios em falta' });
+    if (!accommodation_id || !check_in || !check_out) {
+      return res.status(400).json({ error: 'Datas e alojamento são obrigatórios' });
     }
-    const birthDateError = validateReservationBirthDates(num_guests, guest, guests_data || []);
-    if (birthDateError) return res.status(400).json({ error: birthDateError });
+
+    // Normalizar dados do hóspede — todos os campos são opcionais no backoffice
+    const guestName  = guest?.name?.trim()  || 'Hóspede';
+    const guestEmail = guest?.email?.trim() || `sp-interno-${Date.now()}@reserva.local`;
 
     // Criar ou actualizar hóspede
-    let guestRecord = db.prepare('SELECT * FROM guests WHERE email = ? AND organization_id = ?').get(guest.email, organizationId);
+    let guestRecord = db.prepare('SELECT * FROM guests WHERE email = ? AND organization_id = ?').get(guestEmail, organizationId);
 
     if (!guestRecord) {
       const guestId = uuidv4();
@@ -151,15 +185,14 @@ async function create(req, res, next) {
         INSERT INTO guests (id, name, email, phone, document_type, document_number, document_issuer_country,
           nationality, first_name, last_name, birth_date, birth_city, nif, country, address, postal_code, city, organization_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(guestId, guest.name, guest.email, guest.phone || null,
-             guest.document_type || null, guest.document_number || null,
-             guest.document_issuer_country || null, guest.nationality || null,
-             guest.first_name || null, guest.last_name || null, guest.birth_date || null,
-             guest.birth_city || null, guest.nif || null, guest.country || null,
-             guest.address || null, guest.postal_code || null, guest.city || null, organizationId);
+      `).run(guestId, guestName, guestEmail, guest?.phone || null,
+             guest?.document_type || null, guest?.document_number || null,
+             guest?.document_issuer_country || null, guest?.nationality || null,
+             guest?.first_name || null, guest?.last_name || null, guest?.birth_date || null,
+             guest?.birth_city || null, guest?.nif || null, guest?.country || null,
+             guest?.address || null, guest?.postal_code || null, guest?.city || null, organizationId);
       guestRecord = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(guestId, organizationId);
     } else {
-      // Actualizar campos opcionais se fornecidos
       db.prepare(`UPDATE guests SET
         name = COALESCE(?, name), phone = COALESCE(?, phone),
         document_type = COALESCE(?, document_type), document_number = COALESCE(?, document_number),
@@ -170,14 +203,14 @@ async function create(req, res, next) {
         nif = COALESCE(?, nif), country = COALESCE(?, country),
         address = COALESCE(?, address), postal_code = COALESCE(?, postal_code), city = COALESCE(?, city)
         WHERE id = ? AND organization_id = ?`).run(
-        guest.name || null, guest.phone || null,
-        guest.document_type || null, guest.document_number || null,
-        guest.document_issuer_country || null,
-        guest.nationality || null, guest.first_name || null,
-        guest.last_name || null, guest.birth_date || null,
-        guest.birth_city || null,
-        guest.nif || null, guest.country || null,
-        guest.address || null, guest.postal_code || null, guest.city || null,
+        guest?.name || null, guest?.phone || null,
+        guest?.document_type || null, guest?.document_number || null,
+        guest?.document_issuer_country || null,
+        guest?.nationality || null, guest?.first_name || null,
+        guest?.last_name || null, guest?.birth_date || null,
+        guest?.birth_city || null,
+        guest?.nif || null, guest?.country || null,
+        guest?.address || null, guest?.postal_code || null, guest?.city || null,
         guestRecord.id,
         organizationId
       );
@@ -192,16 +225,21 @@ async function create(req, res, next) {
     // Calcular valores
     const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(accommodation_id, organizationId);
     if (!accommodation) return res.status(404).json({ error: 'Alojamento não encontrado' });
-    if (Number(num_guests) > Number(accommodation.max_guests || 0)) {
+    if (totalGuests > Number(accommodation.max_guests || 0)) {
       return res.status(400).json({ error: `Este alojamento permite no máximo ${accommodation.max_guests} hóspedes.` });
     }
+
+    const pricingPeriods = db.prepare(
+      'SELECT * FROM pricing_periods WHERE accommodation_id = ? AND organization_id = ? ORDER BY start_date ASC'
+    ).all(accommodation_id, organizationId);
 
     let totals;
     try {
       totals = calculateReservationTotals(accommodation, getOrganizationServices(organizationId), {
         check_in,
         check_out,
-        num_guests,
+        num_guests: totalGuests,
+        pricing_periods: pricingPeriods,
         breakfast_included,
         guest,
         guests_data: guests_data || [],
@@ -218,25 +256,55 @@ async function create(req, res, next) {
       });
     }
 
+    // Aplicar voucher se fornecido
+    let voucherDiscount = 0;
+    let appliedVoucherId = null;
+    if (voucher_code) {
+      const vCode = String(voucher_code).toUpperCase().trim();
+      const voucher = db.prepare(
+        "SELECT * FROM vouchers WHERE code = ? AND organization_id = ? AND status = 'active'"
+      ).get(vCode, organizationId);
+      if (voucher) {
+        const today = new Date().toISOString().slice(0, 10);
+        const dateOk = (!voucher.valid_from || voucher.valid_from <= today) && (!voucher.valid_until || voucher.valid_until >= today);
+        if (dateOk) {
+          appliedVoucherId = voucher.id;
+          voucherDiscount = voucher.type === 'discount_pct'
+            ? totals.totalAmount * (voucher.value / 100)
+            : Math.min(voucher.value, totals.totalAmount);
+        }
+      }
+    }
+    const finalTotal = Math.max(0, totals.totalAmount - voucherDiscount);
+
     const paidAmt = Number(amount_paid) || 0;
-    const autoPaymentStatus = getPaymentStatus(paidAmt, totals.totalAmount, reqPaymentStatus || 'pendente');
+    const autoPaymentStatus = getPaymentStatus(paidAmt, finalTotal, reqPaymentStatus || 'pendente');
 
     // Criar reserva
     const reservationId = `SP-${Date.now()}`;
     db.prepare(`
       INSERT INTO reservations (
         id, organization_id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
+        num_adults, num_children,
         total_amount, breakfast_included, tourist_tax, channel, payment_method,
         notes, license_number, guests_data, amount_paid, payment_date, payment_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       reservationId, organizationId, guestRecord.id, accommodation_id, totals.checkIn, totals.checkOut,
-      totals.nights, totals.guests, totals.totalAmount, totals.breakfastIncluded,
+      totals.nights, totals.guests,
+      num_adults != null ? Number(num_adults) : totals.guests,
+      num_children != null ? Number(num_children) : 0,
+      finalTotal, totals.breakfastIncluded,
       totals.touristTax, channel || 'direto', payment_method || null,
       notes || null, accommodation.license_number,
       JSON.stringify(guests_data || []),
       paidAmt, payment_date || null, autoPaymentStatus
     );
+    if (appliedVoucherId) {
+      db.prepare(
+        "UPDATE vouchers SET status = 'used', used_at = datetime('now'), used_in_reservation_id = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?"
+      ).run(reservationId, appliedVoucherId, organizationId);
+    }
 
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservationId, organizationId);
     syncReservationOperationalTasks({
@@ -246,6 +314,7 @@ async function create(req, res, next) {
     }, req.user.id);
 
     // Google Calendar (async, não bloqueia resposta)
+    syncReservationTasksToCalendar(reservationId, organizationId, req.user.id);
     createCalendarEvent(reservation, { userId: req.user.id, organizationId }).then(eventId => {
       if (eventId) {
         db.prepare('UPDATE reservations SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ? AND organization_id = ?')
@@ -275,7 +344,7 @@ async function update(req, res, next) {
     if (!existing) return res.status(404).json({ error: 'Reserva não encontrada' });
 
     const {
-      check_in, check_out, num_guests, breakfast_included,
+      check_in, check_out, num_guests, num_adults, num_children, breakfast_included,
       channel, payment_method, notes, status, payment_status, guests_data, guest,
       accommodation_id, amount_paid, payment_date
     } = req.body;
@@ -285,9 +354,17 @@ async function update(req, res, next) {
       .get(newAccommodationId, organizationId);
     if (!accommodation) return res.status(404).json({ error: 'Alojamento não encontrado' });
 
+    const pricingPeriods2 = db.prepare(
+      'SELECT * FROM pricing_periods WHERE accommodation_id = ? AND organization_id = ? ORDER BY start_date ASC'
+    ).all(newAccommodationId, organizationId);
+
     const newCheckIn = check_in || existing.check_in;
     const newCheckOut = check_out || existing.check_out;
-    const guests = num_guests || existing.num_guests;
+    const newAdults = num_adults != null ? Number(num_adults) : existing.num_adults;
+    const newChildren = num_children != null ? Number(num_children) : (existing.num_children ?? 0);
+    const guests = (num_adults != null || num_children != null)
+      ? (newAdults + newChildren)
+      : (num_guests || existing.num_guests);
     const bkfOn2 = breakfast_included !== undefined ? (breakfast_included ? 1 : 0) : existing.breakfast_included;
     const incomingGuestsData = guests_data !== undefined ? guests_data : safeJson(existing.guests_data, []);
     const existingGuest = db.prepare('SELECT birth_date FROM guests WHERE id = ? AND organization_id = ?').get(existing.guest_id, organizationId) || {};
@@ -304,6 +381,7 @@ async function update(req, res, next) {
         num_guests: guests,
         breakfast_included: bkfOn2,
         birth_dates: getReservationBirthDates(guestForBirthDates, incomingGuestsData),
+        pricing_periods: pricingPeriods2,
       });
     } catch (error) {
       return res.status(400).json({ error: error.message });
@@ -347,6 +425,7 @@ async function update(req, res, next) {
     db.prepare(`
       UPDATE reservations SET
         accommodation_id = ?, check_in = ?, check_out = ?, nights = ?, num_guests = ?,
+        num_adults = ?, num_children = ?,
         total_amount = ?, breakfast_included = ?, tourist_tax = ?,
         channel = ?, payment_method = ?, notes = ?, status = ?,
         payment_status = ?, guests_data = ?,
@@ -354,7 +433,9 @@ async function update(req, res, next) {
       WHERE id = ? AND organization_id = ?
     `).run(
       newAccommodationId,
-      totals.checkIn, totals.checkOut, totals.nights, totals.guests, totals.totalAmount, totals.breakfastIncluded,
+      totals.checkIn, totals.checkOut, totals.nights, totals.guests,
+      newAdults ?? totals.guests, newChildren ?? 0,
+      totals.totalAmount, totals.breakfastIncluded,
       totals.touristTax,
       channel || existing.channel, payment_method || existing.payment_method,
       notes !== undefined ? notes : existing.notes, status || existing.status,
@@ -372,6 +453,9 @@ async function update(req, res, next) {
       accommodation_name: accommodation.name,
     }, req.user.id);
 
+    // Google Calendar tarefas (async)
+    syncReservationTasksToCalendar(req.params.id, organizationId, req.user.id);
+
     // Atualizar no Google Calendar
     updateCalendarEvent(updated, {
       userId: updated.google_calendar_user_id || req.user.id,
@@ -380,8 +464,8 @@ async function update(req, res, next) {
 
     // Email de pagamento se confirmado agora
     if (autoPaymentStatus2 === 'confirmado' && existing.payment_status !== 'confirmado') {
-      const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(updated.guest_id, organizationId);
-      sendPaymentConfirmationEmail(guest, updated, accommodation)
+      const guestRecord = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(updated.guest_id, organizationId);
+      sendPaymentConfirmationEmail(guestRecord, updated, accommodation)
         .catch(err => console.warn('Email não enviado:', err.message));
     }
 

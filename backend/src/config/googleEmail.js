@@ -1,0 +1,101 @@
+const { google } = require('googleapis');
+const { db } = require('./database');
+
+const GMAIL_SCOPES = [
+  'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/userinfo.email',
+];
+
+function getEmailOAuth2Client() {
+  return new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_EMAIL_REDIRECT_URI
+  );
+}
+
+function getStoredEmailTokens(organizationId) {
+  const row = db.prepare(
+    'SELECT tokens FROM google_email_connections WHERE organization_id = ?'
+  ).get(organizationId);
+  if (!row?.tokens) return null;
+  try { return JSON.parse(row.tokens); } catch { return null; }
+}
+
+function saveEmailTokens(organizationId, tokens, email) {
+  db.prepare(`
+    INSERT INTO google_email_connections (organization_id, email, tokens, updated_at)
+    VALUES (?, ?, ?, datetime('now'))
+    ON CONFLICT(organization_id)
+    DO UPDATE SET tokens = excluded.tokens, email = excluded.email, updated_at = datetime('now')
+  `).run(organizationId, email || null, JSON.stringify(tokens));
+}
+
+function deleteEmailTokens(organizationId) {
+  db.prepare('DELETE FROM google_email_connections WHERE organization_id = ?').run(organizationId);
+}
+
+function isEmailAuthenticated(organizationId) {
+  return !!getStoredEmailTokens(organizationId);
+}
+
+function getEmailConnectionInfo(organizationId) {
+  const row = db.prepare(
+    'SELECT email FROM google_email_connections WHERE organization_id = ?'
+  ).get(organizationId);
+  return row ? { connected: true, email: row.email } : { connected: false, email: null };
+}
+
+function getAuthenticatedEmailClient(organizationId) {
+  const oAuth2Client = getEmailOAuth2Client();
+  const tokens = getStoredEmailTokens(organizationId);
+  if (!tokens) throw new Error('Gmail não autenticado');
+  oAuth2Client.setCredentials(tokens);
+
+  oAuth2Client.on('tokens', (newTokens) => {
+    const merged = { ...tokens, ...newTokens };
+    saveEmailTokens(organizationId, merged, null);
+  });
+
+  return oAuth2Client;
+}
+
+function encodeSubject(subject) {
+  // RFC 2047 encoded word for UTF-8 subjects
+  return `=?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`;
+}
+
+async function sendViaGmail(organizationId, { to, subject, html, from }) {
+  if (!to) throw new Error('Endereço de destino em falta');
+  const auth = getAuthenticatedEmailClient(organizationId);
+  const gmail = google.gmail({ version: 'v1', auth });
+
+  const info = getEmailConnectionInfo(organizationId);
+  const senderEmail = info.email || 'me';
+  const propertyName = process.env.PROPERTY_NAME || 'Santa Paciencia';
+  const fromHeader = from || `${propertyName} <${senderEmail}>`;
+
+  const messageParts = [
+    `From: ${fromHeader}`,
+    `To: ${to}`,
+    `Subject: ${encodeSubject(subject)}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=UTF-8',
+    '',
+    html,
+  ];
+  const raw = Buffer.from(messageParts.join('\r\n')).toString('base64url');
+
+  return gmail.users.messages.send({ userId: 'me', requestBody: { raw } });
+}
+
+module.exports = {
+  getEmailOAuth2Client,
+  getAuthenticatedEmailClient,
+  saveEmailTokens,
+  deleteEmailTokens,
+  isEmailAuthenticated,
+  getEmailConnectionInfo,
+  sendViaGmail,
+  GMAIL_SCOPES,
+};

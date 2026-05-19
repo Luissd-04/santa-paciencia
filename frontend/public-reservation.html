@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reservar estadia</title>
+  <title>Reservar estadia — Santa Paciência</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
@@ -53,18 +55,22 @@
               </div>
               <div class="field-grid two">
                 <label>
-                  <span>Hóspedes</span>
-                  <input id="pb-guests" type="number" min="1" max="20" value="2">
+                  <span>Adultos</span>
+                  <input id="pb-adults" type="number" min="1" max="20" value="2">
                 </label>
                 <label>
-                  <span>Pequeno-almoço</span>
-                  <select id="pb-breakfast">
-                    <option value="false">Não incluído</option>
-                    <option value="true">Incluir</option>
-                  </select>
+                  <span>Crianças</span>
+                  <input id="pb-children" type="number" min="0" max="20" value="0">
                 </label>
               </div>
               <div class="unit-list" id="unit-list"></div>
+              <div class="voucher-row" id="voucher-row">
+                <div style="display:flex;gap:8px;margin-top:16px;">
+                  <input id="pb-voucher" type="text" placeholder="Código de voucher (opcional)" autocomplete="off" style="text-transform:uppercase;flex:1;font-size:13px;">
+                  <button type="button" id="pb-voucher-btn" onclick="applyVoucher()" style="white-space:nowrap;padding:0 16px;border:1px solid var(--brand);border-radius:12px;background:transparent;color:var(--brand);font-size:13px;font-weight:600;cursor:pointer;">Aplicar</button>
+                </div>
+                <div id="pb-voucher-status" style="display:none;font-size:13px;margin-top:6px;padding:6px 10px;border-radius:8px;"></div>
+              </div>
             </section>
 
             <section class="form-step" data-step="2">
@@ -156,16 +162,10 @@
                 <span>Confirmar</span>
                 <h2>Últimos detalhes</h2>
               </div>
-              <div class="field-grid two">
-                <label>
-                  <span>Hora prevista de chegada</span>
-                  <input id="pb-arrival" type="time">
-                </label>
-                <label>
-                  <span>NIF</span>
-                  <input id="pb-nif" placeholder="Opcional">
-                </label>
-              </div>
+              <label>
+                <span>Hora prevista de chegada</span>
+                <input id="pb-arrival" type="time">
+              </label>
               <label>
                 <span>Notas ou pedidos especiais</span>
                 <textarea id="pb-notes" rows="4" placeholder="Algum pedido especial?"></textarea>
@@ -189,7 +189,10 @@
               <div class="summary-row muted"><span>Base</span><strong id="summary-base">-</strong></div>
               <div class="summary-row muted"><span>Extras</span><strong id="summary-extras">-</strong></div>
               <div class="summary-row muted"><span>Taxas/serviços</span><strong id="summary-services">-</strong></div>
+              <div class="summary-row muted" id="summary-discount-row" style="display:none;color:#4f8f6b;"><span>Voucher</span><strong id="summary-discount">-</strong></div>
               <div class="summary-total"><span>Total estimado</span><strong id="summary-total">-</strong></div>
+              <p id="summary-dates-note" style="display:none;margin:4px 0 12px;font-size:12px;color:var(--muted);text-align:right;">para as datas selecionadas</p>
+              <div id="step-error" style="display:none;background:#fef0f0;border:1px solid #f5c6cb;color:#c0392b;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:14px;line-height:1.4;"></div>
               <div class="form-actions">
                 <button type="button" class="ghost-btn" id="prev-btn">Voltar</button>
                 <button type="button" class="primary-btn" id="next-btn">Continuar</button>

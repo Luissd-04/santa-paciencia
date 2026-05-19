@@ -154,6 +154,7 @@ const syncReservationTx = db.transaction((reservation, userId = null) => {
       AND reservation_id = ?
       AND auto_generated = 1
       AND status != 'concluido'
+      AND google_event_id IS NULL
   `).run(reservation.organization_id, reservation.id);
 
   const settings = getAutoTaskSettings(reservation.organization_id);

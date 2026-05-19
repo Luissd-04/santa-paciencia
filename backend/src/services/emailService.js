@@ -7,6 +7,20 @@ if (!EMAIL_DISABLED) {
   }
 }
 
+const { isEmailAuthenticated, sendViaGmail, getEmailConnectionInfo } = require('../config/googleEmail');
+
+async function sendMail(organizationId, { to, subject, html }) {
+  if (EMAIL_DISABLED) return null;
+  if (organizationId && isEmailAuthenticated(organizationId)) {
+    const info = getEmailConnectionInfo(organizationId);
+    const fromName = process.env.PROPERTY_NAME || 'Santa Paciência';
+    const from = info.email ? `${fromName} <${info.email}>` : fromName;
+    return sendViaGmail(organizationId, { to, subject, html, from });
+  }
+  if (!transporter) return null;
+  return transporter.sendMail({ from: process.env.EMAIL_FROM, to, subject, html });
+}
+
 const BRAND_COLOR = '#843424';
 const ACCENT_COLOR = '#c9a84c';
 
@@ -121,7 +135,6 @@ function formatDate(dateStr) {
 
 async function sendTemplatedEmail(slug, guest, reservation, accommodation) {
   if (EMAIL_DISABLED) { console.log(`Email ${slug} ignorado (EMAIL_ENABLED=false)`); return null; }
-  if (!transporter) return null;
   const { db } = require('../config/database');
   const orgId = reservation.organization_id || accommodation.organization_id;
   const template = orgId
@@ -132,8 +145,7 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation) {
   const vars = buildVars(guest, reservation, accommodation, settings);
   const to = guest.email;
   if (!to) return null;
-  return transporter.sendMail({
-    from: process.env.EMAIL_FROM,
+  return sendMail(orgId, {
     to,
     subject: interpolate(template.subject, vars),
     html: baseTemplate(interpolate(template.body, vars), settings),
@@ -149,7 +161,7 @@ async function sendCancellationEmail(guest, reservation, accommodation) {
 }
 
 async function sendPaymentConfirmationEmail(guest, reservation, accommodation) {
-  if (EMAIL_DISABLED || !transporter) return null;
+  if (EMAIL_DISABLED) return null;
   const { db } = require('../config/database');
   const orgId = reservation.organization_id || accommodation.organization_id;
   const template = orgId
@@ -161,8 +173,8 @@ async function sendPaymentConfirmationEmail(guest, reservation, accommodation) {
     <p style="color:#555;">Olá <strong>${guest.name}</strong>,</p>
     <p style="color:#555;">Confirmamos a receção do pagamento da sua reserva em <strong>${accommodation.name || ''}</strong>.</p>
     <p style="color:#27ae60;font-weight:bold;font-size:20px;">€${Number(reservation.total_amount || 0).toFixed(2)}</p>`;
-  return transporter.sendMail({
-    from: process.env.EMAIL_FROM, to: guest.email,
+  return sendMail(orgId, {
+    to: guest.email,
     subject: '💶 Pagamento Confirmado — Santa Paciência',
     html: baseTemplate(content, settings),
   });

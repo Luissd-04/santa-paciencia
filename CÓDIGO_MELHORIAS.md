@@ -1,471 +1,155 @@
-# Melhorias de Código Imediatas (Sem React)
+# Melhorias de Código — Lista Viva
 
-## 🎯 Problemas Frequentes + Soluções
-
-### 1️⃣ **innerHTML em loops causa DOM flickering**
-
-```javascript
-// ❌ ATUAL - em alojamentos.js e reservas.js
-accommodations.forEach(a => {
-  el.innerHTML += `<option value="${a.id}">${a.name}</option>`; // Redraw 10x!
-});
-
-// ✅ MELHOR - Usar DocumentFragment
-const frag = document.createDocumentFragment();
-accommodations.forEach(a => {
-  const opt = document.createElement('option');
-  opt.value = a.id;
-  opt.textContent = a.name;
-  frag.appendChild(opt);
-});
-el.appendChild(frag); // Uma operação!
-```
-
-**Ganho:** ~10x mais rápido, sem flickering, mantém event listeners
+> Atualizado em 2026-05-19. Itens marcados ✅ foram resolvidos; ⚠️ parcialmente; 🔴 ainda pendente.
 
 ---
 
-### 2️⃣ **Event listener duplicados sem cleanup**
+## ✅ Resolvido
 
-```javascript
-// ❌ PROBLEMA - em app.js
-function showView(v) {
-  document.querySelectorAll('.nav-item').forEach(x => {
-    x.onclick = () => showView(...); // Adiciona listener de novo toda vez!
-  });
-}
-
-// ✅ SOLUÇÃO - Adicionar uma vez (event delegation)
-const nav = document.getElementById('nav');
-nav.addEventListener('click', (e) => {
-  const navItem = e.target.closest('.nav-item');
-  if (!navItem) return;
-  const view = navItem.dataset.view;
-  showView(view);
-}); // Só uma vez no init!
-```
-
-**Ganho:** Memory leak eliminado, código mais limpo
-
----
-
-### 3️⃣ **State inconsistente - sem notificação entre módulos**
-
-```javascript
-// ❌ PROBLEMA - state.js e reservas.js usam diferente
-// Em reservas.js:
-const newReservas = await loadReservas(); // Local
-// Em alojamentos.js:
-reservas // Global - pode estar stale!
-
-// ✅ SOLUÇÃO - Pub/Sub simples
-// pubsub.js (novo ficheiro)
-const pubsub = {
-  events: {},
-  on(event, callback) {
-    if (!this.events[event]) this.events[event] = [];
-    this.events[event].push(callback);
-    return () => this.events[event] = this.events[event].filter(cb => cb !== callback);
-  },
-  emit(event, data) {
-    this.events[event]?.forEach(cb => cb(data));
-  }
-};
-
-// Em state.js
-let reservas = [];
-async function loadReservas() {
-  const data = await apiGet('/api/reservas');
-  reservas = data;
-  pubsub.emit('reservas:loaded', reservas);
-  return reservas;
-}
-
-// Em qualquer ficheiro que precisa:
-pubsub.on('reservas:loaded', (data) => {
-  renderReservasUI(data);
-});
-```
-
-**Ganho:** Sem race conditions, UI sempre sincronizada
+- **DocumentFragment em loops**: `app.js` e `precos.js` já usam DocumentFragment/map+join em vez de `innerHTML +=`.
+- **Regras de negócio no backend**: `reservationRules.js` + `availabilityRules.js` centralizam cálculos, disponibilidade e hierarquia.
+- **Domínio no frontend**: `domain/dates.js` e `domain/pricing.js` evitam duplicação entre backoffice e motor público.
+- **`AppUI.enhanceSelect`**: dropdowns pesquisáveis uniformes em toda a app.
+- **`AppUI.setButtonLoading`**: estados de loading centralizados.
+- **Preços dinâmicos implementados**: tabela `pricing_periods`, calendário visual, CRUD e aplicação noite a noite.
+- **Vouchers implementados**: tabela `vouchers`, CRUD no backoffice, campo no wizard, verificação inline.
+- **Voucher modal inline style**: `#voucher-modal-bg` tinha `style="display:none;"` que bloqueava `AppUI.openModal`. Removido.
+- **Bug `initPrecos()` corrigido**: range state resetado ao entrar na vista.
+- **`require('uuid')` dentro de função**: movido para o topo de `accommodationController.js`.
+- **Shadow de variável `guest`**: renomeada para `guestRecord` em `reservationController.js`.
+- **Campos obrigatórios no backoffice**: wizard só exige datas + nome do hóspede; restantes são opcionais.
+- **Tarefas operacionais — lista vazia**: filtro padrão era `'upcoming'` (ocultava tarefas passadas); corrigido para `''`.
+- **Tarefas operacionais — `google_event_id` resetado**: `syncReservationTx` apagava tarefas já sincronizadas; corrigido com `AND google_event_id IS NULL` no DELETE.
+- **Tarefas operacionais — sync live**: `syncReservationTasksToCalendar()` chamado após criar/atualizar reserva em `reservationController.js`.
+- **Iniciais no calendário de eventos**: helper `accInitials()` + pills e blocos de timeline mostram iniciais do alojamento.
+- **Filtros de tipo por chips**: lista e calendário de eventos têm chips coloridos por tipo; `eventosTypeFilters` (Set) partilhado entre vistas.
+- **Favicon**: `<link rel="icon">` adicionado a `index.html` e `public-reservation.html`; aponta para `frontend/favicon.png`.
 
 ---
 
-### 4️⃣ **Validações espalhadas - sem schema**
+## 🔴 Pendente — Alta Prioridade / Segurança
 
-```javascript
-// ❌ PROBLEMA - validations espalhadas em diferentes ficheiros
-// Em public-reservation.js:
-if (!form.pb-name.value) errors.push('Nome obrigatório');
-if (!form.pb-email.value) errors.push('Email obrigatório');
-// Em hospedes.js:
-if (!name) return error('Nome inválido');
-// Em auth.js:
-if (email.indexOf('@') === -1) return error('Email mal formatado');
+### 1. Email scheduler não ligado *(aguarda trabalho futuro)*
+`emailScheduler.js` existe mas `server.js` nunca chama `startScheduler()`.
+Emails imediatos funcionam; emails agendados (check-in/check-out/obrigado) nunca são enviados automaticamente.
+**Fix**: `const { startScheduler } = require('./services/emailScheduler'); startScheduler();` em `server.js`.
 
-// ✅ SOLUÇÃO - Schema centralizado
-// validators.js (novo)
-const SCHEMAS = {
-  guest: {
-    name: {
-      required: true,
-      pattern: /^.{2,100}$/,
-      message: 'Nome 2-100 caracteres'
-    },
-    email: {
-      required: true,
-      pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-      message: 'Email inválido'
-    },
-    phone: {
-      required: true,
-      pattern: /^9\d{8}$/,
-      message: 'Telefone PT inválido (9XXXXXXXX)'
-    },
-    birthDate: {
-      required: true,
-      validate: (v) => {
-        const d = new Date(v);
-        const age = new Date().getFullYear() - d.getFullYear();
-        if (age < 18 || age > 120) throw new Error('Idade 18-120');
-        return true;
-      }
-    }
-  }
-};
+### 2. XSS em innerHTML com dados do utilizador
+Vários ficheiros inserem dados da API directamente em `innerHTML` sem escapar (nomes de períodos em `precos.js`, etc.). O helper `escapeHtml` existe mas não é usado em todos os pontos.
+**Fix**: verificar e aplicar `escapeHtml` em todos os `innerHTML` com dados externos.
 
-function validate(obj, schema) {
-  const errors = {};
-  for (const [key, rules] of Object.entries(schema)) {
-    const value = obj[key];
-    if (rules.required && !value) {
-      errors[key] = 'Obrigatório';
-      continue;
-    }
-    if (value && rules.pattern && !rules.pattern.test(value)) {
-      errors[key] = rules.message;
-      continue;
-    }
-    if (value && rules.validate) {
-      try { rules.validate(value); }
-      catch (e) { errors[key] = e.message; }
-    }
-  }
-  return errors;
-}
+### 3. Race condition no voucher (novo)
+`publicBookingController.js`: a validação do voucher e a actualização de `status = 'used'` correm em queries separadas. Dois pedidos simultâneos podem ambos passar a validação antes de qualquer um marcar o voucher como usado.
+**Fix**: envolver validação + update numa transação `db.transaction(...)`.
 
-// Usar:
-const guestData = { name: '', email: 'test@test.com', ... };
-const errors = validate(guestData, SCHEMAS.guest);
-if (Object.keys(errors).length > 0) {
-  Object.entries(errors).forEach(([field, msg]) => {
-    document.getElementById(`error-${field}`).textContent = msg;
-  });
-}
-```
+### 4. Rate limiting em `/auth/login` e endpoints públicos
+Sem limite de tentativas de login — vulnerável a brute-force.
+`/api/public/booking/:slug/reservations` também sem rate limiting — vulnerável a spam.
+`express-rate-limit` **não está instalado** (não está em `package.json`).
+**Fix**: `npm install express-rate-limit` + aplicar nas rotas `/auth/login` e `/api/public/*`.
 
-**Ganho:** Validações consistentes, fácil de testar, DRY
+### 5. Tokens de sessão sem rotação
+Após login, o `id` da sessão é fixo até expirar. Se o cookie for comprometido, é válido até ao fim do TTL.
+**Fix**: rodar o session ID em cada request ou após operações sensíveis.
 
 ---
 
-### 5️⃣ **Modal states duplicados em HTML**
+## 🔴 Pendente — Qualidade / Fiabilidade
 
-```html
-<!-- ❌ PROBLEMA - data-step duplica-se com JS -->
-<form id="public-booking-form">
-  <section class="form-step active" data-step="1">...</section>
-  <section class="form-step" data-step="2">...</section>
-  <section class="form-step" data-step="3">...</section>
-</form>
+### 6. Side effect em GET `/notifications`
+`reservationController.js:559` chama `syncOrganizationOperationalTasks(orgId)` num handler GET.
+**Fix**: remover do handler GET; o sync corre via `POST /api/events/sync` ou scheduler.
 
-<!-- Depois em JS: -->
-document.getElementById('step-1-btn').onclick = () => showStep(1);
-document.getElementById('step-2-btn').onclick = () => showStep(2);
-// ... replicado múltiplas vezes
-```
+### 7. `payment_method` e campos opcionais não se limpam
+`payment_method || existing.payment_method` (linha 440) impede apagar o método explicitamente.
+**Fix**: `payment_method !== undefined ? (payment_method || null) : existing.payment_method`.
 
-```javascript
-// ✅ SOLUÇÃO - Usar data attributes + event delegation
-function setupMultiStepForm(formId, options = {}) {
-  const form = document.getElementById(formId);
-  const currentStep = { value: 1 };
-  
-  const showStep = (num) => {
-    form.querySelectorAll('[data-step]').forEach(s => {
-      s.classList.toggle('active', s.dataset.step == num);
-    });
-    form.querySelectorAll('[data-step-dot]').forEach(d => {
-      d.classList.toggle('active', d.dataset.stepDot == num);
-    });
-    currentStep.value = num;
-    options.onStepChange?.(num);
-  };
-  
-  form.addEventListener('click', (e) => {
-    if (e.target.closest('[data-next-step]')) {
-      const next = Math.min(currentStep.value + 1, 3);
-      showStep(next);
-    }
-    if (e.target.closest('[data-prev-step]')) {
-      const prev = Math.max(currentStep.value - 1, 1);
-      showStep(prev);
-    }
-  });
-  
-  return { showStep, currentStep };
-}
+### 8. JOIN de voucher sem filtro de organização (novo)
+Em `voucherController.js`, o LEFT JOIN de accommodation não inclui `a.organization_id = v.organization_id`.
+**Fix**: adicionar a condição ao JOIN.
 
-// Usar:
-const form = setupMultiStepForm('public-booking-form', {
-  onStepChange: (step) => console.log('Step:', step)
-});
-form.showStep(1);
-```
-
-**Ganho:** Menos código repetido, lógica centralizada
+### 9. `completed_at` pode ser sobreescrito (novo)
+Em `eventController.js`, actualizar um evento concluído pode sobreescrever `completed_at`.
+**Fix**: só definir `completed_at` na transição para `'concluido'`, nunca sobreescrever.
 
 ---
 
-### 6️⃣ **Funções render gigantes sem break de componentes**
+## ⚠️ Pendente — Média Prioridade
 
-```javascript
-// ❌ PROBLEMA - renderMobileCards() tem 40+ linhas
-function renderMobileCards() {
-  const filtered = reservas.filter(...);
-  container.innerHTML = filtered.map(r => {
-    return `<div class="m-res-card">
-      <div class="mrc-top">
-        <div>
-          <div class="mrc-name">${r.guest_name}</div>
-          ...mais 30 linhas de HTML...
-        </div>
-        ${badgeEstado(r.status)}
-      </div>
-      ...40+ mais linhas...
-    </div>`;
-  }).join('');
-}
+### 10. `pricing_periods` sem índice em `accommodation_id`
+A query mais frequente `WHERE accommodation_id = ? AND organization_id = ?` não tem índice.
+**Fix**: `CREATE INDEX IF NOT EXISTS idx_pricing_periods_acc ON pricing_periods (accommodation_id, organization_id)` em `database.js`.
 
-// ✅ SOLUÇÃO - Extrair em "componentes" reutilizáveis
-function renderReservationCard(r) {
-  return `<div class="m-res-card">
-    ${renderCardHeader(r)}
-    ${renderCardMeta(r)}
-    ${renderCardActions(r)}
-  </div>`;
-}
+### 11. Validação do código de voucher público
+Em `publicBookingController.js` o código só é normalizado (`toUpperCase().trim()`). Sem limite de comprimento nem validação de formato.
+**Fix**: `if (!/^[A-Z0-9]{3,20}$/.test(code)) return res.status(400)...`
 
-function renderCardHeader(r) {
-  return `<div class="mrc-top">
-    <div>
-      <div class="mrc-name">${r.guest_name}</div>
-      <div class="mrc-id">${r.id} · ${r.accommodation_name}</div>
-    </div>
-    ${badgeEstado(r.status)}
-  </div>`;
-}
+### 12. `getResolvedAccommodationsForOrg` para lookups individuais
+`accommodationController.getById` busca TODOS os alojamentos e filtra em JS.
+**Fix**: criar `getResolvedAccommodationById(orgId, id)` com filtro no SQL.
 
-function renderCardMeta(r) {
-  return `<div class="mrc-meta">
-    <div class="mrc-meta-item"><i data-lucide="calendar"></i> ${formatDate(r.check_in)}</div>
-    <div class="mrc-meta-item"><i data-lucide="moon"></i> ${r.nights} noite${r.nights !== 1 ? 's' : ''}</div>
-  </div>`;
-}
+### 13. Hover re-render completo no calendário de preços
+`handlePrecosDayHover` dispara `renderPrecosCalendar()` em cada movimento do rato, reconstruindo todo o DOM.
+**Fix**: `classList.toggle` em vez de reconstruir; ou throttle.
 
-function renderCardActions(r) {
-  return `<div class="mrc-actions" onclick="event.stopPropagation()">
-    <button class="m-card-btn primary" onclick="showDetail('${r.id}')">Ver</button>
-    <button class="m-card-btn" onclick="openEditModal('${r.id}')">Editar</button>
-  </div>`;
-}
+### 14. `api.js` duplica padrão de `helpers.js`
+`frontend/api.js` existe mas a SPA usa `apiGet`/`apiPost`/etc. de `helpers.js`.
+**Fix**: unificar num único módulo.
 
-// Usar:
-function renderMobileCards() {
-  const filtered = reservas.filter(...);
-  container.innerHTML = filtered.map(renderReservationCard).join('');
-  lucide.createIcons();
-}
-```
+### 15. Event listeners acumulam sem cleanup
+`_precosHandleOutsideClick` pode duplicar-se se o elemento for destruído e recriado.
+**Fix**: `AbortController` ou `removeEventListener` antes de adicionar.
 
-**Ganho:** Legibilidade, reutilização, fácil de testar
+### 16. Estado global de módulos pode ficar stale
+`_cachedPricingPeriods` no wizard não é invalidado ao editar períodos na vista Preços.
+**Fix**: callback ou evento ao guardar um período.
 
 ---
 
-### 7️⃣ **Sem error boundaries - erros silenciosos**
+## ⚠️ Pendente — Baixa Prioridade / Organização
 
-```javascript
-// ❌ PROBLEMA
-async function loadReservas() {
-  const data = await apiGet('/api/reservas');
-  reservas = data; // Se falhar, ninguém sabe!
-  renderReservasUI();
-}
+### 17. `onclick` inline no `index.html`
+Centenas de `onclick="..."` dificultam testes e linting.
+**Fix de longo prazo**: event delegation via `data-action` + listener centralizado.
 
-// ✅ SOLUÇÃO - Wrapper com logging
-async function loadReservasWithErrorHandling() {
-  try {
-    const data = await apiGet('/api/reservas');
-    reservas = data;
-    pubsub.emit('reservas:loaded', reservas);
-    renderReservasUI();
-  } catch (error) {
-    console.error('❌ Erro ao carregar reservas:', error);
-    toast('Erro ao carregar reservas: ' + error.message, 'error');
-    // Log para servidor (para monitoramento)
-    logError('loadReservas', error);
-  }
-}
+### 18. Validações espalhadas sem schema central
+Cada form valida à sua maneira; inconsistências entre backoffice e wizard.
+**Fix**: `frontend/js/domain/validators.js` com `validate(obj, schema)`.
 
-function logError(context, error) {
-  // Envia para servidor/Sentry/etc
-  apiPost('/api/logs/error', {
-    context,
-    message: error.message,
-    stack: error.stack,
-    url: window.location.href,
-    timestamp: new Date().toISOString()
-  }).catch(() => {}); // Silencioso se log falhar
-}
-```
+### 19. Funções render grandes não decompostas
+`renderMobileCards`, `renderCalView` e similares têm 60-100 linhas.
+**Fix**: extrair sub-funções por responsabilidade.
 
-**Ganho:** Bugs debugados rapidamente, monitoramento de produção
+### 20. IDs de reserva com timestamp podem colidir
+`SP-${Date.now()}` pode colidir em criações simultâneas rápidas.
+**Fix de longo prazo**: UUID com prefixo SP como display-only.
+
+### 21. Credenciais em `.env` local
+Se o `.env` foi partilhado ou commitado por engano, as credenciais SMTP e Google OAuth devem ser rodadas.
 
 ---
 
-## 🚀 Checklist de Melhorias (Por Ordem de Impacto)
+## Checklist Rápido
 
-- [ ] **1. Criar `pubsub.js`** - Pub/sub simples para state syncing
-- [ ] **2. Criar `validators.js`** - Schema centralizado de validações
-- [ ] **3. Refatorar `app.js`** - Event delegation em vez de listeners individuais
-- [ ] **4. Refatorar `reservas.js`** - Quebrar renderMobileCards/renderTable em componentes menores
-- [ ] **5. Refatorar `alojamentos.js`** - Eliminar innerHTML em loops
-- [ ] **6. Adicionar error handling** - Try/catch com logging
-- [ ] **7. Extrair componentes render** - public-reservation, calendario, etc
-
----
-
-## 📝 Exemplo: Aplicar Tudo Junto
-
-```javascript
-// ── novo pubsub.js ──
-const pubsub = {
-  events: {},
-  on(e, cb) {
-    if (!this.events[e]) this.events[e] = [];
-    this.events[e].push(cb);
-  },
-  emit(e, d) { this.events[e]?.forEach(cb => cb(d)); }
-};
-
-// ── state.js (modificado) ──
-let reservas = [];
-
-async function loadReservas() {
-  try {
-    const data = await apiGet('/api/reservas');
-    reservas = data;
-    pubsub.emit('reservas:updated', reservas);
-  } catch (e) {
-    logError('loadReservas', e);
-    toast('Erro ao carregar reservas', 'error');
-  }
-}
-
-// ── reservas.js (modificado) ──
-function init() {
-  // Subscrever a mudanças de reservas
-  pubsub.on('reservas:updated', () => renderUI());
-  
-  // Delegação de eventos
-  document.getElementById('reservas-view').addEventListener('click', (e) => {
-    if (e.target.closest('.res-edit-btn')) {
-      const id = e.target.closest('tr').dataset.reservaId;
-      openEditModal(id);
-    }
-    if (e.target.closest('.res-delete-btn')) {
-      const id = e.target.closest('tr').dataset.reservaId;
-      deleteReserva(id);
-    }
-  });
-}
-
-// Validar antes de enviar
-async function saveReserva(data) {
-  const errors = validate(data, SCHEMAS.guest);
-  if (Object.keys(errors).length > 0) {
-    showValidationErrors(errors);
-    return;
-  }
-  
-  try {
-    const result = await apiPost('/api/reservas', data);
-    toast('Reserva salva!', 'success');
-    await loadReservas();
-  } catch (e) {
-    logError('saveReserva', e);
-    toast('Erro ao salvar', 'error');
-  }
-}
-```
-
----
-
-## 📊 Impacto Esperado
-
-| Melhoria | Performance | Qualidade | Tempo Dev |
-|----------|------------|-----------|-----------|
-| Pub/Sub state | ⬆️⬆️ | ⬆️⬆️ | 4h |
-| Validators schema | ➡️ | ⬆️⬆️ | 3h |
-| Event delegation | ⬆️ | ⬆️ | 2h |
-| Render components | ➡️ | ⬆️⬆️ | 6h |
-| DOM fragments | ⬆️⬆️ | ➡️ | 2h |
-| Error handling | ➡️ | ⬆️⬆️ | 3h |
-
-**Total: ~20h de refactoring → visível melhoria de estabilidade e manutenibilidade**
-
----
-
-## Atualização 2026-05-11 — Prioridades Reais no Código Atual
-
-### 1. Reutilizar UI antes de criar novos botões/animações
-- Manter todos os botões novos em cima de `.btn`, `.btn-primary`, `.btn-ghost`, `.btn-danger`, `.btn-success`, `.btn-sm` e, se necessário, criar só `.btn-icon`.
-- Centralizar loading/disabled em helper JS, por exemplo `setButtonLoading(button, true, 'A guardar...')`.
-- Evitar `style="..."` em botões no `index.html`; criar classes em `components.css`.
-- Reduzir animações novas: reaproveitar `viewFadeIn`, `softIn`, `slideUpSmooth`, `spinSmooth`.
-
-### 2. Separar regras de negócio de render
-Ficheiros como `reservas.js`, `alojamentos.js` e `public-reservation.js` misturam:
-- chamadas API
-- cálculo de preço/disponibilidade
-- validação
-- render HTML
-- listeners e estado de modal
-
-Separação recomendada:
-- `frontend/js/domain/dates.js`
-- `frontend/js/domain/pricing.js`
-- `frontend/js/domain/availability.js`
-- `frontend/js/ui/modal.js`
-- `frontend/js/ui/dropdown.js`
-- `frontend/js/ui/date-picker.js`
-
-### 3. Backend: extrair regras que já cresceram
-- `reservationController.js` deve perder regras para `services/reservationRules.js`.
-- `accommodationController.js` deve delegar imagens para `services/imageService.js`.
-- Validações de payload devem ficar num módulo comum para reservas, hóspedes, alojamentos e equipa.
-
-### 4. Atenções de produção
-- Decidir se o `emailScheduler` deve arrancar automaticamente; neste momento existe mas não é chamado no `server.js`.
-- `backend/src/config/app.js` já foi removido; o entrypoint único é `backend/src/app.js`.
-- Rodar credenciais se `.env` tiver sido partilhado.
-- Criar testes mínimos antes de refatorar regras de reserva/preço.
-
-### 5. Feito nesta ronda
-- Regras puras de reservas no backend ficaram em `backend/src/services/reservationRules.js`.
-- `reservationController.js` e `publicBookingController.js` passaram a usar a mesma lógica para datas, noites, totais, ocupação extra e estado de pagamento.
-- Foram adicionados testes mínimos em `reservationRules.test.js` e script `npm test`.
-- No frontend foram criados `js/domain/dates.js`, `js/domain/pricing.js` e `js/ui.js`.
-- O loading de alguns botões já usa `AppUI.setButtonLoading()`.
-- `AppUI.enhanceSelect()` já aplica dropdown pesquisável ao backoffice usando o visual da página pública sem mudar a leitura de `.value`.
-- `AppUI.openModal()` / `AppUI.closeModal()` já começaram a substituir manipulação manual de classes em modais simples.
-- `availabilityRules.js` adiciona regras testáveis para hierarquia pai/filhos e overlap/back-to-back.
+| Item | Estado | Impacto |
+|---|---|---|
+| Email scheduler ligar | 🔴 *(futuro)* | Alto — emails agendados não funcionam |
+| Race condition voucher | 🔴 | Alto — exploitável com pedidos concorrentes |
+| Rate limiting login + público | 🔴 | Alto — segurança |
+| XSS em innerHTML | 🔴 | Médio |
+| Side effect GET notifications | 🔴 | Médio — fiabilidade |
+| payment_method clearing | 🔴 | Médio — UX bug |
+| JOIN voucher sem org filter | 🔴 | Médio — segurança |
+| completed_at overwrite | ⚠️ | Baixo |
+| Índice pricing_periods | ⚠️ | Baixo — OK para escala atual |
+| Validação código voucher público | ⚠️ | Baixo |
+| getResolvedAccommodationsForOrg | ⚠️ | Baixo — OK para escala atual |
+| Hover re-render calendário | ⚠️ | Baixo |
+| api.js duplicação | ⚠️ | Baixo — cosmético |
+| Event listener cleanup | ⚠️ | Baixo |
+| Cache pricing wizard | ⚠️ | Baixo — edge case |
+| onclick inline HTML | ⚠️ | Baixo — debt longo prazo |
+| Validações sem schema | ⚠️ | Médio — consistência |
+| Render funções grandes | ⚠️ | Baixo — manutenibilidade |
+| IDs com timestamp | ⚠️ | Muito baixo — só com volume alto |
+| Tokens sessão sem rotação | 🔴 | Médio — segurança |

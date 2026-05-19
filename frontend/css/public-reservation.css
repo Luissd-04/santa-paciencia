@@ -36,6 +36,8 @@ body {
   background-position: center;
   transition: background-image 1200ms ease, opacity 1200ms ease;
   will-change: background-image;
+  filter: blur(6px);
+  transform: scale(1.04);
 }
 
 .ambient-overlay {

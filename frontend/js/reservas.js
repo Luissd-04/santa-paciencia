@@ -606,6 +606,11 @@ function closeModal() {
   const modal = bg.querySelector('.modal');
   modal.classList.add('modal-closing');
   setTimeout(() => { AppUI.closeModal(bg); modal.classList.remove('modal-closing'); editingId = null; }, 320);
+  _backofficeVoucher = null;
+  const vCode = document.getElementById('f-voucher-code');
+  const vStatus = document.getElementById('f-voucher-status');
+  if (vCode) vCode.value = '';
+  if (vStatus) { vStatus.style.display = 'none'; vStatus.style.background = ''; vStatus.style.color = ''; vStatus.textContent = ''; }
 }
 
 function calcTotal() {
@@ -1053,46 +1058,8 @@ function validateWizStep(step) {
     return true;
   }
   if (step === 2) {
-    if (!document.getElementById('f-nome-completo').value.trim())
-      { toast('⚠️ Introduz o nome completo do hóspede.', 'error'); return false; }
-    if (!document.getElementById('f-email').value.trim())
-      { toast('⚠️ Introduz o email do hóspede.', 'error'); return false; }
-    if (!document.getElementById('f-tel-num').value.trim())
-      { toast('⚠️ Introduz o telefone do hóspede.', 'error'); return false; }
-    if (!document.getElementById('f-pais').value)
-      { toast('⚠️ Seleciona o país do hóspede.', 'error'); return false; }
-    if (!getBirthDateValue(document.getElementById('f-nascimento')))
-      { toast('⚠️ Introduz uma data de nascimento válida para o hóspede.', 'error'); return false; }
-    const isForeign = document.getElementById('f-pais').value !== 'Portugal';
-    if (isForeign) {
-      if (!document.getElementById('f-local-nascimento').value.trim())
-        { toast('⚠️ Local de nascimento obrigatório para hóspedes estrangeiros.', 'error'); return false; }
-      if (!document.getElementById('f-doc-tipo').value)
-        { toast('⚠️ Tipo de documento obrigatório para hóspedes estrangeiros.', 'error'); return false; }
-      if (!document.getElementById('f-doc-num').value.trim())
-        { toast('⚠️ Nº de documento obrigatório para hóspedes estrangeiros.', 'error'); return false; }
-      if (!document.getElementById('f-doc-emissor').value)
-        { toast('⚠️ País emissor do documento obrigatório para hóspedes estrangeiros.', 'error'); return false; }
-    }
-    // Validate extra guests
-    let extraIdx = 2;
-    for (const row of document.querySelectorAll('.extra-guest-row')) {
-      const nome = row.querySelector('[data-field="nome_completo"]')?.value.trim();
-      const country = row.querySelector('[data-field="country"]')?.value;
-      const birthDate = getBirthDateValue(row.querySelector('[data-field="birth_date"]'));
-      if (!nome) { toast(`⚠️ Introduz o nome do hóspede ${extraIdx}.`, 'error'); return false; }
-      if (!country) { toast(`⚠️ Seleciona o país do hóspede ${extraIdx}.`, 'error'); return false; }
-      if (!birthDate) { toast(`⚠️ Introduz uma data de nascimento válida para o hóspede ${extraIdx}.`, 'error'); return false; }
-      if (country !== 'Portugal') {
-        if (!row.querySelector('[data-field="doc_type"]')?.value)
-          { toast(`⚠️ Tipo de documento obrigatório para o hóspede ${extraIdx} (estrangeiro).`, 'error'); return false; }
-        if (!row.querySelector('[data-field="doc_number"]')?.value.trim())
-          { toast(`⚠️ Nº de documento obrigatório para o hóspede ${extraIdx} (estrangeiro).`, 'error'); return false; }
-        if (!row.querySelector('[data-field="doc_emissor"]')?.value)
-          { toast(`⚠️ País emissor obrigatório para o hóspede ${extraIdx} (estrangeiro).`, 'error'); return false; }
-      }
-      extraIdx++;
-    }
+    const nome = (document.getElementById('f-nome-completo')?.value || '').trim();
+    if (!nome) { toast('⚠️ O nome do hóspede é obrigatório.', 'error'); return false; }
     return true;
   }
   return true;
@@ -1352,6 +1319,43 @@ function collectExtraGuests() {
   }).filter(g => g.name || g.email);
 }
 
+let _backofficeVoucher = null;
+
+async function verifyBackofficeVoucher() {
+  const code = (document.getElementById('f-voucher-code')?.value || '').trim().toUpperCase();
+  const statusEl = document.getElementById('f-voucher-status');
+  if (!statusEl) return;
+
+  statusEl.style.display = 'block';
+
+  if (!code) {
+    _backofficeVoucher = null;
+    statusEl.style.background = '#f5f5f5';
+    statusEl.style.color = '#888';
+    statusEl.textContent = 'Introduza um código de voucher.';
+    return;
+  }
+
+  statusEl.style.background = '#f5f5f5';
+  statusEl.style.color = '#666';
+  statusEl.textContent = 'A verificar...';
+  try {
+    const res = await apiGet(`/api/vouchers/validate?code=${encodeURIComponent(code)}`);
+    _backofficeVoucher = res.data;
+    const disc = _backofficeVoucher.type === 'discount_pct'
+      ? `${_backofficeVoucher.value}% de desconto`
+      : `€${Number(_backofficeVoucher.value).toFixed(2)} de desconto`;
+    statusEl.style.background = '#f0faf4';
+    statusEl.style.color = '#2d6a4f';
+    statusEl.textContent = `✓ ${_backofficeVoucher.description ? _backofficeVoucher.description + ' · ' : ''}${disc}`;
+  } catch (err) {
+    _backofficeVoucher = null;
+    statusEl.style.background = '#fef0f0';
+    statusEl.style.color = '#c0392b';
+    statusEl.textContent = err?.payload?.error || 'Voucher inválido ou já utilizado';
+  }
+}
+
 async function saveReserva() {
   const nomeCompleto = document.getElementById('f-nome-completo').value.trim();
   const nomeParts    = nomeCompleto.split(' ');
@@ -1367,34 +1371,14 @@ async function saveReserva() {
   const alojId   = document.getElementById('f-aloj').value;
   const rgpdCheck = document.getElementById('f-rgpd-check');
 
-  if (!nomeCompleto) { toast('Por favor insira o nome do hóspede.', 'error'); return; }
-  if (!email)        { toast('Por favor insira o email do hóspede.', 'error'); return; }
-  if (!telNum)       { toast('Por favor insira o telefone do hóspede.', 'error'); return; }
-  if (!pais)         { toast('Por favor selecione o país do hóspede.', 'error'); return; }
   const birthDate = getBirthDateValue(document.getElementById('f-nascimento'));
-  if (!birthDate) { toast('Por favor insira uma data de nascimento válida.', 'error'); return; }
+  if (!nomeCompleto) { toast('⚠️ O nome do hóspede é obrigatório.', 'error'); return; }
   if (!checkin || !checkout) { toast('Por favor selecione as datas.', 'error'); return; }
   if (checkin >= checkout) { toast('O check-out deve ser depois do check-in.', 'error'); return; }
   const selectedAccommodation = accommodations.find(a => a.id === alojId);
   const requestedGuests = parseInt(document.getElementById('f-num-hospedes').value) || 1;
   if (selectedAccommodation?.max_guests && requestedGuests > selectedAccommodation.max_guests) {
     toast(`Este alojamento permite no máximo ${selectedAccommodation.max_guests} hóspede${selectedAccommodation.max_guests !== 1 ? 's' : ''}.`, 'error');
-    return;
-  }
-
-  if (pais && pais !== 'Portugal') {
-    if (!document.getElementById('f-local-nascimento').value.trim())
-      { toast('Para hóspedes estrangeiros, o local de nascimento é obrigatório.', 'error'); return; }
-    if (!document.getElementById('f-doc-tipo').value)
-      { toast('Para hóspedes estrangeiros, o tipo de documento é obrigatório.', 'error'); return; }
-    if (!document.getElementById('f-doc-num').value.trim())
-      { toast('Para hóspedes estrangeiros, o número de documento é obrigatório.', 'error'); return; }
-    if (!document.getElementById('f-doc-emissor').value)
-      { toast('Para hóspedes estrangeiros, o país emissor do documento é obrigatório.', 'error'); return; }
-  }
-  if (rgpdCheck && !rgpdCheck.checked) {
-    toast('O hóspede tem de aceitar o tratamento de dados (RGPD) para continuar.', 'error');
-    rgpdCheck.closest('.rgpd-box')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
 
@@ -1468,6 +1452,7 @@ async function saveReserva() {
         amount_paid: parseFloat(document.getElementById('f-amount-paid')?.value) || 0,
         payment_date: normalizeIsoDateValue(document.getElementById('f-payment-date')?.value) || null,
         notes: document.getElementById('f-notas').value,
+        voucher_code: document.getElementById('f-voucher-code')?.value.trim().toUpperCase() || null,
         rgpd_consent: true,
         guests_data: collectExtraGuests(),
       };

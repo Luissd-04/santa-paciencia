@@ -1,4 +1,5 @@
 const { db } = require('../config/database');
+const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
 
@@ -522,4 +523,64 @@ function remove(req, res) {
   res.json({ success: true });
 }
 
-module.exports = { getAll, getById, create, update, remove, uploadCover, removeCover, uploadImages, deleteImage, patchImages, getSettings, saveSettings };
+// ─── PRICING PERIODS ───────────────────────────────────────
+function getPricingPeriods(req, res) {
+  const { id } = req.params;
+  const acc = db.prepare('SELECT id FROM accommodations WHERE id = ? AND organization_id = ?').get(id, req.user.organization_id);
+  if (!acc) return res.status(404).json({ error: 'Alojamento não encontrado' });
+  const periods = db.prepare(`
+    SELECT * FROM pricing_periods WHERE accommodation_id = ? AND organization_id = ? ORDER BY start_date ASC
+  `).all(id, req.user.organization_id);
+  res.json({ success: true, data: periods });
+}
+
+function createPricingPeriod(req, res) {
+  const { id } = req.params;
+  const acc = db.prepare('SELECT id FROM accommodations WHERE id = ? AND organization_id = ?').get(id, req.user.organization_id);
+  if (!acc) return res.status(404).json({ error: 'Alojamento não encontrado' });
+
+  const { name, start_date, end_date, price_per_night, min_nights } = req.body;
+  if (!name || !start_date || !end_date || price_per_night == null) {
+    return res.status(400).json({ error: 'Nome, datas e preço são obrigatórios' });
+  }
+  if (start_date >= end_date) return res.status(400).json({ error: 'A data de fim deve ser posterior à data de início' });
+  if (Number(price_per_night) < 0) return res.status(400).json({ error: 'O preço não pode ser negativo' });
+
+  const periodId = uuidv4().slice(0, 8);
+  db.prepare(`
+    INSERT INTO pricing_periods (id, organization_id, accommodation_id, name, start_date, end_date, price_per_night, min_nights)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(periodId, req.user.organization_id, id, name, start_date, end_date, Number(price_per_night), Number(min_nights) || 1);
+  res.status(201).json({ success: true, data: db.prepare('SELECT * FROM pricing_periods WHERE id = ?').get(periodId) });
+}
+
+function updatePricingPeriod(req, res) {
+  const { id, periodId } = req.params;
+  const existing = db.prepare('SELECT * FROM pricing_periods WHERE id = ? AND accommodation_id = ? AND organization_id = ?').get(periodId, id, req.user.organization_id);
+  if (!existing) return res.status(404).json({ error: 'Período não encontrado' });
+
+  const { name, start_date, end_date, price_per_night, min_nights } = req.body;
+  const newStart = start_date || existing.start_date;
+  const newEnd = end_date || existing.end_date;
+  if (newStart >= newEnd) return res.status(400).json({ error: 'A data de fim deve ser posterior à data de início' });
+
+  db.prepare(`
+    UPDATE pricing_periods SET
+      name = COALESCE(?, name), start_date = ?, end_date = ?,
+      price_per_night = COALESCE(?, price_per_night),
+      min_nights = COALESCE(?, min_nights),
+      updated_at = datetime('now')
+    WHERE id = ? AND organization_id = ?
+  `).run(name ?? null, newStart, newEnd, price_per_night != null ? Number(price_per_night) : null, min_nights != null ? Number(min_nights) : null, periodId, req.user.organization_id);
+  res.json({ success: true, data: db.prepare('SELECT * FROM pricing_periods WHERE id = ?').get(periodId) });
+}
+
+function deletePricingPeriod(req, res) {
+  const { id, periodId } = req.params;
+  const existing = db.prepare('SELECT id FROM pricing_periods WHERE id = ? AND accommodation_id = ? AND organization_id = ?').get(periodId, id, req.user.organization_id);
+  if (!existing) return res.status(404).json({ error: 'Período não encontrado' });
+  db.prepare('DELETE FROM pricing_periods WHERE id = ? AND organization_id = ?').run(periodId, req.user.organization_id);
+  res.json({ success: true });
+}
+
+module.exports = { getAll, getById, create, update, remove, uploadCover, removeCover, uploadImages, deleteImage, patchImages, getSettings, saveSettings, getPricingPeriods, createPricingPeriod, updatePricingPeriod, deletePricingPeriod };

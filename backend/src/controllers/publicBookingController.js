@@ -131,6 +131,14 @@ function getServices(organizationId) {
   return row ? parseJson(row.value, []) : [];
 }
 
+function getPricingPeriods(organizationId, accommodationId) {
+  return db.prepare(`
+    SELECT * FROM pricing_periods
+    WHERE organization_id = ? AND accommodation_id = ?
+    ORDER BY start_date
+  `).all(organizationId, accommodationId);
+}
+
 function calculateTotal(accommodation, organizationId, payload) {
   return calculateReservationTotals(accommodation, getServices(organizationId), payload);
 }
@@ -143,13 +151,43 @@ function getLanding(req, res) {
   res.json({
     success: true,
     data: {
-      property: serializeAccommodation(req, parent),
-      units: reservable.map(unit => serializeAccommodation(req, unit, parent)),
+      property: {
+        ...serializeAccommodation(req, parent),
+        pricing_periods: getPricingPeriods(parent.organization_id, parent.id)
+      },
+      units: reservable.map(unit => ({
+        ...serializeAccommodation(req, unit, parent),
+        pricing_periods: getPricingPeriods(parent.organization_id, unit.id)
+      })),
       services: getServices(parent.organization_id)
         .filter(s => ['breakfast', 'tourist_tax'].includes(s.id))
         .map(s => ({ id: s.id, name: s.name, value: Number(s.value || 0), unit: s.unit, active: s.active !== false }))
     }
   });
+}
+
+function validatePublicVoucher(req, res) {
+  const parent = getPropertyBySlug(req.params.slug);
+  if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado.' });
+  const { code } = req.query;
+  if (!code) return res.status(400).json({ success: false, error: 'Código obrigatório.' });
+
+  const voucher = db.prepare(`
+    SELECT * FROM vouchers
+    WHERE code = ? AND organization_id = ? AND status = 'active'
+  `).get(code.toUpperCase().trim(), parent.organization_id);
+  if (!voucher) return res.status(404).json({ success: false, error: 'Voucher inválido ou já utilizado.' });
+
+  const today = new Date().toISOString().slice(0, 10);
+  if (voucher.valid_until && voucher.valid_until < today)
+    return res.status(400).json({ success: false, error: 'Voucher expirado.' });
+  if (voucher.valid_from && voucher.valid_from > today)
+    return res.status(400).json({ success: false, error: 'Voucher ainda não está ativo.' });
+
+  res.json({ success: true, data: {
+    id: voucher.id, code: voucher.code, type: voucher.type, value: voucher.value,
+    description: voucher.description, min_nights: voucher.min_nights, accommodation_id: voucher.accommodation_id
+  }});
 }
 
 function getAvailability(req, res) {
@@ -238,6 +276,29 @@ function createReservation(req, res, next) {
     }
     if (!payload.rgpd_consent) return res.status(400).json({ success: false, error: 'É necessário aceitar o RGPD.' });
 
+    // Aplicar voucher se fornecido
+    let voucherDiscount = 0;
+    let appliedVoucherId = null;
+    if (payload.voucher_code) {
+      const vCode = String(payload.voucher_code).toUpperCase().trim();
+      const voucher = db.prepare(
+        "SELECT * FROM vouchers WHERE code = ? AND organization_id = ? AND status = 'active'"
+      ).get(vCode, parent.organization_id);
+      if (voucher) {
+        const today = new Date().toISOString().slice(0, 10);
+        const dateOk = (!voucher.valid_from || voucher.valid_from <= today) && (!voucher.valid_until || voucher.valid_until >= today);
+        const nightsOk = !voucher.min_nights || totals.nights >= voucher.min_nights;
+        const accomOk = !voucher.accommodation_id || voucher.accommodation_id === unit.id || voucher.accommodation_id === parent.id;
+        if (dateOk && nightsOk && accomOk) {
+          appliedVoucherId = voucher.id;
+          voucherDiscount = voucher.type === 'discount_pct'
+            ? totals.totalAmount * (voucher.value / 100)
+            : Math.min(voucher.value, totals.totalAmount);
+        }
+      }
+    }
+    const finalTotal = Math.max(0, totals.totalAmount - voucherDiscount);
+
     let guest = db.prepare('SELECT * FROM guests WHERE email = ? AND organization_id = ?').get(payload.guest.email, parent.organization_id);
     if (!guest) {
       const guestId = uuidv4();
@@ -264,6 +325,7 @@ function createReservation(req, res, next) {
       const accommodationsToReserve = children.length ? children : [parent];
 
       for (const accom of accommodationsToReserve) {
+        const accomTotal = Math.max(0, (totals.totalAmount / (accommodationsToReserve.length || 1)) - (voucherDiscount / (accommodationsToReserve.length || 1)));
         db.prepare(`
           INSERT INTO reservations (
             id, organization_id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
@@ -272,7 +334,7 @@ function createReservation(req, res, next) {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, 0, 'pendente', ?, ?)
         `).run(
           `${reservationId}-${accom.id}`, parent.organization_id, guest.id, accom.id, totals.checkIn, totals.checkOut, totals.nights, totals.guests,
-          totals.totalAmount, payload.breakfast_included ? 1 : 0, totals.touristTax,
+          accomTotal, payload.breakfast_included ? 1 : 0, totals.touristTax,
           'website', null, payload.notes || null, accom.license_number,
           JSON.stringify(normalizedGuestsData), token, payload.arrival_time || null
         );
@@ -284,6 +346,11 @@ function createReservation(req, res, next) {
           accommodation_name: accom.name,
         }, null);
       }
+      if (appliedVoucherId) {
+        db.prepare(
+          "UPDATE vouchers SET status = 'used', used_at = datetime('now'), used_in_reservation_id = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?"
+        ).run(reservationId, appliedVoucherId, parent.organization_id);
+      }
     } else {
       db.prepare(`
         INSERT INTO reservations (
@@ -293,7 +360,7 @@ function createReservation(req, res, next) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, 0, 'pendente', ?, ?)
       `).run(
         reservationId, parent.organization_id, guest.id, unit.id, totals.checkIn, totals.checkOut, totals.nights, totals.guests,
-        totals.totalAmount, payload.breakfast_included ? 1 : 0, totals.touristTax,
+        finalTotal, payload.breakfast_included ? 1 : 0, totals.touristTax,
         'website', null, payload.notes || null, unit.license_number,
         JSON.stringify(normalizedGuestsData), token, payload.arrival_time || null
       );
@@ -304,6 +371,11 @@ function createReservation(req, res, next) {
         guest_name: guest.name,
         accommodation_name: unit.name,
       }, null);
+      if (appliedVoucherId) {
+        db.prepare(
+          "UPDATE vouchers SET status = 'used', used_at = datetime('now'), used_in_reservation_id = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?"
+        ).run(reservationId, appliedVoucherId, parent.organization_id);
+      }
     }
 
     res.status(201).json({
@@ -311,7 +383,7 @@ function createReservation(req, res, next) {
       data: {
         id: reservationId,
         status: 'pendente',
-        total_amount: totals.totalAmount,
+        total_amount: finalTotal,
         public_token: token,
         public_url: `${publicUrl(req)}/reserva/${token}`
       }
@@ -321,4 +393,4 @@ function createReservation(req, res, next) {
   }
 }
 
-module.exports = { getLanding, getAvailability, createReservation };
+module.exports = { getLanding, getAvailability, validatePublicVoucher, createReservation };

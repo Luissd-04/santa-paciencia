@@ -118,12 +118,19 @@ async function preview(req, res) {
   const subject = interpolate(template.subject, fakeVars);
   const body = interpolate(template.body, fakeVars);
   const html = baseTemplate(body, settings);
-  const previewTo = req.body.to || process.env.EMAIL_USER;
-  if (!previewTo) return res.status(400).json({ error: 'EMAIL_USER não configurado' });
+  const { isEmailAuthenticated, getEmailConnectionInfo, sendViaGmail } = require('../config/googleEmail');
+  const orgId = req.user.organization_id;
+  const gmailInfo = getEmailConnectionInfo(orgId);
+  const previewTo = req.body.to || gmailInfo.email || process.env.EMAIL_USER;
+  if (!previewTo) return res.status(400).json({ error: 'Sem endereço de destino configurado' });
 
   try {
-    const transporter = require('../config/email');
-    await transporter.sendMail({ from: process.env.EMAIL_FROM, to: previewTo, subject: `[PREVIEW] ${subject}`, html });
+    if (isEmailAuthenticated(orgId)) {
+      await sendViaGmail(orgId, { to: previewTo, subject: `[PREVIEW] ${subject}`, html });
+    } else {
+      const transporter = require('../config/email');
+      await transporter.sendMail({ from: process.env.EMAIL_FROM, to: previewTo, subject: `[PREVIEW] ${subject}`, html });
+    }
     res.json({ success: true, message: `Preview enviado para ${previewTo}` });
   } catch (e) {
     res.status(500).json({ error: e.message });

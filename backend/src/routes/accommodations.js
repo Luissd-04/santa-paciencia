@@ -15,5 +15,9 @@ router.post('/:id/images',          ctrl.uploadImages);
 router.patch('/:id/images',         ctrl.patchImages);
 router.delete('/:id/images',        ctrl.deleteImage);
 router.delete('/:id',               ctrl.remove);
+router.get('/:id/pricing-periods',          ctrl.getPricingPeriods);
+router.post('/:id/pricing-periods',         ctrl.createPricingPeriod);
+router.put('/:id/pricing-periods/:periodId',    ctrl.updatePricingPeriod);
+router.delete('/:id/pricing-periods/:periodId', ctrl.deletePricingPeriod);
 
 module.exports = router;

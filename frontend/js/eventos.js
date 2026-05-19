@@ -3,6 +3,7 @@ let eventosMode = SS.get('evt:mode', 'calendar');
 let eventosYear = Number(SS.get('evt:year', new Date().getFullYear()));
 let eventosMonth = Number(SS.get('evt:month', new Date().getMonth()));
 let eventosTimelineDays = Number(SS.get('evt:tlDays', 14));
+const eventosTypeFilters = new Set();
 let eventosPanDrag = null;
 let eventosEditingId = null;
 let eventosData = [];
@@ -193,11 +194,11 @@ function moveEventosModePill() {
 }
 
 function filteredEventos() {
-  const type = document.getElementById('eventos-type-filter')?.value || '';
-  return eventosData.filter(evento => !type || evento.type === type);
+  return eventosData.filter(evento => eventosTypeFilters.size === 0 || eventosTypeFilters.has(evento.type));
 }
 
 function renderEventosCalendar() {
+  renderEventosTypeChips();
   const label = document.getElementById('eventos-label');
   const grid = document.getElementById('eventos-cal-grid');
   if (!grid) return;
@@ -232,7 +233,7 @@ function renderEventosCalendar() {
     return `<div class="cal-day eventos-day${day.otherMonth ? ' other-month' : ''}${day.dateStr === todayStr ? ' today' : ''}" ondblclick="openEventoModal(null,'${day.dateStr}')">
       <div class="day-num">${day.day}</div>
       <div class="eventos-day-list">
-        ${dayEvents.map(renderEventoPill).join('')}
+        ${dayEvents.map(renderEventoPillCompact).join('')}
       </div>
     </div>`;
   }).join('');
@@ -240,11 +241,11 @@ function renderEventosCalendar() {
 }
 
 function renderEventosTimeline(autoScroll = true) {
+  renderEventosTypeChips();
   const wrap = document.getElementById('eventos-timeline-wrap');
   if (!wrap) return;
 
   const dayW = getEventosDayWidth();
-  const typeFilter = document.getElementById('eventos-type-filter')?.value || '';
   const now = new Date();
   const year = now.getFullYear();
   const yearStart = new Date(year, 0, 1);
@@ -259,12 +260,12 @@ function renderEventosTimeline(autoScroll = true) {
   const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
   const filteredEvents = eventosData.filter(e =>
-    (!typeFilter || e.type === typeFilter) && e.date >= startStr && e.date < endStr
+    (eventosTypeFilters.size === 0 || eventosTypeFilters.has(e.type)) && e.date >= startStr && e.date < endStr
   );
 
   const generalRow = { id: '', name: 'Sem alojamento', type: 'geral' };
   const hasGeneralEvents = filteredEvents.some(e => !e.accommodation_id);
-  const alojList = typeFilter
+  const alojList = eventosTypeFilters.size > 0
     ? accommodations.filter(a => filteredEvents.some(e => e.accommodation_id === a.id))
     : accommodations;
   const rowList = hasGeneralEvents ? [...alojList, generalRow] : alojList;
@@ -319,14 +320,14 @@ function renderEventosTimeline(autoScroll = true) {
           const width = Math.max(18, right - left - 4);
           if (right <= 0 || left >= totalWidth || width <= 0) return '';
           const doneCls = e.status === 'concluido' ? ' eventos-tl-done' : '';
+          const tlInitials = accInitials(e.accommodation_name);
           return `<div class="tl-block eventos-tl-block${doneCls}" style="left:${left}px;width:${width}px;--tl-color:${color};background:${color}18;border-color:${color}55;cursor:pointer;"
                        onclick="openEventoModal('${e.id}')"
-                       title="${escapeHtml(type.singular)} · ${escapeHtml(e.title)}">
-            <div class="tl-block-main">
-              <span class="tl-block-name">${escapeHtml(e.title)}</span>
-              <span class="tl-block-status" style="color:${color};">${type.singular}</span>
+                       title="${escapeHtml(type.singular)} · ${escapeHtml(e.title)}${e.accommodation_name ? ' · ' + escapeHtml(e.accommodation_name) : ''}">
+            <div class="tl-block-header">
+              <i data-lucide="${type.icon}"></i>${tlInitials ? `<span class="tl-block-initials">${tlInitials}</span>` : `<span class="tl-block-initials">${type.singular}</span>`}
             </div>
-            <span class="tl-block-meta">${formatEventoTime(e) || 'Sem hora'}${e.responsible ? ` · ${escapeHtml(e.responsible)}` : ''}</span>
+            <span class="tl-block-meta">${formatEventoTime(e) || type.singular}</span>
           </div>`;
         }).join('');
 
@@ -362,7 +363,30 @@ function renderEventosTimeline(autoScroll = true) {
   if (window.lucide) lucide.createIcons();
 }
 
+function renderEventosTypeChips() {
+  const html = EVENT_TYPES.map(t => {
+    const active = eventosTypeFilters.has(t.id);
+    return `<button class="evt-type-chip${active ? ' active' : ''}" style="--chip-color:${t.color}" onclick="toggleEventoTypeChip('${t.id}')" title="${t.label}">
+      <i data-lucide="${t.icon}"></i><span>${t.label}</span>
+    </button>`;
+  }).join('');
+  document.querySelectorAll('.eventos-type-chips-row').forEach(row => { row.innerHTML = html; });
+  if (window.lucide) lucide.createIcons();
+}
+
+function toggleEventoTypeChip(typeId) {
+  if (eventosTypeFilters.has(typeId)) {
+    eventosTypeFilters.delete(typeId);
+  } else {
+    eventosTypeFilters.add(typeId);
+  }
+  if (eventosView === 'list') renderEventosList();
+  else if (eventosMode === 'timeline') renderEventosTimeline();
+  else renderEventosCalendar();
+}
+
 function renderEventosList() {
+  renderEventosTypeChips();
   const body = document.getElementById('eventos-list-body');
   const empty = document.getElementById('eventos-list-empty');
   if (!body) return;
@@ -411,10 +435,9 @@ function renderEventosList() {
 
 function getEventosListFiltered() {
   const q = (document.getElementById('eventos-search')?.value || '').toLowerCase();
-  const type = document.getElementById('eventos-list-type-filter')?.value || '';
   const acc = document.getElementById('eventos-list-acc-filter')?.value || '';
   const status = document.getElementById('eventos-list-status-filter')?.value || '';
-  const range = document.getElementById('eventos-list-date-filter')?.value || 'upcoming';
+  const range = document.getElementById('eventos-list-date-filter')?.value || '';
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
   const weekEnd = new Date(today); weekEnd.setDate(today.getDate() + 7);
@@ -423,7 +446,7 @@ function getEventosListFiltered() {
   return eventosData.filter(e => {
     const hay = `${e.title || ''} ${e.responsible || ''} ${e.notes || ''} ${e.accommodation_name || ''}`.toLowerCase();
     if (q && !hay.includes(q)) return false;
-    if (type && e.type !== type) return false;
+    if (eventosTypeFilters.size > 0 && !eventosTypeFilters.has(e.type)) return false;
     if (acc && e.accommodation_id !== acc) return false;
     if (status && e.status !== status) return false;
     if (range === 'today' && e.date !== todayStr) return false;
@@ -517,10 +540,29 @@ function eventosPanClickCapture(e) {
   delete e.currentTarget.dataset.suppressClick;
 }
 
+function accInitials(name) {
+  if (!name) return '';
+  return name.split(/\s+/).filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 3);
+}
+
 function renderEventoPill(evento) {
   const type = getEventoType(evento.type);
   return `<button type="button" class="eventos-pill eventos-pill-${evento.type}${Number(evento.important) ? ' eventos-pill-important' : ''}" onclick="event.stopPropagation();openEventoModal('${evento.id}')">
     <i data-lucide="${type.icon}"></i>${Number(evento.important) ? lcIcon('circle-alert', 12) : ''}${escapeHtml(evento.title)}
+  </button>`;
+}
+
+function renderEventoPillCompact(evento) {
+  const type = getEventoType(evento.type);
+  const timeLabel = evento.start_time ? ` ${evento.start_time}` : '';
+  const tooltip = escapeHtml(evento.title + (evento.accommodation_name ? ` · ${evento.accommodation_name}` : '') + timeLabel);
+  const initials = accInitials(evento.accommodation_name);
+  return `<button type="button"
+    class="eventos-pill eventos-pill-${evento.type} eventos-pill-compact${Number(evento.important) ? ' eventos-pill-important' : ''}"
+    title="${tooltip}"
+    aria-label="${tooltip}"
+    onclick="event.stopPropagation();openEventoModal('${evento.id}')">
+    <i data-lucide="${type.icon}"></i>${Number(evento.important) ? lcIcon('circle-alert', 10) : ''}${initials ? `<span class="pill-acc-name">${initials}</span>` : ''}
   </button>`;
 }
 

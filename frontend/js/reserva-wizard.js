@@ -127,11 +127,31 @@ function onAmountPaidChange() {
 
 // ── WIZARD STATE ──
 let wizStep = 1;
+let _cachedPricingPeriods = {};
+
+async function loadWizPricingPeriods(alojId) {
+  if (!alojId) return [];
+  if (_cachedPricingPeriods[alojId]) return _cachedPricingPeriods[alojId];
+  try {
+    const res = await apiGet(`/api/accommodations/${alojId}/pricing-periods`);
+    _cachedPricingPeriods[alojId] = res.data || [];
+    return _cachedPricingPeriods[alojId];
+  } catch {
+    return [];
+  }
+}
 
 function addDaysToIsoDate(dateStr, days = 1) {
   const d = new Date(`${dateStr}T12:00:00`);
   d.setDate(d.getDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+function updateNumHospedes() {
+  const adults = parseInt(document.getElementById('f-num-adultos')?.value) || 1;
+  const children = parseInt(document.getElementById('f-num-criancas')?.value) || 0;
+  const hidden = document.getElementById('f-num-hospedes');
+  if (hidden) hidden.value = adults + children;
 }
 
 function openModal(config = {}) {
@@ -143,7 +163,9 @@ function openModal(config = {}) {
   _resetGuestFields();
   document.getElementById('f-checkin').value = formatDateForStandardInput(config.checkIn || '');
   document.getElementById('f-checkout').value = formatDateForStandardInput(config.checkOut || '');
-  document.getElementById('f-num-hospedes').value = 2;
+  const adultosEl = document.getElementById('f-num-adultos'); if (adultosEl) adultosEl.value = 2;
+  const criancasEl = document.getElementById('f-num-criancas'); if (criancasEl) criancasEl.value = 0;
+  updateNumHospedes();
   document.getElementById('f-breakfast').value = 'false';
   document.getElementById('f-canal').value = 'direto';
   document.getElementById('f-estado').value = 'confirmada';
@@ -227,7 +249,11 @@ async function openEditModal(id) {
 
     document.getElementById('f-checkin').value       = formatDateForStandardInput(r.check_in || '');
     document.getElementById('f-checkout').value      = formatDateForStandardInput(r.check_out || '');
-    document.getElementById('f-num-hospedes').value  = r.num_guests || 2;
+    const adEl = document.getElementById('f-num-adultos');
+    const crEl = document.getElementById('f-num-criancas');
+    if (adEl) adEl.value = r.num_adults ?? r.num_guests ?? 2;
+    if (crEl) crEl.value = r.num_children ?? 0;
+    updateNumHospedes();
     document.getElementById('f-breakfast').value     = r.breakfast_included ? 'true' : 'false';
     document.getElementById('f-canal').value         = r.channel || 'direto';
     document.getElementById('f-estado').value        = r.status || 'confirmada';
@@ -301,7 +327,7 @@ function closeModal() {
   setTimeout(() => { AppUI.closeModal(bg); modal.classList.remove('modal-closing'); editingId = null; }, 320);
 }
 
-function calcTotal() {
+async function calcTotal() {
   const ci = normalizeIsoDateValue(document.getElementById('f-checkin').value);
   const co = normalizeIsoDateValue(document.getElementById('f-checkout').value);
   const numHospedes = parseInt(document.getElementById('f-num-hospedes').value) || 1;
@@ -326,12 +352,14 @@ function calcTotal() {
   }
 
   if (ci && co && suite) {
+    const pricingPeriods = await loadWizPricingPeriods(alojId);
     const totals = window.ReservationPricing.calculateReservationTotal(suite, servicosData, {
       check_in: ci,
       check_out: co,
       num_guests: numHospedes,
       breakfast_included: breakfast,
       birth_dates: getGuestBirthDatesFromUi(),
+      pricing_periods: pricingPeriods,
     });
     document.getElementById('f-noites').value = totals.nights;
     document.getElementById('f-total').value = totals.totalAmount.toFixed(2);
@@ -748,44 +776,6 @@ function validateWizStep(step) {
   if (step === 2) {
     if (!document.getElementById('f-nome-completo').value.trim())
       { toast('⚠️ Introduz o nome completo do hóspede.', 'error'); return false; }
-    if (!document.getElementById('f-email').value.trim())
-      { toast('⚠️ Introduz o email do hóspede.', 'error'); return false; }
-    if (!document.getElementById('f-tel-num').value.trim())
-      { toast('⚠️ Introduz o telefone do hóspede.', 'error'); return false; }
-    if (!document.getElementById('f-pais').value)
-      { toast('⚠️ Seleciona o país do hóspede.', 'error'); return false; }
-    if (!getBirthDateValue(document.getElementById('f-nascimento')))
-      { toast('⚠️ Introduz uma data de nascimento válida para o hóspede.', 'error'); return false; }
-    const isForeign = document.getElementById('f-pais').value !== 'Portugal';
-    if (isForeign) {
-      if (!document.getElementById('f-local-nascimento').value.trim())
-        { toast('⚠️ Local de nascimento obrigatório para hóspedes estrangeiros.', 'error'); return false; }
-      if (!document.getElementById('f-doc-tipo').value)
-        { toast('⚠️ Tipo de documento obrigatório para hóspedes estrangeiros.', 'error'); return false; }
-      if (!document.getElementById('f-doc-num').value.trim())
-        { toast('⚠️ Nº de documento obrigatório para hóspedes estrangeiros.', 'error'); return false; }
-      if (!document.getElementById('f-doc-emissor').value)
-        { toast('⚠️ País emissor do documento obrigatório para hóspedes estrangeiros.', 'error'); return false; }
-    }
-    // Validate extra guests
-    let extraIdx = 2;
-    for (const row of document.querySelectorAll('.extra-guest-row')) {
-      const nome = row.querySelector('[data-field="nome_completo"]')?.value.trim();
-      const country = row.querySelector('[data-field="country"]')?.value;
-      const birthDate = getBirthDateValue(row.querySelector('[data-field="birth_date"]'));
-      if (!nome) { toast(`⚠️ Introduz o nome do hóspede ${extraIdx}.`, 'error'); return false; }
-      if (!country) { toast(`⚠️ Seleciona o país do hóspede ${extraIdx}.`, 'error'); return false; }
-      if (!birthDate) { toast(`⚠️ Introduz uma data de nascimento válida para o hóspede ${extraIdx}.`, 'error'); return false; }
-      if (country !== 'Portugal') {
-        if (!row.querySelector('[data-field="doc_type"]')?.value)
-          { toast(`⚠️ Tipo de documento obrigatório para o hóspede ${extraIdx} (estrangeiro).`, 'error'); return false; }
-        if (!row.querySelector('[data-field="doc_number"]')?.value.trim())
-          { toast(`⚠️ Nº de documento obrigatório para o hóspede ${extraIdx} (estrangeiro).`, 'error'); return false; }
-        if (!row.querySelector('[data-field="doc_emissor"]')?.value)
-          { toast(`⚠️ País emissor obrigatório para o hóspede ${extraIdx} (estrangeiro).`, 'error'); return false; }
-      }
-      extraIdx++;
-    }
     return true;
   }
   return true;
@@ -886,6 +876,7 @@ function selectSuiteCard(id) {
   if (maxGuests > 0 && requestedGuests > maxGuests) return;
   const sel = document.getElementById('f-aloj');
   if (sel) sel.value = id;
+  delete _cachedPricingPeriods[id]; // force refresh on next calcTotal
   renderSuiteCards();
   calcTotal();
 }
@@ -909,6 +900,7 @@ function buildWizConfirm() {
   const bkf = document.getElementById('f-breakfast')?.value === 'true';
   const total = parseFloat(document.getElementById('f-total')?.value) || 0;
   const extraOccupancyCost = getExtraOccupancyCharge(suite, numH, nights, getGuestBirthDatesFromUi(), ci);
+  const hasPeriods = (_cachedPricingPeriods[alojId] || []).length > 0;
   const card = document.getElementById('wiz-conf-card');
   if (!card) return;
   card.innerHTML = `<div class="wiz-conf-grid">
@@ -935,7 +927,7 @@ function buildWizConfirm() {
     <div class="wiz-conf-cell accent">
       <div class="wiz-conf-lbl">Total</div>
       <div class="wiz-conf-val">€${total.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}</div>
-      <div class="wiz-conf-sub">€${suite?.price_per_night || 0}/noite × ${nights} noites${extraOccupancyCost ? ` · extra €${extraOccupancyCost.toFixed(2)}` : ''}</div>
+      <div class="wiz-conf-sub">${hasPeriods ? 'Preço dinâmico' : `€${suite?.price_per_night || 0}/noite`} × ${nights} noites${extraOccupancyCost ? ` · extra €${extraOccupancyCost.toFixed(2)}` : ''}</div>
     </div>
   </div>`;
 }
@@ -1060,12 +1052,8 @@ async function saveReserva() {
   const alojId   = document.getElementById('f-aloj').value;
   const rgpdCheck = document.getElementById('f-rgpd-check');
 
-  if (!nomeCompleto) { toast('Por favor insira o nome do hóspede.', 'error'); return; }
-  if (!email)        { toast('Por favor insira o email do hóspede.', 'error'); return; }
-  if (!telNum)       { toast('Por favor insira o telefone do hóspede.', 'error'); return; }
-  if (!pais)         { toast('Por favor selecione o país do hóspede.', 'error'); return; }
   const birthDate = getBirthDateValue(document.getElementById('f-nascimento'));
-  if (!birthDate) { toast('Por favor insira uma data de nascimento válida.', 'error'); return; }
+  if (!nomeCompleto) { toast('Por favor insira o nome do hóspede.', 'error'); return; }
   if (!checkin || !checkout) { toast('Por favor selecione as datas.', 'error'); return; }
   if (checkin >= checkout) { toast('O check-out deve ser depois do check-in.', 'error'); return; }
   const selectedAccommodation = accommodations.find(a => a.id === alojId);
@@ -1075,32 +1063,21 @@ async function saveReserva() {
     return;
   }
 
-  if (pais && pais !== 'Portugal') {
-    if (!document.getElementById('f-local-nascimento').value.trim())
-      { toast('Para hóspedes estrangeiros, o local de nascimento é obrigatório.', 'error'); return; }
-    if (!document.getElementById('f-doc-tipo').value)
-      { toast('Para hóspedes estrangeiros, o tipo de documento é obrigatório.', 'error'); return; }
-    if (!document.getElementById('f-doc-num').value.trim())
-      { toast('Para hóspedes estrangeiros, o número de documento é obrigatório.', 'error'); return; }
-    if (!document.getElementById('f-doc-emissor').value)
-      { toast('Para hóspedes estrangeiros, o país emissor do documento é obrigatório.', 'error'); return; }
-  }
-  if (rgpdCheck && !rgpdCheck.checked) {
-    toast('O hóspede tem de aceitar o tratamento de dados (RGPD) para continuar.', 'error');
-    rgpdCheck.closest('.rgpd-box')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    return;
-  }
-
   const nomeFull = nomeCompleto;
   const btn = document.getElementById('btn-guardar');
   AppUI.setButtonLoading(btn, true, 'A guardar...');
 
   try {
+    const numAdultos = parseInt(document.getElementById('f-num-adultos')?.value) || 1;
+    const numCriancas = parseInt(document.getElementById('f-num-criancas')?.value) || 0;
+
     if (editingId) {
       const body = {
         check_in: checkin,
         check_out: checkout,
-        num_guests: parseInt(document.getElementById('f-num-hospedes').value) || 1,
+        num_adults: numAdultos,
+        num_children: numCriancas,
+        num_guests: numAdultos + numCriancas,
         breakfast_included: document.getElementById('f-breakfast')?.value === 'true',
         channel: document.getElementById('f-canal').value,
         status: document.getElementById('f-estado').value,
@@ -1131,6 +1108,7 @@ async function saveReserva() {
         await loadReservas();
         if (typeof renderCalView === 'function') renderCalView();
         renderDashboard();
+        if (typeof loadNotifications === 'function') loadNotifications();
       } else {
         toast('❌ ' + (res.error || 'Erro ao atualizar reserva.'), 'error');
       }
@@ -1152,7 +1130,9 @@ async function saveReserva() {
         accommodation_id: alojId,
         check_in: checkin,
         check_out: checkout,
-        num_guests: parseInt(document.getElementById('f-num-hospedes').value) || 1,
+        num_adults: numAdultos,
+        num_children: numCriancas,
+        num_guests: numAdultos + numCriancas,
         breakfast_included: document.getElementById('f-breakfast')?.value === 'true',
         channel: document.getElementById('f-canal').value,
         status: document.getElementById('f-estado').value,
@@ -1161,6 +1141,7 @@ async function saveReserva() {
         amount_paid: parseFloat(document.getElementById('f-amount-paid')?.value) || 0,
         payment_date: normalizeIsoDateValue(document.getElementById('f-payment-date')?.value) || null,
         notes: document.getElementById('f-notas').value,
+        voucher_code: document.getElementById('f-voucher-code')?.value.trim().toUpperCase() || null,
         rgpd_consent: true,
         guests_data: collectExtraGuests(),
       };
@@ -1171,6 +1152,7 @@ async function saveReserva() {
         await loadReservas();
         if (typeof renderCalView === 'function') renderCalView();
         renderDashboard();
+        if (typeof loadNotifications === 'function') loadNotifications();
       } else {
         toast('❌ ' + (res.error || 'Erro ao criar reserva.'), 'error');
       }

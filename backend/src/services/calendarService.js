@@ -123,12 +123,111 @@ async function deleteCalendarEvent(reservation, calendarUser = {}) {
 
 function getColorForAccommodation(accommodationId) {
   const colors = {
-    'suite-mezzanine-deluxe': '1',  // Lavanda
-    'suite-familiar-deluxe': '2',   // Sage
-    'suite-king-deluxe': '4',       // Flamingo
-    'suite-queen-deluxe': '6'       // Tangerine
+    'suite-mezzanine-deluxe': '1',
+    'suite-familiar-deluxe': '2',
+    'suite-king-deluxe': '4',
+    'suite-queen-deluxe': '6'
   };
   return colors[accommodationId] || '1';
 }
 
-module.exports = { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent };
+function addOneHour(time) {
+  const [h, m] = time.split(':').map(Number);
+  return `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+const TASK_TYPE_ICONS = {
+  limpeza: '🧹',
+  reuniao: '👥',
+  pequeno_almoco: '☕',
+  checkin: '🏨',
+  checkout: '🔑',
+  manutencao: '🔧',
+  outro: '📋',
+};
+
+async function createTaskCalendarEvent(task, calendarUser = {}) {
+  const { userId, organizationId } = calendarUser;
+  if (!isAuthenticated(userId, organizationId)) return null;
+
+  try {
+    const auth = getAuthenticatedClient(userId, organizationId);
+    const calendar = google.calendar({ version: 'v3', auth });
+
+    const accommodation = task.accommodation_id
+      ? db.prepare('SELECT * FROM accommodations WHERE id = ?').get(task.accommodation_id)
+      : null;
+
+    const icon = TASK_TYPE_ICONS[task.type] || '📋';
+    const summary = `${icon} ${task.title}${accommodation ? ' — ' + accommodation.name : ''}`;
+
+    let startEvt, endEvt;
+    if (task.start_time) {
+      const endTime = task.end_time || addOneHour(task.start_time);
+      startEvt = { dateTime: `${task.date}T${task.start_time}:00`, timeZone: 'Europe/Lisbon' };
+      endEvt   = { dateTime: `${task.date}T${endTime}:00`,         timeZone: 'Europe/Lisbon' };
+    } else {
+      const nextDay = new Date(task.date + 'T12:00:00');
+      nextDay.setDate(nextDay.getDate() + 1);
+      startEvt = { date: task.date };
+      endEvt   = { date: nextDay.toISOString().slice(0, 10) };
+    }
+
+    const event = {
+      summary,
+      description: [
+        task.notes,
+        task.responsible ? `Responsável: ${task.responsible}` : null,
+      ].filter(Boolean).join('\n'),
+      start: startEvt,
+      end: endEvt,
+    };
+
+    const calendarId = accommodation?.google_calendar_id || 'primary';
+    const response = await calendar.events.insert({ calendarId, resource: event });
+    return response.data.id;
+  } catch (err) {
+    console.error('Erro ao criar evento de tarefa no Google Calendar:', err.message);
+    return null;
+  }
+}
+
+async function updateTaskCalendarEvent(task, calendarUser = {}) {
+  const { userId, organizationId } = calendarUser;
+  if (!isAuthenticated(userId, organizationId) || !task.google_event_id) return;
+
+  try {
+    const auth = getAuthenticatedClient(userId, organizationId);
+    const calendar = google.calendar({ version: 'v3', auth });
+
+    const accommodation = task.accommodation_id
+      ? db.prepare('SELECT * FROM accommodations WHERE id = ?').get(task.accommodation_id)
+      : null;
+
+    const icon = TASK_TYPE_ICONS[task.type] || '📋';
+    const summary = `${icon} ${task.title}${accommodation ? ' — ' + accommodation.name : ''}`;
+
+    let startEvt, endEvt;
+    if (task.start_time) {
+      const endTime = task.end_time || addOneHour(task.start_time);
+      startEvt = { dateTime: `${task.date}T${task.start_time}:00`, timeZone: 'Europe/Lisbon' };
+      endEvt   = { dateTime: `${task.date}T${endTime}:00`,         timeZone: 'Europe/Lisbon' };
+    } else {
+      const nextDay = new Date(task.date + 'T12:00:00');
+      nextDay.setDate(nextDay.getDate() + 1);
+      startEvt = { date: task.date };
+      endEvt   = { date: nextDay.toISOString().slice(0, 10) };
+    }
+
+    const calendarId = accommodation?.google_calendar_id || 'primary';
+    await calendar.events.update({
+      calendarId,
+      eventId: task.google_event_id,
+      resource: { summary, start: startEvt, end: endEvt },
+    });
+  } catch (err) {
+    console.error('Erro ao atualizar evento de tarefa:', err.message);
+  }
+}
+
+module.exports = { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, createTaskCalendarEvent, updateTaskCalendarEvent };

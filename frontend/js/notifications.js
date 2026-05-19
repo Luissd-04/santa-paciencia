@@ -130,6 +130,10 @@ function renderNotifBadge() {
   if (!badge) return;
   badge.textContent = count > 9 ? '9+' : String(count);
   badge.style.display = count > 0 ? '' : 'none';
+
+  const bell = badge.closest('.notif-bell');
+  const hasHigh = _notifications.some(n => n.priority === 'high');
+  if (bell) bell.classList.toggle('notif-bell--urgent', hasHigh);
 }
 
 function notificationClickAttr(n) {
@@ -340,8 +344,12 @@ async function saveManualNotification() {
 function startNotifPolling() {
   loadNotifications();
   clearInterval(_notifTimer);
-  _notifTimer = setInterval(loadNotifications, 5 * 60 * 1000);
+  _notifTimer = setInterval(loadNotifications, 60 * 1000);
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') loadNotifications();
+});
 
 document.addEventListener('click', e => {
   if (_notifOpen && !document.getElementById('notif-wrap')?.contains(e.target)) closeNotif();

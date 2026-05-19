@@ -9,7 +9,8 @@ const VIEW_TITLES = {
   alojamentos:'Alojamentos & Serviços',
   despesas:   'Despesas',
   relatorios: 'Relatórios Financeiros',
-  emails:     'Templates de Email',
+  vouchers:   'Vouchers',
+  precos:     'Preços Dinâmicos',
   definicoes: 'Definições'
 };
 
@@ -45,6 +46,10 @@ function showView(v, pushState = true) {
     switchSettingsTab('equipa', false);
     v = 'definicoes';
   }
+  if (v === 'emails') {
+    switchSettingsTab('emails', false);
+    v = 'definicoes';
+  }
   document.querySelectorAll('.view').forEach(x => x.classList.remove('active', 'view-entering'));
   const nextView = document.getElementById('view-' + v);
   if (!nextView) return;
@@ -70,7 +75,8 @@ function showView(v, pushState = true) {
   if (v === 'alojamentos') { renderAlojamentos(); initAlojDrag(); loadServicos(); }
   if (v === 'despesas')   loadDespesas();
   if (v === 'relatorios') loadRelatorios();
-  if (v === 'emails') loadEmailTemplates();
+  if (v === 'vouchers') loadVouchers();
+  if (v === 'precos') initPrecos();
   if (v === 'definicoes') renderSettingsView();
 }
 
@@ -78,6 +84,7 @@ window.addEventListener('popstate', (e) => {
   let v = e.state?.view || 'dashboard';
   if (v === 'gcal') { settingsTab = 'gcal'; v = 'definicoes'; }
   if (v === 'equipa') { settingsTab = 'equipa'; v = 'definicoes'; }
+  if (v === 'emails') { settingsTab = 'emails'; v = 'definicoes'; }
   if (VIEW_TITLES[v]) showView(v, false);
 });
 
@@ -145,7 +152,7 @@ let settingsTab = SS.get('settings:tab', 'gcal');
 
 function switchSettingsTab(tab, render = true) {
   if (tab === 'equipa' && currentUser?.role !== 'owner') tab = 'gcal';
-  settingsTab = ['gcal', 'database', 'operations', 'equipa'].includes(tab) ? tab : 'gcal';
+  settingsTab = ['gcal', 'database', 'operations', 'emails', 'equipa'].includes(tab) ? tab : 'gcal';
   SS.set('settings:tab', settingsTab);
 
   document.querySelectorAll('[data-settings-tab]').forEach(btn => {
@@ -163,13 +170,14 @@ function renderSettingsView() {
   switchSettingsTab(settingsTab, false);
   AppUI.enhanceSelects(document.getElementById('view-definicoes'));
   AppUI.refreshDropdowns(document.getElementById('view-definicoes'));
-  if (settingsTab === 'gcal') loadCalendarStatus();
+  if (settingsTab === 'gcal') { loadCalendarStatus(); loadGmailStatus(); }
   if (settingsTab === 'database') {
     if (!reservas?.length) loadReservas();
     if (!hospedes?.length) loadHospedes();
     if (typeof initExportReminderControls === 'function') initExportReminderControls();
   }
   if (settingsTab === 'operations' && typeof loadAutoTaskSettings === 'function') loadAutoTaskSettings();
+  if (settingsTab === 'emails' && typeof loadEmailTemplates === 'function') loadEmailTemplates();
   if (settingsTab === 'equipa' && currentUser?.role === 'owner') loadTeamOverview();
   if (window.lucide) lucide.createIcons();
 }
@@ -230,11 +238,82 @@ function toggleSidebarCollapse() {
   }
 }
 
+// ── GMAIL ──
+async function loadGmailStatus() {
+  try {
+    const res = await apiGet('/auth/google-email/status');
+    const d = res?.data ?? res;
+    const connected = d.connected ?? false;
+    const email = d.email || '';
+
+    const badge = document.getElementById('gmail-badge');
+    if (badge) badge.innerHTML = connected
+      ? `<span class="dot dot-green"></span> Ligado${email ? ' — ' + email : ''}`
+      : '<span class="dot dot-red"></span> Desligado';
+
+    const connectBtn    = document.getElementById('gmail-connect-btn');
+    const disconnectBtn = document.getElementById('gmail-disconnect-btn');
+    const testBtn       = document.getElementById('gmail-test-btn');
+    if (connectBtn)    connectBtn.style.display    = connected ? 'none' : '';
+    if (disconnectBtn) disconnectBtn.style.display = connected ? ''     : 'none';
+    if (testBtn)       testBtn.style.display       = connected ? ''     : 'none';
+  } catch (e) {}
+}
+
+function connectGmail() {
+  const popup = window.open(API_BASE + '/auth/google-email', '_blank', 'width=600,height=700');
+  toast('📧 Janela de autorização aberta...', 'info');
+  const poll = setInterval(async () => {
+    if (!popup || popup.closed) {
+      clearInterval(poll);
+      await new Promise(r => setTimeout(r, 1000));
+      await loadGmailStatus();
+      toast('📧 Gmail ligado!', 'success');
+    }
+  }, 500);
+}
+
+async function disconnectGmail() {
+  try {
+    const res = await fetch(API_BASE + '/auth/google-email', { method: 'DELETE', credentials: 'include' });
+    const data = await res.json();
+    if (data.success) {
+      toast('📧 Gmail desligado.', 'info');
+      await loadGmailStatus();
+    } else {
+      toast('❌ Erro ao desligar Gmail.', 'error');
+    }
+  } catch {
+    toast('❌ Erro de ligação.', 'error');
+  }
+}
+
+async function testGmail() {
+  const btn = document.getElementById('gmail-test-btn');
+  AppUI.setButtonLoading(btn, true, 'A enviar...');
+  try {
+    const res = await apiPost('/auth/google-email/test', {});
+    if (res.success) {
+      toast('✅ Email de teste enviado para a conta ligada.', 'success');
+    } else {
+      toast('❌ ' + (res.error || 'Erro ao enviar.'), 'error');
+    }
+  } catch (err) {
+    toast('❌ ' + (err?.payload?.error || err?.message || 'Erro de ligação.'), 'error');
+  } finally {
+    AppUI.setButtonLoading(btn, false);
+  }
+}
+
 // ── GOOGLE CALENDAR ──
 async function loadCalendarStatus() {
   try {
-    const data = await apiGet('/api/calendar/status');
-    const d = data?.data ?? data;
+    const [statusPayload, settingsPayload] = await Promise.all([
+      apiGet('/api/calendar/status'),
+      apiGet('/api/calendar/settings').catch(() => ({ data: {} })),
+    ]);
+    const d = statusPayload?.data ?? statusPayload;
+    const s = settingsPayload?.data ?? {};
     const connected = d.connected ?? false;
 
     const badge = document.getElementById('gcal-badge');
@@ -247,6 +326,19 @@ async function loadCalendarStatus() {
     if (el('sync-ok'))      el('sync-ok').textContent      = d.inCalendar ?? 0;
     if (el('sync-removed')) el('sync-removed').textContent = d.removed    ?? 0;
 
+    const toggle = el('gcal-sync-tasks-toggle');
+    if (toggle) toggle.checked = s.syncTasks ?? false;
+
+    const tasksStat = el('gcal-tasks-stat');
+    if (tasksStat) {
+      if (s.syncTasks && d.tasksInCalendar != null) {
+        tasksStat.textContent = `${d.tasksInCalendar} tarefas no Google Calendar`;
+        tasksStat.style.display = '';
+      } else {
+        tasksStat.style.display = 'none';
+      }
+    }
+
     const connectBtn    = el('gcal-connect-btn');
     const disconnectBtn = el('gcal-disconnect-btn');
     const syncBtn       = el('gcal-sync-btn');
@@ -254,6 +346,21 @@ async function loadCalendarStatus() {
     if (disconnectBtn) disconnectBtn.style.display = connected ? ''             : 'none';
     if (syncBtn)       syncBtn.style.display       = connected ? 'inline-flex'  : 'none';
   } catch (e) {}
+}
+
+async function saveGcalSyncTasksSetting() {
+  const toggle = document.getElementById('gcal-sync-tasks-toggle');
+  if (!toggle) return;
+  try {
+    await apiPost('/api/calendar/settings', { syncTasks: toggle.checked });
+    if (toggle.checked) {
+      await syncAllGcal();
+    } else {
+      await loadCalendarStatus();
+    }
+  } catch {
+    toast('❌ Erro ao guardar definição.', 'error');
+  }
 }
 
 function connectGcal() {
@@ -291,7 +398,8 @@ async function syncAllGcal() {
     const res = await apiPost('/api/calendar/sync-all', {});
     if (res.success) {
       const d = res.data;
-      toast(`✅ Sincronização completa: ${d.created} criados, ${d.updated} atualizados${d.skipped ? ', ' + d.skipped + ' já ligados a outro membro' : ''}${d.errors ? ', ' + d.errors + ' erros' : ''}.`, 'success');
+      const taskInfo = d.syncTasks ? ` · Tarefas: ${d.taskCreated} criadas, ${d.taskUpdated} atualizadas${d.taskErrors ? ', ' + d.taskErrors + ' erros' : ''}` : '';
+      toast(`✅ Sincronização completa: ${d.created} criados, ${d.updated} atualizados${d.skipped ? ', ' + d.skipped + ' já ligados a outro membro' : ''}${d.errors ? ', ' + d.errors + ' erros' : ''}${taskInfo}.`, 'success');
       await loadCalendarStatus();
     } else {
       toast('❌ ' + (res.error || 'Erro ao sincronizar.'), 'error');
@@ -347,3 +455,14 @@ async function initApp() {
 
 applyTheme(getStoredTheme());
 boot();
+
+/* ── PWA: Service Worker ──
+   Desactivado durante desenvolvimento activo.
+   Descomentar quando o CSS/JS estiver estável.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js')
+      .catch(() => {});
+  });
+}
+*/

@@ -10,7 +10,7 @@
   --creme: #f8f5f0;
   --branco: #ffffff;
   --cinza-claro: #f0ece6;
-  --cinza: #8a8278;
+  --cinza: #6b6460;
   --texto: #2a2520;
   --verde: #2e7d52;
   --vermelho: #b03030;
@@ -548,6 +548,23 @@ i[data-lucide] { display:inline-flex; align-items:center; justify-content:center
   transition: background .15s, color .15s;
 }
 .notif-bell:hover { background: var(--hover-bg, rgba(0,0,0,.05)); }
+
+.notif-bell--urgent {
+  color: var(--vermelho, #c0392b);
+  border-color: rgba(192, 57, 43, 0.3);
+  background: rgba(192, 57, 43, 0.06);
+  animation: bell-urgent 2.4s ease-in-out infinite;
+}
+.notif-bell--urgent:hover { background: rgba(192, 57, 43, 0.12); }
+
+@keyframes bell-urgent {
+  0%, 100% { transform: rotate(0deg); }
+  10%       { transform: rotate(-12deg); }
+  20%       { transform: rotate(12deg); }
+  30%       { transform: rotate(-8deg); }
+  40%       { transform: rotate(8deg); }
+  50%       { transform: rotate(0deg); }
+}
 
 .notif-badge {
   position: absolute; top: -5px; right: -5px;
@@ -2876,13 +2893,16 @@ select.form-control { cursor:pointer; }
 .mobile-filter-chips {
   display: flex; gap: 6px; margin-bottom: 14px;
   overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 .mobile-filter-chips::-webkit-scrollbar { display: none; }
 .chip {
-  flex-shrink: 0; padding: 6px 12px; border-radius: 100px;
+  flex-shrink: 0; padding: 0 14px; border-radius: 100px;
+  min-height: 44px; display: inline-flex; align-items: center;
   background: var(--branco); border: 1px solid var(--cinza-claro);
   font-size: 11.5px; font-weight: 500; color: var(--azul);
   cursor: pointer; white-space: nowrap; transition: background .15s, color .15s;
+  touch-action: manipulation;
 }
 .chip.active { background: var(--marca); color: #fff; border-color: var(--marca); }
 
@@ -2956,6 +2976,8 @@ select.form-control { cursor:pointer; }
 }
 .mobile-fab:active { transform: scale(.93); }
 .mobile-fab i[data-lucide] { width: 22px; height: 22px; }
+
+.precos-day-cell:hover { filter: brightness(.96); }
 
 /* ── Side Drawer ── */
 .side-drawer-overlay {

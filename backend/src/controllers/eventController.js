@@ -5,6 +5,32 @@ const {
   saveAutoTaskSettings,
   syncOrganizationOperationalTasks,
 } = require('../services/operationalTasksService');
+const { isAuthenticated } = require('../config/google');
+const { createTaskCalendarEvent, updateTaskCalendarEvent } = require('../services/calendarService');
+
+const GCAL_SYNC_TASKS_KEY = 'gcal_sync_tasks';
+function getOrgSetting(orgId, key) {
+  const row = db.prepare('SELECT value FROM organization_settings WHERE organization_id = ? AND key = ?').get(orgId, key);
+  return row?.value ?? null;
+}
+
+async function syncTaskToCalendar(task, userId, orgId) {
+  if (!isAuthenticated(userId, orgId)) return;
+  if (getOrgSetting(orgId, GCAL_SYNC_TASKS_KEY) !== '1') return;
+  try {
+    if (task.google_event_id && task.google_calendar_user_id === userId) {
+      await updateTaskCalendarEvent(task, { userId, organizationId: orgId });
+    } else {
+      const eventId = await createTaskCalendarEvent(task, { userId, organizationId: orgId });
+      if (eventId) {
+        db.prepare('UPDATE operational_events SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ?')
+          .run(eventId, userId, task.id);
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao sincronizar tarefa com Google Calendar:', err.message);
+  }
+}
 
 const VALID_TYPES = new Set(['limpeza', 'reuniao', 'pequeno_almoco', 'checkin', 'checkout', 'manutencao', 'outro']);
 const VALID_STATUS = new Set(['planeado', 'concluido']);
@@ -81,7 +107,9 @@ function create(req, res) {
     req.user.id, data.completed_at, data.important
   );
 
-  res.status(201).json({ success: true, data: db.prepare('SELECT * FROM operational_events WHERE id = ? AND organization_id = ?').get(id, orgId) });
+  const created = db.prepare('SELECT * FROM operational_events WHERE id = ? AND organization_id = ?').get(id, orgId);
+  res.status(201).json({ success: true, data: created });
+  syncTaskToCalendar(created, req.user.id, orgId);
 }
 
 function update(req, res) {
@@ -109,7 +137,9 @@ function update(req, res) {
     req.params.id, orgId
   );
 
-  res.json({ success: true, data: db.prepare('SELECT * FROM operational_events WHERE id = ? AND organization_id = ?').get(req.params.id, orgId) });
+  const updated = db.prepare('SELECT * FROM operational_events WHERE id = ? AND organization_id = ?').get(req.params.id, orgId);
+  res.json({ success: true, data: updated });
+  syncTaskToCalendar(updated, req.user.id, orgId);
 }
 
 function remove(req, res) {

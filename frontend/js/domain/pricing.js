@@ -69,6 +69,21 @@
     }, total);
   }
 
+  function calcBaseAmountWithPeriods(basePrice, checkIn, checkOut, periods = []) {
+    const nights = window.ReservationDates?.countNights(checkIn, checkOut) || 0;
+    if (!nights) return 0;
+    const sorted = [...periods].sort((a, b) => a.start_date.localeCompare(b.start_date));
+    let total = 0;
+    const d = new Date(`${checkIn}T12:00:00`);
+    for (let i = 0; i < nights; i++) {
+      const iso = d.toISOString().slice(0, 10);
+      const period = sorted.find(p => p.start_date <= iso && p.end_date >= iso);
+      total += period ? Number(period.price_per_night) : basePrice;
+      d.setDate(d.getDate() + 1);
+    }
+    return total;
+  }
+
   function calculateReservationTotal(accommodation, services = [], payload = {}) {
     const nights = window.ReservationDates?.countNights(payload.check_in, payload.check_out) || 0;
     const guests = Math.max(1, Number(payload.num_guests) || 1);
@@ -82,7 +97,8 @@
     const touristTax = (taxSvc?.active !== false) ? (Number(taxSvc?.value ?? 3) * guests * nights) : 0;
     const breakfastCost = breakfast ? (Number(bkfSvc?.value ?? 19) * guests * nights) : 0;
     const extraOccupancyCost = getExtraOccupancyCharge(accommodation, guests, nights, payload.birth_dates || [], payload.check_in);
-    const baseAmount = Number(accommodation.price_per_night || 0) * nights;
+    const pricingPeriods = payload.pricing_periods || [];
+    const baseAmount = calcBaseAmountWithPeriods(Number(accommodation.price_per_night || 0), payload.check_in, payload.check_out, pricingPeriods);
 
     return {
       nights,

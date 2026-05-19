@@ -1694,3 +1694,4 @@ function switchDescLang(lang) {
   document.querySelectorAll('.desc-lang-tab').forEach(t => t.classList.toggle('active', t.dataset.lang === lang));
   document.querySelectorAll('.desc-lang-area').forEach(a => a.style.display = a.id === 'desc-' + lang ? 'block' : 'none');
 }
+
