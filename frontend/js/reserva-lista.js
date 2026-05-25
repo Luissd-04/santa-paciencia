@@ -146,9 +146,9 @@ async function loadReservas() {
   sv('filter-date-from', 'res:fd'); sv('filter-date-to', 'res:ft');
   AppUI.refreshDropdowns(document.getElementById('view-reservas'));
   // Restore sort icon
-  document.querySelectorAll('.sort-icon').forEach(el => el.textContent = '');
+  document.querySelectorAll('.sort-icon').forEach(el => { el.textContent = '↕'; el.style.opacity = '0.25'; });
   const sIcon = document.getElementById('sort-' + sortCol);
-  if (sIcon) sIcon.textContent = sortAsc ? '↑' : '↓';
+  if (sIcon) { sIcon.textContent = sortAsc ? '↑' : '↓'; sIcon.style.opacity = '1'; }
 
   document.getElementById('tabela-loading').style.display = 'flex';
   document.getElementById('tabela-body').innerHTML = '';
@@ -173,9 +173,9 @@ function sortTabela(col) {
   }
   SS.set('res:sort', sortCol);
   SS.set('res:asc', sortAsc);
-  document.querySelectorAll('.sort-icon').forEach(el => el.textContent = '');
+  document.querySelectorAll('.sort-icon').forEach(el => { el.textContent = '↕'; el.style.opacity = '0.25'; });
   const icon = document.getElementById('sort-' + col);
-  if (icon) icon.textContent = sortAsc ? '↑' : '↓';
+  if (icon) { icon.textContent = sortAsc ? '↑' : '↓'; icon.style.opacity = '1'; }
   renderTabela();
 }
 
@@ -239,6 +239,7 @@ function renderTabela() {
       <td>${formatDate(r.check_in)}</td>
       <td>${formatDate(r.check_out)}</td>
       <td>${r.nights}</td>
+      <td>${renderGuestsCell(r)}</td>
       <td><b>€${Number(r.total_amount || 0).toFixed(2)}</b></td>
       <td><span style="font-size:12px;color:var(--cinza)">${r.channel}</span></td>
       <td>${badgeEstado(r.status)}</td>
@@ -265,6 +266,19 @@ function renderTabela() {
     </tr>`).join('');
   if (window.lucide) lucide.createIcons();
   applyReservasViewMode();
+}
+
+function renderGuestsCell(r) {
+  const adults   = r.num_adults != null ? Number(r.num_adults) : Number(r.num_guests || 0);
+  const children = Number(r.num_children || 0);
+  const svg = (sz, col) =>
+    `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>`;
+  const parts = [];
+  if (adults   > 0) parts.push(`<span style="display:inline-flex;align-items:center;gap:3px;font-size:12px;color:var(--azul)">${adults}${svg(13,'currentColor')}</span>`);
+  if (children > 0) parts.push(`<span style="display:inline-flex;align-items:center;gap:3px;font-size:12px;color:var(--azul-claro)">${children}${svg(10,'currentColor')}</span>`);
+  return parts.length
+    ? `<span style="display:inline-flex;align-items:center;gap:6px">${parts.join('')}</span>`
+    : '—';
 }
 
 function updateReservasSummary(total, detailText) {
@@ -358,6 +372,9 @@ async function showDetail(id) {
           <button class="btn btn-primary" onclick="openEditModal('${r.id}')">
             ${lcIcon('pencil', 13)} Editar
           </button>
+          ${realEmail(r.guest_email) ? `<button class="btn btn-ghost" onclick="openInvoiceForReservation('${r.id}','${realEmail(r.guest_email)}','${(r.guest_name||'').replace(/'/g,"\\'")}')">
+            ${lcIcon('mail', 13)} Email
+          </button>` : ''}
           ${r.status === 'cancelada'
             ? `<button class="btn btn-success" onclick="reativarReserva('${r.id}')">
                 ${lcIcon('refresh-cw', 13)} Reativar Reserva
@@ -369,7 +386,7 @@ async function showDetail(id) {
       </div>
       <div class="detail-grid">
         <div class="detail-row"><div class="detail-label">Hóspede</div><div class="detail-val"><b>${r.guest_name}</b></div></div>
-        <div class="detail-row"><div class="detail-label">Email</div><div class="detail-val">${r.guest_email || '—'}</div></div>
+        ${realEmail(r.guest_email) ? `<div class="detail-row"><div class="detail-label">Email</div><div class="detail-val">${realEmail(r.guest_email)}</div></div>` : ''}
         <div class="detail-row"><div class="detail-label">Telefone</div><div class="detail-val">${r.guest_phone || '—'}</div></div>
         <div class="detail-row"><div class="detail-label">Alojamento</div><div class="detail-val">${accomChip(r)}</div></div>
         <div class="detail-row"><div class="detail-label">Canal</div><div class="detail-val">${r.channel}</div></div>

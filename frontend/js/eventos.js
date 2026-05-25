@@ -12,8 +12,8 @@ const EVENTOS_LABEL_W = 190;
 const EVENTOS_ZOOM = { 7: 80, 14: 48, 30: 24 };
 
 const EVENT_TYPES = [
-  { id: 'limpeza', label: 'Limpezas', singular: 'Limpeza', icon: 'sparkles', color: '#8B3A24' },
-  { id: 'reuniao', label: 'Reuniões', singular: 'Reunião', icon: 'users', color: '#4a7fa5' },
+  { id: 'limpeza', label: 'Limpezas', singular: 'Limpeza', icon: 'brush-cleaning', color: '#8B3A24' },
+  { id: 'reuniao', label: 'Compromissos', singular: 'Compromisso', icon: 'calendar-check', color: '#4a7fa5' },
   { id: 'pequeno_almoco', label: 'Pequenos-almoços', singular: 'Pequeno-almoço', icon: 'coffee', color: '#c9a84c' },
   { id: 'checkin', label: 'Check-ins', singular: 'Check-in', icon: 'log-in', color: '#4f8f6b' },
   { id: 'checkout', label: 'Check-outs', singular: 'Check-out', icon: 'log-out', color: '#6f6bb3' },

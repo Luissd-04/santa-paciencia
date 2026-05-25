@@ -3,11 +3,14 @@ const { v4: uuidv4 } = require('uuid');
 
 const VOUCHER_TYPES = ['discount_pct', 'discount_fixed', 'credit_stay'];
 
-function generateCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
+function generateCode(accommodationName = null) {
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yy = String(now.getFullYear()).slice(-2);
+  const initials = accommodationName
+    ? accommodationName.split(/\s+/).map(w => w[0]?.toUpperCase() || '').filter(Boolean).join('').slice(0, 4)
+    : '';
+  return `SP${initials}${mm}${yy}`;
 }
 
 function getAll(req, res) {
@@ -50,18 +53,31 @@ function create(req, res) {
   if (!type || !VOUCHER_TYPES.includes(type) || value == null) {
     return res.status(400).json({ error: 'Tipo e valor são obrigatórios' });
   }
-  if (parseFloat(value) <= 0) return res.status(400).json({ error: 'O valor deve ser maior que 0' });
-  if (type === 'discount_pct' && parseFloat(value) > 100) {
+  const parsedValue = type === 'credit_stay' ? parseInt(value) : parseFloat(value);
+  if (!parsedValue || parsedValue <= 0) return res.status(400).json({ error: 'O valor deve ser maior que 0' });
+  if (type === 'discount_pct' && parsedValue > 100) {
     return res.status(400).json({ error: 'Desconto percentual não pode exceder 100%' });
   }
 
-  const voucherCode = (code || generateCode()).toUpperCase().trim();
-  const existing = db.prepare('SELECT id FROM vouchers WHERE code = ? AND organization_id = ?').get(voucherCode, req.user.organization_id);
-  if (existing) return res.status(409).json({ error: 'Este código já existe. Escolhe outro.' });
-
+  let acc = null;
   if (accommodation_id) {
-    const acc = db.prepare('SELECT id FROM accommodations WHERE id = ? AND organization_id = ?').get(accommodation_id, req.user.organization_id);
+    acc = db.prepare('SELECT id, name FROM accommodations WHERE id = ? AND organization_id = ?').get(accommodation_id, req.user.organization_id);
     if (!acc) return res.status(400).json({ error: 'Alojamento não encontrado' });
+  }
+
+  let voucherCode;
+  if (code) {
+    voucherCode = code.toUpperCase().trim();
+    if (db.prepare('SELECT id FROM vouchers WHERE code = ? AND organization_id = ?').get(voucherCode, req.user.organization_id)) {
+      return res.status(409).json({ error: 'Este código já existe. Escolhe outro.' });
+    }
+  } else {
+    const base = generateCode(acc?.name || null);
+    voucherCode = base;
+    let suffix = 1;
+    while (db.prepare('SELECT id FROM vouchers WHERE code = ? AND organization_id = ?').get(voucherCode, req.user.organization_id)) {
+      voucherCode = `${base}${suffix++}`;
+    }
   }
 
   const id = uuidv4().slice(0, 8);
@@ -70,7 +86,7 @@ function create(req, res) {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, req.user.organization_id, voucherCode, type,
-    parseFloat(value), description || null,
+    parsedValue, description || null,
     valid_from || null, valid_until || null,
     min_nights ? parseInt(min_nights) : 1,
     accommodation_id || null, notes || null
@@ -86,7 +102,11 @@ function update(req, res) {
   const { type, value, description, valid_from, valid_until, min_nights, accommodation_id, notes, status } = req.body;
 
   if (type && !VOUCHER_TYPES.includes(type)) return res.status(400).json({ error: 'Tipo inválido' });
-  if (value !== undefined && parseFloat(value) <= 0) return res.status(400).json({ error: 'O valor deve ser maior que 0' });
+  const effectiveType = type ?? existing.type;
+  if (value !== undefined) {
+    const pv = effectiveType === 'credit_stay' ? parseInt(value) : parseFloat(value);
+    if (!pv || pv <= 0) return res.status(400).json({ error: 'O valor deve ser maior que 0' });
+  }
 
   db.prepare(`
     UPDATE vouchers SET
@@ -103,7 +123,7 @@ function update(req, res) {
     WHERE id = ? AND organization_id = ?
   `).run(
     type ?? null,
-    value !== undefined ? parseFloat(value) : null,
+    value !== undefined ? (effectiveType === 'credit_stay' ? parseInt(value) : parseFloat(value)) : null,
     description !== undefined ? (description || null) : existing.description,
     valid_from !== undefined ? (valid_from || null) : existing.valid_from,
     valid_until !== undefined ? (valid_until || null) : existing.valid_until,

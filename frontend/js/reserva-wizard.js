@@ -224,7 +224,7 @@ async function openEditModal(id) {
     const nameParts = (r.guest_name || '').trim().split(' ');
     const nomeFull = [guestFull.first_name || nameParts[0], guestFull.last_name || nameParts.slice(1).join(' ')].filter(Boolean).join(' ');
     document.getElementById('f-nome-completo').value = nomeFull || r.guest_name || '';
-    document.getElementById('f-email').value          = r.guest_email || '';
+    document.getElementById('f-email').value          = realEmail(r.guest_email) || '';
     // Split stored phone into prefix + number
     const rawPhone = r.guest_phone || guestFull.phone || '';
     const matchedCountry = DIAL_COUNTRIES.find(c => rawPhone.startsWith(c.dial));

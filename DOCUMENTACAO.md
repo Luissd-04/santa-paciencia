@@ -1,6 +1,6 @@
 # Santa Paciência — Documentação Técnica Completa
 
-> Atualizado em 2026-05-19 (sessão 2). Atualizar sempre que houver alterações estruturais significativas.
+> Atualizado em 2026-05-20 (sessão 3). Atualizar sempre que houver alterações estruturais significativas.
 
 ---
 
@@ -13,7 +13,7 @@
 | **Express** | v5 | Framework HTTP |
 | **better-sqlite3** | v12 | Base de dados (síncrona, sem ORM) |
 | **Nodemailer** | v8 | Envio de emails |
-| **googleapis** | v171 | Integração Google Calendar e Gmail (OAuth2) |
+| **googleapis** | v171 | Integração Google Calendar, Gmail e Google Tasks (OAuth2) |
 | **uuid** | v14 | Geração de IDs |
 | **dotenv** | v17 | Variáveis de ambiente |
 
@@ -25,9 +25,9 @@ Em 2026-05-04 o frontend passou a usar uma estrutura de CSS segmentada:
 - `css/styles.css` — legado / base histórica ainda usada pelas views não migradas
 - `css/base.css` — tokens visuais, heróis de página, utilitários base
 - `css/layout.css` — shell global: sidebar, topbar, content
-- `css/components.css` — botões, cards, forms, toggle de tema
-- `css/themes.css` — light/dark mode via `data-theme`
-- `css/views/*.css` — estilos específicos por separador (`dashboard`, `reservas`, `despesas`)
+- `css/components.css` — botões, cards, forms, toggle de tema (inclui estilos do `AppDatePicker`)
+- `css/themes.css` — apenas light mode (dark mode removido em 2026-05-19)
+- `css/views/*.css` — estilos específicos por separador (`dashboard`, `reservas`, `despesas`, `invoice`)
 
 ### Infraestrutura
 | Componente | Tecnologia |
@@ -59,6 +59,7 @@ santa_paciencia/
     │   ├── database.js         Init SQLite + migrations automáticas + seed + legacy migration
     │   ├── google.js           Cliente OAuth2 Google Calendar (por utilizador)
     │   ├── googleEmail.js      Cliente OAuth2 Gmail (por organização) + sendViaGmail
+    │   ├── googleTasks.js      Cliente OAuth2 Google Tasks (por organização) + getOrCreateTaskList
     │   └── email.js            Nodemailer transporter (SMTP, fallback)
     ├── controllers/            (~11 ficheiros)
     │   ├── reservationController.js   ~580 linhas — reservas, disponibilidade, stats, notificações
@@ -72,7 +73,7 @@ santa_paciencia/
     │   ├── teamController.js           convites, membros e gestão de papéis
     │   ├── reportController.js         relatórios financeiros
     │   └── publicBookingController.js  motor público de reservas
-    ├── routes/                 (~12 ficheiros)
+    ├── routes/                 (~14 ficheiros)
     │   ├── reservations.js     8 rotas
     │   ├── accommodations.js   15 rotas (inclui 4 de pricing periods)
     │   ├── guests.js           5 rotas
@@ -81,7 +82,8 @@ santa_paciencia/
     │   ├── calendar.js         4 rotas (status, sync-all, settings GET/POST)
     │   ├── events.js           rotas de eventos operacionais
     │   ├── vouchers.js         6 rotas
-    │   ├── auth.js             login, registo, sessão, convites, OAuth2 Google Calendar e Gmail
+    │   ├── auth.js             login, registo, sessão, convites, OAuth2 GCal/Gmail/Tasks, email send/inbox
+    │   ├── googleTasks.js      3 rotas (status, sync, clear) montadas em /api/tasks
     │   ├── backup.js           2 rotas
     │   ├── team.js             5 rotas
     │   └── reports.js          2 rotas
@@ -108,17 +110,19 @@ frontend/
 │   ├── styles.css              legado / views ainda não migradas
 │   ├── base.css                tokens, heróis, utilitários base
 │   ├── layout.css              sidebar, topbar, content
-│   ├── components.css          cards, botões, forms, toggle
-│   ├── themes.css              light/dark mode
+│   ├── components.css          cards, botões, forms, toggle, AppDatePicker
+│   ├── themes.css              apenas light mode (dark mode removido)
 │   └── views/
 │       ├── dashboard.css
 │       ├── operations.css
 │       ├── reservas.css
-│       └── despesas.css
+│       ├── despesas.css
+│       └── invoice.css         layout inbox 2 colunas, chat bubbles, badge sidebar, template picker
 └── js/
     ├── domain/
     │   ├── dates.js            Regras reutilizáveis de datas, noites e idade
-    │   └── pricing.js          Regras reutilizáveis de totais, taxas, ocupação extra e preços dinâmicos
+    │   ├── pricing.js          Regras reutilizáveis de totais, taxas, ocupação extra e preços dinâmicos
+    │   └── date-picker.js      AppDatePicker — calendário custom (substituiu input[type=date])
     ├── ui.js                   Helpers UI: AppUI.setButtonLoading, AppUI.enhanceSelect,
     │                           AppUI.openModal, AppUI.closeModal, AppUI.refreshDropdowns
     ├── state.js                Variáveis globais: reservas[], accommodations[], editingId,
@@ -126,9 +130,9 @@ frontend/
     ├── helpers.js              badgeEstado(), badgePagamento(), toast(), formatDate(),
     │                           lcIcon(), apiGet/Post/Put/Delete(), SS (sessionStorage wrapper)
     ├── auth.js                 login/signup/invite, sessão e feedback de autenticação
-    ├── app.js                  navegação, boot global, dark mode, Google Calendar UI, Gmail UI
+    ├── app.js                  navegação, boot global (dark mode removido), Google Tasks UI, Gmail UI
     ├── dashboard.js            KPIs, tabela próximas chegadas, barras de ocupação, móvel
-    ├── reservas.js             ~1200 linhas — lista, filtros, detalhe
+    ├── reservas.js             lista (default), filtros (datas lado a lado), detalhe, botão "Enviar email"
     ├── reserva-wizard.js       wizard 3 passos, disponibilidade, cálculo com preços dinâmicos
     ├── hospedes.js             ~624 linhas — lista, detalhe, fichas, flags
     ├── alojamentos.js          ~1000 linhas — CRUD, imagens, galeria, herança, serviços
@@ -140,6 +144,7 @@ frontend/
     ├── notificacoes.js         painel de notificações e alertas do dia
     ├── vouchers.js             CRUD de vouchers no backoffice
     ├── precos.js               ~474 linhas — calendário de preços dinâmicos, CRUD de períodos
+    ├── invoice.js              view Mensagens — inbox 2 colunas, chat bubbles, templates, polling Gmail
     └── team.js                 convites, listagem de membros, gestão de papéis
 ```
 
@@ -150,7 +155,7 @@ frontend/
 ### Backoffice
 - Autenticação por email/password, sessões em cookie `HttpOnly`, organizações, memberships e convites.
 - Dashboard operacional com KPIs, chegadas próximas, ocupação e atalhos de backup.
-- Reservas completas: criação/edição/cancelamento/reativação, disponibilidade, anti-overbooking, hóspedes adicionais, RGPD, pagamentos parciais e integração Google Calendar.
+- Reservas completas: criação/edição/cancelamento/reativação, disponibilidade, anti-overbooking, hóspedes adicionais, RGPD, pagamentos parciais e integração Google Calendar. Vista lista como padrão; filtro de datas lado a lado com auto-abertura da data de fim; toggle Cartão/Lista no canto direito da toolbar.
 - Alojamentos com hierarquia pai→filhos, campos herdados, comodidades próprias/herdadas, imagens por secção, capa, áreas comuns herdadas, serviços/taxas e preços especiais por idade.
 - **Preços Dinâmicos**: separador dedicado com calendário mensal colorido (verde=mais barato, vermelho=mais caro), seleção de intervalo por dois cliques, CRUD de períodos de preço. Aplicados noite a noite em reservas (backoffice e wizard).
 - **Vouchers**: CRUD completo (backoffice), tipos `discount_pct`, `discount_fixed`, `credit_stay`, validade, min. noites, alojamento específico.
@@ -159,11 +164,14 @@ frontend/
 - Despesas com CRUD, resumo e integração nos relatórios.
 - Relatórios financeiros: receita mensal, receita por canal/alojamento, despesas por mês/categoria e lucro.
 - **Emails/templates** por organização, settings de horários/redes sociais e preview por email. Separador integrado em Definições (não na sidebar).
-- **Gmail OAuth** por organização: ligar/desligar conta Gmail nas Definições (aba Ligações). Quando ligado, todos os emails saem via Gmail API; caso contrário fallback para SMTP. Subjects codificados RFC 2047.
+- **Mensagens** (separador "invoice" na sidebar, secção Principal): inbox de 2 colunas com lista de conversas e área de chat. Enviados à direita (balão vermelho); recebidos via Gmail à esquerda (balão cinza). Polling 30s. Botão "Template" no compose preenche assunto/corpo a partir dos templates. Badge de não lido no sidebar. Iniciais do alojamento junto ao nome quando a reserva está ativa (`confirmed`/`checked_in`). Conversas ordenadas por data do último email. Acessível a partir do detalhe de reserva via "Enviar email".
+- **Gmail OAuth** por organização: scopes `gmail.send` + `gmail.readonly` + `userinfo.email`. Emails enviados via Gmail API; inbox lido via `GET /auth/email/inbox`. Fallback SMTP quando desligado. Subjects RFC 2047. Necessário re-autorizar após adição do scope `gmail.readonly`.
+- **Google Tasks OAuth** por organização: scope `tasks`. Em Definições → Ligações. Sync cria/atualiza tarefas na lista "Santa Paciência" com eventos operacionais dos próximos 90 dias. `google_task_id` guardado para upsert idempotente.
 - Google Calendar OAuth por utilizador/organização, status e sync manual. Settings por organização (syncTasks).
 - **Eventos Operacionais**: limpeza, manutenção e outras tarefas com datas, responsável, notas e estado. Sync automático com reservas (tarefas de check-in/check-out geradas automaticamente).
 - **Notificações**: painel com check-ins/check-outs do dia e amanhã, pagamentos em falta, reservas pendentes e tarefas importantes. Sino fica vermelho e animado quando há notificações de prioridade alta.
 - Backup ZIP de dados + imagens e import substitutivo por organização.
+- **Dark mode removido**: `data-theme` fixo em `light`; `css/themes.css` só contém tema claro. Service worker auto-desregistado ao boot para evitar cache stale.
 
 ### Público
 - Página pública de reservas por `public_slug`: `/reservar/:slug`.
@@ -340,6 +348,9 @@ updated_at      TEXT DEFAULT datetime('now')
 UNIQUE (organization_id, code)
 ```
 
+### Coluna `google_task_id` em `operational_events`
+Adicionada via `ALTER TABLE` pela migration `migrateGoogleTasksConnections`. Guarda o ID da tarefa no Google Tasks para upsert idempotente durante o sync.
+
 ### Tabela `operational_events`
 ```sql
 id              TEXT PRIMARY KEY
@@ -460,7 +471,32 @@ tokens          TEXT NOT NULL               -- JSON com access_token, refresh_to
 created_at      TEXT DEFAULT datetime('now')
 updated_at      TEXT DEFAULT datetime('now')
 ```
-Scopes: `gmail.send`, `userinfo.email`. Tokens são renovados automaticamente via evento `'tokens'` do OAuth2Client.
+Scopes: `gmail.send`, `gmail.readonly`, `userinfo.email`. Tokens renovados automaticamente via evento `'tokens'`.
+
+### Tabela `invoice_messages`
+```sql
+id              TEXT PRIMARY KEY          -- UUID v4
+organization_id TEXT NOT NULL
+to_email        TEXT NOT NULL
+to_name         TEXT
+subject         TEXT NOT NULL
+body_html       TEXT NOT NULL
+reservation_id  TEXT                      -- FK opcional para reservas(id) ON DELETE SET NULL
+sent_by_user_id TEXT
+sent_at         TEXT DEFAULT datetime('now')
+```
+Guarda todos os emails enviados pelo backoffice. Consultado por `GET /auth/email/messages?to_email=&reservation_id=`.
+
+### Tabela `google_tasks_connections`
+```sql
+organization_id TEXT NOT NULL PRIMARY KEY
+email           TEXT                        -- conta Google ligada
+tokens          TEXT NOT NULL               -- JSON OAuth2
+tasks_list_id   TEXT                        -- ID da task list "Santa Paciência"
+created_at      TEXT DEFAULT datetime('now')
+updated_at      TEXT DEFAULT datetime('now')
+```
+Scope: `tasks`. Gerida via `backend/src/config/googleTasks.js`.
 
 ### Tabela `organization_email_templates`
 ```sql
@@ -624,6 +660,13 @@ created_at      TEXT DEFAULT datetime('now')
 | GET | `/export` — ZIP completo com `backup.json` + imagens |
 | POST | `/import` — importa ZIP e substitui todos os dados da organização |
 
+### `/api/tasks` (Google Tasks sync)
+| Método | Path | Descrição |
+|---|---|---|
+| GET | `/status` | `{ connected, synced, pending }` — estado do sync |
+| POST | `/sync` | Cria/atualiza tarefas nos próximos 90 dias no Google Tasks |
+| DELETE | `/clear` | Limpa `google_task_id` de todos os eventos |
+
 ### `/auth`
 | Método | Path |
 |---|---|
@@ -637,11 +680,18 @@ created_at      TEXT DEFAULT datetime('now')
 | GET | `/google` — redirect OAuth2 Google Calendar |
 | GET | `/google/callback` |
 | DELETE | `/google` |
-| GET | `/google-email` — redirect OAuth2 Gmail |
+| GET | `/google-email` — redirect OAuth2 Gmail (`gmail.send` + `gmail.readonly`) |
 | GET | `/google-email/callback` |
 | GET | `/google-email/status` — `{ connected, email }` |
 | DELETE | `/google-email` — desligar Gmail |
 | POST | `/google-email/test` — envia email de teste para o próprio |
+| POST | `/email/send` — envia email via Gmail/SMTP e guarda em `invoice_messages` |
+| GET | `/email/messages` — lista mensagens enviadas (`?to_email=&reservation_id=&limit=`) |
+| GET | `/email/inbox` — lê inbox Gmail e devolve mensagens recebidas/enviadas (`?to_email=`) |
+| GET | `/google-tasks` — redirect OAuth2 Google Tasks |
+| GET | `/google-tasks/callback` |
+| GET | `/google-tasks/status` — `{ connected, email, tasksListId }` |
+| DELETE | `/google-tasks` — desligar Google Tasks |
 
 ### `/api/public`
 | Método | Path |
@@ -735,13 +785,33 @@ created_at      TEXT DEFAULT datetime('now')
 **Scheduler** (`emailScheduler.js`): disponível mas **não ligado no `server.js`** — `startScheduler()` não é chamado.
 **Placeholders**: `{{primeiro_nome}}`, `{{nome_completo}}`, `{{alojamento}}`, `{{referencia}}`, `{{data_checkin}}`, `{{hora_checkin}}`, `{{data_checkout}}`, `{{hora_checkout}}`, `{{noites}}`, `{{num_hospedes}}`, `{{total}}`, `{{canal}}`, `{{wifi_nome}}`, `{{wifi_password}}`, `{{facebook}}`, `{{instagram}}`, `{{website}}`
 
+### Mensagens (`invoice.js` + `invoice.css`)
+- Sidebar: secção Principal, a seguir a Notificações; badge vermelho quando há emails novos desde a última visita
+- Layout 2 colunas: lista de conversas à esquerda, detalhe + compose à direita
+- Conversas agrupadas por reserva (nome do hóspede da BD + iniciais do alojamento se reserva ativa) ou avulsas (emails sem reserva_id)
+- Lista ordenada pela data do último email; snippet da última mensagem visível na linha
+- Chat: enviados à direita (balão vermelho), recebidos via Gmail à esquerda (balão cinza); polling de 30s
+- Deduplicação por `direction|subject|date[:16]` para evitar duplicados entre BD e Gmail
+- Botão "Template" no compose: carrega `/api/email-templates`, picker escolhe e preenche assunto + corpo; cache em memória
+- Modal "Nova mensagem" para email avulso (sem reserva associada)
+- `openInvoiceForReservation(reservationId, email, name)` chamado do detalhe de reserva
+- Banner de re-autorização quando Gmail não tem scope `gmail.readonly`
+
 ### Gmail OAuth (por organização)
-- Fluxo independente do Google Calendar: scopes `gmail.send` + `userinfo.email`
+- Fluxo independente do Google Calendar: scopes `gmail.send` + `gmail.readonly` + `userinfo.email`
 - Configuração em Definições → aba "Ligações" (junto ao Google Calendar)
-- Após ligar: o endereço Gmail fica guardado na tabela `google_email_connections`; todos os emails saem com `From: <PropertyName> <email@gmail.com>`
-- Subjects não-ASCII codificados em RFC 2047 (`=?UTF-8?B?...?=`)
-- Tokens renovados automaticamente via evento `'tokens'` do OAuth2Client
-- Botão "Testar envio" envia email de confirmação para o próprio endereço ligado
+- Após ligar: endereço Gmail guardado em `google_email_connections`; emails saem com `From: <PropertyName> <email@gmail.com>`
+- `GET /auth/email/inbox`: pesquisa Gmail por `from:X OR to:X`, extrai corpo MIME recursivamente (prefere `text/html`, fallback `text/plain`), devolve `direction: 'sent'|'received'`
+- Subjects não-ASCII codificados em RFC 2047; tokens auto-renovados via evento `'tokens'`
+- Botão "Testar envio" envia confirmação para o próprio endereço ligado
+- **Atenção**: ao adicionar o scope `gmail.readonly`, o utilizador tem de re-autorizar (desligar e ligar de novo o Gmail nas Definições)
+
+### Google Tasks OAuth (por organização)
+- Scope: `https://www.googleapis.com/auth/tasks`
+- Redirect URI: `GOOGLE_TASKS_REDIRECT_URI` — produção: `https://santapaciencia.xyz/auth/google-tasks/callback`
+- Cria/garante lista "Santa Paciência" no Google Tasks (`getOrCreateTaskList`)
+- Sync: cria/atualiza tarefas a partir dos eventos operacionais dos próximos 90 dias (excluindo cancelados); `google_task_id` guardado para upsert
+- **Necessário**: activar "Tasks API" no Google Cloud Console e registar o URI de redirect
 
 ### Google Calendar
 - OAuth2 por utilizador, badge de estado, estatísticas, sync manual
@@ -822,6 +892,7 @@ GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 GOOGLE_REDIRECT_URI=https://santapaciencia.xyz/auth/google/callback
 GOOGLE_EMAIL_REDIRECT_URI=https://santapaciencia.xyz/auth/google-email/callback
+GOOGLE_TASKS_REDIRECT_URI=https://santapaciencia.xyz/auth/google-tasks/callback
 
 PROPERTY_NAME=Santa Paciência
 LICENSE_NUMBER=12345/AL
@@ -887,7 +958,7 @@ Ver `CÓDIGO_MELHORIAS.md` para lista detalhada com prioridades.
 - **Recuperação de password** — tabela `password_reset_tokens` existe mas sem endpoints nem UI
 - **Rate limiting / brute-force protection** no login
 - **Faturação** — geração de PDF de fatura/recibo por reserva
-- **Envio manual de email** a partir de uma reserva específica
+- **Faturação por reserva** — geração de PDF de fatura/recibo (o separador "Faturas" em Mensagens está reservado para isso)
 - **Notas internas por hóspede** (separadas das notas de reserva)
 - **Integração com canais** (Airbnb/Booking via iCal ou API oficial)
 - **Notificações push** (PWA Service Worker)
@@ -900,4 +971,4 @@ Ver `CÓDIGO_MELHORIAS.md` para lista detalhada com prioridades.
 - **Auditoria/histórico** — sem log de quem alterou o quê e quando
 - **Vouchers com desconto automático** — o voucher é verificável no wizard mas o desconto não é deduzido no total da reserva
 - **Email scheduler ligado** — módulo existe mas `startScheduler()` não é chamado no `server.js` *(aguarda trabalho futuro)*
-- **Inbox de conversas com clientes** — emails trocados com hóspedes guardados por reserva/hóspede; replies a entrar automaticamente via Gmail API polling ou Pub/Sub *(aguarda trabalho futuro)*
+- **Inbox Gmail — polling passivo** — a leitura de inbox funciona por polling de 30s; replies chegam com atraso até 30s. Alternativa mais robusta seria Gmail Pub/Sub (push), mas requer configuração de webhook externo.

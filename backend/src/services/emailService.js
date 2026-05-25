@@ -181,6 +181,7 @@ async function sendPaymentConfirmationEmail(guest, reservation, accommodation) {
 }
 
 module.exports = {
+  sendMail,
   sendConfirmationEmail,
   sendCancellationEmail,
   sendPaymentConfirmationEmail,

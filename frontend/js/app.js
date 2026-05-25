@@ -7,6 +7,7 @@ const VIEW_TITLES = {
   hospedes:   'Hóspedes',
   notificacoes:'Notificações',
   alojamentos:'Alojamentos & Serviços',
+  invoice:    'Mensagens',
   despesas:   'Despesas',
   relatorios: 'Relatórios Financeiros',
   vouchers:   'Vouchers',
@@ -14,28 +15,7 @@ const VIEW_TITLES = {
   definicoes: 'Definições'
 };
 
-const THEME_KEY = 'sp-theme';
-
-function applyTheme(theme) {
-  const resolved = theme === 'dark' ? 'dark' : 'light';
-  document.documentElement.setAttribute('data-theme', resolved);
-  const label = document.getElementById('theme-toggle-label');
-  if (label) label.textContent = resolved === 'dark' ? 'Modo claro' : 'Modo escuro';
-}
-
-function getStoredTheme() {
-  const stored = localStorage.getItem(THEME_KEY);
-  if (stored === 'dark' || stored === 'light') return stored;
-  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-function toggleTheme() {
-  const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-  const next = current === 'dark' ? 'light' : 'dark';
-  localStorage.setItem(THEME_KEY, next);
-  applyTheme(next);
-  if (window.lucide) lucide.createIcons();
-}
+/* Dark mode removido — sempre light */
 
 function showView(v, pushState = true) {
   if (v === 'gcal') {
@@ -75,6 +55,8 @@ function showView(v, pushState = true) {
   if (v === 'alojamentos') { renderAlojamentos(); initAlojDrag(); loadServicos(); }
   if (v === 'despesas')   loadDespesas();
   if (v === 'relatorios') loadRelatorios();
+  if (v === 'invoice') loadInvoiceView();
+  else if (typeof _stopInvoicePoll === 'function') _stopInvoicePoll();
   if (v === 'vouchers') loadVouchers();
   if (v === 'precos') initPrecos();
   if (v === 'definicoes') renderSettingsView();
@@ -170,7 +152,7 @@ function renderSettingsView() {
   switchSettingsTab(settingsTab, false);
   AppUI.enhanceSelects(document.getElementById('view-definicoes'));
   AppUI.refreshDropdowns(document.getElementById('view-definicoes'));
-  if (settingsTab === 'gcal') { loadCalendarStatus(); loadGmailStatus(); }
+  if (settingsTab === 'gcal') { loadCalendarStatus(); loadGmailStatus(); loadGoogleTasksStatus(); }
   if (settingsTab === 'database') {
     if (!reservas?.length) loadReservas();
     if (!hospedes?.length) loadHospedes();
@@ -300,6 +282,83 @@ async function testGmail() {
     }
   } catch (err) {
     toast('❌ ' + (err?.payload?.error || err?.message || 'Erro de ligação.'), 'error');
+  } finally {
+    AppUI.setButtonLoading(btn, false);
+  }
+}
+
+// ── GOOGLE TASKS ──
+async function loadGoogleTasksStatus() {
+  try {
+    const [authRes, statsRes] = await Promise.all([
+      apiGet('/auth/google-tasks/status'),
+      apiGet('/api/tasks/status').catch(() => ({ data: {} })),
+    ]);
+    const info  = authRes?.data  ?? authRes;
+    const stats = statsRes?.data ?? {};
+    const connected = info.connected ?? false;
+
+    const badge = document.getElementById('gtasks-badge');
+    if (badge) badge.innerHTML = connected
+      ? `<span class="dot dot-green"></span> Ligado${info.email ? ' — ' + info.email : ''}`
+      : '<span class="dot dot-red"></span> Desligado';
+
+    const el = id => document.getElementById(id);
+    if (el('gtasks-connect-btn'))    el('gtasks-connect-btn').style.display    = connected ? 'none' : '';
+    if (el('gtasks-disconnect-btn')) el('gtasks-disconnect-btn').style.display = connected ? ''     : 'none';
+    if (el('gtasks-sync-btn'))       el('gtasks-sync-btn').style.display       = connected ? ''     : 'none';
+
+    const statsRow = el('gtasks-stats-row');
+    if (statsRow) {
+      statsRow.style.display = connected ? '' : 'none';
+      if (connected) {
+        if (el('gtasks-synced'))  el('gtasks-synced').textContent  = stats.synced  ?? 0;
+        if (el('gtasks-pending')) el('gtasks-pending').textContent = stats.pending ?? 0;
+      }
+    }
+  } catch (e) {}
+}
+
+function connectGoogleTasks() {
+  const popup = window.open(API_BASE + '/auth/google-tasks', '_blank', 'width=600,height=700');
+  toast('✅ Janela de autorização aberta...', 'info');
+  const poll = setInterval(async () => {
+    if (!popup || popup.closed) {
+      clearInterval(poll);
+      await new Promise(r => setTimeout(r, 1000));
+      await loadGoogleTasksStatus();
+      toast('✅ Google Tasks ligado!', 'success');
+    }
+  }, 500);
+}
+
+async function disconnectGoogleTasks() {
+  try {
+    const res = await fetch(API_BASE + '/auth/google-tasks', { method: 'DELETE', credentials: 'include' });
+    const data = await res.json();
+    if (data.success) {
+      toast('Google Tasks desligado.', 'info');
+      await loadGoogleTasksStatus();
+    }
+  } catch {
+    toast('❌ Erro ao desligar.', 'error');
+  }
+}
+
+async function syncGoogleTasks() {
+  const btn = document.getElementById('gtasks-sync-btn');
+  AppUI.setButtonLoading(btn, true, 'A sincronizar...');
+  try {
+    const res = await apiPost('/api/tasks/sync', {});
+    if (res.success) {
+      const d = res.data;
+      toast(`✅ Tasks sincronizadas: ${d.created} criadas, ${d.updated} atualizadas${d.errors ? ', ' + d.errors + ' erros' : ''}.`, 'success');
+      await loadGoogleTasksStatus();
+    } else {
+      toast('❌ ' + (res.error || 'Erro ao sincronizar.'), 'error');
+    }
+  } catch (e) {
+    toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação.'), 'error');
   } finally {
     AppUI.setButtonLoading(btn, false);
   }
@@ -453,12 +512,18 @@ async function initApp() {
   }
 }
 
-applyTheme(getStoredTheme());
+document.documentElement.setAttribute('data-theme', 'light');
+localStorage.removeItem('sp-theme');
 boot();
 
-/* ── PWA: Service Worker ──
-   Desactivado durante desenvolvimento activo.
-   Descomentar quando o CSS/JS estiver estável.
+/* ── PWA: Service Worker — desregistar tudo em desenvolvimento ── */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(r => r.unregister());
+  });
+}
+
+/* ── PWA: Service Worker (comentado em dev) ──
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js')

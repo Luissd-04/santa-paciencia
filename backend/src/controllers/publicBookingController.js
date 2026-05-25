@@ -68,7 +68,8 @@ function serializeAccommodation(req, row, parent = null) {
     amenities: parseJson(row.amenities, []),
     extra_occupancy_options: normalizeExtraOccupancyOptions(row),
     images: [...images, ...parentImages],
-    cover_image: imageUrl(req, row.cover_image) || images[0]?.url || parentImages[0]?.url || ''
+    cover_image: imageUrl(req, row.cover_image) || images[0]?.url || parentImages[0]?.url || '',
+    rgpd_text: row.rgpd_text || null
   };
 }
 
@@ -260,13 +261,13 @@ function createReservation(req, res, next) {
         }
       }
     }
-    if (!payload.guest?.name || !payload.guest?.email || !payload.guest?.birth_date) {
+    if (!payload.guest?.name || !payload.guest?.email) {
       return res.status(400).json({ success: false, error: 'Dados do hóspede principal em falta.' });
     }
     const guestsData = Array.isArray(payload.guests_data) ? payload.guests_data : [];
     const guestCount = Math.max(1, Number(payload.num_guests) || 1);
     for (let i = 0; i < guestCount - 1; i++) {
-      if (!guestsData[i]?.name || !guestsData[i]?.birth_date) {
+      if (!guestsData[i]?.name) {
         return res.status(400).json({ success: false, error: `Dados do hóspede ${i + 2} em falta.` });
       }
     }
@@ -303,14 +304,12 @@ function createReservation(req, res, next) {
     if (!guest) {
       const guestId = uuidv4();
       db.prepare(`
-        INSERT INTO guests (id, organization_id, name, email, phone, first_name, last_name, birth_date, nif, id_type, country, address, postal_code, city, nationality)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO guests (id, organization_id, name, email, phone, first_name, last_name, birth_date, country)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         guestId, parent.organization_id, payload.guest.name, payload.guest.email, payload.guest.phone || null,
-        payload.guest.first_name || null, payload.guest.last_name || null, normalizeDateValue(payload.guest.birth_date),
-        payload.guest.nif || null, payload.guest.id_type || null, payload.guest.country || payload.guest.nationality || null,
-        payload.guest.address || null, payload.guest.postal_code || null, payload.guest.city || null,
-        payload.guest.country || payload.guest.nationality || null
+        payload.guest.first_name || null, payload.guest.last_name || null, normalizeDateValue(payload.guest.birth_date) || null,
+        payload.guest.nationality || payload.guest.country || null
       );
       guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(guestId, parent.organization_id);
     }

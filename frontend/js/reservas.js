@@ -1,8 +1,14 @@
 let sortCol = SS.get('res:sort', 'check_in');
 let sortAsc = SS.get('res:asc', true);
 let mobileChipFilter = SS.get('res:chip', '');
-let reservasViewMode = SS.get('res:view', 'card');
+let reservasViewMode = 'list';
 let reservasDetailOpen = false;
+
+function _openDateTo() {
+  const to = document.getElementById('filter-date-to');
+  if (!to || to.value) return;
+  if (window.AppDatePicker) setTimeout(() => AppDatePicker.open(to), 80);
+}
 
 function setMobileChip(el, filter) {
   mobileChipFilter = filter;
@@ -132,7 +138,6 @@ function applyReservasViewMode() {
 
 function setReservasViewMode(mode) {
   reservasViewMode = mode === 'list' ? 'list' : 'card';
-  SS.set('res:view', reservasViewMode);
   renderTabela();
   requestAnimationFrame(moveReservasViewPill);
 }
@@ -312,6 +317,7 @@ function renderTabela() {
       <td>${formatDate(r.check_in)}</td>
       <td>${formatDate(r.check_out)}</td>
       <td>${r.nights}</td>
+      <td>${renderGuestsCell(r)}</td>
       <td><b>€${Number(r.total_amount || 0).toFixed(2)}</b></td>
       <td><span style="font-size:12px;color:var(--cinza)">${r.channel}</span></td>
       <td>${badgeEstado(r.status)}</td>
@@ -327,6 +333,9 @@ function renderTabela() {
         <button class="btn btn-ghost btn-sm" onclick="openEditModal('${r.id}')" title="Editar">
           ${lcIcon('pencil', 13)}
         </button>
+        <button class="btn btn-ghost btn-sm" onclick="openInvoiceForReservation('${r.id}','${(r.guest_email||'').replace(/'/g,"\\'")}','${(r.guest_name||'').replace(/'/g,"\\'")}');event.stopPropagation()" title="Enviar email">
+          ${lcIcon('mail', 13)}
+        </button>
         ${r.status === 'cancelada'
           ? `<button class="btn btn-sm" style="background:rgba(46,125,82,.12);color:#2e7d52" onclick="reativarReserva('${r.id}')" title="Reativar reserva">
                ${lcIcon('refresh-cw', 13)}
@@ -338,6 +347,19 @@ function renderTabela() {
     </tr>`).join('');
   if (window.lucide) lucide.createIcons();
   applyReservasViewMode();
+}
+
+function renderGuestsCell(r) {
+  const adults   = r.num_adults != null ? Number(r.num_adults) : Number(r.num_guests || 0);
+  const children = Number(r.num_children || 0);
+  const iconPerson = (sz, col) =>
+    `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex-shrink:0"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>`;
+  const parts = [];
+  if (adults   > 0) parts.push(`<span style="display:inline-flex;align-items:center;gap:3px;font-size:12px;color:var(--azul)">${adults}${iconPerson(13, 'currentColor')}</span>`);
+  if (children > 0) parts.push(`<span style="display:inline-flex;align-items:center;gap:3px;font-size:12px;color:var(--azul-claro)">${children}${iconPerson(10, 'currentColor')}</span>`);
+  return parts.length
+    ? `<span style="display:inline-flex;align-items:center;gap:6px">${parts.join('')}</span>`
+    : '—';
 }
 
 function updateReservasSummary(total, detailText) {
@@ -1524,6 +1546,10 @@ async function showDetail(id) {
           <button class="btn btn-primary" onclick="openEditModal('${r.id}')">
             ${lcIcon('pencil', 13)} Editar
           </button>
+          ${r.guest_email ? `
+          <button class="btn btn-ghost" onclick="openInvoiceForReservation('${r.id}','${(r.guest_email||'').replace(/'/g,"\\'")}','${(r.guest_name||'').replace(/'/g,"\\'")}')">
+            ${lcIcon('mail', 13)} Enviar email
+          </button>` : ''}
           ${r.status === 'cancelada'
             ? `<button class="btn btn-success" onclick="reativarReserva('${r.id}')">
                 ${lcIcon('refresh-cw', 13)} Reativar Reserva

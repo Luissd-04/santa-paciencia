@@ -215,7 +215,7 @@ function filteredHospedes() {
   SS.set('hsp:q', document.getElementById('hospedes-search')?.value || '');
   if (!q) return hospedes;
   return hospedes.filter(g =>
-    (g.name + ' ' + (g.email || '') + ' ' + (g.nationality || '') + ' ' + (g.phone || '') + ' ' + (g.country || '')).toLowerCase().includes(q)
+    (g.name + ' ' + (realEmail(g.email) || '') + ' ' + (g.email_personal || '') + ' ' + (g.nationality || '') + ' ' + (g.phone || '') + ' ' + (g.country || '')).toLowerCase().includes(q)
   );
 }
 
@@ -245,7 +245,7 @@ function renderHospedesCards() {
         ${g.last_check_in ? `<span class="hospede-dot">·</span><span>${formatShortDate(g.last_check_in)}</span>` : ''}
       </div>
       ${g.phone ? `<div class="hospede-info-row">${lcIcon('smartphone', 14)} <span>${g.phone}</span></div>` : ''}
-      ${g.email ? `<div class="hospede-info-row">${lcIcon('mail', 14)} <span class="hospede-email">${g.email}</span></div>` : ''}
+      ${realEmail(g.email) ? `<div class="hospede-info-row">${lcIcon('mail', 14)} <span class="hospede-email">${realEmail(g.email)}</span></div>` : (g.email_personal ? `<div class="hospede-info-row">${lcIcon('mail', 14)} <span class="hospede-email">${g.email_personal}</span></div>` : '')}
       ${(g.country || g.nationality) ? `<div class="hospede-info-row">${lcIcon('map-pin', 14)} <span>${g.country || g.nationality}</span></div>` : ''}
       ${guestTagsHtml(g)}
     </div>
@@ -306,7 +306,7 @@ function renderHospedesList() {
           </div>
         </div>
       </td>
-      <td style="font-size:12.5px;color:var(--cinza);">${g.email || '—'}</td>
+      <td style="font-size:12.5px;color:var(--cinza);">${realEmail(g.email) || g.email_personal || '—'}</td>
       <td style="font-size:12.5px;">${g.phone || '—'}</td>
       <td style="font-size:12.5px;">${g.country || g.nationality || '—'}</td>
       <td style="text-align:center;"><b>${g.reservation_count || 0}</b></td>
@@ -343,7 +343,7 @@ async function showHospedeDetail(id) {
         </div>
       </div>
       <div class="detail-grid">
-        ${g.email ? `<div class="detail-row"><div class="detail-label">Email (canal)</div><div class="detail-val">${g.email}</div></div>` : ''}
+        ${realEmail(g.email) ? `<div class="detail-row"><div class="detail-label">Email (canal)</div><div class="detail-val">${realEmail(g.email)}</div></div>` : ''}
         ${g.email_personal ? `<div class="detail-row"><div class="detail-label">Email (pessoal)</div><div class="detail-val">${g.email_personal}</div></div>` : ''}
         ${g.phone ? `<div class="detail-row"><div class="detail-label">Telefone</div><div class="detail-val">${g.phone}</div></div>` : ''}
         ${g.birth_date ? `<div class="detail-row"><div class="detail-label">Nascimento</div><div class="detail-val">${formatDate(g.birth_date)}</div></div>` : ''}
@@ -419,7 +419,7 @@ async function openGuestEdit(id) {
     const parts = (g.name || '').trim().split(' ');
     document.getElementById('gedit-first-name').value  = g.first_name || parts[0] || '';
     document.getElementById('gedit-last-name').value   = g.last_name  || parts.slice(1).join(' ') || '';
-    document.getElementById('gedit-email').value        = g.email || '';
+    document.getElementById('gedit-email').value        = realEmail(g.email) || '';
     document.getElementById('gedit-email-personal').value = g.email_personal || '';
     document.getElementById('gedit-birth-date').value  = formatDateForStandardInput(g.birth_date || '');
     document.getElementById('gedit-nif').value          = g.nif || '';
@@ -486,8 +486,8 @@ function exportHospedesXLS() {
   showOperationProgress('A exportar hóspedes XLS', 'A preparar dados...', 15);
   const rows = hospedes.map(g => ({
     'Nome':        g.name,
-    'Email':       g.email || '',
-    'Email pessoal': g.email_personal || '',
+    'Email (canal)':   realEmail(g.email) || '',
+    'Email (pessoal)': g.email_personal || '',
     'Telefone':    g.phone || '',
     'País':        g.country || g.nationality || '',
     'NIF':         g.nif || '',
@@ -588,7 +588,7 @@ function exportHospedesPDF() {
   const head = [['Nome', 'Email', 'Telefone', 'País', 'Reservas', 'Última visita', 'Tags']];
   const body = hospedes.map(g => [
     g.name,
-    g.email || '—',
+    realEmail(g.email) || g.email_personal || '—',
     g.phone || '—',
     g.country || g.nationality || '—',
     String(g.reservation_count || 0),

@@ -11,8 +11,6 @@ const state = {
   selectedUnitId: '',
   step: 1,
   bgIndex: 0,
-  dateInput: null,
-  dateMonth: null,
   lastBgChange: 0
 };
 
@@ -274,7 +272,6 @@ async function init() {
     state.selectedUnitId = 'property';
     renderLanding();
     bindEvents();
-    updateIDFieldLabels();
     renderStep();
     recalc();
   } catch (err) {
@@ -308,6 +305,12 @@ function renderLanding() {
   renderRail('gallery-bottom', imgs.length ? imgs.slice().reverse() : [fallback]);
   rotateBackground();
   renderUnits();
+  const rgpdBox = $('rgpd-text-box');
+  if (rgpdBox) {
+    const text = p.rgpd_text || 'Os seus dados pessoais são recolhidos e tratados para a gestão da sua reserva e cumprimento das obrigações legais aplicáveis ao alojamento local em Portugal. Os dados são conservados pelo período legalmente exigido. Tem direito de acesso, retificação e apagamento dos seus dados por contacto direto com o estabelecimento.';
+    rgpdBox.textContent = text;
+    rgpdBox.style.display = '';
+  }
 }
 
 function rotateBackground() {
@@ -348,8 +351,31 @@ function renderUnits() {
     ? `Capacidade máxima: ${propertyAv.max_guests} hóspedes`
     : 'Propriedade inteira para sua exclusividade';
 
+  const n = nights();
+  const hasDates = n > 0;
+  const checkIn = iso($('pb-checkin').value);
+  const checkOut = iso($('pb-checkout').value);
+  const guests = totalGuests();
+
+  function unitPriceHtml(unit, pricingPeriods) {
+    if (!hasDates || !window.ReservationPricing) return '';
+    const totals = window.ReservationPricing.calculateReservationTotal(unit, [], {
+      check_in: checkIn,
+      check_out: checkOut,
+      num_guests: guests,
+      pricing_periods: pricingPeriods || [],
+      birth_dates: []
+    });
+    if (!totals || !totals.baseAmount) return '';
+    const avgPerNight = totals.baseAmount / n;
+    const extraHtml = totals.extraOccupancyCost > 0
+      ? `<div class="unit-price-extra">+ ${fmtCurrency(totals.extraOccupancyCost)} ocupação extra</div>`
+      : '';
+    return `<div class="unit-price">${fmtCurrency(avgPerNight)}<small>/ noite</small><div class="unit-price-total">${fmtCurrency(totals.baseAmount + totals.extraOccupancyCost)} total</div>${extraHtml}</div>`;
+  }
+
   const propertyPrice = Number(state.property?.price_per_night) || 0;
-  const priceHtml = propertyPrice > 0 ? `<div class="unit-price">${fmtCurrency(propertyPrice)}<small>/ noite</small></div>` : '';
+  const priceHtml = propertyPrice > 0 ? unitPriceHtml(state.property, state.property?.pricing_periods) : '';
 
   const propertyCard = `
     <div class="unit-card ${propertySelected ? 'selected' : ''} ${propertyBlocked ? 'blocked' : ''} property-card" data-unit="property">
@@ -365,61 +391,38 @@ function renderUnits() {
     const av = availabilityFor(unit.id);
     const blocked = av && !av.available;
     const selected = state.selectedUnitId === unit.id && !blocked;
-    const reason = av?.over_capacity
-      ? `Capacidade máxima: ${unit.max_guests} hóspedes`
-      : av?.occupied ? 'Indisponível nas datas selecionadas' : `${unit.max_guests} hóspedes · ${unit.num_rooms || 1} quarto`;
+
+    let descHtml;
+    if (av?.over_capacity) {
+      descHtml = `<p>Capacidade máxima: ${unit.max_guests} hóspedes</p>`;
+    } else if (av?.occupied) {
+      descHtml = `<p>Indisponível nas datas selecionadas</p>`;
+    } else {
+      const baseGuests = Number(unit.base_guests_included) || Number(unit.max_guests) || 1;
+      const extraCapacity = Math.max(0, Number(unit.max_guests) - baseGuests);
+      const extraOpts = window.ReservationPricing?.normalizeExtraOccupancyOptions(unit) || [];
+      const extraPrice = extraOpts[0]?.price || 0;
+      const rooms = unit.num_rooms || 1;
+      const extraLine = extraCapacity > 0 && extraPrice > 0
+        ? `<p class="unit-desc-extra">${extraCapacity} hóspede${extraCapacity !== 1 ? 's' : ''} adiciona${extraCapacity !== 1 ? 'is' : 'l'} · ${fmtCurrency(extraPrice)}/noite</p>`
+        : '';
+      descHtml = `<p>${baseGuests} hóspede${baseGuests !== 1 ? 's' : ''} · ${rooms} quarto${rooms !== 1 ? 's' : ''}</p>${extraLine}`;
+    }
+
     return `
       <div class="unit-card ${selected ? 'selected' : ''} ${blocked ? 'blocked' : ''}" data-unit="${unit.id}">
         <img src="${unit.cover_image || unit.images?.[0]?.url || ''}" alt="">
         <div>
           <h4>${unit.name}</h4>
-          <p>${reason}</p>
+          ${descHtml}
         </div>
-        <div class="unit-price">${fmtCurrency(unit.price_per_night)}<small>/ noite</small></div>
+        ${unitPriceHtml(unit, unit.pricing_periods)}
       </div>`;
   }).join('');
 
   container.innerHTML = propertyCard + unitCards;
 }
 
-function updateIDFieldLabels() {
-  const country = $('pb-country').value.trim();
-  const isStranger = country && country !== 'Portugal';
-
-  if (isStranger) {
-    $('pb-nif-label').textContent = 'Documento de identidade *';
-    $('pb-nif').required = true;
-    $('pb-birth-city').required = true;
-    $('pb-id-type').required = true;
-    $('pb-id-country').required = true;
-
-    document.querySelectorAll('label span').forEach(span => {
-      if (span.textContent.includes('Local de nascimento')) {
-        span.textContent = 'Local de nascimento *';
-      } else if (span.textContent.includes('Tipo de documento')) {
-        span.textContent = 'Tipo de documento *';
-      } else if (span.textContent.includes('País emissor')) {
-        span.textContent = 'País emissor do documento *';
-      }
-    });
-  } else {
-    $('pb-nif-label').textContent = 'NIF';
-    $('pb-nif').required = false;
-    $('pb-birth-city').required = false;
-    $('pb-id-type').required = false;
-    $('pb-id-country').required = false;
-
-    document.querySelectorAll('label span').forEach(span => {
-      if (span.textContent.includes('Local de nascimento')) {
-        span.textContent = 'Local de nascimento';
-      } else if (span.textContent.includes('Tipo de documento')) {
-        span.textContent = 'Tipo de documento';
-      } else if (span.textContent.includes('País emissor')) {
-        span.textContent = 'País emissor do documento';
-      }
-    });
-  }
-}
 
 function setupCountrySearch(inputId, dropdownId, onPick) {
   const input = typeof inputId === 'string' ? $(inputId) : inputId;
@@ -476,28 +479,44 @@ function renderCountryDropdown(search, dropdown) {
     </div>`).join('');
 }
 
+function buildPhoneSearchDropdown(dropdown) {
+  dropdown.innerHTML = `
+    <div style="padding:6px 8px 4px;">
+      <input class="phone-code-search-input" type="text" placeholder="País ou código..." autocomplete="off"
+        style="width:100%;box-sizing:border-box;padding:5px 9px;border:1px solid var(--borda);border-radius:8px;font-size:13px;outline:none;background:var(--bg-card);color:var(--ink);">
+    </div>
+    <div class="phone-code-results"></div>`;
+  const searchInput = dropdown.querySelector('.phone-code-search-input');
+  const results = dropdown.querySelector('.phone-code-results');
+  function filter(q) {
+    const list = q.trim()
+      ? PHONE_CODES.filter(c => fuzzyMatch(q, c.code) > 0 || fuzzyMatch(q, c.country) > 0)
+          .sort((a, b) =>
+            Math.max(fuzzyMatch(q, b.code), fuzzyMatch(q, b.country)) -
+            Math.max(fuzzyMatch(q, a.code), fuzzyMatch(q, a.country)))
+          .slice(0, 12)
+      : PHONE_CODES;
+    results.innerHTML = list.map(p => `
+      <div class="country-dropdown-item" data-code="${p.code}" data-flag="${p.flag}" data-country="${p.country}">
+        <span>${p.flag}</span><span>${p.code}</span>
+        <span style="color:#999;margin-left:auto;font-size:12px">${p.country}</span>
+      </div>`).join('');
+  }
+  filter('');
+  searchInput.addEventListener('input', () => filter(searchInput.value));
+  searchInput.addEventListener('keydown', e => { if (e.key === 'Escape') dropdown.style.display = 'none'; });
+  setTimeout(() => searchInput.focus(), 0);
+}
+
 function setupPhoneCodeSearch() {
   const btn = $('pb-phone-code-btn');
   const dropdown = $('pb-phone-code-dropdown');
-  let searchStr = '';
-  let searchTimer = null;
 
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
     const open = dropdown.style.display === 'block';
     dropdown.style.display = open ? 'none' : 'block';
-    if (!open) { searchStr = ''; renderPhoneCodeDropdown('', dropdown); }
-  });
-
-  btn.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { dropdown.style.display = 'none'; return; }
-    if (e.key.length === 1) {
-      searchStr += e.key;
-      dropdown.style.display = 'block';
-      renderPhoneCodeDropdown(searchStr, dropdown);
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => { searchStr = ''; }, 1200);
-    }
+    if (!open) buildPhoneSearchDropdown(dropdown);
   });
 
   dropdown.addEventListener('mousedown', (e) => {
@@ -507,36 +526,13 @@ function setupPhoneCodeSearch() {
     $('pb-phone-code').value = item.dataset.code;
     btn.textContent = `${item.dataset.flag} ${item.dataset.code}`;
     dropdown.style.display = 'none';
-    searchStr = '';
   });
 
   document.addEventListener('click', (e) => {
-    if (!btn.contains(e.target) && !dropdown.contains(e.target)) {
-      dropdown.style.display = 'none';
-    }
+    if (!btn.contains(e.target) && !dropdown.contains(e.target)) dropdown.style.display = 'none';
   });
-
-  renderPhoneCodeDropdown('', dropdown);
 }
 
-function renderPhoneCodeDropdown(search, dropdown) {
-  const results = search.trim()
-    ? PHONE_CODES.filter(c => fuzzyMatch(search, c.code) > 0 || fuzzyMatch(search, c.country) > 0)
-        .sort((a, b) => {
-          const sa = Math.max(fuzzyMatch(search, a.code), fuzzyMatch(search, a.country));
-          const sb = Math.max(fuzzyMatch(search, b.code), fuzzyMatch(search, b.country));
-          return sb - sa;
-        })
-        .slice(0, 12)
-    : PHONE_CODES;
-
-  dropdown.innerHTML = results.map(p => `
-    <div class="country-dropdown-item" data-code="${p.code}" data-flag="${p.flag}" data-country="${p.country}">
-      <span>${p.flag}</span>
-      <span>${p.code}</span>
-      <span style="color:#999;margin-left:auto;font-size:12px">${p.country}</span>
-    </div>`).join('');
-}
 
 function setupDocTypeSearch(inputId, dropdownId, onPick) {
   const input = typeof inputId === 'string' ? $(inputId) : inputId;
@@ -629,40 +625,22 @@ function setupGuestDocTypeSearch(btn, input, dropdown) {
 function setupGuestPhoneCodeSearch(guestIndex) {
   const guestSection = document.querySelector(`[data-guest-index="${guestIndex}"]`);
   if (!guestSection) return;
-
   const btn = guestSection.querySelector('.guest-phone-code-btn');
   const codeInput = guestSection.querySelector('input[data-field="phone_code"]');
-  const phoneInput = guestSection.querySelector('input[data-field="phone"]');
-  const dropdown = btn.parentElement.querySelector('.country-dropdown');
-  if (!dropdown) {
-    const newDropdown = document.createElement('div');
-    newDropdown.className = 'country-dropdown';
-    newDropdown.style.display = 'none';
-    btn.parentElement.appendChild(newDropdown);
+  if (!btn || !codeInput) return;
+  let finalDropdown = btn.parentElement.querySelector('.country-dropdown');
+  if (!finalDropdown) {
+    finalDropdown = document.createElement('div');
+    finalDropdown.className = 'country-dropdown';
+    finalDropdown.style.display = 'none';
+    btn.parentElement.appendChild(finalDropdown);
   }
-  const finalDropdown = btn.parentElement.querySelector('.country-dropdown');
-
-  let searchStr = '';
-  let searchTimer = null;
-
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
     const open = finalDropdown.style.display === 'block';
     finalDropdown.style.display = open ? 'none' : 'block';
-    if (!open) { searchStr = ''; renderPhoneCodeDropdown('', finalDropdown); }
+    if (!open) buildPhoneSearchDropdown(finalDropdown);
   });
-
-  btn.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { finalDropdown.style.display = 'none'; return; }
-    if (e.key.length === 1) {
-      searchStr += e.key;
-      finalDropdown.style.display = 'block';
-      renderPhoneCodeDropdown(searchStr, finalDropdown);
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => { searchStr = ''; }, 1200);
-    }
-  });
-
   finalDropdown.addEventListener('mousedown', (e) => {
     const item = e.target.closest('.country-dropdown-item');
     if (!item) return;
@@ -670,16 +648,10 @@ function setupGuestPhoneCodeSearch(guestIndex) {
     codeInput.value = item.dataset.code;
     btn.textContent = `${item.dataset.flag} ${item.dataset.code}`;
     finalDropdown.style.display = 'none';
-    searchStr = '';
   });
-
   document.addEventListener('click', (e) => {
-    if (!btn.contains(e.target) && !finalDropdown.contains(e.target)) {
-      finalDropdown.style.display = 'none';
-    }
+    if (!btn.contains(e.target) && !finalDropdown.contains(e.target)) finalDropdown.style.display = 'none';
   });
-
-  renderPhoneCodeDropdown('', finalDropdown);
 }
 
 let _voucherData = null;
@@ -738,22 +710,39 @@ function clearStepError() {
 
 function bindEvents() {
   setupCountrySearch('pb-country', 'pb-country-dropdown', () => {
-    updateIDFieldLabels();
     renderExtraGuests();
   });
-  setupCountrySearch('pb-id-country', 'pb-id-country-dropdown');
   setupPhoneCodeSearch();
-  setupDocTypeSearch('pb-id-type', 'pb-id-type-dropdown');
 
-  ['pb-checkin','pb-checkout','pb-birth'].forEach(id => {
-    const input = $(id);
-    input.addEventListener('focus', () => openDatePicker(input));
-    input.addEventListener('click', () => openDatePicker(input));
-    input.addEventListener('input', () => {
-      if (input.value.replace(/\D/g, '').length === 8) input.value = ptDate(input.value);
-      recalc();
+  const checkinEl = $('pb-checkin');
+  const checkoutEl = $('pb-checkout');
+  function openCheckin() {
+    AppDatePicker.open(checkinEl, {
+      onChange: (isoDate) => {
+        if (!iso(checkoutEl.value)) {
+          setTimeout(() => AppDatePicker.open(checkoutEl, { minDate: isoDate }), 60);
+        }
+      }
     });
+  }
+  function openCheckout() {
+    AppDatePicker.open(checkoutEl, { minDate: iso(checkinEl.value) || undefined });
+  }
+  checkinEl.addEventListener('focus', openCheckin);
+  checkinEl.addEventListener('click', openCheckin);
+  checkinEl.addEventListener('input', () => {
+    if (checkinEl.value.replace(/\D/g, '').length === 8) checkinEl.value = ptDate(checkinEl.value);
+    recalc();
   });
+  checkoutEl.addEventListener('focus', openCheckout);
+  checkoutEl.addEventListener('click', openCheckout);
+  checkoutEl.addEventListener('input', () => {
+    if (checkoutEl.value.replace(/\D/g, '').length === 8) checkoutEl.value = ptDate(checkoutEl.value);
+    recalc();
+  });
+  const birthEl = $('pb-birth');
+  birthEl.addEventListener('focus', () => AppDatePicker.open(birthEl, { isBirthDate: true }));
+  birthEl.addEventListener('click', () => AppDatePicker.open(birthEl, { isBirthDate: true }));
   ['pb-checkin','pb-checkout','pb-adults','pb-children','pb-birth'].forEach(id => $(id).addEventListener('change', () => {
     scheduleAvailabilityFetch();
     renderExtraGuests();
@@ -769,10 +758,6 @@ function bindEvents() {
   $('pb-voucher')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyVoucher(); } });
   $('next-btn').addEventListener('click', nextStep);
   $('prev-btn').addEventListener('click', prevStep);
-  document.addEventListener('click', e => {
-    const pop = document.querySelector('.date-pop');
-    if (pop && !pop.contains(e.target) && !e.target.closest('input')) closeDatePicker();
-  });
 }
 
 async function fetchAvailability() {
@@ -803,23 +788,15 @@ function renderExtraGuests() {
       email: section.querySelector('[data-field="email"]')?.value || '',
       phone_code: section.querySelector('[data-field="phone_code"]')?.value || '+351',
       phone: section.querySelector('[data-field="phone"]')?.value || '',
-      country: section.querySelector('[data-field="country"]')?.value || 'Portugal',
-      birth_date: section.querySelector('[data-field="birth_date"]')?.value || '',
-      birth_city: section.querySelector('[data-field="birth_city"]')?.value || '',
-      nif: section.querySelector('[data-field="nif"]')?.value || '',
-      id_type: section.querySelector('[data-field="id_type"]')?.value || '',
-      id_country: section.querySelector('[data-field="id_country"]')?.value || '',
-      address: section.querySelector('[data-field="address"]')?.value || '',
-      postal_code: section.querySelector('[data-field="postal_code"]')?.value || '',
-      city: section.querySelector('[data-field="city"]')?.value || ''
+      country: section.querySelector('[data-field="country"]')?.value || '',
+      birth_date: section.querySelector('[data-field="birth_date"]')?.value || ''
     };
   });
 
   const parts = [];
   for (let i = 2; i <= count; i++) {
     const prev = existing.find(g => g.index === i) || {};
-    const country = prev.country || 'Portugal';
-    const isStranger = country && country !== 'Portugal';
+    const country = prev.country || '';
 
     parts.push(`
       <div data-guest-index="${i}" style="border-top: 1px solid var(--line); padding-top: 18px; margin-top: 18px;">
@@ -846,100 +823,48 @@ function renderExtraGuests() {
         </div>
         <div class="field-grid two">
           <label>
-            <span>País de residência *</span>
+            <span>Nacionalidade *</span>
             <div class="country-search">
               <input data-field="country" class="country-input guest-country-input" required value="${country}" placeholder="Portugal" autocomplete="off" data-guest-index="${i}">
               <div class="country-dropdown" style="display: none;"></div>
             </div>
           </label>
           <label>
-            <span>Data de nascimento *</span>
-            <input class="birth-input guest-birth-input" data-field="birth_date" type="text" inputmode="numeric" required value="${prev.birth_date || ''}" placeholder="dd-mm-aaaa" maxlength="10">
+            <span>Data de nascimento</span>
+            <input class="birth-input guest-birth-input" data-field="birth_date" type="text" inputmode="numeric" value="${prev.birth_date || ''}" placeholder="dd-mm-aaaa" maxlength="10">
             <small class="rate-hint"></small>
           </label>
         </div>
-        <div class="field-grid two">
-          <label>
-            <span>${isStranger ? 'Local de nascimento *' : 'Local de nascimento'}</span>
-            <input data-field="birth_city" ${isStranger ? 'required' : ''} value="${prev.birth_city || ''}" placeholder="Cidade de nascimento">
-          </label>
-          <label>
-            <span>${isStranger ? 'Documento de identidade *' : 'Documento de identidade'}</span>
-            <input data-field="nif" ${isStranger ? 'required' : ''} value="${prev.nif || ''}" placeholder="Número ou passaporte">
-          </label>
-        </div>
-        <div class="field-grid two">
-          <label>
-            <span>${isStranger ? 'Tipo de documento *' : 'Tipo de documento'}</span>
-            <div class="doc-type-wrap" style="position: relative;">
-              <button type="button" class="doc-type-btn guest-doc-type-btn" data-guest-index="${i}">Selecionar</button>
-              <input type="hidden" data-field="id_type" value="${prev.id_type || ''}">
-              <div class="doc-type-dropdown" style="display: none;"></div>
-            </div>
-          </label>
-          <label>
-            <span>${isStranger ? 'País emissor do documento *' : 'País emissor do documento'}</span>
-            <div class="country-search">
-              <input data-field="id_country" class="country-input guest-id-country-input" ${isStranger ? 'required' : ''} value="${prev.id_country || ''}" placeholder="País" autocomplete="off" data-guest-index="${i}">
-              <div class="country-dropdown" style="display: none;"></div>
-            </div>
-          </label>
-        </div>
-        <div class="field-grid two">
-          <label>
-            <span>Morada</span>
-            <input data-field="address" value="${prev.address || ''}" placeholder="Rua, número e complementos">
-          </label>
-          <label>
-            <span>Código postal</span>
-            <input data-field="postal_code" value="${prev.postal_code || ''}" placeholder="1000-000">
-          </label>
-        </div>
-        <label>
-          <span>Cidade</span>
-          <input data-field="city" value="${prev.city || ''}" placeholder="Lisboa">
-        </label>
       </div>`);
   }
   wrap.innerHTML = parts.join('');
 
   // Setup date pickers for all guest birth dates
   wrap.querySelectorAll('.guest-birth-input').forEach(input => {
-    input.addEventListener('focus', () => openDatePicker(input));
-    input.addEventListener('click', () => openDatePicker(input));
+    input.addEventListener('focus', () => AppDatePicker.open(input, { isBirthDate: true, onChange: () => recalc() }));
+    input.addEventListener('click', () => AppDatePicker.open(input, { isBirthDate: true, onChange: () => recalc() }));
     input.addEventListener('input', () => {
       if (input.value.replace(/\D/g, '').length === 8) input.value = ptDate(input.value);
       recalc();
     });
   });
 
-  // Setup country selectors, phone codes, and doc types for all guests
+  // Setup country selectors and phone codes for all guests
   wrap.querySelectorAll('[data-guest-index]').forEach(guestSection => {
     const guestIndex = guestSection.dataset.guestIndex;
     const countryInput = guestSection.querySelector('.guest-country-input');
-    const idCountryInput = guestSection.querySelector('.guest-id-country-input');
     const phoneCodeBtn = guestSection.querySelector('.guest-phone-code-btn');
-    const docTypeBtn = guestSection.querySelector('.guest-doc-type-btn');
-    const docTypeInput = guestSection.querySelector('[data-field="id_type"]');
-    const docTypeDropdown = guestSection.querySelector('.doc-type-dropdown');
 
-    if (countryInput && idCountryInput) {
+    if (countryInput) {
       const countryDropdown = countryInput.parentElement.querySelector('.country-dropdown');
-      const idCountryDropdown = idCountryInput.parentElement.querySelector('.country-dropdown');
-
       setupCountrySearch(countryInput, countryDropdown, () => {
         renderExtraGuests();
         recalc();
       });
-      setupCountrySearch(idCountryInput, idCountryDropdown);
     }
 
     if (phoneCodeBtn) {
       setupGuestPhoneCodeSearch(guestIndex);
-    }
-
-    if (docTypeBtn && docTypeInput && docTypeDropdown) {
-      setupGuestDocTypeSearch(docTypeBtn, docTypeInput, docTypeDropdown);
     }
   });
 }
@@ -991,7 +916,7 @@ function recalc() {
   $('summary-dates').textContent = iso($('pb-checkin').value) && iso($('pb-checkout').value) ? `${ptDate($('pb-checkin').value)} - ${ptDate($('pb-checkout').value)}` : '-';
   $('summary-nights').textContent = n ? `${n} noite${n !== 1 ? 's' : ''}` : '-';
 
-  document.querySelectorAll('.summary-row.muted').forEach(row => row.style.display = hasDates ? '' : 'none');
+  document.querySelectorAll('.summary-row.muted:not(#summary-discount-row)').forEach(row => row.style.display = hasDates ? '' : 'none');
   const totalRow = document.querySelector('.summary-total');
   if (totalRow) totalRow.style.display = hasDates ? '' : 'none';
   const note = $('summary-dates-note');
@@ -1097,24 +1022,14 @@ function validateStep() {
     const name = $('pb-name').value.trim();
     const email = $('pb-email').value.trim();
     const phone = $('pb-phone').value.trim();
-    const birthDate = iso($('pb-birth').value);
     const country = $('pb-country').value.trim();
-    const isStranger = country && country !== 'Portugal';
-    const nif = $('pb-nif').value.trim();
-    const idType = $('pb-id-type').value.trim();
-    const birthCity = $('pb-birth-city').value.trim();
-    const idCountry = $('pb-id-country').value.trim();
 
-    if (!name || !email || !phone || !birthDate || !country) {
+    if (!name || !email || !phone || !country) {
       showStepError('Preencha todos os campos obrigatórios (*) do hóspede principal.');
       return false;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       showStepError('Email inválido.');
-      return false;
-    }
-    if (isStranger && (!birthCity || !nif || !idType || !idCountry)) {
-      showStepError('Estrangeiros devem indicar local de nascimento, documento de identidade e país emissor.');
       return false;
     }
 
@@ -1125,24 +1040,14 @@ function validateStep() {
       const guestName = section.querySelector('[data-field="name"]').value.trim();
       const guestEmail = section.querySelector('[data-field="email"]').value.trim();
       const guestPhone = section.querySelector('[data-field="phone"]').value.trim();
-      const guestBirth = iso(section.querySelector('[data-field="birth_date"]').value);
       const guestCountry = section.querySelector('[data-field="country"]').value.trim();
-      const guestBirthCity = section.querySelector('[data-field="birth_city"]').value.trim();
-      const guestNif = section.querySelector('[data-field="nif"]').value.trim();
-      const guestIdType = section.querySelector('[data-field="id_type"]').value.trim();
-      const guestIdCountry = section.querySelector('[data-field="id_country"]').value.trim();
-      const guestIsStranger = guestCountry && guestCountry !== 'Portugal';
 
-      if (!guestName || !guestEmail || !guestPhone || !guestBirth || !guestCountry) {
+      if (!guestName || !guestEmail || !guestPhone || !guestCountry) {
         showStepError(`Preencha todos os campos obrigatórios (*) do hóspede ${idx}.`);
         return false;
       }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
         showStepError(`Email inválido para hóspede ${idx}.`);
-        return false;
-      }
-      if (guestIsStranger && (!guestBirthCity || !guestNif || !guestIdType || !guestIdCountry)) {
-        showStepError(`Hóspede ${idx} (estrangeiro) deve indicar local de nascimento, documento de identidade e país emissor.`);
         return false;
       }
     }
@@ -1166,7 +1071,6 @@ function collectPayload() {
     num_children: Number($('pb-children').value) || 0,
     breakfast_included: false,
     voucher_code: _voucherData?.code || null,
-    arrival_time: $('pb-arrival').value || null,
     notes: $('pb-notes').value.trim() || null,
     rgpd_consent: $('pb-rgpd').checked,
     guest: {
@@ -1175,16 +1079,8 @@ function collectPayload() {
       last_name: nameParts.slice(1).join(' '),
       email: $('pb-email').value.trim(),
       phone: phone ? `${phoneCode} ${phone}` : null,
-      country: $('pb-country').value.trim(),
       nationality: $('pb-country').value.trim(),
-      birth_date: iso($('pb-birth').value),
-      birth_city: $('pb-birth-city').value.trim() || null,
-      nif: $('pb-nif').value.trim() || null,
-      id_type: $('pb-id-type').value.trim() || null,
-      id_country: $('pb-id-country').value.trim() || null,
-      address: $('pb-address').value.trim() || null,
-      postal_code: $('pb-postal').value.trim() || null,
-      city: $('pb-city').value.trim() || null
+      birth_date: iso($('pb-birth').value) || null
     },
     guests_data: Array.from(document.querySelectorAll('[data-guest-index]')).map(guestSection => {
       const fullName = guestSection.querySelector('[data-field="name"]').value.trim();
@@ -1197,16 +1093,8 @@ function collectPayload() {
         last_name: parts.slice(1).join(' '),
         email: guestSection.querySelector('[data-field="email"]').value.trim(),
         phone: guestPhone ? `${guestPhoneCode} ${guestPhone}` : null,
-        country: guestSection.querySelector('[data-field="country"]').value.trim(),
         nationality: guestSection.querySelector('[data-field="country"]').value.trim(),
-        birth_date: iso(guestSection.querySelector('[data-field="birth_date"]').value),
-        birth_city: guestSection.querySelector('[data-field="birth_city"]').value.trim() || null,
-        nif: guestSection.querySelector('[data-field="nif"]').value.trim() || null,
-        id_type: guestSection.querySelector('[data-field="id_type"]').value.trim() || null,
-        id_country: guestSection.querySelector('[data-field="id_country"]').value.trim() || null,
-        address: guestSection.querySelector('[data-field="address"]').value.trim() || null,
-        postal_code: guestSection.querySelector('[data-field="postal_code"]').value.trim() || null,
-        city: guestSection.querySelector('[data-field="city"]').value.trim() || null
+        birth_date: iso(guestSection.querySelector('[data-field="birth_date"]').value) || null
       };
     })
   };
@@ -1238,94 +1126,5 @@ async function submitReservation() {
   }
 }
 
-function openDatePicker(input) {
-  state.dateInput = input;
-  const current = iso(input.value);
-  state.dateMonth = current ? new Date(`${current}T12:00:00`) : new Date();
-  renderDatePicker();
-}
-
-function closeDatePicker() {
-  document.querySelector('.date-pop')?.remove();
-  state.dateInput = null;
-}
-
-function shiftMonth(delta) {
-  state.dateMonth = new Date(state.dateMonth.getFullYear(), state.dateMonth.getMonth() + delta, 1, 12);
-  renderDatePicker();
-}
-
-function shiftYear(delta) {
-  state.dateMonth = new Date(state.dateMonth.getFullYear() + delta, state.dateMonth.getMonth(), 1, 12);
-  renderDatePicker();
-}
-
-function chooseDate(day) {
-  const d = new Date(state.dateMonth.getFullYear(), state.dateMonth.getMonth(), day, 12);
-  const wasCheckin = state.dateInput === $('pb-checkin');
-  state.dateInput.value = ptDate(d.toISOString().slice(0, 10));
-  state.dateInput.dispatchEvent(new Event('change', { bubbles: true }));
-  closeDatePicker();
-  recalc();
-  if (wasCheckin && !iso($('pb-checkout').value)) {
-    state.dateMonth = d;
-    setTimeout(() => { state.dateInput = $('pb-checkout'); renderDatePicker(); }, 60);
-  }
-}
-
-function renderDatePicker() {
-  document.querySelector('.date-pop')?.remove();
-  const pop = document.createElement('div');
-  pop.className = 'date-pop';
-  const y = state.dateMonth.getFullYear();
-  const m = state.dateMonth.getMonth();
-  const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-  const offset = (new Date(y, m, 1).getDay() + 6) % 7;
-  const days = new Date(y, m + 1, 0).getDate();
-  const currentYear = new Date().getFullYear();
-  const yearStart = currentYear - 20;
-  const yearEnd = currentYear + 20;
-
-  let html = '<div class="date-head">';
-  html += '<button type="button" onclick="shiftMonth(-12)" title="Ano anterior">«</button>';
-  html += '<select id="date-month-select" style="flex:1;padding:8px 12px;border:1px solid rgba(132,52,36,.2);border-radius:12px;font-size:13px;background:#fff;color:var(--ink);cursor:pointer;font-weight:600">';
-  html += months.map((mon, i) => `<option value="${i}" ${i === m ? 'selected' : ''}>${mon}</option>`).join('');
-  html += '</select>';
-  html += '<select id="date-year-select" style="flex:1;padding:8px 12px;border:1px solid rgba(132,52,36,.2);border-radius:12px;font-size:13px;background:#fff;color:var(--ink);cursor:pointer;font-weight:600">';
-  for (let yr = yearStart; yr <= yearEnd; yr++) {
-    html += `<option value="${yr}" ${yr === y ? 'selected' : ''}>${yr}</option>`;
-  }
-  html += '</select>';
-  html += '<button type="button" onclick="shiftMonth(12)" title="Próximo ano">»</button>';
-  html += '</div>';
-  html += '<div class="date-week"><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span><span>D</span></div><div class="date-grid">';
-  for (let i = 0; i < offset; i++) html += '<span></span>';
-  for (let d = 1; d <= days; d++) html += `<button type="button" onclick="chooseDate(${d})">${d}</button>`;
-  html += '</div>';
-  pop.innerHTML = html;
-
-  // Setup month/year selectors
-  pop.querySelector('#date-month-select')?.addEventListener('change', (e) => {
-    const newMonth = Number(e.target.value);
-    if (!isNaN(newMonth)) {
-      state.dateMonth = new Date(state.dateMonth.getFullYear(), newMonth, 1, 12);
-      renderDatePicker();
-    }
-  });
-
-  pop.querySelector('#date-year-select')?.addEventListener('change', (e) => {
-    const newYear = Number(e.target.value);
-    if (!isNaN(newYear) && newYear >= yearStart && newYear <= yearEnd) {
-      state.dateMonth = new Date(newYear, state.dateMonth.getMonth(), 1, 12);
-      renderDatePicker();
-    }
-  });
-
-  pop.addEventListener('click', e => e.stopPropagation());
-  document.body.appendChild(pop);
-  const rect = state.dateInput.getBoundingClientRect();
-  pop.style.left = `${Math.min(rect.left, window.innerWidth - 296)}px`;
-  pop.style.top = `${rect.bottom + 8}px`;
-}
 
 init();

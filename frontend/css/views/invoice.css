@@ -1,0 +1,501 @@
+/* ═══════════════════════════════════════════════════════════════
+   Santa Paciência — Invoice & Conversas view
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Tabs da view ── */
+.invoice-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-secondary, #f5f0eb);
+  border-radius: 10px;
+  padding: 4px;
+}
+
+.inv-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cinza, #6b6460);
+  cursor: pointer;
+  transition: background 160ms, color 160ms;
+  touch-action: manipulation;
+}
+
+.inv-tab.active {
+  background: var(--bg-card, #fff);
+  color: var(--marca, #843424);
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+
+.inv-tab i { opacity: .7; }
+.inv-tab.active i { opacity: 1; }
+
+/* ── Toolbar ── */
+.invoice-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+/* ── Layout inbox 2 colunas ── */
+.invoice-inbox-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 0;
+  height: calc(100vh - 180px);
+  min-height: 400px;
+  background: var(--bg-card, #fff);
+  border-radius: 12px;
+  border: 1px solid var(--border, #e8ddd0);
+  overflow: hidden;
+}
+
+/* ── Lista de threads ── */
+.invoice-thread-list {
+  border-right: 1px solid var(--border, #e8ddd0);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.invoice-thread-loading,
+.invoice-thread-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--cinza, #6b6460);
+  font-size: 13px;
+  text-align: center;
+  flex: 1;
+}
+
+.invoice-thread-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border, #e8ddd0);
+  cursor: pointer;
+  transition: background 120ms;
+  touch-action: manipulation;
+}
+
+.invoice-thread-item:hover { background: var(--bg-hover, #faf7f4); }
+.invoice-thread-item.active { background: var(--marca-light, #fdf4f2); border-left: 3px solid var(--marca, #843424); }
+.invoice-thread-item:active { transform: scale(0.99); opacity: .9; }
+
+.itt-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--marca, #843424);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: .5px;
+}
+
+.itt-body { flex: 1; min-width: 0; }
+
+.itt-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.itt-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto, #2a1810);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.itt-date {
+  font-size: 11px;
+  color: var(--cinza, #6b6460);
+  flex-shrink: 0;
+}
+
+.itt-sub {
+  font-size: 11px;
+  color: var(--cinza, #6b6460);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.itt-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.itt-aloj {
+  font-size: 10px;
+  background: var(--bg-secondary, #f5f0eb);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--texto, #2a1810);
+}
+
+.itt-aloj-init {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--marca, #843424);
+  color: #fff;
+  border-radius: 4px;
+  padding: 1px 5px;
+  vertical-align: 1px;
+  letter-spacing: .3px;
+}
+
+.itt-total {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--verde, #2d7a4f);
+}
+
+.itt-status {
+  font-size: 10px;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* ── Detalhe de thread ── */
+.invoice-thread-detail {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.invoice-detail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 100%;
+  color: var(--cinza, #6b6460);
+  font-size: 13px;
+}
+
+/* ── Header do detalhe ── */
+.invoice-detail-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border, #e8ddd0);
+  background: var(--bg-secondary, #faf7f4);
+}
+
+.idh-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--marca, #843424);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.idh-info { flex: 1; min-width: 0; }
+.idh-info h2 { margin: 0 0 2px; font-size: 15px; }
+
+.idh-email {
+  font-size: 12px;
+  color: var(--marca, #843424);
+  text-decoration: none;
+}
+.idh-email:hover { text-decoration: underline; }
+
+.idh-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--cinza, #6b6460);
+}
+
+.idh-meta span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.idh-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+/* ── Área de mensagens ── */
+.invoice-messages-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.invoice-msgs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  color: var(--cinza, #6b6460);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ── Compose ── */
+.invoice-compose-area {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border, #e8ddd0);
+  background: var(--bg-card, #fff);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ica-header {
+  font-size: 12px;
+  color: var(--cinza, #6b6460);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ica-tpl-btn {
+  font-size: 11px;
+  padding: 3px 8px;
+}
+
+.ica-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.invoice-compose-area .form-input,
+.invoice-compose-area .form-control {
+  background: var(--bg-secondary, #f5f0eb);
+  border-color: var(--border, #e8ddd0);
+}
+
+.invoice-compose-area .form-input:focus,
+.invoice-compose-area .form-control:focus {
+  background: var(--bg-secondary, #f5f0eb);
+}
+
+/* ── Chat bubbles ── */
+.invoice-bubble {
+  display: flex;
+  flex-direction: column;
+  max-width: 78%;
+  gap: 4px;
+}
+
+.invoice-bubble--sent {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.invoice-bubble--received {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.ib-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--cinza, #6b6460);
+}
+
+.ib-author { font-weight: 600; }
+
+.ib-subject {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: .7;
+  margin-bottom: 2px;
+}
+
+.ib-body {
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.invoice-bubble--sent .ib-body {
+  background: var(--marca, #843424);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.invoice-bubble--received .ib-body {
+  background: var(--bg-secondary, #f0ebe4);
+  color: var(--texto, #2a1810);
+  border-bottom-left-radius: 4px;
+  border: 1px solid var(--border, #e8ddd0);
+}
+
+/* Área de mensagens como coluna de chat */
+.invoice-messages-area {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+}
+
+/* Banner de re-autorização */
+.imb-reauth-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #6d4c00;
+  margin-bottom: 8px;
+}
+
+.imb-reauth-banner a { color: #843424; font-weight: 600; }
+
+.imb-reauth {
+  font-size: 12px;
+  margin-top: 8px;
+  color: var(--cinza, #6b6460);
+}
+.imb-reauth a { color: var(--marca, #843424); }
+
+/* ── Snippet da última mensagem ── */
+.itt-snippet {
+  font-size: 11px;
+  color: var(--cinza, #6b6460);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+  opacity: .85;
+}
+
+/* ── Badge de não lido no sidebar ── */
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #e05e4e;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: auto;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.layout.sb-collapsed .nav-badge { display: none !important; }
+
+/* ── Template picker ── */
+.tpl-picker-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.tpl-picker-item:hover { background: var(--bg-hover, #faf7f4); }
+
+.tpl-picker-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto, #2a1810);
+}
+
+.tpl-picker-sub {
+  font-size: 11px;
+  color: var(--cinza, #6b6460);
+}
+
+/* ── Mobile: layout em coluna ── */
+@media (max-width: 767px) {
+  .invoice-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .invoice-tabs { align-self: stretch; }
+  .inv-tab { flex: 1; justify-content: center; }
+
+  .invoice-inbox-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .invoice-thread-list {
+    border-right: none;
+    border-bottom: 1px solid var(--border, #e8ddd0);
+    max-height: 40vh;
+  }
+
+  .invoice-thread-detail {
+    min-height: 50vh;
+  }
+
+  .invoice-detail-header {
+    flex-direction: column;
+  }
+
+  .idh-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .idh-actions .btn { width: 100%; justify-content: center; }
+}

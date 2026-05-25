@@ -296,6 +296,13 @@ textarea { resize: vertical; }
   line-height: 1.4;
 }
 
+.unit-desc-extra {
+  margin-top: 3px !important;
+  font-size: 11.5px !important;
+  color: var(--brand) !important;
+  opacity: .75;
+}
+
 .unit-price {
   text-align: right;
   color: var(--brand);
@@ -306,6 +313,22 @@ textarea { resize: vertical; }
   display: block;
   color: var(--muted);
   font-weight: 600;
+}
+
+.unit-price-total {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--brand);
+  margin-top: 3px;
+}
+
+.unit-price-extra {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-top: 2px;
 }
 
 .property-card {

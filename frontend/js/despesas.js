@@ -3,13 +3,14 @@ let despesaEditId = null;
 let despesaFilterMonth = SS.get('desp:month', new Date().toISOString().slice(0, 7));
 
 const EXPENSE_CATS = {
-  limpeza:      { label: 'Limpeza',       color: '#4a90d9' },
-  manutencao:   { label: 'Manutenção',    color: '#e67e22' },
-  marketing:    { label: 'Marketing',     color: '#9b59b6' },
-  impostos:     { label: 'Impostos',      color: '#e74c3c' },
-  servicos:     { label: 'Serviços',      color: '#2ecc71' },
-  consumiveis:  { label: 'Consumíveis',   color: '#f39c12' },
-  outro:        { label: 'Outro',         color: '#95a5a6' },
+  limpeza:      { label: 'Limpeza',       color: '#4a90d9', icon: 'brush-cleaning' },
+  manutencao:   { label: 'Manutenção',    color: '#e67e22', icon: 'wrench'        },
+  marketing:    { label: 'Marketing',     color: '#9b59b6', icon: 'megaphone'     },
+  impostos:     { label: 'Impostos',      color: '#e74c3c', icon: 'landmark'      },
+  servicos:     { label: 'Serviços',      color: '#2ecc71', icon: 'briefcase'     },
+  consumiveis:  { label: 'Consumíveis',   color: '#f39c12', icon: 'package'       },
+  supermercado: { label: 'Supermercado',  color: '#27ae60', icon: 'shopping-cart' },
+  outro:        { label: 'Outro',         color: '#95a5a6', icon: 'circle-dot'    },
 };
 
 // ── LOAD ──
@@ -82,8 +83,9 @@ function renderDespesas() {
     const cat = EXPENSE_CATS[d.category] || EXPENSE_CATS.outro;
     return `<tr>
       <td style="font-size:13px;">${formatDate(d.date)}</td>
-      <td><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;background:${cat.color}22;color:${cat.color};">${cat.label}</span></td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;background:${cat.color}22;color:${cat.color};">${cat.icon ? `<i data-lucide="${cat.icon}" style="width:11px;height:11px;"></i>` : ''}${cat.label}</span></td>
       <td>${d.description}${d.notes ? `<br><span style="font-size:11px;color:var(--cinza);">${d.notes}</span>` : ''}</td>
+      <td style="font-size:12px;color:var(--cinza);">${d.invoice_ref || '—'}</td>
       <td style="font-weight:600;color:var(--vermelho);">€${Number(d.amount).toFixed(2)}</td>
       <td style="font-size:12.5px;color:var(--cinza);">${d.payment_method || '—'}</td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap;">
@@ -93,7 +95,7 @@ function renderDespesas() {
     </tr>`;
   }).join('') + `
     <tr style="border-top:2px solid var(--cinza-claro);">
-      <td colspan="3" style="text-align:right;font-weight:600;color:var(--cinza);font-size:13px;">Total do período</td>
+      <td colspan="4" style="text-align:right;font-weight:600;color:var(--cinza);font-size:13px;">Total do período</td>
       <td style="font-weight:700;font-size:15px;color:var(--vermelho);">€${total.toFixed(2)}</td>
       <td colspan="2"></td>
     </tr>`;
@@ -110,6 +112,7 @@ function openDespesaModal(id) {
   document.getElementById('despesa-description').value = d ? d.description : '';
   document.getElementById('despesa-amount').value      = d ? d.amount      : '';
   document.getElementById('despesa-payment').value     = d ? (d.payment_method || 'numerário') : 'numerário';
+  document.getElementById('despesa-invoice-ref').value = d ? (d.invoice_ref || '') : '';
   document.getElementById('despesa-notes').value       = d ? (d.notes || '') : '';
   AppUI.enhanceSelects(document.getElementById('despesa-modal-bg'));
   AppUI.refreshDropdowns(document.getElementById('despesa-modal-bg'));
@@ -130,13 +133,14 @@ async function saveDespesa() {
   const description = document.getElementById('despesa-description').value.trim();
   const amount      = parseFloat(document.getElementById('despesa-amount').value);
   const payment_method = document.getElementById('despesa-payment').value;
+  const invoice_ref = document.getElementById('despesa-invoice-ref').value.trim() || null;
   const notes       = document.getElementById('despesa-notes').value.trim() || null;
 
   if (!date || !description || isNaN(amount)) {
     toast('Preencha data, descrição e valor.', 'error'); return;
   }
 
-  const body = { date, category, description, amount, payment_method, notes };
+  const body = { date, category, description, amount, payment_method, invoice_ref, notes };
   try {
     const res = despesaEditId
       ? await apiPut(`/api/expenses/${despesaEditId}`, body)
@@ -151,6 +155,24 @@ async function saveDespesa() {
   } catch (e) {
     toast('❌ Erro de ligação ao servidor.', 'error');
   }
+}
+
+function exportDespesasXLSX() {
+  if (!despesasData.length) { toast('Sem despesas para exportar.', 'error'); return; }
+  if (typeof XLSX === 'undefined') { toast('Biblioteca XLSX não carregada.', 'error'); return; }
+  const rows = despesasData.map(d => ({
+    'Data':           formatDate(d.date),
+    'Categoria':      EXPENSE_CATS[d.category]?.label || d.category,
+    'Descrição':      d.description,
+    'Nº Fatura':      d.invoice_ref || '',
+    'Valor (€)':      Number(d.amount).toFixed(2),
+    'Método':         d.payment_method || '',
+    'Notas':          d.notes || '',
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Despesas');
+  XLSX.writeFile(wb, `despesas_${despesaFilterMonth || 'todas'}.xlsx`);
 }
 
 async function deleteDespesa(id) {

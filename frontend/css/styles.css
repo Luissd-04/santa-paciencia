@@ -1274,40 +1274,46 @@ select.form-control { cursor:pointer; }
 .sort-icon { font-size: 11px; margin-left: 3px; color: var(--azul-claro); }
 
 /* Tabela compacta — reservas */
-#view-reservas table { table-layout: fixed; min-width: 1240px; width: 100%; }
-#view-reservas thead th, #view-reservas tbody td {
+#view-reservas table { table-layout: fixed; min-width: 1300px; width: 100%; }
+#view-reservas thead th {
+  padding: 10px 8px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+#view-reservas tbody td {
   padding: 10px 8px;
   font-size: 12.5px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-#view-reservas th:nth-child(1)  { width: 110px; }
-#view-reservas th:nth-child(2)  { width: 160px; }
-#view-reservas th:nth-child(3)  { width: 180px; }
-#view-reservas th:nth-child(4)  { width: 95px; }
-#view-reservas th:nth-child(5)  { width: 105px; }
-#view-reservas th:nth-child(6)  { width: 65px; }
-#view-reservas th:nth-child(7)  { width: 80px; }
-#view-reservas th:nth-child(8)  { width: 75px; }
-#view-reservas th:nth-child(9)  { width: 105px; }
-#view-reservas th:nth-child(10) { width: 110px; }
-#view-reservas th:nth-child(11) { width: 100px; }
+#view-reservas th:nth-child(1)  { width: 95px;  }
+#view-reservas th:nth-child(2)  { width: 145px; }
+#view-reservas th:nth-child(3)  { width: 160px; }
+#view-reservas th:nth-child(4)  { width: 90px;  }
+#view-reservas th:nth-child(5)  { width: 95px;  }
+#view-reservas th:nth-child(6)  { width: 62px;  }
+#view-reservas th:nth-child(7)  { width: 82px;  }
+#view-reservas th:nth-child(8)  { width: 75px;  }
+#view-reservas th:nth-child(9)  { width: 80px;  }
+#view-reservas th:nth-child(10) { width: 95px;  }
+#view-reservas th:nth-child(11) { width: 105px; }
+#view-reservas th:nth-child(12) { width: 90px;  }
 #view-reservas .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
 /* ── Sticky last 3 columns ── */
-#view-reservas th:nth-child(9),
 #view-reservas th:nth-child(10),
-#view-reservas th:nth-child(11) { position: sticky; z-index: 3; background: var(--cinza-claro); }
-#view-reservas td:nth-child(9),
+#view-reservas th:nth-child(11),
+#view-reservas th:nth-child(12) { position: sticky; z-index: 3; background: var(--cinza-claro); }
 #view-reservas td:nth-child(10),
-#view-reservas td:nth-child(11) { position: sticky; z-index: 2; background: var(--branco); }
-#view-reservas tr:hover td:nth-child(9),
+#view-reservas td:nth-child(11),
+#view-reservas td:nth-child(12) { position: sticky; z-index: 2; background: var(--branco); }
 #view-reservas tr:hover td:nth-child(10),
-#view-reservas tr:hover td:nth-child(11) { background: rgba(139,58,36,.04); }
-#view-reservas th:nth-child(9),  #view-reservas td:nth-child(9)  { right: 210px; box-shadow: -3px 0 8px rgba(0,0,0,.06); }
-#view-reservas th:nth-child(10), #view-reservas td:nth-child(10) { right: 100px; }
-#view-reservas th:nth-child(11), #view-reservas td:nth-child(11) { right: 0; }
+#view-reservas tr:hover td:nth-child(11),
+#view-reservas tr:hover td:nth-child(12) { background: rgba(139,58,36,.04); }
+#view-reservas th:nth-child(10), #view-reservas td:nth-child(10) { right: 195px; box-shadow: -3px 0 8px rgba(0,0,0,.06); }
+#view-reservas th:nth-child(11), #view-reservas td:nth-child(11) { right: 90px; }
+#view-reservas th:nth-child(12), #view-reservas td:nth-child(12) { right: 0; }
 
 /* Tabs de língua na descrição */
 .desc-lang-tab {
@@ -2978,6 +2984,17 @@ select.form-control { cursor:pointer; }
 .mobile-fab i[data-lucide] { width: 22px; height: 22px; }
 
 .precos-day-cell:hover { filter: brightness(.96); }
+
+.precos-dow-btn {
+  padding: 4px 8px; font-size: 11px; font-weight: 600; border-radius: 5px; cursor: pointer;
+  border: 1px solid var(--borda); background: var(--bg-card); color: var(--cinza);
+  transition: background .12s, color .12s, border-color .12s;
+  user-select: none;
+}
+.precos-dow-btn.active {
+  background: var(--marca); color: #fff; border-color: var(--marca);
+}
+.precos-dow-btn:hover:not(.active) { background: var(--cinza-claro); }
 
 /* ── Side Drawer ── */
 .side-drawer-overlay {

@@ -195,16 +195,91 @@ O botão de ativar notificações deve aparecer apenas quando fizer sentido:
 
 ## Ordem Recomendada de Implementação
 
-1. Melhorar layout mobile principal: dashboard, navegação e calendário/agenda.
-2. Adicionar manifest, ícones e meta tags iOS.
-3. Adicionar service worker básico.
-4. Tornar a app instalável e testar em iPhone/iPad.
+1. ✅ Melhorar layout mobile principal: dashboard, navegação e calendário/agenda.
+2. ✅ Adicionar manifest, ícones e meta tags iOS.
+3. ✅ Adicionar service worker básico.
+4. Tornar a app instalável e testar em iPhone/iPad real.
 5. Criar UI de estado PWA/notificações.
 6. Implementar subscriptions Web Push no frontend.
 7. Implementar backend de push.
 8. Enviar notificação de teste.
 9. Ligar notificações reais a reservas, pagamentos e tarefas.
 10. Adicionar preferências por utilizador.
+
+---
+
+## O Que Foi Implementado (2026-05-19)
+
+### CSS Mobile — `frontend/css/mobile.css` (novo ficheiro dedicado)
+
+Ficheiro separado do CSS desktop para evitar interferências. Carregado por último em `index.html`.
+
+**Correções críticas:**
+- `font-size: 16px` em todos os inputs no mobile — previne auto-zoom do iOS Safari
+- `touch-action: manipulation` em todos os elementos interativos — elimina atraso de 300ms
+- `min-height: 44px` nos botões de ação e `52px` nos itens da bottom nav (Apple HIG)
+- `overscroll-behavior-y: contain` no scroll principal — previne pull-to-refresh acidental
+- Sidebar forçada a `transform: translateX(-240px) !important` em `≤767px` — corrige bug em que a sidebar ficava visível em mobile
+
+**Melhorias visuais:**
+- Press feedback com `transform: scale()` + `opacity` em cards, chips e FAB (GPU-accelerated, sem layout reflow)
+- Bottom nav: pill de fundo no item ativo, icon faz scale(1.08) com spring animation, label ativo em bold
+- Transição entre views: `mobileViewEnter` — fade + translateY(8px→0) em 220ms
+- Modais: slide-up com spring animation (`cubic-bezier(0.34, 1.56, 0.64, 1)`)
+- `prefers-reduced-motion`: desativa todas as animações para utilizadores com sensibilidade ao movimento
+
+**Breakpoint iPad (768–1023px):**
+- Sidebar persistente (sempre visível, sem drawer) — hamburger escondido
+- KPI em 2 colunas, formulários em 2 colunas, modais centrados
+- Layout de email restaurado com 2 colunas
+
+**Contraste de texto:**
+- `--cinza` alterado de `#8a8278` para `#6b6460` — passa de 3.5:1 para 5.1:1 (WCAG AA ✓)
+
+### Páginas Mobile Melhoradas
+
+**Vouchers (`frontend/js/vouchers.js`):**
+- `renderVouchersList` agora gera dois layouts: tabela (desktop) + cards (mobile)
+- `.vouchers-desktop` / `.vouchers-mobile` — CSS mostra o layout correto por breakpoint
+- Card mobile: código em monospace, badge de estado, tipo com ícone, valor em Playfair Display, validade, ações com touch targets corretos
+
+**Notificações:**
+- `.notifications-page-item` reformulado para layout em flex horizontal com ícone colorido por prioridade (vermelho/laranja/verde)
+- Cada item é um card com sombra, border-left colorida, press feedback
+
+**Relatórios:**
+- KPI em grid 2×2 no mobile (antes em linha horizontal)
+- Gráficos empilhados verticalmente (antes lado a lado)
+- Sub-tabs scrolláveis horizontalmente
+- Altura de canvas reduzida para 200px no mobile
+
+### PWA
+
+**`frontend/manifest.webmanifest` (novo):**
+- `display: standalone`, `theme_color: #843424`
+- Shortcuts para Dashboard e Reservas
+- Referencia ícones em `/icons/` (a criar — ver secção Ícones)
+
+**`frontend/index.html`:**
+- Meta tags iOS: `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`, `apple-mobile-web-app-title`
+- `theme-color: #843424`
+- Link para `manifest.webmanifest`
+- Link para `css/mobile.css`
+
+**`frontend/service-worker.js` (novo):**
+- Cache-first para assets estáticos e CDN (fontes, Lucide, Chart.js)
+- Network-first para `/api/*`
+- Fallback offline: resposta JSON com `{ error: 'offline' }` para API
+- Handler para Push Notifications (pronto para integração backend)
+
+**Nota de desenvolvimento:** o registo do SW em `app.js` está comentado durante desenvolvimento activo para evitar que o browser sirva CSS cacheado em vez do ficheiro actual. Descomentar antes de testar instalação PWA em dispositivo real.
+
+### Ícones PWA — Por Fazer
+
+O manifest aponta para `/icons/icon-192.png`, `/icons/icon-512.png`, `/icons/icon-180.png`. Estes ficheiros têm de ser criados manualmente. Sugestão:
+- Gerar a partir do favicon ou de um SVG com as cores da marca (`#843424` + `#c9a84c`)
+- Ferramentas: Figma, [favicon.io](https://favicon.io), ou ImageMagick: `convert favicon.png -resize 192x192 icon-192.png`
+- O ícone iOS (`icon-180.png`) deve ser PNG sem transparência e pelo menos 180×180px
 
 ---
 

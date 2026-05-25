@@ -108,9 +108,11 @@
     document.body.appendChild(pop);
 
     const rect = cur.input.getBoundingClientRect();
-    pop.style.left = `${Math.min(rect.left, window.innerWidth - 296)}px`;
+    const pw   = pop.offsetWidth;
+    const ph   = pop.offsetHeight;
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - pw - 8));
+    pop.style.left = `${left}px`;
     pop.style.top  = `${rect.bottom + 8}px`;
-    const ph = pop.getBoundingClientRect().height;
     if (rect.bottom + 8 + ph > window.innerHeight) {
       pop.style.top = `${rect.top - ph - 8}px`;
     }

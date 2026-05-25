@@ -3,6 +3,7 @@ const { db } = require('./database');
 
 const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/userinfo.email',
 ];
 
@@ -61,8 +62,21 @@ function getAuthenticatedEmailClient(organizationId) {
 }
 
 function encodeSubject(subject) {
-  // RFC 2047 encoded word for UTF-8 subjects
   return `=?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`;
+}
+
+function encodeFromHeader(from) {
+  // RFC 2047: codificar o display name se tiver caracteres não-ASCII
+  const match = from.match(/^(.+?)\s*<([^>]+)>$/);
+  if (match) {
+    const name = match[1].trim();
+    const email = match[2].trim();
+    if (/[^\x00-\x7F]/.test(name)) {
+      return `=?UTF-8?B?${Buffer.from(name).toString('base64')}?= <${email}>`;
+    }
+    return from;
+  }
+  return from;
 }
 
 async function sendViaGmail(organizationId, { to, subject, html, from }) {
@@ -72,8 +86,8 @@ async function sendViaGmail(organizationId, { to, subject, html, from }) {
 
   const info = getEmailConnectionInfo(organizationId);
   const senderEmail = info.email || 'me';
-  const propertyName = process.env.PROPERTY_NAME || 'Santa Paciencia';
-  const fromHeader = from || `${propertyName} <${senderEmail}>`;
+  const propertyName = process.env.PROPERTY_NAME || 'Santa Paciência';
+  const fromHeader = encodeFromHeader(from || `${propertyName} <${senderEmail}>`);
 
   const messageParts = [
     `From: ${fromHeader}`,

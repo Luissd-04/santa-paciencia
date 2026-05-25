@@ -32,10 +32,18 @@ function getVoucherStatus(v) {
   return 'active';
 }
 
+function isVoucherExpiringSoon(v) {
+  if (v.status !== 'active' || !v.valid_until) return false;
+  const today = new Date();
+  const expiry = new Date(v.valid_until + 'T00:00:00Z');
+  const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+  return diffDays >= 0 && diffDays <= 7;
+}
+
 function formatVoucherValue(v) {
   if (v.type === 'discount_pct')   return v.value + '%';
   if (v.type === 'discount_fixed') return '€' + Number(v.value).toFixed(2);
-  if (v.type === 'credit_stay')    return '€' + Number(v.value).toFixed(2) + ' crédito';
+  if (v.type === 'credit_stay')    return Number(v.value) + (Number(v.value) === 1 ? ' noite' : ' noites');
   return v.value;
 }
 
@@ -57,10 +65,14 @@ function renderVouchersList() {
 
   const rows = vouchersData.map(v => {
     const status = getVoucherStatus(v);
+    const expiringSoon = isVoucherExpiringSoon(v);
     const statusInfo = VOUCHER_STATUS_LABELS[status] || { label: status, class: '' };
     const typeInfo = VOUCHER_TYPE_LABELS[v.type] || { label: v.type, icon: 'ticket', color: '#843424' };
     const validRange = [v.valid_from, v.valid_until].filter(Boolean).join(' → ') || '—';
-    return `<tr>
+    const expiryWarning = expiringSoon
+      ? `<span title="Expira em breve!" style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#e67e22;background:#e67e2220;border-radius:10px;padding:1px 7px;margin-left:4px;"><i data-lucide="clock" style="width:10px;height:10px;"></i> expira em breve</span>`
+      : '';
+    return `<tr${expiringSoon ? ' style="background:rgba(230,126,34,.04);"' : ''}>
       <td>
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-family:monospace;font-weight:700;font-size:13px;letter-spacing:1px;background:var(--cinza-claro);padding:3px 8px;border-radius:6px;">${escapeHtml(v.code)}</span>
@@ -77,7 +89,7 @@ function renderVouchersList() {
       </td>
       <td style="font-weight:700;font-size:15px;">${formatVoucherValue(v)}</td>
       <td style="font-size:12px;color:var(--cinza);">${validRange}</td>
-      <td><span class="badge ${statusInfo.class}">${statusInfo.label}</span></td>
+      <td><span class="badge ${statusInfo.class}">${statusInfo.label}</span>${expiryWarning}</td>
       <td style="font-size:12px;color:var(--cinza);">${v.used_in_reservation_id ? v.used_in_reservation_id : '—'}</td>
       <td>
         <div style="display:flex;gap:6px;">
@@ -90,11 +102,12 @@ function renderVouchersList() {
 
   const mobileCards = vouchersData.map(v => {
     const status = getVoucherStatus(v);
+    const expiringSoon = isVoucherExpiringSoon(v);
     const statusInfo = VOUCHER_STATUS_LABELS[status] || { label: status, class: '' };
     const typeInfo = VOUCHER_TYPE_LABELS[v.type] || { label: v.type, icon: 'ticket', color: '#843424' };
     const validRange = [v.valid_from, v.valid_until].filter(Boolean).join(' → ') || null;
     return `
-      <div class="voucher-mobile-card">
+      <div class="voucher-mobile-card"${expiringSoon ? ' style="border-color:#e67e22;"' : ''}>
         <div class="vmc-top">
           <div class="vmc-code-wrap">
             <span class="vmc-code">${escapeHtml(v.code)}</span>
@@ -102,7 +115,10 @@ function renderVouchersList() {
               <i data-lucide="copy"></i>
             </button>
           </div>
-          <span class="badge ${statusInfo.class}">${statusInfo.label}</span>
+          <div style="display:flex;align-items:center;gap:5px;">
+            <span class="badge ${statusInfo.class}">${statusInfo.label}</span>
+            ${expiringSoon ? `<span style="font-size:10px;font-weight:600;color:#e67e22;"><i data-lucide="clock" style="width:9px;height:9px;"></i> expira em breve</span>` : ''}
+          </div>
         </div>
         <div class="vmc-body">
           <div class="vmc-type" style="color:${typeInfo.color};">
@@ -155,9 +171,15 @@ async function copyVoucherCode(code) {
 function updateVoucherValueLabel() {
   const type = document.getElementById('v-type')?.value;
   const label = document.getElementById('v-value-label');
+  const input = document.getElementById('v-value');
   if (!label) return;
-  if (type === 'discount_pct')   label.innerHTML = 'Valor (%) <span class="req-star">*</span>';
-  else                            label.innerHTML = 'Valor (€) <span class="req-star">*</span>';
+  if (type === 'discount_pct')  label.innerHTML = 'Valor (%) <span class="req-star">*</span>';
+  else if (type === 'credit_stay') label.innerHTML = 'Noites <span class="req-star">*</span>';
+  else                           label.innerHTML = 'Valor (€) <span class="req-star">*</span>';
+  if (input) {
+    input.step  = type === 'credit_stay' ? '1' : '0.01';
+    input.min   = '1';
+  }
 }
 
 function populateVoucherAccommodations() {
@@ -199,7 +221,8 @@ function closeVoucherModal() {
 async function saveVoucher() {
   const btn = document.getElementById('v-save-btn');
   const type  = document.getElementById('v-type').value;
-  const value = parseFloat(document.getElementById('v-value').value);
+  const rawValue = document.getElementById('v-value').value;
+  const value = type === 'credit_stay' ? parseInt(rawValue) : parseFloat(rawValue);
   if (!type || isNaN(value) || value <= 0) {
     toast('⚠️ Tipo e valor são obrigatórios.', 'error');
     return;

@@ -329,6 +329,8 @@ async function openAlojamento(id, preferredTab = 'info') {
     document.getElementById('aloj-quartos').value = a.num_rooms || 1;
     document.getElementById('aloj-casasbanho').value = a.num_bathrooms || 1;
     document.getElementById('aloj-preco').value = a.price_per_night || '';
+    document.getElementById('aloj-min-nights').value = a.min_nights ?? 1;
+    document.getElementById('aloj-rgpd-text').value = a.rgpd_text || 'Os seus dados pessoais são recolhidos e tratados para a gestão da sua reserva e cumprimento das obrigações legais aplicáveis ao alojamento local em Portugal. Os dados são conservados pelo período legalmente exigido. Tem direito de acesso, retificação e apagamento dos seus dados por contacto direto com o estabelecimento.';
     document.getElementById('aloj-baby-age-limit').value = a.baby_age_limit ?? 2;
     document.getElementById('aloj-baby-price').value = a.baby_price ?? 0;
     document.getElementById('aloj-child-age-limit').value = a.child_age_limit ?? 12;
@@ -466,7 +468,7 @@ function refreshAmenitiesFilter() {
 
 async function showAlojTab(tab) {
   SS.set('aloj:tab', tab);
-  ['info','comodidades','imagens'].forEach(t => {
+  ['info','comodidades','imagens','rgpd'].forEach(t => {
     const el = document.getElementById('aloj-tab-' + t);
     if (el) el.style.display = t === tab ? '' : 'none';
     const btn = document.getElementById('tab-' + t);
@@ -1572,6 +1574,8 @@ async function saveAlojamento() {
     num_rooms: parseInt(document.getElementById('aloj-quartos').value) || 1,
     num_bathrooms: parseInt(document.getElementById('aloj-casasbanho').value) || 1,
     price_per_night: parseFloat(document.getElementById('aloj-preco').value) || 0,
+    min_nights: parseInt(document.getElementById('aloj-min-nights')?.value) || 1,
+    rgpd_text: document.getElementById('aloj-rgpd-text')?.value?.trim() || null,
     base_guests_included: baseGuestsIncluded,
     baby_age_limit: parseInt(document.getElementById('aloj-baby-age-limit')?.value) || 0,
     baby_price: parseFloat(document.getElementById('aloj-baby-price')?.value) || 0,

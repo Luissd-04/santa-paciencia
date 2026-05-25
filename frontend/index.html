@@ -18,8 +18,8 @@
 
 <!-- Ícones iOS (usar /icons/icon-*.png quando os ficheiros existirem) -->
 <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
-<link rel="apple-touch-icon" href="favicon.png">
-<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="favicon.png?v=2">
+<link rel="icon" type="image/png" href="favicon.png?v=2">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 <link rel="stylesheet" href="css/base.css">
@@ -30,6 +30,7 @@
 <link rel="stylesheet" href="css/views/reservas.css">
 <link rel="stylesheet" href="css/views/despesas.css">
 <link rel="stylesheet" href="css/views/operations.css">
+<link rel="stylesheet" href="css/views/invoice.css">
 <link rel="stylesheet" href="css/mobile.css">
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -140,13 +141,16 @@
       <div class="nav-item" onclick="showView('eventos')">
         <span class="icon"><i data-lucide="calendar-range"></i></span><span class="nav-label"> Eventos</span>
       </div>
-      <div class="nav-item" onclick="showView('hospedes')">
-        <span class="icon"><i data-lucide="users"></i></span><span class="nav-label"> Hóspedes</span>
-      </div>
       <div class="nav-item" onclick="showView('notificacoes')">
         <span class="icon"><i data-lucide="bell"></i></span><span class="nav-label"> Notificações</span>
       </div>
+      <div class="nav-item" onclick="showView('invoice')">
+        <span class="icon"><i data-lucide="mail"></i></span><span class="nav-label"> Mensagens</span><span class="nav-badge" id="nav-badge-invoice" style="display:none;"></span>
+      </div>
       <div class="nav-section sb-label">Gestão</div>
+      <div class="nav-item" onclick="showView('hospedes')">
+        <span class="icon"><i data-lucide="users"></i></span><span class="nav-label"> Hóspedes</span>
+      </div>
       <div class="nav-item" onclick="showView('alojamentos')">
         <span class="icon"><i data-lucide="home"></i></span><span class="nav-label"> Alojamentos</span>
       </div>
@@ -385,26 +389,23 @@
                 <option value="parcial">Parcial</option>
                 <option value="pendente">Pendente</option>
               </select>
-              <input type="date" class="form-control" id="filter-date-from" title="Check-in a partir de" onchange="renderTabela()" style="width:auto;">
-              <input type="date" class="form-control" id="filter-date-to" title="Check-out até" onchange="renderTabela()" style="width:auto;">
-              <div class="cal-mode-toggle reservas-view-toggle" id="reservas-view-toggle">
-                <span class="cal-mode-pill" id="reservas-view-pill"></span>
-                <button class="cal-mode-btn active" data-res-view="card" onclick="setReservasViewMode('card')">
-                  <i data-lucide="layout-grid"></i> Cartão
-                </button>
-                <button class="cal-mode-btn" data-res-view="list" onclick="setReservasViewMode('list')">
-                  <i data-lucide="list"></i> Lista
-                </button>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <input type="date" class="form-control" id="filter-date-from" title="Check-in a partir de" onchange="renderTabela();_openDateTo()" style="width:auto;">
+                <span style="color:var(--cinza);font-size:13px;">→</span>
+                <input type="date" class="form-control" id="filter-date-to" title="Check-out até" onchange="renderTabela()" style="width:auto;">
               </div>
               <button class="btn btn-ghost btn-sm" onclick="clearReservasFilters()" title="Limpar filtros">
                 <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar
               </button>
-              <button class="btn btn-ghost btn-sm" onclick="exportReservasXLS()" title="Exportar Excel">
-                <i data-lucide="table-2"></i> XLS
-              </button>
-              <button class="btn btn-ghost btn-sm" onclick="exportReservasPDF()" title="Exportar PDF">
-                <i data-lucide="file-text"></i> PDF
-              </button>
+              <div class="cal-mode-toggle reservas-view-toggle" id="reservas-view-toggle" style="margin-left:auto;">
+                <span class="cal-mode-pill" id="reservas-view-pill"></span>
+                <button class="cal-mode-btn" data-res-view="card" onclick="setReservasViewMode('card')">
+                  <i data-lucide="layout-grid"></i> Cartão
+                </button>
+                <button class="cal-mode-btn active" data-res-view="list" onclick="setReservasViewMode('list')">
+                  <i data-lucide="list"></i> Lista
+                </button>
+              </div>
             </div>
           </div>
 
@@ -434,6 +435,7 @@
                       <th onclick="sortTabela('check_in')" class="th-sort">Check-in <span class="sort-icon" id="sort-check_in">↑</span></th>
                       <th onclick="sortTabela('check_out')" class="th-sort">Check-out <span class="sort-icon" id="sort-check_out"></span></th>
                       <th onclick="sortTabela('nights')" class="th-sort">Noites <span class="sort-icon" id="sort-nights"></span></th>
+                      <th onclick="sortTabela('num_guests')" class="th-sort">Hóspedes <span class="sort-icon" id="sort-num_guests"></span></th>
                       <th onclick="sortTabela('total_amount')" class="th-sort">Total <span class="sort-icon" id="sort-total_amount"></span></th>
                       <th onclick="sortTabela('channel')" class="th-sort">Canal <span class="sort-icon" id="sort-channel"></span></th>
                       <th onclick="sortTabela('status')" class="th-sort">Estado <span class="sort-icon" id="sort-status"></span></th>
@@ -785,6 +787,9 @@
           <button class="aloj-tab" onclick="showAlojTab('imagens')" id="tab-imagens">
             <i data-lucide="image"></i> Imagens
           </button>
+          <button class="aloj-tab" onclick="showAlojTab('rgpd')" id="tab-rgpd">
+            <i data-lucide="shield"></i> RGPD
+          </button>
         </div>
 
         <!-- Tab: Informação -->
@@ -906,6 +911,10 @@
                 <div class="form-group">
                   <label class="form-label">Preço / noite (€)</label>
                   <input class="form-control" id="aloj-preco" type="number" min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Estadia mínima (noites)</label>
+                  <input class="form-control" id="aloj-min-nights" type="number" min="1" max="30" value="1">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Hóspedes incluídos no preço base</label>
@@ -1148,6 +1157,24 @@
           </div>
         </div>
 
+        <!-- Tab: RGPD -->
+        <div id="aloj-tab-rgpd" style="display:none;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" style="font-size:14px;">
+                <i data-lucide="shield"></i> Texto de RGPD
+              </span>
+            </div>
+            <div style="padding:0 20px 20px;">
+              <p style="font-size:13px;color:var(--cinza);margin:0 0 12px;">
+                Este texto é apresentado ao hóspede no momento da reserva online, antes de aceitar os termos. Se deixar em branco, é usado um texto padrão.
+              </p>
+              <textarea id="aloj-rgpd-text" class="form-control" rows="12"
+                placeholder="Os seus dados pessoais são recolhidos e tratados com a finalidade de gerir a sua reserva..."></textarea>
+            </div>
+          </div>
+        </div>
+
         <input type="hidden" id="aloj-editing-id">
       </div>
 
@@ -1225,6 +1252,97 @@
         </section>
       </div>
 
+      <!-- ══ INVOICE ══ -->
+      <div class="view" id="view-invoice">
+        <section class="invoice-shell">
+
+          <!-- Toolbar -->
+          <div class="view-toolbar invoice-toolbar">
+            <div class="invoice-tabs" id="invoice-tabs">
+              <button class="inv-tab active" data-tab="conversas" onclick="switchInvoiceTab('conversas')">
+                <i data-lucide="mail"></i> Conversas
+              </button>
+              <button class="inv-tab" data-tab="arquivo" onclick="switchInvoiceTab('arquivo')">
+                <i data-lucide="archive"></i> Arquivo
+              </button>
+              <button class="inv-tab" data-tab="faturas" onclick="switchInvoiceTab('faturas')">
+                <i data-lucide="file-text"></i> Faturas
+              </button>
+            </div>
+            <div class="view-toolbar-actions">
+              <div class="search-box">
+                <i data-lucide="search"></i>
+                <input type="text" id="invoice-search" placeholder="Pesquisar mensagem ou hóspede..." oninput="filterInvoiceConversas()">
+              </div>
+              <button class="btn btn-primary" onclick="openNovaConversa()" id="btn-nova-conversa">
+                <i data-lucide="mail-plus"></i> Nova mensagem
+              </button>
+            </div>
+          </div>
+
+          <!-- CONVERSAS tab -->
+          <div id="invoice-tab-conversas">
+            <div class="invoice-inbox-layout">
+
+              <!-- Lista de conversas -->
+              <div class="invoice-thread-list" id="invoice-thread-list">
+                <div class="invoice-thread-empty" id="invoice-thread-empty" style="display:none;">
+                  <div class="es-icon"><i data-lucide="inbox" style="width:40px;height:40px;opacity:.3;"></i></div>
+                  <h3>Sem conversas</h3>
+                  <p>As conversas por email com os hóspedes aparecem aqui.</p>
+                </div>
+                <div class="invoice-thread-loading" id="invoice-thread-loading">
+                  <div class="spinner"></div> A carregar...
+                </div>
+              </div>
+
+              <!-- Detalhe da conversa -->
+              <div class="invoice-thread-detail" id="invoice-thread-detail">
+                <div class="invoice-detail-empty">
+                  <i data-lucide="mail-open" style="width:48px;height:48px;opacity:.2;"></i>
+                  <p>Seleciona uma conversa</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ARQUIVO tab -->
+          <div id="invoice-tab-arquivo" style="display:none;">
+            <div class="invoice-inbox-layout">
+              <div class="invoice-thread-list" id="invoice-archive-list">
+                <div class="invoice-thread-empty" id="invoice-archive-empty" style="display:none;">
+                  <div class="es-icon"><i data-lucide="archive" style="width:40px;height:40px;opacity:.3;"></i></div>
+                  <h3>Arquivo vazio</h3>
+                  <p>As conversas que arquivares aparecem aqui.</p>
+                </div>
+                <div class="invoice-thread-loading" id="invoice-archive-loading" style="display:none;">
+                  <div class="spinner"></div> A carregar...
+                </div>
+              </div>
+              <div class="invoice-thread-detail" id="invoice-archive-detail">
+                <div class="invoice-detail-empty">
+                  <i data-lucide="archive" style="width:48px;height:48px;opacity:.2;"></i>
+                  <p>Seleciona uma conversa arquivada</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- FATURAS tab -->
+          <div id="invoice-tab-faturas" style="display:none;">
+            <div class="card section-card" style="margin-top:16px;">
+              <div class="empty-state" style="padding:64px 24px;">
+                <div class="es-icon"><i data-lucide="file-text" style="width:40px;height:40px;opacity:.3;"></i></div>
+                <h3>Faturas — Em breve</h3>
+                <p>A emissão de faturas e recibos será integrada aqui.</p>
+              </div>
+            </div>
+          </div>
+
+        </section>
+      </div>
+
       <!-- ══ DESPESAS ══ -->
       <div class="view" id="view-despesas">
         <section class="despesas-shell">
@@ -1234,9 +1352,14 @@
           <div class="card despesas-table-card">
             <div class="card-header despesas-card-header">
               <span class="card-title"><i data-lucide="receipt"></i> Registo de Despesas</span>
-              <button class="btn btn-primary btn-sm" onclick="openDespesaModal()">
-                <i data-lucide="plus"></i> Nova Despesa
-              </button>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-ghost btn-sm" onclick="exportDespesasXLSX()" title="Exportar lista de despesas">
+                  <i data-lucide="download" style="width:13px;height:13px;"></i> Exportar
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="openDespesaModal()">
+                  <i data-lucide="plus"></i> Nova Despesa
+                </button>
+              </div>
             </div>
             <div class="table-wrap despesas-table-wrap">
               <table>
@@ -1245,6 +1368,7 @@
                     <th style="width:110px;">Data</th>
                     <th style="width:130px;">Categoria</th>
                     <th>Descrição</th>
+                    <th style="width:110px;">Nº Fatura</th>
                     <th style="width:100px;">Valor</th>
                     <th style="width:120px;">Método</th>
                     <th style="width:80px;">Ações</th>
@@ -1366,11 +1490,84 @@
 
         <!-- Painel: Calendário -->
         <div id="precos-panel-calendario">
-          <div class="card" style="overflow:visible;">
-            <div id="precos-calendar-container" style="padding:4px 0;">
-              <div style="text-align:center;padding:40px;color:var(--cinza);font-size:14px;">Seleciona um alojamento para ver o calendário de preços.</div>
+          <div style="display:flex;gap:18px;align-items:flex-start;">
+
+            <!-- Calendário -->
+            <div class="card" style="flex:1;min-width:0;overflow:visible;">
+              <div id="precos-calendar-container" style="padding:4px 0;">
+                <div style="text-align:center;padding:40px;color:var(--cinza);font-size:14px;">Seleciona um alojamento para ver o calendário de preços.</div>
+              </div>
+              <div id="precos-selection-hint" style="padding:0 4px 8px;"></div>
             </div>
-            <div id="precos-selection-hint" style="padding:0 4px 8px;"></div>
+
+            <!-- Painel lateral de edição -->
+            <div class="card" id="precos-side-panel" style="width:290px;flex-shrink:0;">
+              <div id="precos-side-panel-empty" style="padding:32px 16px;text-align:center;color:var(--cinza);font-size:13px;">
+                <i data-lucide="mouse-pointer-click" style="width:28px;height:28px;margin:0 auto 10px;display:block;opacity:.4;"></i>
+                Seleciona um alojamento para editar preços
+              </div>
+              <div id="precos-side-panel-form" style="display:none;padding:16px;flex-direction:column;gap:12px;">
+
+                <!-- Nome -->
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:12px;">Nome do período <span class="req-star">*</span></label>
+                  <input class="form-control" id="precos-bulk-name" placeholder="Ex: Alta Temporada" style="font-size:13px;">
+                </div>
+
+                <!-- Datas -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label" style="font-size:12px;">De <span class="req-star">*</span></label>
+                    <div class="birth-date-control">
+                      <input class="form-control" id="precos-bulk-start" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" style="font-size:12px;" onclick="openPrecosBulkStartPicker()" readonly>
+                      <button type="button" class="birth-date-picker-btn" onclick="openPrecosBulkStartPicker()" aria-label="Abrir calendário"><i data-lucide="calendar-days"></i></button>
+                    </div>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label" style="font-size:12px;">Até <span class="req-star">*</span></label>
+                    <div class="birth-date-control">
+                      <input class="form-control" id="precos-bulk-end" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" style="font-size:12px;" onclick="openPrecosBulkEndPicker()" readonly>
+                      <button type="button" class="birth-date-picker-btn" onclick="openPrecosBulkEndPicker()" aria-label="Abrir calendário"><i data-lucide="calendar-days"></i></button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Dias da semana -->
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:12px;">Dias da semana</label>
+                  <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;" id="precos-dow-btns">
+                    <button type="button" class="precos-dow-btn active" data-dow="all" onclick="togglePrecosDow('all')" title="Todos">Todos</button>
+                    <button type="button" class="precos-dow-btn active" data-dow="1" onclick="togglePrecosDow(1)" title="Segunda">Seg</button>
+                    <button type="button" class="precos-dow-btn active" data-dow="2" onclick="togglePrecosDow(2)" title="Terça">Ter</button>
+                    <button type="button" class="precos-dow-btn active" data-dow="3" onclick="togglePrecosDow(3)" title="Quarta">Qua</button>
+                    <button type="button" class="precos-dow-btn active" data-dow="4" onclick="togglePrecosDow(4)" title="Quinta">Qui</button>
+                    <button type="button" class="precos-dow-btn active" data-dow="5" onclick="togglePrecosDow(5)" title="Sexta">Sex</button>
+                    <button type="button" class="precos-dow-btn active" data-dow="6" onclick="togglePrecosDow(6)" title="Sábado">Sáb</button>
+                    <button type="button" class="precos-dow-btn active" data-dow="0" onclick="togglePrecosDow(0)" title="Domingo">Dom</button>
+                  </div>
+                </div>
+
+                <!-- Preço -->
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:12px;">Preço por noite (€) <span class="req-star">*</span></label>
+                  <input class="form-control" id="precos-bulk-price" type="number" min="0" step="0.01" placeholder="0.00" style="font-size:13px;">
+                </div>
+
+                <!-- Estadia mínima -->
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:12px;">Estadia mínima (noites)</label>
+                  <input class="form-control" id="precos-bulk-min-nights" type="number" min="1" value="2" style="font-size:13px;">
+                </div>
+
+                <!-- Botão guardar -->
+                <button class="btn btn-primary" id="precos-bulk-save-btn" onclick="savePrecosBulk()" style="width:100%;margin-top:2px;">
+                  <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
+                </button>
+                <button class="btn btn-ghost btn-sm" onclick="clearPrecosBulkForm()" style="width:100%;font-size:12px;color:var(--cinza);">Limpar</button>
+
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -1390,11 +1587,11 @@
           </div>
         </div>
 
-        <!-- Modal: Período de Preço -->
+        <!-- Modal: Editar Período (da lista) -->
         <div id="precos-period-modal-bg" class="modal-bg" style="display:none;" onclick="if(event.target===this)closePrecosPeriodModal()">
           <div class="modal" style="max-width:460px;" onclick="event.stopPropagation()">
             <div class="modal-header">
-              <h3 id="precos-period-modal-title" class="modal-title">Novo Período de Preço</h3>
+              <h3 id="precos-period-modal-title" class="modal-title">Editar Período de Preço</h3>
               <button class="modal-close" onclick="closePrecosPeriodModal()"><i data-lucide="x"></i></button>
             </div>
             <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
@@ -1413,9 +1610,15 @@
                   <input class="form-control" id="pp2-end" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10">
                 </div>
               </div>
-              <div class="form-group" style="margin:0;">
-                <label class="form-label">Preço por Noite (€) <span class="req-star">*</span></label>
-                <input class="form-control" id="pp2-price" type="number" min="0" step="0.01" placeholder="0.00">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">Preço / noite (€) <span class="req-star">*</span></label>
+                  <input class="form-control" id="pp2-price" type="number" min="0" step="0.01" placeholder="0.00">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">Estadia mínima (noites)</label>
+                  <input class="form-control" id="pp2-min-nights" type="number" min="1" placeholder="1">
+                </div>
               </div>
             </div>
             <div class="modal-footer">
@@ -1658,6 +1861,29 @@
               </div>
             </div>
 
+            <!-- Google Tasks -->
+            <div class="gcal-banner" style="margin-bottom:16px;">
+              <div class="gcal-icon">
+                <i data-lucide="check-square"></i>
+              </div>
+              <div class="gcal-text">
+                <h3>Google Tasks</h3>
+                <p>Sincroniza as tarefas operacionais (check-ins, limpezas, manutenções) com o Google Tasks da tua conta Google.</p>
+                <span id="gtasks-badge" class="gcal-status" style="margin-top:6px;display:inline-flex;"><span class="dot dot-red"></span> Desligado</span>
+              </div>
+              <div class="gcal-actions">
+                <button id="gtasks-connect-btn" class="btn btn-gcal-outline btn-sm" onclick="connectGoogleTasks()">
+                  <i data-lucide="link"></i> Ligar Google Tasks
+                </button>
+                <button id="gtasks-disconnect-btn" class="btn btn-ghost btn-sm" style="display:none;" onclick="disconnectGoogleTasks()">
+                  <i data-lucide="unlink"></i> Desligar
+                </button>
+                <button id="gtasks-sync-btn" class="btn btn-primary btn-sm" style="display:none;" onclick="syncGoogleTasks()">
+                  <i data-lucide="refresh-cw"></i> Sincronizar tarefas
+                </button>
+              </div>
+            </div>
+
             <div class="card">
               <div class="card-header">
                 <span class="card-title">
@@ -1689,6 +1915,21 @@
                   <input type="checkbox" id="gcal-sync-tasks-toggle" onchange="saveGcalSyncTasksSetting()">
                   <span class="toggle-slider"></span>
                 </label>
+              </div>
+
+              <!-- Google Tasks stats -->
+              <div id="gtasks-stats-row" style="border-top:1px solid var(--borda);margin-top:16px;padding-top:16px;display:none;">
+                <div style="font-weight:600;font-size:13px;margin-bottom:8px;"><i data-lucide="check-square" style="width:14px;height:14px;vertical-align:-2px;"></i> Google Tasks</div>
+                <div style="display:flex;gap:24px;">
+                  <div class="settings-stat">
+                    <strong id="gtasks-synced">—</strong>
+                    <span>Sincronizadas</span>
+                  </div>
+                  <div class="settings-stat">
+                    <strong id="gtasks-pending">—</strong>
+                    <span>Por sincronizar</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -2063,7 +2304,7 @@
           <label class="form-label">Tipo</label>
           <select class="form-control" id="evento-type" data-enhance-select data-app-select-class="app-select--modal">
             <option value="limpeza">Limpeza</option>
-            <option value="reuniao">Reunião</option>
+            <option value="reuniao">Compromisso</option>
             <option value="pequeno_almoco">Pequeno-almoço</option>
             <option value="checkin">Check-in</option>
             <option value="checkout">Check-out</option>
@@ -2179,6 +2420,7 @@
             <option value="impostos">Impostos</option>
             <option value="servicos">Serviços</option>
             <option value="consumiveis">Consumíveis</option>
+            <option value="supermercado">Supermercado</option>
             <option value="outro">Outro</option>
           </select>
         </div>
@@ -2198,6 +2440,10 @@
             <option value="mbway">MBWay</option>
             <option value="cartao">Cartão</option>
           </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nº Fatura</label>
+          <input class="form-control" id="despesa-invoice-ref" placeholder="ex: FT 2026/123">
         </div>
         <div class="form-group form-full">
           <label class="form-label">Notas</label>
@@ -2695,6 +2941,7 @@
 <script src="js/notifications.js"></script>
 <script src="js/vouchers.js"></script>
 <script src="js/precos.js"></script>
+<script src="js/invoice.js"></script>
 <script src="js/app.js"></script>
 
 </body>

@@ -4,6 +4,10 @@ const {
   getEmailOAuth2Client, saveEmailTokens, deleteEmailTokens,
   isEmailAuthenticated, getEmailConnectionInfo, GMAIL_SCOPES,
 } = require('../config/googleEmail');
+const {
+  getTasksOAuth2Client, saveTasksTokens, deleteTasksTokens,
+  isTasksAuthenticated, getTasksConnectionInfo, TASKS_SCOPES,
+} = require('../config/googleTasks');
 const { google } = require('googleapis');
 const { db } = require('../config/database');
 const requireAuth = require('../middleware/requireAuth');
@@ -531,6 +535,224 @@ router.post('/google-email/test', requireAuth, async (req, res) => {
     console.error('Gmail test error:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ── EMAIL: envio avulso (Invoice / Conversas) ──
+router.post('/email/send', requireAuth, async (req, res) => {
+  const { to, subject, html, to_name, reservation_id } = req.body || {};
+  if (!to || !subject || !html) {
+    return res.status(400).json({ success: false, error: 'to, subject e html são obrigatórios.' });
+  }
+  try {
+    const { sendMail } = require('../services/emailService');
+    await sendMail(req.user.organization_id, { to, subject, html });
+
+    const { randomUUID } = require('crypto');
+    db.prepare(`
+      INSERT INTO invoice_messages (id, organization_id, to_email, to_name, subject, body_html, reservation_id, sent_by_user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      randomUUID(),
+      req.user.organization_id,
+      to,
+      to_name || null,
+      subject,
+      html,
+      reservation_id || null,
+      req.user.id
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Erro ao enviar email avulso:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/email/inbox', requireAuth, async (req, res) => {
+  const { to_email, max = 30 } = req.query;
+  if (!to_email) return res.status(400).json({ success: false, error: 'to_email é obrigatório.' });
+
+  const { getAuthenticatedEmailClient, getEmailConnectionInfo } = require('../config/googleEmail');
+  const info = getEmailConnectionInfo(req.user.organization_id);
+  if (!info.connected) return res.json({ success: true, data: { messages: [], needs_reauth: false } });
+
+  try {
+    const auth = getAuthenticatedEmailClient(req.user.organization_id);
+    const gmail = google.gmail({ version: 'v1', auth });
+
+    /* Pesquisar mensagens to/from este email */
+    const q = `from:${to_email} OR to:${to_email}`;
+    const listRes = await gmail.users.messages.list({
+      userId: 'me',
+      q,
+      maxResults: Number(max) || 30,
+    });
+
+    const msgIds = listRes.data.messages || [];
+    if (!msgIds.length) return res.json({ success: true, data: { messages: [] } });
+
+    /* Buscar cada mensagem em paralelo (batch de 10 para não sobrecarregar) */
+    const fetchBatch = async (ids) => Promise.all(
+      ids.map(({ id }) =>
+        gmail.users.messages.get({ userId: 'me', id, format: 'full' })
+          .then(r => r.data)
+          .catch(() => null)
+      )
+    );
+
+    const batchSize = 10;
+    const rawMessages = [];
+    for (let i = 0; i < msgIds.length; i += batchSize) {
+      const batch = await fetchBatch(msgIds.slice(i, i + batchSize));
+      rawMessages.push(...batch.filter(Boolean));
+    }
+
+    const myEmail = (info.email || '').toLowerCase();
+
+    const messages = rawMessages.map(msg => {
+      const headers = {};
+      (msg.payload?.headers || []).forEach(h => { headers[h.name.toLowerCase()] = h.value; });
+
+      const from    = headers['from']    || '';
+      const to      = headers['to']      || '';
+      const subject = headers['subject'] || '(sem assunto)';
+      const dateStr = headers['date']    || '';
+      const date    = dateStr ? new Date(dateStr).toISOString() : new Date(msg.internalDate ? Number(msg.internalDate) : Date.now()).toISOString();
+
+      const fromEmail = (from.match(/<([^>]+)>/) || [])[1] || from;
+      const direction = fromEmail.toLowerCase() === myEmail ? 'sent' : 'received';
+
+      const body = extractBody(msg.payload);
+
+      return { id: msg.id, threadId: msg.threadId, from, to, subject, date, direction, body, snippet: msg.snippet || '' };
+    }).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    res.json({ success: true, data: { messages } });
+  } catch (err) {
+    const needs_reauth = err.message?.includes('insufficient') || err.code === 403;
+    console.error('Gmail inbox error:', err.message);
+    res.json({ success: true, data: { messages: [], needs_reauth, error: err.message } });
+  }
+});
+
+/* Extrai o body HTML ou texto de um payload MIME (recursivo) */
+function extractBody(payload) {
+  if (!payload) return '';
+
+  const decodeB64 = (data) => {
+    if (!data) return '';
+    try { return Buffer.from(data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8'); } catch { return ''; }
+  };
+
+  /* Preferir text/html, fallback text/plain */
+  if (payload.mimeType === 'text/html')  return decodeB64(payload.body?.data);
+  if (payload.mimeType === 'text/plain') return decodeB64(payload.body?.data).replace(/\n/g, '<br>');
+
+  if (payload.parts) {
+    let html = '', plain = '';
+    for (const part of payload.parts) {
+      const content = extractBody(part);
+      if (part.mimeType === 'text/html' || part.mimeType?.startsWith('multipart/')) html = html || content;
+      else if (part.mimeType === 'text/plain') plain = plain || content;
+    }
+    return html || plain;
+  }
+
+  return decodeB64(payload.body?.data);
+}
+
+router.get('/email/messages', requireAuth, (req, res) => {
+  const { to_email, reservation_id, limit = 200 } = req.query;
+  let query = `
+    SELECT m.*, u.name as sent_by_name
+    FROM invoice_messages m
+    LEFT JOIN users u ON u.id = m.sent_by_user_id
+    WHERE m.organization_id = ?
+  `;
+  const params = [req.user.organization_id];
+  if (to_email)       { query += ' AND m.to_email = ?';       params.push(to_email); }
+  if (reservation_id) { query += ' AND m.reservation_id = ?'; params.push(reservation_id); }
+  query += ` ORDER BY m.sent_at DESC LIMIT ${Math.min(Number(limit) || 200, 500)}`;
+  const messages = db.prepare(query).all(...params);
+  res.json({ success: true, data: { messages } });
+});
+
+// ── CONVERSATION ARCHIVES ──
+router.get('/email/archives', requireAuth, (req, res) => {
+  const rows = db.prepare('SELECT thread_key, key_type FROM conversation_archives WHERE organization_id = ?')
+    .all(req.user.organization_id);
+  res.json({ success: true, data: rows });
+});
+
+router.post('/email/archives', requireAuth, (req, res) => {
+  const { thread_key, key_type = 'reservation' } = req.body || {};
+  if (!thread_key) return res.status(400).json({ error: 'thread_key obrigatório' });
+  const { randomUUID } = require('crypto');
+  db.prepare(`INSERT OR REPLACE INTO conversation_archives (id, organization_id, thread_key, key_type)
+    VALUES (?, ?, ?, ?)`).run(randomUUID(), req.user.organization_id, thread_key, key_type);
+  res.json({ success: true });
+});
+
+router.delete('/email/archives/:thread_key', requireAuth, (req, res) => {
+  db.prepare('DELETE FROM conversation_archives WHERE organization_id = ? AND thread_key = ?')
+    .run(req.user.organization_id, req.params.thread_key);
+  res.json({ success: true });
+});
+
+// ── GOOGLE TASKS OAUTH ──
+router.get('/google-tasks', requireAuth, (req, res) => {
+  if (!process.env.GOOGLE_TASKS_REDIRECT_URI) {
+    return res.status(500).send('GOOGLE_TASKS_REDIRECT_URI não configurado no .env');
+  }
+  const oAuth2Client = getTasksOAuth2Client();
+  const authUrl = oAuth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: TASKS_SCOPES,
+    prompt: 'consent',
+  });
+  res.redirect(authUrl);
+});
+
+router.get('/google-tasks/callback', requireAuth, async (req, res) => {
+  const { code } = req.query;
+  if (!code) return res.status(400).send('Código de autorização em falta.');
+  try {
+    const oAuth2Client = getTasksOAuth2Client();
+    const { tokens } = await oAuth2Client.getToken(code);
+    oAuth2Client.setCredentials(tokens);
+
+    let email = null;
+    try {
+      const oauth2 = google.oauth2({ version: 'v2', auth: oAuth2Client });
+      const { data } = await oauth2.userinfo.get();
+      email = data.email;
+    } catch { /* não crítico */ }
+
+    saveTasksTokens(req.user.organization_id, tokens, email);
+    console.log(`✅ Google Tasks ligado: ${email}`);
+    res.send(`
+      <html><body style="font-family:sans-serif;text-align:center;padding:50px;">
+        <h1>✅ Google Tasks ligado!</h1>
+        <p>${email ? `Conta: <strong>${email}</strong>` : ''}</p>
+        <p>Podes fechar esta janela e voltar ao dashboard.</p>
+        <script>setTimeout(() => window.close(), 3000);</script>
+      </body></html>
+    `);
+  } catch (err) {
+    console.error('Erro no OAuth Tasks:', err);
+    res.status(500).send('Erro ao autenticar com o Google Tasks: ' + err.message);
+  }
+});
+
+router.get('/google-tasks/status', requireAuth, (req, res) => {
+  const info = getTasksConnectionInfo(req.user.organization_id);
+  res.json({ success: true, data: info });
+});
+
+router.delete('/google-tasks', requireAuth, (req, res) => {
+  deleteTasksTokens(req.user.organization_id);
+  res.json({ success: true, message: 'Google Tasks desligado' });
 });
 
 module.exports = router;

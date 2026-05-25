@@ -275,8 +275,11 @@ function initDatabase() {
   migrateOperationalEvents();
   migrateGoogleCalendarConnections();
   migrateGoogleEmailConnections();
+  migrateInvoiceMessages();
+  migrateGoogleTasksConnections();
   migrateVouchers();
   migratePricingPeriods();
+  migrateConversationArchives();
   migrateLegacyDataToOrganizations();
 
   console.log('✅ Base de dados inicializada');
@@ -474,6 +477,7 @@ function migrateGuests() {
     ['first_name',    'TEXT'],
     ['last_name',     'TEXT'],
     ['email_personal','TEXT'],
+    ['email_canal',   'TEXT'],
     ['birth_date',    'TEXT'],
     ['nif',           'TEXT'],
     ['country',       'TEXT'],
@@ -485,6 +489,10 @@ function migrateGuests() {
     ['is_unwanted',              'INTEGER DEFAULT 0'],
     ['birth_city',               'TEXT'],
     ['document_issuer_country',  'TEXT'],
+    ['nationality',              'TEXT'],
+    ['id_type',                  'TEXT'],
+    ['document_type',            'TEXT'],
+    ['document_number',          'TEXT'],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {
@@ -535,11 +543,17 @@ function migrateAccommodations() {
     ['child_age_limit',      "INTEGER DEFAULT 12"],
     ['child_price',          "REAL DEFAULT 0"],
     ['public_slug',          'TEXT'],
+    ['min_nights',           'INTEGER DEFAULT 1'],
+    ['rgpd_text',            'TEXT'],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {
       db.exec(`ALTER TABLE accommodations ADD COLUMN ${col} ${type}`);
     }
+  }
+  // Set existing accommodations (added before min_nights existed) to 2 nights minimum
+  if (!existing.includes('min_nights')) {
+    db.exec(`UPDATE accommodations SET min_nights = 2`);
   }
   // Settings table migration
   try {
@@ -639,6 +653,8 @@ function migrateExpenses() {
       created_at TEXT DEFAULT (datetime('now'))
     )
   `);
+  const cols = db.pragma('table_info(expenses)').map(c => c.name);
+  if (!cols.includes('invoice_ref')) db.exec('ALTER TABLE expenses ADD COLUMN invoice_ref TEXT');
 }
 
 function migrateOperationalEvents() {
@@ -734,6 +750,42 @@ function migrateGoogleEmailConnections() {
   `);
 }
 
+function migrateInvoiceMessages() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS invoice_messages (
+      id              TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      to_email        TEXT NOT NULL,
+      to_name         TEXT,
+      subject         TEXT NOT NULL,
+      body_html       TEXT NOT NULL,
+      reservation_id  TEXT,
+      sent_by_user_id TEXT,
+      sent_at         TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+      FOREIGN KEY (reservation_id) REFERENCES reservations(id) ON DELETE SET NULL
+    )
+  `);
+}
+
+function migrateGoogleTasksConnections() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS google_tasks_connections (
+      organization_id TEXT NOT NULL PRIMARY KEY,
+      email           TEXT,
+      tokens          TEXT NOT NULL,
+      tasks_list_id   TEXT,
+      created_at      TEXT DEFAULT (datetime('now')),
+      updated_at      TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
+  const existing = db.pragma('table_info(operational_events)').map(c => c.name);
+  if (!existing.includes('google_task_id')) {
+    db.exec('ALTER TABLE operational_events ADD COLUMN google_task_id TEXT');
+  }
+}
+
 function migratePricingPeriods() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS pricing_periods (
@@ -749,6 +801,19 @@ function migratePricingPeriods() {
       updated_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
       FOREIGN KEY (accommodation_id) REFERENCES accommodations(id) ON DELETE CASCADE
+    )
+  `);
+}
+
+function migrateConversationArchives() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS conversation_archives (
+      id              TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      thread_key      TEXT NOT NULL,
+      key_type        TEXT NOT NULL DEFAULT 'reservation',
+      archived_at     TEXT DEFAULT (datetime('now')),
+      UNIQUE (organization_id, thread_key)
     )
   `);
 }

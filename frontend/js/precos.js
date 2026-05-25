@@ -22,6 +22,7 @@ function initPrecos() {
   populatePrecosAlojSelector();
 
   _updatePrecosBase();
+  updatePrecosSidePanel();
 
   if (_precosAlojId) {
     loadPrecosPeriods();
@@ -72,6 +73,11 @@ async function onPrecosAlojChange() {
   _rangeEnd   = null;
   _hoverDay   = null;
   _updatePrecosBase();
+  // Clear bulk form fields when switching accommodation
+  ['precos-bulk-name','precos-bulk-start','precos-bulk-end','precos-bulk-price','precos-bulk-min-nights']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  _initPrecosDow();
+  updatePrecosSidePanel();
   if (_precosAlojId) {
     await loadPrecosPeriods();
   } else {
@@ -296,6 +302,11 @@ function handlePrecosDayClick(iso) {
     _rangeStart = iso;
     _rangeEnd   = null;
     _hoverDay   = null;
+    // Fill start date input immediately
+    const startEl = document.getElementById('precos-bulk-start');
+    if (startEl) startEl.value = _isoToPt(iso);
+    const endEl = document.getElementById('precos-bulk-end');
+    if (endEl) endEl.value = '';
     renderPrecosCalendar();
     return;
   }
@@ -306,15 +317,16 @@ function handlePrecosDayClick(iso) {
   _rangeStart = start;
   _rangeEnd   = end;
   _hoverDay   = null;
+  // Fill both date inputs
+  const startEl = document.getElementById('precos-bulk-start');
+  const endEl   = document.getElementById('precos-bulk-end');
+  if (startEl) startEl.value = _isoToPt(start);
+  if (endEl)   endEl.value   = _isoToPt(end);
   renderPrecosCalendar();
-  openPrecosPeriodModal(null, start, end);
 }
 
 function cancelPrecosSelection() {
-  _rangeStart = null;
-  _rangeEnd   = null;
-  _hoverDay   = null;
-  renderPrecosCalendar();
+  clearPrecosBulkForm();
 }
 
 // ── LISTA DE PERÍODOS ──
@@ -340,6 +352,7 @@ function renderPrecosPeriods() {
         <th style="text-align:left;padding:8px 10px;font-weight:600;color:var(--cinza);text-transform:uppercase;font-size:11px;letter-spacing:.4px;">Início</th>
         <th style="text-align:left;padding:8px 10px;font-weight:600;color:var(--cinza);text-transform:uppercase;font-size:11px;letter-spacing:.4px;">Fim</th>
         <th style="text-align:right;padding:8px 10px;font-weight:600;color:var(--cinza);text-transform:uppercase;font-size:11px;letter-spacing:.4px;">€/noite</th>
+        <th style="text-align:right;padding:8px 10px;font-weight:600;color:var(--cinza);text-transform:uppercase;font-size:11px;letter-spacing:.4px;">Min.</th>
         <th style="width:80px;"></th>
       </tr>
     </thead>
@@ -357,6 +370,7 @@ function renderPrecosPeriods() {
           <td style="padding:10px;color:var(--cinza);">${_fmtDisplay(p.start_date)}</td>
           <td style="padding:10px;color:var(--cinza);">${_fmtDisplay(p.end_date)}</td>
           <td style="padding:10px;text-align:right;font-weight:700;color:${dot};">€${price % 1 === 0 ? price : price.toFixed(2)}</td>
+          <td style="padding:10px;text-align:right;color:var(--cinza);font-size:12px;">${p.min_nights ?? 1}n</td>
           <td style="padding:10px;text-align:right;white-space:nowrap;">
             <button class="btn btn-ghost btn-sm" style="padding:4px 8px;" onclick="openPrecosPeriodModal('${p.id}')" title="Editar">${lcIcon('pencil',13)}</button>
             <button class="btn btn-ghost btn-sm" style="padding:4px 8px;color:var(--vermelho);" onclick="deletePrecosPeriod('${p.id}')" title="Eliminar">${lcIcon('trash-2',13)}</button>
@@ -366,6 +380,186 @@ function renderPrecosPeriods() {
     </tbody>
   </table>`;
   if (window.lucide) lucide.createIcons();
+}
+
+// ── SIDE PANEL ──
+function updatePrecosSidePanel() {
+  const emptyEl = document.getElementById('precos-side-panel-empty');
+  const formEl  = document.getElementById('precos-side-panel-form');
+  if (!emptyEl || !formEl) return;
+
+  if (!_precosAlojId) {
+    emptyEl.style.display = '';
+    formEl.style.display  = 'none';
+    return;
+  }
+
+  // Accommodation selected — always show form
+  emptyEl.style.display      = 'none';
+  formEl.style.display       = 'flex';
+  formEl.style.flexDirection = 'column';
+  formEl.style.gap           = '12px';
+
+  // Attach change listeners once (no-op if already attached)
+  _attachPrecosBulkDateListeners();
+
+  // Pre-fill dates from calendar selection if available
+  const startEl = document.getElementById('precos-bulk-start');
+  const endEl   = document.getElementById('precos-bulk-end');
+  if (_rangeStart && startEl) startEl.value = _isoToPt(_rangeStart);
+  if (_rangeEnd   && endEl)   endEl.value   = _isoToPt(_rangeEnd);
+
+  // Pre-fill price from base if empty
+  const priceEl = document.getElementById('precos-bulk-price');
+  if (priceEl && !priceEl.value && _precosBase > 0) priceEl.value = _precosBase.toFixed(2);
+
+  // Pre-fill min nights from accommodation default
+  const acc = (typeof accommodations !== 'undefined') ? accommodations.find(a => a.id === _precosAlojId) : null;
+  const minEl = document.getElementById('precos-bulk-min-nights');
+  if (minEl && !minEl.value) minEl.value = acc?.min_nights ?? 2;
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function _attachPrecosBulkDateListeners() {
+  const startEl = document.getElementById('precos-bulk-start');
+  const endEl   = document.getElementById('precos-bulk-end');
+  if (startEl && !startEl.dataset.precosListener) {
+    startEl.dataset.precosListener = '1';
+    startEl.addEventListener('change', () => {
+      const iso = _ptToIso(startEl.value);
+      _rangeStart = iso || null;
+      _rangeEnd   = null;
+      if (endEl) endEl.value = '';
+      renderPrecosCalendar();
+    });
+  }
+  if (endEl && !endEl.dataset.precosListener) {
+    endEl.dataset.precosListener = '1';
+    endEl.addEventListener('change', () => {
+      const iso = _ptToIso(endEl.value);
+      _rangeEnd = iso || null;
+      renderPrecosCalendar();
+    });
+  }
+}
+
+function openPrecosBulkStartPicker() {
+  const el = document.getElementById('precos-bulk-start');
+  if (!el || !window.AppDatePicker) return;
+  AppDatePicker.open(el, {});
+}
+
+function openPrecosBulkEndPicker() {
+  const el = document.getElementById('precos-bulk-end');
+  if (!el || !window.AppDatePicker) return;
+  AppDatePicker.open(el, { minDate: _rangeStart || undefined });
+}
+
+// When user types dates manually, sync _rangeStart/_rangeEnd for calendar highlight
+function onPrecosBulkDateInput() {
+  const startRaw = document.getElementById('precos-bulk-start')?.value.trim();
+  const endRaw   = document.getElementById('precos-bulk-end')?.value.trim();
+  const s = _ptToIso(startRaw);
+  const e = _ptToIso(endRaw);
+  _rangeStart = s || null;
+  _rangeEnd   = (e && s && e > s) ? e : null;
+  renderPrecosCalendar();
+}
+
+function clearPrecosBulkForm() {
+  _rangeStart = null;
+  _rangeEnd   = null;
+  _hoverDay   = null;
+  ['precos-bulk-name','precos-bulk-start','precos-bulk-end','precos-bulk-price'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const acc = (typeof accommodations !== 'undefined') ? accommodations.find(a => a.id === _precosAlojId) : null;
+  const minEl = document.getElementById('precos-bulk-min-nights');
+  if (minEl) minEl.value = acc?.min_nights ?? 2;
+  _initPrecosDow();
+  renderPrecosCalendar();
+}
+
+let _precosDowState = new Set([0,1,2,3,4,5,6]); // all selected by default
+
+function _initPrecosDow() {
+  _precosDowState = new Set([0,1,2,3,4,5,6]);
+  _renderPrecosDow();
+}
+
+function _renderPrecosDow() {
+  const allSelected = _precosDowState.size === 7;
+  document.querySelectorAll('#precos-dow-btns .precos-dow-btn').forEach(btn => {
+    const dow = btn.dataset.dow;
+    if (dow === 'all') {
+      btn.classList.toggle('active', allSelected);
+    } else {
+      btn.classList.toggle('active', _precosDowState.has(Number(dow)));
+    }
+  });
+}
+
+function togglePrecosDow(dow) {
+  if (dow === 'all') {
+    if (_precosDowState.size === 7) {
+      // deselect all
+      _precosDowState.clear();
+    } else {
+      // select all
+      [0,1,2,3,4,5,6].forEach(d => _precosDowState.add(d));
+    }
+  } else {
+    const d = Number(dow);
+    if (_precosDowState.has(d)) {
+      _precosDowState.delete(d);
+    } else {
+      _precosDowState.add(d);
+    }
+  }
+  _renderPrecosDow();
+}
+
+async function savePrecosBulk() {
+  const name  = document.getElementById('precos-bulk-name')?.value.trim();
+  const price = parseFloat(document.getElementById('precos-bulk-price')?.value);
+  const minN  = parseInt(document.getElementById('precos-bulk-min-nights')?.value) || 2;
+  const start = _rangeStart;
+  const end   = _rangeEnd;
+
+  if (!name)  { toast('Introduz um nome para o período.', 'error'); return; }
+  if (!start) { toast('Seleciona a data de início.', 'error'); return; }
+  if (!end)   { toast('Seleciona a data de fim.', 'error'); return; }
+  if (start >= end) { toast('A data de início deve ser anterior à data de fim.', 'error'); return; }
+  if (isNaN(price) || price < 0) { toast('Introduz um preço válido.', 'error'); return; }
+  if (_precosDowState.size === 0) { toast('Seleciona pelo menos um dia da semana.', 'error'); return; }
+
+  const days_of_week = _precosDowState.size === 7 ? [] : [..._precosDowState];
+
+  const btn = document.getElementById('precos-bulk-save-btn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await apiPost(`/api/accommodations/${_precosAlojId}/pricing-periods/bulk`, {
+      name,
+      start_date: start,
+      end_date: end,
+      price_per_night: price,
+      min_nights: minN,
+      days_of_week
+    });
+    if (res.success) {
+      const count = res.count || res.data?.length || 0;
+      toast(`✅ ${count === 1 ? 'Período criado' : `${count} períodos criados`}!`, 'success');
+      clearPrecosBulkForm();
+      await loadPrecosPeriods();
+    } else {
+      toast('❌ ' + (res.error || 'Erro ao guardar.'), 'error');
+    }
+  } catch (e) {
+    toast('❌ Erro de ligação ao servidor.', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ── MODAL DE PERÍODO ──
@@ -384,6 +578,8 @@ function openPrecosPeriodModal(id, prefillStart, prefillEnd) {
     document.getElementById('pp2-start').value = _isoToPt(p.start_date);
     document.getElementById('pp2-end').value   = _isoToPt(p.end_date);
     document.getElementById('pp2-price').value = Number(p.price_per_night).toFixed(2);
+    const mnEl = document.getElementById('pp2-min-nights');
+    if (mnEl) mnEl.value = p.min_nights ?? 1;
   } else {
     if (titleEl) titleEl.textContent = 'Novo Período de Preço';
     if (editEl)  editEl.value = '';
@@ -391,6 +587,11 @@ function openPrecosPeriodModal(id, prefillStart, prefillEnd) {
     document.getElementById('pp2-start').value = prefillStart ? _isoToPt(prefillStart) : '';
     document.getElementById('pp2-end').value   = prefillEnd   ? _isoToPt(prefillEnd)   : '';
     document.getElementById('pp2-price').value = _precosBase > 0 ? _precosBase.toFixed(2) : '';
+    const mnEl = document.getElementById('pp2-min-nights');
+    if (mnEl) {
+      const acc = (typeof accommodations !== 'undefined') ? accommodations.find(a => a.id === _precosAlojId) : null;
+      mnEl.value = acc?.min_nights ?? 2;
+    }
   }
 
   modal.style.display = 'flex';
@@ -409,6 +610,7 @@ async function savePrecosPeriod() {
   const startRaw  = document.getElementById('pp2-start').value.trim();
   const endRaw    = document.getElementById('pp2-end').value.trim();
   const price     = parseFloat(document.getElementById('pp2-price').value);
+  const minN      = parseInt(document.getElementById('pp2-min-nights')?.value) || 1;
 
   if (!name)  { toast('Introduz um nome para o período.', 'error'); return; }
   const start = _ptToIso(startRaw);
@@ -421,7 +623,7 @@ async function savePrecosPeriod() {
   const btn = document.getElementById('btn-save-precos-period');
   if (btn) btn.disabled = true;
   try {
-    const body = { name, start_date: start, end_date: end, price_per_night: price };
+    const body = { name, start_date: start, end_date: end, price_per_night: price, min_nights: minN };
     const res  = editingId
       ? await apiPut(`/api/accommodations/${_precosAlojId}/pricing-periods/${editingId}`, body)
       : await apiPost(`/api/accommodations/${_precosAlojId}/pricing-periods`, body);

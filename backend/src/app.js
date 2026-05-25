@@ -19,6 +19,7 @@ const reportRoutes = require('./routes/reports');
 const publicBookingRoutes = require('./routes/publicBooking');
 const eventRoutes = require('./routes/events');
 const voucherRoutes = require('./routes/vouchers');
+const googleTasksRoutes = require('./routes/googleTasks');
 
 const app = express();
 
@@ -74,6 +75,7 @@ app.use('/api/team', teamRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/vouchers', voucherRoutes);
+app.use('/api/tasks', googleTasksRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

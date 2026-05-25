@@ -101,59 +101,18 @@
               </div>
               <div class="field-grid two">
                 <label>
-                  <span>País de residência *</span>
+                  <span>Nacionalidade *</span>
                   <div class="country-search">
                     <input id="pb-country" class="country-input" required placeholder="Portugal" autocomplete="off">
                     <div id="pb-country-dropdown" class="country-dropdown" style="display: none;"></div>
                   </div>
                 </label>
                 <label>
-                  <span>Data de nascimento *</span>
-                  <input id="pb-birth" class="birth-input" type="text" inputmode="numeric" required placeholder="dd-mm-aaaa" maxlength="10">
+                  <span>Data de nascimento</span>
+                  <input id="pb-birth" class="birth-input" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10">
                   <small class="rate-hint" id="pb-main-rate"></small>
                 </label>
               </div>
-              <div class="field-grid two">
-                <label>
-                  <span>Local de nascimento</span>
-                  <input id="pb-birth-city" placeholder="Cidade de nascimento">
-                </label>
-                <label>
-                  <span id="pb-nif-label">NIF</span>
-                  <input id="pb-nif" placeholder="Número ou passaporte">
-                </label>
-              </div>
-              <div class="field-grid two">
-                <label>
-                  <span id="pb-id-type-label">Tipo de documento</span>
-                  <div class="doc-type-wrap" style="position: relative;">
-                    <button type="button" class="doc-type-btn" id="pb-id-type-btn">Selecionar</button>
-                    <input type="hidden" id="pb-id-type" value="">
-                    <div id="pb-id-type-dropdown" class="doc-type-dropdown" style="display: none;"></div>
-                  </div>
-                </label>
-                <label>
-                  <span>País emissor do documento</span>
-                  <div class="country-search">
-                    <input id="pb-id-country" class="country-input" placeholder="País" autocomplete="off">
-                    <div id="pb-id-country-dropdown" class="country-dropdown" style="display: none;"></div>
-                  </div>
-                </label>
-              </div>
-              <div class="field-grid two">
-                <label>
-                  <span>Morada</span>
-                  <input id="pb-address" placeholder="Rua, número e complementos">
-                </label>
-                <label>
-                  <span>Código postal</span>
-                  <input id="pb-postal" placeholder="1000-000">
-                </label>
-              </div>
-              <label>
-                <span>Cidade</span>
-                <input id="pb-city" placeholder="Lisboa">
-              </label>
               <div id="extra-guests"></div>
             </section>
 
@@ -163,16 +122,13 @@
                 <h2>Últimos detalhes</h2>
               </div>
               <label>
-                <span>Hora prevista de chegada</span>
-                <input id="pb-arrival" type="time">
+                <span>Pedidos especiais ou notas para o alojamento</span>
+                <textarea id="pb-notes" rows="7" placeholder="Algum pedido especial? (quarto no piso térreo, berço, dieta, chegada tardia...)"></textarea>
               </label>
-              <label>
-                <span>Notas ou pedidos especiais</span>
-                <textarea id="pb-notes" rows="4" placeholder="Algum pedido especial?"></textarea>
-              </label>
+              <div id="rgpd-text-box" style="background:rgba(132,52,36,.04);border:1px solid rgba(132,52,36,.15);border-radius:12px;padding:14px 16px;font-size:12.5px;line-height:1.6;color:var(--muted);margin-bottom:12px;display:none;max-height:180px;overflow-y:auto;"></div>
               <label class="rgpd-check">
                 <input id="pb-rgpd" type="checkbox">
-                <span>Autorizo o tratamento dos meus dados para gestão da reserva e comunicações relacionadas com a estadia.</span>
+                <span>Li e aceito a política de proteção de dados.</span>
               </label>
               <div class="success-box" id="success-box"></div>
             </section>
@@ -212,6 +168,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="/js/domain/dates.js"></script>
   <script src="/js/domain/pricing.js"></script>
+  <script src="/js/domain/date-picker.js"></script>
   <script src="/js/ui.js"></script>
   <script src="/js/public-reservation.js"></script>
 </body>

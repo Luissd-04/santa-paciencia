@@ -198,7 +198,8 @@ function update(req, res) {
     social_facebook, social_instagram, social_website, parent_id,
     base_guests_included, extra_bed_enabled, extra_bed_type,
     extra_bed_capacity, extra_bed_price, extra_bed_charge_type,
-    extra_occupancy_options, baby_age_limit, baby_price, child_age_limit, child_price
+    extra_occupancy_options, baby_age_limit, baby_price, child_age_limit, child_price,
+    min_nights, rgpd_text
   } = req.body;
 
   // Resolve effective parent_id (explicit set, keep existing, or null to unlink)
@@ -277,7 +278,9 @@ function update(req, res) {
     baby_age_limit = ?,
     baby_price = ?,
     child_age_limit = ?,
-    child_price = ?
+    child_price = ?,
+    min_nights = COALESCE(?, min_nights),
+    rgpd_text = COALESCE(?, rgpd_text)
     WHERE id = ? AND organization_id = ?`)
     .run(
       name, type, price_per_night, max_guests, license_number,
@@ -311,6 +314,8 @@ function update(req, res) {
       Number(baby_price ?? existing.baby_price ?? 0) || 0,
       nextChildAgeLimit,
       Number(child_price ?? existing.child_price ?? 0) || 0,
+      min_nights !== undefined ? (Number(min_nights) || 1) : null,
+      rgpd_text !== undefined ? (rgpd_text || null) : null,
       id,
       req.user.organization_id
     );
@@ -583,4 +588,69 @@ function deletePricingPeriod(req, res) {
   res.json({ success: true });
 }
 
-module.exports = { getAll, getById, create, update, remove, uploadCover, removeCover, uploadImages, deleteImage, patchImages, getSettings, saveSettings, getPricingPeriods, createPricingPeriod, updatePricingPeriod, deletePricingPeriod };
+function bulkCreatePricingPeriods(req, res) {
+  const { id } = req.params;
+  const acc = db.prepare('SELECT id FROM accommodations WHERE id = ? AND organization_id = ?').get(id, req.user.organization_id);
+  if (!acc) return res.status(404).json({ error: 'Alojamento não encontrado' });
+
+  const { name, start_date, end_date, price_per_night, min_nights, days_of_week } = req.body;
+  if (!name || !start_date || !end_date || price_per_night == null) {
+    return res.status(400).json({ error: 'Nome, datas e preço são obrigatórios' });
+  }
+  if (start_date >= end_date) return res.status(400).json({ error: 'A data de fim deve ser posterior à data de início' });
+
+  // days_of_week: array of integers 0-6 (0=Sun). Empty/missing = all days.
+  const dowFilter = Array.isArray(days_of_week) && days_of_week.length > 0
+    ? new Set(days_of_week.map(Number))
+    : null; // null = all days
+
+  // Build list of matching ISO dates
+  const matchingDates = [];
+  const cur = new Date(start_date + 'T00:00:00Z');
+  const endD = new Date(end_date + 'T00:00:00Z');
+  while (cur < endD) {
+    if (!dowFilter || dowFilter.has(cur.getUTCDay())) {
+      matchingDates.push(cur.toISOString().slice(0, 10));
+    }
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+
+  if (matchingDates.length === 0) return res.json({ success: true, data: [] });
+
+  // Group into consecutive runs
+  const runs = [];
+  let runStart = matchingDates[0];
+  let runEnd = matchingDates[0];
+  for (let i = 1; i < matchingDates.length; i++) {
+    const prev = new Date(matchingDates[i - 1] + 'T00:00:00Z');
+    const curr = new Date(matchingDates[i] + 'T00:00:00Z');
+    const diff = (curr - prev) / 86400000;
+    if (diff === 1) {
+      runEnd = matchingDates[i];
+    } else {
+      runs.push({ start: runStart, end: runEnd });
+      runStart = matchingDates[i];
+      runEnd = matchingDates[i];
+    }
+  }
+  runs.push({ start: runStart, end: runEnd });
+
+  // Insert each run as a pricing period; end date is run end + 1 day
+  const insert = db.prepare(`
+    INSERT INTO pricing_periods (id, organization_id, accommodation_id, name, start_date, end_date, price_per_night, min_nights)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const created = [];
+  for (const run of runs) {
+    const runEndExclusive = new Date(run.end + 'T00:00:00Z');
+    runEndExclusive.setUTCDate(runEndExclusive.getUTCDate() + 1);
+    const periodEnd = runEndExclusive.toISOString().slice(0, 10);
+    const periodId = uuidv4().slice(0, 8);
+    insert.run(periodId, req.user.organization_id, id, name, run.start, periodEnd, Number(price_per_night), Number(min_nights) || 1);
+    created.push(db.prepare('SELECT * FROM pricing_periods WHERE id = ?').get(periodId));
+  }
+
+  res.status(201).json({ success: true, data: created, count: created.length });
+}
+
+module.exports = { getAll, getById, create, update, remove, uploadCover, removeCover, uploadImages, deleteImage, patchImages, getSettings, saveSettings, getPricingPeriods, createPricingPeriod, updatePricingPeriod, deletePricingPeriod, bulkCreatePricingPeriods };

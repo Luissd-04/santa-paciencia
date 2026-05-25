@@ -49,6 +49,12 @@ async function apiDelete(path, config) {
   return apiRequest(path, { method: 'DELETE' }, config);
 }
 
+// Returns the email only if it's a real one (not an internal placeholder)
+function realEmail(e) {
+  if (!e) return null;
+  return e.includes('@reserva.local') ? null : e;
+}
+
 // ── FORMAT ──
 function formatDate(s) {
   return window.ReservationDates?.formatShortPtDate(s) || '—';
