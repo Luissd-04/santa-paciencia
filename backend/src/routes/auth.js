@@ -429,8 +429,9 @@ router.get('/google-email/callback', requireAuth, async (req, res) => {
       </body></html>
     `);
   } catch (err) {
-    console.error('Erro no OAuth Gmail:', err);
-    res.status(500).send('Erro ao autenticar com o Gmail: ' + err.message);
+    const detail = err.response?.data || err.message;
+    console.error('Erro no OAuth Gmail:', JSON.stringify(detail));
+    res.status(500).send('Erro ao autenticar com o Gmail: ' + JSON.stringify(detail));
   }
 });
 
