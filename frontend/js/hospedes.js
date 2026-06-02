@@ -301,21 +301,21 @@ function renderHospedesList() {
         <div style="display:flex;align-items:center;gap:10px;">
           ${flagImg(g, 32)}
           <div>
-            <b>${g.name}</b>
+            <b>${escapeHtml(g.name)}</b>
             <div style="display:inline-flex;gap:4px;margin-left:6px;">${guestTagsHtml(g)}</div>
           </div>
         </div>
       </td>
-      <td style="font-size:12.5px;color:var(--cinza);">${realEmail(g.email) || g.email_personal || '—'}</td>
-      <td style="font-size:12.5px;">${g.phone || '—'}</td>
-      <td style="font-size:12.5px;">${g.country || g.nationality || '—'}</td>
+      <td style="font-size:12.5px;color:var(--cinza);">${escapeHtml(realEmail(g.email) || g.email_personal || '—')}</td>
+      <td style="font-size:12.5px;">${escapeHtml(g.phone || '—')}</td>
+      <td style="font-size:12.5px;">${escapeHtml(g.country || g.nationality || '—')}</td>
       <td style="text-align:center;"><b>${g.reservation_count || 0}</b></td>
       <td style="font-size:12.5px;">${g.last_check_in ? formatDate(g.last_check_in) : '—'}</td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap;">
         <button class="btn btn-ghost btn-sm" onclick="openGuestEdit('${g.id}')" title="Editar">
           ${lcIcon('pencil', 13)}
         </button>
-        <button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho)" onclick="deleteGuest('${g.id}','${g.name.replace(/'/g, "\\'")}')" title="Remover">
+        <button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho)" onclick="deleteGuest('${escapeHtml(g.id)}','${escapeHtml(g.name)}')" title="Remover">
           ${lcIcon('trash-2', 13)}
         </button>
       </td>
@@ -332,24 +332,24 @@ async function showHospedeDetail(id) {
     const reservations = g.reservations || [];
 
     document.getElementById('detail-title').innerHTML = `
-      <span style="display:inline-flex;align-items:center;gap:8px;">${g.name}${guestTagsHtml(g)}</span>
+      <span style="display:inline-flex;align-items:center;gap:8px;">${escapeHtml(g.name)}${guestTagsHtml(g)}</span>
     `;
     document.getElementById('detail-body').innerHTML = `
       <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;">
         ${flagImg(g, 80)}
         <div>
-          <div style="font-size:20px;font-weight:700;color:var(--azul);font-family:'Playfair Display',serif;">${g.name}</div>
-          ${(g.country || g.nationality) ? `<div style="font-size:13px;color:var(--cinza);margin-top:4px;display:flex;align-items:center;gap:4px;">${lcIcon('map-pin', 12)} ${g.country || g.nationality}</div>` : ''}
+          <div style="font-size:20px;font-weight:700;color:var(--azul);font-family:'Playfair Display',serif;">${escapeHtml(g.name)}</div>
+          ${(g.country || g.nationality) ? `<div style="font-size:13px;color:var(--cinza);margin-top:4px;display:flex;align-items:center;gap:4px;">${lcIcon('map-pin', 12)} ${escapeHtml(g.country || g.nationality)}</div>` : ''}
         </div>
       </div>
       <div class="detail-grid">
-        ${realEmail(g.email) ? `<div class="detail-row"><div class="detail-label">Email (canal)</div><div class="detail-val">${realEmail(g.email)}</div></div>` : ''}
-        ${g.email_personal ? `<div class="detail-row"><div class="detail-label">Email (pessoal)</div><div class="detail-val">${g.email_personal}</div></div>` : ''}
-        ${g.phone ? `<div class="detail-row"><div class="detail-label">Telefone</div><div class="detail-val">${g.phone}</div></div>` : ''}
+        ${realEmail(g.email) ? `<div class="detail-row"><div class="detail-label">Email (canal)</div><div class="detail-val">${escapeHtml(realEmail(g.email))}</div></div>` : ''}
+        ${g.email_personal ? `<div class="detail-row"><div class="detail-label">Email (pessoal)</div><div class="detail-val">${escapeHtml(g.email_personal)}</div></div>` : ''}
+        ${g.phone ? `<div class="detail-row"><div class="detail-label">Telefone</div><div class="detail-val">${escapeHtml(g.phone)}</div></div>` : ''}
         ${g.birth_date ? `<div class="detail-row"><div class="detail-label">Nascimento</div><div class="detail-val">${formatDate(g.birth_date)}</div></div>` : ''}
-        ${g.nif ? `<div class="detail-row"><div class="detail-label">NIF</div><div class="detail-val">${g.nif}</div></div>` : ''}
-        ${g.document_type ? `<div class="detail-row"><div class="detail-label">Documento</div><div class="detail-val">${g.document_type.toUpperCase()}${g.document_number ? ' · ' + g.document_number : ''}</div></div>` : ''}
-        ${g.address ? `<div class="detail-row"><div class="detail-label">Morada</div><div class="detail-val">${g.address}${g.postal_code ? ', ' + g.postal_code : ''}${g.city ? ' ' + g.city : ''}</div></div>` : ''}
+        ${g.nif ? `<div class="detail-row"><div class="detail-label">NIF</div><div class="detail-val">${escapeHtml(g.nif)}</div></div>` : ''}
+        ${g.document_type ? `<div class="detail-row"><div class="detail-label">Documento</div><div class="detail-val">${escapeHtml(g.document_type.toUpperCase())}${g.document_number ? ' · ' + escapeHtml(g.document_number) : ''}</div></div>` : ''}
+        ${g.address ? `<div class="detail-row"><div class="detail-label">Morada</div><div class="detail-val">${escapeHtml(g.address)}${g.postal_code ? ', ' + escapeHtml(g.postal_code) : ''}${g.city ? ' ' + escapeHtml(g.city) : ''}</div></div>` : ''}
         <div class="detail-row"><div class="detail-label">Reservas</div><div class="detail-val"><b>${reservations.length}</b></div></div>
         <div class="detail-row"><div class="detail-label">Desde</div><div class="detail-val">${formatDate(g.created_at)}</div></div>
       </div>

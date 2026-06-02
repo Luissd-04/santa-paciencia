@@ -1,6 +1,6 @@
 # Santa Paciência — Documentação Técnica Completa
 
-> Atualizado em 2026-05-20 (sessão 3). Atualizar sempre que houver alterações estruturais significativas.
+> Atualizado em 2026-06-01 (sessão 4 — fixes de segurança). Atualizar sempre que houver alterações estruturais significativas.
 
 ---
 
@@ -16,6 +16,8 @@
 | **googleapis** | v171 | Integração Google Calendar, Gmail e Google Tasks (OAuth2) |
 | **uuid** | v14 | Geração de IDs |
 | **dotenv** | v17 | Variáveis de ambiente |
+| **helmet** | v8 | Headers HTTP de segurança |
+| **express-rate-limit** | v7 | Rate limiting por rota |
 
 ### Frontend
 Vanilla HTML + CSS + JavaScript puro. Sem frameworks (sem React, Vue, Angular, etc.).
@@ -51,7 +53,7 @@ santa_paciencia/
 │   ├── santapaciencia.db       Base de dados SQLite
 │   └── uploads/                Imagens dos alojamentos
 └── backend/src/
-    ├── app.js                  Express app: CORS, auth por sessão, registo de rotas
+    ├── app.js                  Express app: Helmet, CORS (restrito por NODE_ENV), body limits, auth por sessão, registo de rotas
     ├── server.js               HTTP server
     ├── package.json            Dependências Node.js
     ├── .env                    Variáveis de ambiente (não em git)
@@ -100,7 +102,8 @@ santa_paciencia/
     └── middleware/
         ├── errorHandler.js     Tratamento global de erros Express
         ├── requireAuth.js      Bloqueia `/api/*` sem sessão válida
-        └── requireRole.js      Restringe operações por `owner|manager|staff`
+        ├── requireRole.js      Restringe operações por `owner|manager|staff`
+        └── rateLimiter.js      Rate limiters: loginLimiter, publicBookingLimiter, voucherLimiter, forgotPasswordLimiter
 ```
 
 ```
@@ -153,7 +156,7 @@ frontend/
 ## Estado Implementado — Resumo Atual
 
 ### Backoffice
-- Autenticação por email/password, sessões em cookie `HttpOnly`, organizações, memberships e convites.
+- Autenticação por email/password, sessões em cookie `HttpOnly`, organizações, memberships e convites. **Registo público desativado — acesso apenas por convite do proprietário.**
 - Dashboard operacional com KPIs, chegadas próximas, ocupação e atalhos de backup.
 - Reservas completas: criação/edição/cancelamento/reativação, disponibilidade, anti-overbooking, hóspedes adicionais, RGPD, pagamentos parciais e integração Google Calendar. Vista lista como padrão; filtro de datas lado a lado com auto-abertura da data de fim; toggle Cartão/Lista no canto direito da toolbar.
 - Alojamentos com hierarquia pai→filhos, campos herdados, comodidades próprias/herdadas, imagens por secção, capa, áreas comuns herdadas, serviços/taxas e preços especiais por idade.
@@ -181,7 +184,16 @@ frontend/
 
 ### Ainda Parcial / Atenção
 - O ficheiro `emailScheduler.js` existe, mas o `server.js` atual não chama `startScheduler()`. Emails imediatos funcionam; emails agendados de check-in/check-out só correm se o scheduler for ligado explicitamente.
-- Vouchers têm CRUD no backoffice e campo de verificação no wizard do backoffice, mas o desconto **não é deduzido automaticamente** no total da reserva — a aplicação continua manual (campo informativo).
+- Vouchers têm CRUD no backoffice; no motor público de reservas o desconto é aplicado automaticamente de forma atómica (transação SQLite garante que o mesmo voucher não é usado duas vezes em simultâneo).
+
+### Segurança (implementado em 2026-06-01)
+- **Helmet** ativo em todos os pedidos: `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, etc.
+- **CORS**: em `NODE_ENV=production` só aceita `santapaciencia.xyz`; em dev aceita localhost e túneis.
+- **Body limits**: global `1mb`; uploads de imagem `15mb`; backup `100mb`.
+- **Rate limiting**: login (10/15min), forgot-password (5/h), reserva pública (20/h), voucher público (30/h).
+- **Registo invite-only**: `POST /auth/register` retorna 403; acesso só por convite.
+- **MIME allowlist** nos uploads: jpeg, png, gif, webp, avif — qualquer outro tipo é rejeitado com 400.
+- **Anti-enumeration** no login: resposta genérica para email não encontrado, conta desativada e password errada.
 
 ---
 
@@ -241,7 +253,7 @@ recusa escrever nesses campos se `parent_id` estiver definido.
 
 ### Tabela `reservations`
 ```sql
-id              TEXT PRIMARY KEY          -- formato 'SP-{timestamp}'
+id              TEXT PRIMARY KEY          -- formato 'SP-{12 hex chars aleatórios}'
 organization_id TEXT NOT NULL
 guest_id        TEXT NOT NULL
 accommodation_id TEXT NOT NULL
@@ -960,9 +972,10 @@ Ver `CÓDIGO_MELHORIAS.md` para lista detalhada com prioridades.
 - **Faturação** — geração de PDF de fatura/recibo por reserva
 - **Faturação por reserva** — geração de PDF de fatura/recibo (o separador "Faturas" em Mensagens está reservado para isso)
 - **Notas internas por hóspede** (separadas das notas de reserva)
-- **Integração com canais** (Airbnb/Booking via iCal ou API oficial)
+- **Sincronização automática iCal** — os alojamentos já guardam URLs Airbnb/Booking; falta importar eventos e criar bloqueios/reservas automaticamente
+- **Pré check-in público** — reservas aprovadas enviam link `/pre-checkin/:token`; falta anexar eventual comprovativo/pagamento online quando o gateway for escolhido
 - **Notificações push** (PWA Service Worker)
-- **Ficha SEF/AIMA** — relatório de hóspedes estrangeiros
+- **SIBA/AIMA** — submissão automática de Boletins de Alojamento via WebService SOAP do SIBA, usando os dados recolhidos no pré check-in, com fila, tentativas, histórico e fallback manual
 - **Backups automáticos locais** — export periódico para o PC dos proprietários
 - **Portal/link público da reserva** — token seguro para o cliente editar dados permitidos
 - **Integração com website externo** — redirect, iframe/embed ou formulário nativo via API

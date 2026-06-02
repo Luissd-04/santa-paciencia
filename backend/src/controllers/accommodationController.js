@@ -6,6 +6,25 @@ const fs = require('fs');
 const UPLOADS_DIR = path.resolve('./data/uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
+// Tipos de imagem permitidos: MIME type → extensão segura
+const ALLOWED_IMAGE_TYPES = {
+  'jpeg': 'jpg',
+  'jpg':  'jpg',
+  'png':  'png',
+  'gif':  'gif',
+  'webp': 'webp',
+  'avif': 'avif',
+};
+
+function parseImageDataUri(dataUri) {
+  const match = String(dataUri || '').match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
+  if (!match) return null;
+  const declaredType = match[1].toLowerCase();
+  const ext = ALLOWED_IMAGE_TYPES[declaredType];
+  if (!ext) return null;
+  return { ext, data: Buffer.from(match[2], 'base64') };
+}
+
 const INHERITED_FIELDS = ['address','postal_code','city','region','country',
   'wifi_name','wifi_password','checkin_time','checkout_time',
   'social_facebook','social_instagram','social_website'];
@@ -130,6 +149,24 @@ function getResolvedAccommodationsForOrg(orgId) {
   });
 }
 
+function getResolvedAccommodationById(orgId, id) {
+  const rows = db.prepare(`
+    SELECT a.*, p.id as _pid FROM accommodations a
+    LEFT JOIN accommodations p ON p.id = a.parent_id AND p.organization_id = a.organization_id
+    WHERE a.organization_id = ? AND (a.id = ? OR a.id = (
+      SELECT parent_id FROM accommodations WHERE id = ? AND organization_id = ?
+    ))
+  `).all(orgId, id, id, orgId);
+  if (!rows.length) return null;
+  const base = rows.map(parseJson);
+  const byId = new Map(base.map(r => [r.id, r]));
+  const target = byId.get(id);
+  if (!target) return null;
+  if (target.type === 'alojamento') ensurePublicSlug(target);
+  const parent = target.parent_id ? byId.get(target.parent_id) : null;
+  return resolveAccommodation(target, parent || null);
+}
+
 // ─── GET ALL ───────────────────────────────────────────────
 function getAll(req, res) {
   const resolved = getResolvedAccommodationsForOrg(req.user.organization_id);
@@ -138,7 +175,7 @@ function getAll(req, res) {
 
 // ─── GET BY ID ─────────────────────────────────────────────
 function getById(req, res) {
-  const resolved = getResolvedAccommodationsForOrg(req.user.organization_id).find(a => a.id === req.params.id);
+  const resolved = getResolvedAccommodationById(req.user.organization_id, req.params.id);
   if (!resolved) return res.status(404).json({ error: 'Alojamento não encontrado' });
   res.json({ success: true, data: resolved });
 }
@@ -201,6 +238,8 @@ function update(req, res) {
     extra_occupancy_options, baby_age_limit, baby_price, child_age_limit, child_price,
     min_nights, rgpd_text
   } = req.body;
+  const airbnbIcalUrl = normalizeIcalUrl(req.body.airbnb_ical_url);
+  const bookingIcalUrl = normalizeIcalUrl(req.body.booking_ical_url);
 
   // Resolve effective parent_id (explicit set, keep existing, or null to unlink)
   const effectiveParentId = parent_id !== undefined ? (parent_id || null) : existing.parent_id;
@@ -280,7 +319,9 @@ function update(req, res) {
     child_age_limit = ?,
     child_price = ?,
     min_nights = COALESCE(?, min_nights),
-    rgpd_text = COALESCE(?, rgpd_text)
+    rgpd_text = COALESCE(?, rgpd_text),
+    airbnb_ical_url = ?,
+    booking_ical_url = ?
     WHERE id = ? AND organization_id = ?`)
     .run(
       name, type, price_per_night, max_guests, license_number,
@@ -316,6 +357,8 @@ function update(req, res) {
       Number(child_price ?? existing.child_price ?? 0) || 0,
       min_nights !== undefined ? (Number(min_nights) || 1) : null,
       rgpd_text !== undefined ? (rgpd_text || null) : null,
+      req.body.airbnb_ical_url !== undefined ? airbnbIcalUrl : existing.airbnb_ical_url,
+      req.body.booking_ical_url !== undefined ? bookingIcalUrl : existing.booking_ical_url,
       id,
       req.user.organization_id
     );
@@ -338,14 +381,12 @@ function uploadCover(req, res) {
   }
 
   // Guardar base64 como ficheiro
-  const matches = req.body.image.match(/^data:image\/(\w+);base64,(.+)$/);
-  if (!matches) return res.status(400).json({ error: 'Formato de imagem inválido' });
+  const parsed = parseImageDataUri(req.body.image);
+  if (!parsed) return res.status(400).json({ error: 'Formato de imagem inválido. Tipos aceites: JPEG, PNG, GIF, WebP, AVIF.' });
 
-  const ext = matches[1];
-  const data = Buffer.from(matches[2], 'base64');
-  const filename = `cover_${id}.${ext}`;
+  const filename = `cover_${id}.${parsed.ext}`;
   const filepath = path.join(UPLOADS_DIR, filename);
-  fs.writeFileSync(filepath, data);
+  fs.writeFileSync(filepath, parsed.data);
 
   const url = `/uploads/${filename}`;
   db.prepare('UPDATE accommodations SET cover_image = ? WHERE id = ? AND organization_id = ?').run(url, id, req.user.organization_id);
@@ -384,14 +425,12 @@ function uploadImages(req, res) {
     return res.status(400).json({ error: 'Áreas comuns só podem ser geridas no alojamento principal.' });
   }
 
-  const matches = image.match(/^data:image\/(\w+);base64,(.+)$/);
-  if (!matches) return res.status(400).json({ error: 'Formato inválido' });
+  const parsed = parseImageDataUri(image);
+  if (!parsed) return res.status(400).json({ error: 'Formato inválido. Tipos aceites: JPEG, PNG, GIF, WebP, AVIF.' });
 
-  const ext = matches[1];
-  const data = Buffer.from(matches[2], 'base64');
-  const filename = `gallery_${id}_${section}_${Date.now()}.${ext}`;
+  const filename = `gallery_${id}_${section}_${Date.now()}.${parsed.ext}`;
   const filepath = path.join(UPLOADS_DIR, filename);
-  fs.writeFileSync(filepath, data);
+  fs.writeFileSync(filepath, parsed.data);
 
   // Atualizar JSON de imagens
   const row = db.prepare('SELECT images FROM accommodations WHERE id = ? AND organization_id = ?').get(id, req.user.organization_id);
@@ -477,6 +516,13 @@ function safeJson(v, def) {
   if (!v) return def;
   if (typeof v === 'object') return v; // already parsed — don't double-parse
   try { return JSON.parse(v); } catch { return def; }
+}
+
+function normalizeIcalUrl(value) {
+  const url = String(value || '').trim();
+  if (!url) return null;
+  if (!/^https?:\/\//i.test(url)) return null;
+  return url;
 }
 
 function normalizeExtraOccupancyOptions(value, legacy = {}) {
@@ -600,57 +646,17 @@ function bulkCreatePricingPeriods(req, res) {
   if (start_date >= end_date) return res.status(400).json({ error: 'A data de fim deve ser posterior à data de início' });
 
   // days_of_week: array of integers 0-6 (0=Sun). Empty/missing = all days.
-  const dowFilter = Array.isArray(days_of_week) && days_of_week.length > 0
-    ? new Set(days_of_week.map(Number))
-    : null; // null = all days
+  const hasDowFilter = Array.isArray(days_of_week) && days_of_week.length > 0 && days_of_week.length < 7;
+  const dowJson = hasDowFilter ? JSON.stringify(days_of_week.map(Number).sort()) : null;
 
-  // Build list of matching ISO dates
-  const matchingDates = [];
-  const cur = new Date(start_date + 'T00:00:00Z');
-  const endD = new Date(end_date + 'T00:00:00Z');
-  while (cur < endD) {
-    if (!dowFilter || dowFilter.has(cur.getUTCDay())) {
-      matchingDates.push(cur.toISOString().slice(0, 10));
-    }
-    cur.setUTCDate(cur.getUTCDate() + 1);
-  }
+  const periodId = uuidv4().slice(0, 8);
+  db.prepare(`
+    INSERT INTO pricing_periods (id, organization_id, accommodation_id, name, start_date, end_date, price_per_night, min_nights, days_of_week)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(periodId, req.user.organization_id, id, name, start_date, end_date, Number(price_per_night), Number(min_nights) || 1, dowJson);
 
-  if (matchingDates.length === 0) return res.json({ success: true, data: [] });
-
-  // Group into consecutive runs
-  const runs = [];
-  let runStart = matchingDates[0];
-  let runEnd = matchingDates[0];
-  for (let i = 1; i < matchingDates.length; i++) {
-    const prev = new Date(matchingDates[i - 1] + 'T00:00:00Z');
-    const curr = new Date(matchingDates[i] + 'T00:00:00Z');
-    const diff = (curr - prev) / 86400000;
-    if (diff === 1) {
-      runEnd = matchingDates[i];
-    } else {
-      runs.push({ start: runStart, end: runEnd });
-      runStart = matchingDates[i];
-      runEnd = matchingDates[i];
-    }
-  }
-  runs.push({ start: runStart, end: runEnd });
-
-  // Insert each run as a pricing period; end date is run end + 1 day
-  const insert = db.prepare(`
-    INSERT INTO pricing_periods (id, organization_id, accommodation_id, name, start_date, end_date, price_per_night, min_nights)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const created = [];
-  for (const run of runs) {
-    const runEndExclusive = new Date(run.end + 'T00:00:00Z');
-    runEndExclusive.setUTCDate(runEndExclusive.getUTCDate() + 1);
-    const periodEnd = runEndExclusive.toISOString().slice(0, 10);
-    const periodId = uuidv4().slice(0, 8);
-    insert.run(periodId, req.user.organization_id, id, name, run.start, periodEnd, Number(price_per_night), Number(min_nights) || 1);
-    created.push(db.prepare('SELECT * FROM pricing_periods WHERE id = ?').get(periodId));
-  }
-
-  res.status(201).json({ success: true, data: created, count: created.length });
+  const created = db.prepare('SELECT * FROM pricing_periods WHERE id = ?').get(periodId);
+  res.status(201).json({ success: true, data: [created], count: 1 });
 }
 
 module.exports = { getAll, getById, create, update, remove, uploadCover, removeCover, uploadImages, deleteImage, patchImages, getSettings, saveSettings, getPricingPeriods, createPricingPeriod, updatePricingPeriod, deletePricingPeriod, bulkCreatePricingPeriods };

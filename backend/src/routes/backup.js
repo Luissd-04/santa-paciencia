@@ -8,6 +8,8 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 
+const backupParser = express.json({ limit: '100mb' });
+
 const ORG_TABLES = [
   'organization_settings',
   'organization_email_templates',
@@ -44,6 +46,7 @@ const INSERT_ORDER = [
 const UPLOADS_DIR = path.resolve('./data/uploads');
 
 router.use(requireRole('owner'));
+router.use(backupParser);
 
 function safeJson(value, fallback) {
   try {

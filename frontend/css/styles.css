@@ -1274,7 +1274,24 @@ select.form-control { cursor:pointer; }
 .sort-icon { font-size: 11px; margin-left: 3px; color: var(--azul-claro); }
 
 /* Tabela compacta — reservas */
-#view-reservas table { table-layout: fixed; min-width: 1300px; width: 100%; }
+#view-reservas {
+  min-width: 0;
+  overflow-x: hidden;
+}
+#view-reservas .reservas-shell,
+#view-reservas .reservas-desktop-layout,
+#view-reservas .reservas-table-card {
+  min-width: 0;
+  max-width: 100%;
+}
+#view-reservas .reservas-table-wrap {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+#view-reservas table { table-layout: fixed; min-width: 1400px; width: 1400px; }
 #view-reservas thead th {
   padding: 10px 8px;
   font-size: 12.5px;
@@ -1287,6 +1304,24 @@ select.form-control { cursor:pointer; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+#view-reservas thead th:last-child,
+#view-reservas tbody td:last-child {
+  width: 132px;
+  min-width: 132px;
+  overflow: visible;
+  text-overflow: clip;
+}
+#view-reservas tbody td:last-child {
+  display: table-cell;
+}
+#view-reservas tbody td:last-child > .res-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+#view-reservas tbody td:last-child .res-actions .btn {
+  flex: 0 0 auto;
+}
 #view-reservas th:nth-child(1)  { width: 95px;  }
 #view-reservas th:nth-child(2)  { width: 145px; }
 #view-reservas th:nth-child(3)  { width: 160px; }
@@ -1298,8 +1333,7 @@ select.form-control { cursor:pointer; }
 #view-reservas th:nth-child(9)  { width: 80px;  }
 #view-reservas th:nth-child(10) { width: 95px;  }
 #view-reservas th:nth-child(11) { width: 105px; }
-#view-reservas th:nth-child(12) { width: 90px;  }
-#view-reservas .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+#view-reservas th:nth-child(12) { width: 132px; }
 
 /* ── Sticky last 3 columns ── */
 #view-reservas th:nth-child(10),
@@ -1311,8 +1345,8 @@ select.form-control { cursor:pointer; }
 #view-reservas tr:hover td:nth-child(10),
 #view-reservas tr:hover td:nth-child(11),
 #view-reservas tr:hover td:nth-child(12) { background: rgba(139,58,36,.04); }
-#view-reservas th:nth-child(10), #view-reservas td:nth-child(10) { right: 195px; box-shadow: -3px 0 8px rgba(0,0,0,.06); }
-#view-reservas th:nth-child(11), #view-reservas td:nth-child(11) { right: 90px; }
+#view-reservas th:nth-child(10), #view-reservas td:nth-child(10) { right: 237px; box-shadow: -3px 0 8px rgba(0,0,0,.06); }
+#view-reservas th:nth-child(11), #view-reservas td:nth-child(11) { right: 132px; }
 #view-reservas th:nth-child(12), #view-reservas td:nth-child(12) { right: 0; }
 
 /* Tabs de língua na descrição */

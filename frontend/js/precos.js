@@ -11,7 +11,8 @@ let _precosTab     = 'calendario';
 let _rangeStart    = null;
 let _rangeEnd      = null;
 let _hoverDay      = null;
-let _precosNavClick = false; // flag to distinguish nav clicks from outside clicks
+let _precosNavClick = false;
+let _precosOutsideListenerAttached = false;
 
 function initPrecos() {
   _rangeStart = null;
@@ -31,10 +32,9 @@ function initPrecos() {
     renderPrecosPeriods();
   }
 
-  // Click outside the pricing view cancels range selection
-  if (!document.getElementById('precos-aloj-sel')?._precosOutsideListenerAttached) {
+  if (!_precosOutsideListenerAttached) {
     document.addEventListener('click', _precosHandleOutsideClick, true);
-    if (sel) sel._precosOutsideListenerAttached = true;
+    _precosOutsideListenerAttached = true;
   }
 }
 
@@ -51,7 +51,7 @@ function populatePrecosAlojSelector() {
   const sel = document.getElementById('precos-aloj-sel');
   if (!sel || typeof accommodations === 'undefined') return;
   sel.innerHTML = '<option value="">— Selecionar alojamento —</option>' +
-    accommodations.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+    accommodations.map(a => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.name)}</option>`).join('');
   if (_precosAlojId) sel.value = _precosAlojId;
   if (window.AppUI) AppUI.enhanceSelect(sel, { placeholder: '— Selecionar alojamento —' });
 }
@@ -117,9 +117,18 @@ function precosNavMonth(dir) {
   renderPrecosCalendar();
 }
 
+function _periodMatchesDay(p, iso) {
+  if (p.start_date > iso || p.end_date < iso) return false;
+  if (!p.days_of_week) return true;
+  try {
+    const dow = typeof p.days_of_week === 'string' ? JSON.parse(p.days_of_week) : p.days_of_week;
+    return dow.includes(new Date(iso + 'T12:00:00').getDay());
+  } catch { return true; }
+}
+
 function _getPriceForDay(iso) {
   const sorted = [..._precosPeriods].sort((a, b) => a.start_date.localeCompare(b.start_date));
-  const period = sorted.find(p => p.start_date <= iso && p.end_date >= iso);
+  const period = sorted.find(p => _periodMatchesDay(p, iso));
   return period ? { price: Number(period.price_per_night), period } : { price: _precosBase, period: null };
 }
 
@@ -281,11 +290,15 @@ function renderPrecosCalendar() {
   if (window.lucide) lucide.createIcons();
 }
 
+let _hoverRafId = null;
 function handlePrecosDayHover(iso) {
-  if (_rangeStart && !_rangeEnd && _hoverDay !== iso) {
-    _hoverDay = iso;
+  if (!_rangeStart || _rangeEnd || _hoverDay === iso) return;
+  _hoverDay = iso;
+  if (_hoverRafId) return;
+  _hoverRafId = requestAnimationFrame(() => {
+    _hoverRafId = null;
     renderPrecosCalendar();
-  }
+  });
 }
 
 function handlePrecosDayLeave() {
@@ -344,6 +357,17 @@ function renderPrecosPeriods() {
     return;
   }
 
+  const DOW_LABELS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  function _dowBadge(days_of_week) {
+    if (!days_of_week) return '';
+    try {
+      const list = typeof days_of_week === 'string' ? JSON.parse(days_of_week) : days_of_week;
+      if (!list.length || list.length === 7) return '';
+      const label = list.map(d => DOW_LABELS[d]).join(', ');
+      return `<span style="display:inline-block;margin-left:6px;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;background:rgba(var(--azul-rgb,59,130,246),.12);color:var(--azul);">${label}</span>`;
+    } catch { return ''; }
+  }
+
   const sorted = [..._precosPeriods].sort((a, b) => a.start_date.localeCompare(b.start_date));
   list.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
     <thead>
@@ -362,9 +386,10 @@ function renderPrecosPeriods() {
         const dot = price < _precosBase ? '#16a34a' : price > _precosBase ? '#dc2626' : 'var(--azul)';
         return `<tr style="border-bottom:1px solid var(--cinza-claro);">
           <td style="padding:10px;">
-            <div style="display:flex;align-items:center;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <div style="width:9px;height:9px;border-radius:50%;background:${dot};flex-shrink:0;"></div>
-              <span style="font-weight:500;">${p.name}</span>
+              <span style="font-weight:500;">${escapeHtml(p.name)}</span>
+              ${_dowBadge(p.days_of_week)}
             </div>
           </td>
           <td style="padding:10px;color:var(--cinza);">${_fmtDisplay(p.start_date)}</td>
@@ -550,6 +575,7 @@ async function savePrecosBulk() {
     if (res.success) {
       const count = res.count || res.data?.length || 0;
       toast(`✅ ${count === 1 ? 'Período criado' : `${count} períodos criados`}!`, 'success');
+      if (typeof invalidateWizPricingCache === 'function') invalidateWizPricingCache(_precosAlojId);
       clearPrecosBulkForm();
       await loadPrecosPeriods();
     } else {
@@ -630,6 +656,7 @@ async function savePrecosPeriod() {
 
     if (res.success) {
       toast(editingId ? '✅ Período atualizado!' : '✅ Período criado!', 'success');
+      if (typeof invalidateWizPricingCache === 'function') invalidateWizPricingCache(_precosAlojId);
       closePrecosPeriodModal();
       _rangeStart = null;
       _rangeEnd   = null;
@@ -651,6 +678,7 @@ async function deletePrecosPeriod(id) {
     const res = await apiDelete(`/api/accommodations/${_precosAlojId}/pricing-periods/${id}`);
     if (res.success) {
       toast('🗑 Período eliminado.', 'info');
+      if (typeof invalidateWizPricingCache === 'function') invalidateWizPricingCache(_precosAlojId);
       await loadPrecosPeriods();
     } else {
       toast('❌ ' + (res.error || 'Erro ao eliminar.'), 'error');

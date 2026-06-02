@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const { initDatabase } = require('./config/database');
 const requireAuth = require('./middleware/requireAuth');
 const errorHandler = require('./middleware/errorHandler');
@@ -23,28 +24,37 @@ const googleTasksRoutes = require('./routes/googleTasks');
 
 const app = express();
 
-// Middlewares globais — aceitar origens locais e ngrok
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // SPA inline scripts — ativar mais tarde com nonces
+  crossOriginEmbedderPolicy: false,
+}));
+
+// CORS — em produção só aceita a origem do domínio; em dev aceita localhost e túneis
+const ALLOWED_ORIGINS_DEV = [
+  /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/,
+  /^https:\/\/[a-z0-9-]+\.ngrok[a-z0-9.-]*$/,
+  /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/,
+];
+const ALLOWED_ORIGINS_PROD = [
+  /^https?:\/\/santapaciencia\.xyz$/,
+];
+const ALLOWED_ORIGINS = IS_PROD ? ALLOWED_ORIGINS_PROD : [...ALLOWED_ORIGINS_DEV, /^https?:\/\/santapaciencia\.xyz$/];
+
 app.use(cors({
   origin: function (origin, callback) {
-    // Sem origem = pedido direto (ex: curl, Postman) — sempre permitir
     if (!origin) return callback(null, true);
-
-    const allowed = [
-      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/,
-      /^https:\/\/[a-z0-9-]+\.ngrok[a-z0-9.-]*$/,
-      /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/,
-      /^https?:\/\/santapaciencia\.xyz$/,
-    ];
-    if (allowed.some(r => r.test(origin))) {
-      callback(null, true);
-    } else {
-      callback(new Error('Origem não permitida pelo CORS: ' + origin));
-    }
+    if (ALLOWED_ORIGINS.some(r => r.test(origin))) return callback(null, true);
+    callback(new Error('Origem não permitida pelo CORS: ' + origin));
   },
   credentials: true
 }));
-app.use(express.json({ limit: '200mb' }));
-app.use(express.urlencoded({ extended: true, limit: '200mb' }));
+
+// Body limits — global pequeno; rotas de upload usam o seu próprio parser
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 const path = require('path');
 
@@ -86,6 +96,9 @@ app.get('/health', (req, res) => {
 if (process.env.FRONTEND_PATH) {
   app.get(['/reservar/:slug', '/reserva/:token'], (req, res) => {
     res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'public-reservation.html'));
+  });
+  app.get('/pre-checkin/:token', (req, res) => {
+    res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'pre-checkin.html'));
   });
   app.get(/(.*)/, (req, res) => {
     res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'index.html'));

@@ -23,7 +23,7 @@ function getOrganizationServices(organizationId) {
 }
 
 const { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, createTaskCalendarEvent, updateTaskCalendarEvent } = require('../services/calendarService');
-const { sendConfirmationEmail, sendCancellationEmail, sendPaymentConfirmationEmail } = require('../services/emailService');
+const { sendConfirmationEmail, sendCancellationEmail, sendPaymentConfirmationEmail, sendPreCheckinEmail } = require('../services/emailService');
 const { recordConsent } = require('../services/rgpdService');
 const {
   syncReservationOperationalTasks,
@@ -31,6 +31,20 @@ const {
 } = require('../services/operationalTasksService');
 
 const { isAuthenticated } = require('../config/google');
+
+function publicUrl(req) {
+  const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
+  return `${proto}://${req.get('host')}`;
+}
+
+function ensurePublicToken(reservation) {
+  if (reservation.public_token) return reservation.public_token;
+  const token = uuidv4().replace(/-/g, '') + uuidv4().replace(/-/g, '');
+  db.prepare("UPDATE reservations SET public_token = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?")
+    .run(token, reservation.id, reservation.organization_id);
+  reservation.public_token = token;
+  return token;
+}
 
 function getGcalSyncTasks(organizationId) {
   const row = db.prepare("SELECT value FROM organization_settings WHERE organization_id = ? AND key = 'gcal_sync_tasks'").get(organizationId);
@@ -421,6 +435,17 @@ async function update(req, res, next) {
     }
     const newPaidAmt = amount_paid !== undefined ? Number(amount_paid) : (existing.amount_paid || 0);
     const autoPaymentStatus2 = getPaymentStatus(newPaidAmt, totals.totalAmount, payment_status || existing.payment_status || 'pendente');
+    const reactivating = existing.status === 'cancelada' && status && status !== 'cancelada';
+    const nextStatus = reactivating
+      ? (existing.cancelled_previous_status || status)
+      : status || (
+        existing.status === 'aguardar_pagamento' && newPaidAmt > 0
+          ? 'confirmada'
+          : existing.status
+      );
+    const nextPaymentStatus = reactivating && payment_status === undefined
+      ? (existing.cancelled_previous_payment_status || existing.payment_status || autoPaymentStatus2)
+      : autoPaymentStatus2;
 
     db.prepare(`
       UPDATE reservations SET
@@ -437,9 +462,10 @@ async function update(req, res, next) {
       newAdults ?? totals.guests, newChildren ?? 0,
       totals.totalAmount, totals.breakfastIncluded,
       totals.touristTax,
-      channel || existing.channel, payment_method || existing.payment_method,
-      notes !== undefined ? notes : existing.notes, status || existing.status,
-      autoPaymentStatus2,
+      channel || existing.channel,
+      payment_method !== undefined ? (payment_method || null) : existing.payment_method,
+      notes !== undefined ? notes : existing.notes, nextStatus,
+      nextPaymentStatus,
       guests_data !== undefined ? JSON.stringify(guests_data) : (existing.guests_data || '[]'),
       newPaidAmt,
       payment_date !== undefined ? (payment_date || null) : existing.payment_date,
@@ -463,7 +489,7 @@ async function update(req, res, next) {
     });
 
     // Email de pagamento se confirmado agora
-    if (autoPaymentStatus2 === 'confirmado' && existing.payment_status !== 'confirmado') {
+    if (nextPaymentStatus === 'confirmado' && existing.payment_status !== 'confirmado') {
       const guestRecord = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(updated.guest_id, organizationId);
       sendPaymentConfirmationEmail(guestRecord, updated, accommodation)
         .catch(err => console.warn('Email não enviado:', err.message));
@@ -483,7 +509,12 @@ async function cancel(req, res, next) {
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
 
     db.prepare(`
-      UPDATE reservations SET status = 'cancelada', updated_at = datetime('now') WHERE id = ? AND organization_id = ?
+      UPDATE reservations SET
+        status = 'cancelada',
+        cancelled_previous_status = CASE WHEN status != 'cancelada' THEN status ELSE cancelled_previous_status END,
+        cancelled_previous_payment_status = payment_status,
+        updated_at = datetime('now')
+      WHERE id = ? AND organization_id = ?
     `).run(req.params.id, organizationId);
     syncReservationOperationalTasks({ ...reservation, status: 'cancelada' }, req.user.id);
 
@@ -501,6 +532,37 @@ async function cancel(req, res, next) {
       .catch(err => console.warn('Email não enviado:', err.message));
 
     res.json({ success: true, message: 'Reserva cancelada' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function approve(req, res, next) {
+  try {
+    const organizationId = req.user.organization_id;
+    const reservation = db.prepare(`
+      SELECT r.*, g.name as guest_name, g.email as guest_email
+      FROM reservations r
+      JOIN guests g ON r.guest_id = g.id AND r.organization_id = g.organization_id
+      WHERE r.id = ? AND r.organization_id = ?
+    `).get(req.params.id, organizationId);
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+    if (reservation.status === 'cancelada') return res.status(400).json({ error: 'Reserva cancelada não pode ser aprovada.' });
+
+    const token = ensurePublicToken(reservation);
+    db.prepare("UPDATE reservations SET status = 'pre_checkin', updated_at = datetime('now') WHERE id = ? AND organization_id = ?")
+      .run(req.params.id, organizationId);
+
+    const updated = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
+    const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(updated.guest_id, organizationId);
+    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(updated.accommodation_id, organizationId);
+    const preCheckinUrl = `${publicUrl(req)}/pre-checkin/${token}`;
+
+    sendPreCheckinEmail(guest, updated, accommodation, preCheckinUrl)
+      .catch(err => console.warn('Email de pre-check-in não enviado:', err.message));
+    syncReservationOperationalTasks({ ...updated, guest_name: guest.name, accommodation_name: accommodation.name }, req.user.id);
+
+    res.json({ success: true, data: { ...updated, pre_checkin_url: preCheckinUrl } });
   } catch (err) {
     next(err);
   }
@@ -556,7 +618,6 @@ async function getDashboardStats(req, res, next) {
 function getNotifications(req, res, next) {
   try {
     const orgId = req.user.organization_id;
-    syncOrganizationOperationalTasks(orgId);
     const today    = new Date().toISOString().slice(0, 10);
     const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
@@ -637,4 +698,4 @@ function getNotifications(req, res, next) {
   }
 }
 
-module.exports = { getAll, getById, create, update, cancel, getDashboardStats, getAvailability, getNotifications };
+module.exports = { getAll, getById, create, update, approve, cancel, getDashboardStats, getAvailability, getNotifications };

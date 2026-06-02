@@ -15,8 +15,14 @@ function setMobileChip(el, filter) {
 const STATUS_COLORS = {
   confirmada: 'var(--marca)',
   pendente:   'var(--laranja)',
+  pre_checkin: 'var(--dourado)',
+  aguardar_pagamento: 'var(--azul-claro)',
   cancelada:  'var(--vermelho)',
 };
+
+function preCheckinUrl(token) {
+  return token ? `${window.location.origin}/pre-checkin/${encodeURIComponent(token)}` : '';
+}
 
 function renderResCardHeader(r) {
   return `<div class="mrc-top">
@@ -251,7 +257,12 @@ function renderTabela() {
         if (rem > 0.01) return `<br><span style="font-size:11px;color:var(--vermelho);">€${paid.toFixed(2)} / falta €${rem.toFixed(2)}</span>`;
         return `<br><span style="font-size:11px;color:var(--cinza);">€${paid.toFixed(2)}</span>`;
       })()}</td>
-      <td onclick="event.stopPropagation()" style="white-space:nowrap">
+      <td onclick="event.stopPropagation()" style="white-space:nowrap"><div class="res-actions">
+        ${r.status === 'pendente'
+          ? `<button class="btn btn-sm" style="background:rgba(46,125,82,.12);color:#2e7d52" onclick="aprovarReserva('${r.id}')" title="Aprovar e enviar pre check-in">
+               ${lcIcon('check', 13)}
+             </button>`
+          : ''}
         <button class="btn btn-ghost btn-sm" onclick="openEditModal('${r.id}')" title="Editar">
           ${lcIcon('pencil', 13)}
         </button>
@@ -262,7 +273,7 @@ function renderTabela() {
           : `<button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho)" onclick="deleteReserva('${r.id}')" title="Cancelar reserva">
                ${lcIcon('trash-2', 13)}
              </button>`}
-      </td>
+      </div></td>
     </tr>`).join('');
   if (window.lucide) lucide.createIcons();
   applyReservasViewMode();
@@ -372,6 +383,12 @@ async function showDetail(id) {
           <button class="btn btn-primary" onclick="openEditModal('${r.id}')">
             ${lcIcon('pencil', 13)} Editar
           </button>
+          ${r.status === 'pendente' ? `<button class="btn btn-success" onclick="aprovarReserva('${r.id}')">
+            ${lcIcon('check', 13)} Aprovar e enviar pre check-in
+          </button>` : ''}
+          ${r.public_token && r.status !== 'pendente' && r.status !== 'cancelada' ? `<button class="btn btn-ghost" onclick="copyPreCheckinLink('${r.public_token}')">
+            ${lcIcon('copy', 13)} Link pre check-in
+          </button>` : ''}
           ${realEmail(r.guest_email) ? `<button class="btn btn-ghost" onclick="openInvoiceForReservation('${r.id}','${realEmail(r.guest_email)}','${(r.guest_name||'').replace(/'/g,"\\'")}')">
             ${lcIcon('mail', 13)} Email
           </button>` : ''}
@@ -396,6 +413,7 @@ async function showDetail(id) {
             : r.num_guests
         }</div></div>
         <div class="detail-row"><div class="detail-label">Check-in</div><div class="detail-val">${formatDate(r.check_in)}</div></div>
+        <div class="detail-row"><div class="detail-label">Hora chegada</div><div class="detail-val">${r.arrival_time || '—'}</div></div>
         <div class="detail-row"><div class="detail-label">Check-out</div><div class="detail-val">${formatDate(r.check_out)}</div></div>
         <div class="detail-row"><div class="detail-label">Noites</div><div class="detail-val">${r.nights}</div></div>
         <div class="detail-row"><div class="detail-label">Estado</div><div class="detail-val">${badgeEstado(r.status)}</div></div>
@@ -407,8 +425,8 @@ async function showDetail(id) {
         return `<div style="margin-top:16px;">
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);margin-bottom:8px;">Hóspedes Adicionais</div>
           ${guestsData.map((g, i) => `<div style="background:var(--cinza-claro);border-radius:8px;padding:10px 14px;margin-bottom:6px;font-size:13px;">
-            <b>Hóspede ${i + 2}</b> — ${g.name || '—'}
-            ${g.email ? `· ${g.email}` : ''}${g.phone ? ` · ${g.phone}` : ''}${g.nationality ? ` · ${g.nationality}` : ''}
+            <b>Hóspede ${i + 2}</b> — ${escapeHtml(g.name || '—')}
+            ${g.email ? `· ${escapeHtml(g.email)}` : ''}${g.phone ? ` · ${escapeHtml(g.phone)}` : ''}${g.nationality ? ` · ${escapeHtml(g.nationality)}` : ''}
           </div>`).join('')}
         </div>`;
       })()}
@@ -438,7 +456,8 @@ async function showDetail(id) {
           </div>` : ''}`;
         })()}
       </div>
-      ${r.notes ? `<div style="margin-top:16px;background:rgba(201,168,76,.1);border-left:3px solid var(--dourado);padding:12px 16px;border-radius:6px;font-size:13.5px;color:var(--texto);">📝 ${r.notes}</div>` : ''}
+      ${r.notes ? `<div style="margin-top:16px;background:rgba(201,168,76,.1);border-left:3px solid var(--dourado);padding:12px 16px;border-radius:6px;font-size:13.5px;color:var(--texto);">📝 ${escapeHtml(r.notes)}</div>` : ''}
+      ${r.precheckin_submitted_at ? `<div style="margin-top:12px;font-size:12px;color:var(--verde);">${lcIcon('check-circle', 12)} Pré check-in submetido</div>` : ''}
       <div style="margin-top:12px;font-size:12px;color:${r.google_event_id ? 'var(--verde)' : 'var(--cinza)'};">
         ${lcIcon('calendar', 12)} ${r.google_event_id ? 'Sincronizado com Google Calendar' : 'Não sincronizado com Google Calendar'}
       </div>
@@ -447,6 +466,35 @@ async function showDetail(id) {
   } catch (e) {
     toast('❌ Erro ao carregar detalhe.', 'error');
     showReservasList();
+  }
+}
+
+async function aprovarReserva(id) {
+  if (!confirm('Aprovar esta reserva e enviar o email de pre check-in ao hóspede?')) return;
+  try {
+    const res = await apiPost(`/api/reservations/${id}/approve`, {});
+    if (res.success) {
+      toast('✅ Reserva aprovada e pre check-in enviado.', 'success');
+      await loadReservas();
+      if (typeof renderCalView === 'function') renderCalView();
+      if (typeof renderDashboard === 'function') renderDashboard();
+      showDetail(id);
+    } else {
+      toast('❌ ' + (res.error || 'Erro ao aprovar reserva.'), 'error');
+    }
+  } catch (e) {
+    toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
+  }
+}
+
+async function copyPreCheckinLink(token) {
+  const url = preCheckinUrl(token);
+  if (!url) return;
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('Link de pre check-in copiado.', 'success');
+  } catch (_) {
+    toast(url, 'info');
   }
 }
 
@@ -470,7 +518,7 @@ async function cancelarReserva(id) {
 }
 
 async function reativarReserva(id) {
-  if (!confirm('Reativar esta reserva? Será marcada como confirmada.')) return;
+  if (!confirm('Reativar esta reserva? Vai restaurar os estados que existiam antes do cancelamento.')) return;
   try {
     const res = await apiPut(`/api/reservations/${id}`, { status: 'confirmada' });
     if (res.success) {
@@ -559,12 +607,14 @@ async function importReservasXLS(input) {
       const normalizeStatus = value => {
         const v = String(value || '').toLowerCase();
         if (v.includes('cancel')) return 'cancelada';
+        if (v.includes('pre')) return 'pre_checkin';
+        if (v.includes('pagamento')) return 'aguardar_pagamento';
         if (v.includes('pend')) return 'pendente';
         return 'confirmada';
       };
       const normalizePayment = value => {
         const v = String(value || '').toLowerCase();
-        if (v.includes('confirm') || v.includes('pago')) return 'confirmado';
+        if (v.includes('confirm') || v.includes('pago') || v.includes('completo')) return 'confirmado';
         if (v.includes('parc')) return 'parcial';
         return 'pendente';
       };

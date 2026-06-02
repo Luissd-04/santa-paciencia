@@ -279,9 +279,12 @@ async function testGmail() {
       toast('✅ Email de teste enviado para a conta ligada.', 'success');
     } else {
       toast('❌ ' + (res.error || 'Erro ao enviar.'), 'error');
+      if (res.needs_reauth) await loadGmailStatus();
     }
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || err?.message || 'Erro de ligação.'), 'error');
+    const payload = err?.payload;
+    toast('❌ ' + (payload?.error || err?.message || 'Erro de ligação.'), 'error');
+    if (payload?.needs_reauth) await loadGmailStatus();
   } finally {
     AppUI.setButtonLoading(btn, false);
   }

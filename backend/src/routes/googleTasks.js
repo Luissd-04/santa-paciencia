@@ -1,6 +1,6 @@
 const router = require('express').Router();
-const { google } = require('googleapis');
 const { db } = require('../config/database');
+const TASKS_BASE = 'https://tasks.googleapis.com/tasks/v1';
 const {
   getAuthenticatedTasksClient,
   getTasksConnectionInfo,
@@ -43,8 +43,7 @@ router.post('/sync', async (req, res) => {
 
   try {
     const auth = getAuthenticatedTasksClient(orgId);
-    const tasksClient = google.tasks({ version: 'v1', auth });
-    const listId = await getOrCreateTaskList(tasksClient, orgId);
+    const listId = await getOrCreateTaskList(auth, orgId);
 
     /* Buscar eventos dos próximos 90 dias que não estão cancelados */
     const events = db.prepare(`
@@ -81,18 +80,17 @@ router.post('/sync', async (req, res) => {
         if (ev.status === 'concluido') taskBody.status = 'completed';
 
         if (ev.google_task_id) {
-          /* atualizar task existente */
-          await tasksClient.tasks.update({
-            tasklist: listId,
-            task: ev.google_task_id,
-            requestBody: taskBody,
+          await auth.request({
+            url: `${TASKS_BASE}/lists/${listId}/tasks/${ev.google_task_id}`,
+            method: 'PUT',
+            data: taskBody,
           });
           updated++;
         } else {
-          /* criar nova task */
-          const { data } = await tasksClient.tasks.insert({
-            tasklist: listId,
-            requestBody: taskBody,
+          const { data } = await auth.request({
+            url: `${TASKS_BASE}/lists/${listId}/tasks`,
+            method: 'POST',
+            data: taskBody,
           });
           db.prepare(`
             UPDATE operational_events SET google_task_id = ?, updated_at = datetime('now')

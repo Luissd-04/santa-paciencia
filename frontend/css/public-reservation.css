@@ -692,6 +692,168 @@ textarea { resize: vertical; }
   animation: spinSmooth 0.8s linear infinite;
 }
 
+.precheckin-card {
+  display: block;
+  padding: 0;
+  overflow: visible;
+}
+
+.precheckin-card .booking-form {
+  padding: 26px;
+  max-width: none;
+}
+
+.pc-summary-hero {
+  display: grid;
+  grid-template-columns: minmax(220px, 34%) 1fr;
+  gap: 0;
+  overflow: hidden;
+  border-radius: 22px 22px 0 0;
+  background: #fff;
+  border-bottom: 1px solid rgba(132,52,36,.12);
+}
+
+.pc-summary-photo {
+  min-height: 230px;
+  background: linear-gradient(135deg, rgba(132,52,36,.18), rgba(201,168,76,.22));
+  background-size: cover;
+  background-position: center;
+}
+
+.pc-summary-copy {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.pc-summary-copy h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(28px, 4vw, 46px);
+  margin: 8px 0 20px;
+  color: var(--ink);
+}
+
+.pc-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pc-summary-grid div,
+.pc-arrival-panel {
+  border: 1px solid rgba(132,52,36,.12);
+  border-radius: 14px;
+  background: rgba(132,52,36,.035);
+  padding: 14px;
+}
+
+.pc-summary-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 5px;
+}
+
+.pc-summary-grid strong {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.pc-arrival-panel {
+  margin: 18px 0;
+  padding: 18px;
+}
+
+.pc-time-input {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  text-align: center;
+}
+
+.pc-time-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pc-time-presets button {
+  border: 1px solid rgba(132,52,36,.18);
+  background: #fff;
+  color: var(--brand);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pc-time-presets button:hover {
+  background: var(--brand);
+  color: #fff;
+}
+
+.pc-country-code {
+  width: 24px;
+}
+
+.birth-date-control {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.birth-date-control input {
+  padding-right: 48px;
+}
+
+.birth-date-picker-btn {
+  position: absolute;
+  right: 7px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(132,52,36,.08);
+  color: var(--brand);
+  cursor: pointer;
+}
+
+.birth-date-calendar-pop {
+  position: fixed;
+  z-index: 9999;
+  width: 276px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(0,0,0,.22);
+  border: 1px solid rgba(132,52,36,.12);
+}
+
+.dp-day {
+  border: 0;
+  border-radius: 9px;
+  height: 32px;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.dp-day:hover,
+.dp-day.selected {
+  background: var(--brand);
+  color: #fff;
+}
+
+.dp-day.dp-disabled {
+  opacity: .3;
+  pointer-events: none;
+}
+
 @keyframes spinSmooth {
   to { transform: rotate(360deg); }
 }
@@ -720,4 +882,8 @@ textarea { resize: vertical; }
   .unit-price { grid-column: 2; text-align: left; }
   .unit-card img { width: 92px; height: 78px; }
   .booking-hero h1 { font-size: 43px; }
+  .pc-summary-hero { grid-template-columns: 1fr; }
+  .pc-summary-photo { min-height: 190px; }
+  .pc-summary-grid { grid-template-columns: 1fr; }
+  .precheckin-card .booking-form { padding: 18px; }
 }

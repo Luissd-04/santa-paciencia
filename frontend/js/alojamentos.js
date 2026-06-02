@@ -164,6 +164,7 @@ function renderAlojamentos() {
     const typeLabel = isAlojamento
       ? `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--marca);">Alojamento</span>`
       : `<span style="font-size:12px;color:var(--cinza);">${a.type || '—'}</span>`;
+    const hasIcal = !!(a.airbnb_ical_url || a.booking_ical_url);
     const indent = parentName ? 'padding-left:24px;' : '';
     return `
     <tr draggable="true" data-id="${a.id}" data-idx="${idx}" onclick="openAlojamento('${a.id}')" style="${isAlojamento ? 'background:rgba(139,58,36,.03);' : ''}" class="${parentName ? 'aloj-child-row' : 'aloj-parent-row'}">
@@ -186,7 +187,7 @@ function renderAlojamentos() {
       <td style="font-size:11.5px;color:var(--cinza)">${a.license_number || '—'}</td>
       <td onclick="event.stopPropagation()">
         <button class="btn btn-ghost btn-sm" style="font-size:11px;gap:4px;" onclick="openAlojCalendarDirect('${a.id}','${a.google_calendar_id || ''}','${a.name}')">
-          ${lcIcon('calendar', 13)} Calendário${a.google_calendar_id ? ' ✓' : ''}
+          ${lcIcon('calendar', 13)} Calendário${a.google_calendar_id ? ' ✓' : ''}${hasIcal ? ' · iCal ✓' : ''}
         </button>
       </td>
     </tr>`;
@@ -337,6 +338,8 @@ async function openAlojamento(id, preferredTab = 'info') {
     document.getElementById('aloj-child-price').value = a.child_price ?? 0;
     setExtraOccupancyFields(a);
     document.getElementById('aloj-gcal-id').value = a.google_calendar_id || '';
+    document.getElementById('aloj-airbnb-ical-url').value = a.airbnb_ical_url || '';
+    document.getElementById('aloj-booking-ical-url').value = a.booking_ical_url || '';
     document.getElementById('aloj-wifi-nome').value     = a.wifi_name     || '';
     document.getElementById('aloj-wifi-password').value = a.wifi_password || '';
     document.getElementById('aloj-checkin-time').value  = a.checkin_time  || '15:00';
@@ -1268,6 +1271,8 @@ function exportAlojamentosXLS() {
     'Check-in':       a.checkin_time || '',
     'Check-out':      a.checkout_time || '',
     'Wi-Fi':          a.wifi_name || '',
+    'Airbnb iCal':    a.airbnb_ical_url || '',
+    'Booking iCal':   a.booking_ical_url || '',
   }));
   updateOperationProgress(55, 'A gerar Excel...');
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -1547,6 +1552,17 @@ function onExtraOccupancyTypeChange(select) {
   }
 }
 
+function getOptionalIcalUrl(inputId, label) {
+  const value = document.getElementById(inputId)?.value.trim() || '';
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol === 'http:' || url.protocol === 'https:') return value;
+  } catch (_) {}
+  toast(`${label}: insere um URL http/https válido.`, 'error');
+  throw new Error('invalid_ical_url');
+}
+
 // ── GUARDAR ALOJAMENTO ──
 async function saveAlojamento() {
   const id = document.getElementById('aloj-editing-id').value;
@@ -1563,6 +1579,14 @@ async function saveAlojamento() {
   );
   const extraOccupancyOptions = collectExtraOccupancyOptions();
   const firstExtra = extraOccupancyOptions[0] || null;
+  let airbnbIcalUrl = null;
+  let bookingIcalUrl = null;
+  try {
+    airbnbIcalUrl = getOptionalIcalUrl('aloj-airbnb-ical-url', 'Airbnb iCal');
+    bookingIcalUrl = getOptionalIcalUrl('aloj-booking-ical-url', 'Booking.com iCal');
+  } catch (_) {
+    return;
+  }
 
   const body = {
     name: document.getElementById('aloj-nome').value,
@@ -1595,6 +1619,8 @@ async function saveAlojamento() {
     description_it: document.getElementById('desc-it').value,
     description_nl: document.getElementById('desc-nl').value,
     google_calendar_id: document.getElementById('aloj-gcal-id').value || null,
+    airbnb_ical_url: airbnbIcalUrl,
+    booking_ical_url: bookingIcalUrl,
     color:         document.getElementById('aloj-color')?.value || null,
     own_amenities: checkedAmenities,
   };
@@ -1698,4 +1724,3 @@ function switchDescLang(lang) {
   document.querySelectorAll('.desc-lang-tab').forEach(t => t.classList.toggle('active', t.dataset.lang === lang));
   document.querySelectorAll('.desc-lang-area').forEach(a => a.style.display = a.id === 'desc-' + lang ? 'block' : 'none');
 }
-

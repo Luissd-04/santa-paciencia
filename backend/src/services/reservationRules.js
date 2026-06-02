@@ -113,6 +113,15 @@ function validateReservationBirthDates(numGuests, guest = {}, guestsData = []) {
   return null;
 }
 
+function periodMatchesDay(period, iso) {
+  if (period.start_date > iso || period.end_date < iso) return false;
+  if (!period.days_of_week) return true;
+  const dow = typeof period.days_of_week === 'string'
+    ? JSON.parse(period.days_of_week)
+    : (period.days_of_week || []);
+  return dow.includes(new Date(iso + 'T12:00:00').getDay());
+}
+
 function calcBaseAmountWithPeriods(basePrice, checkIn, checkOut, periods = []) {
   const nights = countNights(checkIn, checkOut);
   if (!nights) return 0;
@@ -121,7 +130,7 @@ function calcBaseAmountWithPeriods(basePrice, checkIn, checkOut, periods = []) {
   const d = new Date(`${checkIn}T12:00:00`);
   for (let i = 0; i < nights; i++) {
     const iso = d.toISOString().slice(0, 10);
-    const period = sorted.find(p => p.start_date <= iso && p.end_date >= iso);
+    const period = sorted.find(p => periodMatchesDay(p, iso));
     total += period ? Number(period.price_per_night) : basePrice;
     d.setDate(d.getDate() + 1);
   }

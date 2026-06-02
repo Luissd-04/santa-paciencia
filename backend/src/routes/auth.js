@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { loginLimiter, forgotPasswordLimiter } = require('../middleware/rateLimiter');
 const { deleteTokens, getOAuth2Client, isAuthenticated, saveTokens } = require('../config/google');
 const {
   getEmailOAuth2Client, saveEmailTokens, deleteEmailTokens,
@@ -8,7 +9,6 @@ const {
   getTasksOAuth2Client, saveTasksTokens, deleteTasksTokens,
   isTasksAuthenticated, getTasksConnectionInfo, TASKS_SCOPES,
 } = require('../config/googleTasks');
-const { google } = require('googleapis');
 const { db } = require('../config/database');
 const requireAuth = require('../middleware/requireAuth');
 const requireRole = require('../middleware/requireRole');
@@ -101,9 +101,9 @@ router.get('/register-status', (req, res) => {
   res.json({
     success: true,
     data: {
-      enabled: true,
-      mode: 'owner',
-      reason: 'Cada novo registo cria um novo espaço de proprietário.',
+      enabled: false,
+      mode: 'invite-only',
+      reason: 'O registo está desativado. O acesso é feito apenas por convite do proprietário.',
     }
   });
 });
@@ -128,17 +128,15 @@ router.get('/invitations/:token', (req, res) => {
   });
 });
 
-router.post('/login', (req, res) => {
+router.post('/login', loginLimiter, (req, res) => {
   const { email, password } = req.body || {};
   const user = getUserByEmail(email);
-  if (!user) {
-    return res.status(404).json({ success: false, error: 'Email não registado.' });
-  }
-  if (!user.active) {
-    return res.status(403).json({ success: false, error: 'Esta conta está desativada.' });
-  }
+  // Resposta genérica para não revelar se o email existe (anti-enumeration)
+  const genericError = { success: false, error: 'Credenciais inválidas.' };
+  if (!user) return res.status(401).json(genericError);
+  if (!user.active) return res.status(401).json(genericError);
   if (!verifyPassword(String(password || ''), user.password_hash)) {
-    return res.status(401).json({ success: false, error: 'Senha incorreta.' });
+    return res.status(401).json(genericError);
   }
 
   try {
@@ -151,77 +149,9 @@ router.post('/login', (req, res) => {
   }
 });
 
+// Registo público desativado — acesso apenas por convite do proprietário
 router.post('/register', (req, res) => {
-  const { name, email, password, confirm_password, organization_name } = req.body || {};
-  const trimmedName = String(name || '').trim();
-  const normalizedEmail = normalizeEmail(email);
-  const orgName = String(organization_name || '').trim();
-
-  if (!trimmedName || !normalizedEmail || !password || !confirm_password || !orgName) {
-    return res.status(400).json({ success: false, error: 'Preenche todos os campos obrigatórios.' });
-  }
-  if (!isValidEmail(normalizedEmail)) {
-    return res.status(400).json({ success: false, error: 'O email indicado não é válido.' });
-  }
-  if (password !== confirm_password) {
-    return res.status(400).json({ success: false, error: 'As passwords não coincidem.' });
-  }
-  try {
-    validatePassword(password);
-  } catch (err) {
-    return res.status(400).json({ success: false, error: err.message });
-  }
-  if (getUserByEmail(normalizedEmail)) {
-    return res.status(409).json({ success: false, error: 'Este email já está a ser utilizado.' });
-  }
-
-  try {
-    const user = createUser({
-      name: trimmedName,
-      email: normalizedEmail,
-      password,
-      role: 'owner',
-    });
-
-    const claimableOrg = getClaimableLegacyOrganization();
-    let organization;
-    if (claimableOrg) {
-      db.prepare(`UPDATE organizations SET name = ?, updated_at = datetime('now') WHERE id = ?`)
-        .run(orgName, claimableOrg.id);
-      organization = db.prepare('SELECT * FROM organizations WHERE id = ?').get(claimableOrg.id);
-    } else {
-      organization = createOrganization(orgName);
-    }
-
-    createMembership({
-      organizationId: organization.id,
-      userId: user.id,
-      role: 'owner',
-      invitedByUserId: null,
-    });
-
-    const { sessionId } = createSession(user.id, organization.id);
-    setSessionCookie(res, sessionId);
-    const sessionUser = require('../services/authService').getSessionUser(sessionId);
-
-    if (canSendEmail()) {
-      transporter.sendMail({
-        from: process.env.EMAIL_FROM,
-        to: normalizedEmail,
-        subject: `Bem-vindo ao Santa Paciência, ${trimmedName.split(' ')[0]}!`,
-        html: emailWrap(
-          `Bem-vindo, ${trimmedName.split(' ')[0]}!`,
-          `<p>O teu espaço <strong>${orgName}</strong> está pronto a usar.</p>
-           <p>Podes agora começar a registar reservas, gerir hóspedes e convidar a tua equipa.</p>
-           <p><a href="${appUrl()}" style="color:#843424;">Aceder ao Santa Paciência →</a></p>`
-        ),
-      }).catch(err => console.warn('Erro ao enviar email de boas-vindas:', err.message));
-    }
-
-    res.status(201).json({ success: true, data: { user: serializeUser(sessionUser) } });
-  } catch (err) {
-    res.status(400).json({ success: false, error: err.message });
-  }
+  res.status(403).json({ success: false, error: 'O registo direto está desativado. Contacta o proprietário para receberes um convite.' });
 });
 
 router.post('/invitations/accept', (req, res) => {
@@ -321,8 +251,7 @@ router.post('/switch-org', requireAuth, (req, res) => {
     return res.status(403).json({ success: false, error: 'Não tens acesso a este espaço.' });
   }
   try {
-    deleteSession(req.sessionId);
-    const { sessionId } = createSession(req.user.id, organization_id);
+    const { sessionId } = createSession(req.user.id, organization_id, req.sessionId);
     setSessionCookie(res, sessionId);
     const sessionUser = require('../services/authService').getSessionUser(sessionId);
     res.json({ success: true, data: { user: serializeUser(sessionUser) } });
@@ -341,7 +270,7 @@ router.get('/me', requireAuth, (req, res) => {
   res.json({ success: true, data: { user: serializeUser(req.user) } });
 });
 
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
   const email = normalizeEmail(req.body?.email);
   const user = getUserByEmail(email);
   if (user && user.active) {
@@ -487,8 +416,7 @@ router.get('/google-email/callback', requireAuth, async (req, res) => {
     // Obter endereço de email da conta
     let email = null;
     try {
-      const oauth2 = google.oauth2({ version: 'v2', auth: oAuth2Client });
-      const { data } = await oauth2.userinfo.get();
+      const { data } = await oAuth2Client.request({ url: 'https://www.googleapis.com/oauth2/v2/userinfo' });
       email = data.email;
     } catch { /* não crítico */ }
 
@@ -522,9 +450,9 @@ router.post('/google-email/test', requireAuth, async (req, res) => {
   try {
     const { sendViaGmail } = require('../config/googleEmail');
     const info = getEmailConnectionInfo(req.user.organization_id);
-    if (!info.connected) return res.status(400).json({ error: 'Gmail não ligado' });
+    if (!info.connected) return res.status(400).json({ success: false, error: 'Gmail não ligado' });
     const to = info.email || req.user.email;
-    if (!to) return res.status(400).json({ error: 'Sem endereço de destino — desliga e volta a ligar o Gmail.' });
+    if (!to) return res.status(400).json({ success: false, error: 'Sem endereço de destino — desliga e volta a ligar o Gmail.' });
     await sendViaGmail(req.user.organization_id, {
       to,
       subject: 'Teste de email - Santa Paciencia',
@@ -533,7 +461,17 @@ router.post('/google-email/test', requireAuth, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Gmail test error:', err);
-    res.status(500).json({ error: err.message });
+    const errMsg = err.message || '';
+    const errData = err.response?.data?.error || '';
+    const isAuthError = errMsg.includes('invalid_grant') || errMsg.includes('Login Required')
+      || errMsg.includes('Token has been expired') || errMsg.includes('Invalid Credentials')
+      || errData === 'invalid_grant' || err.status === 401 || err.code === 401;
+    if (isAuthError) deleteEmailTokens(req.user.organization_id);
+    res.status(isAuthError ? 401 : 500).json({
+      success: false,
+      needs_reauth: isAuthError,
+      error: isAuthError ? 'A ligação ao Gmail expirou. Vai a Definições → Gmail e volta a ligar a conta.' : errMsg,
+    });
   }
 });
 
@@ -565,6 +503,22 @@ router.post('/email/send', requireAuth, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Erro ao enviar email avulso:', err);
+    const errMsg = err.message || '';
+    const errData = err.response?.data?.error || '';
+    const isAuthError = errMsg.includes('Login Required')
+      || errMsg.includes('invalid_grant')
+      || errMsg.includes('Token has been expired')
+      || errMsg.includes('Invalid Credentials')
+      || errData === 'invalid_grant'
+      || err.status === 401 || err.code === 401;
+    if (isAuthError) {
+      deleteEmailTokens(req.user.organization_id);
+      return res.status(401).json({
+        success: false,
+        needs_reauth: true,
+        error: 'A ligação ao Gmail expirou. Vai a Definições → Gmail e volta a ligar a conta.',
+      });
+    }
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -579,14 +533,12 @@ router.get('/email/inbox', requireAuth, async (req, res) => {
 
   try {
     const auth = getAuthenticatedEmailClient(req.user.organization_id);
-    const gmail = google.gmail({ version: 'v1', auth });
 
     /* Pesquisar mensagens to/from este email */
     const q = `from:${to_email} OR to:${to_email}`;
-    const listRes = await gmail.users.messages.list({
-      userId: 'me',
-      q,
-      maxResults: Number(max) || 30,
+    const listRes = await auth.request({
+      url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages',
+      params: { q, maxResults: Number(max) || 30 },
     });
 
     const msgIds = listRes.data.messages || [];
@@ -595,9 +547,10 @@ router.get('/email/inbox', requireAuth, async (req, res) => {
     /* Buscar cada mensagem em paralelo (batch de 10 para não sobrecarregar) */
     const fetchBatch = async (ids) => Promise.all(
       ids.map(({ id }) =>
-        gmail.users.messages.get({ userId: 'me', id, format: 'full' })
-          .then(r => r.data)
-          .catch(() => null)
+        auth.request({
+          url: `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}`,
+          params: { format: 'full' },
+        }).then(r => r.data).catch(() => null)
       )
     );
 
@@ -630,9 +583,15 @@ router.get('/email/inbox', requireAuth, async (req, res) => {
 
     res.json({ success: true, data: { messages } });
   } catch (err) {
-    const needs_reauth = err.message?.includes('insufficient') || err.code === 403;
-    console.error('Gmail inbox error:', err.message);
-    res.json({ success: true, data: { messages: [], needs_reauth, error: err.message } });
+    const errMsg = err.message || '';
+    const errData = err.response?.data?.error || '';
+    const isAuthError = errMsg.includes('invalid_grant') || errMsg.includes('Login Required')
+      || errMsg.includes('Token has been expired') || errMsg.includes('Invalid Credentials')
+      || errData === 'invalid_grant' || err.status === 401 || err.code === 401;
+    if (isAuthError) deleteEmailTokens(req.user.organization_id);
+    const needs_reauth = isAuthError || errMsg.includes('insufficient') || err.code === 403;
+    console.error('Gmail inbox error:', errMsg);
+    res.json({ success: true, data: { messages: [], needs_reauth, error: errMsg } });
   }
 });
 
@@ -724,8 +683,7 @@ router.get('/google-tasks/callback', requireAuth, async (req, res) => {
 
     let email = null;
     try {
-      const oauth2 = google.oauth2({ version: 'v2', auth: oAuth2Client });
-      const { data } = await oauth2.userinfo.get();
+      const { data } = await oAuth2Client.request({ url: 'https://www.googleapis.com/oauth2/v2/userinfo' });
       email = data.email;
     } catch { /* não crítico */ }
 

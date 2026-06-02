@@ -735,11 +735,7 @@ function badgeEventoStatus(status) {
   return `<span class="badge ${done ? 'badge-confirmada' : 'badge-pendente'}">${done ? 'Concluído' : 'Planeado'}</span>`;
 }
 
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, ch => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
-  }[ch]));
-}
+// escapeHtml definido em helpers.js (carregado antes)
 
 function isoDate(year, monthIndex, day) {
   return `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;

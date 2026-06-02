@@ -18,6 +18,12 @@ function validatePassword(password) {
   if (value.length < 8) {
     throw new Error('A password deve ter pelo menos 8 caracteres.');
   }
+  if (!/[A-Z]/.test(value)) {
+    throw new Error('A password deve conter pelo menos uma letra maiúscula.');
+  }
+  if (!/[0-9]/.test(value)) {
+    throw new Error('A password deve conter pelo menos um número.');
+  }
 }
 
 function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
@@ -34,13 +40,18 @@ function verifyPassword(password, stored) {
   return crypto.timingSafeEqual(derived, original);
 }
 
-function createSession(userId, organizationId) {
+function createSession(userId, organizationId, oldSessionId = null) {
   const membership = organizationId
     ? getMembershipByUserAndOrganization(userId, organizationId)
     : getPrimaryMembership(userId);
 
   if (!membership) {
     throw new Error('O utilizador não pertence a nenhuma organização ativa.');
+  }
+
+  // Invalidar sessão anterior para forçar rotação de ID
+  if (oldSessionId) {
+    db.prepare('DELETE FROM auth_sessions WHERE id = ?').run(oldSessionId);
   }
 
   const sessionId = crypto.randomBytes(32).toString('hex');

@@ -25,33 +25,44 @@ const BRAND_COLOR = '#843424';
 const ACCENT_COLOR = '#c9a84c';
 
 function getEmailSettings(accommodation, organizationId) {
-  // If accommodation object provided, prefer its social links
-  if (accommodation) {
-    return {
-      checkin_time:  accommodation.checkin_time  || '15:00',
-      checkout_time: accommodation.checkout_time || '11:00',
-      facebook:  accommodation.social_facebook  || '',
-      instagram: accommodation.social_instagram || '',
-      website:   accommodation.social_website   || '',
-    };
-  }
   try {
     const { db } = require('../config/database');
-    const keys = ['checkin_time','checkout_time','social_facebook','social_instagram','social_website'];
     const orgId = organizationId || accommodation?.organization_id;
+    const keys = ['checkin_time','checkout_time','social_facebook','social_instagram','social_website',
+                  'property_name','property_address','license_number','email_contact'];
     const rows = orgId
       ? db.prepare(`SELECT key,value FROM organization_settings WHERE organization_id = ? AND key IN (${keys.map(() => '?').join(',')})`).all(orgId, ...keys)
       : db.prepare(`SELECT key,value FROM settings WHERE key IN (${keys.map(() => '?').join(',')})`).all(...keys);
     const s = {};
     rows.forEach(r => s[r.key] = r.value);
+
+    let orgName = s.property_name;
+    if (!orgName && orgId) {
+      const org = db.prepare('SELECT name FROM organizations WHERE id = ?').get(orgId);
+      orgName = org?.name;
+    }
+
     return {
-      checkin_time: s.checkin_time || '15:00',
-      checkout_time: s.checkout_time || '11:00',
-      facebook:  s.social_facebook  || '',
-      instagram: s.social_instagram || '',
-      website:   s.social_website   || '',
+      checkin_time:     accommodation?.checkin_time  || s.checkin_time  || '15:00',
+      checkout_time:    accommodation?.checkout_time || s.checkout_time || '11:00',
+      facebook:         accommodation?.social_facebook  || s.social_facebook  || '',
+      instagram:        accommodation?.social_instagram || s.social_instagram || '',
+      website:          accommodation?.social_website   || s.social_website   || '',
+      property_name:    orgName || process.env.PROPERTY_NAME || 'Santa Paciência',
+      property_address: s.property_address || process.env.PROPERTY_ADDRESS || '',
+      license_number:   s.license_number   || process.env.LICENSE_NUMBER   || '',
+      email_contact:    s.email_contact    || process.env.EMAIL_USER        || '',
     };
-  } catch { return { checkin_time: '15:00', checkout_time: '11:00', facebook:'', instagram:'', website:'' }; }
+  } catch {
+    return {
+      checkin_time: '15:00', checkout_time: '11:00',
+      facebook: '', instagram: '', website: '',
+      property_name:    process.env.PROPERTY_NAME    || 'Santa Paciência',
+      property_address: process.env.PROPERTY_ADDRESS || '',
+      license_number:   process.env.LICENSE_NUMBER   || '',
+      email_contact:    process.env.EMAIL_USER        || '',
+    };
+  }
 }
 
 // SVG icons as base64 data URIs for email client compatibility
@@ -89,9 +100,9 @@ function baseTemplate(content, settings) {
       ${buildSocialButtons(s)}
       <tr><td style="background:#f8f8f8;padding:20px 40px;border-top:1px solid #eee;text-align:center;">
         <p style="color:#999;font-size:12px;margin:0;">
-          ${process.env.PROPERTY_NAME || 'Santa Paciência'} · ${process.env.PROPERTY_ADDRESS || ''}<br>
-          Licença AL: ${process.env.LICENSE_NUMBER || ''}<br>
-          <a href="mailto:${process.env.EMAIL_USER || ''}" style="color:${ACCENT_COLOR};">${process.env.EMAIL_USER || ''}</a>
+          ${s.property_name} · ${s.property_address}<br>
+          Licença AL: ${s.license_number}<br>
+          <a href="mailto:${s.email_contact}" style="color:${ACCENT_COLOR};">${s.email_contact}</a>
         </p>
       </td></tr>
     </table>
@@ -180,11 +191,35 @@ async function sendPaymentConfirmationEmail(guest, reservation, accommodation) {
   });
 }
 
+async function sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl) {
+  if (EMAIL_DISABLED) return null;
+  const orgId = reservation.organization_id || accommodation.organization_id;
+  const settings = getEmailSettings(accommodation, orgId);
+  const content = `<h2 style="color:${BRAND_COLOR};margin-top:0;">Pré check-in</h2>
+    <p style="color:#555;">Olá <strong>${guest.name || ''}</strong>,</p>
+    <p style="color:#555;">A sua reserva em <strong>${accommodation.name || ''}</strong> foi aprovada. Para prepararmos a chegada, pedimos que complete o pré check-in com a hora prevista de chegada e os dados legais dos hóspedes.</p>
+    <p style="text-align:center;margin:28px 0;">
+      <a href="${preCheckinUrl}" style="display:inline-block;background:${BRAND_COLOR};color:#fff;text-decoration:none;border-radius:8px;padding:13px 22px;font-family:sans-serif;font-weight:700;">Completar pré check-in</a>
+    </p>
+    <p style="color:#777;font-size:13px;">Referência da reserva: <strong>${reservation.id}</strong></p>`;
+  return sendMail(orgId, {
+    to: guest.email,
+    subject: 'Pré check-in da sua reserva — Santa Paciência',
+    html: baseTemplate(content, settings),
+  });
+}
+
+async function sendReservationRequestApprovedEmail(guest, reservation, accommodation, preCheckinUrl) {
+  return sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl);
+}
+
 module.exports = {
   sendMail,
   sendConfirmationEmail,
   sendCancellationEmail,
   sendPaymentConfirmationEmail,
+  sendPreCheckinEmail,
+  sendReservationRequestApprovedEmail,
   sendTemplatedEmail,
   baseTemplate,
   interpolate,

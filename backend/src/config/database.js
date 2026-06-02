@@ -230,6 +230,9 @@ function initDatabase() {
       payment_method TEXT,
       notes TEXT,
       google_event_id TEXT,
+      public_token TEXT,
+      arrival_time TEXT,
+      precheckin_submitted_at TEXT,
       license_number TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),
@@ -461,6 +464,9 @@ function migrateReservations() {
     ['google_calendar_user_id', 'TEXT'],
     ['public_token', 'TEXT'],
     ['arrival_time', 'TEXT'],
+    ['precheckin_submitted_at', 'TEXT'],
+    ['cancelled_previous_status', 'TEXT'],
+    ['cancelled_previous_payment_status', 'TEXT'],
     ['num_adults',   'INTEGER'],
     ['num_children', 'INTEGER DEFAULT 0'],
   ];
@@ -545,6 +551,8 @@ function migrateAccommodations() {
     ['public_slug',          'TEXT'],
     ['min_nights',           'INTEGER DEFAULT 1'],
     ['rgpd_text',            'TEXT'],
+    ['airbnb_ical_url',      'TEXT'],
+    ['booking_ical_url',     'TEXT'],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {
@@ -797,11 +805,20 @@ function migratePricingPeriods() {
       end_date TEXT NOT NULL,
       price_per_night REAL NOT NULL,
       min_nights INTEGER DEFAULT 1,
+      days_of_week TEXT DEFAULT NULL,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
       FOREIGN KEY (accommodation_id) REFERENCES accommodations(id) ON DELETE CASCADE
     )
+  `);
+  const ppCols = db.pragma('table_info(pricing_periods)').map(c => c.name);
+  if (!ppCols.includes('days_of_week')) {
+    db.exec(`ALTER TABLE pricing_periods ADD COLUMN days_of_week TEXT DEFAULT NULL`);
+  }
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_pricing_periods_acc
+    ON pricing_periods (accommodation_id, organization_id)
   `);
 }
 

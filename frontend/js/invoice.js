@@ -558,7 +558,11 @@ async function sendInvoiceEmail(toEmail, toName, reservationId, standalone) {
       || { id: reservationId, guestEmail: toEmail, guestName: toName, _standalone: standalone };
     loadThreadMessages(thread);
   } catch (err) {
-    toast('Erro ao enviar: ' + (err?.payload?.error || err?.message || err), 'error');
+    if (err?.payload?.needs_reauth) {
+      toast('Gmail expirou — vai a Definições → Gmail e volta a ligar.', 'error', 6000);
+    } else {
+      toast('Erro ao enviar: ' + (err?.payload?.error || err?.message || err), 'error');
+    }
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="send"></i> Enviar'; if (window.lucide) lucide.createIcons(); }
   }
@@ -635,7 +639,11 @@ async function sendNovaConversa() {
     _closeInvoiceModal('modal-nova-conversa');
     toast('Email enviado com sucesso.', 'success');
   } catch (err) {
-    toast('Erro ao enviar email: ' + (err?.payload?.error || err?.message || err), 'error');
+    if (err?.payload?.needs_reauth) {
+      toast('Gmail expirou — vai a Definições → Gmail e volta a ligar.', 'error', 6000);
+    } else {
+      toast('Erro ao enviar email: ' + (err?.payload?.error || err?.message || err), 'error');
+    }
     if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="send"></i> Enviar'; if (window.lucide) lucide.createIcons(); }
   }
 }
@@ -698,13 +706,49 @@ async function openTemplatesPicker(subjectId, bodyId) {
   if (window.lucide) lucide.createIcons();
 }
 
+function _buildTemplateVars(thread) {
+  if (!thread) return {};
+  const name   = thread.guestName || '';
+  const nights = (thread.checkin && thread.checkout)
+    ? Math.round((new Date(thread.checkout) - new Date(thread.checkin)) / 86400000)
+    : '';
+  const fmtFull = d => d
+    ? new Date(d + 'T12:00:00').toLocaleDateString('pt-PT', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    : '';
+  return {
+    nome_hospede:    name,
+    primeiro_nome:   name.split(' ')[0] || '',
+    alojamento:      thread.alojamento || '',
+    data_checkin:    fmtFull(thread.checkin),
+    data_checkout:   fmtFull(thread.checkout),
+    hora_checkin:    '15:00',
+    hora_checkout:   '11:00',
+    noites:          String(nights),
+    referencia:      String(thread.id || ''),
+    total:           thread.total != null ? `€${Number(thread.total).toFixed(2)}` : '',
+  };
+}
+
+function _interpolateTemplate(text, vars) {
+  return text.replace(/\{\{(\w+)\}\}/g, (match, key) =>
+    vars[key] != null ? vars[key] : match
+  );
+}
+
 function _applyTemplate(index, subjectId, bodyId) {
   const tpl = _invoiceTemplatesCache[index];
   if (!tpl) return;
+
+  const threadId = _invoiceActiveThread || _novaConversaReservationId;
+  const thread   = threadId ? _invoiceConversas.find(t => t.id === threadId) : null;
+  const vars     = _buildTemplateVars(thread);
+
+  const rawBody = tpl.body.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '');
+
   const subEl  = document.getElementById(subjectId);
   const bodyEl = document.getElementById(bodyId);
-  if (subEl)  subEl.value  = tpl.subject;
-  if (bodyEl) bodyEl.value = tpl.body.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '');
+  if (subEl)  subEl.value  = _interpolateTemplate(tpl.subject, vars);
+  if (bodyEl) bodyEl.value = _interpolateTemplate(rawBody, vars);
   document.getElementById('modal-tpl-picker')?.remove();
 }
 

@@ -257,10 +257,22 @@ async function handleLoginSubmit(event) {
     setAuthScreenMessage(authMode === 'login' ? 'Introduz a tua password.' : 'Cria uma password para a tua conta.', 'error');
     return;
   }
-  if ((authMode === 'register' || (authMode === 'invite' && !inviteUserExists)) && password.length < 8) {
-    setFieldError('login-password', true, 'Mínimo de 8 caracteres.');
-    setAuthScreenMessage('A password é demasiado curta — usa pelo menos 8 caracteres.', 'error');
-    return;
+  if ((authMode === 'register' || (authMode === 'invite' && !inviteUserExists))) {
+    if (password.length < 8) {
+      setFieldError('login-password', true, 'Mínimo de 8 caracteres.');
+      setAuthScreenMessage('A password é demasiado curta — usa pelo menos 8 caracteres.', 'error');
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      setFieldError('login-password', true, 'Precisa de pelo menos uma letra maiúscula.');
+      setAuthScreenMessage('Inclui pelo menos uma letra maiúscula na password.', 'error');
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      setFieldError('login-password', true, 'Precisa de pelo menos um número.');
+      setAuthScreenMessage('Inclui pelo menos um número na password.', 'error');
+      return;
+    }
   }
   const needsConfirm = authMode === 'register' || (authMode === 'invite' && !inviteUserExists);
   if (needsConfirm) {
@@ -302,6 +314,8 @@ async function handleLoginSubmit(event) {
     const cfmPw  = document.getElementById('reset-confirm-password')?.value || '';
     if (!newPw) { setFieldError('reset-password', true, 'Escolhe uma nova palavra-passe.'); return; }
     if (newPw.length < 8) { setFieldError('reset-password', true, 'Mínimo de 8 caracteres.'); return; }
+    if (!/[A-Z]/.test(newPw)) { setFieldError('reset-password', true, 'Precisa de pelo menos uma maiúscula.'); return; }
+    if (!/[0-9]/.test(newPw)) { setFieldError('reset-password', true, 'Precisa de pelo menos um número.'); return; }
     if (!cfmPw) { setFieldError('reset-confirm-password', true, 'Confirma a nova palavra-passe.'); return; }
     if (newPw !== cfmPw) { setFieldError('reset-confirm-password', true, 'Não coincide.'); return; }
     const submitBtn = document.getElementById('login-submit');
@@ -554,6 +568,8 @@ async function submitChangePassword() {
 
   if (!current || !newPw || !confirm) { showCpMsg('Preenche todos os campos.'); return; }
   if (newPw.length < 8) { showCpMsg('A nova password precisa de ter pelo menos 8 caracteres.'); return; }
+  if (!/[A-Z]/.test(newPw)) { showCpMsg('Inclui pelo menos uma letra maiúscula.'); return; }
+  if (!/[0-9]/.test(newPw)) { showCpMsg('Inclui pelo menos um número.'); return; }
   if (newPw !== confirm) { showCpMsg('As passwords não coincidem.'); return; }
 
   const btn = document.getElementById('cp-save-btn');

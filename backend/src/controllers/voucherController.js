@@ -17,7 +17,7 @@ function getAll(req, res) {
   const vouchers = db.prepare(`
     SELECT v.*, a.name as accommodation_name
     FROM vouchers v
-    LEFT JOIN accommodations a ON v.accommodation_id = a.id AND a.organization_id = v.organization_id
+    LEFT JOIN accommodations a ON a.id = v.accommodation_id AND a.organization_id = v.organization_id
     WHERE v.organization_id = ?
     ORDER BY v.created_at DESC
   `).all(req.user.organization_id);
@@ -31,7 +31,7 @@ function validate(req, res) {
   const voucher = db.prepare(`
     SELECT v.*, a.name as accommodation_name
     FROM vouchers v
-    LEFT JOIN accommodations a ON v.accommodation_id = a.id
+    LEFT JOIN accommodations a ON a.id = v.accommodation_id AND a.organization_id = v.organization_id
     WHERE v.code = ? AND v.organization_id = ? AND v.status = 'active'
   `).get(code.toUpperCase().trim(), req.user.organization_id);
 

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pré check-in — Santa Paciência</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/public-reservation.css">
+</head>
+<body>
+  <div class="booking-page">
+    <div class="ambient-bg" id="pc-bg"></div>
+    <div class="ambient-overlay"></div>
+
+    <header class="booking-hero">
+      <div class="brand-pill" id="pc-reservation-ref">Pré check-in</div>
+      <h1 id="pc-title">Complete os dados da chegada</h1>
+      <p id="pc-subtitle">Estes dados são usados para preparar a estadia e cumprir obrigações legais do alojamento local.</p>
+    </header>
+
+    <main class="booking-shell">
+      <section class="booking-card precheckin-card">
+        <div class="pc-summary-hero">
+          <div class="pc-summary-photo" id="pc-summary-photo"></div>
+          <div class="pc-summary-copy">
+            <span class="summary-kicker">Reserva</span>
+            <h3 id="pc-accommodation">—</h3>
+            <div class="pc-summary-grid">
+              <div><span>Check-in</span><strong id="pc-checkin">—</strong></div>
+              <div><span>Check-out</span><strong id="pc-checkout">—</strong></div>
+              <div><span>Hóspedes</span><strong id="pc-guest-count">—</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <form class="booking-form" id="precheckin-form">
+          <div class="step-heading">
+            <span id="pc-stay">A carregar...</span>
+            <h2>Dados dos hóspedes</h2>
+          </div>
+
+          <div id="pc-guests"></div>
+
+          <div class="pc-arrival-panel">
+            <div class="step-heading" style="margin-bottom:14px;">
+              <span>Chegada</span>
+              <h2>Hora prevista de check-in</h2>
+            </div>
+            <label>
+              <span>Hora prevista *</span>
+              <input id="pc-arrival-time" class="pc-time-input" type="text" inputmode="numeric" maxlength="5" placeholder="14:30" required>
+            </label>
+            <div class="pc-time-presets" id="pc-time-presets"></div>
+          </div>
+
+          <div class="success-box" id="pc-success"></div>
+          <div class="step-error" id="pc-error" style="display:none;"></div>
+
+          <div class="form-actions">
+            <button type="submit" class="primary-btn" id="pc-submit">Enviar pré check-in</button>
+          </div>
+        </form>
+
+      </section>
+    </main>
+  </div>
+
+  <script src="/js/domain/dates.js"></script>
+  <script src="/js/domain/date-picker.js"></script>
+  <script src="/js/pre-checkin.js"></script>
+</body>
+</html>

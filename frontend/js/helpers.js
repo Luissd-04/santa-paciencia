@@ -62,15 +62,26 @@ function formatDate(s) {
 
 function badgeEstado(e) {
   const map = {
-    'confirmada': 'badge-confirmada', 'pendente': 'badge-pendente', 'cancelada': 'badge-cancelada'
+    'confirmada': 'badge-confirmada',
+    'pendente': 'badge-pendente',
+    'pre_checkin': 'badge-pendente',
+    'aguardar_pagamento': 'badge-parcial',
+    'cancelada': 'badge-cancelada'
   };
-  const label = e ? e.charAt(0).toUpperCase() + e.slice(1) : e;
+  const labels = {
+    confirmada: 'Confirmada',
+    pendente: 'Pendente',
+    pre_checkin: 'Pre Check-in',
+    aguardar_pagamento: 'Aguardar Pagamento',
+    cancelada: 'Cancelada'
+  };
+  const label = labels[e] || (e ? e.charAt(0).toUpperCase() + e.slice(1) : e);
   return `<span class="badge ${map[e] || ''}">${label}</span>`;
 }
 
 function badgePagamento(p) {
   const map = { 'confirmado': 'badge-pago', 'pago': 'badge-pago', 'parcial': 'badge-parcial', 'pendente': 'badge-pendpag' };
-  const labels = { 'confirmado': 'Confirmado', 'pago': 'Confirmado', 'parcial': 'Parcial', 'pendente': 'Pendente' };
+  const labels = { 'confirmado': 'Completo', 'pago': 'Completo', 'parcial': 'Parcial', 'pendente': 'Não pago' };
   return `<span class="badge ${map[p] || ''}">${labels[p] || (p ? p.charAt(0).toUpperCase() + p.slice(1) : '—')}</span>`;
 }
 
@@ -132,4 +143,11 @@ async function runWithOperationProgress(title, steps, work) {
   } finally {
     hideOperationProgress();
   }
+}
+
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+  }[ch]));
 }

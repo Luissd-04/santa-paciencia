@@ -170,13 +170,14 @@ function getLanding(req, res) {
 function validatePublicVoucher(req, res) {
   const parent = getPropertyBySlug(req.params.slug);
   if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado.' });
-  const { code } = req.query;
-  if (!code) return res.status(400).json({ success: false, error: 'Código obrigatório.' });
+  const rawCode = String(req.query.code || '').toUpperCase().trim();
+  if (!rawCode) return res.status(400).json({ success: false, error: 'Código obrigatório.' });
+  if (!/^[A-Z0-9]{3,20}$/.test(rawCode)) return res.status(400).json({ success: false, error: 'Formato de código inválido.' });
 
   const voucher = db.prepare(`
     SELECT * FROM vouchers
     WHERE code = ? AND organization_id = ? AND status = 'active'
-  `).get(code.toUpperCase().trim(), parent.organization_id);
+  `).get(rawCode, parent.organization_id);
   if (!voucher) return res.status(404).json({ success: false, error: 'Voucher inválido ou já utilizado.' });
 
   const today = new Date().toISOString().slice(0, 10);
@@ -277,11 +278,14 @@ function createReservation(req, res, next) {
     }
     if (!payload.rgpd_consent) return res.status(400).json({ success: false, error: 'É necessário aceitar o RGPD.' });
 
-    // Aplicar voucher se fornecido
+    // Calcular desconto de voucher (validação preliminar fora da transação)
+    let pendingVoucherCode = null;
     let voucherDiscount = 0;
-    let appliedVoucherId = null;
     if (payload.voucher_code) {
       const vCode = String(payload.voucher_code).toUpperCase().trim();
+      if (!/^[A-Z0-9]{3,20}$/.test(vCode)) {
+        return res.status(400).json({ success: false, error: 'Formato de código de voucher inválido.' });
+      }
       const voucher = db.prepare(
         "SELECT * FROM vouchers WHERE code = ? AND organization_id = ? AND status = 'active'"
       ).get(vCode, parent.organization_id);
@@ -291,7 +295,7 @@ function createReservation(req, res, next) {
         const nightsOk = !voucher.min_nights || totals.nights >= voucher.min_nights;
         const accomOk = !voucher.accommodation_id || voucher.accommodation_id === unit.id || voucher.accommodation_id === parent.id;
         if (dateOk && nightsOk && accomOk) {
-          appliedVoucherId = voucher.id;
+          pendingVoucherCode = vCode;
           voucherDiscount = voucher.type === 'discount_pct'
             ? totals.totalAmount * (voucher.value / 100)
             : Math.min(voucher.value, totals.totalAmount);
@@ -300,57 +304,48 @@ function createReservation(req, res, next) {
     }
     const finalTotal = Math.max(0, totals.totalAmount - voucherDiscount);
 
-    let guest = db.prepare('SELECT * FROM guests WHERE email = ? AND organization_id = ?').get(payload.guest.email, parent.organization_id);
-    if (!guest) {
-      const guestId = uuidv4();
-      db.prepare(`
-        INSERT INTO guests (id, organization_id, name, email, phone, first_name, last_name, birth_date, country)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        guestId, parent.organization_id, payload.guest.name, payload.guest.email, payload.guest.phone || null,
-        payload.guest.first_name || null, payload.guest.last_name || null, normalizeDateValue(payload.guest.birth_date) || null,
-        payload.guest.nationality || payload.guest.country || null
-      );
-      guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(guestId, parent.organization_id);
-    }
-    recordConsent(guest.id, req.ip);
-
-    const reservationId = `SP-${Date.now()}`;
+    // ID único sem colisão por concorrência
+    const reservationId = `SP-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
     const token = crypto.randomBytes(32).toString('hex');
     const normalizedGuestsData = guestsData.map(g => ({ ...g, birth_date: normalizeDateValue(g.birth_date) }));
+    const accommodationId = isCompleteProperty ? parent.id : unit.id;
+    const licenseNumber = isCompleteProperty ? parent.license_number : unit.license_number;
+    const accommodationName = isCompleteProperty ? parent.name : unit.name;
 
-    if (isCompleteProperty) {
-      const children = getChildren(parent);
-      const accommodationsToReserve = children.length ? children : [parent];
-
-      for (const accom of accommodationsToReserve) {
-        const accomTotal = Math.max(0, (totals.totalAmount / (accommodationsToReserve.length || 1)) - (voucherDiscount / (accommodationsToReserve.length || 1)));
+    // Transação atómica: guest + reserva + marcar voucher como usado em simultâneo
+    const txResult = db.transaction(() => {
+      // Criar ou obter hóspede
+      let g = db.prepare('SELECT * FROM guests WHERE email = ? AND organization_id = ?').get(payload.guest.email, parent.organization_id);
+      if (!g) {
+        const guestId = uuidv4();
         db.prepare(`
-          INSERT INTO reservations (
-            id, organization_id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
-            total_amount, breakfast_included, tourist_tax, channel, payment_method, notes, license_number, status,
-            guests_data, amount_paid, payment_status, public_token, arrival_time
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, 0, 'pendente', ?, ?)
+          INSERT INTO guests (id, organization_id, name, email, phone, first_name, last_name, birth_date, country)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
-          `${reservationId}-${accom.id}`, parent.organization_id, guest.id, accom.id, totals.checkIn, totals.checkOut, totals.nights, totals.guests,
-          accomTotal, payload.breakfast_included ? 1 : 0, totals.touristTax,
-          'website', null, payload.notes || null, accom.license_number,
-          JSON.stringify(normalizedGuestsData), token, payload.arrival_time || null
+          guestId, parent.organization_id, payload.guest.name, payload.guest.email, payload.guest.phone || null,
+          payload.guest.first_name || null, payload.guest.last_name || null, normalizeDateValue(payload.guest.birth_date) || null,
+          payload.guest.nationality || payload.guest.country || null
         );
-        const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?')
-          .get(`${reservationId}-${accom.id}`, parent.organization_id);
-        syncReservationOperationalTasks({
-          ...reservation,
-          guest_name: guest.name,
-          accommodation_name: accom.name,
-        }, null);
+        g = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(guestId, parent.organization_id);
       }
-      if (appliedVoucherId) {
+
+      // Validar e marcar voucher atomicamente — re-verifica status dentro da transação
+      let confirmedVoucherId = null;
+      if (pendingVoucherCode) {
+        const locked = db.prepare(
+          "SELECT id FROM vouchers WHERE code = ? AND organization_id = ? AND status = 'active'"
+        ).get(pendingVoucherCode, parent.organization_id);
+        if (!locked) {
+          // Outro pedido já usou o voucher entretanto
+          throw Object.assign(new Error('Voucher já foi utilizado por outra reserva.'), { status: 409 });
+        }
+        confirmedVoucherId = locked.id;
         db.prepare(
           "UPDATE vouchers SET status = 'used', used_at = datetime('now'), used_in_reservation_id = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?"
-        ).run(reservationId, appliedVoucherId, parent.organization_id);
+        ).run(reservationId, confirmedVoucherId, parent.organization_id);
       }
-    } else {
+
+      // Inserir reserva
       db.prepare(`
         INSERT INTO reservations (
           id, organization_id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
@@ -358,24 +353,25 @@ function createReservation(req, res, next) {
           guests_data, amount_paid, payment_status, public_token, arrival_time
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, 0, 'pendente', ?, ?)
       `).run(
-        reservationId, parent.organization_id, guest.id, unit.id, totals.checkIn, totals.checkOut, totals.nights, totals.guests,
+        reservationId, parent.organization_id, g.id, accommodationId,
+        totals.checkIn, totals.checkOut, totals.nights, totals.guests,
         finalTotal, payload.breakfast_included ? 1 : 0, totals.touristTax,
-        'website', null, payload.notes || null, unit.license_number,
+        'website', null, payload.notes || null, licenseNumber,
         JSON.stringify(normalizedGuestsData), token, payload.arrival_time || null
       );
-      const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?')
-        .get(reservationId, parent.organization_id);
-      syncReservationOperationalTasks({
-        ...reservation,
-        guest_name: guest.name,
-        accommodation_name: unit.name,
-      }, null);
-      if (appliedVoucherId) {
-        db.prepare(
-          "UPDATE vouchers SET status = 'used', used_at = datetime('now'), used_in_reservation_id = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?"
-        ).run(reservationId, appliedVoucherId, parent.organization_id);
-      }
-    }
+
+      return g;
+    })();
+
+    recordConsent(txResult.id, req.ip);
+
+    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?')
+      .get(reservationId, parent.organization_id);
+    syncReservationOperationalTasks({
+      ...reservation,
+      guest_name: txResult.name,
+      accommodation_name: accommodationName,
+    }, null);
 
     res.status(201).json({
       success: true,
@@ -392,4 +388,136 @@ function createReservation(req, res, next) {
   }
 }
 
-module.exports = { getLanding, getAvailability, validatePublicVoucher, createReservation };
+function getPreCheckin(req, res) {
+  const token = String(req.params.token || '').trim();
+  const reservation = db.prepare(`
+    SELECT r.*, g.name as guest_name, g.email as guest_email, g.phone as guest_phone,
+           g.first_name, g.last_name, g.birth_date, g.nationality, g.country,
+           g.document_type, g.document_number, g.document_issuer_country,
+           a.name as accommodation_name, a.checkin_time, a.checkout_time, a.cover_image, a.images
+    FROM reservations r
+    JOIN guests g ON g.id = r.guest_id AND g.organization_id = r.organization_id
+    JOIN accommodations a ON a.id = r.accommodation_id AND a.organization_id = r.organization_id
+    WHERE r.public_token = ?
+  `).get(token);
+  if (!reservation) return res.status(404).json({ success: false, error: 'Link inválido ou expirado.' });
+  if (reservation.status === 'cancelada') return res.status(400).json({ success: false, error: 'Esta reserva está cancelada.' });
+  if (reservation.check_out && new Date(reservation.check_out + 'T23:59:59') < new Date()) {
+    return res.status(410).json({ success: false, error: 'O pré check-in não está disponível após a data de saída.' });
+  }
+  res.json({
+    success: true,
+    data: {
+      reservation: {
+        id: reservation.id,
+        accommodation_name: reservation.accommodation_name,
+        check_in: reservation.check_in,
+        check_out: reservation.check_out,
+        num_guests: reservation.num_guests,
+        cover_image: imageUrl(req, reservation.cover_image),
+        images: normalizeImages(req, reservation).map(img => img.url).filter(Boolean),
+        arrival_time: reservation.arrival_time || '',
+        checkin_time: reservation.checkin_time || '',
+        status: reservation.status,
+        precheckin_submitted_at: reservation.precheckin_submitted_at || null,
+      },
+      guest: {
+        name: reservation.guest_name,
+        email: reservation.guest_email,
+        phone: reservation.guest_phone,
+        first_name: reservation.first_name,
+        last_name: reservation.last_name,
+        birth_date: reservation.birth_date,
+        nationality: reservation.nationality || reservation.country,
+        country: reservation.country,
+        document_type: reservation.document_type,
+        document_number: reservation.document_number,
+        document_issuer_country: reservation.document_issuer_country,
+      },
+      guests_data: parseJson(reservation.guests_data, []),
+    }
+  });
+}
+
+function cleanGuestData(item = {}) {
+  const fullName = String(item.name || '').trim();
+  const parts = fullName.split(/\s+/).filter(Boolean);
+  return {
+    name: fullName,
+    first_name: String(item.first_name || parts[0] || '').trim(),
+    last_name: String(item.last_name || parts.slice(1).join(' ') || '').trim(),
+    birth_date: normalizeDateValue(item.birth_date) || null,
+    nationality: String(item.nationality || '').trim(),
+    country: String(item.country || item.nationality || '').trim(),
+    document_type: String(item.document_type || '').trim(),
+    document_number: String(item.document_number || '').trim(),
+    document_issuer_country: String(item.document_issuer_country || item.nationality || '').trim(),
+  };
+}
+
+function submitPreCheckin(req, res) {
+  const token = String(req.params.token || '').trim();
+  const reservation = db.prepare('SELECT * FROM reservations WHERE public_token = ?').get(token);
+  if (!reservation) return res.status(404).json({ success: false, error: 'Link inválido ou expirado.' });
+  if (reservation.status === 'cancelada') return res.status(400).json({ success: false, error: 'Esta reserva está cancelada.' });
+  if (reservation.check_out && new Date(reservation.check_out + 'T23:59:59') < new Date()) {
+    return res.status(410).json({ success: false, error: 'O pré check-in não está disponível após a data de saída.' });
+  }
+
+  const mainGuest = cleanGuestData(req.body?.guest || {});
+  const expectedGuests = Math.max(1, Number(reservation.num_guests || 1));
+  const extraGuests = Array.isArray(req.body?.guests_data) ? req.body.guests_data.map(cleanGuestData) : [];
+  const allGuests = [mainGuest, ...extraGuests].slice(0, expectedGuests);
+  const isPortuguese = g => (g.nationality || '').toLowerCase().trim() === 'portugal';
+  const missingIndex = allGuests.findIndex(g => {
+    if (!g.name || !g.nationality) return true;
+    if (!isPortuguese(g) && (!g.birth_date || !g.document_type || !g.document_number || !g.document_issuer_country)) return true;
+    return false;
+  });
+  if (missingIndex >= 0 || allGuests.length < expectedGuests) {
+    return res.status(400).json({ success: false, error: 'Preencha os dados obrigatórios de todos os hóspedes.' });
+  }
+
+  db.prepare(`UPDATE guests SET
+    name = COALESCE(?, name),
+    first_name = COALESCE(?, first_name),
+    last_name = COALESCE(?, last_name),
+    birth_date = COALESCE(?, birth_date),
+    nationality = COALESCE(?, nationality),
+    country = COALESCE(?, country),
+    document_type = COALESCE(?, document_type),
+    document_number = COALESCE(?, document_number),
+    document_issuer_country = COALESCE(?, document_issuer_country)
+    WHERE id = ? AND organization_id = ?`)
+    .run(
+      mainGuest.name, mainGuest.first_name, mainGuest.last_name, mainGuest.birth_date,
+      mainGuest.nationality, mainGuest.country, mainGuest.document_type,
+      mainGuest.document_number, mainGuest.document_issuer_country,
+      reservation.guest_id, reservation.organization_id
+    );
+
+  db.prepare(`UPDATE reservations SET
+    guests_data = ?,
+    arrival_time = ?,
+    status = CASE WHEN status != 'confirmada' THEN 'aguardar_pagamento' ELSE status END,
+    precheckin_submitted_at = datetime('now'),
+    updated_at = datetime('now')
+    WHERE public_token = ? AND organization_id = ?`)
+    .run(
+      JSON.stringify(allGuests.slice(1)),
+      String(req.body?.arrival_time || '').trim() || null,
+      token,
+      reservation.organization_id
+    );
+
+  res.json({ success: true });
+}
+
+module.exports = {
+  getLanding,
+  getAvailability,
+  validatePublicVoucher,
+  createReservation,
+  getPreCheckin,
+  submitPreCheckin,
+};

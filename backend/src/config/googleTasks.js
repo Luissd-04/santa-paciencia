@@ -1,10 +1,10 @@
-const { google } = require('googleapis');
+const { OAuth2Client } = require('google-auth-library');
 const { db } = require('./database');
 
 const TASKS_SCOPES = ['https://www.googleapis.com/auth/tasks'];
 
 function getTasksOAuth2Client() {
-  return new google.auth.OAuth2(
+  return new OAuth2Client(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
     process.env.GOOGLE_TASKS_REDIRECT_URI
@@ -67,18 +67,21 @@ function getAuthenticatedTasksClient(organizationId) {
 }
 
 /* Garante que existe uma task list "Santa Paciência" e devolve o ID */
-async function getOrCreateTaskList(tasksClient, organizationId) {
+async function getOrCreateTaskList(auth, organizationId) {
+  const TASKS_BASE = 'https://tasks.googleapis.com/tasks/v1';
   const info = getTasksConnectionInfo(organizationId);
+
   if (info.tasksListId) {
-    /* verificar que ainda existe */
     try {
-      await tasksClient.tasklists.get({ tasklist: info.tasksListId });
+      await auth.request({ url: `${TASKS_BASE}/users/@me/lists/${info.tasksListId}` });
       return info.tasksListId;
     } catch { /* foi apagada — criar nova */ }
   }
 
-  const { data } = await tasksClient.tasklists.insert({
-    requestBody: { title: process.env.PROPERTY_NAME || 'Santa Paciência' },
+  const { data } = await auth.request({
+    url: `${TASKS_BASE}/users/@me/lists`,
+    method: 'POST',
+    data: { title: process.env.PROPERTY_NAME || 'Santa Paciência' },
   });
   saveTasksListId(organizationId, data.id);
   return data.id;

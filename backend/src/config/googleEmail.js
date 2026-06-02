@@ -1,4 +1,4 @@
-const { google } = require('googleapis');
+const { OAuth2Client } = require('google-auth-library');
 const { db } = require('./database');
 
 const GMAIL_SCOPES = [
@@ -8,7 +8,7 @@ const GMAIL_SCOPES = [
 ];
 
 function getEmailOAuth2Client() {
-  return new google.auth.OAuth2(
+  return new OAuth2Client(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
     process.env.GOOGLE_EMAIL_REDIRECT_URI
@@ -55,7 +55,8 @@ function getAuthenticatedEmailClient(organizationId) {
 
   oAuth2Client.on('tokens', (newTokens) => {
     const merged = { ...tokens, ...newTokens };
-    saveEmailTokens(organizationId, merged, null);
+    const row = db.prepare('SELECT email FROM google_email_connections WHERE organization_id = ?').get(organizationId);
+    saveEmailTokens(organizationId, merged, row?.email || null);
   });
 
   return oAuth2Client;
@@ -82,7 +83,6 @@ function encodeFromHeader(from) {
 async function sendViaGmail(organizationId, { to, subject, html, from }) {
   if (!to) throw new Error('Endereço de destino em falta');
   const auth = getAuthenticatedEmailClient(organizationId);
-  const gmail = google.gmail({ version: 'v1', auth });
 
   const info = getEmailConnectionInfo(organizationId);
   const senderEmail = info.email || 'me';
@@ -100,7 +100,11 @@ async function sendViaGmail(organizationId, { to, subject, html, from }) {
   ];
   const raw = Buffer.from(messageParts.join('\r\n')).toString('base64url');
 
-  return gmail.users.messages.send({ userId: 'me', requestBody: { raw } });
+  return auth.request({
+    url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+    method: 'POST',
+    data: { raw },
+  });
 }
 
 module.exports = {

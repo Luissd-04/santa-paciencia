@@ -1641,7 +1641,7 @@ async function cancelarReserva(id) {
 }
 
 async function reativarReserva(id) {
-  if (!confirm('Reativar esta reserva? Será marcada como confirmada.')) return;
+  if (!confirm('Reativar esta reserva? Vai restaurar os estados que existiam antes do cancelamento.')) return;
   try {
     const res = await apiPut(`/api/reservations/${id}`, { status: 'confirmada' });
     if (res.success) {

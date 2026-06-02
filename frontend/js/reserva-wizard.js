@@ -109,6 +109,8 @@ function onAmountPaidChange() {
   const remVal = document.getElementById('payment-remaining-val');
 
   if (paid > 0 && total > 0) {
+    const statusEl = document.getElementById('f-estado');
+    if (statusEl?.value === 'aguardar_pagamento') statusEl.value = 'confirmada';
     if (paid >= total) {
       psEl.value = 'confirmado';
       if (remWrap) remWrap.style.display = 'none';
@@ -139,6 +141,11 @@ async function loadWizPricingPeriods(alojId) {
   } catch {
     return [];
   }
+}
+
+function invalidateWizPricingCache(alojId) {
+  if (alojId) delete _cachedPricingPeriods[alojId];
+  else _cachedPricingPeriods = {};
 }
 
 function addDaysToIsoDate(dateStr, days = 1) {
@@ -1163,4 +1170,3 @@ async function saveReserva() {
     AppUI.setButtonLoading(btn, false);
   }
 }
-
