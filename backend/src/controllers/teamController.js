@@ -1,7 +1,5 @@
 const { db } = require('../config/database');
-const transporter = (() => {
-  try { return require('../config/email'); } catch { return null; }
-})();
+const { sendMail } = require('../services/emailService');
 const { buildInvitationUrl, createInvitation, ensureRole, listInvitations, listMembers } = require('../services/orgService');
 const { getUserByEmail, isValidEmail } = require('../services/authService');
 
@@ -58,23 +56,19 @@ async function invite(req, res) {
     });
     const inviteUrl = buildInvitationUrl(invitation.token);
 
-    let emailSent = false;
-    if (transporter && process.env.EMAIL_ENABLED !== 'false' && process.env.EMAIL_FROM) {
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM,
-        to: email,
-        subject: `Convite para a equipa ${req.user.organization_name} — Santa Paciência`,
-        html: `
-          <div style="font-family:Arial,sans-serif;padding:24px;color:#2a2520;">
-            <h2>Foste convidado para ${req.user.organization_name}</h2>
-            <p>O teu papel será <strong>${role}</strong>.</p>
-            <p><a href="${inviteUrl}">Aceitar convite</a></p>
-            <p>Este link expira em 7 dias.</p>
-          </div>
-        `
-      });
-      emailSent = true;
-    }
+    const emailResult = await sendMail(organizationId, {
+      to: email,
+      subject: `Convite para a equipa ${req.user.organization_name} — Santa Paciência`,
+      html: `
+        <div style="font-family:Arial,sans-serif;padding:24px;color:#2a2520;">
+          <h2>Foste convidado para ${req.user.organization_name}</h2>
+          <p>O teu papel será <strong>${role}</strong>.</p>
+          <p><a href="${inviteUrl}">Aceitar convite</a></p>
+          <p>Este link expira em 7 dias.</p>
+        </div>
+      `
+    });
+    const emailSent = !!emailResult;
 
     res.status(201).json({
       success: true,

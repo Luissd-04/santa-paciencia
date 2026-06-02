@@ -277,24 +277,22 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
     try {
       const token = createPasswordResetToken(user.id);
       const resetUrl = `${appUrl()}/?reset=${token}`;
-      if (canSendEmail()) {
-        await transporter.sendMail({
-          from: process.env.EMAIL_FROM,
-          to: email,
-          subject: 'Recuperar palavra-passe — Santa Paciência',
-          html: emailWrap(
-            'Recuperar palavra-passe',
-            `<p>Olá, ${user.name.split(' ')[0]}.</p>
-             <p>Recebemos um pedido para recuperar a tua palavra-passe.</p>
-             <p style="margin:24px 0;">
-               <a href="${resetUrl}" style="background:#843424;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
-                 Definir nova palavra-passe
-               </a>
-             </p>
-             <p style="color:#888;font-size:13px;">Este link expira em 1 hora. Se não pediste a recuperação, ignora este email — a tua conta está segura.</p>`
-          ),
-        });
-      }
+      const { sendMail } = require('../services/emailService');
+      await sendMail(user.organization_id, {
+        to: email,
+        subject: 'Recuperar palavra-passe — Santa Paciência',
+        html: emailWrap(
+          'Recuperar palavra-passe',
+          `<p>Olá, ${user.name.split(' ')[0]}.</p>
+           <p>Recebemos um pedido para recuperar a tua palavra-passe.</p>
+           <p style="margin:24px 0;">
+             <a href="${resetUrl}" style="background:#843424;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
+               Definir nova palavra-passe
+             </a>
+           </p>
+           <p style="color:#888;font-size:13px;">Este link expira em 1 hora. Se não pediste a recuperação, ignora este email — a tua conta está segura.</p>`
+        ),
+      });
     } catch (err) {
       console.error('Erro ao enviar email de recuperação:', err.message);
     }
