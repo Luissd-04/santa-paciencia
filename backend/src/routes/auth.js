@@ -406,12 +406,22 @@ router.get('/google-email', requireAuth, (req, res) => {
 router.get('/google-email/callback', requireAuth, async (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).send('Código de autorização em falta.');
-  console.log('[gmail-oauth] redirect_uri:', process.env.GOOGLE_EMAIL_REDIRECT_URI);
-  console.log('[gmail-oauth] client_id present:', !!process.env.GOOGLE_CLIENT_ID);
-  console.log('[gmail-oauth] code length:', code?.length);
   try {
+    // Token exchange manual — mais fiável entre versões da biblioteca
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: process.env.GOOGLE_EMAIL_REDIRECT_URI,
+        grant_type: 'authorization_code',
+      }).toString(),
+    });
+    const tokens = await tokenRes.json();
+    if (tokens.error) throw new Error(tokens.error_description || tokens.error);
     const oAuth2Client = getEmailOAuth2Client();
-    const { tokens } = await oAuth2Client.getToken(code);
     oAuth2Client.setCredentials(tokens);
 
     // Obter endereço de email da conta
@@ -432,9 +442,8 @@ router.get('/google-email/callback', requireAuth, async (req, res) => {
       </body></html>
     `);
   } catch (err) {
-    const detail = err.response?.data || err.message;
-    console.error('Erro no OAuth Gmail:', JSON.stringify(detail));
-    res.status(500).send('Erro ao autenticar com o Gmail: ' + JSON.stringify(detail));
+    console.error('Erro no OAuth Gmail:', err.message);
+    res.status(500).send('Erro ao autenticar com o Gmail: ' + err.message);
   }
 });
 
