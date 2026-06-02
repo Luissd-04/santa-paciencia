@@ -406,6 +406,9 @@ router.get('/google-email', requireAuth, (req, res) => {
 router.get('/google-email/callback', requireAuth, async (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).send('Código de autorização em falta.');
+  console.log('[gmail-oauth] redirect_uri:', process.env.GOOGLE_EMAIL_REDIRECT_URI);
+  console.log('[gmail-oauth] client_id present:', !!process.env.GOOGLE_CLIENT_ID);
+  console.log('[gmail-oauth] code length:', code?.length);
   try {
     const oAuth2Client = getEmailOAuth2Client();
     const { tokens } = await oAuth2Client.getToken(code);
