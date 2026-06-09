@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
 const { recordConsent } = require('../services/rgpdService');
 const { syncReservationOperationalTasks } = require('../services/operationalTasksService');
+const { sendOwnerNewReservationEmail } = require('../services/emailService');
 const {
   calculateReservationTotals,
   normalizeDateValue,
@@ -65,6 +66,7 @@ function serializeAccommodation(req, row, parent = null) {
     child_price: Number(row.child_price ?? 0),
     checkin_time: row.checkin_time || parent?.checkin_time || '15:00',
     checkout_time: row.checkout_time || parent?.checkout_time || '11:00',
+    min_nights: Number(row.min_nights || parent?.min_nights || 1),
     amenities: parseJson(row.amenities, []),
     extra_occupancy_options: normalizeExtraOccupancyOptions(row),
     images: [...images, ...parentImages],
@@ -273,6 +275,10 @@ function createReservation(req, res, next) {
       }
     }
     const totals = calculateTotal(unit, parent.organization_id, payload);
+    const minNights = Number(unit.min_nights || parent.min_nights || 1);
+    if (totals.nights < minNights) {
+      return res.status(400).json({ success: false, error: `A estadia mínima é de ${minNights} noite${minNights !== 1 ? 's' : ''}.` });
+    }
     if (!isCompleteProperty && findConflict(parent.organization_id, unit.id, totals.checkIn, totals.checkOut)) {
       return res.status(409).json({ success: false, error: 'Este alojamento já está ocupado nessas datas.' });
     }
@@ -372,6 +378,15 @@ function createReservation(req, res, next) {
       guest_name: txResult.name,
       accommodation_name: accommodationName,
     }, null);
+
+    // Fire-and-forget — não bloqueia a resposta
+    sendOwnerNewReservationEmail(
+      parent.organization_id,
+      txResult,
+      reservation,
+      unit,
+      publicUrl(req)
+    ).catch(() => {});
 
     res.status(201).json({
       success: true,

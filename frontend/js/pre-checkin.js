@@ -59,10 +59,13 @@ async function api(path, options = {}) {
   return payload;
 }
 
-function guestForm(guest, index) {
-  const label = index === 0 ? 'Hóspede principal' : `Hóspede ${index + 1}`;
+function guestForm(guest, index, numAdults) {
+  const isChild = index > 0 && index >= (numAdults ?? 99);
+  const label = index === 0
+    ? 'Hóspede principal'
+    : isChild ? `Hóspede ${index + 1} — criança` : `Hóspede ${index + 1}`;
   return `
-    <div class="guest-card" data-guest="${index}" style="border:1px solid rgba(132,52,36,.14);border-radius:14px;padding:16px;margin:14px 0;background:#fff;">
+    <div class="guest-card" data-guest="${index}" data-is-child="${isChild}" style="border:1px solid rgba(132,52,36,.14);border-radius:14px;padding:16px;margin:14px 0;background:#fff;">
       <div class="step-heading" style="margin-bottom:14px;">
         <span>${label}</span>
         <h2 style="font-size:22px;">${guest?.name || label}</h2>
@@ -72,9 +75,9 @@ function guestForm(guest, index) {
         <input data-field="name" required value="${escapeAttr(guest?.name || '')}" placeholder="Nome completo">
       </label>
       <div class="field-grid two">
-        <label class="foreign-field">
-          <span data-base-label="Data de nascimento">Data de nascimento</span>
-          <input data-field="birth_date" data-foreign-required class="birth-input pc-birth-input" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" value="${escapeAttr(displayDate(guest?.birth_date || ''))}">
+        <label>
+          <span>Data de nascimento *</span>
+          <input data-field="birth_date" ${isChild ? 'required' : 'data-foreign-required'} class="birth-input pc-birth-input" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" value="${escapeAttr(displayDate(guest?.birth_date || ''))}">
         </label>
         <label>
           <span>Nacionalidade *</span>
@@ -84,6 +87,7 @@ function guestForm(guest, index) {
           </div>
         </label>
       </div>
+      ${isChild ? '' : `
       <div class="field-grid two">
         <label class="foreign-field">
           <span data-base-label="Tipo de documento">Tipo de documento</span>
@@ -105,7 +109,7 @@ function guestForm(guest, index) {
           <input data-field="document_issuer_country" data-foreign-required class="country-input pc-country-input" value="${escapeAttr(guest?.document_issuer_country || guest?.nationality || guest?.country || '')}" placeholder="Portugal" autocomplete="off">
           <div class="country-dropdown" style="display:none;"></div>
         </div>
-      </label>
+      </label>`}
     </div>
   `;
 }
@@ -194,13 +198,12 @@ function setupCountryInput(input) {
   input.addEventListener('blur', () => setTimeout(() => { dropdown.style.display = 'none'; }, 90));
 }
 
-function renderTimePresets(maxTime) {
+function renderTimePresets(checkInTime) {
   const container = document.getElementById('pc-time-presets');
   if (!container) return;
-  const maxH = parseInt(String(maxTime || '').split(':')[0], 10);
-  const times = isNaN(maxH)
-    ? ['14:00', '15:00', '16:00', '18:00', '20:00']
-    : Array.from({ length: maxH - 11 }, (_, i) => `${String(i + 12).padStart(2, '0')}:00`);
+  const startH = parseInt(String(checkInTime || '').split(':')[0], 10);
+  const from = isNaN(startH) ? 15 : startH;
+  const times = Array.from({ length: 23 - from + 1 }, (_, i) => `${String(i + from).padStart(2, '0')}:00`);
   container.innerHTML = times.map(t => `<button type="button" data-time="${t}">${t}</button>`).join('');
   container.querySelectorAll('button').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -252,7 +255,8 @@ function render(data) {
 
   const guests = [data.guest, ...(data.guests_data || [])];
   while (guests.length < Number(r.num_guests || 1)) guests.push({});
-  $('pc-guests').innerHTML = guests.slice(0, Number(r.num_guests || 1)).map(guestForm).join('');
+  const numAdults = Number(r.num_adults || r.num_guests || 1);
+  $('pc-guests').innerHTML = guests.slice(0, Number(r.num_guests || 1)).map((g, i) => guestForm(g, i, numAdults)).join('');
   document.querySelectorAll('.pc-country-input').forEach(setupCountryInput);
   document.querySelectorAll('.pc-birth-input').forEach(setupBirthInput);
   document.querySelectorAll('.guest-card').forEach(updateForeignRequired);

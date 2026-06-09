@@ -1,6 +1,6 @@
 # Santa Paciência — Documentação Técnica Completa
 
-> Atualizado em 2026-06-01 (sessão 4 — fixes de segurança). Atualizar sempre que houver alterações estruturais significativas.
+> Atualizado em 2026-06-09 (sessão 5 — auditoria full-stack + actualização de endpoints). Atualizar sempre que houver alterações estruturais significativas.
 
 ---
 
@@ -12,12 +12,14 @@
 | **Node.js** | v22 | Runtime |
 | **Express** | v5 | Framework HTTP |
 | **better-sqlite3** | v12 | Base de dados (síncrona, sem ORM) |
-| **Nodemailer** | v8 | Envio de emails |
-| **googleapis** | v171 | Integração Google Calendar, Gmail e Google Tasks (OAuth2) |
+| **Nodemailer** | v8 | Envio de emails (fallback SMTP) |
+| **google-auth-library** | v9 | OAuth2 + token refresh (sem `googleapis` desde 2026-06; chamadas Google via `fetch` directo) |
 | **uuid** | v14 | Geração de IDs |
 | **dotenv** | v17 | Variáveis de ambiente |
-| **helmet** | v8 | Headers HTTP de segurança |
-| **express-rate-limit** | v7 | Rate limiting por rota |
+| **helmet** | v8 | Headers HTTP de segurança (CSP ainda desligada) |
+| **express-rate-limit** | v8 | Rate limiting por rota |
+
+> **Nota 2026-06**: as dependências `@googleapis/calendar`, `@googleapis/gmail`, `@googleapis/oauth2`, `@googleapis/tasks` foram removidas. As integrações Google fazem agora chamadas REST directas via `fetch` autenticado (`google-auth-library` mantém-se para o OAuth2Client + refresh de tokens).
 
 ### Frontend
 Vanilla HTML + CSS + JavaScript puro. Sem frameworks (sem React, Vue, Angular, etc.).
@@ -551,15 +553,58 @@ notes           TEXT
 created_at      TEXT
 ```
 
-### Tabela `password_reset_tokens` (existente mas feature não implementada)
+### Tabela `password_reset_tokens` (feature implementada — auth.js)
 ```sql
 id              TEXT PRIMARY KEY
 user_id         TEXT NOT NULL
-token           TEXT NOT NULL UNIQUE
-expires_at      TEXT NOT NULL
+token           TEXT NOT NULL UNIQUE (32 bytes hex)
+expires_at      TEXT NOT NULL  -- TTL 1h
 used_at         TEXT
 created_at      TEXT DEFAULT datetime('now')
 ```
+Endpoints: `POST /auth/forgot-password`, `GET /auth/reset-password/:token`, `POST /auth/reset-password`. `consumeResetToken` apaga **todas** as sessões do user.
+
+### Tabela `reservation_payments`
+Adicionada pela migration `migrateReservationPayments`. Cada pagamento parcial é uma linha; `amount_paid` na tabela `reservations` é recalculado como soma.
+```sql
+id              TEXT PRIMARY KEY        -- 'rp-{Date.now()}' (ver S16 — colidível)
+reservation_id  TEXT NOT NULL
+organization_id TEXT NOT NULL
+amount          REAL NOT NULL
+method          TEXT
+payment_date    TEXT
+notes           TEXT
+created_at      TEXT DEFAULT datetime('now')
+INDEX idx_rp_reservation ON reservation_payments(reservation_id)
+```
+Migração one-shot lê `reservations.amount_paid > 0` e cria uma linha legacy `rp-{id}-legacy` para preservar histórico.
+
+### Tabela `conversation_archives`
+Permite arquivar conversas no separador Mensagens.
+```sql
+id              TEXT PRIMARY KEY
+organization_id TEXT NOT NULL
+thread_key      TEXT NOT NULL    -- reservation_id ou 'standalone-{email}'
+key_type        TEXT DEFAULT 'reservation'
+archived_at     TEXT
+UNIQUE (organization_id, thread_key)
+```
+Endpoints: `GET/POST /auth/email/archives`, `DELETE /auth/email/archives/:thread_key`.
+
+### Colunas adicionais em `pricing_periods`
+- `days_of_week TEXT` — JSON array `[0..6]` para preço aplicar só em certos dias da semana. NULL = todos.
+
+### Colunas adicionais em `accommodations` (não listadas na tabela acima)
+- `min_nights INTEGER DEFAULT 1` — estadia mínima (validada no público e no wizard)
+- `rgpd_text TEXT` — texto RGPD custom por alojamento
+- `airbnb_ical_url TEXT` — URL iCal Airbnb (futuro sync)
+- `booking_ical_url TEXT` — URL iCal Booking (futuro sync)
+
+### Colunas adicionais em `reservations`
+- `num_adults`, `num_children INTEGER DEFAULT 0`
+- `cancelled_previous_status TEXT` — guardado antes do cancelamento para reativar
+- `cancelled_previous_payment_status TEXT` — idem para `payment_status`
+- `accommodations_data TEXT DEFAULT '[]'` — JSON multi-alojamento (futuro)
 
 ---
 
@@ -569,15 +614,18 @@ created_at      TEXT DEFAULT datetime('now')
 | Método | Path | Descrição |
 |---|---|---|
 | GET | `/` | Lista. Filtros: `?status=&accommodation_id=&from=&to=` |
-| GET | `/:id` | Detalhe com guest_name, guest_email, accommodation_name |
-| POST | `/` | Criar reserva. Cria/atualiza hóspede, recalcula total (com pricing periods), valida double-booking, cria evento GCal, envia email |
+| GET | `/:id` | Detalhe com guest_name, guest_email, accommodation_name + array `payments[]` |
+| POST | `/` | Criar reserva. Cria/atualiza hóspede + hóspedes adicionais (`upsertAdditionalGuests`), recalcula total (com pricing periods), valida double-booking, cria evento GCal, envia email |
 | PUT | `/:id` | Atualizar. Recalcula total, re-valida disponibilidade, atualiza GCal, envia email pagamento se confirmado |
-| DELETE | `/:id` | Cancelar (status → 'cancelada'). Remove de GCal, envia email cancelamento |
+| DELETE | `/:id` | Cancelar (status → 'cancelada'). Guarda `cancelled_previous_status` para reativação. Remove de GCal, envia email cancelamento |
+| POST | `/:id/approve` | Aprovar reserva pendente: status → `pre_checkin`, garante `public_token`, envia email com link `/pre-checkin/:token` |
+| POST | `/:id/payments` | Registar pagamento parcial. Insere em `reservation_payments`, recalcula `amount_paid` e `payment_status` |
+| DELETE | `/:id/payments/:paymentId` | Remover pagamento. Recalcula totais |
 | GET | `/stats/dashboard` | KPIs: totalBilled, confirmedReservations, nightsThisMonth, occupancyRate |
 | GET | `/availability` | `?check_in=&check_out=&exclude_id=` → `{unavailable: [ids...]}` com propagação hierárquica |
 | GET | `/notifications` | Notificações do dia: check-ins/outs, pagamentos em falta, pendentes, tarefas importantes |
 
-### `/api/accommodations`
+### `/api/accommodations` (requireRole `manager`)
 | Método | Path | Descrição |
 |---|---|---|
 | GET | `/` | Lista com herança já resolvida |
@@ -585,15 +633,16 @@ created_at      TEXT DEFAULT datetime('now')
 | POST | `/settings` | Guardar serviços e taxas |
 | GET | `/:id` | Detalhe resolvido |
 | POST | `/` | Criar. Aceita `parent_id` |
-| PUT | `/:id` | Atualizar. Campos herdados ignorados se `parent_id` definido |
+| PUT | `/:id` | Atualizar. Campos herdados ignorados se `parent_id` definido. Aceita `min_nights`, `rgpd_text`, `airbnb_ical_url`, `booking_ical_url` |
 | DELETE | `/:id` | Apagar. Bloqueado se tiver reservas ativas |
-| POST | `/:id/cover` | Upload capa (base64 → ficheiro em /uploads/) |
+| POST | `/:id/cover` | Upload capa (base64 → ficheiro em /uploads/, parser 15mb) |
 | DELETE | `/:id/cover` | Remover capa |
-| POST | `/:id/images` | Upload imagem galeria |
+| POST | `/:id/images` | Upload imagem galeria (parser 15mb) |
 | PATCH | `/:id/images` | Atualizar estrutura de imagens/secções |
 | DELETE | `/:id/images` | Remover imagem |
 | GET | `/:id/pricing-periods` | Lista períodos de preço do alojamento |
 | POST | `/:id/pricing-periods` | Criar período de preço |
+| POST | `/:id/pricing-periods/bulk` | Criar período de preço com filtro de dias da semana (`days_of_week`: array `[0..6]`) |
 | PUT | `/:id/pricing-periods/:periodId` | Atualizar período |
 | DELETE | `/:id/pricing-periods/:periodId` | Eliminar período |
 
@@ -654,7 +703,8 @@ created_at      TEXT DEFAULT datetime('now')
 ### `/api/team`
 | Método | Path |
 |---|---|
-| GET | `/` — resumo de membros e convites |
+| GET | `/members` — lista membros activos (acessível a `staff`) |
+| GET | `/` — resumo de membros e convites (owner) |
 | POST | `/invitations` — owner convida gestor/funcionário |
 | DELETE | `/invitations/:id` — remove convite pendente |
 | PATCH | `/members/:id` — owner altera papel |
@@ -682,35 +732,48 @@ created_at      TEXT DEFAULT datetime('now')
 ### `/auth`
 | Método | Path |
 |---|---|
-| GET | `/register-status` |
-| POST | `/login` |
-| POST | `/register` |
+| GET | `/register-status` — devolve `{ enabled: false, mode: 'invite-only' }` |
+| POST | `/login` — rate-limited (10/15min) |
+| POST | `/register` — sempre 403 (invite-only) |
 | POST | `/logout` |
-| GET | `/me` |
-| GET | `/invitations/:token` |
-| POST | `/invitations/accept` |
+| GET | `/me` — devolve user da sessão |
+| GET | `/memberships` — lista organizações a que o user pertence |
+| POST | `/switch-org` — muda de organização (gera nova session, invalida a anterior) |
+| GET | `/invitations/:token` — meta do convite |
+| POST | `/invitations/accept` — aceitar convite (cria user OU adiciona membership) |
+| POST | `/forgot-password` — rate-limited (5/h). Resposta sempre 200 (anti-enumeration) |
+| GET | `/reset-password/:token` — verifica token, devolve `{ email }` |
+| POST | `/reset-password` — consome token, define nova password, invalida sessões |
+| POST | `/change-password` — owner muda a própria password (exige `current_password`) |
 | GET | `/google` — redirect OAuth2 Google Calendar |
 | GET | `/google/callback` |
+| GET | `/google/status` — `{ connected }` |
 | DELETE | `/google` |
-| GET | `/google-email` — redirect OAuth2 Gmail (`gmail.send` + `gmail.readonly`) |
-| GET | `/google-email/callback` |
+| GET | `/google-email` — redirect OAuth2 Gmail (`gmail.send` + `gmail.readonly` + `userinfo.email`) |
+| GET | `/google-email/callback` — token exchange via `fetch` directo (manual) |
 | GET | `/google-email/status` — `{ connected, email }` |
 | DELETE | `/google-email` — desligar Gmail |
-| POST | `/google-email/test` — envia email de teste para o próprio |
+| POST | `/google-email/test` — envia email de teste para o próprio; se erro auth, apaga tokens |
 | POST | `/email/send` — envia email via Gmail/SMTP e guarda em `invoice_messages` |
-| GET | `/email/messages` — lista mensagens enviadas (`?to_email=&reservation_id=&limit=`) |
-| GET | `/email/inbox` — lê inbox Gmail e devolve mensagens recebidas/enviadas (`?to_email=`) |
+| GET | `/email/messages` — lista mensagens enviadas (`?to_email=&reservation_id=&limit=`, cap 500) |
+| GET | `/email/inbox` — lê inbox Gmail e devolve mensagens recebidas/enviadas (`?to_email=&max=30`) |
+| GET | `/email/archives` — lista conversas arquivadas pela organização |
+| POST | `/email/archives` — arquivar thread (`{ thread_key, key_type }`) |
+| DELETE | `/email/archives/:thread_key` — restaurar thread |
 | GET | `/google-tasks` — redirect OAuth2 Google Tasks |
-| GET | `/google-tasks/callback` |
+| GET | `/google-tasks/callback` — token exchange via `fetch` directo |
 | GET | `/google-tasks/status` — `{ connected, email, tasksListId }` |
 | DELETE | `/google-tasks` — desligar Google Tasks |
 
 ### `/api/public`
 | Método | Path |
 |---|---|
-| GET | `/booking/:slug` — dados públicos do alojamento |
-| GET | `/booking/:slug/availability` |
-| POST | `/booking/:slug/reservations` — criar reserva pública (pendente) |
+| GET | `/booking/:slug` — dados públicos do alojamento (`property`, `units`, `services`, inclui `pricing_periods` e `min_nights`) |
+| GET | `/booking/:slug/availability` — `?check_in=&check_out=&num_guests=` |
+| GET | `/booking/:slug/voucher?code=` — valida código de voucher; rate-limited (30/h) |
+| POST | `/booking/:slug/reservations` — criar reserva pública (pendente). Rate-limited (20/h). Transação atómica para guest + reserva + voucher. Notifica owner por email via `sendOwnerNewReservationEmail` (fire-and-forget) |
+| GET | `/pre-checkin/:token` — devolve dados da reserva e guests para pré-checkin. HTTP 410 após checkout |
+| POST | `/pre-checkin/:token` — submete dados completos dos hóspedes + `arrival_time`. Atualiza guest principal e `guests_data`. Se status era `pre_checkin`, passa a `aguardar_pagamento` |
 
 ### `/health`
 | Método | Path |
@@ -926,17 +989,33 @@ LICENSE_NUMBER=12345/AL
 - CSS começou a sair do ficheiro monolítico para camadas (`base`, `layout`, `components`, `themes`, `views`).
 - Preços dinâmicos aplicados noite a noite (não taxa plana), suportando mudanças de período a meio de uma estadia.
 
-### Bugs / Riscos Actuais
-- `emailScheduler.js` não está ligado no `server.js`; emails agendados nunca correm automaticamente.
-- `getNotifications` chama `syncOrganizationOperationalTasks` (operação de escrita) num handler GET — anti-padrão REST.
-- Race condition no voucher: validação e marcação como `'used'` correm em queries separadas; dois pedidos simultâneos podem usar o mesmo voucher.
-- XSS potencial: alguns pontos ainda inserem dados em `innerHTML` sem `escapeHtml`.
-- `payment_method || existing.payment_method` impede apagar o método de pagamento explicitamente.
-- Sem rate limiting no `/auth/login` nem nos endpoints públicos (`express-rate-limit` não instalado).
-- `frontend/api.js` existe mas a SPA usa helpers em `helpers.js`; duas fontes para o mesmo padrão.
-- JOIN de voucher em `voucherController` não filtra `accommodation` por `organization_id`.
-- Muitos `onclick` inline no `index.html` dificultam testes e cleanup.
-- Credenciais reais no `.env` local — não devem ser commitadas nem partilhadas.
+### Bugs / Riscos Actuais (revisto 2026-06-09 — ver `CÓDIGO_MELHORIAS.md` para o detalhe)
+- **XSS confirmado** (`invoice.js:379` + `auth.js:610`) — corpo de email Gmail inserido sem sanitização (S1/S11/S19).
+- **Templates de email interpolam input não-confiável** sem escape (`emailService.js:184,199,240` — S10).
+- **CDN sem SRI** em `index.html:35-41` — supply-chain attack possível (S21).
+- **Service Worker** continua no repositório; browsers que o registaram podem servir versões antigas (S22).
+- **emailScheduler.js** não está ligado no `server.js`; emails agendados nunca correm automaticamente.
+- **calendarService** consulta `guests`/`accommodations` sem filtro `organization_id` (S9 — defesa em profundidade).
+- **`rgpdService.recordConsent`** atualiza guests sem filtro org (S20).
+- **`SP-${Date.now()}` no backoffice** (reservationController.js:410) — colisão possível (S15).
+- **`paymentId` idem** (rp-${Date.now()}) — S16.
+- **Backup** usa shell out a `/usr/bin/zip|unzip` (S18) e constrói SQL com colunas vindas do JSON (S17).
+- **OAuth Google sem `state`** (auth.js:348,393,674) — CSRF possível (S5).
+- **CSP desligada** explicitamente em `app.js:30` (S4).
+- **Token público único** serve tanto para pré-checkin como gestão (S2).
+- **Reservas pendentes** bloqueiam datas sem CAPTCHA nem expiração (S3).
+- **innerHTML não escapado** em `reserva-lista.js`, `hospedes.js` cards, `public-reservation.js` — S6/S12/S13.
+- **onclick inline com escape manual frágil** em hospedes.js, reserva-lista.js — S14.
+- **229 onclick inline** em `index.html` — bloqueiam activação de CSP estrita.
+- **`frontend/api.js`** continua presente (código morto sem `credentials: 'include'`) — S29.
+- **`backend/src/teste1.js`** + **`backend/tokens/google_token.json`** no disco — confirmar que não foram commitados (S30).
+- **Logo do email** vem de `santapaciencia.pt` (domínio externo, S23) e ícones sociais de `cdn.simpleicons.org` (tracking, S24).
+- **`/email/archives`** sem `requireRole` — qualquer staff arquiva (S25).
+- **`addPayment`** aceita `Infinity` (S26).
+- **Taxa de ocupação** distorcida pela hierarquia pai/filho (B1).
+- **Motor público** não passa `pricing_periods` ao `calculateTotal` na criação de reserva (B3).
+- **`updateCalendarEvent`** envia descrição truncada (B5).
+- **Credenciais reais no `.env` local** — não devem ser commitadas nem partilhadas; `.env` está em `backend/src/` (não na raiz).
 
 ### Segmentação Recomendada
 Ver `CÓDIGO_MELHORIAS.md` para lista detalhada com prioridades.
@@ -945,43 +1024,94 @@ Ver `CÓDIGO_MELHORIAS.md` para lista detalhada com prioridades.
 
 ## Pontos de Atenção Técnica
 
-1. **IDs de reservas**: `SP-{Date.now()}` — legíveis mas podem colidir em criações simultâneas rápidas.
+1. **IDs de reservas**:
+   - **Público**: `SP-${crypto.randomBytes(6).toString('hex').toUpperCase()}` (corrigido 2026-06-01 — sem colisão).
+   - **Backoffice**: ainda `SP-${Date.now()}` (regressão parcial — ver **S15**).
+   - **Pagamentos**: `rp-${Date.now()}` (colidível — ver **S16**).
 
 2. **IDs de alojamentos**: slug do nome + 4 dígitos do timestamp. Se o nome for alterado, o ID mantém-se.
 
-3. **Imagens em base64**: enviadas do frontend, guardadas como ficheiros. Limite de 5 MB por imagem; 200 MB total por request de backup/import.
+3. **Imagens em base64**: enviadas do frontend, guardadas como ficheiros. Parser `15mb` em uploads de alojamento, `100mb` em backup, `1mb` global. Validação de MIME via allowlist (`jpeg/png/gif/webp/avif`) — **mas sem verificação de magic bytes** (S32).
 
 4. **Email scheduler**: módulo existe com `setInterval(60min)`, mas não está ligado no `server.js`. Se for ativado, não tem fila persistente — falhas tentam de novo no ciclo seguinte desde que a janela de 8 dias ainda cubra a reserva.
 
-5. **CORS**: configurado para `localhost`, `ngrok`, `trycloudflare.com` e `santapaciencia.xyz`. Adicionar novos domínios em `app.js` no array `allowed`.
+5. **CORS**: configurado por ambiente — `NODE_ENV=production` só aceita `santapaciencia.xyz`; em dev aceita localhost, ngrok, trycloudflare.com. Adicionar novos domínios em `app.js` (`ALLOWED_ORIGINS_DEV` ou `ALLOWED_ORIGINS_PROD`).
 
-6. **Autenticação**: login por sessão, signup de `owner`, convites e roles. Ainda faltam: rate limiting de login (`express-rate-limit` não instalado), recuperação de password, rotação de session ID, auditoria de acessos.
+6. **Autenticação**:
+   - Rate limiting **instalado** (`express-rate-limit` v8 — login 10/15min, forgot-password 5/h, reserva pública 20/h, voucher 30/h).
+   - **Recuperação de password implementada** (`forgot-password`, `reset-password`, `change-password`).
+   - **Rotação de session ID** ao mudar de organização (`switch-org`).
+   - **Anti-enumeração** no login e no forgot-password.
+   - **Sem `state` no OAuth Google** (CSRF risk — S5).
+   - **Sem auditoria/log estruturado** — apenas `console.log` (S28).
 
 7. **Multi-tenant**: isolamento lógico por `organization_id`. Exige disciplina para que novas queries filtrem sempre pela organização atual.
+   - **Excepções conhecidas**: `calendarService.js` (S9), `rgpdService.js` (S20).
 
-8. **Preços dinâmicos — cache no wizard**: `_cachedPricingPeriods` no wizard não é invalidado se o utilizador editar períodos na vista Preços enquanto o wizard está aberto. Os preços reflectem-se apenas ao mudar de alojamento no wizard.
+8. **Preços dinâmicos — cache no wizard**: `_cachedPricingPeriods` no wizard é agora **invalidada** quando se guarda/edita/elimina um período (`invalidateWizPricingCache(alojId)` em `precos.js` → `reserva-wizard.js`).
 
-9. **Vouchers**: campo de verificação no wizard do backoffice. O desconto não é deduzido automaticamente no total — a aplicação é manual.
+9. **Vouchers**:
+   - Backoffice: campo de verificação no wizard; **não aplica desconto automaticamente** (manual).
+   - Público: aplica desconto + marca como `used` **na mesma transação SQLite** (race-condition-safe desde 2026-06-01).
+
+10. **Pré-checkin público** (`/pre-checkin/:token`):
+    - Usa o **mesmo `public_token`** da reserva. Token de 64 chars hex.
+    - Expira após data de check-out (HTTP 410).
+    - **Não tem TTL curto antes do checkout** (ver **S2** crítico) — token vazado = todos os dados do hóspede.
+    - Pré-checkin completo passa status de `pre_checkin` para `aguardar_pagamento`.
+
+11. **Aprovação de reservas**: `POST /api/reservations/:id/approve`
+    - Move pendente → `pre_checkin`
+    - Garante `public_token`
+    - Envia email automático com link `/pre-checkin/{token}` (`sendPreCheckinEmail`)
+
+12. **Notificação ao owner em reservas públicas**: `sendOwnerNewReservationEmail` é fire-and-forget após `createReservation` no público. Envia email a todos os `owner`+`manager` activos.
+
+13. **Backup**: usa `execFileSync('/usr/bin/zip'|'/usr/bin/unzip')` — depende de binário presente no sistema (ver **S18**). Tabelas exportadas: `organization_settings`, `organization_email_templates`, `organization_email_log`, `accommodations`, `guests`, `expenses`, `reservations`, `operational_events`. **NÃO inclui** `reservation_payments`, `conversation_archives`, `vouchers`, `pricing_periods`, `invoice_messages` — backup é parcial.
 
 ---
 
 ## O que Ainda Não Está Implementado
 
-- **Recuperação de password** — tabela `password_reset_tokens` existe mas sem endpoints nem UI
-- **Rate limiting / brute-force protection** no login
-- **Faturação** — geração de PDF de fatura/recibo por reserva
 - **Faturação por reserva** — geração de PDF de fatura/recibo (o separador "Faturas" em Mensagens está reservado para isso)
 - **Notas internas por hóspede** (separadas das notas de reserva)
 - **Sincronização automática iCal** — os alojamentos já guardam URLs Airbnb/Booking; falta importar eventos e criar bloqueios/reservas automaticamente
-- **Pré check-in público** — reservas aprovadas enviam link `/pre-checkin/:token`; falta anexar eventual comprovativo/pagamento online quando o gateway for escolhido
-- **Notificações push** (PWA Service Worker)
+- **Pré check-in público** — reservas aprovadas enviam link `/pre-checkin/:token` (implementado); falta anexar eventual comprovativo/pagamento online quando o gateway for escolhido
+- **Notificações push** (PWA Service Worker) — o `service-worker.js` existe com handler `push`, mas o backend nunca envia
 - **SIBA/AIMA** — submissão automática de Boletins de Alojamento via WebService SOAP do SIBA, usando os dados recolhidos no pré check-in, com fila, tentativas, histórico e fallback manual
 - **Backups automáticos locais** — export periódico para o PC dos proprietários
-- **Portal/link público da reserva** — token seguro para o cliente editar dados permitidos
+- **Portal/link público da reserva** — partilha o mesmo token do pré-checkin; falta tornar tokens distintos (S2)
 - **Integração com website externo** — redirect, iframe/embed ou formulário nativo via API
-- **PWA** — frontend responsivo mas não instalável como app
-- **Testes automatizados** — sem testes de integração (existem testes unitários mínimos de reservationRules)
+- **PWA** — frontend responsivo mas não instalável como app (manifest 404 — S31)
+- **Testes automatizados** — sem testes de integração (existem testes unitários mínimos de `reservationRules` e `availabilityRules`)
 - **Auditoria/histórico** — sem log de quem alterou o quê e quando
-- **Vouchers com desconto automático** — o voucher é verificável no wizard mas o desconto não é deduzido no total da reserva
+- **Vouchers com desconto automático no backoffice** — o voucher é verificável no wizard mas o desconto não é deduzido no total (no público já é aplicado automaticamente)
 - **Email scheduler ligado** — módulo existe mas `startScheduler()` não é chamado no `server.js` *(aguarda trabalho futuro)*
+- **Expiração automática de reservas pendentes** — atualmente bloqueiam datas indefinidamente (S3)
+- **CAPTCHA / Cloudflare Turnstile no público** — atacante com IPs rotativos contorna o rate-limit (S3)
+- **CSP estrita** — actualmente desligada em `app.js:30` por causa dos 229 `onclick` inline (S4)
 - **Inbox Gmail — polling passivo** — a leitura de inbox funciona por polling de 30s; replies chegam com atraso até 30s. Alternativa mais robusta seria Gmail Pub/Sub (push), mas requer configuração de webhook externo.
+- **Sanitização de emails recebidos** — `extractBody` em `auth.js:610` devolve HTML directo do Gmail para o frontend, que faz `innerHTML` (XSS — S1/S11/S19). DOMPurify ou iframe sandbox em falta.
+- **SRI nas dependências CDN** — `index.html:35-41` carrega Lucide/Chart.js/jsPDF/XLSX/Leaflet sem `integrity=` (S21).
+- **Logger estruturado** — `console.log` espalhados expõem PII em produção (S28).
+- **Magic-byte verification em uploads** — `parseImageDataUri` só valida MIME declarado (S32).
+- **State parameter no OAuth** — fluxos Google Calendar/Gmail/Tasks sem CSRF protection (S5).
+
+---
+
+## Resumo do estado de segurança (2026-06-09)
+
+| Categoria | Implementado | Em falta |
+|---|---|---|
+| **Autenticação** | scrypt + sessões + rate-limit + reset password + change password + session rotation + anti-enumeração | OAuth `state`, MFA, auditoria |
+| **Autorização** | role-based (`owner > manager > staff`) + `requireRole` em rotas críticas | Reports/email-archives sem requireRole; reservations toda em staff |
+| **Headers HTTP** | Helmet (X-Frame-Options, X-Content-Type-Options, etc.) | CSP (desligada explicitamente) |
+| **CORS** | restrito por ambiente | — |
+| **Rate limiting** | login, forgot-password, reserva pública, voucher | restantes endpoints (search, etc.) |
+| **Input validation** | MIME allowlist nas imagens, password complexity, voucher regex | magic bytes, length caps, schema central |
+| **Output encoding** | escapeHtml em ~70% do innerHTML | restantes 30% (reserva-lista, hospedes cards, invoice body, emails templates) |
+| **Multi-tenant isolation** | maioria das queries filtra `organization_id` | `calendarService`, `rgpdService.recordConsent` |
+| **Race conditions** | voucher público transacional, ID público sem colisão | ID backoffice (Date.now), paymentId |
+| **Supply chain** | Helmet, dependências fixadas no package.json | SRI nas CDN, audit periódico |
+| **Operacional** | Docker + Cloudflare Tunnel + WAL SQLite | Logger estruturado, métricas, alertas |
+| **Backup** | export/import ZIP por org | tabelas em falta (payments, vouchers, pricing), shell-out a binários do sistema |

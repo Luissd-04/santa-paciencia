@@ -8,10 +8,6 @@
     "create-admin": "node scripts/create-admin.js"
   },
   "dependencies": {
-    "@googleapis/calendar": "^15.0.0",
-    "@googleapis/gmail": "^17.0.0",
-    "@googleapis/oauth2": "^5.0.1",
-    "@googleapis/tasks": "^12.0.0",
     "better-sqlite3": "^12.9.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

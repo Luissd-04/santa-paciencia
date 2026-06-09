@@ -688,8 +688,21 @@ router.get('/google-tasks/callback', requireAuth, async (req, res) => {
   const { code } = req.query;
   if (!code) return res.status(400).send('Código de autorização em falta.');
   try {
+    // Token exchange manual — mais fiável entre versões da biblioteca
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: process.env.GOOGLE_TASKS_REDIRECT_URI,
+        grant_type: 'authorization_code',
+      }).toString(),
+    });
+    const tokens = await tokenRes.json();
+    if (tokens.error) throw new Error(tokens.error_description || tokens.error);
     const oAuth2Client = getTasksOAuth2Client();
-    const { tokens } = await oAuth2Client.getToken(code);
     oAuth2Client.setCredentials(tokens);
 
     let email = null;

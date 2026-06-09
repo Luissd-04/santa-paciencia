@@ -1016,6 +1016,8 @@ function validateStep() {
   clearStepError();
   if (state.step === 1) {
     if (!iso($('pb-checkin').value) || !iso($('pb-checkout').value) || nights() <= 0) { showStepError('Escolha datas válidas.'); return false; }
+    const _minN = Number(selectedUnit()?.min_nights || state.property?.min_nights || 1);
+    if (nights() < _minN) { showStepError(`A estadia mínima é de ${_minN} noite${_minN !== 1 ? 's' : ''}.`); return false; }
     if (!state.selectedUnitId) { showStepError('Escolha um alojamento disponível.'); return false; }
   }
   if (state.step === 2) {

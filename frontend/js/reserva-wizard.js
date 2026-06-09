@@ -567,37 +567,40 @@ function renderExtraGuests() {
   const countryOpts = '<option value="">— País —</option>' +
     DIAL_COUNTRIES.map(c => `<option value="${c.name}">${c.flag} ${c.name}</option>`).join('');
 
+  const numAdultos = parseInt(document.getElementById('f-num-adultos')?.value) || 1;
   const parts = [];
   for (let i = 2; i <= n; i++) {
     const idx = i - 2;
     const p = existing[idx] || {};
+    const isChild = i > numAdultos;
+    const rowLabel = isChild ? `Hóspede ${i} — criança` : `Hóspede ${i}`;
     parts.push(`
-      <div class="extra-guest-row" data-extra-idx="${idx}" style="background:var(--cinza-claro);border-radius:10px;padding:14px;margin-bottom:12px;">
-        <div style="font-size:12px;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Hóspede ${i}</div>
-        <div class="form-group form-full" style="margin-bottom:12px;">
+      <div class="extra-guest-row" data-extra-idx="${idx}" data-is-child="${isChild}" style="background:var(--cinza-claro);border-radius:10px;padding:14px;margin-bottom:12px;">
+        <div style="font-size:12px;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">${rowLabel}</div>
+        ${!isChild ? `<div class="form-group form-full" style="margin-bottom:12px;">
           <label class="form-label">Pesquisa rápida (hóspede existente)</label>
           <div class="guest-search-wrap">
             <input class="form-control extra-guest-search-input" placeholder="Nome, email ou telefone…" autocomplete="off"
               oninput="extraGuestSearch(this.value,${idx})">
             <div class="guest-drop" id="extra-guest-drop-${idx}"></div>
           </div>
-        </div>
+        </div>` : ''}
         <div class="form-grid" style="margin:0;gap:12px;">
           <div class="form-group form-full" style="margin-bottom:0;">
             <label class="form-label">Nome Completo <span class="req-star">*</span></label>
             <input class="form-control" data-field="nome_completo" placeholder="Nome completo" value="${p.nome_completo || ''}">
           </div>
-          <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Email <span class="req-star">*</span></label>
+          ${!isChild ? `<div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Email</label>
             <input class="form-control" data-field="email" type="email" placeholder="email@exemplo.com" value="${p.email || ''}">
           </div>
           <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Telefone <span class="req-star">*</span></label>
+            <label class="form-label">Telefone</label>
             <div class="phone-group">
               <select class="form-control phone-prefix" data-field="tel_prefix">${prefixOpts}</select>
               <input class="form-control phone-number" data-field="tel_num" type="tel" placeholder="912 345 678" value="${p.tel_num || ''}">
             </div>
-          </div>
+          </div>` : ''}
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">País <span class="req-star">*</span></label>
             <select class="form-control guest-country" data-field="country"
@@ -1218,7 +1221,7 @@ async function saveReserva() {
       }
     }
   } catch (e) {
-    toast('❌ Erro de ligação ao servidor.', 'error');
+    toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
   } finally {
     AppUI.setButtonLoading(btn, false);
   }

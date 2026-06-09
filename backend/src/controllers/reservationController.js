@@ -17,6 +17,49 @@ function safeJson(value, fallback) {
   try { return JSON.parse(value); } catch { return fallback; }
 }
 
+function upsertAdditionalGuests(guestsData, organizationId) {
+  if (!Array.isArray(guestsData) || !guestsData.length) return guestsData || [];
+  return guestsData.map(g => {
+    if (!g?.name) return g;
+    const email = g.email?.trim() || null;
+    let existing = email
+      ? db.prepare('SELECT id FROM guests WHERE email = ? AND organization_id = ?').get(email, organizationId)
+      : null;
+    if (!existing && g.id) {
+      existing = db.prepare('SELECT id FROM guests WHERE id = ? AND organization_id = ?').get(g.id, organizationId);
+    }
+    if (existing) {
+      db.prepare(`UPDATE guests SET
+        name = COALESCE(?, name), phone = COALESCE(?, phone),
+        nationality = COALESCE(?, nationality), country = COALESCE(?, country),
+        birth_date = COALESCE(?, birth_date), birth_city = COALESCE(?, birth_city),
+        document_type = COALESCE(?, document_type), document_number = COALESCE(?, document_number),
+        document_issuer_country = COALESCE(?, document_issuer_country),
+        nif = COALESCE(?, nif), updated_at = datetime('now')
+        WHERE id = ? AND organization_id = ?
+      `).run(g.name || null, g.phone || null, g.nationality || null, g.country || null,
+             g.birth_date || null, g.birth_city || null, g.document_type || null,
+             g.document_number || null, g.document_issuer_country || null, g.nif || null,
+             existing.id, organizationId);
+      return { ...g, id: existing.id };
+    }
+    const newId = uuidv4();
+    const nameParts = (g.name || '').split(/\s+/);
+    db.prepare(`INSERT INTO guests
+      (id, organization_id, name, first_name, last_name, email, phone,
+       nationality, country, birth_date, birth_city,
+       document_type, document_number, document_issuer_country, nif)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(newId, organizationId, g.name,
+           g.first_name || nameParts[0] || '', g.last_name || nameParts.slice(1).join(' ') || '',
+           email, g.phone || null,
+           g.nationality || null, g.country || null, g.birth_date || null, g.birth_city || null,
+           g.document_type || null, g.document_number || null, g.document_issuer_country || null,
+           g.nif || null);
+    return { ...g, id: newId };
+  });
+}
+
 function getOrganizationServices(organizationId) {
   const row = db.prepare("SELECT value FROM organization_settings WHERE organization_id = ? AND key = 'services'").get(organizationId);
   return row ? safeJson(row.value, []) : [];
@@ -380,7 +423,7 @@ async function create(req, res, next) {
       finalTotal, totals.breakfastIncluded,
       totals.touristTax, channel || 'direto', payment_method || null,
       notes || null, accommodation.license_number,
-      JSON.stringify(guests_data || []),
+      JSON.stringify(upsertAdditionalGuests(guests_data, organizationId)),
       paidAmt, payment_date || null, autoPaymentStatus
     );
     if (appliedVoucherId) {
@@ -453,10 +496,6 @@ async function update(req, res, next) {
     const incomingGuestsData = guests_data !== undefined ? guests_data : safeJson(existing.guests_data, []);
     const existingGuest = db.prepare('SELECT birth_date FROM guests WHERE id = ? AND organization_id = ?').get(existing.guest_id, organizationId) || {};
     const guestForBirthDates = guest || { birth_date: existingGuest.birth_date };
-    if (guest || guests_data !== undefined || num_guests !== undefined) {
-      const birthDateError = validateReservationBirthDates(guests, guestForBirthDates, incomingGuestsData);
-      if (birthDateError) return res.status(400).json({ error: birthDateError });
-    }
     let totals;
     try {
       totals = calculateReservationTotals(accommodation, getOrganizationServices(organizationId), {
@@ -541,7 +580,7 @@ async function update(req, res, next) {
       payment_method !== undefined ? (payment_method || null) : existing.payment_method,
       notes !== undefined ? notes : existing.notes, nextStatus,
       nextPaymentStatus,
-      guests_data !== undefined ? JSON.stringify(guests_data) : (existing.guests_data || '[]'),
+      guests_data !== undefined ? JSON.stringify(upsertAdditionalGuests(guests_data, organizationId)) : (existing.guests_data || '[]'),
       newAccData,
       newPaidAmt,
       payment_date !== undefined ? (payment_date || null) : existing.payment_date,

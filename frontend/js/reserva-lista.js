@@ -391,6 +391,20 @@ async function showDetail(id) {
 
     const fmt = v => `€${Number(v).toFixed(2)}`;
     const sd = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+    const calcAge = (birth, ref) => {
+      if (!birth || !ref) return null;
+      const b = new Date(birth + 'T00:00:00'), r2 = new Date(ref + 'T00:00:00');
+      let age = r2.getFullYear() - b.getFullYear();
+      const m = r2.getMonth() - b.getMonth();
+      if (m < 0 || (m === 0 && r2.getDate() < b.getDate())) age--;
+      return age >= 0 ? age : null;
+    };
+    const numAdultsVal = Number(r.num_adults || r.num_guests || 1);
+    const childGuests = guestsData.slice(numAdultsVal - 1);
+    const childAges = childGuests.map(g => {
+      const age = calcAge(g.birth_date, r.check_in);
+      return age !== null ? (age === 0 ? '< 1 ano' : `${age} ${age === 1 ? 'ano' : 'anos'}`) : null;
+    }).filter(Boolean);
 
     const preCheckinUrl = r.public_token ? `${window.location.origin}/pre-checkin/${r.public_token}` : null;
     const guestEmail = (r.guest_email || '').replace(/'/g, "\\'");
@@ -454,6 +468,7 @@ async function showDetail(id) {
             <div class="rdv2-info-field">
               <span class="rdv2-if-label">Crianças</span>
               <span class="rdv2-if-val">${r.num_children || 0} ${lcIcon('baby', 11)}</span>
+              ${childAges.length ? `<span style="font-size:10.5px;color:var(--text-muted);">${childAges.join(' · ')}</span>` : ''}
             </div>
             ${r.arrival_time ? `<div class="rdv2-info-field">
               <span class="rdv2-if-label">Hora chegada</span>
@@ -476,6 +491,9 @@ async function showDetail(id) {
               <span class="rdv2-if-val">${r.guest_phone}</span>
             </div>` : ''}
           </div>
+
+          <!-- Divisor zona alojamento -->
+          <div class="rdv2-zone-divider">${lcIcon('home', 10)} Alojamento e Preços</div>
 
           <!-- Alojamentos -->
           <div class="rdv2-section">
@@ -532,9 +550,11 @@ async function showDetail(id) {
             <span class="rdv2-amt">${fmt(total)}</span>
           </div>
 
+          <!-- Divisor zona pagamentos -->
+          <div class="rdv2-zone-divider">${lcIcon('credit-card', 10)} Pagamentos</div>
+
           <!-- Pagamentos -->
           <div class="rdv2-pay-section" id="rdv2-pay-section">
-            <div class="rdv2-pay-title">${lcIcon('credit-card', 12)} Pagamentos</div>
             ${(r.payments || []).length > 0 ? `
               <div class="rdv2-pay-list" id="rdv2-pay-list">
                 ${(r.payments || []).map(p => `
@@ -569,7 +589,9 @@ async function showDetail(id) {
             <div class="rdv2-guests-title">Hóspedes adicionais</div>
             ${guestsData.map((g, i) => `<div class="rdv2-guest-row">
               <span class="rdv2-guest-num">Hóspede ${i + 2}</span>
-              <span>${g.name || '—'}${g.email ? ` · ${g.email}` : ''}${g.phone ? ` · ${g.phone}` : ''}</span>
+              <span>${g.id
+                ? `<a class="rdv2-guest-link" onclick="showHospedeDetail('${g.id}')">${g.name || '—'}</a>`
+                : (g.name || '—')}${g.email ? ` · ${g.email}` : ''}${g.phone ? ` · ${g.phone}` : ''}</span>
             </div>`).join('')}
           </div>` : ''}
 
@@ -602,7 +624,7 @@ async function showDetail(id) {
           <div class="rdv2-widget">
             <div class="rdv2-widget-title">Reserva</div>
             ${r.status === 'pendente' ? `<button class="rdv2-action-link rdv2-action-success" onclick="aprovarReserva('${r.id}')">${lcIcon('check', 12)} Aprovar e enviar pre check-in</button>` : ''}
-            <button class="rdv2-action-link" onclick="openAccommodationPanel('${r.id}','${r.accommodation_id}','${r.check_in}','${r.check_out}',${r.num_guests||1},${r.num_adults||1},${r.num_children||0},${r.breakfast_included?true:false},${r.nights||1},${JSON.stringify(accsData).replace(/'/g,"\\'")})">${lcIcon('home', 12)} Editar alojamento</button>
+            <button class="rdv2-action-link" data-accs="${(JSON.stringify(accsData)).replace(/"/g,'&quot;')}" data-res='{"id":"${r.id}","accId":"${r.accommodation_id}","ci":"${r.check_in}","co":"${r.check_out}","ng":${r.num_guests||1},"na":${r.num_adults||1},"nc":${r.num_children||0},"bkf":${r.breakfast_included?true:false},"nights":${r.nights||1}}' onclick="openAccommodationPanelFromBtn(this)">${lcIcon('home', 12)} Editar alojamento</button>
             <button class="rdv2-action-link" onclick="openEditModal('${r.id}')">${lcIcon('pencil', 12)} Editar reserva</button>
             <button class="rdv2-action-link" onclick="openPaymentForm('${r.id}', ${paid}, ${total})">${lcIcon('credit-card', 12)} Registar pagamento</button>
             ${r.guest_email ? `<button class="rdv2-action-link" onclick="openInvoiceForReservation('${r.id}','${guestEmail}','${guestName}')">${lcIcon('mail', 12)} Enviar email</button>` : ''}
@@ -630,7 +652,7 @@ async function showDetail(id) {
             <div class="rdv2-widget-title">Documentos</div>
             <button class="rdv2-doc-link" onclick="openEditModal('${r.id}')">${lcIcon('clipboard', 12)} Ficha de reserva</button>
             <button class="rdv2-doc-link" onclick="openGuestCard('${r.guest_id}','${r.id}')">${lcIcon('user', 12)} Ficha de hóspede</button>
-            <button class="rdv2-doc-link" onclick="document.querySelector('.rdv2-pay-section')?.scrollIntoView({behavior:'smooth'})">${lcIcon('credit-card', 12)} Conta corrente</button>
+            <button class="rdv2-doc-link" onclick="openAccountStatement('${r.id}')">${lcIcon('credit-card', 12)} Conta corrente</button>
           </div>
 
         </div>
@@ -737,6 +759,119 @@ async function deletePaymentEntry(reservationId, paymentId) {
   }
 }
 
+async function openAccountStatement(resId) {
+  let r;
+  try {
+    const data = await apiGet(`/api/reservations/${resId}`);
+    r = data.data;
+  } catch {
+    toast('❌ Erro ao carregar extrato', 'error');
+    return;
+  }
+
+  const payments = r.payments || [];
+  const total = Number(r.total_amount || 0);
+  const paid = Number(r.amount_paid || 0);
+  const remaining = total - paid;
+  const fmt = v => `€${Number(v).toFixed(2)}`;
+  const sd = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+  const methodLabel = { transferencia: 'Transferência', mbway: 'MBWay', numerario: 'Numerário', cartao: 'Cartão' };
+
+  const rows = payments.length
+    ? payments.map(p => `
+        <tr>
+          <td>${p.payment_date ? sd(p.payment_date) : '—'}</td>
+          <td>${methodLabel[p.method] || p.method || '—'}</td>
+          <td>${p.notes || '—'}</td>
+          <td style="text-align:right;font-weight:600;color:#2e7d52;">${fmt(p.amount)}</td>
+        </tr>`).join('')
+    : `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:16px;">Sem pagamentos registados</td></tr>`;
+
+  const html = `
+    <div id="stmt-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1300;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">
+      <div class="stmt-modal">
+        <div class="stmt-header">
+          <div>
+            <div class="stmt-title">Conta Corrente</div>
+            <div class="stmt-subtitle">${r.id} · ${r.guest_name}</div>
+          </div>
+          <button onclick="document.getElementById('stmt-overlay').remove()" class="stmt-close">×</button>
+        </div>
+
+        <div class="stmt-summary">
+          <div class="stmt-sum-row">
+            <span>Alojamento</span><span>${r.accommodation_name || '—'}</span>
+          </div>
+          <div class="stmt-sum-row">
+            <span>Check-in</span><span>${sd(r.check_in)}</span>
+          </div>
+          <div class="stmt-sum-row">
+            <span>Check-out</span><span>${sd(r.check_out)}</span>
+          </div>
+          <div class="stmt-sum-row">
+            <span>Noites</span><span>${r.nights}</span>
+          </div>
+          <div class="stmt-sum-row stmt-sum-total">
+            <span>Total da reserva</span><span>${fmt(total)}</span>
+          </div>
+        </div>
+
+        <table class="stmt-table">
+          <thead>
+            <tr>
+              <th>Data</th><th>Método</th><th>Notas</th><th style="text-align:right;">Valor</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+
+        <div class="stmt-footer">
+          <div class="stmt-foot-row">
+            <span>Total pago</span>
+            <span style="color:#2e7d52;font-weight:700;">${fmt(paid)}</span>
+          </div>
+          ${remaining > 0.01 ? `<div class="stmt-foot-row">
+            <span>Em falta</span>
+            <span style="color:#b03030;font-weight:700;">${fmt(remaining)}</span>
+          </div>` : `<div class="stmt-foot-row"><span style="color:#2e7d52;">✓ Pago na totalidade</span><span></span></div>`}
+        </div>
+
+        <div class="stmt-actions">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('stmt-overlay').remove()">Fechar</button>
+          <button class="btn btn-outline btn-sm" onclick="downloadStatementCsv('${resId}')">Download CSV</button>
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById('stmt-overlay')?.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  // Store data for CSV download
+  window._stmtData = { r, payments };
+}
+
+function downloadStatementCsv(resId) {
+  const { r, payments } = window._stmtData || {};
+  if (!r) return;
+  const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const lines = [
+    ['Reserva', 'Hóspede', 'Check-in', 'Check-out', 'Noites', 'Total'].map(esc).join(','),
+    [r.id, r.guest_name, r.check_in, r.check_out, r.nights, Number(r.total_amount).toFixed(2)].map(esc).join(','),
+    '',
+    ['Data pagamento', 'Método', 'Notas', 'Valor'].map(esc).join(','),
+    ...(payments.length
+      ? payments.map(p => [p.payment_date || '', p.method || '', p.notes || '', Number(p.amount).toFixed(2)].map(esc).join(','))
+      : [['"—"', '"—"', '"—"', '"0.00"'].join(',')]),
+    '',
+    ['', '', 'Total pago', Number(r.amount_paid).toFixed(2)].map(esc).join(','),
+    ['', '', 'Em falta', Math.max(0, Number(r.total_amount) - Number(r.amount_paid)).toFixed(2)].map(esc).join(','),
+  ];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `extrato-${resId}.csv` });
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 async function openGuestCard(guestId, reservationId) {
   if (!guestId) {
     toast('⚠️ Hóspede não encontrado na base de dados', 'info');
@@ -750,6 +885,12 @@ async function openGuestCard(guestId, reservationId) {
 }
 
 /* ─── Accommodation panel ─── */
+
+function openAccommodationPanelFromBtn(btn) {
+  const r = JSON.parse(btn.dataset.res);
+  const accs = JSON.parse(btn.dataset.accs || '[]');
+  openAccommodationPanel(r.id, r.accId, r.ci, r.co, r.ng, r.na, r.nc, r.bkf, r.nights, accs);
+}
 
 async function openAccommodationPanel(resId, currentAccId, checkIn, checkOut, numGuests, numAdults, numChildren, breakfast, nights, initAccsData) {
   const mainCard = document.querySelector('.rdv2-main');

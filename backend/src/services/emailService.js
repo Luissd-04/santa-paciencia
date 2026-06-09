@@ -213,6 +213,58 @@ async function sendReservationRequestApprovedEmail(guest, reservation, accommoda
   return sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl);
 }
 
+async function sendOwnerNewReservationEmail(organizationId, guest, reservation, accommodation, appUrl) {
+  if (EMAIL_DISABLED) return null;
+  const { db } = require('../config/database');
+
+  const owners = db.prepare(`
+    SELECT u.email FROM users u
+    JOIN memberships m ON m.user_id = u.id
+    WHERE m.organization_id = ? AND m.role IN ('owner', 'manager') AND m.active = 1 AND u.active = 1
+    ORDER BY CASE m.role WHEN 'owner' THEN 1 ELSE 2 END
+  `).all(organizationId);
+
+  if (!owners.length) return null;
+
+  const settings = getEmailSettings(accommodation, organizationId);
+  const reservationUrl = appUrl ? `${appUrl}/?view=reservas` : '';
+
+  const row = (label, value) =>
+    `<tr><td style="padding:8px 0;border-bottom:1px solid #f0e8e0;color:#888;width:130px;">${label}</td>` +
+    `<td style="padding:8px 0;border-bottom:1px solid #f0e8e0;">${value}</td></tr>`;
+
+  const content = `
+    <h2 style="color:${BRAND_COLOR};margin-top:0;">Nova reserva recebida</h2>
+    <table style="width:100%;border-collapse:collapse;font-size:15px;color:#444;">
+      ${row('Referência',  `<strong>${reservation.id}</strong>`)}
+      ${row('Hóspede',     `${guest.name || ''} &lt;${guest.email || ''}&gt;`)}
+      ${row('Alojamento',  accommodation.name || '')}
+      ${row('Check-in',    formatDate(reservation.check_in))}
+      ${row('Check-out',   formatDate(reservation.check_out))}
+      ${row('Hóspedes',    String(reservation.num_guests || 1))}
+      <tr><td style="padding:8px 0;color:#888;">Total</td>
+          <td style="padding:8px 0;font-weight:700;color:${BRAND_COLOR};">€${Number(reservation.total_amount || 0).toFixed(2)}</td></tr>
+    </table>
+    ${reservationUrl
+      ? `<p style="text-align:center;margin:28px 0;">
+           <a href="${reservationUrl}" style="display:inline-block;background:${BRAND_COLOR};color:#fff;text-decoration:none;border-radius:8px;padding:13px 22px;font-family:sans-serif;font-weight:700;">Ver reserva no backoffice</a>
+         </p>`
+      : ''}
+  `;
+
+  for (const owner of owners) {
+    try {
+      await sendMail(organizationId, {
+        to: owner.email,
+        subject: `Nova reserva — ${guest.name} · ${reservation.id}`,
+        html: baseTemplate(content, settings),
+      });
+    } catch (err) {
+      console.error(`Notificação owner nova reserva (${owner.email}):`, err.message);
+    }
+  }
+}
+
 module.exports = {
   sendMail,
   sendConfirmationEmail,
@@ -220,6 +272,7 @@ module.exports = {
   sendPaymentConfirmationEmail,
   sendPreCheckinEmail,
   sendReservationRequestApprovedEmail,
+  sendOwnerNewReservationEmail,
   sendTemplatedEmail,
   baseTemplate,
   interpolate,

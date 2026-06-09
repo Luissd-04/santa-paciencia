@@ -252,6 +252,22 @@
   border-bottom: 1px solid var(--border-soft);
 }
 
+/* Zone divider */
+.rdv2-zone-divider {
+  padding: 8px 22px 7px;
+  background: var(--surface-muted);
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text-soft);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* Section */
 .rdv2-section { border-bottom: 1px solid var(--border-soft); }
 .rdv2-section-head {
@@ -324,18 +340,7 @@
 /* Pagamentos */
 .rdv2-pay-section {
   padding: 18px 20px;
-  border-top: 1px solid var(--border-soft);
-}
-.rdv2-pay-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: .4px;
-  margin-bottom: 10px;
+  border-top: none;
 }
 .rdv2-pay-row {
   display: flex;
@@ -378,6 +383,7 @@
   color: var(--text-muted);
 }
 .rdv2-guest-num { font-weight: 600; color: var(--text-main); min-width: 80px; }
+.rdv2-guest-link { color: var(--brand-shell); text-decoration: underline; cursor: pointer; font-weight: 600; }
 
 /* Sync */
 .rdv2-sync {
@@ -769,3 +775,81 @@
 .rdv2-pay-del:hover { opacity: 1; color: #b03030 !important; border-color: #b03030 !important; }
 .rdv2-pay-summary { border-top: 1px solid var(--border-soft); padding-top: 8px; margin-top: 4px; }
 .rdv2-pay-empty { font-size: 12px; color: var(--text-muted); padding: 4px 0 8px; }
+
+/* ── Account statement modal ── */
+.stmt-modal {
+  background: var(--surface-card, #fff);
+  border-radius: 16px;
+  width: min(560px, 95vw);
+  max-height: 90dvh;
+  overflow-y: auto;
+  box-shadow: 0 12px 48px rgba(0,0,0,.25);
+  display: flex;
+  flex-direction: column;
+}
+.stmt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.stmt-title { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--text-main); }
+.stmt-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.stmt-close {
+  background: none; border: none; font-size: 22px; cursor: pointer;
+  color: var(--text-muted); line-height: 1; padding: 0 0 0 12px;
+}
+.stmt-summary {
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-muted, #f8f6f3);
+}
+.stmt-sum-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 3px 0;
+  color: var(--text-muted);
+}
+.stmt-sum-total { font-weight: 700; color: var(--text-main); border-top: 1px solid var(--border-soft); margin-top: 6px; padding-top: 6px; }
+.stmt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.stmt-table thead tr { background: var(--surface-muted, #f8f6f3); }
+.stmt-table th {
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-soft);
+}
+.stmt-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(84,54,35,.05);
+  color: var(--text-main);
+}
+.stmt-table tbody tr:last-child td { border-bottom: none; }
+.stmt-footer {
+  padding: 14px 22px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--surface-muted, #f8f6f3);
+}
+.stmt-foot-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  padding: 3px 0;
+}
+.stmt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--border-soft);
+}
