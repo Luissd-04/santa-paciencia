@@ -163,9 +163,10 @@ function updateNumHospedes() {
 
 function openModal(config = {}) {
   editingId = null;
-  wizStep = config.step || 1;
   const titleEl = document.getElementById('modal-title');
   if (titleEl) titleEl.textContent = 'Nova Reserva';
+  const saveBtn = document.getElementById('btn-guardar');
+  if (saveBtn) saveBtn.innerHTML = '<i data-lucide="save" style="width:14px;height:14px;"></i> Guardar Reserva';
   buildCountrySelects();
   _resetGuestFields();
   document.getElementById('f-checkin').value = formatDateForStandardInput(config.checkIn || '');
@@ -184,10 +185,13 @@ function openModal(config = {}) {
   const remWrap = document.getElementById('payment-remaining-wrap'); if (remWrap) remWrap.style.display = 'none';
   document.getElementById('f-noites').value = '';
   document.getElementById('f-total').value = '';
+  resetFormDiscount();
   const alojSelect = document.getElementById('f-aloj');
   if (alojSelect) alojSelect.value = config.accommodationId || '';
   const rgpdWrap = document.getElementById('wiz-rgpd-wrap');
   if (rgpdWrap) rgpdWrap.style.display = '';
+  const voucherWrap = document.getElementById('resf-voucher-wrap');
+  if (voucherWrap) voucherWrap.style.display = '';
   const searchEl = document.getElementById('wiz-guest-search');
   if (searchEl) searchEl.value = '';
   renderExtraGuests();
@@ -200,7 +204,6 @@ function openModal(config = {}) {
   renderSuiteCards();
   calcTotal();
   updateWizSummary();
-  updateWizUI();
   AppUI.refreshDropdowns(document.getElementById('modal-bg'));
   AppUI.openModal('modal-bg');
 }
@@ -283,6 +286,8 @@ async function openEditModal(id) {
     document.getElementById('f-notas').value         = r.notes || '';
     document.getElementById('f-noites').value        = r.nights || '';
     document.getElementById('f-total').value         = Number(r.total_amount || 0).toFixed(2);
+    const resfBadge = document.getElementById('resf-total-badge');
+    if (resfBadge) resfBadge.textContent = `€${Number(r.total_amount || 0).toFixed(2)}`;
 
     const rgpd = document.getElementById('f-rgpd-check');
     if (rgpd) { rgpd.checked = true; rgpd.closest('.rgpd-box')?.classList.add('rgpd-accepted'); }
@@ -312,14 +317,18 @@ async function openEditModal(id) {
       setVal('nif',            g.nif);
     });
 
-    wizStep = 1;
     const rgpdWrap = document.getElementById('wiz-rgpd-wrap');
     if (rgpdWrap) rgpdWrap.style.display = 'none';
+    const voucherWrap = document.getElementById('resf-voucher-wrap');
+    if (voucherWrap) voucherWrap.style.display = 'none';
     const searchEl = document.getElementById('wiz-guest-search');
     if (searchEl) searchEl.value = '';
+    const titleEl = document.getElementById('modal-title');
+    if (titleEl) titleEl.textContent = 'Editar Reserva — ' + id;
+    const saveBtn = document.getElementById('btn-guardar');
+    if (saveBtn) saveBtn.innerHTML = '<i data-lucide="save" style="width:14px;height:14px;"></i> Atualizar Reserva';
     renderSuiteCards();
     updateWizSummary();
-    updateWizUI();
     AppUI.refreshDropdowns(document.getElementById('modal-bg'));
     AppUI.openModal('modal-bg');
   } catch (e) {
@@ -368,14 +377,52 @@ async function calcTotal() {
       birth_dates: getGuestBirthDatesFromUi(),
       pricing_periods: pricingPeriods,
     });
+    const discVal = parseFloat(document.getElementById('f-discount-val')?.value) || 0;
+    const discType = document.getElementById('f-discount-type')?.value || 'pct';
+    let finalTotal = totals.totalAmount;
+    if (discVal > 0) {
+      finalTotal = discType === 'pct'
+        ? totals.totalAmount * (1 - Math.min(discVal, 100) / 100)
+        : Math.max(0, totals.totalAmount - discVal);
+    }
     document.getElementById('f-noites').value = totals.nights;
-    document.getElementById('f-total').value = totals.totalAmount.toFixed(2);
+    document.getElementById('f-total').value = finalTotal.toFixed(2);
+    const badge = document.getElementById('resf-total-badge');
+    if (badge) badge.textContent = `€${finalTotal.toFixed(2)}`;
+    const discWrap = document.getElementById('resf-discount-wrap');
+    if (discWrap) discWrap.style.display = '';
+    const discPreview = document.getElementById('f-discount-preview');
+    if (discPreview) {
+      const saving = totals.totalAmount - finalTotal;
+      discPreview.textContent = saving > 0.005 ? `Poupança: €${saving.toFixed(2)}` : '';
+    }
   } else {
-    if (!suite) document.getElementById('f-total').value = '';
+    if (!suite) {
+      document.getElementById('f-total').value = '';
+      const b = document.getElementById('resf-total-badge'); if (b) b.textContent = '';
+      const discWrap = document.getElementById('resf-discount-wrap'); if (discWrap) discWrap.style.display = 'none';
+    }
     if (!ci || !co) document.getElementById('f-noites').value = '';
   }
   updateWizSummary();
   updateSpecialRateHints();
+}
+
+function setFormDiscountType(type) {
+  const el = document.getElementById('f-discount-type');
+  if (el) el.value = type;
+  document.querySelectorAll('.resf-disc-type').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+  const inp = document.getElementById('f-discount-val');
+  if (inp) { inp.value = ''; inp.placeholder = type === 'pct' ? '0' : '0.00'; }
+  calcTotal();
+}
+
+function resetFormDiscount() {
+  const el = document.getElementById('f-discount-type'); if (el) el.value = 'pct';
+  const inp = document.getElementById('f-discount-val'); if (inp) inp.value = '';
+  const prev = document.getElementById('f-discount-preview'); if (prev) prev.textContent = '';
+  document.querySelectorAll('.resf-disc-type').forEach(b => b.classList.toggle('active', b.dataset.type === 'pct'));
+  const wrap = document.getElementById('resf-discount-wrap'); if (wrap) wrap.style.display = 'none';
 }
 
 function getExtraOccupancyCharge(suite, numGuests, nights, birthDates = [], checkIn = null) {
@@ -1078,6 +1125,10 @@ async function saveReserva() {
     const numAdultos = parseInt(document.getElementById('f-num-adultos')?.value) || 1;
     const numCriancas = parseInt(document.getElementById('f-num-criancas')?.value) || 0;
 
+    const discountVal = parseFloat(document.getElementById('f-discount-val')?.value) || 0;
+    const computedTotal = parseFloat(document.getElementById('f-total')?.value);
+    const manualTotalOverride = discountVal > 0 && !isNaN(computedTotal) ? computedTotal : undefined;
+
     if (editingId) {
       const body = {
         check_in: checkin,
@@ -1094,6 +1145,7 @@ async function saveReserva() {
         payment_date: normalizeIsoDateValue(document.getElementById('f-payment-date')?.value) || null,
         notes: document.getElementById('f-notas').value,
         guests_data: collectExtraGuests(),
+        ...(manualTotalOverride !== undefined ? { total_amount: manualTotalOverride } : {}),
         guest: {
           name: nomeFull, first_name: primeiroNome, last_name: apelido,
           email, phone: tel, nationality: pais, country: pais,
@@ -1151,6 +1203,7 @@ async function saveReserva() {
         voucher_code: document.getElementById('f-voucher-code')?.value.trim().toUpperCase() || null,
         rgpd_consent: true,
         guests_data: collectExtraGuests(),
+        ...(manualTotalOverride !== undefined ? { total_amount: manualTotalOverride } : {}),
       };
       const res = await apiPost('/api/reservations', body);
       if (res.success) {

@@ -4,8 +4,8 @@
                Network-first para API e HTML.
 ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'sp-v5';
-const CACHE_VERSION = 5;
+const CACHE_NAME = 'sp-v10';
+const CACHE_VERSION = 10;
 
 /* Assets estáticos que devem funcionar offline */
 const STATIC_ASSETS = [
@@ -107,9 +107,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  /* Assets locais (HTML, CSS, JS, imagens) → Cache-first */
+  /* Assets locais (HTML, CSS, JS, imagens) → Network-first para updates imediatos */
   if (url.origin === self.location.origin) {
-    event.respondWith(cacheFirst(request));
+    event.respondWith(networkFirst(request));
     return;
   }
 });

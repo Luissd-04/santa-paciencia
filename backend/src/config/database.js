@@ -283,6 +283,7 @@ function initDatabase() {
   migrateVouchers();
   migratePricingPeriods();
   migrateConversationArchives();
+  migrateReservationPayments();
   migrateLegacyDataToOrganizations();
 
   console.log('✅ Base de dados inicializada');
@@ -469,6 +470,7 @@ function migrateReservations() {
     ['cancelled_previous_payment_status', 'TEXT'],
     ['num_adults',   'INTEGER'],
     ['num_children', 'INTEGER DEFAULT 0'],
+    ['accommodations_data', "TEXT DEFAULT '[]'"],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {
@@ -820,6 +822,36 @@ function migratePricingPeriods() {
     CREATE INDEX IF NOT EXISTS idx_pricing_periods_acc
     ON pricing_periods (accommodation_id, organization_id)
   `);
+}
+
+function migrateReservationPayments() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS reservation_payments (
+      id TEXT PRIMARY KEY,
+      reservation_id TEXT NOT NULL,
+      organization_id TEXT NOT NULL,
+      amount REAL NOT NULL,
+      method TEXT,
+      payment_date TEXT,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_rp_reservation ON reservation_payments(reservation_id);
+  `);
+  // Migrate existing amount_paid from reservations into payment rows (run once)
+  const toMigrate = db.prepare(`
+    SELECT r.id, r.organization_id, r.amount_paid, r.payment_date, r.payment_method
+    FROM reservations r
+    LEFT JOIN reservation_payments rp ON rp.reservation_id = r.id
+    WHERE r.amount_paid > 0 AND rp.id IS NULL
+  `).all();
+  const ins = db.prepare(`
+    INSERT OR IGNORE INTO reservation_payments (id, reservation_id, organization_id, amount, method, payment_date)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  for (const r of toMigrate) {
+    ins.run(`rp-${r.id}-legacy`, r.id, r.organization_id, r.amount_paid, r.payment_method, r.payment_date);
+  }
 }
 
 function migrateConversationArchives() {

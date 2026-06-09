@@ -362,104 +362,278 @@ async function showDetail(id) {
     const detailLoading = document.querySelector('#reserva-detail-page .reserva-detail-loading');
     if (detailContent) detailContent.innerHTML = '';
     if (detailLoading) detailLoading.style.display = 'flex';
+
     const data = await apiGet(`/api/reservations/${id}`);
     const r = data.data;
     const guestsData = typeof r.guests_data === 'string' ? JSON.parse(r.guests_data || '[]') : (r.guests_data || []);
+    const accsData = typeof r.accommodations_data === 'string' ? JSON.parse(r.accommodations_data || '[]') : (r.accommodations_data || []);
     const acc = accommodations.find(a => a.id === r.accommodation_id);
     const paid = Number(r.amount_paid || 0);
     const total = Number(r.total_amount || 0);
     const remaining = total - paid;
+
+    // Accommodation rows: multi-accommodation or single
+    const accRows = accsData.length > 0
+      ? accsData
+      : [{ accommodation_id: r.accommodation_id, name: r.accommodation_name || acc?.name || '—', price_per_night: Number(acc?.price_per_night || 0), nights: r.nights, subtotal: Number(acc?.price_per_night || 0) * r.nights }];
+
+    const extraOcc = getExtraOccupancyCharge(acc, r.num_guests || 1, r.nights || 0, guestsData.map(g => g.birth_date).filter(Boolean), r.check_in);
+    const bkfPrice = servicosData.find(s => s.id === 'breakfast')?.value ?? 19;
+    const bkfTotal = r.breakfast_included ? (r.num_guests * r.nights * bkfPrice) : 0;
+    const touristTax = Number(r.tourist_tax || 0);
+
+    const services = [];
+    if (r.breakfast_included) services.push({ name: 'Pequeno-almoço', formula: `(${r.num_guests}👤 × ${r.nights}🌙 × €${Number(bkfPrice).toFixed(2)})`, total: bkfTotal });
+    if (extraOcc > 0) services.push({ name: 'Ocupação extra', formula: `${r.nights}🌙`, total: extraOcc });
+
+    const taxes = [];
+    if (touristTax > 0) taxes.push({ name: 'Taxa turística', total: touristTax });
+
+    const fmt = v => `€${Number(v).toFixed(2)}`;
+    const sd = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+
+    const preCheckinUrl = r.public_token ? `${window.location.origin}/pre-checkin/${r.public_token}` : null;
+    const guestEmail = (r.guest_email || '').replace(/'/g, "\\'");
+    const guestName = (r.guest_name || '').replace(/'/g, "\\'");
+
+    const statusOptions = [
+      { v: 'confirmada', l: 'Confirmada' },
+      { v: 'pendente', l: 'Pendente' },
+      { v: 'pre_checkin', l: 'Pre Check-in' },
+      { v: 'aguardar_pagamento', l: 'Aguardar Pagamento' },
+      { v: 'cancelada', l: 'Cancelada' },
+    ];
+    const payOptions = [
+      { v: 'pendente', l: 'Não pago' },
+      { v: 'parcial', l: 'Parcial' },
+      { v: 'pago', l: 'Pago' },
+      { v: 'confirmado', l: 'Completo' },
+    ];
+
     if (detailLoading) detailLoading.style.display = 'none';
+
     detailContent.innerHTML = `
-      <div class="reserva-detail-hero">
-        <button class="btn btn-ghost btn-sm" onclick="showReservasList()">
-          ${lcIcon('arrow-left', 14)} Voltar
-        </button>
-        <div class="reserva-detail-title">
-          <span>${r.id}</span>
-          <h2>${r.guest_name}</h2>
+      <!-- Header -->
+      <div class="rdv2-header">
+        <button class="btn btn-ghost btn-sm" onclick="showReservasList()">${lcIcon('arrow-left', 13)} Voltar</button>
+        <div class="rdv2-title-area">
+          <span class="rdv2-subtitle">Editar reserva</span>
+          <span class="rdv2-id-pill">${r.id}</span>
         </div>
-        <div class="reserva-detail-actions">
-          <button class="btn btn-primary" onclick="openEditModal('${r.id}')">
-            ${lcIcon('pencil', 13)} Editar
-          </button>
-          ${r.status === 'pendente' ? `<button class="btn btn-success" onclick="aprovarReserva('${r.id}')">
-            ${lcIcon('check', 13)} Aprovar e enviar pre check-in
-          </button>` : ''}
-          ${r.public_token && r.status !== 'pendente' && r.status !== 'cancelada' ? `<button class="btn btn-ghost" onclick="copyPreCheckinLink('${r.public_token}')">
-            ${lcIcon('copy', 13)} Link pre check-in
-          </button>` : ''}
-          ${realEmail(r.guest_email) ? `<button class="btn btn-ghost" onclick="openInvoiceForReservation('${r.id}','${realEmail(r.guest_email)}','${(r.guest_name||'').replace(/'/g,"\\'")}')">
-            ${lcIcon('mail', 13)} Email
-          </button>` : ''}
-          ${r.status === 'cancelada'
-            ? `<button class="btn btn-success" onclick="reativarReserva('${r.id}')">
-                ${lcIcon('refresh-cw', 13)} Reativar Reserva
-               </button>`
-            : `<button class="btn btn-danger" onclick="cancelarReserva('${r.id}')">
-                ${lcIcon('x-circle', 13)} Cancelar Reserva
-               </button>`}
+        <div class="rdv2-tabs">
+          <button class="rdv2-tab rdv2-tab-active">${lcIcon('clipboard', 12)} Reserva</button>
+          <button class="rdv2-tab rdv2-tab-disabled">${lcIcon('list-checks', 12)} Tarefas</button>
+          <button class="rdv2-tab rdv2-tab-disabled">${lcIcon('git-branch', 12)} Timeline</button>
         </div>
       </div>
-      <div class="detail-grid">
-        <div class="detail-row"><div class="detail-label">Hóspede</div><div class="detail-val"><b>${r.guest_name}</b></div></div>
-        ${realEmail(r.guest_email) ? `<div class="detail-row"><div class="detail-label">Email</div><div class="detail-val">${realEmail(r.guest_email)}</div></div>` : ''}
-        <div class="detail-row"><div class="detail-label">Telefone</div><div class="detail-val">${r.guest_phone || '—'}</div></div>
-        <div class="detail-row"><div class="detail-label">Alojamento</div><div class="detail-val">${accomChip(r)}</div></div>
-        <div class="detail-row"><div class="detail-label">Canal</div><div class="detail-val">${r.channel}</div></div>
-        <div class="detail-row"><div class="detail-label">Hóspedes</div><div class="detail-val">${
-          r.num_adults != null
-            ? r.num_adults + ' adulto' + (r.num_adults !== 1 ? 's' : '') + (r.num_children > 0 ? ' + ' + r.num_children + ' criança' + (r.num_children !== 1 ? 's' : '') : '')
-            : r.num_guests
-        }</div></div>
-        <div class="detail-row"><div class="detail-label">Check-in</div><div class="detail-val">${formatDate(r.check_in)}</div></div>
-        <div class="detail-row"><div class="detail-label">Hora chegada</div><div class="detail-val">${r.arrival_time || '—'}</div></div>
-        <div class="detail-row"><div class="detail-label">Check-out</div><div class="detail-val">${formatDate(r.check_out)}</div></div>
-        <div class="detail-row"><div class="detail-label">Noites</div><div class="detail-val">${r.nights}</div></div>
-        <div class="detail-row"><div class="detail-label">Estado</div><div class="detail-val">${badgeEstado(r.status)}</div></div>
-        <div class="detail-row"><div class="detail-label">Pagamento</div><div class="detail-val">${badgePagamento(r.payment_status)}</div></div>
-        ${r.payment_date ? `<div class="detail-row"><div class="detail-label">Data Pagamento</div><div class="detail-val">${formatDate(r.payment_date)}</div></div>` : ''}
-      </div>
-      ${(() => {
-        if (!guestsData.length) return '';
-        return `<div style="margin-top:16px;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);margin-bottom:8px;">Hóspedes Adicionais</div>
-          ${guestsData.map((g, i) => `<div style="background:var(--cinza-claro);border-radius:8px;padding:10px 14px;margin-bottom:6px;font-size:13px;">
-            <b>Hóspede ${i + 2}</b> — ${escapeHtml(g.name || '—')}
-            ${g.email ? `· ${escapeHtml(g.email)}` : ''}${g.phone ? ` · ${escapeHtml(g.phone)}` : ''}${g.nationality ? ` · ${escapeHtml(g.nationality)}` : ''}
-          </div>`).join('')}
-        </div>`;
-      })()}
-      <div style="margin-top:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;">
-        ${(() => {
-          return [['Alojamento', (acc?.price_per_night || 0) * r.nights, false],
-           ['Ocupação extra', getExtraOccupancyCharge(acc, r.num_guests || 1, r.nights || 0, guestsData.map(g => g.birth_date).filter(Boolean), r.check_in), false],
-           ['Taxa Turística', r.tourist_tax || 0, false],
-           ['Pequeno-almoço', r.breakfast_included ? r.num_guests * r.nights * (servicosData.find(s => s.id === 'breakfast')?.value ?? 19) : 0, false],
-           ['Total', r.total_amount || 0, false]];
-        })().map(([l, v, _]) => `
-          <div style="background:var(--cinza-claro);border-radius:10px;padding:14px;text-align:center;">
-            <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">${l}</div>
-            <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--azul);">€${Number(v).toFixed(2)}</div>
-          </div>`).join('')}
-        ${(() => {
-          if (paid <= 0) return '';
-          return `
-          <div style="background:rgba(46,125,82,.08);border-radius:10px;padding:14px;text-align:center;border:1px solid rgba(46,125,82,.2);">
-            <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Valor Pago</div>
-            <div style="font-family:'Playfair Display',serif;font-size:22px;color:#2e7d52;">€${paid.toFixed(2)}</div>
+
+      <!-- Body -->
+      <div class="rdv2-body">
+
+        <!-- Main card -->
+        <div class="rdv2-main">
+
+          <!-- Info bar -->
+          <div class="rdv2-info-bar">
+            <div class="rdv2-info-field">
+              <span class="rdv2-if-label">Hóspede</span>
+              <span class="rdv2-if-val">${r.guest_name}</span>
+            </div>
+            <div class="rdv2-info-field">
+              <span class="rdv2-if-label">Noites</span>
+              <span class="rdv2-if-val">${lcIcon('moon', 11)} ${r.nights}</span>
+            </div>
+            <div class="rdv2-info-field">
+              <span class="rdv2-if-label">Datas</span>
+              <span class="rdv2-if-val">${lcIcon('calendar', 11)} ${sd(r.check_in)} → ${sd(r.check_out)}</span>
+            </div>
+            <div class="rdv2-info-field">
+              <span class="rdv2-if-label">Adultos</span>
+              <span class="rdv2-if-val">${r.num_adults || r.num_guests || 0} ${lcIcon('user', 11)}</span>
+            </div>
+            <div class="rdv2-info-field">
+              <span class="rdv2-if-label">Crianças</span>
+              <span class="rdv2-if-val">${r.num_children || 0} ${lcIcon('baby', 11)}</span>
+            </div>
+            ${r.arrival_time ? `<div class="rdv2-info-field">
+              <span class="rdv2-if-label">Hora chegada</span>
+              <span class="rdv2-if-val">${lcIcon('clock', 11)} ${r.arrival_time}</span>
+            </div>` : ''}
           </div>
-          ${remaining > 0.01 ? `
-          <div style="background:rgba(176,48,48,.08);border-radius:10px;padding:14px;text-align:center;border:1px solid rgba(176,48,48,.2);">
-            <div style="font-size:11px;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Em Falta</div>
-            <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--vermelho);">€${remaining.toFixed(2)}</div>
-          </div>` : ''}`;
-        })()}
-      </div>
-      ${r.notes ? `<div style="margin-top:16px;background:rgba(201,168,76,.1);border-left:3px solid var(--dourado);padding:12px 16px;border-radius:6px;font-size:13.5px;color:var(--texto);">📝 ${escapeHtml(r.notes)}</div>` : ''}
-      ${r.precheckin_submitted_at ? `<div style="margin-top:12px;font-size:12px;color:var(--verde);">${lcIcon('check-circle', 12)} Pré check-in submetido</div>` : ''}
-      <div style="margin-top:12px;font-size:12px;color:${r.google_event_id ? 'var(--verde)' : 'var(--cinza)'};">
-        ${lcIcon('calendar', 12)} ${r.google_event_id ? 'Sincronizado com Google Calendar' : 'Não sincronizado com Google Calendar'}
+
+          <!-- Canal -->
+          <div class="rdv2-canal-bar">
+            <div class="rdv2-info-field">
+              <span class="rdv2-if-label">Canal</span>
+              <span class="rdv2-if-val">${r.channel || '—'}</span>
+            </div>
+            ${r.guest_email ? `<div class="rdv2-info-field">
+              <span class="rdv2-if-label">Email</span>
+              <span class="rdv2-if-val">${r.guest_email}</span>
+            </div>` : ''}
+            ${r.guest_phone ? `<div class="rdv2-info-field">
+              <span class="rdv2-if-label">Telefone</span>
+              <span class="rdv2-if-val">${r.guest_phone}</span>
+            </div>` : ''}
+          </div>
+
+          <!-- Alojamentos -->
+          <div class="rdv2-section">
+            <div class="rdv2-section-head">
+              <span>${lcIcon('home', 12)} Alojamentos</span>
+              <span>Subtotal</span>
+            </div>
+            ${accRows.map(row => `
+            <div class="rdv2-section-row">
+              <span>${row.name || row.accommodation_name || '—'} <span class="rdv2-formula">€${Number(row.price_per_night || 0).toFixed(0)}/noite × ${row.nights || r.nights}🌙</span></span>
+              <span class="rdv2-amt">${fmt(row.subtotal || (Number(row.price_per_night || 0) * (row.nights || r.nights)))}</span>
+            </div>`).join('')}
+            <div class="rdv2-section-subtot">
+              <button class="rdv2-edit-btn" onclick="startInlinePriceEdit('${r.id}', ${total})" title="Editar preço total">${lcIcon('pencil', 11)}</button>
+              <span class="rdv2-amt" id="rdv2-acc-subtot">${fmt(accRows.reduce((s, row) => s + Number(row.subtotal || (Number(row.price_per_night || 0) * (row.nights || r.nights))), 0) + extraOcc)}</span>
+            </div>
+          </div>
+
+          ${services.length ? `
+          <!-- Serviços -->
+          <div class="rdv2-section">
+            <div class="rdv2-section-head">
+              <span>${lcIcon('plus-square', 12)} Serviços</span>
+              <span>Subtotal</span>
+            </div>
+            ${services.map(s => `<div class="rdv2-section-row">
+              <span>${s.name} <span class="rdv2-formula">${s.formula}</span></span>
+              <span class="rdv2-amt">${fmt(s.total)}</span>
+            </div>`).join('')}
+            <div class="rdv2-section-subtot">
+              <span class="rdv2-amt">${fmt(services.reduce((a, s) => a + s.total, 0))}</span>
+            </div>
+          </div>` : ''}
+
+          ${taxes.length ? `
+          <!-- Taxas -->
+          <div class="rdv2-section">
+            <div class="rdv2-section-head">
+              <span>${lcIcon('landmark', 12)} Taxas</span>
+              <span>Subtotal</span>
+            </div>
+            ${taxes.map(t => `<div class="rdv2-section-row">
+              <span>${t.name}</span>
+              <span class="rdv2-amt">${fmt(t.total)}</span>
+            </div>`).join('')}
+            <div class="rdv2-section-subtot">
+              <span class="rdv2-amt">${fmt(taxes.reduce((a, t) => a + t.total, 0))}</span>
+            </div>
+          </div>` : ''}
+
+          <!-- Total -->
+          <div class="rdv2-total-row">
+            <span>TOTAL</span>
+            <span class="rdv2-amt">${fmt(total)}</span>
+          </div>
+
+          <!-- Pagamentos -->
+          <div class="rdv2-pay-section" id="rdv2-pay-section">
+            <div class="rdv2-pay-title">${lcIcon('credit-card', 12)} Pagamentos</div>
+            ${(r.payments || []).length > 0 ? `
+              <div class="rdv2-pay-list" id="rdv2-pay-list">
+                ${(r.payments || []).map(p => `
+                  <div class="rdv2-pay-entry" data-pid="${p.id}">
+                    <div class="rdv2-pay-entry-info">
+                      <span class="rdv2-green rdv2-pay-entry-amt">${fmt(p.amount)}</span>
+                      ${p.method ? `<span class="rdv2-pay-entry-method">${p.method}</span>` : ''}
+                    </div>
+                    <div class="rdv2-pay-entry-right">
+                      ${p.payment_date ? `<span class="rdv2-pay-entry-date">${sd(p.payment_date)}</span>` : '<span class="rdv2-pay-entry-date">—</span>'}
+                      <button class="rdv2-icon-btn rdv2-pay-del" onclick="deletePaymentEntry('${r.id}','${p.id}')" title="Remover pagamento">${lcIcon('trash-2', 11)}</button>
+                    </div>
+                  </div>`).join('')}
+              </div>
+              <div class="rdv2-pay-summary">
+                <div class="rdv2-pay-row">
+                  <span>Total pago</span>
+                  <span class="rdv2-green" id="rdv2-total-paid">${fmt(paid)}</span>
+                </div>
+                ${remaining > 0.01 ? `<div class="rdv2-pay-row">
+                  <span>Em falta</span>
+                  <span class="rdv2-red" id="rdv2-remaining">${fmt(remaining)}</span>
+                </div>` : ''}
+              </div>` : `
+              <div class="rdv2-pay-empty">Sem pagamentos registados</div>
+              `}
+          </div>
+
+          ${r.notes ? `<div class="rdv2-notes">${lcIcon('file-text', 12)} ${r.notes}</div>` : ''}
+
+          ${guestsData.length ? `<div class="rdv2-guests">
+            <div class="rdv2-guests-title">Hóspedes adicionais</div>
+            ${guestsData.map((g, i) => `<div class="rdv2-guest-row">
+              <span class="rdv2-guest-num">Hóspede ${i + 2}</span>
+              <span>${g.name || '—'}${g.email ? ` · ${g.email}` : ''}${g.phone ? ` · ${g.phone}` : ''}</span>
+            </div>`).join('')}
+          </div>` : ''}
+
+          <div class="rdv2-sync ${r.google_event_id ? 'rdv2-sync-ok' : ''}">
+            ${lcIcon('calendar', 11)} ${r.google_event_id ? 'Sincronizado com Google Calendar' : 'Não sincronizado com Google Calendar'}
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="rdv2-sidebar">
+
+          <!-- Estado -->
+          <div class="rdv2-widget">
+            <div class="rdv2-widget-title">Estado</div>
+            <div class="rdv2-status-row">
+              <span class="rdv2-status-label">Reserva</span>
+              <select class="rdv2-status-select" onchange="updateDetailStatus('${r.id}','status',this.value)">
+                ${statusOptions.map(o => `<option value="${o.v}"${r.status === o.v ? ' selected' : ''}>${o.l}</option>`).join('')}
+              </select>
+            </div>
+            <div class="rdv2-status-row">
+              <span class="rdv2-status-label">Pagamento</span>
+              <select class="rdv2-status-select" onchange="updateDetailStatus('${r.id}','payment_status',this.value)">
+                ${payOptions.map(o => `<option value="${o.v}"${r.payment_status === o.v ? ' selected' : ''}>${o.l}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+
+          <!-- Ações -->
+          <div class="rdv2-widget">
+            <div class="rdv2-widget-title">Reserva</div>
+            ${r.status === 'pendente' ? `<button class="rdv2-action-link rdv2-action-success" onclick="aprovarReserva('${r.id}')">${lcIcon('check', 12)} Aprovar e enviar pre check-in</button>` : ''}
+            <button class="rdv2-action-link" onclick="openAccommodationPanel('${r.id}','${r.accommodation_id}','${r.check_in}','${r.check_out}',${r.num_guests||1},${r.num_adults||1},${r.num_children||0},${r.breakfast_included?true:false},${r.nights||1},${JSON.stringify(accsData).replace(/'/g,"\\'")})">${lcIcon('home', 12)} Editar alojamento</button>
+            <button class="rdv2-action-link" onclick="openEditModal('${r.id}')">${lcIcon('pencil', 12)} Editar reserva</button>
+            <button class="rdv2-action-link" onclick="openPaymentForm('${r.id}', ${paid}, ${total})">${lcIcon('credit-card', 12)} Registar pagamento</button>
+            ${r.guest_email ? `<button class="rdv2-action-link" onclick="openInvoiceForReservation('${r.id}','${guestEmail}','${guestName}')">${lcIcon('mail', 12)} Enviar email</button>` : ''}
+            ${r.status === 'cancelada'
+              ? `<button class="rdv2-action-link rdv2-action-success" onclick="reativarReserva('${r.id}')">${lcIcon('refresh-cw', 12)} Reativar reserva</button>`
+              : `<button class="rdv2-action-link rdv2-action-danger" onclick="cancelarReserva('${r.id}')">${lcIcon('x-circle', 12)} Cancelar reserva</button>`}
+          </div>
+
+          ${preCheckinUrl ? `
+          <!-- Concierge -->
+          <div class="rdv2-widget">
+            <div class="rdv2-widget-title">Concierge</div>
+            <div class="rdv2-concierge-url">
+              <span class="rdv2-url-text">${preCheckinUrl}</span>
+              <button class="rdv2-icon-btn" onclick="navigator.clipboard.writeText('${preCheckinUrl}');toast('🔗 Link copiado','success')" title="Copiar">${lcIcon('copy', 12)}</button>
+            </div>
+            <div class="rdv2-concierge-btns">
+              <button class="rdv2-cta-btn" onclick="window.open('${preCheckinUrl}','_blank')" title="Abrir pre check-in">${lcIcon('arrow-right', 13)}</button>
+              ${r.guest_email ? `<button class="rdv2-cta-btn" onclick="openInvoiceForReservation('${r.id}','${guestEmail}','${guestName}')" title="Enviar email">${lcIcon('mail', 13)}</button>` : ''}
+            </div>
+          </div>` : ''}
+
+          <!-- Documentos -->
+          <div class="rdv2-widget rdv2-widget-docs">
+            <div class="rdv2-widget-title">Documentos</div>
+            <button class="rdv2-doc-link" onclick="openEditModal('${r.id}')">${lcIcon('clipboard', 12)} Ficha de reserva</button>
+            <button class="rdv2-doc-link" onclick="openGuestCard('${r.guest_id}','${r.id}')">${lcIcon('user', 12)} Ficha de hóspede</button>
+            <button class="rdv2-doc-link" onclick="document.querySelector('.rdv2-pay-section')?.scrollIntoView({behavior:'smooth'})">${lcIcon('credit-card', 12)} Conta corrente</button>
+          </div>
+
+        </div>
       </div>
     `;
     if (window.lucide) lucide.createIcons();
@@ -467,6 +641,367 @@ async function showDetail(id) {
     toast('❌ Erro ao carregar detalhe.', 'error');
     showReservasList();
   }
+}
+
+async function updateDetailStatus(id, field, value) {
+  try {
+    const res = await apiPut(`/api/reservations/${id}`, { [field]: value });
+    if (res.success) {
+      toast('✅ Estado atualizado', 'success');
+      await loadReservas();
+    } else {
+      toast('❌ ' + (res.error || 'Erro ao atualizar'), 'error');
+    }
+  } catch (e) {
+    toast('❌ Erro de ligação', 'error');
+  }
+}
+
+function openPaymentForm(reservationId, currentPaid, total) {
+  const remaining = Math.max(0, total - currentPaid).toFixed(2);
+  const html = `
+    <div id="rdv2-pay-form" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.remove()">
+      <div style="background:var(--surface-card);border-radius:16px;padding:24px;width:min(360px,92vw);box-shadow:0 8px 40px rgba(0,0,0,.22);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <span style="font-size:15px;font-weight:700;color:var(--text-main);">Registar Pagamento</span>
+          <button onclick="document.getElementById('rdv2-pay-form').remove()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;">×</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Valor (€)</label>
+            <input id="pf-amount" type="number" min="0" step="0.01" value="${remaining}" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);">
+          </div>
+          <div>
+            <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Método</label>
+            <select id="pf-method" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);">
+              <option value="transferencia">Transferência</option>
+              <option value="mbway">MBWay</option>
+              <option value="numerario">Numerário</option>
+              <option value="cartao">Cartão</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Data</label>
+            <input id="pf-date" type="date" value="${new Date().toISOString().slice(0,10)}" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
+          <button onclick="document.getElementById('rdv2-pay-form').remove()" style="padding:8px 16px;border:1px solid var(--border-soft);border-radius:8px;background:none;color:var(--text-muted);cursor:pointer;font-size:13px;">Cancelar</button>
+          <button id="pf-save-btn" onclick="savePaymentForm('${reservationId}')" style="padding:8px 18px;border:none;border-radius:8px;background:var(--brand-shell);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.getElementById('pf-amount')?.focus();
+}
+
+async function savePaymentForm(reservationId) {
+  const amount = parseFloat(document.getElementById('pf-amount')?.value);
+  const method = document.getElementById('pf-method')?.value;
+  const date = document.getElementById('pf-date')?.value;
+  if (isNaN(amount) || amount <= 0) { toast('⚠️ Valor inválido', 'error'); return; }
+  const btn = document.getElementById('pf-save-btn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await apiPost(`/api/reservations/${reservationId}/payments`, {
+      amount, method, payment_date: date || null,
+    });
+    if (res.success) {
+      document.getElementById('rdv2-pay-form')?.remove();
+      toast('✅ Pagamento registado', 'success');
+      await loadReservas();
+      showDetail(reservationId);
+    } else {
+      toast('❌ ' + (res.error || 'Erro'), 'error');
+      if (btn) btn.disabled = false;
+    }
+  } catch (e) {
+    toast('❌ Erro de ligação', 'error');
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function deletePaymentEntry(reservationId, paymentId) {
+  if (!confirm('Remover este pagamento?')) return;
+  try {
+    const res = await apiDelete(`/api/reservations/${reservationId}/payments/${paymentId}`);
+    if (res.success) {
+      toast('✅ Pagamento removido', 'success');
+      await loadReservas();
+      showDetail(reservationId);
+    } else {
+      toast('❌ ' + (res.error || 'Erro'), 'error');
+    }
+  } catch {
+    toast('❌ Erro de ligação', 'error');
+  }
+}
+
+async function openGuestCard(guestId, reservationId) {
+  if (!guestId) {
+    toast('⚠️ Hóspede não encontrado na base de dados', 'info');
+    return;
+  }
+  showView('hospedes');
+  await new Promise(r => setTimeout(r, 150));
+  if (typeof showHospedeDetail === 'function') {
+    showHospedeDetail(guestId);
+  }
+}
+
+/* ─── Accommodation panel ─── */
+
+async function openAccommodationPanel(resId, currentAccId, checkIn, checkOut, numGuests, numAdults, numChildren, breakfast, nights, initAccsData) {
+  const mainCard = document.querySelector('.rdv2-main');
+  if (!mainCard) return;
+  mainCard.querySelector('.rdv2-acc-panel')?.remove();
+  mainCard.style.position = 'relative';
+
+  const panel = document.createElement('div');
+  panel.className = 'rdv2-acc-panel';
+  panel.innerHTML = `
+    <div class="rdv2-acc-panel-head">
+      <span>${lcIcon('home', 13)} Editar Alojamento</span>
+      <button class="rdv2-icon-btn" onclick="this.closest('.rdv2-acc-panel').remove()">${lcIcon('x', 13)}</button>
+    </div>
+    <div class="rdv2-acc-panel-body" id="rdv2-acc-panel-body">
+      <div class="rdv2-acc-loading">A calcular preços…</div>
+    </div>
+    <div class="rdv2-acc-discount" id="rdv2-acc-discount" style="display:none;">
+      <div class="rdv2-acc-discount-head">${lcIcon('tag', 11)} Desconto</div>
+      <div class="rdv2-acc-discount-row">
+        <div class="rdv2-disc-toggle">
+          <button type="button" class="rdv2-disc-type active" data-type="pct" onclick="setAccDiscountType('pct')">%</button>
+          <button type="button" class="rdv2-disc-type" data-type="eur" onclick="setAccDiscountType('eur')">€</button>
+        </div>
+        <input type="number" class="rdv2-disc-input" id="rdv2-disc-val" min="0" step="0.01" placeholder="0" oninput="updateAccPanelTotal()">
+        <div class="rdv2-acc-final-price">Total: <strong id="rdv2-acc-final-total">—</strong></div>
+      </div>
+    </div>
+    <div class="rdv2-acc-panel-foot">
+      <button class="btn btn-ghost btn-sm" onclick="this.closest('.rdv2-acc-panel').remove()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="rdv2-acc-save-btn" onclick="saveAccommodationChange('${resId}')">Guardar</button>
+    </div>
+  `;
+  mainCard.appendChild(panel);
+  if (window.lucide) lucide.createIcons({ nodes: [panel] });
+
+  panel._discType = 'pct';
+  panel._rows = [];
+  panel._selectedId = currentAccId;
+  panel._baseTotal = 0;
+  panel._nights = Number(nights) || 1;
+  panel._initAccsData = Array.isArray(initAccsData) ? initAccsData : (typeof initAccsData === 'string' ? JSON.parse(initAccsData || '[]') : []);
+
+  try {
+    const availData = await apiGet(`/api/reservations/availability?check_in=${checkIn}&check_out=${checkOut}&exclude_id=${encodeURIComponent(resId)}`);
+    const unavailable = new Set(availData.data?.unavailable || []);
+    const numG = Number(numGuests) || 1;
+    const bkf = breakfast === true || breakfast === 'true' || breakfast === 1;
+
+    const rows = await Promise.all(accommodations.map(async (a) => {
+      const periods = typeof loadWizPricingPeriods === 'function' ? await loadWizPricingPeriods(a.id) : [];
+      let calc = null;
+      try {
+        if (window.ReservationPricing?.calculateReservationTotal) {
+          calc = window.ReservationPricing.calculateReservationTotal(a, servicosData, {
+            check_in: checkIn, check_out: checkOut,
+            num_guests: numG, breakfast_included: bkf,
+            birth_dates: [], pricing_periods: periods,
+          });
+        }
+      } catch {}
+      return { acc: a, unavail: unavailable.has(a.id), calc };
+    }));
+
+    panel._rows = rows;
+
+    const body = document.getElementById('rdv2-acc-panel-body');
+    if (!body) return;
+
+    // Initial selection: use existing accommodations_data if available
+    const initSelected = new Map();
+    if (panel._initAccsData && panel._initAccsData.length > 0) {
+      for (const row of panel._initAccsData) initSelected.set(row.accommodation_id, Number(row.price_per_night || 0));
+    } else {
+      const curRow = rows.find(r => r.acc.id === currentAccId);
+      initSelected.set(currentAccId, Number(curRow?.acc?.price_per_night || 0));
+    }
+
+    body.innerHTML = rows.map(({ acc, unavail, calc }) => {
+      const isCurrent = acc.id === currentAccId;
+      const isChecked = initSelected.has(acc.id);
+      const customPrice = initSelected.has(acc.id) ? initSelected.get(acc.id) : Number(acc.price_per_night || 0);
+      return `
+        <div class="rdv2-acc-option${unavail && !isChecked ? ' rdv2-acc-unavail' : ''}${isChecked ? ' rdv2-acc-selected' : ''}" data-id="${acc.id}">
+          <label class="rdv2-acc-check-wrap">
+            <input type="checkbox" class="rdv2-acc-cb" value="${acc.id}" ${isChecked ? 'checked' : ''} ${unavail && !isChecked ? 'disabled' : ''} onchange="onAccCheckChange(this)">
+          </label>
+          <div class="rdv2-acc-opt-info">
+            <div class="rdv2-acc-opt-name">${acc.name}${isCurrent ? ' <span class="rdv2-badge-current">atual</span>' : ''}${unavail ? ' <span class="rdv2-badge-unavail">ocupado</span>' : ''}</div>
+            <div class="rdv2-acc-opt-meta">${acc.max_guests ? `max ${acc.max_guests} hósp. · ` : ''}Base: €${Number(acc.price_per_night||0).toFixed(0)}/noite</div>
+          </div>
+          <div class="rdv2-acc-price-edit">
+            <input type="number" class="rdv2-acc-priceinput" data-accid="${acc.id}" min="0" step="0.01" value="${customPrice.toFixed(2)}" oninput="updateAccPanelTotal()">
+            <span class="rdv2-acc-priceinput-label">€/noite</span>
+          </div>
+        </div>`;
+    }).join('');
+
+    const discSection = document.getElementById('rdv2-acc-discount');
+    if (discSection) discSection.style.display = '';
+    updateAccPanelTotal();
+
+  } catch {
+    const body = document.getElementById('rdv2-acc-panel-body');
+    if (body) body.innerHTML = '<div style="padding:16px;color:var(--vermelho,#b03030);font-size:13px;">Erro ao carregar alojamentos.</div>';
+  }
+}
+
+function setAccDiscountType(type) {
+  const panel = document.querySelector('.rdv2-acc-panel');
+  if (!panel) return;
+  panel._discType = type;
+  panel.querySelectorAll('.rdv2-disc-type').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+  const inp = document.getElementById('rdv2-disc-val');
+  if (inp) { inp.value = ''; inp.placeholder = type === 'pct' ? '0' : '0.00'; }
+  updateAccPanelTotal();
+}
+
+function onAccCheckChange(cb) {
+  const row = cb.closest('.rdv2-acc-option');
+  if (row) row.classList.toggle('rdv2-acc-selected', cb.checked);
+  updateAccPanelTotal();
+}
+
+function updateAccPanelTotal() {
+  const panel = document.querySelector('.rdv2-acc-panel');
+  if (!panel) return;
+  const nights = panel._nights || 1;
+
+  // Sum all checked accommodations: price_per_night × nights
+  let base = 0;
+  panel.querySelectorAll('.rdv2-acc-cb:checked').forEach(cb => {
+    const accId = cb.value;
+    const priceInput = panel.querySelector(`.rdv2-acc-priceinput[data-accid="${accId}"]`);
+    const pricePerNight = parseFloat(priceInput?.value) || 0;
+    base += pricePerNight * nights;
+  });
+
+  const discVal = parseFloat(document.getElementById('rdv2-disc-val')?.value) || 0;
+  const discType = panel._discType || 'pct';
+  let final = base;
+  if (discVal > 0) {
+    final = discType === 'pct'
+      ? base * (1 - Math.min(discVal, 100) / 100)
+      : Math.max(0, base - discVal);
+  }
+  const el = document.getElementById('rdv2-acc-final-total');
+  if (el) el.textContent = `€${final.toFixed(2)}`;
+  panel._baseTotal = base;
+  panel._finalTotal = final;
+}
+
+async function saveAccommodationChange(resId) {
+  const panel = document.querySelector('.rdv2-acc-panel');
+  if (!panel) return;
+
+  const nights = panel._nights || 1;
+  const checkedItems = [];
+  panel.querySelectorAll('.rdv2-acc-cb:checked').forEach(cb => {
+    const accId = cb.value;
+    const acc = accommodations.find(a => a.id === accId);
+    const priceInput = panel.querySelector(`.rdv2-acc-priceinput[data-accid="${accId}"]`);
+    const pricePerNight = parseFloat(priceInput?.value) || Number(acc?.price_per_night || 0);
+    checkedItems.push({
+      accommodation_id: accId,
+      name: acc?.name || '',
+      price_per_night: pricePerNight,
+      nights,
+      subtotal: pricePerNight * nights,
+    });
+  });
+
+  if (checkedItems.length === 0) { toast('⚠️ Seleciona pelo menos um alojamento', 'error'); return; }
+
+  const finalTotal = panel._finalTotal !== undefined ? panel._finalTotal : panel._baseTotal;
+  const primaryAccId = checkedItems[0].accommodation_id;
+
+  const saveBtn = document.getElementById('rdv2-acc-save-btn');
+  if (saveBtn) saveBtn.disabled = true;
+  try {
+    const res = await apiPut(`/api/reservations/${resId}`, {
+      accommodation_id: primaryAccId,
+      accommodations_data: checkedItems,
+      total_amount: finalTotal,
+    });
+    if (res.success) {
+      toast('✅ Alojamento atualizado', 'success');
+      panel.remove();
+      await loadReservas();
+      showDetail(resId);
+    } else {
+      toast('❌ ' + (res.error || 'Erro ao guardar'), 'error');
+      if (saveBtn) saveBtn.disabled = false;
+    }
+  } catch {
+    toast('❌ Erro de ligação', 'error');
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
+function startInlinePriceEdit(id, currentTotal) {
+  const placeholder = document.getElementById('rdv2-acc-subtot');
+  const totalRowEl = document.querySelector('.rdv2-total-row .rdv2-amt');
+  if (!placeholder) return;
+
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.step = '0.01';
+  input.min = '0';
+  input.value = Number(currentTotal).toFixed(2);
+  input.style.cssText = 'width:90px;padding:3px 6px;border:1px solid var(--brand-shell);border-radius:6px;font-size:13px;font-weight:600;text-align:right;background:var(--surface-card);color:var(--text-main);';
+
+  const restore = (val) => {
+    const span = document.createElement('span');
+    span.id = 'rdv2-acc-subtot';
+    span.className = 'rdv2-amt';
+    span.textContent = `€${Number(val).toFixed(2)}`;
+    input.replaceWith(span);
+    return span;
+  };
+
+  let saving = false;
+  const save = async () => {
+    if (saving) return;
+    saving = true;
+    const newVal = parseFloat(input.value);
+    if (isNaN(newVal) || newVal < 0) { saving = false; input.focus(); return; }
+    const span = restore(newVal);
+    try {
+      const res = await apiPut(`/api/reservations/${id}`, { total_amount: newVal });
+      if (res.success) {
+        if (totalRowEl) totalRowEl.textContent = `€${newVal.toFixed(2)}`;
+        toast('✅ Preço atualizado', 'success');
+        await loadReservas();
+      } else {
+        span.textContent = `€${Number(currentTotal).toFixed(2)}`;
+        toast('❌ ' + (res.error || 'Erro ao atualizar'), 'error');
+      }
+    } catch (e) {
+      span.textContent = `€${Number(currentTotal).toFixed(2)}`;
+      toast('❌ Erro de ligação', 'error');
+    }
+  };
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); save(); }
+    if (e.key === 'Escape') { restore(currentTotal); }
+  });
+  input.addEventListener('blur', save);
+
+  placeholder.replaceWith(input);
+  input.select();
 }
 
 async function aprovarReserva(id) {

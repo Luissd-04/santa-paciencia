@@ -162,7 +162,74 @@ async function getById(req, res, next) {
     `).get(req.params.id, req.user.organization_id);
 
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    reservation.payments = db.prepare(`
+      SELECT * FROM reservation_payments
+      WHERE reservation_id = ? AND organization_id = ?
+      ORDER BY payment_date ASC, created_at ASC
+    `).all(req.params.id, req.user.organization_id);
+
     res.json({ success: true, data: reservation });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/reservations/:id/payments
+async function addPayment(req, res, next) {
+  try {
+    const { id } = req.params;
+    const organizationId = req.user.organization_id;
+    const { amount, method, payment_date, notes } = req.body;
+
+    if (!amount || Number(amount) <= 0) {
+      return res.status(400).json({ error: 'Montante inválido' });
+    }
+
+    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(id, organizationId);
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    const paymentId = `rp-${Date.now()}`;
+    db.prepare(`
+      INSERT INTO reservation_payments (id, reservation_id, organization_id, amount, method, payment_date, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(paymentId, id, organizationId, Number(amount), method || null, payment_date || null, notes || null);
+
+    const { total_paid } = db.prepare('SELECT SUM(amount) as total_paid FROM reservation_payments WHERE reservation_id = ? AND organization_id = ?').get(id, organizationId);
+    const newPaid = total_paid || 0;
+    const autoStatus = getPaymentStatus(newPaid, reservation.total_amount, reservation.payment_status);
+
+    db.prepare(`UPDATE reservations SET amount_paid = ?, payment_status = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?`)
+      .run(newPaid, autoStatus, id, organizationId);
+
+    res.json({ success: true, data: { id: paymentId, amount: Number(amount), method, payment_date, notes, newTotalPaid: newPaid, newPaymentStatus: autoStatus } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// DELETE /api/reservations/:id/payments/:paymentId
+async function deletePayment(req, res, next) {
+  try {
+    const { id, paymentId } = req.params;
+    const organizationId = req.user.organization_id;
+
+    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(id, organizationId);
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    const payment = db.prepare('SELECT * FROM reservation_payments WHERE id = ? AND reservation_id = ? AND organization_id = ?').get(paymentId, id, organizationId);
+    if (!payment) return res.status(404).json({ error: 'Pagamento não encontrado' });
+
+    db.prepare('DELETE FROM reservation_payments WHERE id = ?').run(paymentId);
+
+    const { total_paid } = db.prepare('SELECT SUM(amount) as total_paid FROM reservation_payments WHERE reservation_id = ? AND organization_id = ?').get(id, organizationId);
+    const newPaid = total_paid || 0;
+    const autoStatus = getPaymentStatus(newPaid, reservation.total_amount, 'pendente');
+
+    db.prepare(`UPDATE reservations SET amount_paid = ?, payment_status = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?`)
+      .run(newPaid, autoStatus, id, organizationId);
+
+    res.json({ success: true, newTotalPaid: newPaid, newPaymentStatus: autoStatus });
   } catch (err) {
     next(err);
   }
@@ -175,7 +242,8 @@ async function create(req, res, next) {
       guest, accommodation_id, check_in, check_out,
       num_guests, num_adults, num_children, breakfast_included, channel, payment_method,
       notes, rgpd_consent, rgpd_ip, guests_data, voucher_code,
-      amount_paid, payment_date, payment_status: reqPaymentStatus
+      amount_paid, payment_date, payment_status: reqPaymentStatus,
+      total_amount: manualTotalCreate
     } = req.body;
     const totalGuests = (num_adults != null && num_children != null)
       ? (Number(num_adults) + Number(num_children))
@@ -289,7 +357,8 @@ async function create(req, res, next) {
         }
       }
     }
-    const finalTotal = Math.max(0, totals.totalAmount - voucherDiscount);
+    const voucherAdjusted = Math.max(0, totals.totalAmount - voucherDiscount);
+    const finalTotal = manualTotalCreate !== undefined ? Number(manualTotalCreate) : voucherAdjusted;
 
     const paidAmt = Number(amount_paid) || 0;
     const autoPaymentStatus = getPaymentStatus(paidAmt, finalTotal, reqPaymentStatus || 'pendente');
@@ -360,7 +429,8 @@ async function update(req, res, next) {
     const {
       check_in, check_out, num_guests, num_adults, num_children, breakfast_included,
       channel, payment_method, notes, status, payment_status, guests_data, guest,
-      accommodation_id, amount_paid, payment_date
+      accommodation_id, amount_paid, payment_date, total_amount: manualTotal,
+      accommodations_data
     } = req.body;
 
     const newAccommodationId = accommodation_id || existing.accommodation_id;
@@ -434,7 +504,8 @@ async function update(req, res, next) {
       );
     }
     const newPaidAmt = amount_paid !== undefined ? Number(amount_paid) : (existing.amount_paid || 0);
-    const autoPaymentStatus2 = getPaymentStatus(newPaidAmt, totals.totalAmount, payment_status || existing.payment_status || 'pendente');
+    const effectiveTotal = manualTotal !== undefined ? Number(manualTotal) : totals.totalAmount;
+    const autoPaymentStatus2 = getPaymentStatus(newPaidAmt, effectiveTotal, payment_status || existing.payment_status || 'pendente');
     const reactivating = existing.status === 'cancelada' && status && status !== 'cancelada';
     const nextStatus = reactivating
       ? (existing.cancelled_previous_status || status)
@@ -447,26 +518,31 @@ async function update(req, res, next) {
       ? (existing.cancelled_previous_payment_status || existing.payment_status || autoPaymentStatus2)
       : autoPaymentStatus2;
 
+    const newAccData = accommodations_data !== undefined
+      ? JSON.stringify(accommodations_data)
+      : (existing.accommodations_data || '[]');
+
     db.prepare(`
       UPDATE reservations SET
         accommodation_id = ?, check_in = ?, check_out = ?, nights = ?, num_guests = ?,
         num_adults = ?, num_children = ?,
         total_amount = ?, breakfast_included = ?, tourist_tax = ?,
         channel = ?, payment_method = ?, notes = ?, status = ?,
-        payment_status = ?, guests_data = ?,
+        payment_status = ?, guests_data = ?, accommodations_data = ?,
         amount_paid = ?, payment_date = ?, updated_at = datetime('now')
       WHERE id = ? AND organization_id = ?
     `).run(
       newAccommodationId,
       totals.checkIn, totals.checkOut, totals.nights, totals.guests,
       newAdults ?? totals.guests, newChildren ?? 0,
-      totals.totalAmount, totals.breakfastIncluded,
+      manualTotal !== undefined ? Number(manualTotal) : totals.totalAmount, totals.breakfastIncluded,
       totals.touristTax,
       channel || existing.channel,
       payment_method !== undefined ? (payment_method || null) : existing.payment_method,
       notes !== undefined ? notes : existing.notes, nextStatus,
       nextPaymentStatus,
       guests_data !== undefined ? JSON.stringify(guests_data) : (existing.guests_data || '[]'),
+      newAccData,
       newPaidAmt,
       payment_date !== undefined ? (payment_date || null) : existing.payment_date,
       req.params.id,
@@ -698,4 +774,4 @@ function getNotifications(req, res, next) {
   }
 }
 
-module.exports = { getAll, getById, create, update, approve, cancel, getDashboardStats, getAvailability, getNotifications };
+module.exports = { getAll, getById, create, update, approve, cancel, getDashboardStats, getAvailability, getNotifications, addPayment, deletePayment };

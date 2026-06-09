@@ -12,5 +12,7 @@ router.post('/', ctrl.create);
 router.post('/:id/approve', ctrl.approve);
 router.put('/:id', ctrl.update);
 router.delete('/:id', ctrl.cancel);
+router.post('/:id/payments', ctrl.addPayment);
+router.delete('/:id/payments/:paymentId', ctrl.deletePayment);
 
 module.exports = router;
