@@ -396,6 +396,8 @@ function migrateLegacyDataToOrganizations() {
 
   migrateLegacySettings(legacyOrgId);
   migrateLegacyEmailTemplates(legacyOrgId);
+
+  console.warn(`⚠️  Dados legacy migrados para org ${legacyOrgId} (${legacyName}). Sem owner — adiciona uma membership manualmente via SQL para reclamar.`);
 }
 
 function migrateLegacySettings(organizationId) {
@@ -464,6 +466,8 @@ function migrateReservations() {
     ['payment_date',  'TEXT'],
     ['google_calendar_user_id', 'TEXT'],
     ['public_token', 'TEXT'],
+    ['precheckin_token', 'TEXT'],
+    ['precheckin_token_expires_at', 'TEXT'],
     ['arrival_time', 'TEXT'],
     ['precheckin_submitted_at', 'TEXT'],
     ['cancelled_previous_status', 'TEXT'],

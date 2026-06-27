@@ -22,19 +22,19 @@ function renderTeamMembers(members) {
   container.innerHTML = members.map(member => `
     <div class="guest-row" style="display:grid;grid-template-columns:1.5fr 1fr auto;gap:12px;align-items:center;">
       <div>
-        <div style="font-weight:600;color:var(--azul);">${member.name}</div>
-        <div style="font-size:12px;color:var(--cinza);">${member.email}</div>
+        <div style="font-weight:600;color:var(--azul);">${escapeHtml(member.name)}</div>
+        <div style="font-size:12px;color:var(--cinza);">${escapeHtml(member.email)}</div>
       </div>
       ${member.role === 'owner' ? `
         <div><span class="badge badge-confirmada">Proprietário</span></div>
       ` : `
-        <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" onchange="updateTeamRole('${member.id}', this.value)">
+        <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" onchange="updateTeamRole('${escapeHtml(member.id)}', this.value)">
           <option value="manager" ${member.role === 'manager' ? 'selected' : ''}>Gestor</option>
           <option value="staff" ${member.role === 'staff' ? 'selected' : ''}>Funcionário</option>
         </select>
       `}
       ${member.role === 'owner' ? '<div></div>' : `
-        <button class="btn btn-ghost btn-sm" onclick="removeTeamMember('${member.id}')">
+        <button class="btn btn-ghost btn-sm" onclick="removeTeamMember('${escapeHtml(member.id)}')">
           <i data-lucide="user-minus"></i> Remover
         </button>
       `}
@@ -56,11 +56,11 @@ function renderTeamInvitations(invitations) {
   container.innerHTML = invitations.map(invite => `
     <div class="guest-row" style="display:grid;grid-template-columns:1.5fr 1fr auto;gap:12px;align-items:center;">
       <div>
-        <div style="font-weight:600;color:var(--azul);">${invite.email}</div>
+        <div style="font-weight:600;color:var(--azul);">${escapeHtml(invite.email)}</div>
         <div style="font-size:12px;color:var(--cinza);">Expira em ${formatDate(invite.expires_at.slice(0, 10))}</div>
       </div>
       <div><span class="badge badge-pendente">${invite.role === 'manager' ? 'Gestor' : 'Funcionário'}</span></div>
-      <button class="btn btn-ghost btn-sm" onclick="removeTeamInvitation('${invite.id}')">
+      <button class="btn btn-ghost btn-sm" onclick="removeTeamInvitation('${escapeHtml(invite.id)}')">
         <i data-lucide="trash-2"></i> Cancelar
       </button>
     </div>
@@ -77,9 +77,11 @@ async function inviteTeamMember() {
     const payload = await apiPost('/api/team/invitations', { email, role });
     const invite = payload?.data?.invitation;
     if (feedback) {
-      feedback.innerHTML = invite?.email_sent
-        ? 'Convite enviado por email com sucesso.'
-        : `Convite criado. Link direto: <a href="${invite.invite_url}" target="_blank">${invite.invite_url}</a>`;
+      if (invite?.email_sent) {
+        feedback.textContent = 'Convite enviado por email com sucesso.';
+      } else {
+        feedback.innerHTML = `Convite criado. Link direto: <a href="${escapeHtml(invite.invite_url)}" target="_blank">${escapeHtml(invite.invite_url)}</a>`;
+      }
     }
     document.getElementById('team-invite-email').value = '';
     await loadTeamOverview();

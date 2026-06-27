@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { loginLimiter, forgotPasswordLimiter } = require('../middleware/rateLimiter');
+const { loginLimiter, forgotPasswordLimiter, oauthCallbackLimiter } = require('../middleware/rateLimiter');
 const { deleteTokens, getOAuth2Client, isAuthenticated, saveTokens } = require('../config/google');
 const {
   getEmailOAuth2Client, saveEmailTokens, deleteEmailTokens,
@@ -55,13 +55,27 @@ const {
   buildInvitationUrl,
   createMembership,
   createOrganization,
-  getClaimableLegacyOrganization,
   getInvitationByToken,
   getMembershipByUserAndOrganization,
 } = require('../services/orgService');
 
+const { createHmac } = require('crypto');
 const SCOPES = ['https://www.googleapis.com/auth/calendar'];
 const COOKIE_MAX_AGE = Number(process.env.SESSION_TTL_DAYS || 14) * 86400000;
+
+function oauthState(sessionId) {
+  const secret = process.env.GOOGLE_CLIENT_SECRET || 'oauth-state-fallback';
+  return createHmac('sha256', secret).update(sessionId).digest('hex').slice(0, 32);
+}
+
+function verifyOAuthState(req, res) {
+  const expected = oauthState(req.sessionId);
+  if (!req.query.state || req.query.state !== expected) {
+    res.status(400).send('Estado OAuth inválido. Por favor tenta novamente.');
+    return false;
+  }
+  return true;
+}
 
 function setSessionCookie(res, sessionId) {
   const secure = process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === 'true';
@@ -304,7 +318,9 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
 router.get('/reset-password/:token', (req, res) => {
   const row = getResetToken(req.params.token);
   if (!row) return res.status(410).json({ success: false, error: 'Este link de recuperação é inválido ou já expirou.' });
-  res.json({ success: true, data: { email: row.email } });
+  const [local, domain] = (row.email || '').split('@');
+  const masked = local.slice(0, 1) + '***' + (local.length > 1 ? local.slice(-1) : '');
+  res.json({ success: true, data: { email: `${masked}@${domain}` } });
 });
 
 router.post('/reset-password', (req, res) => {
@@ -350,12 +366,14 @@ router.get('/google', requireAuth, (req, res) => {
   const authUrl = oAuth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
-    prompt: 'consent'
+    prompt: 'consent',
+    state: oauthState(req.sessionId),
   });
   res.redirect(authUrl);
 });
 
-router.get('/google/callback', requireAuth, async (req, res) => {
+router.get('/google/callback', oauthCallbackLimiter, requireAuth, async (req, res) => {
+  if (!verifyOAuthState(req, res)) return;
   const { code } = req.query;
   if (!code) return res.status(400).send('Código de autorização em falta.');
 
@@ -399,11 +417,13 @@ router.get('/google-email', requireAuth, (req, res) => {
     access_type: 'offline',
     scope: GMAIL_SCOPES,
     prompt: 'consent',
+    state: oauthState(req.sessionId),
   });
   res.redirect(authUrl);
 });
 
-router.get('/google-email/callback', requireAuth, async (req, res) => {
+router.get('/google-email/callback', oauthCallbackLimiter, requireAuth, async (req, res) => {
+  if (!verifyOAuthState(req, res)) return;
   const { code } = req.query;
   if (!code) return res.status(400).send('Código de autorização em falta.');
   try {
@@ -649,13 +669,13 @@ router.get('/email/messages', requireAuth, (req, res) => {
 });
 
 // ── CONVERSATION ARCHIVES ──
-router.get('/email/archives', requireAuth, (req, res) => {
+router.get('/email/archives', requireAuth, requireRole('manager'), (req, res) => {
   const rows = db.prepare('SELECT thread_key, key_type FROM conversation_archives WHERE organization_id = ?')
     .all(req.user.organization_id);
   res.json({ success: true, data: rows });
 });
 
-router.post('/email/archives', requireAuth, (req, res) => {
+router.post('/email/archives', requireAuth, requireRole('manager'), (req, res) => {
   const { thread_key, key_type = 'reservation' } = req.body || {};
   if (!thread_key) return res.status(400).json({ error: 'thread_key obrigatório' });
   const { randomUUID } = require('crypto');
@@ -664,7 +684,7 @@ router.post('/email/archives', requireAuth, (req, res) => {
   res.json({ success: true });
 });
 
-router.delete('/email/archives/:thread_key', requireAuth, (req, res) => {
+router.delete('/email/archives/:thread_key', requireAuth, requireRole('manager'), (req, res) => {
   db.prepare('DELETE FROM conversation_archives WHERE organization_id = ? AND thread_key = ?')
     .run(req.user.organization_id, req.params.thread_key);
   res.json({ success: true });
@@ -680,11 +700,13 @@ router.get('/google-tasks', requireAuth, (req, res) => {
     access_type: 'offline',
     scope: TASKS_SCOPES,
     prompt: 'consent',
+    state: oauthState(req.sessionId),
   });
   res.redirect(authUrl);
 });
 
-router.get('/google-tasks/callback', requireAuth, async (req, res) => {
+router.get('/google-tasks/callback', oauthCallbackLimiter, requireAuth, async (req, res) => {
+  if (!verifyOAuthState(req, res)) return;
   const { code } = req.query;
   if (!code) return res.status(400).send('Código de autorização em falta.');
   try {

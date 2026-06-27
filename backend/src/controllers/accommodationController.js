@@ -16,13 +16,40 @@ const ALLOWED_IMAGE_TYPES = {
   'avif': 'avif',
 };
 
+// Magic-byte signatures por tipo declarado.
+// Defesa em profundidade contra polyglots (ex: SVG com extensão .png).
+function detectImageMagicType(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 12) return null;
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return 'png';
+  // JPEG: FF D8 FF
+  if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return 'jpeg';
+  // GIF: GIF87a / GIF89a
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) return 'gif';
+  // WEBP: RIFF....WEBP
+  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+      buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return 'webp';
+  // AVIF: bytes 4-7 = "ftyp" + brand at 8-11 indica avif/avis
+  if (buf[4] === 0x66 && buf[5] === 0x74 && buf[6] === 0x79 && buf[7] === 0x70) {
+    const brand = buf.slice(8, 12).toString('ascii');
+    if (brand === 'avif' || brand === 'avis' || brand === 'mif1') return 'avif';
+  }
+  return null;
+}
+
 function parseImageDataUri(dataUri) {
   const match = String(dataUri || '').match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
   if (!match) return null;
   const declaredType = match[1].toLowerCase();
   const ext = ALLOWED_IMAGE_TYPES[declaredType];
   if (!ext) return null;
-  return { ext, data: Buffer.from(match[2], 'base64') };
+  const data = Buffer.from(match[2], 'base64');
+  const actualType = detectImageMagicType(data);
+  if (!actualType) return null;
+  // Tolerar declarado=jpg/jpeg vs actual=jpeg (são o mesmo formato).
+  const normalizedDeclared = declaredType === 'jpg' ? 'jpeg' : declaredType;
+  if (actualType !== normalizedDeclared) return null;
+  return { ext, data };
 }
 
 const INHERITED_FIELDS = ['address','postal_code','city','region','country',
@@ -602,7 +629,7 @@ function createPricingPeriod(req, res) {
     INSERT INTO pricing_periods (id, organization_id, accommodation_id, name, start_date, end_date, price_per_night, min_nights)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(periodId, req.user.organization_id, id, name, start_date, end_date, Number(price_per_night), Number(min_nights) || 1);
-  res.status(201).json({ success: true, data: db.prepare('SELECT * FROM pricing_periods WHERE id = ?').get(periodId) });
+  res.status(201).json({ success: true, data: db.prepare('SELECT * FROM pricing_periods WHERE id = ? AND organization_id = ?').get(periodId, req.user.organization_id) });
 }
 
 function updatePricingPeriod(req, res) {
@@ -623,7 +650,7 @@ function updatePricingPeriod(req, res) {
       updated_at = datetime('now')
     WHERE id = ? AND organization_id = ?
   `).run(name ?? null, newStart, newEnd, price_per_night != null ? Number(price_per_night) : null, min_nights != null ? Number(min_nights) : null, periodId, req.user.organization_id);
-  res.json({ success: true, data: db.prepare('SELECT * FROM pricing_periods WHERE id = ?').get(periodId) });
+  res.json({ success: true, data: db.prepare('SELECT * FROM pricing_periods WHERE id = ? AND organization_id = ?').get(periodId, req.user.organization_id) });
 }
 
 function deletePricingPeriod(req, res) {
@@ -655,7 +682,7 @@ function bulkCreatePricingPeriods(req, res) {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(periodId, req.user.organization_id, id, name, start_date, end_date, Number(price_per_night), Number(min_nights) || 1, dowJson);
 
-  const created = db.prepare('SELECT * FROM pricing_periods WHERE id = ?').get(periodId);
+  const created = db.prepare('SELECT * FROM pricing_periods WHERE id = ? AND organization_id = ?').get(periodId, req.user.organization_id);
   res.status(201).json({ success: true, data: [created], count: 1 });
 }
 

@@ -238,15 +238,15 @@ function renderHospedesCards() {
       <div class="hospede-card-top">
         ${flagImg(g, 72)}
       </div>
-      <div class="hospede-name">${g.name}</div>
+      <div class="hospede-name">${escapeHtml(g.name)}</div>
       <div class="hospede-info-row">
         ${lcIcon('briefcase', 14)}
         <span>${g.reservation_count || 0} reserva${g.reservation_count !== 1 ? 's' : ''}</span>
         ${g.last_check_in ? `<span class="hospede-dot">·</span><span>${formatShortDate(g.last_check_in)}</span>` : ''}
       </div>
-      ${g.phone ? `<div class="hospede-info-row">${lcIcon('smartphone', 14)} <span>${g.phone}</span></div>` : ''}
-      ${realEmail(g.email) ? `<div class="hospede-info-row">${lcIcon('mail', 14)} <span class="hospede-email">${realEmail(g.email)}</span></div>` : (g.email_personal ? `<div class="hospede-info-row">${lcIcon('mail', 14)} <span class="hospede-email">${g.email_personal}</span></div>` : '')}
-      ${(g.country || g.nationality) ? `<div class="hospede-info-row">${lcIcon('map-pin', 14)} <span>${g.country || g.nationality}</span></div>` : ''}
+      ${g.phone ? `<div class="hospede-info-row">${lcIcon('smartphone', 14)} <span>${escapeHtml(g.phone)}</span></div>` : ''}
+      ${realEmail(g.email) ? `<div class="hospede-info-row">${lcIcon('mail', 14)} <span class="hospede-email">${escapeHtml(realEmail(g.email))}</span></div>` : (g.email_personal ? `<div class="hospede-info-row">${lcIcon('mail', 14)} <span class="hospede-email">${escapeHtml(g.email_personal)}</span></div>` : '')}
+      ${(g.country || g.nationality) ? `<div class="hospede-info-row">${lcIcon('map-pin', 14)} <span>${escapeHtml(g.country || g.nationality)}</span></div>` : ''}
       ${guestTagsHtml(g)}
     </div>
   `).join('');
@@ -359,8 +359,8 @@ async function showHospedeDetail(id) {
         ${reservations.map(r => `
           <div onclick="AppUI.closeModal('detail-bg');showDetail('${r.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--cinza-claro);border-radius:8px;margin-bottom:6px;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='var(--creme)'" onmouseout="this.style.background='var(--cinza-claro)'">
             <div>
-              <span style="font-size:12px;color:var(--azul-claro);font-family:monospace;">${r.id}</span>
-              <span style="font-size:13px;color:var(--texto);margin-left:8px;">${r.accommodation_name}</span>
+              <span style="font-size:12px;color:var(--azul-claro);font-family:monospace;">${escapeHtml(r.id)}</span>
+              <span style="font-size:13px;color:var(--texto);margin-left:8px;">${escapeHtml(r.accommodation_name)}</span>
             </div>
             <div style="display:flex;align-items:center;gap:10px;">
               <span style="font-size:12px;color:var(--cinza);">${formatDate(r.check_in)} → ${formatDate(r.check_out)}</span>
@@ -372,7 +372,7 @@ async function showHospedeDetail(id) {
     `;
     document.getElementById('detail-footer').innerHTML = `
       <button class="btn btn-ghost" onclick="AppUI.closeModal('detail-bg')">Fechar</button>
-      <button class="btn btn-danger" onclick="AppUI.closeModal('detail-bg');deleteGuest('${g.id}','${g.name.replace(/'/g, "\\'")}')">
+      <button class="btn btn-danger" onclick="AppUI.closeModal('detail-bg');deleteGuest('${g.id}',decodeURIComponent('${encodeURIComponent(g.name)}'))">
         ${lcIcon('trash-2', 13)} Remover
       </button>
       <button class="btn btn-primary" onclick="AppUI.closeModal('detail-bg');openGuestEdit('${g.id}')">

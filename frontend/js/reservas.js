@@ -339,9 +339,12 @@ function renderTabela() {
         ${r.status === 'cancelada'
           ? `<button class="btn btn-sm" style="background:rgba(46,125,82,.12);color:#2e7d52" onclick="reativarReserva('${r.id}')" title="Reativar reserva">
                ${lcIcon('refresh-cw', 13)}
-             </button>`
-          : `<button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho)" onclick="deleteReserva('${r.id}')" title="Cancelar reserva">
+             </button>
+             ${hasRole('manager') ? `<button class="btn btn-sm" style="background:rgba(176,48,48,.18);color:var(--vermelho)" onclick="apagarReservaDefinitivo('${r.id}')" title="Apagar definitivamente">
                ${lcIcon('trash-2', 13)}
+             </button>` : ''}`
+          : `<button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho)" onclick="cancelarReserva('${r.id}')" title="Cancelar reserva">
+               ${lcIcon('x-circle', 13)}
              </button>`}
       </td>
     </tr>`).join('');
@@ -837,17 +840,17 @@ function renderExtraGuests() {
         <div class="form-grid" style="margin:0;gap:12px;">
           <div class="form-group form-full" style="margin-bottom:0;">
             <label class="form-label">Nome Completo <span class="req-star">*</span></label>
-            <input class="form-control" data-field="nome_completo" placeholder="Nome completo" value="${p.nome_completo || ''}">
+            <input class="form-control" data-field="nome_completo" placeholder="Nome completo" value="${p.nome_completo || ''}" autocomplete="off">
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Email <span class="req-star">*</span></label>
-            <input class="form-control" data-field="email" type="email" placeholder="email@exemplo.com" value="${p.email || ''}">
+            <input class="form-control" data-field="email" type="email" placeholder="email@exemplo.com" value="${p.email || ''}" autocomplete="off">
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Telefone <span class="req-star">*</span></label>
             <div class="phone-group">
               <select class="form-control phone-prefix" data-field="tel_prefix">${prefixOpts}</select>
-              <input class="form-control phone-number" data-field="tel_num" type="tel" placeholder="912 345 678" value="${p.tel_num || ''}">
+              <input class="form-control phone-number" data-field="tel_num" type="tel" placeholder="912 345 678" value="${p.tel_num || ''}" autocomplete="off">
             </div>
           </div>
           <div class="form-group" style="margin-bottom:0;">
@@ -858,7 +861,7 @@ function renderExtraGuests() {
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Data de Nascimento <span class="req-star">*</span></label>
             <div class="birth-date-control">
-              <input class="form-control birth-date-input" data-field="birth_date" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" value="${formatDateForBirthInput(p.birth_date || '')}" oninput="handleBirthDateInput(this)" onblur="normalizeBirthDateInput(this);calcTotal();updateSpecialRateHints()">
+              <input class="form-control birth-date-input" data-field="birth_date" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" value="${formatDateForBirthInput(p.birth_date || '')}" oninput="handleBirthDateInput(this)" onblur="normalizeBirthDateInput(this);calcTotal();updateSpecialRateHints()" autocomplete="off">
               <button class="birth-date-picker-btn" type="button" onclick="AppDatePicker.open(this.closest('.birth-date-control').querySelector('.birth-date-input'),{isBirthDate:true})" aria-label="Abrir calendário">
                 <i data-lucide="calendar-days"></i>
               </button>
@@ -867,7 +870,7 @@ function renderExtraGuests() {
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Local de Nascimento <span class="req-foreign-extra" style="display:none;color:var(--vermelho)">*</span></label>
-            <input class="form-control" data-field="birth_city" placeholder="Cidade de nascimento" value="${p.birth_city || ''}">
+            <input class="form-control" data-field="birth_city" placeholder="Cidade de nascimento" value="${p.birth_city || ''}" autocomplete="off">
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Tipo de Documento <span class="req-foreign-extra" style="display:none;color:var(--vermelho)">*</span></label>
@@ -882,7 +885,7 @@ function renderExtraGuests() {
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Nº de Documento <span class="req-foreign-extra" style="display:none;color:var(--vermelho)">*</span></label>
-            <input class="form-control" data-field="doc_number" placeholder="XX000000" value="${p.doc_number || ''}">
+            <input class="form-control" data-field="doc_number" placeholder="XX000000" value="${p.doc_number || ''}" autocomplete="off">
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">País Emissor do Documento <span class="req-foreign-extra" style="display:none;color:var(--vermelho)">*</span></label>
@@ -890,7 +893,7 @@ function renderExtraGuests() {
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">NIF</label>
-            <input class="form-control" data-field="nif" placeholder="000 000 000" value="${p.nif || ''}">
+            <input class="form-control" data-field="nif" placeholder="000 000 000" value="${p.nif || ''}" autocomplete="off">
           </div>
         </div>
       </div>`);
@@ -1552,7 +1555,8 @@ async function showDetail(id) {
     const fmt = v => `€${Number(v).toFixed(2)}`;
     const sd = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
 
-    const preCheckinUrl = r.public_token ? `${window.location.origin}/pre-checkin/${r.public_token}` : null;
+    const preCheckinToken = r.precheckin_token || r.public_token;
+    const preCheckinUrl = preCheckinToken ? `${window.location.origin}/pre-checkin/${preCheckinToken}` : null;
     const guestEmail = (r.guest_email || '').replace(/'/g, "\\'");
     const guestName = (r.guest_name || '').replace(/'/g, "\\'");
 
@@ -1748,7 +1752,8 @@ async function showDetail(id) {
             <button class="rdv2-action-link" onclick="openEditModal('${r.id}')">${lcIcon('credit-card', 12)} Adicionar pagamento</button>
             ${r.guest_email ? `<button class="rdv2-action-link" onclick="openInvoiceForReservation('${r.id}','${guestEmail}','${guestName}')">${lcIcon('mail', 12)} Emitir fatura</button>` : ''}
             ${r.status === 'cancelada'
-              ? `<button class="rdv2-action-link rdv2-action-success" onclick="reativarReserva('${r.id}')">${lcIcon('refresh-cw', 12)} Reativar reserva</button>`
+              ? `<button class="rdv2-action-link rdv2-action-success" onclick="reativarReserva('${r.id}')">${lcIcon('refresh-cw', 12)} Reativar reserva</button>
+                 ${hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" onclick="apagarReservaDefinitivo('${r.id}')">${lcIcon('trash-2', 12)} Apagar definitivamente</button>` : ''}`
               : `<button class="rdv2-action-link rdv2-action-danger" onclick="cancelarReserva('${r.id}')">${lcIcon('x-circle', 12)} Cancelar reserva</button>`}
           </div>
 
@@ -1812,6 +1817,27 @@ async function cancelarReserva(id) {
       renderDashboard();
     } else {
       toast('❌ ' + (res.error || 'Erro ao cancelar.'), 'error');
+    }
+  } catch (e) {
+    toast('❌ Erro de ligação ao servidor.', 'error');
+  }
+}
+
+async function apagarReservaDefinitivo(id) {
+  if (!confirm('Apagar DEFINITIVAMENTE esta reserva, os seus pagamentos e tarefas operacionais?\n\nEsta ação é irreversível. O hóspede e o histórico de emails são mantidos.')) return;
+  if (!confirm('Confirma novamente — esta ação não pode ser desfeita.')) return;
+  try {
+    const res = await apiDelete(`/api/reservations/${id}/permanent`);
+    if (res.success) {
+      const detailBg = document.getElementById('detail-bg');
+      if (detailBg?.classList.contains('open')) detailBg.classList.remove('open');
+      showReservasList();
+      toast('🗑 Reserva apagada definitivamente.', 'info');
+      await loadReservas();
+      if (typeof renderCalView === 'function') renderCalView();
+      renderDashboard();
+    } else {
+      toast('❌ ' + (res.error || 'Erro ao apagar.'), 'error');
     }
   } catch (e) {
     toast('❌ Erro de ligação ao servidor.', 'error');

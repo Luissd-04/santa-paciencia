@@ -10,6 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/public-reservation.css">
+  <!-- Cloudflare Turnstile (CAPTCHA leve, sem cookies) -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileReady" async defer></script>
 </head>
 <body>
   <div class="booking-page">
@@ -56,11 +58,11 @@
               <div class="field-grid two">
                 <label>
                   <span>Adultos</span>
-                  <input id="pb-adults" type="number" min="1" max="20" value="2">
+                  <input id="pb-adults" type="number" min="1" max="20" value="2" autocomplete="off">
                 </label>
                 <label>
                   <span>Crianças</span>
-                  <input id="pb-children" type="number" min="0" max="20" value="0">
+                  <input id="pb-children" type="number" min="0" max="20" value="0" autocomplete="off">
                 </label>
               </div>
               <div class="unit-list" id="unit-list"></div>
@@ -80,12 +82,12 @@
               </div>
               <label>
                 <span>Nome completo *</span>
-                <input id="pb-name" required placeholder="Nome completo">
+                <input id="pb-name" required placeholder="Nome completo" autocomplete="off">
               </label>
               <div class="field-grid two">
                 <label>
                   <span>Email *</span>
-                  <input id="pb-email" type="email" required placeholder="email@exemplo.com">
+                  <input id="pb-email" type="email" required placeholder="email@exemplo.com" autocomplete="off">
                 </label>
                 <label>
                   <span>Telefone *</span>
@@ -95,7 +97,7 @@
                       <input type="hidden" id="pb-phone-code" value="+351">
                       <div class="country-dropdown" id="pb-phone-code-dropdown" style="display:none;"></div>
                     </div>
-                    <input id="pb-phone" type="tel" required placeholder="912 345 678">
+                    <input id="pb-phone" type="tel" required placeholder="912 345 678" autocomplete="off">
                   </div>
                 </label>
               </div>
@@ -109,7 +111,7 @@
                 </label>
                 <label>
                   <span>Data de nascimento</span>
-                  <input id="pb-birth" class="birth-input" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10">
+                  <input id="pb-birth" class="birth-input" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" autocomplete="off">
                   <small class="rate-hint" id="pb-main-rate"></small>
                 </label>
               </div>
@@ -130,6 +132,13 @@
                 <input id="pb-rgpd" type="checkbox">
                 <span>Li e aceito a política de proteção de dados.</span>
               </label>
+              <!-- Honeypot: bots auto-fill preenchem-no; humanos não o vêem. -->
+              <div style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;" aria-hidden="true">
+                <label>Website (deixe em branco)
+                  <input id="pb-hp" type="text" name="website" tabindex="-1" autocomplete="off">
+                </label>
+              </div>
+              <div id="pb-captcha" style="margin:12px 0;"></div>
               <div class="success-box" id="success-box"></div>
             </section>
           </form>

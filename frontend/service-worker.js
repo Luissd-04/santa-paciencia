@@ -4,15 +4,14 @@
                Network-first para API e HTML.
 ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'sp-v10';
-const CACHE_VERSION = 10;
+const CACHE_NAME = 'sp-v12';
+const CACHE_VERSION = 12;
 
 /* Assets estáticos que devem funcionar offline */
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/pre-checkin.html',
-  '/api.js',
   '/css/styles.css',
   '/css/base.css',
   '/css/layout.css',
@@ -45,6 +44,7 @@ const STATIC_ASSETS = [
   '/js/vouchers.js',
   '/js/precos.js',
   '/js/emails.js',
+  '/js/invoice.js',
   '/js/validators.js',
   '/js/team.js',
   '/js/domain/dates.js',

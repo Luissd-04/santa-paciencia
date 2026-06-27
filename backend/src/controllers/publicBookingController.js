@@ -9,6 +9,7 @@ const {
   normalizeDateValue,
 } = require('../services/reservationRules');
 const { getAccommodationScope } = require('../services/availabilityRules');
+const turnstile = require('../services/turnstileService');
 
 const COMMON_AREAS_KEY = 'areas_comuns';
 
@@ -112,21 +113,24 @@ function getChildren(parent) {
   `).all(parent.organization_id, parent.id);
 }
 
-function findConflict(organizationId, accommodationId, checkIn, checkOut) {
+function findConflict(organizationId, accommodationId, checkIn, checkOut, excludeId = null) {
   const accommodations = db.prepare('SELECT id, type, parent_id FROM accommodations WHERE organization_id = ?').all(organizationId);
   const idsToCheck = getAccommodationScope(accommodations, accommodationId);
   if (!idsToCheck.length) return null;
 
   const placeholders = idsToCheck.map(() => '?').join(',');
+  const excludeClause = excludeId ? ' AND id != ?' : '';
+  const params = [organizationId, checkOut, checkIn, ...idsToCheck];
+  if (excludeId) params.push(excludeId);
   return db.prepare(`
     SELECT id FROM reservations
     WHERE status != 'cancelada'
       AND organization_id = ?
       AND check_in < ?
       AND check_out > ?
-      AND accommodation_id IN (${placeholders})
+      AND accommodation_id IN (${placeholders})${excludeClause}
     LIMIT 1
-  `).get(organizationId, checkOut, checkIn, ...idsToCheck);
+  `).get(...params);
 }
 
 function getServices(organizationId) {
@@ -143,7 +147,8 @@ function getPricingPeriods(organizationId, accommodationId) {
 }
 
 function calculateTotal(accommodation, organizationId, payload) {
-  return calculateReservationTotals(accommodation, getServices(organizationId), payload);
+  const pricing_periods = getPricingPeriods(organizationId, accommodation.id);
+  return calculateReservationTotals(accommodation, getServices(organizationId), { ...payload, pricing_periods });
 }
 
 function getLanding(req, res) {
@@ -164,7 +169,11 @@ function getLanding(req, res) {
       })),
       services: getServices(parent.organization_id)
         .filter(s => ['breakfast', 'tourist_tax'].includes(s.id))
-        .map(s => ({ id: s.id, name: s.name, value: Number(s.value || 0), unit: s.unit, active: s.active !== false }))
+        .map(s => ({ id: s.id, name: s.name, value: Number(s.value || 0), unit: s.unit, active: s.active !== false })),
+      captcha: {
+        provider: 'turnstile',
+        site_key: turnstile.getSiteKey(),
+      }
     }
   });
 }
@@ -237,11 +246,35 @@ function getAvailability(req, res) {
   res.json({ success: true, data: available });
 }
 
-function createReservation(req, res, next) {
+// Mensagem genérica para qualquer rejeição anti-bot — não dar pistas a quem
+// está a tentar contornar (honeypot, timing, captcha) sobre QUAL camada falhou.
+const ANTIBOT_GENERIC_ERROR = 'Não foi possível processar o pedido. Por favor recarrega a página e tenta de novo.';
+const MIN_FORM_FILL_MS = 8000; // 8 segundos — humano dificilmente preenche tudo mais rápido
+
+async function createReservation(req, res, next) {
   try {
     const parent = getPropertyBySlug(req.params.slug);
     if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado.' });
     const payload = req.body || {};
+
+    // Anti-bot camada 1 — Honeypot. Bots de auto-fill preenchem o campo
+    // escondido; humanos nunca o vêem.
+    if (payload.hp_website && String(payload.hp_website).trim().length > 0) {
+      return res.status(400).json({ success: false, error: ANTIBOT_GENERIC_ERROR });
+    }
+
+    // Anti-bot camada 2 — Timing. Scripts que fazem POST directo enviam
+    // imediatamente; humanos demoram a preencher 3 passos.
+    const elapsed = Number(payload.elapsed_ms);
+    if (!Number.isFinite(elapsed) || elapsed < MIN_FORM_FILL_MS) {
+      return res.status(400).json({ success: false, error: ANTIBOT_GENERIC_ERROR });
+    }
+
+    // Anti-bot camada 3 — CAPTCHA Turnstile.
+    const captchaResult = await turnstile.verify(payload.captcha_token, req.ip);
+    if (!captchaResult.success) {
+      return res.status(400).json({ success: false, error: captchaResult.error || 'CAPTCHA inválido.' });
+    }
 
     let unit, isCompleteProperty = false;
     if (payload.accommodation_id === 'property') {
@@ -313,6 +346,11 @@ function createReservation(req, res, next) {
     // ID único sem colisão por concorrência
     const reservationId = `SP-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
     const token = crypto.randomBytes(32).toString('hex');
+    // Token distinto para pre-checkin (S2): TTL = check_out (deixa de funcionar
+    // depois da estadia). Evita que quem tenha só o link de pre-checkin aceda
+    // à página de gestão e vice-versa.
+    const precheckinToken = crypto.randomBytes(32).toString('hex');
+    const precheckinExpiresAt = totals.checkOut;
     const normalizedGuestsData = guestsData.map(g => ({ ...g, birth_date: normalizeDateValue(g.birth_date) }));
     const accommodationId = isCompleteProperty ? parent.id : unit.id;
     const licenseNumber = isCompleteProperty ? parent.license_number : unit.license_number;
@@ -356,20 +394,20 @@ function createReservation(req, res, next) {
         INSERT INTO reservations (
           id, organization_id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
           total_amount, breakfast_included, tourist_tax, channel, payment_method, notes, license_number, status,
-          guests_data, amount_paid, payment_status, public_token, arrival_time
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, 0, 'pendente', ?, ?)
+          guests_data, amount_paid, payment_status, public_token, precheckin_token, precheckin_token_expires_at, arrival_time
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, 0, 'pendente', ?, ?, ?, ?)
       `).run(
         reservationId, parent.organization_id, g.id, accommodationId,
         totals.checkIn, totals.checkOut, totals.nights, totals.guests,
         finalTotal, payload.breakfast_included ? 1 : 0, totals.touristTax,
         'website', null, payload.notes || null, licenseNumber,
-        JSON.stringify(normalizedGuestsData), token, payload.arrival_time || null
+        JSON.stringify(normalizedGuestsData), token, precheckinToken, precheckinExpiresAt, payload.arrival_time || null
       );
 
       return g;
     })();
 
-    recordConsent(txResult.id, req.ip);
+    recordConsent(txResult.id, req.ip, parent.organization_id);
 
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?')
       .get(reservationId, parent.organization_id);
@@ -395,7 +433,8 @@ function createReservation(req, res, next) {
         status: 'pendente',
         total_amount: finalTotal,
         public_token: token,
-        public_url: `${publicUrl(req)}/reserva/${token}`
+        public_url: `${publicUrl(req)}/reserva/${token}`,
+        precheckin_url: `${publicUrl(req)}/pre-checkin/${precheckinToken}`,
       }
     });
   } catch (err) {
@@ -403,9 +442,11 @@ function createReservation(req, res, next) {
   }
 }
 
-function getPreCheckin(req, res) {
-  const token = String(req.params.token || '').trim();
-  const reservation = db.prepare(`
+function lookupReservationByPrecheckinToken(token) {
+  // Lookup primário: token dedicado ao pre-checkin (S2). Fallback para o
+  // `public_token` mantém compatibilidade com links já emitidos antes da
+  // separação de tokens. Se ambos baterem, prefere o precheckin_token.
+  return db.prepare(`
     SELECT r.*, g.name as guest_name, g.email as guest_email, g.phone as guest_phone,
            g.first_name, g.last_name, g.birth_date, g.nationality, g.country,
            g.document_type, g.document_number, g.document_issuer_country,
@@ -413,13 +454,26 @@ function getPreCheckin(req, res) {
     FROM reservations r
     JOIN guests g ON g.id = r.guest_id AND g.organization_id = r.organization_id
     JOIN accommodations a ON a.id = r.accommodation_id AND a.organization_id = r.organization_id
-    WHERE r.public_token = ?
-  `).get(token);
+    WHERE r.precheckin_token = ? OR (r.precheckin_token IS NULL AND r.public_token = ?)
+  `).get(token, token);
+}
+
+function getPreCheckin(req, res) {
+  const token = String(req.params.token || '').trim();
+  const reservation = lookupReservationByPrecheckinToken(token);
   if (!reservation) return res.status(404).json({ success: false, error: 'Link inválido ou expirado.' });
   if (reservation.status === 'cancelada') return res.status(400).json({ success: false, error: 'Esta reserva está cancelada.' });
+  if (reservation.precheckin_token_expires_at &&
+      new Date(reservation.precheckin_token_expires_at + 'T23:59:59') < new Date()) {
+    return res.status(410).json({ success: false, error: 'Este link de pré check-in expirou.' });
+  }
   if (reservation.check_out && new Date(reservation.check_out + 'T23:59:59') < new Date()) {
     return res.status(410).json({ success: false, error: 'O pré check-in não está disponível após a data de saída.' });
   }
+  // PII sensível (documento, nacionalidade, nascimento, dados de hóspedes
+  // adicionais) NÃO é devolvida pelo GET — apenas escrita pelo POST. Quem
+  // tiver o link consegue ver o nome/email/telefone que já enviou na reserva
+  // (e que o backoffice já tem), mas não os documentos pessoais.
   res.json({
     success: true,
     data: {
@@ -440,16 +494,16 @@ function getPreCheckin(req, res) {
         name: reservation.guest_name,
         email: reservation.guest_email,
         phone: reservation.guest_phone,
-        first_name: reservation.first_name,
-        last_name: reservation.last_name,
-        birth_date: reservation.birth_date,
-        nationality: reservation.nationality || reservation.country,
-        country: reservation.country,
-        document_type: reservation.document_type,
-        document_number: reservation.document_number,
-        document_issuer_country: reservation.document_issuer_country,
+        first_name: '',
+        last_name: '',
+        birth_date: null,
+        nationality: '',
+        country: '',
+        document_type: '',
+        document_number: '',
+        document_issuer_country: '',
       },
-      guests_data: parseJson(reservation.guests_data, []),
+      guests_data: [],
     }
   });
 }
@@ -472,9 +526,16 @@ function cleanGuestData(item = {}) {
 
 function submitPreCheckin(req, res) {
   const token = String(req.params.token || '').trim();
-  const reservation = db.prepare('SELECT * FROM reservations WHERE public_token = ?').get(token);
+  const reservation = db.prepare(`
+    SELECT * FROM reservations
+    WHERE precheckin_token = ? OR (precheckin_token IS NULL AND public_token = ?)
+  `).get(token, token);
   if (!reservation) return res.status(404).json({ success: false, error: 'Link inválido ou expirado.' });
   if (reservation.status === 'cancelada') return res.status(400).json({ success: false, error: 'Esta reserva está cancelada.' });
+  if (reservation.precheckin_token_expires_at &&
+      new Date(reservation.precheckin_token_expires_at + 'T23:59:59') < new Date()) {
+    return res.status(410).json({ success: false, error: 'Este link de pré check-in expirou.' });
+  }
   if (reservation.check_out && new Date(reservation.check_out + 'T23:59:59') < new Date()) {
     return res.status(410).json({ success: false, error: 'O pré check-in não está disponível após a data de saída.' });
   }
@@ -517,11 +578,11 @@ function submitPreCheckin(req, res) {
     status = CASE WHEN status != 'confirmada' THEN 'aguardar_pagamento' ELSE status END,
     precheckin_submitted_at = datetime('now'),
     updated_at = datetime('now')
-    WHERE public_token = ? AND organization_id = ?`)
+    WHERE id = ? AND organization_id = ?`)
     .run(
       JSON.stringify(allGuests.slice(1)),
       String(req.body?.arrival_time || '').trim() || null,
-      token,
+      reservation.id,
       reservation.organization_id
     );
 

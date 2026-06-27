@@ -1,5 +1,16 @@
 const API_BASE = '';
 
+// Escape para uso em innerHTML/template literals — local porque
+// public-reservation.js não carrega helpers.js.
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const searchParams = new URLSearchParams(location.search);
 
 const state = {
@@ -11,7 +22,10 @@ const state = {
   selectedUnitId: '',
   step: 1,
   bgIndex: 0,
-  lastBgChange: 0
+  lastBgChange: 0,
+  // Anti-bot: timestamp de quando a página foi carregada. Usado para
+  // calcular elapsed_ms no payload e rejeitar submits demasiado rápidos.
+  pageLoadedAt: Date.now()
 };
 
 const $ = id => document.getElementById(id);
@@ -269,6 +283,7 @@ async function init() {
     state.property = payload.data.property;
     state.units = payload.data.units || [];
     state.services = payload.data.services || [];
+    state.captcha = payload.data.captcha || null;
     state.selectedUnitId = 'property';
     renderLanding();
     bindEvents();
@@ -279,8 +294,39 @@ async function init() {
   }
 }
 
+// ── Cloudflare Turnstile ──────────────────────────────────────────────
+// O script da Cloudflare chama `onTurnstileReady` quando carrega.
+let _turnstileWidgetId = null;
+let _turnstileToken = '';
+
+window.onTurnstileReady = function () {
+  // Render diferido até estarmos no passo 3 (renderTurnstile faz isso).
+  renderTurnstile();
+};
+
+function renderTurnstile() {
+  if (!state.captcha?.site_key) return;
+  if (!window.turnstile) return;
+  if (state.step !== 3) return;
+  const container = document.getElementById('pb-captcha');
+  if (!container || _turnstileWidgetId !== null) return;
+  _turnstileWidgetId = window.turnstile.render(container, {
+    sitekey: state.captcha.site_key,
+    callback: (token) => { _turnstileToken = token; },
+    'expired-callback': () => { _turnstileToken = ''; },
+    'error-callback': () => { _turnstileToken = ''; },
+  });
+}
+
+function resetTurnstile() {
+  if (window.turnstile && _turnstileWidgetId !== null) {
+    window.turnstile.reset(_turnstileWidgetId);
+  }
+  _turnstileToken = '';
+}
+
 function showFatal(message) {
-  document.body.innerHTML = `<div style="min-height:100vh;display:grid;place-items:center;background:#17120f;color:#fff;font-family:Inter,sans-serif;padding:24px;text-align:center;"><div><h1>Não foi possível abrir a página</h1><p>${message}</p></div></div>`;
+  document.body.innerHTML = `<div style="min-height:100vh;display:grid;place-items:center;background:#17120f;color:#fff;font-family:Inter,sans-serif;padding:24px;text-align:center;"><div><h1>Não foi possível abrir a página</h1><p>${escapeHtml(message)}</p></div></div>`;
 }
 
 function allImages() {
@@ -328,7 +374,7 @@ function renderRail(id, imgs) {
   const rail = $(id);
   if (!imgs.length) return;
   const doubled = [...imgs, ...imgs, ...imgs, ...imgs].slice(0, Math.max(16, imgs.length * 3));
-  rail.innerHTML = doubled.map(url => `<img class="rail-img" src="${url}" alt="" loading="lazy">`).join('');
+  rail.innerHTML = doubled.map(url => `<img class="rail-img" src="${escapeHtml(url)}" alt="" loading="lazy">`).join('');
   rail.classList.remove('paused');
   void rail.offsetHeight;
   rail.style.animation = 'none';
@@ -803,12 +849,12 @@ function renderExtraGuests() {
         <h3 style="margin: 0 0 18px; font-size: 18px; color: var(--brand);">Hóspede ${i}</h3>
         <label>
           <span>Nome completo *</span>
-          <input data-field="name" required value="${prev.name || ''}" placeholder="Nome completo">
+          <input data-field="name" required value="${prev.name || ''}" placeholder="Nome completo" autocomplete="off">
         </label>
         <div class="field-grid two">
           <label>
             <span>Email *</span>
-            <input data-field="email" type="email" required value="${prev.email || ''}" placeholder="email@exemplo.com">
+            <input data-field="email" type="email" required value="${prev.email || ''}" placeholder="email@exemplo.com" autocomplete="off">
           </label>
           <label>
             <span>Telefone *</span>
@@ -817,7 +863,7 @@ function renderExtraGuests() {
                 <button type="button" class="phone-code-btn guest-phone-code-btn" data-field="phone_code" data-guest-index="${i}">🇵🇹 +351</button>
                 <input type="hidden" data-field="phone_code" value="${prev.phone_code || '+351'}">
               </div>
-              <input data-field="phone" type="tel" required value="${prev.phone || ''}" placeholder="912 345 678">
+              <input data-field="phone" type="tel" required value="${prev.phone || ''}" placeholder="912 345 678" autocomplete="off">
             </div>
           </label>
         </div>
@@ -831,7 +877,7 @@ function renderExtraGuests() {
           </label>
           <label>
             <span>Data de nascimento</span>
-            <input class="birth-input guest-birth-input" data-field="birth_date" type="text" inputmode="numeric" value="${prev.birth_date || ''}" placeholder="dd-mm-aaaa" maxlength="10">
+            <input class="birth-input guest-birth-input" data-field="birth_date" type="text" inputmode="numeric" value="${prev.birth_date || ''}" placeholder="dd-mm-aaaa" maxlength="10" autocomplete="off">
             <small class="rate-hint"></small>
           </label>
         </div>
@@ -996,6 +1042,7 @@ function renderStep() {
   document.querySelectorAll('[data-step-dot]').forEach(dot => dot.classList.toggle('active', Number(dot.dataset.stepDot) === state.step));
   $('prev-btn').style.display = state.step > 1 ? '' : 'none';
   $('next-btn').textContent = state.step === 3 ? 'Enviar pedido' : 'Continuar';
+  if (state.step === 3) renderTurnstile();
 }
 
 function nextStep() {
@@ -1075,6 +1122,10 @@ function collectPayload() {
     voucher_code: _voucherData?.code || null,
     notes: $('pb-notes').value.trim() || null,
     rgpd_consent: $('pb-rgpd').checked,
+    captcha_token: _turnstileToken || null,
+    // Anti-bot
+    hp_website: $('pb-hp')?.value || '',
+    elapsed_ms: Date.now() - state.pageLoadedAt,
     guest: {
       name: $('pb-name').value.trim(),
       first_name: nameParts[0] || '',
@@ -1105,6 +1156,10 @@ function collectPayload() {
 
 async function submitReservation() {
   const btn = $('next-btn');
+  if (state.captcha?.site_key && !_turnstileToken) {
+    showStepError('Por favor confirma que não és um robô (CAPTCHA).');
+    return;
+  }
   try {
     const payload = collectPayload();
     AppUI.setButtonLoading(btn, true, 'A processar...');
@@ -1125,6 +1180,7 @@ async function submitReservation() {
   } catch (err) {
     showStepError('Erro ao enviar pedido: ' + err.message);
     AppUI.setButtonLoading(btn, false);
+    resetTurnstile();
   }
 }
 

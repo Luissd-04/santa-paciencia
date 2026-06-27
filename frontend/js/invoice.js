@@ -287,7 +287,7 @@ function openInvoiceThread(thread, detailId = 'invoice-thread-detail') {
           <i data-lucide="layout-template"></i> Template
         </button>
       </div>
-      <input class="form-control" type="text" id="ica-subject" placeholder="Assunto" style="margin-bottom:8px;">
+      <input class="form-control" type="text" id="ica-subject" placeholder="Assunto" style="margin-bottom:8px;" autocomplete="off">
       <textarea class="form-control" id="ica-body" rows="4" placeholder="Escreve a tua mensagem..."></textarea>
       <div class="ica-footer">
         <button class="btn btn-primary" id="ica-send-btn"
@@ -595,11 +595,11 @@ function openNovaConversa(prefillEmail = '', prefillName = '', reservationId = n
       </div>
       <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
         <label class="form-label">Para (email)
-          <input class="form-control" type="email" id="nc-to" placeholder="hospede@email.com" value="${prefillEmail || ''}">
+          <input class="form-control" type="email" id="nc-to" placeholder="hospede@email.com" value="${prefillEmail || ''}" autocomplete="off">
         </label>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
           <label class="form-label" style="margin:0;flex:1;">Assunto
-            <input class="form-control" type="text" id="nc-subject" placeholder="Assunto da mensagem">
+            <input class="form-control" type="text" id="nc-subject" placeholder="Assunto da mensagem" autocomplete="off">
           </label>
           <button class="btn btn-ghost btn-xs" style="margin-top:18px;flex-shrink:0;" onclick="openTemplatesPicker('nc-subject','nc-body')">
             <i data-lucide="layout-template"></i> Template

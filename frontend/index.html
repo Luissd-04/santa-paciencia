@@ -32,13 +32,13 @@
 <link rel="stylesheet" href="css/views/operations.css">
 <link rel="stylesheet" href="css/views/invoice.css">
 <link rel="stylesheet" href="css/mobile.css">
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js" integrity="sha384-bdZtphetAEBgkGZvhZXOFDWc55tHGLqaSo1f4qZtgvEiolEBqlJ9u6FTk+CoLfj0" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js" integrity="sha384-vuyrTV5nkscLp1knFvt+FIHfKKzmROBq5reruhMRslauj54mW+l2B8b6szMN6lCL" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -363,7 +363,7 @@
             <div class="toolbar reservas-toolbar">
               <div class="search-box reservas-search-box">
                 <i data-lucide="search"></i>
-                <input type="text" id="search-input" placeholder="Pesquisar hóspede, ID..." oninput="renderTabela()">
+                <input type="text" id="search-input" placeholder="Pesquisar hóspede, ID..." oninput="renderTabela()" autocomplete="off">
               </div>
               <select class="form-control" id="filter-estado" data-enhance-select data-app-select-class="app-select--filter" onchange="renderTabela()">
                 <option value="">Todos os estados</option>
@@ -381,6 +381,8 @@
                 <option value="airbnb">Airbnb</option>
                 <option value="booking">Booking.com</option>
                 <option value="direto">Direto</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="instagram">Instagram</option>
                 <option value="expedia">Expedia</option>
                 <option value="vrbo">VRBO</option>
                 <option value="outro">Outro</option>
@@ -392,9 +394,9 @@
                 <option value="pendente">Não pago</option>
               </select>
               <div style="display:flex;align-items:center;gap:4px;">
-                <input type="date" class="form-control" id="filter-date-from" title="Check-in a partir de" onchange="renderTabela();_openDateTo()" style="width:auto;">
+                <input type="date" class="form-control" id="filter-date-from" title="Check-in a partir de" onchange="renderTabela();_openDateTo()" style="width:auto;" autocomplete="off">
                 <span style="color:var(--cinza);font-size:13px;">→</span>
-                <input type="date" class="form-control" id="filter-date-to" title="Check-out até" onchange="renderTabela()" style="width:auto;">
+                <input type="date" class="form-control" id="filter-date-to" title="Check-out até" onchange="renderTabela()" style="width:auto;" autocomplete="off">
               </div>
               <button class="btn btn-ghost btn-sm" onclick="clearReservasFilters()" title="Limpar filtros">
                 <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar
@@ -414,7 +416,7 @@
           <div id="reservas-mobile" class="reservas-mobile-layout" style="display:none">
             <div class="m-search-box reservas-mobile-search">
               <i data-lucide="search"></i>
-              <input type="text" id="mobile-search-input" placeholder="Pesquisar hóspede, ID..." oninput="renderMobileCards()">
+              <input type="text" id="mobile-search-input" placeholder="Pesquisar hóspede, ID..." oninput="renderMobileCards()" autocomplete="off">
             </div>
             <div class="mobile-filter-chips reservas-mobile-chips">
               <div class="chip active" onclick="setMobileChip(this,'')">Todas</div>
@@ -498,6 +500,8 @@
                 <option value="airbnb">Airbnb</option>
                 <option value="booking">Booking.com</option>
                 <option value="direto">Direto</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="instagram">Instagram</option>
                 <option value="expedia">Expedia</option>
                 <option value="vrbo">VRBO</option>
                 <option value="outro">Outro</option>
@@ -604,7 +608,7 @@
               <div class="view-toolbar-actions">
                 <div class="search-box eventos-search-box">
                   <i data-lucide="search"></i>
-                  <input type="text" id="eventos-search" placeholder="Pesquisar evento, responsável..." oninput="renderEventosList()">
+                  <input type="text" id="eventos-search" placeholder="Pesquisar evento, responsável..." oninput="renderEventosList()" autocomplete="off">
                 </div>
                 <select class="form-control" id="eventos-list-acc-filter" data-enhance-select data-app-select-class="app-select--filter app-select--filter-wide" onchange="renderEventosList()">
                   <option value="">Todos os alojamentos</option>
@@ -676,7 +680,7 @@
         <div class="aloj-hidden-controls" aria-hidden="true">
           <div class="search-box aloj-search-box">
             <i data-lucide="search"></i>
-            <input type="text" id="aloj-search" placeholder="Pesquisar nome, cidade, licença..." oninput="renderAlojamentos()">
+            <input type="text" id="aloj-search" placeholder="Pesquisar nome, cidade, licença..." oninput="renderAlojamentos()" autocomplete="off">
           </div>
           <select class="form-control" id="aloj-filter-type" style="width:auto;" onchange="renderAlojamentos()">
             <option value="">Todos os tipos</option>
@@ -816,7 +820,7 @@
               <div class="form-grid">
                 <div class="form-group">
                   <label class="form-label">Nome</label>
-                  <input class="form-control" id="aloj-nome" placeholder="Nome do alojamento">
+                  <input class="form-control" id="aloj-nome" placeholder="Nome do alojamento" autocomplete="off">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Cor no calendário</label>
@@ -828,21 +832,21 @@
                 <div class="form-group">
                   <label class="form-label">Número de licença</label>
                   <div style="display:flex;gap:8px;align-items:center;">
-                    <input class="form-control" id="aloj-licenca" placeholder="12345">
+                    <input class="form-control" id="aloj-licenca" placeholder="12345" autocomplete="off">
                     <span style="font-size:13px;color:var(--cinza);white-space:nowrap;">/ AL</span>
                   </div>
                 </div>
                 <div class="form-group form-full">
                   <label class="form-label">Morada</label>
-                  <input class="form-control" id="aloj-morada" placeholder="Rua, número">
+                  <input class="form-control" id="aloj-morada" placeholder="Rua, número" autocomplete="off">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Código Postal</label>
-                  <input class="form-control" id="aloj-cp" placeholder="0000-000">
+                  <input class="form-control" id="aloj-cp" placeholder="0000-000" autocomplete="off">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Localidade</label>
-                  <input class="form-control" id="aloj-cidade" placeholder="Lisboa">
+                  <input class="form-control" id="aloj-cidade" placeholder="Lisboa" autocomplete="off">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Região</label>
@@ -854,7 +858,7 @@
                 </div>
                 <div class="form-group">
                   <label class="form-label">País</label>
-                  <input class="form-control" id="aloj-pais" value="Portugal">
+                  <input class="form-control" id="aloj-pais" value="Portugal" autocomplete="off">
                 </div>
               </div>
             </div>
@@ -887,7 +891,7 @@
                 <div class="form-group form-full" id="aloj-public-link-wrap" style="display:none;">
                   <label class="form-label">Link público de reserva</label>
                   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                    <input class="form-control" id="aloj-public-link" readonly placeholder="O link é gerado automaticamente" style="flex:1 1 320px;">
+                    <input class="form-control" id="aloj-public-link" readonly placeholder="O link é gerado automaticamente" style="flex:1 1 320px;" autocomplete="off">
                     <button class="btn btn-ghost btn-sm" type="button" onclick="copyPublicBookingLink()">
                       <i data-lucide="copy"></i> Copiar
                     </button>
@@ -899,47 +903,47 @@
                 </div>
                 <div class="form-group">
                   <label class="form-label">Área (m²)</label>
-                  <input class="form-control" id="aloj-area" type="number" min="1" placeholder="ex: 45">
+                  <input class="form-control" id="aloj-area" type="number" min="1" placeholder="ex: 45" autocomplete="off">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Capacidade máx. hóspedes</label>
-                  <input class="form-control" id="aloj-capacidade" type="number" min="1" max="20">
+                  <input class="form-control" id="aloj-capacidade" type="number" min="1" max="20" autocomplete="off">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Quartos</label>
-                  <input class="form-control" id="aloj-quartos" type="number" min="0" max="20">
+                  <input class="form-control" id="aloj-quartos" type="number" min="0" max="20" autocomplete="off">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Casas de banho</label>
-                  <input class="form-control" id="aloj-casasbanho" type="number" min="0" max="20">
+                  <input class="form-control" id="aloj-casasbanho" type="number" min="0" max="20" autocomplete="off">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Preço / noite (€)</label>
-                  <input class="form-control" id="aloj-preco" type="number" min="0" step="0.01">
+                  <input class="form-control" id="aloj-preco" type="number" min="0" step="0.01" autocomplete="off">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Estadia mínima (noites)</label>
-                  <input class="form-control" id="aloj-min-nights" type="number" min="1" max="30" value="1">
+                  <input class="form-control" id="aloj-min-nights" type="number" min="1" max="30" value="1" autocomplete="off">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Hóspedes incluídos no preço base</label>
-                  <input class="form-control" id="aloj-hospedes-incluidos" type="number" min="1" max="20">
+                  <input class="form-control" id="aloj-hospedes-incluidos" type="number" min="1" max="20" autocomplete="off">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Bebés abaixo de (anos)</label>
-                  <input class="form-control" id="aloj-baby-age-limit" type="number" min="0" max="18" value="2">
+                  <input class="form-control" id="aloj-baby-age-limit" type="number" min="0" max="18" value="2" autocomplete="off">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Preço bebé / noite (€)</label>
-                  <input class="form-control" id="aloj-baby-price" type="number" min="0" step="0.01" value="0">
+                  <input class="form-control" id="aloj-baby-price" type="number" min="0" step="0.01" value="0" autocomplete="off">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Crianças abaixo de (anos)</label>
-                  <input class="form-control" id="aloj-child-age-limit" type="number" min="0" max="18" value="12">
+                  <input class="form-control" id="aloj-child-age-limit" type="number" min="0" max="18" value="12" autocomplete="off">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Preço criança / noite (€)</label>
-                  <input class="form-control" id="aloj-child-price" type="number" min="0" step="0.01" value="0">
+                  <input class="form-control" id="aloj-child-price" type="number" min="0" step="0.01" value="0" autocomplete="off">
                 </div>
                 <div class="form-group form-full">
                   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
@@ -1009,11 +1013,11 @@
               <div class="form-grid" style="grid-template-columns:1fr;">
                 <div class="form-group">
                   <label class="form-label">Check-in</label>
-                  <input class="form-control" id="aloj-checkin-time" type="time" value="15:00">
+                  <input class="form-control" id="aloj-checkin-time" type="time" value="15:00" autocomplete="off">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Check-out</label>
-                  <input class="form-control" id="aloj-checkout-time" type="time" value="11:00">
+                  <input class="form-control" id="aloj-checkout-time" type="time" value="11:00" autocomplete="off">
                 </div>
               </div>
             </div>
@@ -1026,7 +1030,7 @@
               </div>
               <div class="form-group" style="margin-bottom:12px;">
                 <label class="form-label">Nome da rede (SSID)</label>
-                <input class="form-control" id="aloj-wifi-nome" placeholder="Nome da rede Wi-Fi">
+                <input class="form-control" id="aloj-wifi-nome" placeholder="Nome da rede Wi-Fi" autocomplete="off">
               </div>
               <div class="form-group">
                 <label class="form-label">Senha</label>
@@ -1048,15 +1052,15 @@
               </div>
               <div class="form-group">
                 <label class="form-label">Facebook</label>
-                <input class="form-control" id="aloj-social-fb" placeholder="https://facebook.com/...">
+                <input class="form-control" id="aloj-social-fb" placeholder="https://facebook.com/..." autocomplete="off">
               </div>
               <div class="form-group">
                 <label class="form-label">Instagram</label>
-                <input class="form-control" id="aloj-social-ig" placeholder="https://instagram.com/...">
+                <input class="form-control" id="aloj-social-ig" placeholder="https://instagram.com/..." autocomplete="off">
               </div>
               <div class="form-group" style="margin-bottom:0;">
                 <label class="form-label">Website</label>
-                <input class="form-control" id="aloj-social-web" placeholder="https://...">
+                <input class="form-control" id="aloj-social-web" placeholder="https://..." autocomplete="off">
               </div>
             </div>
 
@@ -1068,7 +1072,7 @@
               </div>
               <div class="form-group">
                 <label class="form-label">ID do Calendário</label>
-                <input class="form-control" id="aloj-gcal-id" placeholder="exemplo@group.calendar.google.com">
+                <input class="form-control" id="aloj-gcal-id" placeholder="exemplo@group.calendar.google.com" autocomplete="off">
                 <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;">Deixe em branco para usar o calendário principal</span>
               </div>
               <div style="margin-top:12px;">
@@ -1086,12 +1090,12 @@
               </div>
               <div class="form-group">
                 <label class="form-label">Airbnb iCal</label>
-                <input class="form-control" id="aloj-airbnb-ical-url" type="url" placeholder="https://www.airbnb.com/calendar/ical/...">
+                <input class="form-control" id="aloj-airbnb-ical-url" type="url" placeholder="https://www.airbnb.com/calendar/ical/..." autocomplete="off">
                 <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;">Link de exportação iCal do anúncio no Airbnb</span>
               </div>
               <div class="form-group" style="margin-bottom:0;">
                 <label class="form-label">Booking.com iCal</label>
-                <input class="form-control" id="aloj-booking-ical-url" type="url" placeholder="https://admin.booking.com/hotel/hoteladmin/ical.html?...">
+                <input class="form-control" id="aloj-booking-ical-url" type="url" placeholder="https://admin.booking.com/hotel/hoteladmin/ical.html?..." autocomplete="off">
                 <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;">Link de sincronização iCal do calendário da Booking.com</span>
               </div>
             </div>
@@ -1105,7 +1109,7 @@
             <div style="padding:18px 20px 0;">
               <div class="search-box aloj-search-box" style="max-width:360px;">
                 <i data-lucide="search"></i>
-                <input type="text" id="amenities-search" placeholder="Pesquisar comodidades..." oninput="refreshAmenitiesFilter()">
+                <input type="text" id="amenities-search" placeholder="Pesquisar comodidades..." oninput="refreshAmenitiesFilter()" autocomplete="off">
               </div>
             </div>
             <div id="amenities-grid"></div>
@@ -1172,7 +1176,7 @@
 
             <!-- Adicionar nova divisão -->
             <div class="img-add-section-row">
-              <input class="form-control" id="new-section-name" placeholder="Nome da nova divisão (ex: Terraço)" style="max-width:260px;font-size:13px;padding:7px 12px;">
+              <input class="form-control" id="new-section-name" placeholder="Nome da nova divisão (ex: Terraço)" style="max-width:260px;font-size:13px;padding:7px 12px;" autocomplete="off">
               <button class="btn btn-ghost btn-sm" onclick="addImgSection()">
                 <i data-lucide="plus"></i> Adicionar divisão
               </button>
@@ -1222,7 +1226,7 @@
             <div class="view-toolbar-actions">
               <div class="search-box hospedes-search-box">
                 <i data-lucide="search"></i>
-                <input type="text" id="hospedes-search" placeholder="Pesquisar hóspede, email..." oninput="renderHospedes()">
+                <input type="text" id="hospedes-search" placeholder="Pesquisar hóspede, email..." oninput="renderHospedes()" autocomplete="off">
               </div>
               <div class="hospedes-view-toggle" id="hospedes-view-toggle">
                 <button class="hvt-btn active" id="hvt-cards" onclick="setHospedesView('cards')">
@@ -1295,7 +1299,7 @@
             <div class="view-toolbar-actions">
               <div class="search-box">
                 <i data-lucide="search"></i>
-                <input type="text" id="invoice-search" placeholder="Pesquisar mensagem ou hóspede..." oninput="filterInvoiceConversas()">
+                <input type="text" id="invoice-search" placeholder="Pesquisar mensagem ou hóspede..." oninput="filterInvoiceConversas()" autocomplete="off">
               </div>
               <button class="btn btn-primary" onclick="openNovaConversa()" id="btn-nova-conversa">
                 <i data-lucide="mail-plus"></i> Nova mensagem
@@ -1369,7 +1373,7 @@
       <!-- ══ DESPESAS ══ -->
       <div class="view" id="view-despesas">
         <section class="despesas-shell">
-          <input type="month" class="form-control" id="despesa-filter-month" style="display:none;" value="" onchange="loadDespesas()">
+          <input type="month" class="form-control" id="despesa-filter-month" style="display:none;" value="" onchange="loadDespesas()" autocomplete="off">
 
           <div class="kpi-grid despesas-kpi-grid" id="despesas-kpi-grid"></div>
           <div class="card despesas-table-card">
@@ -1436,7 +1440,7 @@
             <div class="form-grid">
               <div class="form-group">
                 <label class="form-label">Código</label>
-                <input class="form-control" id="v-code" type="text" placeholder="Gerado automaticamente" style="text-transform:uppercase;">
+                <input class="form-control" id="v-code" type="text" placeholder="Gerado automaticamente" style="text-transform:uppercase;" autocomplete="off">
                 <small style="color:var(--cinza);font-size:11px;">Deixa em branco para gerar automaticamente</small>
               </div>
               <div class="form-group">
@@ -1449,23 +1453,23 @@
               </div>
               <div class="form-group">
                 <label class="form-label" id="v-value-label">Valor (%) <span class="req-star">*</span></label>
-                <input class="form-control" id="v-value" type="number" min="0.01" step="0.01" placeholder="Ex: 10">
+                <input class="form-control" id="v-value" type="number" min="0.01" step="0.01" placeholder="Ex: 10" autocomplete="off">
               </div>
               <div class="form-group">
                 <label class="form-label">Descrição</label>
-                <input class="form-control" id="v-description" type="text" placeholder="Ex: Voucher de Natal 2025">
+                <input class="form-control" id="v-description" type="text" placeholder="Ex: Voucher de Natal 2025" autocomplete="off">
               </div>
               <div class="form-group">
                 <label class="form-label">Válido a partir de</label>
-                <input class="form-control" id="v-valid-from" type="date">
+                <input class="form-control" id="v-valid-from" type="date" autocomplete="off">
               </div>
               <div class="form-group">
                 <label class="form-label">Válido até</label>
-                <input class="form-control" id="v-valid-until" type="date">
+                <input class="form-control" id="v-valid-until" type="date" autocomplete="off">
               </div>
               <div class="form-group">
                 <label class="form-label">Mínimo de noites</label>
-                <input class="form-control" id="v-min-nights" type="number" min="1" value="1">
+                <input class="form-control" id="v-min-nights" type="number" min="1" value="1" autocomplete="off">
               </div>
               <div class="form-group">
                 <label class="form-label">Alojamento (opcional)</label>
@@ -1534,7 +1538,7 @@
                 <!-- Nome -->
                 <div class="form-group" style="margin:0;">
                   <label class="form-label" style="font-size:12px;">Nome do período <span class="req-star">*</span></label>
-                  <input class="form-control" id="precos-bulk-name" placeholder="Ex: Alta Temporada" style="font-size:13px;">
+                  <input class="form-control" id="precos-bulk-name" placeholder="Ex: Alta Temporada" style="font-size:13px;" autocomplete="off">
                 </div>
 
                 <!-- Datas -->
@@ -1542,14 +1546,14 @@
                   <div class="form-group" style="margin:0;">
                     <label class="form-label" style="font-size:12px;">De <span class="req-star">*</span></label>
                     <div class="birth-date-control">
-                      <input class="form-control" id="precos-bulk-start" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" style="font-size:12px;" onclick="openPrecosBulkStartPicker()" readonly>
+                      <input class="form-control" id="precos-bulk-start" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" style="font-size:12px;" onclick="openPrecosBulkStartPicker()" readonly autocomplete="off">
                       <button type="button" class="birth-date-picker-btn" onclick="openPrecosBulkStartPicker()" aria-label="Abrir calendário"><i data-lucide="calendar-days"></i></button>
                     </div>
                   </div>
                   <div class="form-group" style="margin:0;">
                     <label class="form-label" style="font-size:12px;">Até <span class="req-star">*</span></label>
                     <div class="birth-date-control">
-                      <input class="form-control" id="precos-bulk-end" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" style="font-size:12px;" onclick="openPrecosBulkEndPicker()" readonly>
+                      <input class="form-control" id="precos-bulk-end" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" style="font-size:12px;" onclick="openPrecosBulkEndPicker()" readonly autocomplete="off">
                       <button type="button" class="birth-date-picker-btn" onclick="openPrecosBulkEndPicker()" aria-label="Abrir calendário"><i data-lucide="calendar-days"></i></button>
                     </div>
                   </div>
@@ -1573,13 +1577,13 @@
                 <!-- Preço -->
                 <div class="form-group" style="margin:0;">
                   <label class="form-label" style="font-size:12px;">Preço por noite (€) <span class="req-star">*</span></label>
-                  <input class="form-control" id="precos-bulk-price" type="number" min="0" step="0.01" placeholder="0.00" style="font-size:13px;">
+                  <input class="form-control" id="precos-bulk-price" type="number" min="0" step="0.01" placeholder="0.00" style="font-size:13px;" autocomplete="off">
                 </div>
 
                 <!-- Estadia mínima -->
                 <div class="form-group" style="margin:0;">
                   <label class="form-label" style="font-size:12px;">Estadia mínima (noites)</label>
-                  <input class="form-control" id="precos-bulk-min-nights" type="number" min="1" value="2" style="font-size:13px;">
+                  <input class="form-control" id="precos-bulk-min-nights" type="number" min="1" value="2" style="font-size:13px;" autocomplete="off">
                 </div>
 
                 <!-- Botão guardar -->
@@ -1621,26 +1625,26 @@
               <input type="hidden" id="pp2-editing-id">
               <div class="form-group" style="margin:0;">
                 <label class="form-label">Nome do período <span class="req-star">*</span></label>
-                <input class="form-control" id="pp2-name" placeholder="Ex: Alta Temporada, Natal, Páscoa">
+                <input class="form-control" id="pp2-name" placeholder="Ex: Alta Temporada, Natal, Páscoa" autocomplete="off">
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                 <div class="form-group" style="margin:0;">
                   <label class="form-label">Data Início <span class="req-star">*</span></label>
-                  <input class="form-control" id="pp2-start" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10">
+                  <input class="form-control" id="pp2-start" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" autocomplete="off">
                 </div>
                 <div class="form-group" style="margin:0;">
                   <label class="form-label">Data Fim <span class="req-star">*</span></label>
-                  <input class="form-control" id="pp2-end" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10">
+                  <input class="form-control" id="pp2-end" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" autocomplete="off">
                 </div>
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                 <div class="form-group" style="margin:0;">
                   <label class="form-label">Preço / noite (€) <span class="req-star">*</span></label>
-                  <input class="form-control" id="pp2-price" type="number" min="0" step="0.01" placeholder="0.00">
+                  <input class="form-control" id="pp2-price" type="number" min="0" step="0.01" placeholder="0.00" autocomplete="off">
                 </div>
                 <div class="form-group" style="margin:0;">
                   <label class="form-label">Estadia mínima (noites)</label>
-                  <input class="form-control" id="pp2-min-nights" type="number" min="1" placeholder="1">
+                  <input class="form-control" id="pp2-min-nights" type="number" min="1" placeholder="1" autocomplete="off">
                 </div>
               </div>
             </div>
@@ -2141,7 +2145,7 @@
               <div class="form-grid settings-team-form">
                 <div class="form-group">
                   <label class="form-label">Convidar por email</label>
-                  <input class="form-control" id="team-invite-email" type="email" placeholder="colaborador@empresa.com">
+                  <input class="form-control" id="team-invite-email" type="email" placeholder="colaborador@empresa.com" autocomplete="off">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Papel</label>
@@ -2199,15 +2203,15 @@
         </div>
         <div class="form-group">
           <label class="form-label">Primeiro nome <span class="req-star">*</span></label>
-          <input class="form-control" id="gedit-first-name" placeholder="Primeiro nome">
+          <input class="form-control" id="gedit-first-name" placeholder="Primeiro nome" autocomplete="off">
         </div>
         <div class="form-group">
           <label class="form-label">Apelido <span class="req-star">*</span></label>
-          <input class="form-control" id="gedit-last-name" placeholder="Apelido">
+          <input class="form-control" id="gedit-last-name" placeholder="Apelido" autocomplete="off">
         </div>
         <div class="form-group">
           <label class="form-label">Data de nascimento</label>
-          <input class="form-control" id="gedit-birth-date" type="date">
+          <input class="form-control" id="gedit-birth-date" type="date" autocomplete="off">
         </div>
         <div class="form-group">
           <label class="form-label">País <span class="req-star">*</span></label>
@@ -2226,11 +2230,11 @@
         </div>
         <div class="form-group">
           <label class="form-label">Nº de documento</label>
-          <input class="form-control" id="gedit-doc-number" placeholder="XX000000">
+          <input class="form-control" id="gedit-doc-number" placeholder="XX000000" autocomplete="off">
         </div>
         <div class="form-group">
           <label class="form-label">NIF</label>
-          <input class="form-control" id="gedit-nif" placeholder="000 000 000">
+          <input class="form-control" id="gedit-nif" placeholder="000 000 000" autocomplete="off">
         </div>
 
         <!-- ── Contacto ── -->
@@ -2241,16 +2245,16 @@
           <label class="form-label">Telefone <span class="req-star">*</span></label>
           <div class="phone-group">
             <select class="form-control phone-prefix" id="gedit-tel-prefix"></select>
-            <input class="form-control phone-number" id="gedit-phone" type="tel" placeholder="912 345 678">
+            <input class="form-control phone-number" id="gedit-phone" type="tel" placeholder="912 345 678" autocomplete="off">
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">Email (canal) <span class="req-star">*</span></label>
-          <input class="form-control" id="gedit-email" type="email" placeholder="email@canal.com">
+          <input class="form-control" id="gedit-email" type="email" placeholder="email@canal.com" autocomplete="off">
         </div>
         <div class="form-group">
           <label class="form-label">Email (pessoal)</label>
-          <input class="form-control" id="gedit-email-personal" type="email" placeholder="email@pessoal.com">
+          <input class="form-control" id="gedit-email-personal" type="email" placeholder="email@pessoal.com" autocomplete="off">
         </div>
 
         <!-- ── Morada ── -->
@@ -2259,15 +2263,15 @@
         </div>
         <div class="form-group form-full">
           <label class="form-label">Morada</label>
-          <input class="form-control" id="gedit-address" placeholder="Rua, número, andar...">
+          <input class="form-control" id="gedit-address" placeholder="Rua, número, andar..." autocomplete="off">
         </div>
         <div class="form-group">
           <label class="form-label">Código postal</label>
-          <input class="form-control" id="gedit-postal-code" placeholder="0000-000">
+          <input class="form-control" id="gedit-postal-code" placeholder="0000-000" autocomplete="off">
         </div>
         <div class="form-group">
           <label class="form-label">Localidade</label>
-          <input class="form-control" id="gedit-city" placeholder="Lisboa">
+          <input class="form-control" id="gedit-city" placeholder="Lisboa" autocomplete="off">
         </div>
 
       </div>
@@ -2321,7 +2325,7 @@
       <div class="form-grid">
         <div class="form-group form-full">
           <label class="form-label">Título</label>
-          <input class="form-control" id="evento-title" placeholder="Ex: Limpeza suite principal">
+          <input class="form-control" id="evento-title" placeholder="Ex: Limpeza suite principal" autocomplete="off">
         </div>
         <div class="form-group">
           <label class="form-label">Tipo</label>
@@ -2344,15 +2348,15 @@
         </div>
         <div class="form-group">
           <label class="form-label">Data</label>
-          <input class="form-control" id="evento-date" type="date">
+          <input class="form-control" id="evento-date" type="date" autocomplete="off">
         </div>
         <div class="form-group">
           <label class="form-label">Hora início</label>
-          <input class="form-control" id="evento-start-time" type="time">
+          <input class="form-control" id="evento-start-time" type="time" autocomplete="off">
         </div>
         <div class="form-group">
           <label class="form-label">Hora fim</label>
-          <input class="form-control" id="evento-end-time" type="time">
+          <input class="form-control" id="evento-end-time" type="time" autocomplete="off">
         </div>
         <div class="form-group">
           <label class="form-label">Alojamento</label>
@@ -2394,15 +2398,15 @@
       <div class="form-grid">
         <div class="form-group form-full">
           <label class="form-label">Título</label>
-          <input class="form-control" id="manual-notification-title" placeholder="Ex: Comprar pão para amanhã">
+          <input class="form-control" id="manual-notification-title" placeholder="Ex: Comprar pão para amanhã" autocomplete="off">
         </div>
         <div class="form-group">
           <label class="form-label">Data</label>
-          <input class="form-control" id="manual-notification-date" type="date">
+          <input class="form-control" id="manual-notification-date" type="date" autocomplete="off">
         </div>
         <div class="form-group">
           <label class="form-label">Hora</label>
-          <input class="form-control" id="manual-notification-time" type="time">
+          <input class="form-control" id="manual-notification-time" type="time" autocomplete="off">
         </div>
         <div class="form-group form-full">
           <label class="form-label">Notas</label>
@@ -2432,7 +2436,7 @@
       <div class="form-grid">
         <div class="form-group">
           <label class="form-label">Data</label>
-          <input class="form-control" id="despesa-date" type="date">
+          <input class="form-control" id="despesa-date" type="date" autocomplete="off">
         </div>
         <div class="form-group">
           <label class="form-label">Categoria</label>
@@ -2449,11 +2453,11 @@
         </div>
         <div class="form-group form-full">
           <label class="form-label">Descrição</label>
-          <input class="form-control" id="despesa-description" placeholder="Descrição da despesa">
+          <input class="form-control" id="despesa-description" placeholder="Descrição da despesa" autocomplete="off">
         </div>
         <div class="form-group">
           <label class="form-label">Valor (€)</label>
-          <input class="form-control no-number-spin" id="despesa-amount" type="number" step="0.01" min="0" placeholder="0.00">
+          <input class="form-control no-number-spin" id="despesa-amount" type="number" step="0.01" min="0" placeholder="0.00" autocomplete="off">
         </div>
         <div class="form-group">
           <label class="form-label">Método de pagamento</label>
@@ -2466,7 +2470,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Nº Fatura</label>
-          <input class="form-control" id="despesa-invoice-ref" placeholder="ex: FT 2026/123">
+          <input class="form-control" id="despesa-invoice-ref" placeholder="ex: FT 2026/123" autocomplete="off">
         </div>
         <div class="form-group form-full">
           <label class="form-label">Notas</label>
@@ -2513,11 +2517,11 @@
         <div class="form-grid">
           <div class="form-group">
             <label class="form-label">Check-in <span class="req-star">*</span></label>
-            <input class="form-control" id="f-checkin" type="date" onchange="calcTotal();updateWizSummary();_availTimer&&clearTimeout(_availTimer);_availTimer=setTimeout(fetchSuiteAvailability,400)">
+            <input class="form-control" id="f-checkin" type="date" onchange="calcTotal();updateWizSummary();_availTimer&&clearTimeout(_availTimer);_availTimer=setTimeout(fetchSuiteAvailability,400)" autocomplete="off">
           </div>
           <div class="form-group">
             <label class="form-label">Check-out <span class="req-star">*</span></label>
-            <input class="form-control" id="f-checkout" type="date" onchange="calcTotal();updateWizSummary();_availTimer&&clearTimeout(_availTimer);_availTimer=setTimeout(fetchSuiteAvailability,400)">
+            <input class="form-control" id="f-checkout" type="date" onchange="calcTotal();updateWizSummary();_availTimer&&clearTimeout(_availTimer);_availTimer=setTimeout(fetchSuiteAvailability,400)" autocomplete="off">
           </div>
           <div class="form-group form-full" id="wiz-nights-badge-wrap" style="display:none;">
             <div class="wiz-nights-badge">
@@ -2530,11 +2534,11 @@
           </div>
           <div class="form-group">
             <label class="form-label">Adultos <span class="req-star">*</span></label>
-            <input class="form-control" id="f-num-adultos" type="number" min="1" max="20" value="2" onchange="updateNumHospedes();renderSuiteCards();calcTotal();renderExtraGuests()">
+            <input class="form-control" id="f-num-adultos" type="number" min="1" max="20" value="2" onchange="updateNumHospedes();renderSuiteCards();calcTotal();renderExtraGuests()" autocomplete="off">
           </div>
           <div class="form-group">
             <label class="form-label">Crianças</label>
-            <input class="form-control" id="f-num-criancas" type="number" min="0" max="20" value="0" onchange="updateNumHospedes();renderSuiteCards();calcTotal();renderExtraGuests()">
+            <input class="form-control" id="f-num-criancas" type="number" min="0" max="20" value="0" onchange="updateNumHospedes();renderSuiteCards();calcTotal();renderExtraGuests()" autocomplete="off">
           </div>
           <input type="hidden" id="f-num-hospedes" value="2">
           <div class="form-group">
@@ -2550,6 +2554,8 @@
               <option value="airbnb">Airbnb</option>
               <option value="booking">Booking.com</option>
               <option value="direto">Direto</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="instagram">Instagram</option>
               <option value="expedia">Expedia</option>
               <option value="vrbo">VRBO</option>
               <option value="outro">Outro</option>
@@ -2568,7 +2574,7 @@
               <button type="button" class="resf-disc-type active" data-type="pct" onclick="setFormDiscountType('pct')">%</button>
               <button type="button" class="resf-disc-type" data-type="eur" onclick="setFormDiscountType('eur')">€</button>
             </div>
-            <input type="number" class="form-control" id="f-discount-val" min="0" step="0.01" placeholder="0" oninput="calcTotal()" style="max-width:110px;">
+            <input type="number" class="form-control" id="f-discount-val" min="0" step="0.01" placeholder="0" oninput="calcTotal()" style="max-width:110px;" autocomplete="off">
             <input type="hidden" id="f-discount-type" value="pct">
             <span id="f-discount-preview" style="font-size:13px;color:var(--cinza);"></span>
           </div>
@@ -2590,17 +2596,17 @@
         <div class="form-grid">
           <div class="form-group form-full">
             <label class="form-label">Nome Completo <span class="req-star">*</span></label>
-            <input class="form-control" id="f-nome-completo" placeholder="Nome completo do hóspede" oninput="updateWizSummary()">
+            <input class="form-control" id="f-nome-completo" placeholder="Nome completo do hóspede" oninput="updateWizSummary()" autocomplete="off">
           </div>
           <div class="form-group">
             <label class="form-label">Email</label>
-            <input class="form-control" id="f-email" type="email" placeholder="email@exemplo.com">
+            <input class="form-control" id="f-email" type="email" placeholder="email@exemplo.com" autocomplete="off">
           </div>
           <div class="form-group">
             <label class="form-label">Telefone</label>
             <div class="phone-group">
               <select class="form-control phone-prefix" id="f-tel-prefix"></select>
-              <input class="form-control phone-number" id="f-tel-num" type="tel" placeholder="912 345 678">
+              <input class="form-control phone-number" id="f-tel-num" type="tel" placeholder="912 345 678" autocomplete="off">
             </div>
           </div>
           <div class="form-group">
@@ -2610,7 +2616,7 @@
           <div class="form-group">
             <label class="form-label">Data de Nascimento</label>
             <div class="birth-date-control">
-              <input class="form-control birth-date-input" id="f-nascimento" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" oninput="handleBirthDateInput(this)" onblur="normalizeBirthDateInput(this);calcTotal();updateSpecialRateHints()">
+              <input class="form-control birth-date-input" id="f-nascimento" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" oninput="handleBirthDateInput(this)" onblur="normalizeBirthDateInput(this);calcTotal();updateSpecialRateHints()" autocomplete="off">
               <button class="birth-date-picker-btn" type="button" onclick="AppDatePicker.open(document.getElementById('f-nascimento'),{isBirthDate:true})" aria-label="Abrir calendário">
                 <i data-lucide="calendar-days"></i>
               </button>
@@ -2619,7 +2625,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Local de Nascimento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
-            <input class="form-control" id="f-local-nascimento" placeholder="Cidade de nascimento">
+            <input class="form-control" id="f-local-nascimento" placeholder="Cidade de nascimento" autocomplete="off">
           </div>
           <div class="form-group">
             <label class="form-label">Tipo de Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
@@ -2634,7 +2640,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Nº de Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
-            <input class="form-control" id="f-doc-num" placeholder="XX000000">
+            <input class="form-control" id="f-doc-num" placeholder="XX000000" autocomplete="off">
           </div>
           <div class="form-group">
             <label class="form-label">País Emissor do Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
@@ -2642,19 +2648,19 @@
           </div>
           <div class="form-group">
             <label class="form-label">NIF</label>
-            <input class="form-control" id="f-nif" placeholder="000 000 000">
+            <input class="form-control" id="f-nif" placeholder="000 000 000" autocomplete="off">
           </div>
           <div class="form-group form-full">
             <label class="form-label">Morada</label>
-            <input class="form-control" id="f-morada" placeholder="Rua, nº">
+            <input class="form-control" id="f-morada" placeholder="Rua, nº" autocomplete="off">
           </div>
           <div class="form-group">
             <label class="form-label">Código Postal</label>
-            <input class="form-control" id="f-cp" placeholder="0000-000">
+            <input class="form-control" id="f-cp" placeholder="0000-000" autocomplete="off">
           </div>
           <div class="form-group">
             <label class="form-label">Localidade</label>
-            <input class="form-control" id="f-cidade" placeholder="Lisboa">
+            <input class="form-control" id="f-cidade" placeholder="Lisboa" autocomplete="off">
           </div>
         </div>
 
@@ -2691,11 +2697,11 @@
           </div>
           <div class="form-group">
             <label class="form-label">Valor Pago (€)</label>
-            <input type="number" class="form-control" id="f-amount-paid" min="0" step="0.01" placeholder="0.00" oninput="onAmountPaidChange()">
+            <input type="number" class="form-control" id="f-amount-paid" min="0" step="0.01" placeholder="0.00" oninput="onAmountPaidChange()" autocomplete="off">
           </div>
           <div class="form-group">
             <label class="form-label">Data de Pagamento</label>
-            <input type="date" class="form-control" id="f-payment-date">
+            <input type="date" class="form-control" id="f-payment-date" autocomplete="off">
           </div>
           <div class="form-group form-full" id="payment-remaining-wrap" style="display:none;">
             <div style="background:rgba(201,168,76,.12);border-left:3px solid var(--dourado);border-radius:6px;padding:10px 14px;font-size:13.5px;color:var(--texto);">
@@ -2719,7 +2725,7 @@
           <div class="form-group form-full" id="resf-voucher-wrap">
             <label class="form-label">Voucher (opcional)</label>
             <div style="display:flex;gap:8px;">
-              <input class="form-control" id="f-voucher-code" type="text" placeholder="Código de voucher" style="text-transform:uppercase;flex:1;" oninput="this.value=this.value.toUpperCase()">
+              <input class="form-control" id="f-voucher-code" type="text" placeholder="Código de voucher" style="text-transform:uppercase;flex:1;" oninput="this.value=this.value.toUpperCase()" autocomplete="off">
               <button type="button" class="btn btn-outline btn-sm" onclick="verifyBackofficeVoucher()">Verificar</button>
             </div>
             <div id="f-voucher-status" style="display:none;font-size:12px;margin-top:4px;padding:4px 8px;border-radius:6px;"></div>

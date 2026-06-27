@@ -84,13 +84,13 @@ function renderDespesas() {
     return `<tr>
       <td style="font-size:13px;">${formatDate(d.date)}</td>
       <td><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;background:${cat.color}22;color:${cat.color};">${cat.icon ? `<i data-lucide="${cat.icon}" style="width:11px;height:11px;"></i>` : ''}${cat.label}</span></td>
-      <td>${d.description}${d.notes ? `<br><span style="font-size:11px;color:var(--cinza);">${d.notes}</span>` : ''}</td>
-      <td style="font-size:12px;color:var(--cinza);">${d.invoice_ref || '—'}</td>
+      <td>${escapeHtml(d.description)}${d.notes ? `<br><span style="font-size:11px;color:var(--cinza);">${escapeHtml(d.notes)}</span>` : ''}</td>
+      <td style="font-size:12px;color:var(--cinza);">${escapeHtml(d.invoice_ref || '—')}</td>
       <td style="font-weight:600;color:var(--vermelho);">€${Number(d.amount).toFixed(2)}</td>
-      <td style="font-size:12.5px;color:var(--cinza);">${d.payment_method || '—'}</td>
+      <td style="font-size:12.5px;color:var(--cinza);">${escapeHtml(d.payment_method || '—')}</td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap;">
-        <button class="btn btn-ghost btn-sm" onclick="openDespesaModal('${d.id}')" title="Editar">${lcIcon('pencil',13)}</button>
-        <button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho);" onclick="deleteDespesa('${d.id}')" title="Remover">${lcIcon('trash-2',13)}</button>
+        <button class="btn btn-ghost btn-sm" onclick="openDespesaModal('${escapeHtml(d.id)}')" title="Editar">${lcIcon('pencil',13)}</button>
+        <button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho);" onclick="deleteDespesa('${escapeHtml(d.id)}')" title="Remover">${lcIcon('trash-2',13)}</button>
       </td>
     </tr>`;
   }).join('') + `

@@ -588,17 +588,17 @@ function renderExtraGuests() {
         <div class="form-grid" style="margin:0;gap:12px;">
           <div class="form-group form-full" style="margin-bottom:0;">
             <label class="form-label">Nome Completo <span class="req-star">*</span></label>
-            <input class="form-control" data-field="nome_completo" placeholder="Nome completo" value="${p.nome_completo || ''}">
+            <input class="form-control" data-field="nome_completo" placeholder="Nome completo" value="${p.nome_completo || ''}" autocomplete="off">
           </div>
           ${!isChild ? `<div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Email</label>
-            <input class="form-control" data-field="email" type="email" placeholder="email@exemplo.com" value="${p.email || ''}">
+            <input class="form-control" data-field="email" type="email" placeholder="email@exemplo.com" value="${p.email || ''}" autocomplete="off">
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Telefone</label>
             <div class="phone-group">
               <select class="form-control phone-prefix" data-field="tel_prefix">${prefixOpts}</select>
-              <input class="form-control phone-number" data-field="tel_num" type="tel" placeholder="912 345 678" value="${p.tel_num || ''}">
+              <input class="form-control phone-number" data-field="tel_num" type="tel" placeholder="912 345 678" value="${p.tel_num || ''}" autocomplete="off">
             </div>
           </div>` : ''}
           <div class="form-group" style="margin-bottom:0;">
@@ -609,7 +609,7 @@ function renderExtraGuests() {
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Data de Nascimento <span class="req-star">*</span></label>
             <div class="birth-date-control">
-              <input class="form-control birth-date-input" data-field="birth_date" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" value="${formatDateForBirthInput(p.birth_date || '')}" oninput="handleBirthDateInput(this)" onblur="normalizeBirthDateInput(this);calcTotal();updateSpecialRateHints()">
+              <input class="form-control birth-date-input" data-field="birth_date" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" value="${formatDateForBirthInput(p.birth_date || '')}" oninput="handleBirthDateInput(this)" onblur="normalizeBirthDateInput(this);calcTotal();updateSpecialRateHints()" autocomplete="off">
               <button class="birth-date-picker-btn" type="button" onclick="AppDatePicker.open(this.closest('.birth-date-control').querySelector('.birth-date-input'),{isBirthDate:true})" aria-label="Abrir calendário">
                 <i data-lucide="calendar-days"></i>
               </button>
@@ -618,7 +618,7 @@ function renderExtraGuests() {
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Local de Nascimento <span class="req-foreign-extra" style="display:none;color:var(--vermelho)">*</span></label>
-            <input class="form-control" data-field="birth_city" placeholder="Cidade de nascimento" value="${p.birth_city || ''}">
+            <input class="form-control" data-field="birth_city" placeholder="Cidade de nascimento" value="${p.birth_city || ''}" autocomplete="off">
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Tipo de Documento <span class="req-foreign-extra" style="display:none;color:var(--vermelho)">*</span></label>
@@ -633,7 +633,7 @@ function renderExtraGuests() {
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Nº de Documento <span class="req-foreign-extra" style="display:none;color:var(--vermelho)">*</span></label>
-            <input class="form-control" data-field="doc_number" placeholder="XX000000" value="${p.doc_number || ''}">
+            <input class="form-control" data-field="doc_number" placeholder="XX000000" value="${p.doc_number || ''}" autocomplete="off">
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">País Emissor do Documento <span class="req-foreign-extra" style="display:none;color:var(--vermelho)">*</span></label>
@@ -641,7 +641,7 @@ function renderExtraGuests() {
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">NIF</label>
-            <input class="form-control" data-field="nif" placeholder="000 000 000" value="${p.nif || ''}">
+            <input class="form-control" data-field="nif" placeholder="000 000 000" value="${p.nif || ''}" autocomplete="off">
           </div>
         </div>
       </div>`);

@@ -70,14 +70,14 @@ function generateRgpdDocument(guest, reservation, orgId = null) {
   };
 }
 
-function recordConsent(guestId, ip) {
+function recordConsent(guestId, ip, organizationId) {
   db.prepare(`
-    UPDATE guests 
-    SET rgpd_consent = 1, 
-        rgpd_consent_date = datetime('now'), 
+    UPDATE guests
+    SET rgpd_consent = 1,
+        rgpd_consent_date = datetime('now'),
         rgpd_consent_ip = ?
-    WHERE id = ?
-  `).run(ip, guestId);
+    WHERE id = ? AND organization_id = ?
+  `).run(ip, guestId, organizationId);
 }
 
 module.exports = { generateRgpdDocument, recordConsent };

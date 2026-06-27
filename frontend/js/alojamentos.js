@@ -163,7 +163,7 @@ function renderAlojamentos() {
     const childCount = (childrenByParent[a.id] || []).filter(c => inFiltered.has(c.id)).length;
     const typeLabel = isAlojamento
       ? `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--marca);">Alojamento</span>`
-      : `<span style="font-size:12px;color:var(--cinza);">${a.type || '—'}</span>`;
+      : `<span style="font-size:12px;color:var(--cinza);">${escapeHtml(a.type || '—')}</span>`;
     const hasIcal = !!(a.airbnb_ical_url || a.booking_ical_url);
     const indent = parentName ? 'padding-left:24px;' : '';
     return `
@@ -556,7 +556,7 @@ function renderImagens() {
               </div>`
             : `<input class="img-section-label-input" value="${label}"
                  onchange="renameImgSection(${idx}, this.value)"
-                 title="Clique para renomear">`}
+                 title="Clique para renomear" autocomplete="off">`}
           <div class="img-section-actions">
             <button class="img-section-btn add" onclick="triggerImgUpload('${key}')" title="Adicionar fotos">
               ${lcIcon('image-plus', 14)}
@@ -979,9 +979,9 @@ function renderServicos() {
       <td>
         ${isBuiltin
           ? `<span style="font-size:13px;color:var(--cinza);">${s.name}</span>`
-          : `<input class="form-control" style="font-size:13px;padding:6px 10px;" value="${s.name}" onchange="servicosData[${i}].name=this.value;autoSaveServicos()">`}
+          : `<input class="form-control" style="font-size:13px;padding:6px 10px;" value="${s.name}" onchange="servicosData[${i}].name=this.value;autoSaveServicos()" autocomplete="off">`}
       </td>
-      <td><input class="form-control" type="number" step="0.01" style="font-size:13px;padding:6px 10px;-moz-appearance:textfield;width:90px;" value="${s.value}" onchange="servicosData[${i}].value=parseFloat(this.value)||0;autoSaveServicos()"></td>
+      <td><input class="form-control" type="number" step="0.01" style="font-size:13px;padding:6px 10px;-moz-appearance:textfield;width:90px;" value="${s.value}" onchange="servicosData[${i}].value=parseFloat(this.value)||0;autoSaveServicos()" autocomplete="off"></td>
       <td><span style="font-size:13px;color:var(--cinza);">€/hóspede/noite</span></td>
       <td><label class="toggle-switch"><input type="checkbox" ${s.active !== false ? 'checked' : ''} onchange="servicosData[${i}].active=this.checked;autoSaveServicos()"><span class="toggle-slider"></span></label></td>
       <td>
@@ -1482,15 +1482,15 @@ function renderExtraOccupancyOptions(options = []) {
         </div>
         <div class="form-group" data-custom-extra-wrap style="margin:0;display:${option.type === 'outro' ? '' : 'none'};">
           <label class="form-label">Nome do extra</label>
-          <input class="form-control" data-field="custom_name" value="${escapeExtraOccupancyText(option.custom_name)}" placeholder="Ex: Colchão no chão">
+          <input class="form-control" data-field="custom_name" value="${escapeExtraOccupancyText(option.custom_name)}" placeholder="Ex: Colchão no chão" autocomplete="off">
         </div>
         <div class="form-group" style="margin:0;">
           <label class="form-label">Capacidade</label>
-          <input class="form-control" data-field="capacity" type="number" min="0" max="20" value="${option.capacity}">
+          <input class="form-control" data-field="capacity" type="number" min="0" max="20" value="${option.capacity}" autocomplete="off">
         </div>
         <div class="form-group" style="margin:0;">
           <label class="form-label">Preço (€)</label>
-          <input class="form-control" data-field="price" type="number" min="0" step="0.01" value="${option.price}">
+          <input class="form-control" data-field="price" type="number" min="0" step="0.01" value="${option.price}" autocomplete="off">
         </div>
         <div class="form-group" style="margin:0;">
           <label class="form-label">Cobrança</label>

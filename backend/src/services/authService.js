@@ -15,6 +15,13 @@ function isValidEmail(email) {
 
 function validatePassword(password) {
   const value = String(password || '');
+  if (/^\s|\s$/.test(value)) {
+    throw new Error('A password não pode começar ou terminar com espaços.');
+  }
+  // eslint-disable-next-line no-control-regex
+  if (/[\x00-\x1F\x7F]/.test(value)) {
+    throw new Error('A password contém caracteres de controlo inválidos.');
+  }
   if (value.length < 8) {
     throw new Error('A password deve ter pelo menos 8 caracteres.');
   }

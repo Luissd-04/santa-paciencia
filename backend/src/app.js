@@ -27,9 +27,66 @@ const app = express();
 const IS_PROD = process.env.NODE_ENV === 'production';
 
 // Security headers
+// CSP pragmática (S4): mantemos `unsafe-inline` no script-src e style-src
+// porque o frontend ainda tem ~229 `onclick=` inline e centenas de `style=`.
+// Migrar tudo para event delegation + classes ficou para uma sprint dedicada.
+// Mesmo assim, restringimos:
+//   • origens de scripts/styles externos (Lucide, Chart.js, jsPDF, XLSX, Leaflet, Turnstile)
+//   • frames (apenas Turnstile)
+//   • imagens (self + data: para uploads + https: para CDN)
+//   • conexões (self + Turnstile)
+//   • form-action a self → previne form hijacking
+//   • base-uri 'self' → previne base tag injection
+//   • object-src 'none' → bloqueia plugins legacy
+const CSP_DIRECTIVES = {
+  defaultSrc: ["'self'"],
+  scriptSrc: [
+    "'self'",
+    "'unsafe-inline'",                  // necessário enquanto houver onclick= inline
+    'https://unpkg.com',
+    'https://cdn.jsdelivr.net',
+    'https://cdnjs.cloudflare.com',
+    'https://challenges.cloudflare.com', // Cloudflare Turnstile
+  ],
+  styleSrc: [
+    "'self'",
+    "'unsafe-inline'",                  // CSS inline em widgets/templates
+    'https://fonts.googleapis.com',
+    'https://unpkg.com',                // Leaflet CSS
+  ],
+  fontSrc: [
+    "'self'",
+    'https://fonts.gstatic.com',
+    'data:',
+  ],
+  imgSrc: [
+    "'self'",
+    'data:',                            // upload preview, ícones inline
+    'https:',                           // logos de email/etc em CDN externa
+    'blob:',                            // canvas captures (XLSX/PDF preview)
+  ],
+  connectSrc: [
+    "'self'",
+    'https://challenges.cloudflare.com',
+  ],
+  frameSrc: [
+    'https://challenges.cloudflare.com', // widget Turnstile
+  ],
+  formAction: ["'self'"],
+  baseUri: ["'self'"],
+  objectSrc: ["'none'"],
+  frameAncestors: ["'self'"],           // previne clickjacking de fora
+  ...(IS_PROD ? { upgradeInsecureRequests: [] } : {}),
+};
+
 app.use(helmet({
-  contentSecurityPolicy: false, // SPA inline scripts — ativar mais tarde com nonces
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: CSP_DIRECTIVES,
+  },
   crossOriginEmbedderPolicy: false,
+  // COOP pode partir o popup OAuth (window.close em callback) — desligar.
+  crossOriginOpenerPolicy: false,
 }));
 
 // CORS — em produção só aceita a origem do domínio; em dev aceita localhost e túneis
@@ -92,6 +149,12 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// 404 explícito para /api/* — evita que o SPA catch-all engula erros e
+// devolva HTML em vez de JSON para um endpoint que não existe.
+app.use('/api', (req, res) => {
+  res.status(404).json({ success: false, error: 'Endpoint não encontrado.' });
+});
+
 // SPA catch-all: serve index.html para todas as rotas de frontend
 if (process.env.FRONTEND_PATH) {
   app.get(['/reservar/:slug', '/reserva/:token'], (req, res) => {
@@ -100,7 +163,7 @@ if (process.env.FRONTEND_PATH) {
   app.get('/pre-checkin/:token', (req, res) => {
     res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'pre-checkin.html'));
   });
-  app.get(/(.*)/, (req, res) => {
+  app.use((req, res) => {
     res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'index.html'));
   });
 }

@@ -519,11 +519,19 @@ document.documentElement.setAttribute('data-theme', 'light');
 localStorage.removeItem('sp-theme');
 boot();
 
-/* ── PWA: Service Worker — desregistar tudo em desenvolvimento ── */
+/* ── PWA: Service Worker — desregistar tudo + limpar caches antigas ──
+   Mesmo após unregister, browsers podem manter caches de antigos SWs. Sem
+   limpar `caches`, o user mantém JS/CSS obsoleto após um deploy.
+*/
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
     regs.forEach(r => r.unregister());
-  });
+  }).catch(() => {});
+}
+if ('caches' in window) {
+  caches.keys().then(keys => {
+    keys.filter(k => k.startsWith('sp-')).forEach(k => caches.delete(k));
+  }).catch(() => {});
 }
 
 /* ── PWA: Service Worker (comentado em dev) ──

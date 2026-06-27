@@ -72,12 +72,12 @@ function guestForm(guest, index, numAdults) {
       </div>
       <label>
         <span>Nome completo *</span>
-        <input data-field="name" required value="${escapeAttr(guest?.name || '')}" placeholder="Nome completo">
+        <input data-field="name" required value="${escapeAttr(guest?.name || '')}" placeholder="Nome completo" autocomplete="off">
       </label>
       <div class="field-grid two">
         <label>
           <span>Data de nascimento *</span>
-          <input data-field="birth_date" ${isChild ? 'required' : 'data-foreign-required'} class="birth-input pc-birth-input" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" value="${escapeAttr(displayDate(guest?.birth_date || ''))}">
+          <input data-field="birth_date" ${isChild ? 'required' : 'data-foreign-required'} class="birth-input pc-birth-input" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" value="${escapeAttr(displayDate(guest?.birth_date || ''))}" autocomplete="off">
         </label>
         <label>
           <span>Nacionalidade *</span>
@@ -100,7 +100,7 @@ function guestForm(guest, index, numAdults) {
         </label>
         <label class="foreign-field">
           <span data-base-label="Número do documento">Número do documento</span>
-          <input data-field="document_number" data-foreign-required value="${escapeAttr(guest?.document_number || '')}" placeholder="Documento">
+          <input data-field="document_number" data-foreign-required value="${escapeAttr(guest?.document_number || '')}" placeholder="Documento" autocomplete="off">
         </label>
       </div>
       <label class="foreign-field">

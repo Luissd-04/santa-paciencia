@@ -27,8 +27,8 @@ function preCheckinUrl(token) {
 function renderResCardHeader(r) {
   return `<div class="mrc-top">
       <div>
-        <div class="mrc-name">${r.guest_name}</div>
-        <div class="mrc-id">${r.id} · ${r.accommodation_name}</div>
+        <div class="mrc-name">${escapeHtml(r.guest_name)}</div>
+        <div class="mrc-id">${escapeHtml(r.id)} · ${escapeHtml(r.accommodation_name)}</div>
       </div>
       ${badgeEstado(r.status)}
     </div>`;
@@ -240,7 +240,7 @@ function renderTabela() {
   tbody.innerHTML = data.map(r => `
     <tr onclick="showDetail('${r.id}')">
       <td><code style="font-size:11.5px;color:var(--azul-claro)">${r.id}</code></td>
-      <td><b>${r.guest_name}</b><br><span style="font-size:11.5px;color:var(--cinza)">${r.guest_email || ''}</span></td>
+      <td><b>${escapeHtml(r.guest_name)}</b><br><span style="font-size:11.5px;color:var(--cinza)">${escapeHtml(r.guest_email || '')}</span></td>
       <td>${accomChip(r)}</td>
       <td>${formatDate(r.check_in)}</td>
       <td>${formatDate(r.check_out)}</td>
@@ -269,9 +269,12 @@ function renderTabela() {
         ${r.status === 'cancelada'
           ? `<button class="btn btn-sm" style="background:rgba(46,125,82,.12);color:#2e7d52" onclick="reativarReserva('${r.id}')" title="Reativar reserva">
                ${lcIcon('refresh-cw', 13)}
-             </button>`
-          : `<button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho)" onclick="deleteReserva('${r.id}')" title="Cancelar reserva">
+             </button>
+             ${hasRole('manager') ? `<button class="btn btn-sm" style="background:rgba(176,48,48,.18);color:var(--vermelho)" onclick="apagarReservaDefinitivo('${r.id}')" title="Apagar definitivamente">
                ${lcIcon('trash-2', 13)}
+             </button>` : ''}`
+          : `<button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho)" onclick="cancelarReserva('${r.id}')" title="Cancelar reserva">
+               ${lcIcon('x-circle', 13)}
              </button>`}
       </div></td>
     </tr>`).join('');
@@ -406,9 +409,10 @@ async function showDetail(id) {
       return age !== null ? (age === 0 ? '< 1 ano' : `${age} ${age === 1 ? 'ano' : 'anos'}`) : null;
     }).filter(Boolean);
 
-    const preCheckinUrl = r.public_token ? `${window.location.origin}/pre-checkin/${r.public_token}` : null;
-    const guestEmail = (r.guest_email || '').replace(/'/g, "\\'");
-    const guestName = (r.guest_name || '').replace(/'/g, "\\'");
+    const preCheckinToken = r.precheckin_token || r.public_token;
+    const preCheckinUrl = preCheckinToken ? `${window.location.origin}/pre-checkin/${preCheckinToken}` : null;
+    const guestEmail = encodeURIComponent(r.guest_email || '');
+    const guestName = encodeURIComponent(r.guest_name || '');
 
     const statusOptions = [
       { v: 'confirmada', l: 'Confirmada' },
@@ -451,7 +455,7 @@ async function showDetail(id) {
           <div class="rdv2-info-bar">
             <div class="rdv2-info-field">
               <span class="rdv2-if-label">Hóspede</span>
-              <span class="rdv2-if-val">${r.guest_name}</span>
+              <span class="rdv2-if-val">${escapeHtml(r.guest_name)}</span>
             </div>
             <div class="rdv2-info-field">
               <span class="rdv2-if-label">Noites</span>
@@ -480,15 +484,15 @@ async function showDetail(id) {
           <div class="rdv2-canal-bar">
             <div class="rdv2-info-field">
               <span class="rdv2-if-label">Canal</span>
-              <span class="rdv2-if-val">${r.channel || '—'}</span>
+              <span class="rdv2-if-val">${escapeHtml(r.channel || '—')}</span>
             </div>
             ${r.guest_email ? `<div class="rdv2-info-field">
               <span class="rdv2-if-label">Email</span>
-              <span class="rdv2-if-val">${r.guest_email}</span>
+              <span class="rdv2-if-val">${escapeHtml(r.guest_email)}</span>
             </div>` : ''}
             ${r.guest_phone ? `<div class="rdv2-info-field">
               <span class="rdv2-if-label">Telefone</span>
-              <span class="rdv2-if-val">${r.guest_phone}</span>
+              <span class="rdv2-if-val">${escapeHtml(r.guest_phone)}</span>
             </div>` : ''}
           </div>
 
@@ -583,15 +587,15 @@ async function showDetail(id) {
               `}
           </div>
 
-          ${r.notes ? `<div class="rdv2-notes">${lcIcon('file-text', 12)} ${r.notes}</div>` : ''}
+          ${r.notes ? `<div class="rdv2-notes">${lcIcon('file-text', 12)} ${escapeHtml(r.notes)}</div>` : ''}
 
           ${guestsData.length ? `<div class="rdv2-guests">
             <div class="rdv2-guests-title">Hóspedes adicionais</div>
             ${guestsData.map((g, i) => `<div class="rdv2-guest-row">
               <span class="rdv2-guest-num">Hóspede ${i + 2}</span>
               <span>${g.id
-                ? `<a class="rdv2-guest-link" onclick="showHospedeDetail('${g.id}')">${g.name || '—'}</a>`
-                : (g.name || '—')}${g.email ? ` · ${g.email}` : ''}${g.phone ? ` · ${g.phone}` : ''}</span>
+                ? `<a class="rdv2-guest-link" onclick="showHospedeDetail('${g.id}')">${escapeHtml(g.name || '—')}</a>`
+                : escapeHtml(g.name || '—')}${g.email ? ` · ${escapeHtml(g.email)}` : ''}${g.phone ? ` · ${escapeHtml(g.phone)}` : ''}</span>
             </div>`).join('')}
           </div>` : ''}
 
@@ -627,9 +631,10 @@ async function showDetail(id) {
             <button class="rdv2-action-link" data-accs="${(JSON.stringify(accsData)).replace(/"/g,'&quot;')}" data-res='{"id":"${r.id}","accId":"${r.accommodation_id}","ci":"${r.check_in}","co":"${r.check_out}","ng":${r.num_guests||1},"na":${r.num_adults||1},"nc":${r.num_children||0},"bkf":${r.breakfast_included?true:false},"nights":${r.nights||1}}' onclick="openAccommodationPanelFromBtn(this)">${lcIcon('home', 12)} Editar alojamento</button>
             <button class="rdv2-action-link" onclick="openEditModal('${r.id}')">${lcIcon('pencil', 12)} Editar reserva</button>
             <button class="rdv2-action-link" onclick="openPaymentForm('${r.id}', ${paid}, ${total})">${lcIcon('credit-card', 12)} Registar pagamento</button>
-            ${r.guest_email ? `<button class="rdv2-action-link" onclick="openInvoiceForReservation('${r.id}','${guestEmail}','${guestName}')">${lcIcon('mail', 12)} Enviar email</button>` : ''}
+            ${r.guest_email ? `<button class="rdv2-action-link" onclick="openInvoiceForReservation('${r.id}',decodeURIComponent('${guestEmail}'),decodeURIComponent('${guestName}'))">${lcIcon('mail', 12)} Enviar email</button>` : ''}
             ${r.status === 'cancelada'
-              ? `<button class="rdv2-action-link rdv2-action-success" onclick="reativarReserva('${r.id}')">${lcIcon('refresh-cw', 12)} Reativar reserva</button>`
+              ? `<button class="rdv2-action-link rdv2-action-success" onclick="reativarReserva('${r.id}')">${lcIcon('refresh-cw', 12)} Reativar reserva</button>
+                 ${hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" onclick="apagarReservaDefinitivo('${r.id}')">${lcIcon('trash-2', 12)} Apagar definitivamente</button>` : ''}`
               : `<button class="rdv2-action-link rdv2-action-danger" onclick="cancelarReserva('${r.id}')">${lcIcon('x-circle', 12)} Cancelar reserva</button>`}
           </div>
 
@@ -643,7 +648,7 @@ async function showDetail(id) {
             </div>
             <div class="rdv2-concierge-btns">
               <button class="rdv2-cta-btn" onclick="window.open('${preCheckinUrl}','_blank')" title="Abrir pre check-in">${lcIcon('arrow-right', 13)}</button>
-              ${r.guest_email ? `<button class="rdv2-cta-btn" onclick="openInvoiceForReservation('${r.id}','${guestEmail}','${guestName}')" title="Enviar email">${lcIcon('mail', 13)}</button>` : ''}
+              ${r.guest_email ? `<button class="rdv2-cta-btn" onclick="openInvoiceForReservation('${r.id}',decodeURIComponent('${guestEmail}'),decodeURIComponent('${guestName}'))" title="Enviar email">${lcIcon('mail', 13)}</button>` : ''}
             </div>
           </div>` : ''}
 
@@ -691,7 +696,7 @@ function openPaymentForm(reservationId, currentPaid, total) {
         <div style="display:flex;flex-direction:column;gap:12px;">
           <div>
             <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Valor (€)</label>
-            <input id="pf-amount" type="number" min="0" step="0.01" value="${remaining}" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);">
+            <input id="pf-amount" type="number" min="0" step="0.01" value="${remaining}" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);" autocomplete="off">
           </div>
           <div>
             <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Método</label>
@@ -704,7 +709,7 @@ function openPaymentForm(reservationId, currentPaid, total) {
           </div>
           <div>
             <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Data</label>
-            <input id="pf-date" type="date" value="${new Date().toISOString().slice(0,10)}" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);">
+            <input id="pf-date" type="date" value="${new Date().toISOString().slice(0,10)}" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);" autocomplete="off">
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
@@ -793,14 +798,14 @@ async function openAccountStatement(resId) {
         <div class="stmt-header">
           <div>
             <div class="stmt-title">Conta Corrente</div>
-            <div class="stmt-subtitle">${r.id} · ${r.guest_name}</div>
+            <div class="stmt-subtitle">${escapeHtml(r.id)} · ${escapeHtml(r.guest_name)}</div>
           </div>
           <button onclick="document.getElementById('stmt-overlay').remove()" class="stmt-close">×</button>
         </div>
 
         <div class="stmt-summary">
           <div class="stmt-sum-row">
-            <span>Alojamento</span><span>${r.accommodation_name || '—'}</span>
+            <span>Alojamento</span><span>${escapeHtml(r.accommodation_name || '—')}</span>
           </div>
           <div class="stmt-sum-row">
             <span>Check-in</span><span>${sd(r.check_in)}</span>
@@ -915,7 +920,7 @@ async function openAccommodationPanel(resId, currentAccId, checkIn, checkOut, nu
           <button type="button" class="rdv2-disc-type active" data-type="pct" onclick="setAccDiscountType('pct')">%</button>
           <button type="button" class="rdv2-disc-type" data-type="eur" onclick="setAccDiscountType('eur')">€</button>
         </div>
-        <input type="number" class="rdv2-disc-input" id="rdv2-disc-val" min="0" step="0.01" placeholder="0" oninput="updateAccPanelTotal()">
+        <input type="number" class="rdv2-disc-input" id="rdv2-disc-val" min="0" step="0.01" placeholder="0" oninput="updateAccPanelTotal()" autocomplete="off">
         <div class="rdv2-acc-final-price">Total: <strong id="rdv2-acc-final-total">—</strong></div>
       </div>
     </div>
@@ -983,7 +988,7 @@ async function openAccommodationPanel(resId, currentAccId, checkIn, checkOut, nu
             <div class="rdv2-acc-opt-meta">${acc.max_guests ? `max ${acc.max_guests} hósp. · ` : ''}Base: €${Number(acc.price_per_night||0).toFixed(0)}/noite</div>
           </div>
           <div class="rdv2-acc-price-edit">
-            <input type="number" class="rdv2-acc-priceinput" data-accid="${acc.id}" min="0" step="0.01" value="${customPrice.toFixed(2)}" oninput="updateAccPanelTotal()">
+            <input type="number" class="rdv2-acc-priceinput" data-accid="${acc.id}" min="0" step="0.01" value="${customPrice.toFixed(2)}" oninput="updateAccPanelTotal()" autocomplete="off">
             <span class="rdv2-acc-priceinput-label">€/noite</span>
           </div>
         </div>`;
@@ -1187,6 +1192,35 @@ async function cancelarReserva(id) {
       renderDashboard();
     } else {
       toast('❌ ' + (res.error || 'Erro ao cancelar.'), 'error');
+    }
+  } catch (e) {
+    toast('❌ Erro de ligação ao servidor.', 'error');
+  }
+}
+
+// Verifica se o utilizador tem pelo menos um determinado role na hierarquia
+// owner > manager > staff. Usado para esconder ações destrutivas.
+function hasRole(minRole) {
+  const rank = { staff: 1, manager: 2, owner: 3 };
+  const userRank = rank[currentUser?.role] || 0;
+  return userRank >= (rank[minRole] || 0);
+}
+
+async function apagarReservaDefinitivo(id) {
+  if (!confirm('Apagar DEFINITIVAMENTE esta reserva, os seus pagamentos e tarefas operacionais?\n\nEsta ação é irreversível. O hóspede e o histórico de emails são mantidos.')) return;
+  if (!confirm('Confirma novamente — esta ação não pode ser desfeita.')) return;
+  try {
+    const res = await apiDelete(`/api/reservations/${id}/permanent`);
+    if (res.success) {
+      const detailBg = document.getElementById('detail-bg');
+      if (detailBg?.classList.contains('open')) detailBg.classList.remove('open');
+      showReservasList();
+      toast('🗑 Reserva apagada definitivamente.', 'info');
+      await loadReservas();
+      if (typeof renderCalView === 'function') renderCalView();
+      renderDashboard();
+    } else {
+      toast('❌ ' + (res.error || 'Erro ao apagar.'), 'error');
     }
   } catch (e) {
     toast('❌ Erro de ligação ao servidor.', 'error');

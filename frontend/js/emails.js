@@ -270,7 +270,7 @@ function selectTemplate(slug) {
   const timingHtml = isFixed
     ? `<div class="email-timing-fixed">${meta.eventLabel}</div>`
     : `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <input type="number" class="form-control" id="et-offset" value="${t.timing_offset}" min="0" style="width:70px;">
+        <input type="number" class="form-control" id="et-offset" value="${t.timing_offset}" min="0" style="width:70px;" autocomplete="off">
         <select class="form-control" id="et-unit" style="width:auto;">
           <option value="hours" ${t.timing_unit==='hours'?'selected':''}>horas</option>
           <option value="days"  ${t.timing_unit==='days' ?'selected':''}>dias</option>
@@ -315,7 +315,7 @@ function selectTemplate(slug) {
       <div class="emed-section">
         <div class="emed-section-label">Assunto</div>
         <div class="emed-subject-row">
-          <input class="form-control" id="et-subject" placeholder="Assunto do email" value="${escapeAttr(t.subject || '')}">
+          <input class="form-control" id="et-subject" placeholder="Assunto do email" value="${escapeAttr(t.subject || '')}" autocomplete="off">
           ${buildCodesDropdown('et-subject')}
         </div>
       </div>

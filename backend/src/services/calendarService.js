@@ -15,8 +15,8 @@ async function createCalendarEvent(reservation, calendarUser = {}) {
   try {
     const auth = getAuthenticatedClient(userId, organizationId);
 
-    const guest = db.prepare('SELECT * FROM guests WHERE id = ?').get(reservation.guest_id);
-    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ?').get(reservation.accommodation_id);
+    const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(reservation.guest_id, organizationId);
+    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(reservation.accommodation_id, organizationId);
 
     const event = {
       summary: `🏨 ${accommodation.name} — ${guest.name}`,
@@ -60,8 +60,8 @@ async function updateCalendarEvent(reservation, calendarUser = {}) {
 
   try {
     const auth = getAuthenticatedClient(userId, organizationId);
-    const guest = db.prepare('SELECT * FROM guests WHERE id = ?').get(reservation.guest_id);
-    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ?').get(reservation.accommodation_id);
+    const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(reservation.guest_id, organizationId);
+    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(reservation.accommodation_id, organizationId);
     const calendarId = accommodation.google_calendar_id || 'primary';
 
     await auth.request({
@@ -69,9 +69,20 @@ async function updateCalendarEvent(reservation, calendarUser = {}) {
       method: 'PUT',
       data: {
         summary: `🏨 ${accommodation.name} — ${guest.name}`,
-        description: `Reserva atualizada\nHóspede: ${guest.name}\nTotal: €${reservation.total_amount}`,
+        description: [
+          `Reserva ID: ${reservation.id}`,
+          `Hóspede: ${guest.name}`,
+          `Email: ${guest.email}`,
+          `Telemóvel: ${guest.phone || 'N/A'}`,
+          `Hóspedes: ${reservation.num_guests}`,
+          `Canal: ${reservation.channel}`,
+          `Total: €${reservation.total_amount}`,
+          `Pagamento: ${reservation.payment_status}`,
+          reservation.notes ? `Notas: ${reservation.notes}` : ''
+        ].filter(Boolean).join('\n'),
         start: { date: reservation.check_in, timeZone: 'Europe/Lisbon' },
         end: { date: reservation.check_out, timeZone: 'Europe/Lisbon' },
+        colorId: getColorForAccommodation(reservation.accommodation_id),
       },
     });
     console.log(`📅 Evento atualizado: ${reservation.google_event_id}`);
@@ -87,7 +98,7 @@ async function deleteCalendarEvent(reservation, calendarUser = {}) {
 
   try {
     const auth = getAuthenticatedClient(userId, organizationId);
-    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ?').get(reservation.accommodation_id);
+    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(reservation.accommodation_id, organizationId);
     const calendarId = accommodation.google_calendar_id || 'primary';
 
     await auth.request({ url: calUrl(calendarId, reservation.google_event_id), method: 'DELETE' });
@@ -129,7 +140,7 @@ async function createTaskCalendarEvent(task, calendarUser = {}) {
   try {
     const auth = getAuthenticatedClient(userId, organizationId);
     const accommodation = task.accommodation_id
-      ? db.prepare('SELECT * FROM accommodations WHERE id = ?').get(task.accommodation_id)
+      ? db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(task.accommodation_id, organizationId)
       : null;
 
     const icon = TASK_TYPE_ICONS[task.type] || '📋';
@@ -172,7 +183,7 @@ async function updateTaskCalendarEvent(task, calendarUser = {}) {
   try {
     const auth = getAuthenticatedClient(userId, organizationId);
     const accommodation = task.accommodation_id
-      ? db.prepare('SELECT * FROM accommodations WHERE id = ?').get(task.accommodation_id)
+      ? db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(task.accommodation_id, organizationId)
       : null;
 
     const icon = TASK_TYPE_ICONS[task.type] || '📋';

@@ -92,7 +92,7 @@ function create(req, res) {
     accommodation_id || null, notes || null
   );
 
-  res.status(201).json({ success: true, data: db.prepare('SELECT * FROM vouchers WHERE id = ?').get(id) });
+  res.status(201).json({ success: true, data: db.prepare('SELECT * FROM vouchers WHERE id = ? AND organization_id = ?').get(id, req.user.organization_id) });
 }
 
 function update(req, res) {
@@ -108,29 +108,37 @@ function update(req, res) {
     if (!pv || pv <= 0) return res.status(400).json({ error: 'O valor deve ser maior que 0' });
   }
 
+  // Padrão único: se a chave existe no body, usa o valor (incluindo string vazia
+  // para apagar); se não, mantém o valor actual. Evita a mistura COALESCE+JS.
+  const keep = (key, current) => req.body[key] !== undefined
+    ? (req.body[key] === '' ? null : req.body[key])
+    : current;
+
   db.prepare(`
     UPDATE vouchers SET
-      type = COALESCE(?, type),
-      value = COALESCE(?, value),
+      type = ?,
+      value = ?,
       description = ?,
       valid_from = ?,
       valid_until = ?,
-      min_nights = COALESCE(?, min_nights),
+      min_nights = ?,
       accommodation_id = ?,
       notes = ?,
-      status = COALESCE(?, status),
+      status = ?,
       updated_at = datetime('now')
     WHERE id = ? AND organization_id = ?
   `).run(
-    type ?? null,
-    value !== undefined ? (effectiveType === 'credit_stay' ? parseInt(value) : parseFloat(value)) : null,
-    description !== undefined ? (description || null) : existing.description,
-    valid_from !== undefined ? (valid_from || null) : existing.valid_from,
-    valid_until !== undefined ? (valid_until || null) : existing.valid_until,
-    min_nights !== undefined ? parseInt(min_nights) : null,
-    accommodation_id !== undefined ? (accommodation_id || null) : existing.accommodation_id,
-    notes !== undefined ? (notes || null) : existing.notes,
-    status ?? null,
+    keep('type', existing.type),
+    value !== undefined
+      ? (effectiveType === 'credit_stay' ? parseInt(value) : parseFloat(value))
+      : existing.value,
+    keep('description', existing.description),
+    keep('valid_from', existing.valid_from),
+    keep('valid_until', existing.valid_until),
+    min_nights !== undefined ? parseInt(min_nights) : existing.min_nights,
+    keep('accommodation_id', existing.accommodation_id),
+    keep('notes', existing.notes),
+    keep('status', existing.status),
     req.params.id, req.user.organization_id
   );
 

@@ -89,6 +89,17 @@ function ensurePublicToken(reservation) {
   return token;
 }
 
+function ensurePrecheckinToken(reservation) {
+  if (reservation.precheckin_token) return reservation.precheckin_token;
+  const token = uuidv4().replace(/-/g, '') + uuidv4().replace(/-/g, '');
+  const expiresAt = reservation.check_out || null;
+  db.prepare("UPDATE reservations SET precheckin_token = ?, precheckin_token_expires_at = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?")
+    .run(token, expiresAt, reservation.id, reservation.organization_id);
+  reservation.precheckin_token = token;
+  reservation.precheckin_token_expires_at = expiresAt;
+  return token;
+}
+
 function getGcalSyncTasks(organizationId) {
   const row = db.prepare("SELECT value FROM organization_settings WHERE organization_id = ? AND key = 'gcal_sync_tasks'").get(organizationId);
   return row?.value === '1';
@@ -225,18 +236,25 @@ async function addPayment(req, res, next) {
     const organizationId = req.user.organization_id;
     const { amount, method, payment_date, notes } = req.body;
 
-    if (!amount || Number(amount) <= 0) {
+    const numAmount = Number(amount);
+    if (!Number.isFinite(numAmount) || numAmount <= 0) {
       return res.status(400).json({ error: 'Montante inválido' });
     }
 
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(id, organizationId);
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
 
-    const paymentId = `rp-${Date.now()}`;
+    const reservationTotal = Number(reservation.total_amount) || 0;
+    const paymentCap = Math.max(reservationTotal * 10, 1000000);
+    if (numAmount > paymentCap) {
+      return res.status(400).json({ error: `Montante excessivo (máximo permitido: €${paymentCap.toFixed(2)}).` });
+    }
+
+    const paymentId = `rp-${uuidv4()}`;
     db.prepare(`
       INSERT INTO reservation_payments (id, reservation_id, organization_id, amount, method, payment_date, notes)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(paymentId, id, organizationId, Number(amount), method || null, payment_date || null, notes || null);
+    `).run(paymentId, id, organizationId, numAmount, method || null, payment_date || null, notes || null);
 
     const { total_paid } = db.prepare('SELECT SUM(amount) as total_paid FROM reservation_payments WHERE reservation_id = ? AND organization_id = ?').get(id, organizationId);
     const newPaid = total_paid || 0;
@@ -245,7 +263,7 @@ async function addPayment(req, res, next) {
     db.prepare(`UPDATE reservations SET amount_paid = ?, payment_status = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?`)
       .run(newPaid, autoStatus, id, organizationId);
 
-    res.json({ success: true, data: { id: paymentId, amount: Number(amount), method, payment_date, notes, newTotalPaid: newPaid, newPaymentStatus: autoStatus } });
+    res.json({ success: true, data: { id: paymentId, amount: numAmount, method, payment_date, notes, newTotalPaid: newPaid, newPaymentStatus: autoStatus } });
   } catch (err) {
     next(err);
   }
@@ -263,7 +281,7 @@ async function deletePayment(req, res, next) {
     const payment = db.prepare('SELECT * FROM reservation_payments WHERE id = ? AND reservation_id = ? AND organization_id = ?').get(paymentId, id, organizationId);
     if (!payment) return res.status(404).json({ error: 'Pagamento não encontrado' });
 
-    db.prepare('DELETE FROM reservation_payments WHERE id = ?').run(paymentId);
+    db.prepare('DELETE FROM reservation_payments WHERE id = ? AND organization_id = ?').run(paymentId, organizationId);
 
     const { total_paid } = db.prepare('SELECT SUM(amount) as total_paid FROM reservation_payments WHERE reservation_id = ? AND organization_id = ?').get(id, organizationId);
     const newPaid = total_paid || 0;
@@ -344,7 +362,7 @@ async function create(req, res, next) {
 
     // Registar consentimento RGPD
     if (rgpd_consent) {
-      recordConsent(guestRecord.id, rgpd_ip || req.ip);
+      recordConsent(guestRecord.id, rgpd_ip || req.ip, organizationId);
     }
 
     // Calcular valores
@@ -407,7 +425,7 @@ async function create(req, res, next) {
     const autoPaymentStatus = getPaymentStatus(paidAmt, finalTotal, reqPaymentStatus || 'pendente');
 
     // Criar reserva
-    const reservationId = `SP-${Date.now()}`;
+    const reservationId = `SP-${uuidv4().slice(0, 8).toUpperCase()}`;
     db.prepare(`
       INSERT INTO reservations (
         id, organization_id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
@@ -652,6 +670,37 @@ async function cancel(req, res, next) {
   }
 }
 
+// DELETE /api/reservations/:id/permanent  (apagar definitivamente)
+// Pré-requisito: reserva tem de estar `cancelada`. Apaga em cascade os
+// pagamentos e eventos operacionais ligados. NÃO toca em:
+//   • hóspede (guests) — pode ter outras reservas
+//   • vouchers usados — mantém auditoria de qual reserva consumiu o voucher
+//   • organization_email_log — histórico de comunicação por compliance RGPD
+async function hardDelete(req, res, next) {
+  try {
+    const organizationId = req.user.organization_id;
+    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?')
+      .get(req.params.id, organizationId);
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+    if (reservation.status !== 'cancelada') {
+      return res.status(409).json({ error: 'Só é possível apagar reservas já canceladas. Cancela primeiro.' });
+    }
+
+    db.transaction(() => {
+      db.prepare('DELETE FROM reservation_payments WHERE reservation_id = ? AND organization_id = ?')
+        .run(reservation.id, organizationId);
+      db.prepare('DELETE FROM operational_events WHERE reservation_id = ? AND organization_id = ?')
+        .run(reservation.id, organizationId);
+      db.prepare('DELETE FROM reservations WHERE id = ? AND organization_id = ?')
+        .run(reservation.id, organizationId);
+    })();
+
+    res.json({ success: true, message: 'Reserva apagada definitivamente.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function approve(req, res, next) {
   try {
     const organizationId = req.user.organization_id;
@@ -664,14 +713,15 @@ async function approve(req, res, next) {
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
     if (reservation.status === 'cancelada') return res.status(400).json({ error: 'Reserva cancelada não pode ser aprovada.' });
 
-    const token = ensurePublicToken(reservation);
+    ensurePublicToken(reservation);
+    const precheckinToken = ensurePrecheckinToken(reservation);
     db.prepare("UPDATE reservations SET status = 'pre_checkin', updated_at = datetime('now') WHERE id = ? AND organization_id = ?")
       .run(req.params.id, organizationId);
 
     const updated = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
     const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(updated.guest_id, organizationId);
     const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(updated.accommodation_id, organizationId);
-    const preCheckinUrl = `${publicUrl(req)}/pre-checkin/${token}`;
+    const preCheckinUrl = `${publicUrl(req)}/pre-checkin/${precheckinToken}`;
 
     sendPreCheckinEmail(guest, updated, accommodation, preCheckinUrl)
       .catch(err => console.warn('Email de pre-check-in não enviado:', err.message));
@@ -702,17 +752,24 @@ async function getDashboardStats(req, res, next) {
     `).get(organizationId);
 
     const nightsThisMonth = db.prepare(`
-      SELECT COALESCE(SUM(nights), 0) as total
+      SELECT COALESCE(SUM(
+        MIN(julianday(?), julianday(check_out)) - MAX(julianday(?), julianday(check_in))
+      ), 0) as total
       FROM reservations
       WHERE organization_id = ?
         AND status != 'cancelada'
-        AND check_in >= ? AND check_in <= ?
-    `).get(organizationId, firstOfMonth, lastOfMonth);
+        AND check_in < ? AND check_out > ?
+    `).get(lastOfMonth, firstOfMonth, organizationId, lastOfMonth, firstOfMonth);
 
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const totalRooms = db.prepare(`
-      SELECT COUNT(*) as c FROM accommodations WHERE organization_id = ?
-    `).get(organizationId).c || 1;
+      SELECT COUNT(*) as c FROM accommodations
+      WHERE organization_id = ?
+        AND id NOT IN (
+          SELECT DISTINCT parent_id FROM accommodations
+          WHERE parent_id IS NOT NULL AND organization_id = ?
+        )
+    `).get(organizationId, organizationId).c || 1;
     const occupiedNights = nightsThisMonth.total;
     const occupancyRate = Math.round((occupiedNights / (daysInMonth * totalRooms)) * 100);
 
@@ -813,4 +870,4 @@ function getNotifications(req, res, next) {
   }
 }
 
-module.exports = { getAll, getById, create, update, approve, cancel, getDashboardStats, getAvailability, getNotifications, addPayment, deletePayment };
+module.exports = { getAll, getById, create, update, approve, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, addPayment, deletePayment };

@@ -29,18 +29,6 @@ function generateUniqueSlug(name) {
   return slug;
 }
 
-function getClaimableLegacyOrganization() {
-  return db.prepare(`
-    SELECT o.*
-    FROM organizations o
-    LEFT JOIN memberships m ON m.organization_id = o.id
-    GROUP BY o.id
-    HAVING COUNT(m.id) = 0
-    ORDER BY o.created_at ASC
-    LIMIT 1
-  `).get();
-}
-
 function seedOrganizationSettings(organizationId) {
   const defaults = db.prepare('SELECT key, value FROM settings').all();
   const stmt = db.prepare(`
@@ -212,7 +200,6 @@ module.exports = {
   createMembership,
   createOrganization,
   ensureRole,
-  getClaimableLegacyOrganization,
   getInvitationByToken,
   getMembershipByUserAndOrganization,
   getPrimaryMembership,

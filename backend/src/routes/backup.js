@@ -6,7 +6,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
-const { execFileSync } = require('child_process');
+const archiver = require('archiver');
+const unzipper = require('unzipper');
 
 const backupParser = express.json({ limit: '100mb' });
 
@@ -15,19 +16,25 @@ const ORG_TABLES = [
   'organization_email_templates',
   'organization_email_log',
   'accommodations',
+  'pricing_periods',
+  'vouchers',
   'guests',
   'expenses',
   'reservations',
+  'reservation_payments',
   'operational_events'
 ];
 
 const DELETE_ORDER = [
   'operational_events',
+  'reservation_payments',
   'reservations',
   'expenses',
   'organization_email_log',
   'organization_email_templates',
   'guests',
+  'vouchers',
+  'pricing_periods',
   'accommodations',
   'organization_settings'
 ];
@@ -37,13 +44,30 @@ const INSERT_ORDER = [
   'organization_email_templates',
   'organization_email_log',
   'accommodations',
+  'pricing_periods',
+  'vouchers',
   'guests',
   'expenses',
   'reservations',
+  'reservation_payments',
   'operational_events'
 ];
 
 const UPLOADS_DIR = path.resolve('./data/uploads');
+
+const ALLOWED_TABLES = new Set([...ORG_TABLES]);
+
+function isSafeIdentifier(name) {
+  return typeof name === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
+}
+
+function sanitizeCols(cols) {
+  const safe = cols.filter(isSafeIdentifier);
+  if (safe.length !== cols.length) {
+    throw new Error(`Coluna inválida no backup: ${cols.find(c => !isSafeIdentifier(c))}`);
+  }
+  return safe;
+}
 
 router.use(requireRole('owner'));
 router.use(backupParser);
@@ -198,7 +222,7 @@ function remapImportedRowsForOrg(tables, orgId) {
 }
 
 // GET /api/backup/export
-router.get('/export', (req, res) => {
+router.get('/export', async (req, res) => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sp-export-'));
   try {
     const orgId = req.user.organization_id;
@@ -209,7 +233,16 @@ router.get('/export', (req, res) => {
     copyReferencedUploads(collectUploadUrlsFromAccommodations(payload.tables.accommodations), uploadsTempDir);
 
     const zipPath = path.join(tempDir, 'backup.zip');
-    execFileSync('/usr/bin/zip', ['-rq', zipPath, 'backup.json', 'uploads'], { cwd: tempDir });
+    await new Promise((resolve, reject) => {
+      const output = fs.createWriteStream(zipPath);
+      const archive = archiver('zip', { zlib: { level: 6 } });
+      output.on('close', resolve);
+      archive.on('error', reject);
+      archive.pipe(output);
+      archive.file(jsonPath, { name: 'backup.json' });
+      if (fs.existsSync(uploadsTempDir)) archive.directory(uploadsTempDir, 'uploads');
+      archive.finalize();
+    });
 
     const filename = `santa_paciencia_${new Date().toISOString().slice(0, 10)}.zip`;
     res.download(zipPath, filename, () => cleanupTempDir(tempDir));
@@ -220,7 +253,7 @@ router.get('/export', (req, res) => {
 });
 
 // POST /api/backup/import
-router.post('/import', (req, res) => {
+router.post('/import', async (req, res) => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sp-import-'));
   try {
     const orgId = req.user.organization_id;
@@ -235,7 +268,9 @@ router.post('/import', (req, res) => {
     fs.mkdirSync(extractDir, { recursive: true });
     fs.writeFileSync(zipPath, Buffer.from(String(archiveBase64), 'base64'));
 
-    execFileSync('/usr/bin/unzip', ['-oq', zipPath, '-d', extractDir]);
+    await fs.createReadStream(zipPath)
+      .pipe(unzipper.Extract({ path: extractDir }))
+      .promise();
 
     const jsonPath = path.join(extractDir, 'backup.json');
     if (!fs.existsSync(jsonPath)) {
@@ -264,9 +299,10 @@ router.post('/import', (req, res) => {
       }
 
       for (const table of INSERT_ORDER) {
+        if (!ALLOWED_TABLES.has(table)) continue;
         const rows = ensureTableRows(tables[table]);
         if (!rows.length) continue;
-        const cols = Object.keys(rows[0]);
+        const cols = sanitizeCols(Object.keys(rows[0]));
         const stmt = db.prepare(`INSERT OR REPLACE INTO ${table} (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`);
         for (const row of rows) {
           const scopedRow = { ...row, organization_id: orgId };
