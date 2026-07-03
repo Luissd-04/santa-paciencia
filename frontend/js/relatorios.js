@@ -1,8 +1,10 @@
 // ── STATE ──
 let _reportYear  = new Date().getFullYear();
+let _reportMonth = 0; // 0 = ano inteiro; 1-12 = mês
 let _reportAccId = '';
 let _reportTab   = SS.get('report:tab', 'faturamento');
 let _despYear    = new Date().getFullYear();
+let _despMonth   = 0;
 let _lucroYear   = new Date().getFullYear();
 let _lucroAccId  = '';
 
@@ -16,8 +18,8 @@ let _chartLucro        = null;
 const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MONTH_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const CHANNEL_COLORS = { airbnb:'#FF5A5F', booking:'#003580', direto:'#843424', expedia:'#FFC72C', vrbo:'#195ABA', outro:'#8a8278' };
-const CAT_COLORS = { limpeza:'#4a90d9', manutencao:'#e67e22', marketing:'#9b59b6', impostos:'#e74c3c', servicos:'#2ecc71', consumiveis:'#f39c12', outro:'#95a5a6' };
-const CAT_LABELS = { limpeza:'Limpeza', manutencao:'Manutenção', marketing:'Marketing', impostos:'Impostos', servicos:'Serviços', consumiveis:'Consumíveis', outro:'Outro' };
+const CAT_COLORS = { limpeza:'#4a90d9', produtos_limpeza:'#3498db', pequenos_almocos:'#e8a33d', roupas:'#8e6bb0', manutencao:'#e67e22', marketing:'#9b59b6', impostos:'#e74c3c', servicos:'#2ecc71', consumiveis:'#f39c12', supermercado:'#27ae60', outro:'#95a5a6' };
+const CAT_LABELS = { limpeza:'Limpeza', produtos_limpeza:'Produtos de limpeza', pequenos_almocos:'Pequenos-almoços', roupas:'Roupas', manutencao:'Manutenção', marketing:'Marketing', impostos:'Impostos', servicos:'Serviços', consumiveis:'Consumíveis', supermercado:'Supermercado', outro:'Outro' };
 const MARCA = '#843424';
 
 const fmtEur = v => '€' + Number(v || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -49,15 +51,17 @@ async function _loadFaturamento() {
   const kpiEl = document.getElementById('report-kpis');
   if (kpiEl) kpiEl.innerHTML = '<div class="report-loading"><i data-lucide="loader" style="width:20px;height:20px;"></i> A carregar...</div>';
   try {
-    const qs   = `?year=${_reportYear}${_reportAccId ? '&accommodation_id=' + _reportAccId : ''}`;
+    const monthQs = _reportMonth ? `&month=${_reportMonth}` : '';
+    const qs   = `?year=${_reportYear}${monthQs}${_reportAccId ? '&accommodation_id=' + _reportAccId : ''}`;
     const data = await apiGet('/api/reports/financial' + qs);
     const d    = data.data;
+    const series = d.granularity === 'day' ? d.days : d.months;
     _renderFatFilters(d.available_years);
     _renderReportKPIs(d.totals);
-    _renderRevenueChart(d.months);
+    _renderRevenueChart(series, d.granularity);
     _renderChannelChart(d.channels);
     _renderAccomChart(d.accommodations);
-    _renderReportTable(d.months);
+    _renderReportTable(series, d.granularity);
     if (window.lucide) lucide.createIcons();
   } catch (e) {
     if (kpiEl) kpiEl.innerHTML = '<div class="report-loading" style="color:var(--vermelho);">Erro ao carregar relatório.</div>';
@@ -65,7 +69,18 @@ async function _loadFaturamento() {
 }
 
 function setReportYear(y) { _reportYear = Number(y); _loadFaturamento(); }
+function setReportMonth(m) { _reportMonth = Number(m); _loadFaturamento(); }
 function setReportAccId(id) { _reportAccId = id; _loadFaturamento(); }
+
+// Rótulo do período selecionado (para KPIs/cabeçalhos).
+function _periodLabel(month, year) {
+  return month ? `${MONTH_NAMES[month - 1]} ${year}` : `${year}`;
+}
+// Atualiza o texto da 1ª coluna de uma tabela de relatório.
+function _setTableHeadLabel(panelId, label) {
+  const th = document.querySelector(`#${panelId} .report-table thead th:first-child`);
+  if (th) th.textContent = label;
+}
 
 function _renderFatFilters(availableYears) {
   const sel = document.getElementById('report-year-sel');
@@ -96,7 +111,7 @@ function _renderReportKPIs(totals) {
       </div>
       <div class="report-kpi-body">
         <div class="report-kpi-value">${fmtEur(totals.revenue)}</div>
-        <div class="report-kpi-label">Receita total ${_reportYear}</div>
+        <div class="report-kpi-label">Receita · ${_periodLabel(_reportMonth, _reportYear)}</div>
       </div>
     </div>
     <div class="report-kpi-card">
@@ -114,7 +129,7 @@ function _renderReportKPIs(totals) {
       </div>
       <div class="report-kpi-body">
         <div class="report-kpi-value">${totals.avg_occupancy}%</div>
-        <div class="report-kpi-label">Ocupação média anual</div>
+        <div class="report-kpi-label">Ocupação média ${_reportMonth ? 'do mês' : 'anual'}</div>
       </div>
     </div>
     <div class="report-kpi-card">
@@ -128,37 +143,41 @@ function _renderReportKPIs(totals) {
     </div>`;
 }
 
-function _renderRevenueChart(months) {
+function _renderRevenueChart(series, granularity = 'month') {
   const canvas = document.getElementById('chart-revenue');
   if (!canvas || typeof Chart === 'undefined') return;
   if (_chartRevenue) { _chartRevenue.destroy(); _chartRevenue = null; }
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const gridColor = isDark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.06)';
   const textColor = isDark ? '#aaa' : '#8a8278';
+  const isDay = granularity === 'day';
+  const labels = isDay ? series.map(d => d.day) : MONTH_SHORT;
+  const datasets = [
+    {
+      label: 'Receita (€)',
+      data: series.map(m => m.revenue),
+      backgroundColor: isDay
+        ? 'rgba(132,52,36,.7)'
+        : series.map(m => m.month === new Date().getMonth() && _reportYear === new Date().getFullYear()
+            ? 'rgba(132,52,36,.9)' : 'rgba(132,52,36,.65)'),
+      borderRadius: 5, borderSkipped: false,
+    },
+  ];
+  if (!isDay) {
+    datasets.push({
+      label: 'Ocupação (%)',
+      data: series.map(m => m.occupancy_rate),
+      type: 'line',
+      borderColor: 'rgba(74,111,165,.8)',
+      backgroundColor: 'rgba(74,111,165,.08)',
+      borderWidth: 2, pointRadius: 3,
+      pointBackgroundColor: 'rgba(74,111,165,1)',
+      yAxisID: 'yOcc', tension: 0.35, fill: true,
+    });
+  }
   _chartRevenue = new Chart(canvas, {
     type: 'bar',
-    data: {
-      labels: MONTH_SHORT,
-      datasets: [
-        {
-          label: 'Receita (€)',
-          data: months.map(m => m.revenue),
-          backgroundColor: months.map(m => m.month === new Date().getMonth() && _reportYear === new Date().getFullYear()
-            ? 'rgba(132,52,36,.9)' : 'rgba(132,52,36,.65)'),
-          borderRadius: 5, borderSkipped: false,
-        },
-        {
-          label: 'Ocupação (%)',
-          data: months.map(m => m.occupancy_rate),
-          type: 'line',
-          borderColor: 'rgba(74,111,165,.8)',
-          backgroundColor: 'rgba(74,111,165,.08)',
-          borderWidth: 2, pointRadius: 3,
-          pointBackgroundColor: 'rgba(74,111,165,1)',
-          yAxisID: 'yOcc', tension: 0.35, fill: true,
-        }
-      ]
-    },
+    data: { labels, datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
@@ -172,8 +191,8 @@ function _renderRevenueChart(months) {
         x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 } } },
         y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 },
           callback: v => '€' + Number(v).toLocaleString('pt-PT') } },
-        yOcc: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100,
-          ticks: { color: 'rgba(74,111,165,.8)', font: { size: 11 }, callback: v => v + '%' } }
+        ...(isDay ? {} : { yOcc: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100,
+          ticks: { color: 'rgba(74,111,165,.8)', font: { size: 11 }, callback: v => v + '%' } } })
       }
     }
   });
@@ -233,23 +252,27 @@ function _renderAccomChart(accoms) {
   });
 }
 
-function _renderReportTable(months) {
+function _renderReportTable(series, granularity = 'month') {
   const tbody = document.getElementById('report-table-body');
   if (!tbody) return;
+  const isDay = granularity === 'day';
+  _setTableHeadLabel('rtab-faturamento', isDay ? 'Dia' : 'Mês');
   const today = new Date();
-  tbody.innerHTML = months.map(m => {
-    const isCurrent = m.month === today.getMonth() && _reportYear === today.getFullYear();
-    return `<tr class="${isCurrent ? 'report-row-current' : ''}">
-      <td>${MONTH_NAMES[m.month]}</td>
-      <td style="text-align:right;">${m.reservations}</td>
-      <td style="text-align:right;">${m.nights}</td>
-      <td style="text-align:right;font-weight:600;">${fmtEur(m.revenue)}</td>
-      <td style="text-align:right;">
+  tbody.innerHTML = series.map(m => {
+    const isCurrent = isDay
+      ? (m.day === today.getDate() && _reportMonth === today.getMonth() + 1 && _reportYear === today.getFullYear())
+      : (m.month === today.getMonth() && _reportYear === today.getFullYear());
+    const occCell = isDay ? '—' : `
         <span class="report-occ-bar">
           <span class="report-occ-fill" style="width:${m.occupancy_rate}%;background:${m.occupancy_rate > 70 ? 'var(--verde)' : m.occupancy_rate > 40 ? 'var(--dourado)' : 'var(--cinza)'};"></span>
         </span>
-        ${m.occupancy_rate}%
-      </td>
+        ${m.occupancy_rate}%`;
+    return `<tr class="${isCurrent ? 'report-row-current' : ''}">
+      <td>${isDay ? m.day : MONTH_NAMES[m.month]}</td>
+      <td style="text-align:right;">${m.reservations}</td>
+      <td style="text-align:right;">${m.nights}</td>
+      <td style="text-align:right;font-weight:600;">${fmtEur(m.revenue)}</td>
+      <td style="text-align:right;">${occCell}</td>
     </tr>`;
   }).join('');
 }
@@ -261,13 +284,15 @@ async function _loadDespesas() {
   const kpiEl = document.getElementById('desp-kpis');
   if (kpiEl) kpiEl.innerHTML = '<div class="report-loading"><i data-lucide="loader" style="width:20px;height:20px;"></i> A carregar...</div>';
   try {
-    const data = await apiGet(`/api/reports/expenses?year=${_despYear}`);
+    const monthQs = _despMonth ? `&month=${_despMonth}` : '';
+    const data = await apiGet(`/api/reports/expenses?year=${_despYear}${monthQs}`);
     const d    = data.data;
+    const series = d.granularity === 'day' ? d.days : d.months;
     _renderDespFilters(d.available_years);
     _renderDespKPIs(d.totals, d.byCategory);
-    _renderDespMonthlyChart(d.months);
+    _renderDespMonthlyChart(series, d.granularity);
     _renderDespCategoryChart(d.byCategory);
-    _renderDespTable(d.months);
+    _renderDespTable(series, d.granularity);
     if (window.lucide) lucide.createIcons();
   } catch (e) {
     if (kpiEl) kpiEl.innerHTML = '<div class="report-loading" style="color:var(--vermelho);">Erro ao carregar despesas.</div>';
@@ -275,6 +300,7 @@ async function _loadDespesas() {
 }
 
 function setDespYear(y) { _despYear = Number(y); _loadDespesas(); }
+function setDespMonth(m) { _despMonth = Number(m); _loadDespesas(); }
 
 function _renderDespFilters(availableYears) {
   const sel = document.getElementById('desp-year-sel');
@@ -297,7 +323,7 @@ function _renderDespKPIs(totals, byCategory) {
       </div>
       <div class="report-kpi-body">
         <div class="report-kpi-value">${fmtEur(totals.year_total)}</div>
-        <div class="report-kpi-label">Despesas totais ${_despYear}</div>
+        <div class="report-kpi-label">Despesas · ${_periodLabel(_despMonth, _despYear)}</div>
       </div>
     </div>
     <div class="report-kpi-card">
@@ -324,28 +350,31 @@ function _renderDespKPIs(totals, byCategory) {
       </div>
       <div class="report-kpi-body">
         <div class="report-kpi-value">${fmtEur(totals.avg_monthly)}</div>
-        <div class="report-kpi-label">Média mensal</div>
+        <div class="report-kpi-label">${_despMonth ? 'Total do mês' : 'Média mensal'}</div>
       </div>
     </div>`;
 }
 
-function _renderDespMonthlyChart(months) {
+function _renderDespMonthlyChart(series, granularity = 'month') {
   const canvas = document.getElementById('chart-desp-monthly');
   if (!canvas || typeof Chart === 'undefined') return;
   if (_chartDespMonthly) { _chartDespMonthly.destroy(); _chartDespMonthly = null; }
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const gridColor = isDark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.06)';
   const textColor = isDark ? '#aaa' : '#8a8278';
+  const isDay = granularity === 'day';
   const today = new Date();
   _chartDespMonthly = new Chart(canvas, {
     type: 'bar',
     data: {
-      labels: MONTH_SHORT,
+      labels: isDay ? series.map(d => d.day) : MONTH_SHORT,
       datasets: [{
         label: 'Despesas (€)',
-        data: months.map(m => m.total),
-        backgroundColor: months.map(m => m.month === today.getMonth() && _despYear === today.getFullYear()
-          ? 'rgba(231,76,60,.9)' : 'rgba(231,76,60,.6)'),
+        data: series.map(m => m.total),
+        backgroundColor: isDay
+          ? 'rgba(231,76,60,.65)'
+          : series.map(m => m.month === today.getMonth() && _despYear === today.getFullYear()
+              ? 'rgba(231,76,60,.9)' : 'rgba(231,76,60,.6)'),
         borderRadius: 5, borderSkipped: false,
       }]
     },
@@ -392,22 +421,26 @@ function _renderDespCategoryChart(byCategory) {
   });
 }
 
-function _renderDespTable(months) {
+function _renderDespTable(series, granularity = 'month') {
   const tbody = document.getElementById('desp-table-body');
   if (!tbody) return;
+  const isDay = granularity === 'day';
+  _setTableHeadLabel('rtab-despesas', isDay ? 'Dia' : 'Mês');
   const today = new Date();
-  const yearTotal = months.reduce((s, m) => s + m.total, 0);
-  tbody.innerHTML = months.map(m => {
-    const isCurrent = m.month === today.getMonth() && _despYear === today.getFullYear();
+  const periodTotal = series.reduce((s, m) => s + m.total, 0);
+  tbody.innerHTML = series.map(m => {
+    const isCurrent = isDay
+      ? (m.day === today.getDate() && _despMonth === today.getMonth() + 1 && _despYear === today.getFullYear())
+      : (m.month === today.getMonth() && _despYear === today.getFullYear());
     return `<tr class="${isCurrent ? 'report-row-current' : ''}">
-      <td>${MONTH_NAMES[m.month]}</td>
+      <td>${isDay ? m.day : MONTH_NAMES[m.month]}</td>
       <td style="text-align:right;">${m.count}</td>
       <td style="text-align:right;font-weight:600;color:${m.total > 0 ? '#e74c3c' : 'inherit'};">${fmtEur(m.total)}</td>
     </tr>`;
   }).join('') + `<tr style="border-top:2px solid var(--cinza-claro);font-weight:700;">
     <td>Total</td>
-    <td style="text-align:right;">${months.reduce((s,m)=>s+m.count,0)}</td>
-    <td style="text-align:right;color:#e74c3c;">${fmtEur(yearTotal)}</td>
+    <td style="text-align:right;">${series.reduce((s,m)=>s+m.count,0)}</td>
+    <td style="text-align:right;color:#e74c3c;">${fmtEur(periodTotal)}</td>
   </tr>`;
 }
 

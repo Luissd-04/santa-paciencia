@@ -1407,14 +1407,34 @@
           <div class="card despesas-table-card">
             <div class="card-header despesas-card-header">
               <span class="card-title"><i data-lucide="receipt"></i> Registo de Despesas</span>
-              <div style="display:flex;gap:8px;align-items:center;">
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <select class="form-control" id="despesa-filter-period" data-enhance-select data-app-select-class="app-select--filter" style="width:auto;" onchange="loadDespesas()">
                   <option value="ano">Ano inteiro</option>
                   <option value="mes">Este mês</option>
                   <option value="tudo">Tudo</option>
                 </select>
+                <select class="form-control" id="despesa-filter-category" data-enhance-select data-app-select-class="app-select--filter" style="width:auto;" onchange="renderDespesas()">
+                  <option value="">Todas as categorias</option>
+                  <option value="limpeza">Limpeza</option>
+                  <option value="produtos_limpeza">Produtos de limpeza</option>
+                  <option value="pequenos_almocos">Pequenos-almoços</option>
+                  <option value="roupas">Roupas</option>
+                  <option value="manutencao">Manutenção</option>
+                  <option value="marketing">Marketing</option>
+                  <option value="impostos">Impostos</option>
+                  <option value="servicos">Serviços</option>
+                  <option value="consumiveis">Consumíveis</option>
+                  <option value="outro">Outro</option>
+                </select>
+                <select class="form-control" id="despesa-filter-supplier" data-enhance-select data-app-select-class="app-select--filter" style="width:auto;" onchange="renderDespesas()">
+                  <option value="">Todos os fornecedores</option>
+                </select>
                 <button class="btn btn-ghost btn-sm" onclick="exportDespesasXLSX()" title="Exportar lista de despesas">
                   <i data-lucide="download" style="width:13px;height:13px;"></i> Exportar
+                </button>
+                <input type="file" id="receipt-file-input" accept="image/*" capture="environment" style="display:none;" onchange="onReceiptSelected(this)">
+                <button class="btn btn-ghost btn-sm" onclick="document.getElementById('receipt-file-input').click()" title="Ler talão por foto (IA)" style="color:var(--marca);">
+                  <i data-lucide="scan-line" style="width:14px;height:14px;"></i> Ler talão
                 </button>
                 <button class="btn btn-primary btn-sm" onclick="openDespesaModal()">
                   <i data-lucide="plus"></i> Nova Despesa
@@ -1713,6 +1733,13 @@
           <div class="report-toolbar">
             <div class="report-filters">
               <select class="form-control" id="report-year-sel" data-enhance-select data-app-select-class="app-select--filter" onchange="setReportYear(this.value)"></select>
+              <select class="form-control" id="report-month-sel" data-enhance-select data-app-select-class="app-select--filter" onchange="setReportMonth(this.value)">
+                <option value="0">Ano inteiro</option>
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
               <select class="form-control" id="report-acc-sel" data-enhance-select data-app-select-class="app-select--filter app-select--filter-wide" onchange="setReportAccId(this.value)"></select>
             </div>
           </div>
@@ -1771,6 +1798,13 @@
           <div class="report-toolbar">
             <div class="report-filters">
               <select class="form-control" id="desp-year-sel" data-enhance-select data-app-select-class="app-select--filter" onchange="setDespYear(this.value)"></select>
+              <select class="form-control" id="desp-month-sel" data-enhance-select data-app-select-class="app-select--filter" onchange="setDespMonth(this.value)">
+                <option value="0">Ano inteiro</option>
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
             </div>
           </div>
           <div class="report-kpis" id="desp-kpis">
@@ -2545,6 +2579,25 @@
       <button class="btn btn-ghost" onclick="closeDespesaModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveDespesa()">
         <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL REVER TALÃO (IA) -->
+<div class="modal-bg" id="receipt-modal-bg" onclick="if(event.target===this)closeReceiptModal()">
+  <div class="modal" style="max-width:760px;">
+    <div class="modal-header">
+      <span class="modal-title"><i data-lucide="scan-line" style="width:18px;height:18px;vertical-align:-3px;"></i> Rever talão</span>
+      <button class="modal-close" onclick="closeReceiptModal()">
+        <i data-lucide="x" style="width:20px;height:20px;"></i>
+      </button>
+    </div>
+    <div class="modal-body" id="receipt-review-content"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeReceiptModal()">Cancelar</button>
+      <button class="btn btn-primary" id="receipt-save-btn" onclick="saveReceiptExpenses()">
+        <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar despesas
       </button>
     </div>
   </div>

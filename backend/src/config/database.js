@@ -672,6 +672,7 @@ function migrateExpenses() {
   const cols = db.pragma('table_info(expenses)').map(c => c.name);
   if (!cols.includes('invoice_ref')) db.exec('ALTER TABLE expenses ADD COLUMN invoice_ref TEXT');
   if (!cols.includes('supplier')) db.exec('ALTER TABLE expenses ADD COLUMN supplier TEXT');
+  if (!cols.includes('receipt_image')) db.exec('ALTER TABLE expenses ADD COLUMN receipt_image TEXT');
 }
 
 function migrateSuppliers() {

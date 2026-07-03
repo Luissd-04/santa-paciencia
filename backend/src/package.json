@@ -8,6 +8,7 @@
     "create-admin": "node scripts/create-admin.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
     "archiver": "^8.0.0",
     "better-sqlite3": "^12.9.0",
     "cors": "^2.8.6",

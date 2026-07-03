@@ -486,3 +486,4 @@ PUBLIC_PENDING_TTL_HOURS=48
 
 Sem `TURNSTILE_SECRET_KEY` em `NODE_ENV=production`, qualquer pedido de reserva
 pública será rejeitado com "CAPTCHA não configurado no servidor."
+111
