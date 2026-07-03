@@ -270,8 +270,10 @@ const RECEIPT_CATS = [
   ['servicos', 'Serviços'], ['consumiveis', 'Consumíveis'], ['outro', 'Outro'],
 ];
 
-// Redimensiona/comprime a foto no browser antes de enviar (poupa custo e tamanho).
-function _compressImage(file, maxDim = 1600, quality = 0.82) {
+// Redimensiona/comprime a foto no browser antes de enviar.
+// 2560px + qualidade 0.9 aproveita a visão de alta resolução do modelo (lê melhor
+// talões pequenos/amarrotados); continua barato porque comprime para JPEG.
+function _compressImage(file, maxDim = 2560, quality = 0.9) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = e => {
