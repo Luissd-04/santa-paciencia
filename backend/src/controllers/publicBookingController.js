@@ -9,6 +9,7 @@ const {
   normalizeDateValue,
 } = require('../services/reservationRules');
 const { getAccommodationScope } = require('../services/availabilityRules');
+const { findBlockConflict } = require('../services/accommodationBlockService');
 const turnstile = require('../services/turnstileService');
 
 const COMMON_AREAS_KEY = 'areas_comuns';
@@ -122,7 +123,7 @@ function findConflict(organizationId, accommodationId, checkIn, checkOut, exclud
   const excludeClause = excludeId ? ' AND id != ?' : '';
   const params = [organizationId, checkOut, checkIn, ...idsToCheck];
   if (excludeId) params.push(excludeId);
-  return db.prepare(`
+  const reservationConflict = db.prepare(`
     SELECT id FROM reservations
     WHERE status != 'cancelada'
       AND organization_id = ?
@@ -131,6 +132,10 @@ function findConflict(organizationId, accommodationId, checkIn, checkOut, exclud
       AND accommodation_id IN (${placeholders})${excludeClause}
     LIMIT 1
   `).get(...params);
+  if (reservationConflict) return reservationConflict;
+
+  // Datas bloqueadas manualmente também tornam o alojamento indisponível.
+  return findBlockConflict(organizationId, accommodationId, checkIn, checkOut);
 }
 
 function getServices(organizationId) {

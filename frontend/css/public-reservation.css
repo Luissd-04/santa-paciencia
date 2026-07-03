@@ -887,3 +887,11 @@ textarea { resize: vertical; }
   .pc-summary-grid { grid-template-columns: 1fr; }
   .precheckin-card .booking-form { padding: 18px; }
 }
+
+/* Idades das crianças (seletor de reserva) */
+.child-ages-wrap { margin-top: 8px; padding: 12px 14px; background: rgba(132,52,36,.05); border: 1px solid var(--line, #eadfd7); border-radius: 12px; }
+.child-ages-title { font-size: 13px; font-weight: 600; color: var(--brand); margin-bottom: 8px; }
+.child-ages-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+.child-age-item { display: flex; flex-direction: column; gap: 2px; margin: 0; }
+.child-age-item select { padding: 8px 10px; border: 1px solid var(--line, #eadfd7); border-radius: 10px; background: #fff; font-size: 13px; min-width: 96px; }
+.child-age-hint { font-size: 11px; color: #2d6a4f; min-height: 13px; }

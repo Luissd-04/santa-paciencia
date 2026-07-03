@@ -4,8 +4,8 @@
                Network-first para API e HTML.
 ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'sp-v12';
-const CACHE_VERSION = 12;
+const CACHE_NAME = 'sp-v14';
+const CACHE_VERSION = 14;
 
 /* Assets estáticos que devem funcionar offline */
 const STATIC_ASSETS = [
@@ -31,11 +31,11 @@ const STATIC_ASSETS = [
   '/js/pubsub.js',
   '/js/notifications.js',
   '/js/dashboard.js',
-  '/js/reservas.js',
   '/js/reserva-lista.js',
   '/js/reserva-wizard.js',
   '/js/pre-checkin.js',
   '/js/calendario.js',
+  '/js/blocks.js',
   '/js/hospedes.js',
   '/js/alojamentos.js',
   '/js/despesas.js',

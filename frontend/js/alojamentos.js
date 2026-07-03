@@ -471,12 +471,16 @@ function refreshAmenitiesFilter() {
 
 async function showAlojTab(tab) {
   SS.set('aloj:tab', tab);
-  ['info','comodidades','imagens','rgpd'].forEach(t => {
+  ['info','comodidades','imagens','rgpd','bloqueios'].forEach(t => {
     const el = document.getElementById('aloj-tab-' + t);
     if (el) el.style.display = t === tab ? '' : 'none';
     const btn = document.getElementById('tab-' + t);
     if (btn) btn.classList.toggle('active', t === tab);
   });
+  if (tab === 'bloqueios') {
+    const id = document.getElementById('aloj-editing-id')?.value;
+    if (id && typeof renderAccommodationBlocks === 'function') renderAccommodationBlocks(id);
+  }
   if (tab === 'imagens') {
     // Re-fetch to guarantee fresh images and up-to-date common_area_images from parent
     const id = document.getElementById('aloj-editing-id').value;

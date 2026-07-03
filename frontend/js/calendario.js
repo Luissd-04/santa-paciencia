@@ -26,6 +26,21 @@ function shortDatePt(dateStr) {
   return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
 }
 
+// Nomes das suítes de uma reserva. Reservas multi-suíte guardam accommodations_data
+// (array com várias suítes); as normais têm apenas accommodation_id/name.
+function calReservationSuites(r) {
+  let accs = [];
+  try {
+    accs = typeof r.accommodations_data === 'string'
+      ? JSON.parse(r.accommodations_data || '[]')
+      : (r.accommodations_data || []);
+  } catch { accs = []; }
+  if (Array.isArray(accs) && accs.length > 1) {
+    return accs.map(a => a.name || accommodations.find(x => x.id === a.accommodation_id)?.name || '—');
+  }
+  return [r.accommodation_name || accommodations.find(a => a.id === r.accommodation_id)?.name || '—'];
+}
+
 function updateTimelineRangeUi() {
   document.querySelectorAll('#timeline-range-toggle .cal-mode-btn').forEach(btn => {
     btn.classList.toggle('active', Number(btn.dataset.range) === timelineDays);
@@ -256,7 +271,17 @@ function renderCal() {
     // Event spans — absolutely positioned so bars start/end at the midpoint of each day column
     let eventHtml = '';
     const visLanes = Math.min(lanes.length, MAX_LANES);
-    const LANE_H = 20, LANE_GAP = 2;
+    const LANE_H = 20, LANE_GAP = 2, MAX_SUITE_ROWS = 3;
+
+    // Altura de cada lane = maior barra nela. Reservas multi-suíte ocupam a
+    // espessura de várias reservas (uma linha por suíte).
+    const laneRows = l => Math.max(1, ...lanes[l].map(({ r }) => Math.min(calReservationSuites(r).length, MAX_SUITE_ROWS)));
+    const laneTops = [];
+    let stackTop = 0;
+    for (let l = 0; l < visLanes; l++) {
+      laneTops[l] = stackTop;
+      stackTop += laneRows(l) * LANE_H + LANE_GAP;
+    }
 
     for (let l = 0; l < visLanes; l++) {
       for (const { r, effStart, effEnd } of lanes[l]) {
@@ -275,12 +300,19 @@ function renderCal() {
         const widthPct = rightPct - leftPct;
         const roundCls   = (startsHere ? 'cal-span-round-left ' : '') + (endsHere ? 'cal-span-round-right' : '');
         const borderLeft = startsHere ? `3px solid ${color}` : '3px solid transparent';
-        const topPx      = l * (LANE_H + LANE_GAP);
-        eventHtml += `<div class="cal-event-span ${statusCls} ${roundCls}"
-          style="left:${leftPct.toFixed(2)}%;width:${widthPct.toFixed(2)}%;top:${topPx}px;background:${color}22;color:${color};border-left:${borderLeft};"
+        const topPx      = laneTops[l];
+        const suites     = calReservationSuites(r);
+        const isMulti    = suites.length > 1;
+        const barH       = Math.min(suites.length, MAX_SUITE_ROWS) * LANE_H;
+        const firstName  = r.guest_name.split(' ')[0];
+        const inner      = isMulti
+          ? `<span class="cal-span-text cal-span-multi"><span class="cal-span-guest">${firstName}</span>${suites.slice(0, MAX_SUITE_ROWS).map(s => `<span class="cal-span-suite">${s.replace('Suite ','')}</span>`).join('')}</span>`
+          : `<span class="cal-span-text">${firstName} · ${r.accommodation_name.replace('Suite ','')}</span>`;
+        eventHtml += `<div class="cal-event-span ${statusCls} ${roundCls}${isMulti ? ' cal-event-multi' : ''}"
+          style="left:${leftPct.toFixed(2)}%;width:${widthPct.toFixed(2)}%;top:${topPx}px;height:${barH}px;background:${color}22;color:${color};border-left:${borderLeft};"
           onclick="event.stopPropagation();showDetail('${r.id}')"
-          title="${r.guest_name} — ${r.accommodation_name}">
-          <span class="cal-span-text">${r.guest_name.split(' ')[0]} · ${r.accommodation_name.replace('Suite ','')}</span>
+          title="${r.guest_name} — ${suites.join(' + ')}">
+          ${inner}
         </div>`;
       }
     }
@@ -292,14 +324,12 @@ function renderCal() {
           lane.some(({effStart, effEnd}) => day.dateStr >= effStart && day.dateStr <= effEnd)
         ).length;
         if (extra > 0) {
-          const topPx = visLanes * (LANE_H + LANE_GAP);
-          eventHtml += `<div class="cal-event-more" style="left:${(col/7*100).toFixed(2)}%;width:${(100/7).toFixed(2)}%;top:${topPx}px;" onclick="event.stopPropagation()">+${extra} mais</div>`;
+          eventHtml += `<div class="cal-event-more" style="left:${(col/7*100).toFixed(2)}%;width:${(100/7).toFixed(2)}%;top:${stackTop}px;" onclick="event.stopPropagation()">+${extra} mais</div>`;
         }
       });
     }
 
-    const numRows    = visLanes + (lanes.length > MAX_LANES ? 1 : 0);
-    const containerH = numRows > 0 ? numRows * (LANE_H + LANE_GAP) : 0;
+    const containerH = stackTop + (lanes.length > MAX_LANES ? LANE_H + LANE_GAP : 0);
     const clickOverlays = week.map((day, col) =>
       day.otherMonth ? '' : `<div class="cal-day-click-area" style="left:${(col/7*100).toFixed(2)}%;width:${(100/7).toFixed(2)}%;" onclick="openModalFromCalendar('${day.dateStr}')"></div>`
     ).join('');
@@ -492,6 +522,7 @@ function renderTimeline(autoScroll = true) {
           </div>
           <div class="tl-days-area" style="width:${totalDays * dayW}px;flex:none;">
             <div class="tl-cells">${cellHtml}</div>
+            ${typeof blockBandsHtml === 'function' ? blockBandsHtml(a.id, yearStart, totalDays, dayW) : ''}
             ${blocks}
           </div>
         </div>`;

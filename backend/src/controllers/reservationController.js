@@ -10,6 +10,10 @@ const {
   getAccommodationScope,
   getUnavailableAccommodationIds,
 } = require('../services/availabilityRules');
+const {
+  findBlockConflict,
+  getBlockedAccommodationIds,
+} = require('../services/accommodationBlockService');
 
 function safeJson(value, fallback) {
   if (!value) return fallback;
@@ -163,10 +167,18 @@ async function getAvailability(req, res, next) {
     if (exclude_id) { query += ' AND id != ?'; params.push(exclude_id); }
 
     const conflicting = db.prepare(query).all(...params).map(r => r.accommodation_id);
-    if (!conflicting.length) return res.json({ success: true, data: { unavailable: [] } });
+    const blocked = getBlockedAccommodationIds(organizationId, check_in, check_out);
+
+    if (!conflicting.length && !blocked.length) {
+      return res.json({ success: true, data: { unavailable: [] } });
+    }
 
     const allAccom = db.prepare('SELECT id, type, parent_id FROM accommodations WHERE organization_id = ?').all(organizationId);
-    res.json({ success: true, data: { unavailable: getUnavailableAccommodationIds(allAccom, conflicting) } });
+    const unavailable = [...new Set([
+      ...getUnavailableAccommodationIds(allAccom, conflicting),
+      ...blocked,
+    ])];
+    res.json({ success: true, data: { unavailable } });
   } catch (err) {
     next(err);
   }
@@ -399,6 +411,14 @@ async function create(req, res, next) {
       });
     }
 
+    // Verificar bloqueios manuais (manutenção, uso pessoal, etc.)
+    const block = findBlockConflict(organizationId, accommodation_id, totals.checkIn, totals.checkOut);
+    if (block) {
+      return res.status(409).json({
+        error: `Estas datas estão bloqueadas${block.reason ? ` (${block.reason})` : ''}.`
+      });
+    }
+
     // Aplicar voucher se fornecido
     let voucherDiscount = 0;
     let appliedVoucherId = null;
@@ -533,6 +553,14 @@ async function update(req, res, next) {
     if (conflict2) {
       return res.status(409).json({
         error: `Este alojamento já está ocupado nessas datas (reserva ${conflict2.id}).`
+      });
+    }
+
+    // Verificar bloqueios manuais
+    const block2 = findBlockConflict(organizationId, newAccommodationId, totals.checkIn, totals.checkOut);
+    if (block2) {
+      return res.status(409).json({
+        error: `Estas datas estão bloqueadas${block2.reason ? ` (${block2.reason})` : ''}.`
       });
     }
 

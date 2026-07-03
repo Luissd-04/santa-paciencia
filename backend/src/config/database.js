@@ -284,6 +284,7 @@ function initDatabase() {
   migratePricingPeriods();
   migrateConversationArchives();
   migrateReservationPayments();
+  migrateAccommodationBlocks();
   migrateLegacyDataToOrganizations();
 
   console.log('✅ Base de dados inicializada');
@@ -856,6 +857,26 @@ function migrateReservationPayments() {
   for (const r of toMigrate) {
     ins.run(`rp-${r.id}-legacy`, r.id, r.organization_id, r.amount_paid, r.payment_method, r.payment_date);
   }
+}
+
+function migrateAccommodationBlocks() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS accommodation_blocks (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      accommodation_id TEXT NOT NULL,
+      start_date TEXT NOT NULL,
+      end_date TEXT NOT NULL,
+      reason TEXT,
+      created_by_user_id TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+      FOREIGN KEY (accommodation_id) REFERENCES accommodations(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_ab_org_accom ON accommodation_blocks(organization_id, accommodation_id);
+    CREATE INDEX IF NOT EXISTS idx_ab_dates ON accommodation_blocks(start_date, end_date);
+  `);
 }
 
 function migrateConversationArchives() {

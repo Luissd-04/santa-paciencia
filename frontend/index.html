@@ -367,6 +367,7 @@
               </div>
               <select class="form-control" id="filter-estado" data-enhance-select data-app-select-class="app-select--filter" onchange="renderTabela()">
                 <option value="">Todos os estados</option>
+                <option value="pre_reserva">Pré-reserva</option>
                 <option value="confirmada">Confirmada</option>
                 <option value="pendente">Pendente</option>
                 <option value="pre_checkin">Pre Check-in</option>
@@ -490,6 +491,7 @@
               </select>
               <select class="form-control" id="cal-status-filter" data-enhance-select data-app-select-class="app-select--filter" onchange="renderCalView()">
                 <option value="">Todos os estados</option>
+                <option value="pre_reserva">Pré-reserva</option>
                 <option value="confirmada">Confirmadas</option>
                 <option value="pendente">Pendentes</option>
                 <option value="pre_checkin">Pre Check-in</option>
@@ -520,6 +522,9 @@
                 <button class="cal-mode-btn active" data-range="14" onclick="setTimelineRange(14)">Médio</button>
                 <button class="cal-mode-btn" data-range="30" onclick="setTimelineRange(30)">Pequeno</button>
               </div>
+              <button class="btn btn-ghost btn-sm" onclick="openBlockModal()" title="Bloquear datas de um alojamento">
+                <i data-lucide="lock"></i> Bloquear datas
+              </button>
             </div>
           </div>
 
@@ -798,6 +803,9 @@
           </button>
           <button class="aloj-tab" onclick="showAlojTab('rgpd')" id="tab-rgpd">
             <i data-lucide="shield"></i> RGPD
+          </button>
+          <button class="aloj-tab" onclick="showAlojTab('bloqueios')" id="tab-bloqueios">
+            <i data-lucide="lock"></i> Bloqueios
           </button>
         </div>
 
@@ -1198,6 +1206,26 @@
               </p>
               <textarea id="aloj-rgpd-text" class="form-control" rows="12"
                 placeholder="Os seus dados pessoais são recolhidos e tratados com a finalidade de gerir a sua reserva..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: Bloqueios -->
+        <div id="aloj-tab-bloqueios" style="display:none;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" style="font-size:14px;">
+                <i data-lucide="lock"></i> Datas bloqueadas
+              </span>
+              <button class="btn btn-primary btn-sm" type="button" onclick="openBlockModal(document.getElementById('aloj-editing-id').value)">
+                <i data-lucide="plus"></i> Bloquear datas
+              </button>
+            </div>
+            <div style="padding:0 20px 20px;">
+              <p style="font-size:13px;color:var(--cinza);margin:0 0 12px;">
+                Datas em que este alojamento não aceita reservas (manutenção, uso pessoal, etc.).
+              </p>
+              <div id="aloj-blocks-list"></div>
             </div>
           </div>
         </div>
@@ -2680,6 +2708,7 @@
           <div class="form-group">
             <label class="form-label">Estado da Reserva</label>
             <select class="form-control" id="f-estado">
+              <option value="pre_reserva">Pré-reserva</option>
               <option value="confirmada">Confirmada</option>
               <option value="pendente">Pendente</option>
               <option value="pre_checkin">Pre Check-in</option>
@@ -2725,7 +2754,7 @@
           <div class="form-group form-full" id="resf-voucher-wrap">
             <label class="form-label">Voucher (opcional)</label>
             <div style="display:flex;gap:8px;">
-              <input class="form-control" id="f-voucher-code" type="text" placeholder="Código de voucher" style="text-transform:uppercase;flex:1;" oninput="this.value=this.value.toUpperCase()" autocomplete="off">
+              <input class="form-control" id="f-voucher-code" name="sp-voucher-code" type="text" placeholder="Código de voucher" style="text-transform:uppercase;flex:1;" oninput="this.value=this.value.toUpperCase()" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" data-lpignore="true" data-1p-ignore data-form-type="other" readonly onfocus="this.removeAttribute('readonly')">
               <button type="button" class="btn btn-outline btn-sm" onclick="verifyBackofficeVoucher()">Verificar</button>
             </div>
             <div id="f-voucher-status" style="display:none;font-size:12px;margin-top:4px;padding:4px 8px;border-radius:6px;"></div>
@@ -2736,18 +2765,6 @@
         <input type="hidden" id="f-noites">
         <input type="hidden" id="f-total">
 
-        <!-- RGPD (hidden on edits) -->
-        <div id="wiz-rgpd-wrap">
-          <div class="section-divider"></div>
-          <div class="rgpd-box">
-            <div class="rgpd-title"><i data-lucide="shield" style="width:14px;height:14px;"></i> Proteção de Dados (RGPD)</div>
-            <div class="rgpd-text">Os seus dados pessoais são recolhidos e tratados pela Santa Paciência — Alojamento Local, com a finalidade de gerir a sua reserva e dar cumprimento às obrigações legais aplicáveis ao alojamento local em Portugal (incluindo a comunicação ao SEF/AIMA). Os dados são conservados pelo período legalmente exigido. Tem direito de acesso, retificação, apagamento e portabilidade dos seus dados, podendo exercê-los por contacto direto com o estabelecimento. O fornecimento dos dados é obrigatório para a concretização da reserva.</div>
-            <label class="rgpd-check-label" id="rgpd-check-label">
-              <input type="checkbox" id="f-rgpd-check" onchange="this.closest('.rgpd-box').classList.toggle('rgpd-accepted',this.checked)">
-              <span>Li e aceito o tratamento dos meus dados pessoais nos termos acima descritos. <span class="req-star">*</span></span>
-            </label>
-          </div>
-        </div>
       </div>
 
     </div><!-- /modal-body -->
@@ -2913,6 +2930,7 @@
 <script src="js/reserva-wizard.js"></script>
 <script src="js/reserva-lista.js"></script>
 <script src="js/calendario.js"></script>
+<script src="js/blocks.js"></script>
 <script src="js/eventos.js"></script>
 <script src="js/alojamentos.js"></script>
 <script src="js/hospedes.js"></script>

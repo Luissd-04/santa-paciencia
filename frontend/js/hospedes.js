@@ -394,7 +394,7 @@ function populateGuestEditSelects() {
     countrySel.innerHTML = '<option value="">— Sem país —</option>' +
       COUNTRIES.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
   }
-  // Phone prefix dropdown — built from DIAL_COUNTRIES defined in reservas.js
+  // Phone prefix dropdown — built from DIAL_COUNTRIES defined in reserva-wizard.js
   const prefixSel = document.getElementById('gedit-tel-prefix');
   if (prefixSel && typeof DIAL_COUNTRIES !== 'undefined') {
     prefixSel.innerHTML = DIAL_COUNTRIES.map(c =>

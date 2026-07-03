@@ -485,6 +485,7 @@ async function initApp() {
 
   AppUI.enhanceSelects(document);
   await loadAccommodations();
+  if (typeof loadBlocks === 'function') loadBlocks();
   await renderDashboard();
   loadCalendarStatus();
   loadServicos();

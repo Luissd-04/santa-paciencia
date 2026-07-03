@@ -99,6 +99,31 @@ function onPaymentStatusChange() {
   const ps = document.getElementById('f-payment-status').value;
   document.getElementById('pagamento-metodo-wrap').style.display =
     (ps === 'confirmado' || ps === 'parcial') ? '' : 'none';
+
+  // Estado -> Valor pago (sentido inverso do onAmountPaidChange). Não chamar
+  // onAmountPaidChange aqui para evitar recursão (ele chama-nos no fim).
+  const paidEl  = document.getElementById('f-amount-paid');
+  const remWrap = document.getElementById('payment-remaining-wrap');
+  const remVal  = document.getElementById('payment-remaining-val');
+  if (!paidEl) return;
+  const total = parseFloat(document.getElementById('f-total').value) || 0;
+
+  if (ps === 'confirmado') {
+    if (total > 0) paidEl.value = total.toFixed(2);
+    if (remWrap) remWrap.style.display = 'none';
+  } else if (ps === 'pendente') {
+    paidEl.value = '';
+    if (remWrap) remWrap.style.display = 'none';
+  } else if (ps === 'parcial') {
+    // Montante parcial é escrito pelo utilizador; mostrar o que falta.
+    const paid = parseFloat(paidEl.value) || 0;
+    if (remWrap && total > 0 && paid > 0 && paid < total) {
+      remWrap.style.display = '';
+      if (remVal) remVal.textContent = '€' + (total - paid).toFixed(2);
+    } else if (remWrap) {
+      remWrap.style.display = 'none';
+    }
+  }
 }
 
 function onAmountPaidChange() {
@@ -1107,7 +1132,6 @@ async function saveReserva() {
   const checkin  = normalizeIsoDateValue(document.getElementById('f-checkin').value);
   const checkout = normalizeIsoDateValue(document.getElementById('f-checkout').value);
   const alojId   = document.getElementById('f-aloj').value;
-  const rgpdCheck = document.getElementById('f-rgpd-check');
 
   const birthDate = getBirthDateValue(document.getElementById('f-nascimento'));
   if (!nomeCompleto) { toast('Por favor insira o nome do hóspede.', 'error'); return; }
@@ -1224,5 +1248,40 @@ async function saveReserva() {
     toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
   } finally {
     AppUI.setButtonLoading(btn, false);
+  }
+}
+
+// Pré-validação do voucher no formulário de reserva manual (botão "Verificar").
+// O código é sempre revalidado no backend ao submeter; isto é só feedback imediato.
+async function verifyBackofficeVoucher() {
+  const code = (document.getElementById('f-voucher-code')?.value || '').trim().toUpperCase();
+  const statusEl = document.getElementById('f-voucher-status');
+  if (!statusEl) return;
+
+  statusEl.style.display = 'block';
+
+  if (!code) {
+    statusEl.style.background = '#f5f5f5';
+    statusEl.style.color = '#888';
+    statusEl.textContent = 'Introduza um código de voucher.';
+    return;
+  }
+
+  statusEl.style.background = '#f5f5f5';
+  statusEl.style.color = '#666';
+  statusEl.textContent = 'A verificar...';
+  try {
+    const res = await apiGet(`/api/vouchers/validate?code=${encodeURIComponent(code)}`);
+    const voucher = res.data;
+    const disc = voucher.type === 'discount_pct'
+      ? `${voucher.value}% de desconto`
+      : `€${Number(voucher.value).toFixed(2)} de desconto`;
+    statusEl.style.background = '#f0faf4';
+    statusEl.style.color = '#2d6a4f';
+    statusEl.textContent = `✓ ${voucher.description ? voucher.description + ' · ' : ''}${disc}`;
+  } catch (err) {
+    statusEl.style.background = '#fef0f0';
+    statusEl.style.color = '#c0392b';
+    statusEl.textContent = err?.payload?.error || 'Voucher inválido ou já utilizado';
   }
 }

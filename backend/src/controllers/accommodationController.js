@@ -686,4 +686,108 @@ function bulkCreatePricingPeriods(req, res) {
   res.status(201).json({ success: true, data: [created], count: 1 });
 }
 
-module.exports = { getAll, getById, create, update, remove, uploadCover, removeCover, uploadImages, deleteImage, patchImages, getSettings, saveSettings, getPricingPeriods, createPricingPeriod, updatePricingPeriod, deletePricingPeriod, bulkCreatePricingPeriods };
+// ─── Bloqueios de datas (manutenção, uso pessoal, encerramento) ───
+// Contrato da API: start_date e end_date são dias INCLUSIVOS (ambos bloqueados).
+// Internamente end_date é guardado exclusivo (fim+1) para o overlap bater certo
+// com as reservas (check_in inclusivo / check_out exclusivo).
+const { getAccommodationScope } = require('../services/availabilityRules');
+
+function addDays(iso, n) {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Reserva ativa que colide com [checkIn, checkOut) para o alojamento (e scope).
+function reservationOverlaps(organizationId, accommodationId, checkIn, checkOut) {
+  const accommodations = db.prepare('SELECT id, type, parent_id FROM accommodations WHERE organization_id = ?').all(organizationId);
+  const ids = getAccommodationScope(accommodations, accommodationId);
+  if (!ids.length) return null;
+  const placeholders = ids.map(() => '?').join(',');
+  return db.prepare(`
+    SELECT id FROM reservations
+    WHERE status != 'cancelada' AND organization_id = ?
+      AND check_in < ? AND check_out > ? AND accommodation_id IN (${placeholders})
+    LIMIT 1
+  `).get(organizationId, checkOut, checkIn, ...ids) || null;
+}
+
+function serializeBlock(row) {
+  return {
+    id: row.id,
+    accommodation_id: row.accommodation_id,
+    accommodation_name: row.accommodation_name || null,
+    start_date: row.start_date,
+    end_date: addDays(row.end_date, -1), // devolver dia final inclusivo
+    reason: row.reason || null,
+    created_at: row.created_at,
+  };
+}
+
+// GET /api/accommodations/blocks?from=&to=&accommodation_id=
+function listBlocks(req, res) {
+  const organizationId = req.user.organization_id;
+  const { from, to, accommodation_id } = req.query;
+  let query = `
+    SELECT b.*, a.name AS accommodation_name
+    FROM accommodation_blocks b
+    LEFT JOIN accommodations a ON a.id = b.accommodation_id
+    WHERE b.organization_id = ?
+  `;
+  const params = [organizationId];
+  if (from) { query += ' AND b.end_date > ?'; params.push(from); }
+  if (to) { query += ' AND b.start_date < ?'; params.push(addDays(to, 1)); }
+  if (accommodation_id) { query += ' AND b.accommodation_id = ?'; params.push(accommodation_id); }
+  query += ' ORDER BY b.start_date ASC';
+  const rows = db.prepare(query).all(...params);
+  res.json({ success: true, data: rows.map(serializeBlock) });
+}
+
+// POST /api/accommodations/:id/blocks  { start_date, end_date, reason }
+function createBlock(req, res) {
+  const organizationId = req.user.organization_id;
+  const { id } = req.params;
+  const acc = db.prepare('SELECT id FROM accommodations WHERE id = ? AND organization_id = ?').get(id, organizationId);
+  if (!acc) return res.status(404).json({ error: 'Alojamento não encontrado' });
+
+  const { start_date, end_date, reason } = req.body;
+  if (!ISO_DATE.test(start_date || '') || !ISO_DATE.test(end_date || '')) {
+    return res.status(400).json({ error: 'Datas inválidas (formato AAAA-MM-DD).' });
+  }
+  if (end_date < start_date) {
+    return res.status(400).json({ error: 'A data de fim não pode ser anterior à de início.' });
+  }
+  const endExclusive = addDays(end_date, 1);
+
+  const conflict = reservationOverlaps(organizationId, id, start_date, endExclusive);
+  if (conflict) {
+    return res.status(409).json({ error: `Já existe uma reserva nessas datas (${conflict.id}). Cancele-a ou ajuste as datas.` });
+  }
+
+  const blockId = uuidv4().slice(0, 8);
+  db.prepare(`
+    INSERT INTO accommodation_blocks (id, organization_id, accommodation_id, start_date, end_date, reason, created_by_user_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(blockId, organizationId, id, start_date, endExclusive, (reason || '').trim() || null, req.user.id || null);
+
+  const row = db.prepare(`
+    SELECT b.*, a.name AS accommodation_name FROM accommodation_blocks b
+    LEFT JOIN accommodations a ON a.id = b.accommodation_id
+    WHERE b.id = ? AND b.organization_id = ?
+  `).get(blockId, organizationId);
+  res.status(201).json({ success: true, data: serializeBlock(row) });
+}
+
+// DELETE /api/accommodations/blocks/:blockId
+function deleteBlock(req, res) {
+  const organizationId = req.user.organization_id;
+  const { blockId } = req.params;
+  const existing = db.prepare('SELECT id FROM accommodation_blocks WHERE id = ? AND organization_id = ?').get(blockId, organizationId);
+  if (!existing) return res.status(404).json({ error: 'Bloqueio não encontrado' });
+  db.prepare('DELETE FROM accommodation_blocks WHERE id = ? AND organization_id = ?').run(blockId, organizationId);
+  res.json({ success: true });
+}
+
+module.exports = { getAll, getById, create, update, remove, uploadCover, removeCover, uploadImages, deleteImage, patchImages, getSettings, saveSettings, getPricingPeriods, createPricingPeriod, updatePricingPeriod, deletePricingPeriod, bulkCreatePricingPeriods, listBlocks, createBlock, deleteBlock };

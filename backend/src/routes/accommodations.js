@@ -9,6 +9,8 @@ router.use(requireRole('manager'));
 router.get('/',                     ctrl.getAll);
 router.get('/settings',             ctrl.getSettings);
 router.post('/settings',            ctrl.saveSettings);
+router.get('/blocks',               ctrl.listBlocks);
+router.delete('/blocks/:blockId',   ctrl.deleteBlock);
 router.get('/:id',                  ctrl.getById);
 router.post('/',                    ctrl.create);
 router.put('/:id',                  ctrl.update);
@@ -23,5 +25,6 @@ router.post('/:id/pricing-periods',             ctrl.createPricingPeriod);
 router.post('/:id/pricing-periods/bulk',        ctrl.bulkCreatePricingPeriods);
 router.put('/:id/pricing-periods/:periodId',    ctrl.updatePricingPeriod);
 router.delete('/:id/pricing-periods/:periodId', ctrl.deletePricingPeriod);
+router.post('/:id/blocks',          ctrl.createBlock);
 
 module.exports = router;

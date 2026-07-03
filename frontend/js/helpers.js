@@ -62,6 +62,7 @@ function formatDate(s) {
 
 function badgeEstado(e) {
   const map = {
+    'pre_reserva': 'badge-prereserva',
     'confirmada': 'badge-confirmada',
     'pendente': 'badge-pendente',
     'pre_checkin': 'badge-pendente',
@@ -69,6 +70,7 @@ function badgeEstado(e) {
     'cancelada': 'badge-cancelada'
   };
   const labels = {
+    pre_reserva: 'Pré-reserva',
     confirmada: 'Confirmada',
     pendente: 'Pendente',
     pre_checkin: 'Pre Check-in',

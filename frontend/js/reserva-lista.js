@@ -13,6 +13,7 @@ function setMobileChip(el, filter) {
 }
 
 const STATUS_COLORS = {
+  pre_reserva: 'var(--roxo)',
   confirmada: 'var(--marca)',
   pendente:   'var(--laranja)',
   pre_checkin: 'var(--dourado)',
@@ -415,6 +416,7 @@ async function showDetail(id) {
     const guestName = encodeURIComponent(r.guest_name || '');
 
     const statusOptions = [
+      { v: 'pre_reserva', l: 'Pré-reserva' },
       { v: 'confirmada', l: 'Confirmada' },
       { v: 'pendente', l: 'Pendente' },
       { v: 'pre_checkin', l: 'Pre Check-in' },
@@ -424,7 +426,6 @@ async function showDetail(id) {
     const payOptions = [
       { v: 'pendente', l: 'Não pago' },
       { v: 'parcial', l: 'Parcial' },
-      { v: 'pago', l: 'Pago' },
       { v: 'confirmado', l: 'Completo' },
     ];
 
@@ -635,7 +636,8 @@ async function showDetail(id) {
             ${r.status === 'cancelada'
               ? `<button class="rdv2-action-link rdv2-action-success" onclick="reativarReserva('${r.id}')">${lcIcon('refresh-cw', 12)} Reativar reserva</button>
                  ${hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" onclick="apagarReservaDefinitivo('${r.id}')">${lcIcon('trash-2', 12)} Apagar definitivamente</button>` : ''}`
-              : `<button class="rdv2-action-link rdv2-action-danger" onclick="cancelarReserva('${r.id}')">${lcIcon('x-circle', 12)} Cancelar reserva</button>`}
+              : `<button class="rdv2-action-link rdv2-action-danger" onclick="cancelarReserva('${r.id}')">${lcIcon('x-circle', 12)} Cancelar reserva</button>
+                 ${hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" onclick="apagarReservaDefinitivo('${r.id}')">${lcIcon('trash-2', 12)} Apagar reserva</button>` : ''}`}
           </div>
 
           ${preCheckinUrl ? `
@@ -1207,9 +1209,15 @@ function hasRole(minRole) {
 }
 
 async function apagarReservaDefinitivo(id) {
-  if (!confirm('Apagar DEFINITIVAMENTE esta reserva, os seus pagamentos e tarefas operacionais?\n\nEsta ação é irreversível. O hóspede e o histórico de emails são mantidos.')) return;
-  if (!confirm('Confirma novamente — esta ação não pode ser desfeita.')) return;
+  const r = (typeof reservas !== 'undefined' ? reservas : []).find(x => x.id === id);
+  if (!confirm('⚠️ Esta reserva vai ser APAGADA e depois é IMPOSSÍVEL recuperar.\n\nOs pagamentos e tarefas operacionais associados também serão removidos. O hóspede e o histórico de emails são mantidos.')) return;
+  if (!confirm('Confirmar eliminação definitiva? Esta ação NÃO pode ser desfeita.')) return;
   try {
+    // O backend só apaga reservas já canceladas — cancelar primeiro se necessário.
+    if (r && r.status !== 'cancelada') {
+      const c = await apiDelete(`/api/reservations/${id}`);
+      if (!c.success) { toast('❌ ' + (c.error || 'Erro ao apagar.'), 'error'); return; }
+    }
     const res = await apiDelete(`/api/reservations/${id}/permanent`);
     if (res.success) {
       const detailBg = document.getElementById('detail-bg');
@@ -1412,4 +1420,11 @@ function exportReservasPDF() {
   });
   doc.save(`reservas_${new Date().toISOString().slice(0,10)}.pdf`);
   toast('📄 PDF exportado!', 'success');
+}
+
+// Ao escolher "check-in a partir de", abre automaticamente o date-picker do "até".
+function _openDateTo() {
+  const to = document.getElementById('filter-date-to');
+  if (!to || to.value) return;
+  if (window.AppDatePicker) setTimeout(() => AppDatePicker.open(to), 80);
 }

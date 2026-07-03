@@ -261,6 +261,67 @@ function totalGuests() {
   return (Number($('pb-adults').value) || 1) + (Number($('pb-children').value) || 0);
 }
 
+// ── Idades das crianças (para cálculo por idade logo no seletor) ──
+function babyAgeLimit() {
+  const unit = selectedUnit();
+  return Number(unit?.baby_age_limit ?? state.property?.baby_age_limit ?? 2);
+}
+
+function renderChildAges() {
+  const wrap = $('pb-child-ages');
+  if (!wrap) return;
+  const count = Number($('pb-children').value) || 0;
+  if (count <= 0) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  const prev = Array.from(wrap.querySelectorAll('select')).map(s => s.value);
+
+  let html = '<div class="child-ages-title">Idade das crianças</div><div class="child-ages-grid">';
+  for (let i = 0; i < count; i++) {
+    const sel = prev[i] ?? '';
+    let opts = '<option value="">Idade</option>';
+    for (let a = 0; a <= 17; a++) opts += `<option value="${a}"${String(a) === sel ? ' selected' : ''}>${a} ano${a !== 1 ? 's' : ''}</option>`;
+    html += `<label class="child-age-item"><select data-child-age="${i}" onchange="onChildAgeChange()">${opts}</select><small class="child-age-hint"></small></label>`;
+  }
+  html += '</div>';
+  wrap.innerHTML = html;
+  wrap.style.display = '';
+  updateChildAgeHints();
+}
+
+function onChildAgeChange() {
+  updateChildAgeHints();
+  recalc();
+}
+
+function updateChildAgeHints() {
+  const limit = babyAgeLimit();
+  document.querySelectorAll('#pb-child-ages .child-age-item').forEach(item => {
+    const sel = item.querySelector('select');
+    const hint = item.querySelector('.child-age-hint');
+    if (!sel || !hint) return;
+    hint.textContent = (sel.value !== '' && Number(sel.value) < limit) ? 'Sem custo' : '';
+  });
+}
+
+// Converte cada idade escolhida numa data de nascimento aproximada, alinhada ao
+// check-in (idade-ao-check-in = idade escolhida). Idade não escolhida => null.
+function childBirthDates() {
+  const ci = iso($('pb-checkin').value) || new Date().toISOString().slice(0, 10);
+  const year = Number(ci.slice(0, 4));
+  const monthDay = ci.slice(4); // "-MM-DD"
+  return Array.from(document.querySelectorAll('#pb-child-ages select')).map(s =>
+    s.value === '' ? null : `${year - Number(s.value)}${monthDay}`
+  );
+}
+
+// Datas de nascimento efetivas para o cálculo: adultos (sem desconto) primeiro,
+// depois as crianças (por idade). Sem crianças, usa as datas dos hóspedes.
+function effectiveBirthDates() {
+  const adults = Number($('pb-adults').value) || 1;
+  const children = Number($('pb-children').value) || 0;
+  if (children > 0) return [...Array(adults).fill(null), ...childBirthDates()];
+  return getBirthDates();
+}
+
 function selectedUnit() {
   if (state.selectedUnitId === 'property' || !state.selectedUnitId) return null;
   return state.units.find(u => u.id === state.selectedUnitId) || null;
@@ -410,7 +471,7 @@ function renderUnits() {
       check_out: checkOut,
       num_guests: guests,
       pricing_periods: pricingPeriods || [],
-      birth_dates: []
+      birth_dates: effectiveBirthDates()
     });
     if (!totals || !totals.baseAmount) return '';
     const avgPerNight = totals.baseAmount / n;
@@ -789,8 +850,10 @@ function bindEvents() {
   const birthEl = $('pb-birth');
   birthEl.addEventListener('focus', () => AppDatePicker.open(birthEl, { isBirthDate: true }));
   birthEl.addEventListener('click', () => AppDatePicker.open(birthEl, { isBirthDate: true }));
+  $('pb-children').addEventListener('input', () => { renderChildAges(); recalc(); });
   ['pb-checkin','pb-checkout','pb-adults','pb-children','pb-birth'].forEach(id => $(id).addEventListener('change', () => {
     scheduleAvailabilityFetch();
+    renderChildAges();
     renderExtraGuests();
     recalc();
   }));
@@ -942,7 +1005,7 @@ function extraCharge(unit, n) {
     unit,
     totalGuests(),
     n,
-    getBirthDates(),
+    effectiveBirthDates(),
     iso($('pb-checkin').value)
   ) || 0;
 }
@@ -1001,7 +1064,7 @@ function recalc() {
       check_out: iso($('pb-checkout').value),
       num_guests: guests,
       breakfast_included: false,
-      birth_dates: getBirthDates(),
+      birth_dates: effectiveBirthDates(),
       pricing_periods: unit.pricing_periods || []
     });
     updateRateHints(unit);
