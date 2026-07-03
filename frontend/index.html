@@ -1407,7 +1407,12 @@
           <div class="card despesas-table-card">
             <div class="card-header despesas-card-header">
               <span class="card-title"><i data-lucide="receipt"></i> Registo de Despesas</span>
-              <div style="display:flex;gap:8px;">
+              <div style="display:flex;gap:8px;align-items:center;">
+                <select class="form-control" id="despesa-filter-period" data-enhance-select data-app-select-class="app-select--filter" style="width:auto;" onchange="loadDespesas()">
+                  <option value="ano">Ano inteiro</option>
+                  <option value="mes">Este mês</option>
+                  <option value="tudo">Tudo</option>
+                </select>
                 <button class="btn btn-ghost btn-sm" onclick="exportDespesasXLSX()" title="Exportar lista de despesas">
                   <i data-lucide="download" style="width:13px;height:13px;"></i> Exportar
                 </button>
@@ -1423,6 +1428,7 @@
                     <th style="width:110px;">Data</th>
                     <th style="width:130px;">Categoria</th>
                     <th>Descrição</th>
+                    <th style="width:130px;">Fornecedor</th>
                     <th style="width:110px;">Nº Fatura</th>
                     <th style="width:100px;">Valor</th>
                     <th style="width:120px;">Método</th>
@@ -1865,6 +1871,9 @@
             <button class="settings-tab" data-settings-tab="emails" onclick="switchSettingsTab('emails')">
               <i data-lucide="mail"></i> Emails
             </button>
+            <button class="settings-tab" data-settings-tab="fornecedores" onclick="switchSettingsTab('fornecedores')">
+              <i data-lucide="truck"></i> Fornecedores
+            </button>
             <button class="settings-tab" data-settings-tab="equipa" data-owner-only="true" style="display:none;" onclick="switchSettingsTab('equipa')">
               <i data-lucide="users-round"></i> Equipa
             </button>
@@ -2161,6 +2170,24 @@
                   <i data-lucide="mail" style="width:40px;height:40px;opacity:.3;"></i>
                   <span style="font-size:14px;">Selecione um template para editar</span>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-panel" id="settings-fornecedores">
+            <div class="card" style="margin-bottom:24px;">
+              <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <span class="card-title"><i data-lucide="truck"></i> Fornecedores</span>
+                <button class="btn btn-ghost btn-sm" id="fornecedor-seed-btn" onclick="seedFornecedores()" title="Adicionar fornecedores sugeridos">
+                  <i data-lucide="sparkles" style="width:13px;height:13px;"></i> Adicionar sugestões
+                </button>
+              </div>
+              <div style="padding:16px;">
+                <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+                  <input class="form-control" id="fornecedor-novo-nome" placeholder="Nome do fornecedor (ex.: Continente)" style="flex:1;min-width:200px;" autocomplete="off" onkeydown="if(event.key==='Enter')addFornecedor()">
+                  <button class="btn btn-primary btn-sm" onclick="addFornecedor()"><i data-lucide="plus"></i> Adicionar</button>
+                </div>
+                <div id="fornecedores-list"></div>
               </div>
             </div>
           </div>
@@ -2470,13 +2497,21 @@
           <label class="form-label">Categoria</label>
           <select class="form-control" id="despesa-category" data-enhance-select data-app-select-class="app-select--modal">
             <option value="limpeza">Limpeza</option>
+            <option value="produtos_limpeza">Produtos de limpeza</option>
+            <option value="pequenos_almocos">Pequenos-almoços</option>
+            <option value="roupas">Roupas</option>
             <option value="manutencao">Manutenção</option>
             <option value="marketing">Marketing</option>
             <option value="impostos">Impostos</option>
             <option value="servicos">Serviços</option>
             <option value="consumiveis">Consumíveis</option>
-            <option value="supermercado">Supermercado</option>
             <option value="outro">Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fornecedor</label>
+          <select class="form-control" id="despesa-supplier" data-enhance-select data-app-select-class="app-select--modal">
+            <option value="">— Nenhum —</option>
           </select>
         </div>
         <div class="form-group form-full">
@@ -2936,6 +2971,7 @@
 <script src="js/hospedes.js"></script>
 <script src="js/emails.js"></script>
 <script src="js/despesas.js"></script>
+<script src="js/fornecedores.js"></script>
 <script src="js/team.js"></script>
 <script src="js/relatorios.js"></script>
 <script src="js/notifications.js"></script>

@@ -134,7 +134,7 @@ let settingsTab = SS.get('settings:tab', 'gcal');
 
 function switchSettingsTab(tab, render = true) {
   if (tab === 'equipa' && currentUser?.role !== 'owner') tab = 'gcal';
-  settingsTab = ['gcal', 'database', 'operations', 'emails', 'equipa'].includes(tab) ? tab : 'gcal';
+  settingsTab = ['gcal', 'database', 'operations', 'emails', 'fornecedores', 'equipa'].includes(tab) ? tab : 'gcal';
   SS.set('settings:tab', settingsTab);
 
   document.querySelectorAll('[data-settings-tab]').forEach(btn => {
@@ -160,6 +160,7 @@ function renderSettingsView() {
   }
   if (settingsTab === 'operations' && typeof loadAutoTaskSettings === 'function') loadAutoTaskSettings();
   if (settingsTab === 'emails' && typeof loadEmailTemplates === 'function') loadEmailTemplates();
+  if (settingsTab === 'fornecedores' && typeof loadFornecedores === 'function') loadFornecedores();
   if (settingsTab === 'equipa' && currentUser?.role === 'owner') loadTeamOverview();
   if (window.lucide) lucide.createIcons();
 }

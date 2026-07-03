@@ -39,6 +39,7 @@ const STATIC_ASSETS = [
   '/js/hospedes.js',
   '/js/alojamentos.js',
   '/js/despesas.js',
+  '/js/fornecedores.js',
   '/js/relatorios.js',
   '/js/eventos.js',
   '/js/vouchers.js',

@@ -24,13 +24,13 @@ function getSummary(req, res) {
 }
 
 function create(req, res) {
-  const { date, description, category, amount, payment_method, notes, invoice_ref } = req.body;
+  const { date, description, category, amount, payment_method, notes, invoice_ref, supplier } = req.body;
   if (!date || !description || amount == null) {
     return res.status(400).json({ error: 'Data, descrição e valor são obrigatórios' });
   }
   const id = uuidv4().slice(0, 8);
-  db.prepare('INSERT INTO expenses (id,organization_id,date,description,category,amount,payment_method,notes,invoice_ref) VALUES (?,?,?,?,?,?,?,?,?)')
-    .run(id, req.user.organization_id, date, description, category || 'outro', parseFloat(amount), payment_method || 'numerário', notes || null, invoice_ref || null);
+  db.prepare('INSERT INTO expenses (id,organization_id,date,description,category,amount,payment_method,notes,invoice_ref,supplier) VALUES (?,?,?,?,?,?,?,?,?,?)')
+    .run(id, req.user.organization_id, date, description, category || 'outro', parseFloat(amount), payment_method || 'numerário', notes || null, invoice_ref || null, (supplier || '').trim() || null);
   res.status(201).json({ success: true, data: db.prepare('SELECT * FROM expenses WHERE id=? AND organization_id = ?').get(id, req.user.organization_id) });
 }
 
@@ -39,14 +39,16 @@ function update(req, res) {
   const existing = db.prepare('SELECT * FROM expenses WHERE id=? AND organization_id = ?').get(id, req.user.organization_id);
   if (!existing) return res.status(404).json({ error: 'Despesa não encontrada' });
 
-  const { date, description, category, amount, payment_method, notes, invoice_ref } = req.body;
+  const { date, description, category, amount, payment_method, notes, invoice_ref, supplier } = req.body;
   db.prepare(`UPDATE expenses SET
     date=COALESCE(?,date), description=COALESCE(?,description), category=COALESCE(?,category),
-    amount=COALESCE(?,amount), payment_method=COALESCE(?,payment_method), notes=?, invoice_ref=?
+    amount=COALESCE(?,amount), payment_method=COALESCE(?,payment_method), notes=?, invoice_ref=?, supplier=?
     WHERE id=? AND organization_id = ?`).run(
     date ?? null, description ?? null, category ?? null,
     amount !== undefined ? parseFloat(amount) : null,
-    payment_method ?? null, notes ?? null, invoice_ref ?? null, id, req.user.organization_id
+    payment_method ?? null, notes ?? null, invoice_ref ?? null,
+    supplier !== undefined ? ((supplier || '').trim() || null) : existing.supplier,
+    id, req.user.organization_id
   );
   res.json({ success: true, data: db.prepare('SELECT * FROM expenses WHERE id=? AND organization_id = ?').get(id, req.user.organization_id) });
 }

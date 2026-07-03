@@ -285,6 +285,7 @@ function initDatabase() {
   migrateConversationArchives();
   migrateReservationPayments();
   migrateAccommodationBlocks();
+  migrateSuppliers();
   migrateLegacyDataToOrganizations();
 
   console.log('✅ Base de dados inicializada');
@@ -670,6 +671,21 @@ function migrateExpenses() {
   `);
   const cols = db.pragma('table_info(expenses)').map(c => c.name);
   if (!cols.includes('invoice_ref')) db.exec('ALTER TABLE expenses ADD COLUMN invoice_ref TEXT');
+  if (!cols.includes('supplier')) db.exec('ALTER TABLE expenses ADD COLUMN supplier TEXT');
+}
+
+function migrateSuppliers() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS suppliers (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_suppliers_org ON suppliers(organization_id);
+  `);
 }
 
 function migrateOperationalEvents() {

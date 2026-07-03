@@ -3,15 +3,21 @@ let despesaEditId = null;
 let despesaFilterMonth = SS.get('desp:month', new Date().toISOString().slice(0, 7));
 
 const EXPENSE_CATS = {
-  limpeza:      { label: 'Limpeza',       color: '#4a90d9', icon: 'brush-cleaning' },
-  manutencao:   { label: 'Manutenção',    color: '#e67e22', icon: 'wrench'        },
-  marketing:    { label: 'Marketing',     color: '#9b59b6', icon: 'megaphone'     },
-  impostos:     { label: 'Impostos',      color: '#e74c3c', icon: 'landmark'      },
-  servicos:     { label: 'Serviços',      color: '#2ecc71', icon: 'briefcase'     },
-  consumiveis:  { label: 'Consumíveis',   color: '#f39c12', icon: 'package'       },
-  supermercado: { label: 'Supermercado',  color: '#27ae60', icon: 'shopping-cart' },
-  outro:        { label: 'Outro',         color: '#95a5a6', icon: 'circle-dot'    },
+  limpeza:          { label: 'Limpeza',             color: '#4a90d9', icon: 'brush-cleaning' },
+  produtos_limpeza: { label: 'Produtos de limpeza', color: '#3498db', icon: 'spray-can'      },
+  pequenos_almocos: { label: 'Pequenos-almoços',    color: '#e8a33d', icon: 'croissant'      },
+  roupas:           { label: 'Roupas',              color: '#8e6bb0', icon: 'shirt'          },
+  manutencao:       { label: 'Manutenção',          color: '#e67e22', icon: 'wrench'         },
+  marketing:        { label: 'Marketing',           color: '#9b59b6', icon: 'megaphone'      },
+  impostos:         { label: 'Impostos',            color: '#e74c3c', icon: 'landmark'       },
+  servicos:         { label: 'Serviços',            color: '#2ecc71', icon: 'briefcase'      },
+  consumiveis:      { label: 'Consumíveis',         color: '#f39c12', icon: 'package'        },
+  // Legado (removido do seletor, mantido para render de despesas antigas):
+  supermercado:     { label: 'Supermercado',        color: '#27ae60', icon: 'shopping-cart' },
+  outro:            { label: 'Outro',               color: '#95a5a6', icon: 'circle-dot'     },
 };
+
+let suppliersData = [];
 
 // ── LOAD ──
 async function loadDespesas() {
@@ -26,12 +32,20 @@ async function loadDespesas() {
     SS.set('desp:month', despesaFilterMonth);
   }
 
+  const period = document.getElementById('despesa-filter-period')?.value || 'ano';
+  let listUrl = '/api/expenses';
+  if (period === 'mes')      listUrl += `?month=${despesaFilterMonth}`;
+  else if (period === 'ano') listUrl += `?year=${new Date().getFullYear()}`;
+  // 'tudo' => sem filtro
+
   try {
-    const [data, summary] = await Promise.all([
-      apiGet(`/api/expenses?month=${despesaFilterMonth}`),
-      apiGet('/api/expenses/summary')
+    const [data, summary, suppliers] = await Promise.all([
+      apiGet(listUrl),
+      apiGet('/api/expenses/summary'),
+      apiGet('/api/suppliers').catch(() => ({ data: [] }))
     ]);
     despesasData = data.data || [];
+    suppliersData = suppliers.data || [];
     renderDespesasKpi(summary.data || {});
     renderDespesas();
   } catch (e) {
@@ -74,7 +88,17 @@ function renderDespesas() {
   const empty   = document.getElementById('despesas-empty');
   loading.style.display = 'none';
 
-  if (despesasData.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  if (despesasData.length === 0) {
+    tbody.innerHTML = '';
+    const period = document.getElementById('despesa-filter-period')?.value || 'ano';
+    const scope = period === 'mes' ? `em ${despesaFilterMonth}` : period === 'ano' ? `em ${new Date().getFullYear()}` : 'registadas';
+    empty.innerHTML = `
+      <div class="es-icon">💸</div>
+      <h3>Sem despesas ${scope}</h3>
+      <p>${period === 'tudo' ? 'Ainda não registaste nenhuma despesa.' : 'Experimenta mudar o período (ex.: <b>Tudo</b>) — as tuas despesas podem estar noutro mês/ano.'}</p>`;
+    empty.style.display = 'block';
+    return;
+  }
   empty.style.display = 'none';
 
   const total = despesasData.reduce((s, d) => s + Number(d.amount), 0);
@@ -85,6 +109,7 @@ function renderDespesas() {
       <td style="font-size:13px;">${formatDate(d.date)}</td>
       <td><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;background:${cat.color}22;color:${cat.color};">${cat.icon ? `<i data-lucide="${cat.icon}" style="width:11px;height:11px;"></i>` : ''}${cat.label}</span></td>
       <td>${escapeHtml(d.description)}${d.notes ? `<br><span style="font-size:11px;color:var(--cinza);">${escapeHtml(d.notes)}</span>` : ''}</td>
+      <td style="font-size:12.5px;">${escapeHtml(d.supplier || '—')}</td>
       <td style="font-size:12px;color:var(--cinza);">${escapeHtml(d.invoice_ref || '—')}</td>
       <td style="font-weight:600;color:var(--vermelho);">€${Number(d.amount).toFixed(2)}</td>
       <td style="font-size:12.5px;color:var(--cinza);">${escapeHtml(d.payment_method || '—')}</td>
@@ -95,11 +120,23 @@ function renderDespesas() {
     </tr>`;
   }).join('') + `
     <tr style="border-top:2px solid var(--cinza-claro);">
-      <td colspan="4" style="text-align:right;font-weight:600;color:var(--cinza);font-size:13px;">Total do período</td>
+      <td colspan="5" style="text-align:right;font-weight:600;color:var(--cinza);font-size:13px;">Total do período</td>
       <td style="font-weight:700;font-size:15px;color:var(--vermelho);">€${total.toFixed(2)}</td>
       <td colspan="2"></td>
     </tr>`;
   if (window.lucide) lucide.createIcons();
+}
+
+// Popula o dropdown de fornecedores no modal, garantindo que o valor atual
+// (mesmo que já não exista na lista) fica disponível.
+function populateSupplierDropdown(selected) {
+  const sel = document.getElementById('despesa-supplier');
+  if (!sel) return;
+  const names = suppliersData.map(s => s.name);
+  if (selected && !names.includes(selected)) names.unshift(selected);
+  sel.innerHTML = '<option value="">— Nenhum —</option>' +
+    names.map(n => `<option value="${escapeHtml(n)}"${n === selected ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
+  sel.value = selected || '';
 }
 
 // ── MODAL ──
@@ -114,6 +151,7 @@ function openDespesaModal(id) {
   document.getElementById('despesa-payment').value     = d ? (d.payment_method || 'numerário') : 'numerário';
   document.getElementById('despesa-invoice-ref').value = d ? (d.invoice_ref || '') : '';
   document.getElementById('despesa-notes').value       = d ? (d.notes || '') : '';
+  populateSupplierDropdown(d ? (d.supplier || '') : '');
   AppUI.enhanceSelects(document.getElementById('despesa-modal-bg'));
   AppUI.refreshDropdowns(document.getElementById('despesa-modal-bg'));
   AppUI.openModal('despesa-modal-bg');
@@ -135,12 +173,13 @@ async function saveDespesa() {
   const payment_method = document.getElementById('despesa-payment').value;
   const invoice_ref = document.getElementById('despesa-invoice-ref').value.trim() || null;
   const notes       = document.getElementById('despesa-notes').value.trim() || null;
+  const supplier    = document.getElementById('despesa-supplier')?.value.trim() || null;
 
   if (!date || !description || isNaN(amount)) {
     toast('Preencha data, descrição e valor.', 'error'); return;
   }
 
-  const body = { date, category, description, amount, payment_method, invoice_ref, notes };
+  const body = { date, category, description, amount, payment_method, invoice_ref, notes, supplier };
   try {
     const res = despesaEditId
       ? await apiPut(`/api/expenses/${despesaEditId}`, body)
@@ -164,6 +203,7 @@ function exportDespesasXLSX() {
     'Data':           formatDate(d.date),
     'Categoria':      EXPENSE_CATS[d.category]?.label || d.category,
     'Descrição':      d.description,
+    'Fornecedor':     d.supplier || '',
     'Nº Fatura':      d.invoice_ref || '',
     'Valor (€)':      Number(d.amount).toFixed(2),
     'Método':         d.payment_method || '',
