@@ -984,8 +984,8 @@ function specialRate(unit, birthDate, index) {
   if (age === null) return null;
   const included = Math.max(1, Math.min(unit.base_guests_included || 2, unit.max_guests || 2));
   if (index < included) return null;
-  if (age < unit.baby_age_limit) return { label: 'Preço de bebé aplicado', price: unit.baby_price || 0 };
-  if (age >= unit.baby_age_limit && age < unit.child_age_limit) return { label: 'Preço de criança aplicado', price: unit.child_price || 0 };
+  if (age <= unit.baby_age_limit) return { label: 'Preço de bebé aplicado', price: unit.baby_price || 0 };
+  if (age > unit.baby_age_limit && age < unit.child_age_limit) return { label: 'Preço de criança aplicado', price: unit.child_price || 0 };
   return null;
 }
 

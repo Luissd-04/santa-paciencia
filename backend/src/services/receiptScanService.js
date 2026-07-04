@@ -6,9 +6,9 @@ const VALID_CATEGORIES = [
   'manutencao', 'marketing', 'impostos', 'servicos', 'consumiveis', 'outro',
 ];
 
-// Modelo com visão de alta resolução — melhor precisão a ler talões.
-// Trocável por env (ex.: 'claude-haiku-4-5' para mais barato, 'claude-fable-5' para o máximo).
-const MODEL = process.env.RECEIPT_SCAN_MODEL || 'claude-opus-4-8';
+// Modelo com visão. Haiku é o mais barato; a imagem vai em alta resolução (2560px)
+// para compensar. Trocável por env: 'claude-opus-4-8' (melhor) ou 'claude-fable-5' (máximo).
+const MODEL = process.env.RECEIPT_SCAN_MODEL || 'claude-haiku-4-5';
 
 const SYSTEM_PROMPT = `És um assistente que lê fotografias de talões e faturas de compras portuguesas para um alojamento local.
 Extrai os dados e responde APENAS com um objeto JSON válido (sem texto antes ou depois, sem markdown), com esta forma exata:

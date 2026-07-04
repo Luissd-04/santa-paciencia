@@ -598,12 +598,19 @@ function tlPanPointerMove(e) {
 function tlPanPointerUp(e) {
   const d = tlPanDrag;
   if (!d) return;
+  const wasDrag = d.moved;
   cleanupTimelinePan(e);
   if (d.suppressClick) {
     d.wrap.dataset.suppressClick = '1';
     setTimeout(() => {
       if (d.wrap.dataset.suppressClick === '1') delete d.wrap.dataset.suppressClick;
     }, 0);
+  } else if (!wasDrag) {
+    // O preventDefault do pointerdown suprime o click nativo — se foi só um toque
+    // (sem arrasto) numa célula vazia, disparamos a criação de reserva manualmente.
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const cell = el && el.closest && el.closest('.tl-cell');
+    if (cell) cell.click();
   }
 }
 

@@ -577,6 +577,175 @@
   .resf-section { padding: 18px 16px; }
 }
 
+/* ── Draft recovery notice ── */
+.resf-draft-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 28px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fff8e6;
+  border: 1px solid #f2d98a;
+  color: #8a6d1f;
+  font-size: 13px;
+}
+
+.resf-draft-discard {
+  border: 1px solid #d9bd63;
+  background: transparent;
+  color: #8a6d1f;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.resf-draft-discard:hover {
+  background: #f2d98a;
+}
+
+@media (max-width: 700px) {
+  .resf-draft-notice { margin: 12px 16px 0; }
+}
+
+/* ── Preço por noite (grelha editável) ── */
+.resf-nightly-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.resf-nightly-apply {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resf-nightly-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--cinza-claro);
+  border-radius: 8px;
+  padding: 0 8px;
+  background: #fff;
+}
+
+.resf-nightly-input > span {
+  color: var(--cinza);
+  font-size: 13px;
+}
+
+.resf-nightly-input input {
+  border: none;
+  outline: none;
+  width: 78px;
+  padding: 7px 2px;
+  font-size: 13px;
+  background: transparent;
+  text-align: right;
+}
+
+.resf-nightly-btn,
+.resf-nightly-reset {
+  border: 1px solid var(--cinza-claro);
+  background: #fff;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--azul);
+  white-space: nowrap;
+}
+
+.resf-nightly-btn:hover { background: var(--cinza-claro); }
+.resf-nightly-reset { color: var(--cinza); }
+.resf-nightly-reset:hover { background: var(--cinza-claro); }
+
+.resf-nightly-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--cinza-claro);
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.resf-nightly-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 6px;
+}
+
+.resf-nightly-row + .resf-nightly-row {
+  border-top: 1px dashed var(--cinza-claro);
+  padding-top: 8px;
+}
+
+.resf-nightly-date {
+  font-size: 13px;
+  color: var(--azul);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resf-nightly-date .resf-nightly-tag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--marca);
+  background: rgba(0,0,0,.04);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+
+.resf-nightly-row.edited .resf-nightly-input {
+  border-color: var(--marca);
+}
+
+.resf-nightly-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.resf-nightly-breakdown {
+  font-size: 13px;
+  color: var(--cinza);
+}
+
+.resf-nightly-breakdown b { color: var(--azul); }
+
+.resf-total-edit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resf-total-edit label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--cinza);
+}
+
 /* ── Discount row (form + panel shared) ── */
 .resf-discount-row,
 .rdv2-acc-discount-row {

@@ -4,8 +4,8 @@
                Network-first para API e HTML.
 ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'sp-v15';
-const CACHE_VERSION = 15;
+const CACHE_NAME = 'sp-v16';
+const CACHE_VERSION = 16;
 
 /* Assets estáticos que devem funcionar offline */
 const STATIC_ASSETS = [

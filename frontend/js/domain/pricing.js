@@ -93,6 +93,37 @@
     return total;
   }
 
+  // Array [{ date, price }] com uma entrada por noite. Prioridade por noite:
+  // override para a data → período aplicável → preço-base.
+  function buildNightlyPrices(basePrice, checkIn, checkOut, periods = [], override = null) {
+    const nights = window.ReservationDates?.countNights(checkIn, checkOut) || 0;
+    if (!nights) return [];
+    const sorted = [...periods].sort((a, b) => a.start_date.localeCompare(b.start_date));
+    const overrideMap = {};
+    if (Array.isArray(override)) {
+      override.forEach(o => {
+        if (o && o.date != null && o.price != null && !isNaN(Number(o.price))) {
+          overrideMap[o.date] = Math.max(0, Number(o.price));
+        }
+      });
+    }
+    const result = [];
+    const d = new Date(`${checkIn}T12:00:00`);
+    for (let i = 0; i < nights; i++) {
+      const iso = d.toISOString().slice(0, 10);
+      let price;
+      if (overrideMap[iso] != null) {
+        price = overrideMap[iso];
+      } else {
+        const period = sorted.find(p => periodMatchesDay(p, iso));
+        price = period ? Number(period.price_per_night) : Number(basePrice);
+      }
+      result.push({ date: iso, price: Math.max(0, Number(price) || 0) });
+      d.setDate(d.getDate() + 1);
+    }
+    return result;
+  }
+
   function calculateReservationTotal(accommodation, services = [], payload = {}) {
     const nights = window.ReservationDates?.countNights(payload.check_in, payload.check_out) || 0;
     const guests = Math.max(1, Number(payload.num_guests) || 1);
@@ -107,11 +138,14 @@
     const breakfastCost = breakfast ? (Number(bkfSvc?.value ?? 19) * guests * nights) : 0;
     const extraOccupancyCost = getExtraOccupancyCharge(accommodation, guests, nights, payload.birth_dates || [], payload.check_in);
     const pricingPeriods = payload.pricing_periods || [];
-    const baseAmount = calcBaseAmountWithPeriods(Number(accommodation.price_per_night || 0), payload.check_in, payload.check_out, pricingPeriods);
+    const override = Array.isArray(payload.nightly_prices) ? payload.nightly_prices : null;
+    const nightlyPrices = buildNightlyPrices(Number(accommodation.price_per_night || 0), payload.check_in, payload.check_out, pricingPeriods, override);
+    const baseAmount = nightlyPrices.reduce((sum, n) => sum + (Number(n.price) || 0), 0);
 
     return {
       nights,
       baseAmount,
+      nightlyPrices,
       extraOccupancyCost,
       touristTax,
       breakfastCost,
@@ -123,6 +157,7 @@
     normalizeExtraOccupancyOptions,
     getAgeSpecialRates,
     getExtraOccupancyCharge,
+    buildNightlyPrices,
     calculateReservationTotal,
   };
 })();

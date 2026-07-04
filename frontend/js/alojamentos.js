@@ -1258,7 +1258,7 @@ function exportAlojamentosXLS() {
     'Preço/noite':    a.price_per_night || 0,
     'Capacidade':     a.max_guests || '',
     'Hóspedes incluídos': a.base_guests_included || Math.min(a.max_guests || 2, 2),
-    'Bebés abaixo de': a.baby_age_limit ?? 2,
+    'Bebé até (incl.)': a.baby_age_limit ?? 2,
     'Preço bebé': a.baby_price ?? 0,
     'Crianças abaixo de': a.child_age_limit ?? 12,
     'Preço criança': a.child_price ?? 0,

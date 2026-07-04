@@ -938,7 +938,7 @@
                   <input class="form-control" id="aloj-hospedes-incluidos" type="number" min="1" max="20" autocomplete="off">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Bebés abaixo de (anos)</label>
+                  <label class="form-label">Bebé até (anos, inclusive)</label>
                   <input class="form-control" id="aloj-baby-age-limit" type="number" min="0" max="18" value="2" autocomplete="off">
                 </div>
                 <div class="form-group">
@@ -1957,6 +1957,9 @@
                 <button id="gcal-sync-btn" class="btn btn-primary btn-sm" style="display:none;" onclick="syncAllGcal()">
                   <i data-lucide="refresh-cw"></i> Sincronizar tudo
                 </button>
+                <button id="gcal-clean-btn" class="btn btn-ghost btn-sm" style="display:none;color:var(--vermelho);" onclick="cleanGcalDuplicates()" title="Remover eventos duplicados no Google (órfãos antigos)">
+                  <i data-lucide="copy-x"></i> Limpar duplicados
+                </button>
               </div>
             </div>
 
@@ -2466,6 +2469,9 @@
       </div>
     </div>
     <div class="modal-footer">
+      <button class="btn btn-sm" id="evento-delete-btn" onclick="deleteEventoFromModal()" style="display:none;background:rgba(176,48,48,.1);color:var(--vermelho);margin-right:auto;">
+        <i data-lucide="trash-2" style="width:14px;height:14px;"></i> Apagar
+      </button>
       <button class="btn btn-ghost" onclick="closeEventoModal()">Cancelar</button>
       <button class="btn btn-primary" id="evento-save-btn" onclick="saveEvento()">
         <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
@@ -2604,17 +2610,24 @@
 </div>
 
 <!-- MODAL NOVA / EDITAR RESERVA — WIZARD -->
-<div class="modal-bg" id="modal-bg" onclick="if(event.target===this)closeModal()">
+<div class="modal-bg" id="modal-bg">
   <div class="modal resf-modal">
 
     <div class="modal-header">
       <span class="modal-title" id="modal-title">Nova Reserva</span>
-      <button class="modal-close" onclick="closeModal()">
+      <button class="modal-close" onclick="requestCloseReservaModal()">
         <i data-lucide="x" style="width:20px;height:20px;"></i>
       </button>
     </div>
 
     <div class="modal-body resf-body">
+
+      <!-- Aviso de rascunho recuperado -->
+      <div id="resf-draft-notice" class="resf-draft-notice" style="display:none;">
+        <i data-lucide="history" style="width:16px;height:16px;flex-shrink:0;"></i>
+        <span style="flex:1;">Rascunho recuperado — continua a reserva onde a deixaste.</span>
+        <button type="button" class="resf-draft-discard" onclick="discardReservaDraft()">Descartar</button>
+      </div>
 
       <!-- hidden IDs kept for JS compatibility -->
       <span id="modal-title-mobile" style="display:none;"></span>
@@ -2683,6 +2696,36 @@
           <select id="f-aloj" style="display:none;" onchange="calcTotal();updateWizSummary()"></select>
           <div class="suite-cards" id="suite-cards-grid"></div>
         </div>
+
+        <!-- ── Preço por noite (editável, noite a noite) ── -->
+        <div id="resf-nightly-wrap" class="resf-nightly" style="margin-top:16px;display:none;">
+          <div class="resf-nightly-head">
+            <label class="form-label" style="margin:0;">Preço por noite <span style="font-weight:400;text-transform:none;letter-spacing:0;">(cobrado ao hóspede)</span></label>
+            <div class="resf-nightly-apply">
+              <div class="resf-nightly-input">
+                <span>€</span>
+                <input type="number" id="resf-nightly-all-val" min="0" step="0.01" placeholder="0.00" autocomplete="off">
+              </div>
+              <button type="button" class="resf-nightly-btn" onclick="applyNightlyToAll()">Aplicar a todas</button>
+              <button type="button" class="resf-nightly-reset" onclick="resetNightlyOverrides()">Repor</button>
+            </div>
+          </div>
+          <div id="resf-nightly-grid" class="resf-nightly-grid"></div>
+          <div class="resf-nightly-summary">
+            <div class="resf-nightly-breakdown">
+              Alojamento <b id="resf-nightly-base">€0.00</b><span id="resf-nightly-extras-wrap"> · Extras <b id="resf-nightly-extras">€0.00</b></span>
+            </div>
+            <div class="resf-total-edit">
+              <label>Total final</label>
+              <div class="resf-nightly-input">
+                <span>€</span>
+                <input type="number" id="f-total-manual" min="0" step="0.01" placeholder="0.00" oninput="onManualTotalInput(this.value)" autocomplete="off">
+              </div>
+              <button type="button" class="resf-nightly-reset" id="resf-total-reset" onclick="resetManualTotal()" style="display:none;">Repor</button>
+            </div>
+          </div>
+        </div>
+
         <div id="resf-discount-wrap" style="margin-top:16px;display:none;">
           <label class="form-label" style="margin-bottom:6px;">Desconto <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label>
           <div class="resf-discount-row">
@@ -2858,7 +2901,7 @@
     </div><!-- /modal-body -->
 
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-ghost" onclick="requestCloseReservaModal()">Cancelar</button>
       <div style="display:flex;align-items:center;gap:6px;">
         <span id="resf-total-badge" style="font-size:13px;font-weight:700;color:var(--azul);font-family:'Playfair Display',serif;"></span>
         <button class="btn btn-primary" id="btn-guardar" onclick="saveReserva()">

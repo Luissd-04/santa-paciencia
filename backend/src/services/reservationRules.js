@@ -62,8 +62,9 @@ function getAgeSpecialRates(accommodation = {}, birthDates = [], checkIn = null)
     .map(date => {
       const age = getAgeAtDate(date, checkIn);
       if (age === null) return null;
-      if (age < babyLimit) return { age, rate: babyPrice };
-      if (age >= babyLimit && age < childLimit) return { age, rate: childPrice };
+      // Bebé: idade IGUAL ou inferior ao limite (ex.: limite 3 => 3 anos ainda grátis).
+      if (age <= babyLimit) return { age, rate: babyPrice };
+      if (age > babyLimit && age < childLimit) return { age, rate: childPrice };
       return null;
     })
     .filter(Boolean)
@@ -137,6 +138,38 @@ function calcBaseAmountWithPeriods(basePrice, checkIn, checkOut, periods = []) {
   return total;
 }
 
+// Devolve um array [{ date, price }] com uma entrada por noite. Cada noite usa,
+// por ordem de prioridade: o override recebido para essa data → o período de
+// preço aplicável → o preço-base do alojamento.
+function buildNightlyPrices(basePrice, checkIn, checkOut, periods = [], override = null) {
+  const nights = countNights(checkIn, checkOut);
+  if (!nights) return [];
+  const sorted = [...periods].sort((a, b) => a.start_date.localeCompare(b.start_date));
+  const overrideMap = {};
+  if (Array.isArray(override)) {
+    override.forEach(o => {
+      if (o && o.date != null && o.price != null && !isNaN(Number(o.price))) {
+        overrideMap[o.date] = Math.max(0, Number(o.price));
+      }
+    });
+  }
+  const result = [];
+  const d = new Date(`${checkIn}T12:00:00`);
+  for (let i = 0; i < nights; i++) {
+    const iso = d.toISOString().slice(0, 10);
+    let price;
+    if (overrideMap[iso] != null) {
+      price = overrideMap[iso];
+    } else {
+      const period = sorted.find(p => periodMatchesDay(p, iso));
+      price = period ? Number(period.price_per_night) : Number(basePrice);
+    }
+    result.push({ date: iso, price: Math.max(0, Number(price) || 0) });
+    d.setDate(d.getDate() + 1);
+  }
+  return result;
+}
+
 function calculateReservationTotals(accommodation, services = [], payload = {}) {
   const checkIn = normalizeDateValue(payload.check_in);
   const checkOut = normalizeDateValue(payload.check_out);
@@ -155,7 +188,13 @@ function calculateReservationTotals(accommodation, services = [], payload = {}) 
   const breakfastCost = breakfast ? (Number(bkfSvc?.value ?? 19) * guests * nights) : 0;
   const extraOccupancyCost = getExtraOccupancyCharge(accommodation, guests, nights, birthDates, checkIn);
   const pricingPeriods = payload.pricing_periods || [];
-  const baseAmount = calcBaseAmountWithPeriods(Number(accommodation?.price_per_night || 0), checkIn, checkOut, pricingPeriods);
+  // Override de preço por noite (opcional), aplicado por data. Noites sem override
+  // caem no período aplicável ou no preço-base; datas fora do intervalo são ignoradas.
+  const rawOverride = Array.isArray(payload.nightly_prices) ? payload.nightly_prices : null;
+  const nightlyPrices = buildNightlyPrices(
+    Number(accommodation?.price_per_night || 0), checkIn, checkOut, pricingPeriods, rawOverride
+  );
+  const baseAmount = nightlyPrices.reduce((sum, n) => sum + (Number(n.price) || 0), 0);
 
   return {
     checkIn,
@@ -164,6 +203,7 @@ function calculateReservationTotals(accommodation, services = [], payload = {}) 
     nights,
     breakfastIncluded: breakfast ? 1 : 0,
     baseAmount,
+    nightlyPrices,
     touristTax,
     breakfastCost,
     extraOccupancyCost,
@@ -189,5 +229,6 @@ module.exports = {
   getReservationBirthDates,
   validateReservationBirthDates,
   calculateReservationTotals,
+  buildNightlyPrices,
   getPaymentStatus,
 };

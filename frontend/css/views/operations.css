@@ -709,6 +709,26 @@ body.tl-is-panning * {
   cursor: pointer;
 }
 
+/* Marca de concluído: certinho verde no lado direito do pill */
+.eventos-pill-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  margin-left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--verde);
+}
+.eventos-pill-check i[data-lucide] {
+  width: 10px !important;
+  height: 10px !important;
+  color: #fff;
+  stroke-width: 3.2;
+}
+.eventos-pill-done { opacity: 0.72; }
+
 .eventos-pill i[data-lucide] {
   width: 12px;
   height: 12px;

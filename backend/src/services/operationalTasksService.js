@@ -147,33 +147,51 @@ function getInsertTaskStmt() {
   return insertTaskStmt;
 }
 
+// UPSERT por auto_key em vez de apagar+recriar. Crucial: preserva o google_event_id
+// das tarefas existentes — se apagarmos e recriarmos com novo id, o Google perde o
+// vínculo e cria eventos duplicados a cada sincronização.
 const syncReservationTx = db.transaction((reservation, userId = null) => {
-  db.prepare(`
-    DELETE FROM operational_events
-    WHERE organization_id = ?
-      AND reservation_id = ?
-      AND auto_generated = 1
-      AND status != 'concluido'
-  `).run(reservation.organization_id, reservation.id);
+  const orgId = reservation.organization_id;
+  const settings = getAutoTaskSettings(orgId);
+  const desired = buildReservationTasks(reservation, settings);
+  const desiredKeys = new Set(desired.map(t => t.auto_key));
 
-  const settings = getAutoTaskSettings(reservation.organization_id);
-  for (const task of buildReservationTasks(reservation, settings)) {
-    getInsertTaskStmt().run(
-      uuidv4(),
-      task.organization_id,
-      task.title,
-      task.type,
-      task.date,
-      task.start_time,
-      task.end_time,
-      task.accommodation_id,
-      task.notes,
-      task.reservation_id,
-      userId,
-      task.kind,
-      task.auto_key,
-      task.important
-    );
+  const existingRows = db.prepare(`
+    SELECT id, auto_key, status FROM operational_events
+    WHERE organization_id = ? AND reservation_id = ? AND auto_generated = 1
+  `).all(orgId, reservation.id);
+  const byKey = new Map(existingRows.map(r => [r.auto_key, r]));
+
+  // Remover as auto-tarefas que já não fazem sentido (ex.: datas mudaram, opção
+  // desligada), exceto as concluídas (mantidas para histórico).
+  const delStmt = db.prepare('DELETE FROM operational_events WHERE id = ? AND organization_id = ?');
+  for (const row of existingRows) {
+    if (!desiredKeys.has(row.auto_key) && row.status !== 'concluido') {
+      delStmt.run(row.id, orgId);
+    }
+  }
+
+  // Atualizar as existentes (preservando id/google_event_id/estado) e inserir as novas.
+  const updStmt = db.prepare(`
+    UPDATE operational_events
+    SET title = ?, type = ?, date = ?, start_time = ?, end_time = ?,
+        accommodation_id = ?, notes = ?, important = ?, updated_at = datetime('now')
+    WHERE id = ? AND organization_id = ?
+  `);
+  for (const task of desired) {
+    const existing = byKey.get(task.auto_key);
+    if (existing) {
+      updStmt.run(
+        task.title, task.type, task.date, task.start_time, task.end_time,
+        task.accommodation_id, task.notes, task.important, existing.id, orgId
+      );
+    } else {
+      getInsertTaskStmt().run(
+        uuidv4(), task.organization_id, task.title, task.type, task.date,
+        task.start_time, task.end_time, task.accommodation_id, task.notes,
+        task.reservation_id, userId, task.kind, task.auto_key, task.important
+      );
+    }
   }
 });
 

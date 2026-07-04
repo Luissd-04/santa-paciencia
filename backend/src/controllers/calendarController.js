@@ -1,6 +1,6 @@
 const { isAuthenticated } = require('../config/google');
 const { db } = require('../config/database');
-const { createCalendarEvent, updateCalendarEvent, createTaskCalendarEvent, updateTaskCalendarEvent } = require('../services/calendarService');
+const { createCalendarEvent, updateCalendarEvent, createTaskCalendarEvent, updateTaskCalendarEvent, cleanDuplicateAppEvents } = require('../services/calendarService');
 
 const GCAL_SYNC_TASKS_KEY = 'gcal_sync_tasks';
 
@@ -143,4 +143,19 @@ async function syncAll(req, res) {
   });
 }
 
-module.exports = { getStatus, syncAll, getSettings, saveSettings };
+// POST /api/calendar/clean-duplicates — remove eventos duplicados do Google (órfãos antigos).
+async function cleanDuplicates(req, res, next) {
+  try {
+    const orgId = req.user.organization_id;
+    if (!isAuthenticated(req.user.id, orgId)) {
+      return res.status(400).json({ error: 'Google Calendar não está ligado.' });
+    }
+    const result = await cleanDuplicateAppEvents(req.user.id, orgId);
+    if (result.error) return res.status(400).json({ error: result.error });
+    res.json({ success: true, deleted: result.deleted });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getStatus, syncAll, getSettings, saveSettings, cleanDuplicates };

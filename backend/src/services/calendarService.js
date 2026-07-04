@@ -212,4 +212,76 @@ async function updateTaskCalendarEvent(task, calendarUser = {}) {
   }
 }
 
-module.exports = { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, createTaskCalendarEvent, updateTaskCalendarEvent };
+// Remove eventos duplicados criados pela app (mesmo título + início), mantendo um.
+// Usado pela ação manual "Limpar duplicados" para corrigir os órfãos deixados pelo
+// bug antigo (apagar+recriar). Seguro: só toca em eventos com prefixo de ícone da app
+// e só apaga duplicados EXATOS, preferindo manter o que está ligado localmente.
+async function cleanDuplicateAppEvents(userId, organizationId) {
+  if (!isAuthenticated(userId, organizationId)) {
+    return { deleted: 0, error: 'Google Calendar não está ligado.' };
+  }
+  const auth = getAuthenticatedClient(userId, organizationId);
+  const APP_ICONS = Object.values(TASK_TYPE_ICONS).concat(['🏨']); // ícones de tarefas + reserva
+
+  const accCals = db.prepare(`
+    SELECT DISTINCT google_calendar_id FROM accommodations
+    WHERE organization_id = ? AND google_calendar_id IS NOT NULL AND google_calendar_id != ''
+  `).all(organizationId).map(r => r.google_calendar_id);
+  const calendars = [...new Set(['primary', ...accCals])];
+
+  // Ids de eventos ainda referenciados localmente (para preferir mantê-los).
+  const localIds = new Set(
+    db.prepare(`
+      SELECT google_event_id AS gid FROM operational_events WHERE organization_id = ? AND google_event_id IS NOT NULL
+      UNION
+      SELECT google_event_id AS gid FROM reservations WHERE organization_id = ? AND google_event_id IS NOT NULL
+    `).all(organizationId, organizationId).map(r => r.gid)
+  );
+
+  const timeMin = new Date(Date.now() - 120 * 86400000).toISOString();
+  const timeMax = new Date(Date.now() + 400 * 86400000).toISOString();
+  let deleted = 0;
+
+  for (const calendarId of calendars) {
+    const groups = new Map(); // "summary|start" -> [event,...]
+    let pageToken = null;
+    try {
+      do {
+        let url = `${calUrl(calendarId)}?singleEvents=true&maxResults=2500`
+          + `&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`;
+        if (pageToken) url += `&pageToken=${encodeURIComponent(pageToken)}`;
+        const resp = await auth.request({ url, method: 'GET' });
+        for (const ev of (resp.data.items || [])) {
+          const summary = ev.summary || '';
+          if (!APP_ICONS.some(ic => summary.startsWith(ic))) continue;
+          const start = ev.start?.dateTime || ev.start?.date || '';
+          const key = `${summary}|${start}`;
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(ev);
+        }
+        pageToken = resp.data.nextPageToken || null;
+      } while (pageToken);
+    } catch (err) {
+      console.error(`Erro a listar eventos (${calendarId}):`, err.message);
+      continue;
+    }
+
+    for (const evs of groups.values()) {
+      if (evs.length < 2) continue;
+      let keepIdx = evs.findIndex(e => localIds.has(e.id));
+      if (keepIdx < 0) keepIdx = 0;
+      for (let i = 0; i < evs.length; i++) {
+        if (i === keepIdx) continue;
+        try {
+          await auth.request({ url: calUrl(calendarId, evs[i].id), method: 'DELETE' });
+          deleted++;
+        } catch (err) {
+          console.error('Erro a apagar duplicado:', err.message);
+        }
+      }
+    }
+  }
+  return { deleted };
+}
+
+module.exports = { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, createTaskCalendarEvent, updateTaskCalendarEvent, cleanDuplicateAppEvents };

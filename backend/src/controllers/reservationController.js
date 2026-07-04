@@ -316,7 +316,7 @@ async function create(req, res, next) {
       num_guests, num_adults, num_children, breakfast_included, channel, payment_method,
       notes, rgpd_consent, rgpd_ip, guests_data, voucher_code,
       amount_paid, payment_date, payment_status: reqPaymentStatus,
-      total_amount: manualTotalCreate
+      total_amount: manualTotalCreate, nightly_prices: nightlyPricesCreate
     } = req.body;
     const totalGuests = (num_adults != null && num_children != null)
       ? (Number(num_adults) + Number(num_children))
@@ -398,6 +398,7 @@ async function create(req, res, next) {
         breakfast_included,
         guest,
         guests_data: guests_data || [],
+        nightly_prices: nightlyPricesCreate,
       });
     } catch (error) {
       return res.status(400).json({ error: error.message });
@@ -451,8 +452,8 @@ async function create(req, res, next) {
         id, organization_id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
         num_adults, num_children,
         total_amount, breakfast_included, tourist_tax, channel, payment_method,
-        notes, license_number, guests_data, amount_paid, payment_date, payment_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        notes, license_number, guests_data, amount_paid, payment_date, payment_status, nightly_prices
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       reservationId, organizationId, guestRecord.id, accommodation_id, totals.checkIn, totals.checkOut,
       totals.nights, totals.guests,
@@ -462,7 +463,8 @@ async function create(req, res, next) {
       totals.touristTax, channel || 'direto', payment_method || null,
       notes || null, accommodation.license_number,
       JSON.stringify(upsertAdditionalGuests(guests_data, organizationId)),
-      paidAmt, payment_date || null, autoPaymentStatus
+      paidAmt, payment_date || null, autoPaymentStatus,
+      JSON.stringify(totals.nightlyPrices || [])
     );
     if (appliedVoucherId) {
       db.prepare(
@@ -511,7 +513,7 @@ async function update(req, res, next) {
       check_in, check_out, num_guests, num_adults, num_children, breakfast_included,
       channel, payment_method, notes, status, payment_status, guests_data, guest,
       accommodation_id, amount_paid, payment_date, total_amount: manualTotal,
-      accommodations_data
+      accommodations_data, nightly_prices: nightlyPricesUpdate
     } = req.body;
 
     const newAccommodationId = accommodation_id || existing.accommodation_id;
@@ -534,6 +536,10 @@ async function update(req, res, next) {
     const incomingGuestsData = guests_data !== undefined ? guests_data : safeJson(existing.guests_data, []);
     const existingGuest = db.prepare('SELECT birth_date FROM guests WHERE id = ? AND organization_id = ?').get(existing.guest_id, organizationId) || {};
     const guestForBirthDates = guest || { birth_date: existingGuest.birth_date };
+    // Preço por noite: usa o enviado; senão preserva o guardado (reconciliado por data).
+    const incomingNightly = nightlyPricesUpdate !== undefined
+      ? nightlyPricesUpdate
+      : safeJson(existing.nightly_prices, []);
     let totals;
     try {
       totals = calculateReservationTotals(accommodation, getOrganizationServices(organizationId), {
@@ -543,6 +549,7 @@ async function update(req, res, next) {
         breakfast_included: bkfOn2,
         birth_dates: getReservationBirthDates(guestForBirthDates, incomingGuestsData),
         pricing_periods: pricingPeriods2,
+        nightly_prices: incomingNightly,
       });
     } catch (error) {
       return res.status(400).json({ error: error.message });
@@ -614,7 +621,7 @@ async function update(req, res, next) {
         total_amount = ?, breakfast_included = ?, tourist_tax = ?,
         channel = ?, payment_method = ?, notes = ?, status = ?,
         payment_status = ?, guests_data = ?, accommodations_data = ?,
-        amount_paid = ?, payment_date = ?, updated_at = datetime('now')
+        amount_paid = ?, payment_date = ?, nightly_prices = ?, updated_at = datetime('now')
       WHERE id = ? AND organization_id = ?
     `).run(
       newAccommodationId,
@@ -630,6 +637,7 @@ async function update(req, res, next) {
       newAccData,
       newPaidAmt,
       payment_date !== undefined ? (payment_date || null) : existing.payment_date,
+      JSON.stringify(totals.nightlyPrices || []),
       req.params.id,
       organizationId
     );

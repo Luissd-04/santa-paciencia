@@ -545,24 +545,28 @@ function accInitials(name) {
   return name.split(/\s+/).filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 3);
 }
 
+const DONE_CHECK = '<span class="eventos-pill-check"><i data-lucide="check"></i></span>';
+
 function renderEventoPill(evento) {
   const type = getEventoType(evento.type);
-  return `<button type="button" class="eventos-pill eventos-pill-${evento.type}${Number(evento.important) ? ' eventos-pill-important' : ''}" onclick="event.stopPropagation();openEventoModal('${evento.id}')">
-    <i data-lucide="${type.icon}"></i>${Number(evento.important) ? lcIcon('circle-alert', 12) : ''}${escapeHtml(evento.title)}
+  const done = evento.status === 'concluido';
+  return `<button type="button" class="eventos-pill eventos-pill-${evento.type}${Number(evento.important) ? ' eventos-pill-important' : ''}${done ? ' eventos-pill-done' : ''}" onclick="event.stopPropagation();openEventoModal('${evento.id}')">
+    <i data-lucide="${type.icon}"></i>${Number(evento.important) ? lcIcon('circle-alert', 12) : ''}${escapeHtml(evento.title)}${done ? DONE_CHECK : ''}
   </button>`;
 }
 
 function renderEventoPillCompact(evento) {
   const type = getEventoType(evento.type);
+  const done = evento.status === 'concluido';
   const timeLabel = evento.start_time ? ` ${evento.start_time}` : '';
-  const tooltip = escapeHtml(evento.title + (evento.accommodation_name ? ` · ${evento.accommodation_name}` : '') + timeLabel);
+  const tooltip = escapeHtml(evento.title + (evento.accommodation_name ? ` · ${evento.accommodation_name}` : '') + timeLabel + (done ? ' · concluído' : ''));
   const initials = accInitials(evento.accommodation_name);
   return `<button type="button"
-    class="eventos-pill eventos-pill-${evento.type} eventos-pill-compact${Number(evento.important) ? ' eventos-pill-important' : ''}"
+    class="eventos-pill eventos-pill-${evento.type} eventos-pill-compact${Number(evento.important) ? ' eventos-pill-important' : ''}${done ? ' eventos-pill-done' : ''}"
     title="${tooltip}"
     aria-label="${tooltip}"
     onclick="event.stopPropagation();openEventoModal('${evento.id}')">
-    <i data-lucide="${type.icon}"></i>${Number(evento.important) ? lcIcon('circle-alert', 10) : ''}${initials ? `<span class="pill-acc-name">${initials}</span>` : ''}
+    <i data-lucide="${type.icon}"></i>${Number(evento.important) ? lcIcon('circle-alert', 10) : ''}${initials ? `<span class="pill-acc-name">${initials}</span>` : ''}${done ? DONE_CHECK : ''}
   </button>`;
 }
 
@@ -581,6 +585,8 @@ function openEventoModal(id = null, date = null) {
   document.getElementById('evento-accommodation').value = evento?.accommodation_id || '';
   document.getElementById('evento-responsible').value = evento?.responsible || currentUser?.name || '';
   document.getElementById('evento-notes').value = evento?.notes || '';
+  const delBtn = document.getElementById('evento-delete-btn');
+  if (delBtn) delBtn.style.display = evento ? '' : 'none';
   AppUI.openModal('evento-modal-bg');
   AppUI.enhanceSelects(document.getElementById('evento-modal-bg'));
   AppUI.refreshDropdowns(document.getElementById('evento-modal-bg'));
@@ -605,9 +611,13 @@ async function saveEvento() {
     responsible: document.getElementById('evento-responsible').value.trim(),
     notes: document.getElementById('evento-notes').value.trim(),
   };
-  if (!body.title || !body.date) {
-    toast('⚠️ Título e data são obrigatórios.', 'error');
+  // Mensagens específicas (ajuda a perceber qual campo está em falta) + salvaguarda na data.
+  if (!body.title) {
+    toast('⚠️ Indica o título do evento.', 'error');
     return;
+  }
+  if (!body.date) {
+    body.date = new Date().toISOString().slice(0, 10);
   }
 
   AppUI.setButtonLoading(btn, true, 'A guardar...');
@@ -645,6 +655,21 @@ async function deleteEvento(id) {
   if (!confirm('Eliminar este evento?')) return;
   try {
     await apiDelete(`/api/events/${id}`);
+    toast('Evento eliminado.', 'info');
+    await loadEventos();
+  } catch (err) {
+    toast('❌ ' + (err?.payload?.error || 'Não foi possível eliminar.'), 'error');
+  }
+}
+
+// Apagar a partir do modal (usado na vista de calendário — abre o evento e apaga).
+async function deleteEventoFromModal() {
+  if (!eventosEditingId) return;
+  const id = eventosEditingId;
+  if (!confirm('Eliminar este evento? Esta ação não pode ser desfeita.')) return;
+  try {
+    await apiDelete(`/api/events/${id}`);
+    closeEventoModal();
     toast('Evento eliminado.', 'info');
     await loadEventos();
   } catch (err) {

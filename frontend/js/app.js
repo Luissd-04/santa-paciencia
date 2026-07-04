@@ -405,9 +405,11 @@ async function loadCalendarStatus() {
     const connectBtn    = el('gcal-connect-btn');
     const disconnectBtn = el('gcal-disconnect-btn');
     const syncBtn       = el('gcal-sync-btn');
+    const cleanBtn      = el('gcal-clean-btn');
     if (connectBtn)    connectBtn.style.display    = connected ? 'none'         : '';
     if (disconnectBtn) disconnectBtn.style.display = connected ? ''             : 'none';
     if (syncBtn)       syncBtn.style.display       = connected ? 'inline-flex'  : 'none';
+    if (cleanBtn)      cleanBtn.style.display      = connected ? 'inline-flex'  : 'none';
   } catch (e) {}
 }
 
@@ -469,6 +471,27 @@ async function syncAllGcal() {
     }
   } catch (e) {
     toast('❌ Erro de ligação.', 'error');
+  } finally {
+    AppUI.setButtonLoading(btn, false);
+  }
+}
+
+// Remove eventos duplicados no Google (órfãos deixados pelo bug antigo de sincronização).
+async function cleanGcalDuplicates() {
+  if (!confirm('Procurar e apagar eventos DUPLICADOS no teu Google Calendar (criados pela app)?\n\nMantém sempre uma cópia de cada. Não mexe nos teus eventos pessoais.')) return;
+  const btn = document.getElementById('gcal-clean-btn');
+  AppUI.setButtonLoading(btn, true, 'A limpar...');
+  try {
+    const res = await apiPost('/api/calendar/clean-duplicates', {});
+    if (res.success) {
+      toast(res.deleted > 0
+        ? `✅ ${res.deleted} evento(s) duplicado(s) removido(s).`
+        : '✅ Não foram encontrados duplicados.', 'success');
+    } else {
+      toast('❌ ' + (res.error || 'Erro ao limpar duplicados.'), 'error');
+    }
+  } catch (e) {
+    toast('❌ ' + (e?.payload?.error || 'Erro de ligação.'), 'error');
   } finally {
     AppUI.setButtonLoading(btn, false);
   }

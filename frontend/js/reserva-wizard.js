@@ -156,6 +156,12 @@ function onAmountPaidChange() {
 let wizStep = 1;
 let _cachedPricingPeriods = {};
 
+// Preço por noite: overrides do utilizador (mapa data→preço) e total manual.
+let _nightlyOverrides = {};
+let _nightlyPrices = [];        // array atual [{date, price}] (calculado)
+let _nightlyGridSig = '';       // assinatura das datas para saber quando reconstruir a grelha
+let _manualTotalOverride = null;
+
 async function loadWizPricingPeriods(alojId) {
   if (!alojId) return [];
   if (_cachedPricingPeriods[alojId]) return _cachedPricingPeriods[alojId];
@@ -166,6 +172,21 @@ async function loadWizPricingPeriods(alojId) {
   } catch {
     return [];
   }
+}
+
+// Pré-carrega os períodos de preço de todos os alojamentos, para os cartões
+// mostrarem o preço dinâmico correto. Re-renderiza os cartões quando termina.
+async function preloadAllPricingPeriods() {
+  const pending = accommodations
+    .map(a => a.id)
+    .filter(id => id && !_cachedPricingPeriods[id]);
+  if (!pending.length) return;
+  await Promise.all(pending.map(id => loadWizPricingPeriods(id)));
+  renderSuiteCards();
+}
+
+function nightlyOverrideArray() {
+  return Object.entries(_nightlyOverrides).map(([date, price]) => ({ date, price: Number(price) }));
 }
 
 function invalidateWizPricingCache(alojId) {
@@ -211,6 +232,7 @@ function openModal(config = {}) {
   document.getElementById('f-noites').value = '';
   document.getElementById('f-total').value = '';
   resetFormDiscount();
+  resetNightlyState();
   const alojSelect = document.getElementById('f-aloj');
   if (alojSelect) alojSelect.value = config.accommodationId || '';
   const rgpdWrap = document.getElementById('wiz-rgpd-wrap');
@@ -220,7 +242,23 @@ function openModal(config = {}) {
   const searchEl = document.getElementById('wiz-guest-search');
   if (searchEl) searchEl.value = '';
   renderExtraGuests();
-  if (config.checkIn && config.checkOut) {
+
+  // Restaurar rascunho (só Nova Reserva). Config explícita (ex.: clique no
+  // calendário) tem prioridade sobre os valores guardados.
+  const notice = document.getElementById('resf-draft-notice');
+  if (notice) notice.style.display = 'none';
+  if (!_suppressDraftSave) {
+    const draft = loadReservaDraft();
+    if (draft) {
+      applyReservaDraft(draft);
+      if (config.checkIn)  document.getElementById('f-checkin').value  = formatDateForStandardInput(config.checkIn);
+      if (config.checkOut) document.getElementById('f-checkout').value = formatDateForStandardInput(config.checkOut);
+      if (config.accommodationId) { const a = document.getElementById('f-aloj'); if (a) a.value = config.accommodationId; }
+    }
+  }
+
+  const hasDates = !!(document.getElementById('f-checkin').value && document.getElementById('f-checkout').value);
+  if (hasDates) {
     _availTimer && clearTimeout(_availTimer);
     _availTimer = setTimeout(fetchSuiteAvailability, 0);
   } else {
@@ -255,6 +293,15 @@ async function openEditModal(id) {
     document.getElementById('btn-guardar').textContent = 'Atualizar Reserva';
     buildCountrySelects();
     _resetGuestFields();
+
+    // Preço por noite guardado → overrides (para editar noite a noite).
+    resetNightlyState();
+    const storedNightly = typeof r.nightly_prices === 'string'
+      ? (() => { try { return JSON.parse(r.nightly_prices || '[]'); } catch { return []; } })()
+      : (r.nightly_prices || []);
+    (storedNightly || []).forEach(n => {
+      if (n && n.date != null && n.price != null) _nightlyOverrides[n.date] = Math.max(0, Number(n.price));
+    });
 
     const nameParts = (r.guest_name || '').trim().split(' ');
     const nomeFull = [guestFull.first_name || nameParts[0], guestFull.last_name || nameParts.slice(1).join(' ')].filter(Boolean).join(' ');
@@ -352,6 +399,15 @@ async function openEditModal(id) {
     if (titleEl) titleEl.textContent = 'Editar Reserva — ' + id;
     const saveBtn = document.getElementById('btn-guardar');
     if (saveBtn) saveBtn.innerHTML = '<i data-lucide="save" style="width:14px;height:14px;"></i> Atualizar Reserva';
+    await calcTotal();
+    // Preservar o total efetivamente cobrado: se diferir do recalculado a partir das
+    // noites + extras (ex.: desconto ou ajuste manual antigo), fixá-lo como total manual.
+    const storedTotal = Number(r.total_amount);
+    const recomputed = parseFloat(document.getElementById('f-total')?.value);
+    if (!isNaN(storedTotal) && !isNaN(recomputed) && Math.abs(storedTotal - recomputed) > 0.01) {
+      _manualTotalOverride = storedTotal;
+      await calcTotal();
+    }
     renderSuiteCards();
     updateWizSummary();
     AppUI.refreshDropdowns(document.getElementById('modal-bg'));
@@ -366,6 +422,175 @@ function closeModal() {
   const modal = bg.querySelector('.modal');
   modal.classList.add('modal-closing');
   setTimeout(() => { AppUI.closeModal(bg); modal.classList.remove('modal-closing'); editingId = null; }, 320);
+}
+
+// ── FECHO SEGURO + RASCUNHO (só para Nova Reserva) ──
+const RESERVA_DRAFT_KEY = 'sp_reserva_draft_v1';
+let _draftSaveTimer = null;
+let _suppressDraftSave = false;
+
+function reservaModalIsOpen() {
+  return document.getElementById('modal-bg')?.classList.contains('open');
+}
+
+// Campos de topo cujo valor guardamos/restauramos no rascunho.
+const RESERVA_DRAFT_FIELDS = [
+  'f-checkin', 'f-checkout', 'f-num-adultos', 'f-num-criancas', 'f-breakfast',
+  'f-canal', 'f-aloj', 'f-nome-completo', 'f-email', 'f-tel-prefix', 'f-tel-num',
+  'f-pais', 'f-doc-tipo', 'f-doc-num', 'f-doc-emissor', 'f-nascimento',
+  'f-local-nascimento', 'f-nif', 'f-morada', 'f-cp', 'f-cidade', 'f-notas',
+  'f-estado', 'f-payment-status', 'f-pagamento', 'f-amount-paid', 'f-payment-date',
+  'f-discount-type', 'f-discount-val', 'f-total', 'f-noites',
+];
+
+// True se o formulário tiver dados que valha a pena preservar/confirmar antes de fechar.
+function reservaFormHasData() {
+  const val = id => (document.getElementById(id)?.value || '').trim();
+  if (val('f-nome-completo') || val('f-email') || val('f-tel-num') ||
+      val('f-notas') || val('f-aloj') || val('f-amount-paid') || val('f-discount-val') ||
+      val('f-doc-num') || val('f-nif') || val('f-morada')) {
+    return true;
+  }
+  const extras = collectExtraGuests();
+  return extras.length > 0;
+}
+
+function requestCloseReservaModal() {
+  // Em edição não guardamos rascunho; fechar diretamente.
+  if (editingId) { closeModal(); return; }
+  if (reservaFormHasData()) {
+    saveReservaDraft(); // garante que o estado atual fica guardado
+    const ok = window.confirm('Fechar e guardar como rascunho?\n\nOs dados ficam guardados e podes continuar da próxima vez que abrires "Nova Reserva".');
+    if (!ok) return;
+  } else {
+    // Formulário vazio: nada a preservar.
+    clearReservaDraft();
+  }
+  closeModal();
+}
+// Hook global para o handler de Escape partilhado (ui.js).
+window.requestCloseReservaModal = requestCloseReservaModal;
+
+function serializeReservaForm() {
+  const fields = {};
+  RESERVA_DRAFT_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) fields[id] = el.value;
+  });
+  const discTypeBtn = document.querySelector('.resf-disc-type.active');
+  return {
+    v: 1,
+    savedAt: Date.now(),
+    fields,
+    discountType: discTypeBtn?.dataset.type || 'pct',
+    numHospedes: document.getElementById('f-num-hospedes')?.value || '',
+    extraGuests: collectExtraGuests(),
+    nightlyOverrides: _nightlyOverrides,
+    manualTotal: _manualTotalOverride,
+  };
+}
+
+function saveReservaDraft() {
+  if (_suppressDraftSave || editingId) return;
+  try {
+    localStorage.setItem(RESERVA_DRAFT_KEY, JSON.stringify(serializeReservaForm()));
+  } catch {}
+}
+
+function scheduleReservaDraftSave() {
+  if (_suppressDraftSave || editingId) return;
+  clearTimeout(_draftSaveTimer);
+  _draftSaveTimer = setTimeout(saveReservaDraft, 400);
+}
+
+function clearReservaDraft() {
+  try { localStorage.removeItem(RESERVA_DRAFT_KEY); } catch {}
+  const notice = document.getElementById('resf-draft-notice');
+  if (notice) notice.style.display = 'none';
+}
+
+function loadReservaDraft() {
+  try {
+    const raw = localStorage.getItem(RESERVA_DRAFT_KEY);
+    if (!raw) return null;
+    const draft = JSON.parse(raw);
+    return draft && draft.fields ? draft : null;
+  } catch { return null; }
+}
+
+// Aplica um rascunho aos campos do modal. Assume modal já em estado "Nova Reserva".
+function applyReservaDraft(draft) {
+  _suppressDraftSave = true;
+  try {
+    Object.entries(draft.fields || {}).forEach(([id, value]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = value;
+    });
+    updateNumHospedes();
+    if (draft.discountType) setFormDiscountType(draft.discountType);
+    const discVal = document.getElementById('f-discount-val');
+    if (discVal && draft.fields?.['f-discount-val']) {
+      discVal.value = draft.fields['f-discount-val'];
+      const wrap = document.getElementById('resf-discount-wrap');
+      if (wrap) wrap.style.display = '';
+    }
+
+    // Preço por noite / total manual guardados no rascunho.
+    _nightlyOverrides = draft.nightlyOverrides && typeof draft.nightlyOverrides === 'object' ? { ...draft.nightlyOverrides } : {};
+    _manualTotalOverride = (draft.manualTotal == null || isNaN(Number(draft.manualTotal))) ? null : Number(draft.manualTotal);
+    _nightlyGridSig = '';
+
+    renderExtraGuests();
+    (draft.extraGuests || []).forEach((g, idx) => {
+      const rows = document.querySelectorAll('.extra-guest-row');
+      const row = rows[idx];
+      if (!row) return;
+      const setVal = (field, v) => { const el = row.querySelector(`[data-field="${field}"]`); if (el) el.value = v || ''; };
+      setVal('nome_completo', [g.first_name, g.last_name].filter(Boolean).join(' ') || g.name || '');
+      setVal('email', g.email);
+      const rawP = g.phone || '';
+      const mc = DIAL_COUNTRIES.find(c => rawP.startsWith(c.dial));
+      setVal('tel_prefix', mc ? mc.dial : '+351');
+      setVal('tel_num', mc ? rawP.slice(mc.dial.length).trim() : rawP);
+      setVal('country', g.country || g.nationality);
+      setVal('birth_date', formatDateForBirthInput(g.birth_date));
+      setVal('birth_city', g.birth_city);
+      setVal('doc_type', g.document_type);
+      setVal('doc_number', g.document_number);
+      setVal('doc_emissor', g.document_issuer_country);
+      setVal('nif', g.nif);
+    });
+
+    const notice = document.getElementById('resf-draft-notice');
+    if (notice) notice.style.display = '';
+  } finally {
+    _suppressDraftSave = false;
+  }
+}
+
+function discardReservaDraft() {
+  clearReservaDraft();
+  _suppressDraftSave = true;
+  try {
+    openModal(); // reabre limpo (openModal repõe defaults e não encontra rascunho)
+  } finally {
+    _suppressDraftSave = false;
+  }
+}
+
+// Autosave: qualquer alteração dentro do modal atualiza o rascunho (só Nova Reserva).
+function _wireReservaDraftAutosave() {
+  const bg = document.getElementById('modal-bg');
+  if (!bg || bg.dataset.draftWired) return;
+  bg.dataset.draftWired = '1';
+  const onChange = () => scheduleReservaDraftSave();
+  bg.addEventListener('input', onChange);
+  bg.addEventListener('change', onChange);
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _wireReservaDraftAutosave);
+} else {
+  _wireReservaDraftAutosave();
 }
 
 async function calcTotal() {
@@ -386,6 +611,8 @@ async function calcTotal() {
     // Trigger availability check (debounced)
     clearTimeout(_availTimer);
     _availTimer = setTimeout(fetchSuiteAvailability, 300);
+    // Períodos de todos os alojamentos para os cartões mostrarem preço dinâmico.
+    preloadAllPricingPeriods();
   } else {
     if (badge) badge.style.display = 'none';
     _unavailableSuites = new Set();
@@ -401,7 +628,11 @@ async function calcTotal() {
       breakfast_included: breakfast,
       birth_dates: getGuestBirthDatesFromUi(),
       pricing_periods: pricingPeriods,
+      nightly_prices: nightlyOverrideArray(),
     });
+    _nightlyPrices = totals.nightlyPrices || [];
+    renderNightlyGrid();
+
     const discVal = parseFloat(document.getElementById('f-discount-val')?.value) || 0;
     const discType = document.getElementById('f-discount-type')?.value || 'pct';
     let finalTotal = totals.totalAmount;
@@ -410,16 +641,30 @@ async function calcTotal() {
         ? totals.totalAmount * (1 - Math.min(discVal, 100) / 100)
         : Math.max(0, totals.totalAmount - discVal);
     }
+    // Total manual sobrepõe-se a tudo (mas coexiste com o desconto, que continua visível).
+    if (_manualTotalOverride != null) finalTotal = _manualTotalOverride;
+
     document.getElementById('f-noites').value = totals.nights;
     document.getElementById('f-total').value = finalTotal.toFixed(2);
-    const badge = document.getElementById('resf-total-badge');
-    if (badge) badge.textContent = `€${finalTotal.toFixed(2)}`;
+    const badge2 = document.getElementById('resf-total-badge');
+    if (badge2) badge2.textContent = `€${finalTotal.toFixed(2)}`;
+
+    // Breakdown + campo de total editável
+    const extras = (totals.extraOccupancyCost || 0) + (totals.touristTax || 0) + (totals.breakfastCost || 0);
+    const baseEl = document.getElementById('resf-nightly-base');
+    if (baseEl) baseEl.textContent = `€${(totals.baseAmount || 0).toFixed(2)}`;
+    const extrasEl = document.getElementById('resf-nightly-extras');
+    const extrasWrap = document.getElementById('resf-nightly-extras-wrap');
+    if (extrasEl) extrasEl.textContent = `€${extras.toFixed(2)}`;
+    if (extrasWrap) extrasWrap.style.display = extras > 0.005 ? '' : 'none';
+    updateNightlyTotalField(finalTotal);
+
     const discWrap = document.getElementById('resf-discount-wrap');
     if (discWrap) discWrap.style.display = '';
     const discPreview = document.getElementById('f-discount-preview');
     if (discPreview) {
-      const saving = totals.totalAmount - finalTotal;
-      discPreview.textContent = saving > 0.005 ? `Poupança: €${saving.toFixed(2)}` : '';
+      const saving = totals.totalAmount - (_manualTotalOverride != null ? _manualTotalOverride : finalTotal);
+      discPreview.textContent = discVal > 0 && saving > 0.005 ? `Poupança: €${saving.toFixed(2)}` : '';
     }
   } else {
     if (!suite) {
@@ -427,10 +672,112 @@ async function calcTotal() {
       const b = document.getElementById('resf-total-badge'); if (b) b.textContent = '';
       const discWrap = document.getElementById('resf-discount-wrap'); if (discWrap) discWrap.style.display = 'none';
     }
+    _nightlyPrices = [];
+    renderNightlyGrid();
     if (!ci || !co) document.getElementById('f-noites').value = '';
   }
   updateWizSummary();
   updateSpecialRateHints();
+}
+
+// ── PREÇO POR NOITE (grelha editável) ──
+function nightlyGridSignature() {
+  return _nightlyPrices.map(n => n.date).join('|');
+}
+
+function formatNightLabel(iso) {
+  const d = new Date(`${iso}T12:00:00`);
+  const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  return `${days[d.getDay()]}, ${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]}`;
+}
+
+function renderNightlyGrid() {
+  const wrap = document.getElementById('resf-nightly-wrap');
+  const grid = document.getElementById('resf-nightly-grid');
+  if (!wrap || !grid) return;
+  if (!_nightlyPrices.length) {
+    wrap.style.display = 'none';
+    grid.innerHTML = '';
+    _nightlyGridSig = '';
+    return;
+  }
+  wrap.style.display = '';
+  const sig = nightlyGridSignature();
+  if (sig === _nightlyGridSig) {
+    // Mesma estrutura de datas: não reconstruir (preserva foco); só atualizar destaque.
+    document.querySelectorAll('#resf-nightly-grid .resf-nightly-row').forEach(row => {
+      row.classList.toggle('edited', _nightlyOverrides[row.dataset.date] != null);
+    });
+    return;
+  }
+  _nightlyGridSig = sig;
+  grid.innerHTML = _nightlyPrices.map(n => {
+    const edited = _nightlyOverrides[n.date] != null;
+    return `<div class="resf-nightly-row${edited ? ' edited' : ''}" data-date="${n.date}">
+      <span class="resf-nightly-date">${formatNightLabel(n.date)}${edited ? '<span class="resf-nightly-tag">editado</span>' : ''}</span>
+      <div class="resf-nightly-input">
+        <span>€</span>
+        <input type="number" min="0" step="0.01" value="${Number(n.price).toFixed(2)}"
+          oninput="onNightlyPriceInput('${n.date}', this.value)" autocomplete="off">
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function onNightlyPriceInput(date, value) {
+  const v = value === '' ? null : Number(value);
+  if (v == null || isNaN(v)) delete _nightlyOverrides[date];
+  else _nightlyOverrides[date] = Math.max(0, v);
+  // Alterar preços por noite recalcula o total a partir das noites.
+  _manualTotalOverride = null;
+  calcTotal();
+}
+
+function applyNightlyToAll() {
+  const raw = document.getElementById('resf-nightly-all-val')?.value;
+  const v = raw === '' ? null : Number(raw);
+  if (v == null || isNaN(v) || v < 0) { toast('Introduz um preço válido para aplicar a todas as noites.', 'error'); return; }
+  _nightlyPrices.forEach(n => { _nightlyOverrides[n.date] = v; });
+  _manualTotalOverride = null;
+  _nightlyGridSig = ''; // forçar reconstrução para refletir os novos valores nos inputs
+  calcTotal();
+}
+
+function resetNightlyOverrides() {
+  _nightlyOverrides = {};
+  _manualTotalOverride = null;
+  _nightlyGridSig = '';
+  const allInp = document.getElementById('resf-nightly-all-val'); if (allInp) allInp.value = '';
+  calcTotal();
+}
+
+function updateNightlyTotalField(finalTotal) {
+  const inp = document.getElementById('f-total-manual');
+  const resetBtn = document.getElementById('resf-total-reset');
+  if (!inp) return;
+  if (resetBtn) resetBtn.style.display = _manualTotalOverride != null ? '' : 'none';
+  // Reflete sempre o total atual, exceto enquanto o utilizador está a escrever no campo.
+  if (document.activeElement !== inp) inp.value = finalTotal.toFixed(2);
+}
+
+function onManualTotalInput(value) {
+  const v = value === '' ? null : Number(value);
+  _manualTotalOverride = (v == null || isNaN(v)) ? null : Math.max(0, v);
+  calcTotal();
+}
+
+function resetManualTotal() {
+  _manualTotalOverride = null;
+  calcTotal();
+}
+
+function resetNightlyState() {
+  _nightlyOverrides = {};
+  _nightlyPrices = [];
+  _nightlyGridSig = '';
+  _manualTotalOverride = null;
+  const allInp = document.getElementById('resf-nightly-all-val'); if (allInp) allInp.value = '';
 }
 
 function setFormDiscountType(type) {
@@ -518,10 +865,10 @@ function getAgeSpecialRateInfo(suite, birthDate, checkIn = null) {
   if (age === null) return null;
   const babyLimit = Number(suite.baby_age_limit ?? 2);
   const childLimit = Number(suite.child_age_limit ?? 12);
-  if (age < babyLimit) {
+  if (age <= babyLimit) {
     return { type: 'bebé', label: 'Preço de bebé aplicado', price: Number(suite.baby_price ?? 0), age };
   }
-  if (age >= babyLimit && age < childLimit) {
+  if (age > babyLimit && age < childLimit) {
     return { type: 'criança', label: 'Preço de criança aplicado', price: Number(suite.child_price ?? 0), age };
   }
   return null;
@@ -944,10 +1291,34 @@ function renderSuiteCards() {
       ${blocked
         ? `${unavail ? `<div class="suite-card-unavail-lbl">Indisponível</div>` : ''}
            ${overCapacity ? `<div class="suite-card-capacity-lbl">Capacidade máxima: ${maxGuests} hóspede${maxGuests !== 1 ? 's' : ''}</div>` : ''}`
-        : `<div class="suite-card-price">€${a.price_per_night}<span class="suite-card-sub"> / noite</span></div>`}
+        : suiteCardPriceHtml(a, ci, co)}
     </div>`;
   }).join('');
   if (window.lucide) lucide.createIcons();
+}
+
+// Preço do cartão: dinâmico (média/noite + total + ocupação extra) quando há datas,
+// tal como no frontoffice; senão, o preço-base estático.
+function suiteCardPriceHtml(a, ci, co) {
+  const datesOk = ci && co && new Date(co) > new Date(ci);
+  const fallback = `<div class="suite-card-price">€${a.price_per_night}<span class="suite-card-sub"> / noite</span></div>`;
+  if (!datesOk || !window.ReservationPricing) return fallback;
+  const numHospedes = parseInt(document.getElementById('f-num-hospedes')?.value, 10) || 1;
+  const totals = window.ReservationPricing.calculateReservationTotal(a, [], {
+    check_in: ci,
+    check_out: co,
+    num_guests: numHospedes,
+    birth_dates: getGuestBirthDatesFromUi(),
+    pricing_periods: _cachedPricingPeriods[a.id] || [],
+  });
+  if (!totals || !totals.baseAmount || !totals.nights) return fallback;
+  const avg = totals.baseAmount / totals.nights;
+  const grand = totals.baseAmount + (totals.extraOccupancyCost || 0);
+  const extra = totals.extraOccupancyCost > 0
+    ? `<div class="suite-card-extra">+ €${totals.extraOccupancyCost.toFixed(2)} ocupação extra</div>`
+    : '';
+  return `<div class="suite-card-price">€${avg.toFixed(2)}<span class="suite-card-sub"> / noite</span>
+    <div class="suite-card-total">€${grand.toFixed(2)} total</div>${extra}</div>`;
 }
 
 function selectSuiteCard(id) {
@@ -957,8 +1328,16 @@ function selectSuiteCard(id) {
   const maxGuests = Number(suite?.max_guests) || 0;
   if (maxGuests > 0 && requestedGuests > maxGuests) return;
   const sel = document.getElementById('f-aloj');
+  const previous = sel?.value;
   if (sel) sel.value = id;
   delete _cachedPricingPeriods[id]; // force refresh on next calcTotal
+  // Trocar de alojamento parte de preços novos (os overrides eram do anterior).
+  if (previous !== id) {
+    _nightlyOverrides = {};
+    _manualTotalOverride = null;
+    _nightlyGridSig = '';
+    const allInp = document.getElementById('resf-nightly-all-val'); if (allInp) allInp.value = '';
+  }
   renderSuiteCards();
   calcTotal();
 }
@@ -983,6 +1362,8 @@ function buildWizConfirm() {
   const total = parseFloat(document.getElementById('f-total')?.value) || 0;
   const extraOccupancyCost = getExtraOccupancyCharge(suite, numH, nights, getGuestBirthDatesFromUi(), ci);
   const hasPeriods = (_cachedPricingPeriods[alojId] || []).length > 0;
+  const hasNightlyEdits = Object.keys(_nightlyOverrides).length > 0;
+  const priceLabel = hasNightlyEdits ? 'Preço por noite personalizado' : (hasPeriods ? 'Preço dinâmico' : `€${suite?.price_per_night || 0}/noite`);
   const card = document.getElementById('wiz-conf-card');
   if (!card) return;
   card.innerHTML = `<div class="wiz-conf-grid">
@@ -1009,7 +1390,7 @@ function buildWizConfirm() {
     <div class="wiz-conf-cell accent">
       <div class="wiz-conf-lbl">Total</div>
       <div class="wiz-conf-val">€${total.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}</div>
-      <div class="wiz-conf-sub">${hasPeriods ? 'Preço dinâmico' : `€${suite?.price_per_night || 0}/noite`} × ${nights} noites${extraOccupancyCost ? ` · extra €${extraOccupancyCost.toFixed(2)}` : ''}</div>
+      <div class="wiz-conf-sub">${priceLabel} × ${nights} noites${extraOccupancyCost ? ` · extra €${extraOccupancyCost.toFixed(2)}` : ''}</div>
     </div>
   </div>`;
 }
@@ -1154,7 +1535,11 @@ async function saveReserva() {
 
     const discountVal = parseFloat(document.getElementById('f-discount-val')?.value) || 0;
     const computedTotal = parseFloat(document.getElementById('f-total')?.value);
-    const manualTotalOverride = discountVal > 0 && !isNaN(computedTotal) ? computedTotal : undefined;
+    // Enviar total_amount fixo quando há desconto ou total manual (ambos já refletidos
+    // em f-total). Caso contrário, o servidor recalcula a partir de nightly_prices + extras.
+    const forceTotal = (discountVal > 0 || _manualTotalOverride != null) && !isNaN(computedTotal);
+    const manualTotalOverride = forceTotal ? computedTotal : undefined;
+    const nightlyPricesPayload = Array.isArray(_nightlyPrices) ? _nightlyPrices : [];
 
     if (editingId) {
       const body = {
@@ -1172,6 +1557,7 @@ async function saveReserva() {
         payment_date: normalizeIsoDateValue(document.getElementById('f-payment-date')?.value) || null,
         notes: document.getElementById('f-notas').value,
         guests_data: collectExtraGuests(),
+        nightly_prices: nightlyPricesPayload,
         ...(manualTotalOverride !== undefined ? { total_amount: manualTotalOverride } : {}),
         guest: {
           name: nomeFull, first_name: primeiroNome, last_name: apelido,
@@ -1230,11 +1616,13 @@ async function saveReserva() {
         voucher_code: document.getElementById('f-voucher-code')?.value.trim().toUpperCase() || null,
         rgpd_consent: true,
         guests_data: collectExtraGuests(),
+        nightly_prices: nightlyPricesPayload,
         ...(manualTotalOverride !== undefined ? { total_amount: manualTotalOverride } : {}),
       };
       const res = await apiPost('/api/reservations', body);
       if (res.success) {
         toast('✅ Reserva criada com sucesso!', 'success');
+        clearReservaDraft();
         closeModal();
         await loadReservas();
         if (typeof renderCalView === 'function') renderCalView();

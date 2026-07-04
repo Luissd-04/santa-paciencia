@@ -176,7 +176,14 @@
     if (event.key === 'Escape') {
       document.querySelectorAll('.app-select.is-open').forEach(closeDropdown);
       const openModalEl = document.querySelector('.modal-bg.open, .image-lightbox.open');
-      if (openModalEl) closeModal(openModalEl);
+      if (openModalEl) {
+        // O modal de reservas gere o seu próprio fecho (confirmação + rascunho).
+        if (openModalEl.id === 'modal-bg' && typeof window.requestCloseReservaModal === 'function') {
+          window.requestCloseReservaModal();
+        } else {
+          closeModal(openModalEl);
+        }
+      }
     }
   });
 

@@ -477,6 +477,7 @@ function migrateReservations() {
     ['num_adults',   'INTEGER'],
     ['num_children', 'INTEGER DEFAULT 0'],
     ['accommodations_data', "TEXT DEFAULT '[]'"],
+    ['nightly_prices', "TEXT DEFAULT '[]'"],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {
