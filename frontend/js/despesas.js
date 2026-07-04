@@ -295,16 +295,58 @@ function _compressImage(file, maxDim = 2560, quality = 0.9) {
   });
 }
 
+// As câmaras Apple gravam por defeito em HEIC, que a maioria dos browsers (fora o
+// Safari) não decodifica num <img> — e a API de visão também não o aceita. Detetamos
+// HEIC e convertemos para JPEG no browser antes de comprimir/enviar.
+function _isHeic(file) {
+  const t = (file.type || '').toLowerCase();
+  if (t.includes('heic') || t.includes('heif')) return true;
+  return /\.(heic|heif)$/i.test(file.name || '');
+}
+
+let _heic2anyPromise = null;
+function _loadHeic2any() {
+  if (window.heic2any) return Promise.resolve(window.heic2any);
+  if (_heic2anyPromise) return _heic2anyPromise;
+  _heic2anyPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+    s.integrity = 'sha384-OTofQ0MEeiSgh62havBcemCIK0gqj809wX6UA0uPISNMRnR6NZyCdGzX3SbLrgwL';
+    s.crossOrigin = 'anonymous';
+    s.onload = () => window.heic2any ? resolve(window.heic2any) : reject(new Error('heic2any indisponível'));
+    s.onerror = () => reject(new Error('Falha ao carregar o conversor HEIC'));
+    document.head.appendChild(s);
+  });
+  return _heic2anyPromise;
+}
+
+// Devolve um ficheiro/blob que o browser consegue decodificar (converte HEIC → JPEG).
+async function _ensureSupportedImage(file) {
+  if (!_isHeic(file)) return file;
+  const heic2any = await _loadHeic2any();
+  const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.92 });
+  return Array.isArray(out) ? out[0] : out;
+}
+
 async function onReceiptSelected(input) {
   const file = input.files && input.files[0];
   input.value = ''; // permite reescolher a mesma foto
   if (!file) return;
-  if (!file.type.startsWith('image/')) { toast('Escolhe uma imagem.', 'error'); return; }
-  let dataUri;
-  try { dataUri = await _compressImage(file); }
-  catch { toast('Não foi possível ler a imagem.', 'error'); return; }
-  _receiptImage = dataUri;
+  if (!(file.type || '').startsWith('image/') && !_isHeic(file)) { toast('Escolhe uma imagem.', 'error'); return; }
+
   _openReceiptModalLoading();
+  let dataUri;
+  try {
+    const usable = await _ensureSupportedImage(file);
+    dataUri = await _compressImage(usable);
+  } catch (err) {
+    console.error('Falha a preparar a imagem do talão:', err);
+    _renderReceiptError(_isHeic(file)
+      ? 'Não foi possível converter a foto HEIC. Tenta outra vez, ou muda a câmara para JPEG (Definições › Câmara › Formatos › "Mais compatível") e tira nova foto.'
+      : 'Não foi possível ler a imagem. Tenta outra foto (JPEG ou PNG).');
+    return;
+  }
+  _receiptImage = dataUri;
   try {
     const res = await apiPost('/api/expenses/scan-receipt', { image: dataUri });
     if (res.success) _renderReceiptReview(res.data);
