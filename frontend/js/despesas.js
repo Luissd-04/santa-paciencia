@@ -141,6 +141,9 @@ function renderDespesas() {
       <td>${escapeHtml(d.description)}${d.notes ? `<br><span style="font-size:11px;color:var(--cinza);">${escapeHtml(d.notes)}</span>` : ''}</td>
       <td style="font-size:12.5px;">${escapeHtml(d.supplier || '—')}</td>
       <td style="font-size:12px;color:var(--cinza);">${escapeHtml(d.invoice_ref || '—')}${d.receipt_image ? ` <a href="${escapeHtml(d.receipt_image)}" target="_blank" title="Ver talão" style="color:var(--marca);text-decoration:none;">${lcIcon('paperclip',12)}</a>` : ''}</td>
+      <td style="font-size:11.5px;">${d.has_nif
+        ? '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:rgba(46,125,82,.12);color:#2e7d52;font-weight:600;">Com NIF</span>'
+        : '<span style="color:var(--cinza);">Sem NIF</span>'}</td>
       <td style="font-weight:600;color:var(--vermelho);">€${Number(d.amount).toFixed(2)}</td>
       <td style="font-size:12.5px;color:var(--cinza);">${escapeHtml(d.payment_method || '—')}</td>
       <td onclick="event.stopPropagation()" style="white-space:nowrap;">
@@ -150,7 +153,7 @@ function renderDespesas() {
     </tr>`;
   }).join('') + `
     <tr style="border-top:2px solid var(--cinza-claro);">
-      <td colspan="5" style="text-align:right;font-weight:600;color:var(--cinza);font-size:13px;">Total do período</td>
+      <td colspan="6" style="text-align:right;font-weight:600;color:var(--cinza);font-size:13px;">Total do período</td>
       <td style="font-weight:700;font-size:15px;color:var(--vermelho);">€${total.toFixed(2)}</td>
       <td colspan="2"></td>
     </tr>`;
@@ -180,12 +183,38 @@ function openDespesaModal(id) {
   document.getElementById('despesa-amount').value      = d ? d.amount      : '';
   document.getElementById('despesa-payment').value     = d ? (d.payment_method || 'numerário') : 'numerário';
   document.getElementById('despesa-invoice-ref').value = d ? (d.invoice_ref || '') : '';
+  document.getElementById('despesa-has-nif').value     = d && d.has_nif ? '1' : '0';
   document.getElementById('despesa-notes').value       = d ? (d.notes || '') : '';
+  const dupW = document.getElementById('despesa-dup-warning'); if (dupW) dupW.style.display = 'none';
   populateSupplierDropdown(d ? (d.supplier || '') : '');
   AppUI.enhanceSelects(document.getElementById('despesa-modal-bg'));
   AppUI.refreshDropdowns(document.getElementById('despesa-modal-bg'));
   AppUI.openModal('despesa-modal-bg');
   if (window.lucide) lucide.createIcons();
+  checkDespesaDuplicate();
+}
+
+// Verifica no servidor se já existe fatura com o mesmo nº + fornecedor e avisa (não bloqueia).
+async function checkDespesaDuplicate() {
+  const warn = document.getElementById('despesa-dup-warning');
+  const txt = document.getElementById('despesa-dup-text');
+  if (!warn || !txt) return;
+  const invoiceRef = (document.getElementById('despesa-invoice-ref')?.value || '').trim();
+  const supplier = (document.getElementById('despesa-supplier')?.value || '').trim();
+  if (!invoiceRef) { warn.style.display = 'none'; return; }
+  try {
+    const qs = `?invoice_ref=${encodeURIComponent(invoiceRef)}&supplier=${encodeURIComponent(supplier)}${despesaEditId ? `&exclude_id=${encodeURIComponent(despesaEditId)}` : ''}`;
+    const res = await apiGet(`/api/expenses/check-invoice${qs}`);
+    const info = res?.data || res;
+    if (info?.exists) {
+      const n = info.count;
+      txt.textContent = `Já existe ${n} despesa${n !== 1 ? 's' : ''} com a fatura "${invoiceRef}"${supplier ? ` de ${supplier}` : ''}. Podes guardar na mesma se for outra linha da mesma fatura.`;
+      warn.style.display = '';
+      if (window.lucide) lucide.createIcons();
+    } else {
+      warn.style.display = 'none';
+    }
+  } catch { warn.style.display = 'none'; }
 }
 
 function closeDespesaModal() {
@@ -204,18 +233,23 @@ async function saveDespesa() {
   const invoice_ref = document.getElementById('despesa-invoice-ref').value.trim() || null;
   const notes       = document.getElementById('despesa-notes').value.trim() || null;
   const supplier    = document.getElementById('despesa-supplier')?.value.trim() || null;
+  const has_nif     = document.getElementById('despesa-has-nif')?.value === '1' ? 1 : 0;
 
   if (!date || !description || isNaN(amount)) {
     toast('Preencha data, descrição e valor.', 'error'); return;
   }
 
-  const body = { date, category, description, amount, payment_method, invoice_ref, notes, supplier };
+  const body = { date, category, description, amount, payment_method, invoice_ref, notes, supplier, has_nif };
   try {
     const res = despesaEditId
       ? await apiPut(`/api/expenses/${despesaEditId}`, body)
       : await apiPost('/api/expenses', body);
     if (res.success) {
-      toast(despesaEditId ? '✅ Despesa atualizada!' : '✅ Despesa adicionada!', 'success');
+      if (res.propagated > 0) {
+        toast(`✅ Nº de fatura atualizado em mais ${res.propagated} despesa${res.propagated !== 1 ? 's' : ''} da mesma fatura.`, 'success');
+      } else {
+        toast(despesaEditId ? '✅ Despesa atualizada!' : '✅ Despesa adicionada!', 'success');
+      }
       closeDespesaModal();
       await loadDespesas();
     } else {
@@ -235,6 +269,7 @@ function exportDespesasXLSX() {
     'Descrição':      d.description,
     'Fornecedor':     d.supplier || '',
     'Nº Fatura':      d.invoice_ref || '',
+    'Contribuinte':   d.has_nif ? 'Com NIF' : 'Sem NIF',
     'Valor (€)':      Number(d.amount).toFixed(2),
     'Método':         d.payment_method || '',
     'Notas':          d.notes || '',
@@ -391,10 +426,18 @@ function _renderReceiptReview(data) {
       <div class="form-grid" style="flex:1;min-width:260px;">
         <div class="form-group"><label class="form-label">Data</label><input class="form-control" id="rl-date" type="date" value="${dateVal}"></div>
         <div class="form-group"><label class="form-label">Fornecedor</label><input class="form-control" id="rl-supplier" list="rl-supplier-list" value="${escapeHtml(data.supplier || '')}" placeholder="Fornecedor" autocomplete="off"><datalist id="rl-supplier-list">${(suppliersData || []).map(s => `<option value="${escapeHtml(s.name)}"></option>`).join('')}</datalist></div>
-        <div class="form-group"><label class="form-label">Nº Fatura</label><input class="form-control" id="rl-invoice" value="${escapeHtml(data.invoice_ref || '')}" placeholder="Nº fatura" autocomplete="off"></div>
+        <div class="form-group"><label class="form-label">Nº Fatura</label><input class="form-control" id="rl-invoice" value="${escapeHtml(data.invoice_ref || '')}" placeholder="Nº fatura" autocomplete="off" onblur="checkReceiptDuplicate()"></div>
         <div class="form-group"><label class="form-label">Pagamento</label><select class="form-control" id="rl-payment">
           <option value="numerário">Numerário</option><option value="transferencia">Transferência</option>
           <option value="mbway">MBWay</option><option value="cartao" selected>Cartão</option></select></div>
+        <div class="form-group"><label class="form-label">Contribuinte (NIF na fatura)</label><select class="form-control" id="rl-has-nif">
+          <option value="0"${data.has_nif ? '' : ' selected'}>Sem NIF</option>
+          <option value="1"${data.has_nif ? ' selected' : ''}>Com NIF</option></select></div>
+      </div>
+    </div>
+    <div id="rl-dup-warning" style="display:none;margin-bottom:10px;">
+      <div style="background:#fff8e6;border:1px solid #f2d98a;color:#8a6d1f;border-radius:8px;padding:9px 12px;font-size:12.5px;display:flex;align-items:center;gap:8px;">
+        ${lcIcon('alert-triangle', 15)}<span id="rl-dup-text"></span>
       </div>
     </div>
     <div style="font-size:12.5px;color:var(--cinza);margin-bottom:8px;">
@@ -415,6 +458,29 @@ function _renderReceiptReview(data) {
   _renderReceiptLines();
   AppUI.openModal('receipt-modal-bg');
   if (window.lucide) lucide.createIcons();
+  checkReceiptDuplicate();
+}
+
+// Aviso de fatura já existente no fluxo da IA (mesmo nº + fornecedor).
+async function checkReceiptDuplicate() {
+  const warn = document.getElementById('rl-dup-warning');
+  const txt = document.getElementById('rl-dup-text');
+  if (!warn || !txt) return;
+  const invoiceRef = (document.getElementById('rl-invoice')?.value || '').trim();
+  const supplier = (document.getElementById('rl-supplier')?.value || '').trim();
+  if (!invoiceRef) { warn.style.display = 'none'; return; }
+  try {
+    const res = await apiGet(`/api/expenses/check-invoice?invoice_ref=${encodeURIComponent(invoiceRef)}&supplier=${encodeURIComponent(supplier)}`);
+    const info = res?.data || res;
+    if (info?.exists) {
+      const n = info.count;
+      txt.textContent = `Atenção: já existe ${n} despesa${n !== 1 ? 's' : ''} com a fatura "${invoiceRef}"${supplier ? ` de ${supplier}` : ''}. Confirma que não estás a registar a mesma fatura duas vezes.`;
+      warn.style.display = '';
+      if (window.lucide) lucide.createIcons();
+    } else {
+      warn.style.display = 'none';
+    }
+  } catch { warn.style.display = 'none'; }
 }
 
 function _receiptLineRow(line, idx) {
@@ -484,17 +550,18 @@ async function saveReceiptExpenses() {
   const supplier = (document.getElementById('rl-supplier')?.value || '').trim();
   const invoice  = (document.getElementById('rl-invoice')?.value || '').trim();
   const payment  = document.getElementById('rl-payment')?.value || 'numerário';
+  const hasNif   = document.getElementById('rl-has-nif')?.value === '1' ? 1 : 0;
   if (!date) { toast('Indica a data do talão.', 'error'); return; }
   const valid = _receiptLines.filter(l => l.description && l.amount > 0);
   if (!valid.length) { toast('Não há linhas válidas para guardar.', 'error'); return; }
   const expenses = valid.map(l => ({
     date, description: l.description, category: l.category, amount: l.amount,
-    supplier, invoice_ref: invoice, payment_method: payment,
+    supplier, invoice_ref: invoice, payment_method: payment, has_nif: hasNif,
   }));
   const btn = document.getElementById('receipt-save-btn');
   AppUI.setButtonLoading(btn, true);
   try {
-    const res = await apiPost('/api/expenses/bulk', { image: _receiptImage, expenses });
+    const res = await apiPost('/api/expenses/bulk', { image: _receiptImage, expenses, has_nif: hasNif });
     if (res.success) {
       toast(`✅ ${res.count} despesa${res.count !== 1 ? 's' : ''} guardada${res.count !== 1 ? 's' : ''}.`, 'success');
       closeReceiptModal();

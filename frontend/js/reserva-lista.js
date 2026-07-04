@@ -588,6 +588,14 @@ async function showDetail(id) {
               `}
           </div>
 
+          ${r.invoice_number || r.invoice_date || r.invoice_sent_date ? `
+          <div class="rdv2-zone-divider">${lcIcon('file-text', 10)} Fatura</div>
+          <div style="background:var(--surface-muted);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--text-muted);">Nº</span><b style="color:var(--text-main);">${escapeHtml(r.invoice_number || '—')}</b></div>
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--text-muted);">Data</span><b style="color:var(--text-main);">${r.invoice_date ? sd(r.invoice_date) : '—'}</b></div>
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--text-muted);">Enviada</span><b style="color:var(--text-main);">${r.invoice_sent_date ? sd(r.invoice_sent_date) : '—'}${r.invoice_sent_method ? ' · ' + invoiceMethodLabel(r.invoice_sent_method) : ''}</b></div>
+          </div>` : ''}
+
           ${r.notes ? `<div class="rdv2-notes">${lcIcon('file-text', 12)} ${escapeHtml(r.notes)}</div>` : ''}
 
           ${guestsData.length ? `<div class="rdv2-guests">
@@ -632,6 +640,7 @@ async function showDetail(id) {
             <button class="rdv2-action-link" data-accs="${(JSON.stringify(accsData)).replace(/"/g,'&quot;')}" data-res='{"id":"${r.id}","accId":"${r.accommodation_id}","ci":"${r.check_in}","co":"${r.check_out}","ng":${r.num_guests||1},"na":${r.num_adults||1},"nc":${r.num_children||0},"bkf":${r.breakfast_included?true:false},"nights":${r.nights||1}}' onclick="openAccommodationPanelFromBtn(this)">${lcIcon('home', 12)} Editar alojamento</button>
             <button class="rdv2-action-link" onclick="openEditModal('${r.id}')">${lcIcon('pencil', 12)} Editar reserva</button>
             <button class="rdv2-action-link" onclick="openPaymentForm('${r.id}', ${paid}, ${total})">${lcIcon('credit-card', 12)} Registar pagamento</button>
+            <button class="rdv2-action-link" data-inv='${JSON.stringify({ n: r.invoice_number || '', d: r.invoice_date || '', sd: r.invoice_sent_date || '', m: r.invoice_sent_method || '' }).replace(/'/g, "&#39;")}' onclick="openInvoiceFormFromBtn('${r.id}', this)">${lcIcon('file-text', 12)} Registar fatura</button>
             ${r.guest_email ? `<button class="rdv2-action-link" onclick="openInvoiceForReservation('${r.id}',decodeURIComponent('${guestEmail}'),decodeURIComponent('${guestName}'))">${lcIcon('mail', 12)} Enviar email</button>` : ''}
             ${r.status === 'cancelada'
               ? `<button class="rdv2-action-link rdv2-action-success" onclick="reativarReserva('${r.id}')">${lcIcon('refresh-cw', 12)} Reativar reserva</button>
@@ -738,6 +747,84 @@ async function savePaymentForm(reservationId) {
     if (res.success) {
       document.getElementById('rdv2-pay-form')?.remove();
       toast('✅ Pagamento registado', 'success');
+      await loadReservas();
+      showDetail(reservationId);
+    } else {
+      toast('❌ ' + (res.error || 'Erro'), 'error');
+      if (btn) btn.disabled = false;
+    }
+  } catch (e) {
+    toast('❌ Erro de ligação', 'error');
+    if (btn) btn.disabled = false;
+  }
+}
+
+function invoiceMethodLabel(m) {
+  return { whatsapp: 'WhatsApp', email: 'Email', winmax: 'Winmax', outro: 'Outro' }[m] || m;
+}
+
+function openInvoiceFormFromBtn(reservationId, btn) {
+  let inv = {};
+  try { inv = JSON.parse(btn.getAttribute('data-inv') || '{}'); } catch {}
+  openInvoiceForm(reservationId, inv);
+}
+
+function openInvoiceForm(reservationId, inv = {}) {
+  const inp = 'width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);';
+  const lbl = 'font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;';
+  const methods = [['whatsapp', 'WhatsApp'], ['email', 'Email'], ['winmax', 'Winmax'], ['outro', 'Outro']];
+  const opts = methods.map(([v, l]) => `<option value="${v}"${inv.m === v ? ' selected' : ''}>${l}</option>`).join('');
+  const html = `
+    <div id="rdv2-inv-form" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.remove()">
+      <div style="background:var(--surface-card);border-radius:16px;padding:24px;width:min(380px,92vw);box-shadow:0 8px 40px rgba(0,0,0,.22);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <span style="font-size:15px;font-weight:700;color:var(--text-main);">Registar Fatura</span>
+          <button onclick="document.getElementById('rdv2-inv-form').remove()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;">×</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <label style="${lbl}">Nº Fatura</label>
+            <input id="if-number" type="text" value="${escapeHtml(inv.n || '')}" placeholder="Ex.: FT 2026/123" style="${inp}" autocomplete="off">
+          </div>
+          <div style="display:flex;gap:10px;">
+            <div style="flex:1;">
+              <label style="${lbl}">Data Fatura</label>
+              <input id="if-date" type="date" value="${inv.d || ''}" style="${inp}" autocomplete="off">
+            </div>
+            <div style="flex:1;">
+              <label style="${lbl}">Data Envio</label>
+              <input id="if-sent-date" type="date" value="${inv.sd || ''}" style="${inp}" autocomplete="off">
+            </div>
+          </div>
+          <div>
+            <label style="${lbl}">Método de Envio</label>
+            <select id="if-method" style="${inp}">${opts}</select>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
+          <button onclick="document.getElementById('rdv2-inv-form').remove()" style="padding:8px 16px;border:1px solid var(--border-soft);border-radius:8px;background:none;color:var(--text-muted);cursor:pointer;font-size:13px;">Cancelar</button>
+          <button id="if-save-btn" onclick="saveInvoiceForm('${reservationId}')" style="padding:8px 18px;border:none;border-radius:8px;background:var(--brand-shell);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.getElementById('if-number')?.focus();
+}
+
+async function saveInvoiceForm(reservationId) {
+  const invoice_number      = document.getElementById('if-number')?.value.trim() || null;
+  const invoice_date        = document.getElementById('if-date')?.value || null;
+  const invoice_sent_date   = document.getElementById('if-sent-date')?.value || null;
+  const invoice_sent_method = document.getElementById('if-method')?.value || null;
+  const btn = document.getElementById('if-save-btn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await apiPut(`/api/reservations/${reservationId}/invoice`, {
+      invoice_number, invoice_date, invoice_sent_date, invoice_sent_method,
+    });
+    if (res.success) {
+      document.getElementById('rdv2-inv-form')?.remove();
+      toast('✅ Fatura registada', 'success');
       await loadReservas();
       showDetail(reservationId);
     } else {

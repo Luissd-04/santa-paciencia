@@ -181,6 +181,8 @@ function _renderRevenueChart(series, granularity = 'month') {
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
+      onClick: (evt, els) => { if (!isDay && els.length) setReportMonth(els[0].index + 1); },
+      onHover: (evt, els) => { if (evt?.native?.target) evt.native.target.style.cursor = (!isDay && els.length) ? 'pointer' : 'default'; },
       plugins: {
         legend: { labels: { color: textColor, font: { size: 11 }, boxWidth: 12, padding: 16 } },
         tooltip: { callbacks: { label: ctx => ctx.datasetIndex === 0
@@ -381,6 +383,8 @@ function _renderDespMonthlyChart(series, granularity = 'month') {
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
+      onClick: (evt, els) => { if (!isDay && els.length) setDespMonth(els[0].index + 1); },
+      onHover: (evt, els) => { if (evt?.native?.target) evt.native.target.style.cursor = (!isDay && els.length) ? 'pointer' : 'default'; },
       plugins: {
         legend: { labels: { color: textColor, font: { size: 11 }, boxWidth: 12, padding: 16 } },
         tooltip: { callbacks: { label: ctx => ` €${Number(ctx.raw).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}` } }

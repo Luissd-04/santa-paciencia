@@ -478,6 +478,10 @@ function migrateReservations() {
     ['num_children', 'INTEGER DEFAULT 0'],
     ['accommodations_data', "TEXT DEFAULT '[]'"],
     ['nightly_prices', "TEXT DEFAULT '[]'"],
+    ['invoice_number', 'TEXT'],
+    ['invoice_date', 'TEXT'],
+    ['invoice_sent_date', 'TEXT'],
+    ['invoice_sent_method', 'TEXT'],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {
@@ -674,6 +678,7 @@ function migrateExpenses() {
   if (!cols.includes('invoice_ref')) db.exec('ALTER TABLE expenses ADD COLUMN invoice_ref TEXT');
   if (!cols.includes('supplier')) db.exec('ALTER TABLE expenses ADD COLUMN supplier TEXT');
   if (!cols.includes('receipt_image')) db.exec('ALTER TABLE expenses ADD COLUMN receipt_image TEXT');
+  if (!cols.includes('has_nif')) db.exec('ALTER TABLE expenses ADD COLUMN has_nif INTEGER DEFAULT 0');
 }
 
 function migrateSuppliers() {

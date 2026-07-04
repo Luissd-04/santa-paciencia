@@ -20,6 +20,9 @@ router.post('/:id/approve', requireRole('manager'), ctrl.approve);
 router.post('/:id/payments', requireRole('manager'), ctrl.addPayment);
 router.delete('/:id/payments/:paymentId', requireRole('manager'), ctrl.deletePayment);
 
+// Fatura da reserva — manager+
+router.put('/:id/invoice', requireRole('manager'), ctrl.saveInvoice);
+
 // Apagar definitivamente — manager+, mas só funciona se status='cancelada'
 // (rota mais específica primeiro para evitar match ambíguo com /:id)
 router.delete('/:id/permanent', requireRole('manager'), ctrl.hardDelete);

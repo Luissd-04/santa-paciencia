@@ -311,6 +311,7 @@ async function loadGoogleTasksStatus() {
     if (el('gtasks-connect-btn'))    el('gtasks-connect-btn').style.display    = connected ? 'none' : '';
     if (el('gtasks-disconnect-btn')) el('gtasks-disconnect-btn').style.display = connected ? ''     : 'none';
     if (el('gtasks-sync-btn'))       el('gtasks-sync-btn').style.display       = connected ? ''     : 'none';
+    if (el('gtasks-clean-btn'))      el('gtasks-clean-btn').style.display      = connected ? ''     : 'none';
 
     const statsRow = el('gtasks-stats-row');
     if (statsRow) {
@@ -363,6 +364,28 @@ async function syncGoogleTasks() {
     }
   } catch (e) {
     toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação.'), 'error');
+  } finally {
+    AppUI.setButtonLoading(btn, false);
+  }
+}
+
+// Remove tarefas duplicadas no Google Tasks (órfãos deixados pelo bug antigo de sincronização).
+async function cleanGtasksDuplicates() {
+  if (!confirm('Procurar e apagar tarefas DUPLICADAS no teu Google Tasks (criadas pela app)?\n\nMantém sempre uma cópia de cada.')) return;
+  const btn = document.getElementById('gtasks-clean-btn');
+  AppUI.setButtonLoading(btn, true, 'A limpar...');
+  try {
+    const res = await apiPost('/api/tasks/clean-duplicates', {});
+    if (res.success) {
+      toast(res.deleted > 0
+        ? `✅ ${res.deleted} tarefa(s) duplicada(s) removida(s).`
+        : '✅ Não foram encontradas duplicadas.', 'success');
+      await loadGoogleTasksStatus();
+    } else {
+      toast('❌ ' + (res.error || 'Erro ao limpar duplicados.'), 'error');
+    }
+  } catch (e) {
+    toast('❌ ' + (e?.payload?.error || 'Erro de ligação.'), 'error');
   } finally {
     AppUI.setButtonLoading(btn, false);
   }

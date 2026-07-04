@@ -8,6 +8,7 @@ const imageParser = express.json({ limit: '15mb' });
 
 router.use(requireRole('manager'));
 router.get('/summary', ctrl.getSummary);
+router.get('/check-invoice', ctrl.checkInvoice);
 router.get('/', ctrl.getAll);
 router.post('/scan-receipt', imageParser, ctrl.scanReceipt);
 router.post('/bulk', imageParser, ctrl.bulkCreate);

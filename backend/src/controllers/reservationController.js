@@ -308,6 +308,36 @@ async function deletePayment(req, res, next) {
   }
 }
 
+// PUT /api/reservations/:id/invoice — regista/atualiza a fatura da reserva (uma por reserva).
+async function saveInvoice(req, res, next) {
+  try {
+    const { id } = req.params;
+    const organizationId = req.user.organization_id;
+    const { invoice_number, invoice_date, invoice_sent_date, invoice_sent_method } = req.body;
+
+    const reservation = db.prepare('SELECT id FROM reservations WHERE id = ? AND organization_id = ?').get(id, organizationId);
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    db.prepare(`UPDATE reservations SET
+        invoice_number = ?, invoice_date = ?, invoice_sent_date = ?, invoice_sent_method = ?, updated_at = datetime('now')
+      WHERE id = ? AND organization_id = ?`)
+      .run(
+        (invoice_number || '').trim() || null,
+        invoice_date || null,
+        invoice_sent_date || null,
+        (invoice_sent_method || '').trim() || null,
+        id, organizationId
+      );
+
+    const updated = db.prepare(
+      'SELECT invoice_number, invoice_date, invoice_sent_date, invoice_sent_method FROM reservations WHERE id = ? AND organization_id = ?'
+    ).get(id, organizationId);
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // POST /api/reservations
 async function create(req, res, next) {
   try {
@@ -906,4 +936,4 @@ function getNotifications(req, res, next) {
   }
 }
 
-module.exports = { getAll, getById, create, update, approve, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, addPayment, deletePayment };
+module.exports = { getAll, getById, create, update, approve, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, addPayment, deletePayment, saveInvoice };

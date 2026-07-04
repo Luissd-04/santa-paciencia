@@ -15,6 +15,7 @@ Extrai os dados e responde APENAS com um objeto JSON válido (sem texto antes ou
 {
   "supplier": "nome da loja/fornecedor (ex.: Lidl, Continente, Pingo Doce) ou \\"\\" se não visível",
   "invoice_ref": "número do documento/fatura ou \\"\\" se não existir",
+  "has_nif": true ou false (true se o documento indicar um número de contribuinte/NIF do CLIENTE, ex.: "Contribuinte nº 123456789" ou "NIF: ...". false se for talão simples "Consumidor Final" sem NIF),
   "date": "data da compra em AAAA-MM-DD ou \\"\\" se ilegível",
   "items": [
     { "description": "nome do artigo", "amount": 0.00, "category": "categoria" }
@@ -98,6 +99,7 @@ async function scanReceipt({ base64, mediaType }) {
   return {
     supplier: String(parsed.supplier || '').trim(),
     invoice_ref: String(parsed.invoice_ref || '').trim(),
+    has_nif: parsed.has_nif === true || parsed.has_nif === 'true' || parsed.has_nif === 1,
     date: normalizeDate(parsed.date),
     items: normalizedItems,
   };

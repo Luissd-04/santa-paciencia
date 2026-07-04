@@ -1450,6 +1450,7 @@
                     <th>Descrição</th>
                     <th style="width:130px;">Fornecedor</th>
                     <th style="width:110px;">Nº Fatura</th>
+                    <th style="width:100px;">Contribuinte</th>
                     <th style="width:100px;">Valor</th>
                     <th style="width:120px;">Método</th>
                     <th style="width:80px;">Ações</th>
@@ -1982,6 +1983,9 @@
                 </button>
                 <button id="gtasks-sync-btn" class="btn btn-primary btn-sm" style="display:none;" onclick="syncGoogleTasks()">
                   <i data-lucide="refresh-cw"></i> Sincronizar tarefas
+                </button>
+                <button id="gtasks-clean-btn" class="btn btn-ghost btn-sm" style="display:none;color:var(--vermelho);" onclick="cleanGtasksDuplicates()" title="Remover tarefas duplicadas no Google Tasks (órfãos antigos)">
+                  <i data-lucide="copy-x"></i> Limpar duplicados
                 </button>
               </div>
             </div>
@@ -2573,7 +2577,20 @@
         </div>
         <div class="form-group">
           <label class="form-label">Nº Fatura</label>
-          <input class="form-control" id="despesa-invoice-ref" placeholder="ex: FT 2026/123" autocomplete="off">
+          <input class="form-control" id="despesa-invoice-ref" placeholder="ex: FT 2026/123" autocomplete="off" onblur="checkDespesaDuplicate()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Contribuinte (NIF na fatura)</label>
+          <select class="form-control" id="despesa-has-nif" data-enhance-select data-app-select-class="app-select--modal">
+            <option value="0">Sem NIF</option>
+            <option value="1">Com NIF</option>
+          </select>
+        </div>
+        <div class="form-group form-full" id="despesa-dup-warning" style="display:none;">
+          <div style="background:#fff8e6;border:1px solid #f2d98a;color:#8a6d1f;border-radius:8px;padding:9px 12px;font-size:12.5px;display:flex;align-items:center;gap:8px;">
+            <i data-lucide="alert-triangle" style="width:15px;height:15px;flex-shrink:0;"></i>
+            <span id="despesa-dup-text"></span>
+          </div>
         </div>
         <div class="form-group form-full">
           <label class="form-label">Notas</label>
