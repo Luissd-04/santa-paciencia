@@ -181,22 +181,30 @@ function goToTodayCheckouts() {
   showView('reservas');
 }
 
+function quickScanReceiptFromDashboard() {
+  showView('despesas');
+  setTimeout(() => document.getElementById('receipt-file-input')?.click(), 200);
+}
+
 function goToPendingPayments() {
-  if (typeof mobileChipFilter !== 'undefined') {
-    mobileChipFilter = 'pendente';
-    document.querySelectorAll('.mobile-filter-chips .chip').forEach(c => c.classList.remove('active'));
-    const pendChip = document.querySelector('.mobile-filter-chips .chip[onclick*="pendente"]');
-    if (pendChip) pendChip.classList.add('active');
-  }
   showView('reservas');
-  setTimeout(renderMobileCards, 50);
+  setTimeout(() => {
+    const fp = document.getElementById('filter-pagamento');
+    if (fp) {
+      fp.value = 'pendente';
+      AppUI.refreshDropdowns(document.getElementById('view-reservas'));
+    }
+    renderTabela();
+    renderMobileCards();
+  }, 50);
 }
 
 async function renderDashboard() {
   await Promise.all([loadDashboardStats(), loadReservas()]);
 
+  const todayStr = new Date().toISOString().slice(0, 10);
   const upcoming = reservas
-    .filter(r => r.status !== 'cancelada' && r.status !== 'check-out')
+    .filter(r => r.status !== 'cancelada' && r.status !== 'check-out' && r.check_in >= todayStr)
     .sort((a, b) => new Date(a.check_in) - new Date(b.check_in))
     .slice(0, 5);
 

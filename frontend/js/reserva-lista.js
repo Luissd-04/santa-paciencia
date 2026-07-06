@@ -9,7 +9,12 @@ function setMobileChip(el, filter) {
   SS.set('res:chip', filter);
   document.querySelectorAll('.mobile-filter-chips .chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
-  renderMobileCards();
+  const fe = document.getElementById('filter-estado');
+  if (fe) {
+    fe.value = filter;
+    AppUI.refreshDropdowns(document.getElementById('view-reservas'));
+  }
+  renderTabela();
 }
 
 const STATUS_COLORS = {
@@ -316,7 +321,7 @@ function setReservasDetailMode(isDetail) {
 function showReservasList() {
   setReservasDetailMode(false);
   AppUI.closeModal('detail-bg');
-  if (window.innerWidth <= 700) renderMobileCards();
+  if (window.innerWidth <= 600) renderMobileCards();
 }
 
 function clearReservasFilters() {

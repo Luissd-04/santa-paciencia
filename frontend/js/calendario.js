@@ -263,8 +263,14 @@ function renderCal() {
     // Day cells — just the day number, click opens new-reservation modal
     const dayCells = week.map(day => {
       const click = day.otherMonth ? '' : `onclick="openModalFromCalendar('${day.dateStr}')"`;
-      return `<div class="cal-day${day.otherMonth ? ' other-month' : ''}${day.isToday ? ' today' : ''}" ${click}>
+      const blocked = !day.otherMonth && typeof isDateBlockedAnywhere === 'function' && (
+        filters.suite
+          ? isDateBlockedForAccommodation(filters.suite, day.dateStr)
+          : isDateBlockedAnywhere(day.dateStr)
+      );
+      return `<div class="cal-day${day.otherMonth ? ' other-month' : ''}${day.isToday ? ' today' : ''}${blocked ? ' cal-day-blocked' : ''}" ${click}${blocked ? ' title="🔒 Data bloqueada"' : ''}>
         <div class="day-num">${day.dayNum}</div>
+        ${blocked ? '<span class="cal-day-lock">🔒</span>' : ''}
       </div>`;
     }).join('');
 

@@ -32,7 +32,7 @@ async function syncTaskToCalendar(task, userId, orgId) {
   }
 }
 
-const VALID_TYPES = new Set(['limpeza', 'reuniao', 'pequeno_almoco', 'checkin', 'checkout', 'manutencao', 'outro']);
+const VALID_TYPES = new Set(['limpeza', 'reuniao', 'pequeno_almoco', 'checkin', 'checkout', 'manutencao', 'agenda_local', 'outro']);
 const VALID_STATUS = new Set(['planeado', 'concluido']);
 
 function normalizeDate(value) {

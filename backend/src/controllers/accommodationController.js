@@ -780,6 +780,40 @@ function createBlock(req, res) {
   res.status(201).json({ success: true, data: serializeBlock(row) });
 }
 
+// PUT /api/accommodations/blocks/:blockId — editar datas/motivo de um bloqueio.
+function updateBlock(req, res) {
+  const organizationId = req.user.organization_id;
+  const { blockId } = req.params;
+  const existing = db.prepare('SELECT * FROM accommodation_blocks WHERE id = ? AND organization_id = ?').get(blockId, organizationId);
+  if (!existing) return res.status(404).json({ error: 'Bloqueio não encontrado' });
+
+  const { start_date, end_date, reason } = req.body;
+  if (!ISO_DATE.test(start_date || '') || !ISO_DATE.test(end_date || '')) {
+    return res.status(400).json({ error: 'Datas inválidas (formato AAAA-MM-DD).' });
+  }
+  if (end_date < start_date) {
+    return res.status(400).json({ error: 'A data de fim não pode ser anterior à de início.' });
+  }
+  const endExclusive = addDays(end_date, 1);
+
+  const conflict = reservationOverlaps(organizationId, existing.accommodation_id, start_date, endExclusive);
+  if (conflict) {
+    return res.status(409).json({ error: `Já existe uma reserva nessas datas (${conflict.id}). Cancele-a ou ajuste as datas.` });
+  }
+
+  db.prepare(`
+    UPDATE accommodation_blocks SET start_date = ?, end_date = ?, reason = ?, updated_at = datetime('now')
+    WHERE id = ? AND organization_id = ?
+  `).run(start_date, endExclusive, (reason || '').trim() || null, blockId, organizationId);
+
+  const row = db.prepare(`
+    SELECT b.*, a.name AS accommodation_name FROM accommodation_blocks b
+    LEFT JOIN accommodations a ON a.id = b.accommodation_id
+    WHERE b.id = ? AND b.organization_id = ?
+  `).get(blockId, organizationId);
+  res.json({ success: true, data: serializeBlock(row) });
+}
+
 // DELETE /api/accommodations/blocks/:blockId
 function deleteBlock(req, res) {
   const organizationId = req.user.organization_id;
@@ -790,4 +824,4 @@ function deleteBlock(req, res) {
   res.json({ success: true });
 }
 
-module.exports = { getAll, getById, create, update, remove, uploadCover, removeCover, uploadImages, deleteImage, patchImages, getSettings, saveSettings, getPricingPeriods, createPricingPeriod, updatePricingPeriod, deletePricingPeriod, bulkCreatePricingPeriods, listBlocks, createBlock, deleteBlock };
+module.exports = { getAll, getById, create, update, remove, uploadCover, removeCover, uploadImages, deleteImage, patchImages, getSettings, saveSettings, getPricingPeriods, createPricingPeriod, updatePricingPeriod, deletePricingPeriod, bulkCreatePricingPeriods, listBlocks, createBlock, updateBlock, deleteBlock };

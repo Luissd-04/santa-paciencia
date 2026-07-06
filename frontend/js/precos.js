@@ -72,6 +72,7 @@ async function onPrecosAlojChange() {
   _rangeStart = null;
   _rangeEnd   = null;
   _hoverDay   = null;
+  setPrecosMobileSheetOpen(false);
   _updatePrecosBase();
   // Clear bulk form fields when switching accommodation
   ['precos-bulk-name','precos-bulk-start','precos-bulk-end','precos-bulk-price','precos-bulk-min-nights']
@@ -336,6 +337,14 @@ function handlePrecosDayClick(iso) {
   if (startEl) startEl.value = _isoToPt(start);
   if (endEl)   endEl.value   = _isoToPt(end);
   renderPrecosCalendar();
+  setPrecosMobileSheetOpen(true); // no telemóvel, o painel de edição sobe como folha inferior assim que o intervalo fica completo
+}
+
+// No mobile, o painel de edição (#precos-side-panel) vira uma folha deslizante
+// a partir do fundo do ecrã, em vez do painel lateral fixo do desktop.
+function setPrecosMobileSheetOpen(open) {
+  document.getElementById('precos-side-panel')?.classList.toggle('precos-sheet-open', open);
+  document.getElementById('precos-sheet-backdrop')?.classList.toggle('active', open);
 }
 
 function cancelPrecosSelection() {
@@ -369,7 +378,7 @@ function renderPrecosPeriods() {
   }
 
   const sorted = [..._precosPeriods].sort((a, b) => a.start_date.localeCompare(b.start_date));
-  list.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+  const table = `<table class="precos-periods-table" style="width:100%;border-collapse:collapse;font-size:13px;">
     <thead>
       <tr style="border-bottom:2px solid var(--cinza-claro);">
         <th style="text-align:left;padding:8px 10px;font-weight:600;color:var(--cinza);text-transform:uppercase;font-size:11px;letter-spacing:.4px;">Nome</th>
@@ -404,6 +413,24 @@ function renderPrecosPeriods() {
       }).join('')}
     </tbody>
   </table>`;
+
+  const cards = `<div class="precos-periods-mobile-cards">${sorted.map(p => {
+    const price = Number(p.price_per_night);
+    const dot = price < _precosBase ? '#16a34a' : price > _precosBase ? '#dc2626' : 'var(--azul)';
+    return `<div class="m-period-card" style="border-left-color:${dot}" onclick="openPrecosPeriodModal('${p.id}')">
+      <div class="mpc-top">
+        <span class="mpc-name">${escapeHtml(p.name)}${_dowBadge(p.days_of_week)}</span>
+        <span class="mpc-price" style="color:${dot}">€${price % 1 === 0 ? price : price.toFixed(2)}</span>
+      </div>
+      <div class="mpc-dates">${_fmtDisplay(p.start_date)} — ${_fmtDisplay(p.end_date)} · min. ${p.min_nights ?? 1}n</div>
+      <div class="mpc-actions" onclick="event.stopPropagation()">
+        <button class="m-card-btn" onclick="openPrecosPeriodModal('${p.id}')"><i data-lucide="pencil"></i></button>
+        <button class="m-card-btn" onclick="deletePrecosPeriod('${p.id}')"><i data-lucide="trash-2"></i></button>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+
+  list.innerHTML = table + cards;
   if (window.lucide) lucide.createIcons();
 }
 
@@ -503,6 +530,7 @@ function clearPrecosBulkForm() {
   const minEl = document.getElementById('precos-bulk-min-nights');
   if (minEl) minEl.value = acc?.min_nights ?? 2;
   _initPrecosDow();
+  setPrecosMobileSheetOpen(false);
   renderPrecosCalendar();
 }
 

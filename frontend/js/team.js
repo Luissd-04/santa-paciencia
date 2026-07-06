@@ -20,7 +20,7 @@ function renderTeamMembers(members) {
   }
 
   container.innerHTML = members.map(member => `
-    <div class="guest-row" style="display:grid;grid-template-columns:1.5fr 1fr auto;gap:12px;align-items:center;">
+    <div class="guest-row team-row" style="display:grid;grid-template-columns:1.5fr 1fr auto;gap:12px;align-items:center;">
       <div>
         <div style="font-weight:600;color:var(--azul);">${escapeHtml(member.name)}</div>
         <div style="font-size:12px;color:var(--cinza);">${escapeHtml(member.email)}</div>
@@ -54,7 +54,7 @@ function renderTeamInvitations(invitations) {
   }
 
   container.innerHTML = invitations.map(invite => `
-    <div class="guest-row" style="display:grid;grid-template-columns:1.5fr 1fr auto;gap:12px;align-items:center;">
+    <div class="guest-row team-row" style="display:grid;grid-template-columns:1.5fr 1fr auto;gap:12px;align-items:center;">
       <div>
         <div style="font-weight:600;color:var(--azul);">${escapeHtml(invite.email)}</div>
         <div style="font-size:12px;color:var(--cinza);">Expira em ${formatDate(invite.expires_at.slice(0, 10))}</div>

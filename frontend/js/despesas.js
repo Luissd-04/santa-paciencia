@@ -101,8 +101,11 @@ function renderDespesas() {
   const empty   = document.getElementById('despesas-empty');
   loading.style.display = 'none';
 
+  const mobileWrap = document.getElementById('despesas-mobile-cards');
+
   if (despesasData.length === 0) {
     tbody.innerHTML = '';
+    if (mobileWrap) mobileWrap.innerHTML = '';
     const period = document.getElementById('despesa-filter-period')?.value || 'ano';
     const scope = period === 'mes' ? `em ${despesaFilterMonth}` : period === 'ano' ? `em ${new Date().getFullYear()}` : 'registadas';
     empty.innerHTML = `
@@ -122,6 +125,7 @@ function renderDespesas() {
 
   if (filtered.length === 0) {
     tbody.innerHTML = '';
+    if (mobileWrap) mobileWrap.innerHTML = '';
     empty.innerHTML = `
       <div class="es-icon">🔍</div>
       <h3>Sem despesas para estes filtros</h3>
@@ -157,7 +161,31 @@ function renderDespesas() {
       <td style="font-weight:700;font-size:15px;color:var(--vermelho);">€${total.toFixed(2)}</td>
       <td colspan="2"></td>
     </tr>`;
+  renderDespesasMobileCards(filtered, total);
   if (window.lucide) lucide.createIcons();
+}
+
+function renderDespesasMobileCards(filtered, total) {
+  const wrap = document.getElementById('despesas-mobile-cards');
+  if (!wrap) return;
+  wrap.innerHTML = filtered.map(d => {
+    const cat = EXPENSE_CATS[d.category] || EXPENSE_CATS.outro;
+    return `<div class="m-expense-card" style="border-left-color:${cat.color}">
+      <div class="mec-top">
+        <span class="mec-cat" style="background:${cat.color}22;color:${cat.color};">${cat.icon ? `<i data-lucide="${cat.icon}"></i>` : ''}${cat.label}</span>
+        <span class="mec-date">${formatDate(d.date)}</span>
+      </div>
+      <div class="mec-desc">${escapeHtml(d.description)}</div>
+      ${d.supplier ? `<div class="mec-supplier"><i data-lucide="truck"></i> ${escapeHtml(d.supplier)}</div>` : ''}
+      <div class="mec-bottom">
+        <span class="mec-amount">€${Number(d.amount).toFixed(2)}</span>
+        <div class="mec-actions" onclick="event.stopPropagation()">
+          <button class="m-card-btn" onclick="openDespesaModal('${escapeHtml(d.id)}')"><i data-lucide="pencil"></i></button>
+          <button class="m-card-btn" onclick="deleteDespesa('${escapeHtml(d.id)}')"><i data-lucide="trash-2"></i></button>
+        </div>
+      </div>
+    </div>`;
+  }).join('') + `<div class="mec-total-row"><span>Total do período</span><span>€${total.toFixed(2)}</span></div>`;
 }
 
 // Popula o dropdown de fornecedores no modal, garantindo que o valor atual

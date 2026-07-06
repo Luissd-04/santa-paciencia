@@ -192,7 +192,42 @@ function renderAlojamentos() {
       </td>
     </tr>`;
   }).join('');
+  renderAlojamentosMobileCards(ordered, parentMap, childrenByParent, inFiltered);
   if (window.lucide) lucide.createIcons();
+}
+
+function renderAlojamentosMobileCards(ordered, parentMap, childrenByParent, inFiltered) {
+  const wrap = document.getElementById('aloj-mobile-cards');
+  if (!wrap) return;
+  wrap.innerHTML = ordered.map(a => {
+    const isAlojamento = a.type === 'alojamento';
+    const parentName = a.parent_id ? parentMap[a.parent_id] : null;
+    const childCount = (childrenByParent[a.id] || []).filter(c => inFiltered.has(c.id)).length;
+    const hasIcal = !!(a.airbnb_ical_url || a.booking_ical_url);
+    return `<div class="m-accom-card" onclick="openAlojamento('${a.id}')">
+      <div class="mac-top">
+        ${a.cover_image
+          ? `<img src="${a.cover_image.startsWith('http') ? a.cover_image : API_BASE + a.cover_image}" class="mac-thumb">`
+          : `<div class="mac-thumb mac-thumb-empty">${lcIcon(isAlojamento ? 'building-2' : 'home', 18)}</div>`}
+        <div class="mac-info">
+          <div class="mac-name">${escapeHtml(a.name)}${isAlojamento && childCount ? `<span class="aloj-child-count">${childCount} alojamento${childCount !== 1 ? 's' : ''}</span>` : ''}</div>
+          ${parentName ? `<div class="mac-sub">${lcIcon('corner-down-right', 11)} ${escapeHtml(parentName)}</div>` : (a.city ? `<div class="mac-sub">${escapeHtml(a.city)}</div>` : '')}
+        </div>
+        <span class="mac-price">€${a.price_per_night}</span>
+      </div>
+      <div class="mac-meta">
+        <span>${lcIcon('users', 13)} ${a.max_guests} hósp.</span>
+        <span>${lcIcon('door-open', 13)} ${a.num_rooms || 1}</span>
+        ${a.area ? `<span>${lcIcon('ruler', 13)} ${a.area} m²</span>` : ''}
+        ${a.license_number ? `<span>${lcIcon('badge-check', 13)} ${escapeHtml(a.license_number)}</span>` : ''}
+      </div>
+      <div class="mac-actions" onclick="event.stopPropagation()">
+        <button class="m-card-btn" onclick="openAlojCalendarDirect('${a.id}','${a.google_calendar_id || ''}','${escapeHtml(a.name)}')">
+          ${lcIcon('calendar', 13)} Calendário${a.google_calendar_id ? ' ✓' : ''}${hasIcal ? ' · iCal ✓' : ''}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function getFilteredAlojamentos() {

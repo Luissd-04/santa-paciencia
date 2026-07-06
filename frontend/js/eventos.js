@@ -18,6 +18,7 @@ const EVENT_TYPES = [
   { id: 'checkin', label: 'Check-ins', singular: 'Check-in', icon: 'log-in', color: '#4f8f6b' },
   { id: 'checkout', label: 'Check-outs', singular: 'Check-out', icon: 'log-out', color: '#6f6bb3' },
   { id: 'manutencao', label: 'Manutenção', singular: 'Manutenção', icon: 'wrench', color: '#c46a2d' },
+  { id: 'agenda_local', label: 'Agenda Local', singular: 'Evento local', icon: 'party-popper', color: '#b0468a' },
   { id: 'outro', label: 'Outros', singular: 'Outro', icon: 'circle-dot', color: '#8a8278' },
 ];
 
@@ -57,6 +58,51 @@ function renderEventosView() {
   if (eventosView === 'list') renderEventosList();
   else if (eventosMode === 'timeline') renderEventosTimeline();
   else renderEventosCalendar();
+  renderEventosAgendaMobile();
+  if (window.lucide) lucide.createIcons();
+}
+
+// No mobile, Calendário/Timeline dão lugar a uma agenda dia-a-dia
+// (mesmo padrão de #calendar-agenda-mobile usado no calendário de reservas).
+function renderEventosAgendaMobile() {
+  const wrap = document.getElementById('eventos-agenda-mobile');
+  if (!wrap) return;
+  const today = new Date();
+  const todayStr = isoDate(today.getFullYear(), today.getMonth(), today.getDate());
+  const horizonDays = 21;
+  const dates = [];
+  for (let i = 0; i < horizonDays; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+    dates.push(isoDate(d.getFullYear(), d.getMonth(), d.getDate()));
+  }
+  const events = filteredEventos();
+  const groups = dates.map(dateStr => {
+    const dayEvents = events.filter(e => e.date === dateStr)
+      .sort((a, b) => (a.start_time || '99:99').localeCompare(b.start_time || '99:99'));
+    if (!dayEvents.length) return '';
+    const d = new Date(dateStr + 'T12:00:00');
+    let dayLabel = d.toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: 'short' });
+    if (dateStr === todayStr) dayLabel = 'Hoje · ' + dayLabel;
+    return `<section class="agenda-day">
+      <div class="agenda-day-title">${dayLabel}</div>
+      <div class="agenda-day-list">
+        ${dayEvents.map(e => {
+          const type = getEventoType(e.type);
+          const done = e.status === 'concluido';
+          const time = formatEventoTime(e);
+          return `<button type="button" class="agenda-item${done ? ' eventos-pill-done' : ''}" onclick="openEventoModal('${e.id}')" style="--agenda-color:${type.color};">
+            <span class="agenda-item-dot"></span>
+            <span class="agenda-item-main">
+              <strong>${escapeHtml(e.title)}</strong>
+              <small>${type.singular}${e.accommodation_name ? ' · ' + escapeHtml(e.accommodation_name) : ''}${time ? ' · ' + time : ''}</small>
+            </span>
+            <span class="agenda-item-status">${done ? '✓' : (Number(e.important) ? '!' : '')}</span>
+          </button>`;
+        }).join('')}
+      </div>
+    </section>`;
+  }).filter(Boolean);
+  wrap.innerHTML = groups.join('') || `<div class="agenda-empty">Sem eventos nos próximos ${horizonDays} dias.</div>`;
   if (window.lucide) lucide.createIcons();
 }
 
@@ -462,8 +508,26 @@ function attachEventosTimelinePan() {
   if (!wrap) return;
   wrap.removeEventListener('pointerdown', eventosPanPointerDown);
   wrap.removeEventListener('click', eventosPanClickCapture, true);
+  wrap.removeEventListener('dblclick', eventosTimelineDblClick);
   wrap.addEventListener('pointerdown', eventosPanPointerDown);
   wrap.addEventListener('click', eventosPanClickCapture, true);
+  wrap.addEventListener('dblclick', eventosTimelineDblClick);
+}
+
+// Duplo-clique numa zona vazia da timeline → criar evento nessa data/alojamento.
+function eventosTimelineDblClick(e) {
+  if (e.target.closest('.eventos-tl-block')) return; // clicar num evento já abre via onclick
+  const area = e.target.closest('.tl-days-area');
+  const row = e.target.closest('.tl-row');
+  if (!area || !row) return;
+  const dayW = getEventosDayWidth();
+  const year = new Date().getFullYear();
+  const rect = area.getBoundingClientRect();
+  const dayIdx = Math.floor((e.clientX - rect.left) / dayW);
+  if (dayIdx < 0) return;
+  const d = new Date(year, 0, 1 + dayIdx);
+  const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  openEventoModal(null, dateStr, row.dataset.accId || null);
 }
 
 function eventosPanPointerDown(e) {
@@ -570,7 +634,7 @@ function renderEventoPillCompact(evento) {
   </button>`;
 }
 
-function openEventoModal(id = null, date = null) {
+function openEventoModal(id = null, date = null, accId = null) {
   eventosEditingId = id;
   const evento = id ? eventosData.find(e => e.id === id) : null;
   populateEventosAccommodationSelects();
@@ -582,7 +646,7 @@ function openEventoModal(id = null, date = null) {
   document.getElementById('evento-date').value = evento?.date || date || new Date().toISOString().slice(0, 10);
   document.getElementById('evento-start-time').value = evento?.start_time || '';
   document.getElementById('evento-end-time').value = evento?.end_time || '';
-  document.getElementById('evento-accommodation').value = evento?.accommodation_id || '';
+  document.getElementById('evento-accommodation').value = evento?.accommodation_id || accId || '';
   document.getElementById('evento-responsible').value = evento?.responsible || currentUser?.name || '';
   document.getElementById('evento-notes').value = evento?.notes || '';
   const delBtn = document.getElementById('evento-delete-btn');

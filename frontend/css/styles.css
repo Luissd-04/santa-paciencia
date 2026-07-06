@@ -1465,7 +1465,7 @@ select.form-control { cursor:pointer; }
 
 .hospedes-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 20px;
 }
 
@@ -2039,6 +2039,25 @@ select.form-control { cursor:pointer; }
 }
 .tl-block-blocked:hover { filter: brightness(.96); }
 .tl-block-blocked-label { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Bloqueio herdado (mostrado numa suite por causa do alojamento, ou vice-versa) */
+.tl-block-blocked--inherited {
+  opacity: .8;
+  border-style: dotted;
+}
+.tl-block-blocked--inherited .tl-block-blocked-label { font-weight: 500; font-style: italic; }
+
+/* Calendário mensal: dia bloqueado com fundo às riscas + cadeado */
+.cal-day-blocked {
+  background: repeating-linear-gradient(45deg, rgba(120,120,120,.08), rgba(120,120,120,.08) 6px, rgba(120,120,120,.16) 6px, rgba(120,120,120,.16) 12px);
+}
+.cal-day-lock {
+  position: absolute;
+  bottom: 4px;
+  right: 5px;
+  font-size: 10px;
+  opacity: .75;
+  pointer-events: none;
+}
 
 /* Ficha do alojamento: lista de bloqueios */
 .aloj-block-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--cinza-claro); border-radius: 8px; margin-bottom: 8px; }

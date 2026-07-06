@@ -57,23 +57,47 @@ async function addFornecedor() {
   }
 }
 
-async function editFornecedor(id) {
+function editFornecedor(id) {
   const f = fornecedoresData.find(x => x.id === id);
   if (!f) return;
-  const name = prompt('Novo nome do fornecedor:', f.name);
-  if (name === null) return;
-  const trimmed = name.trim();
-  if (!trimmed || trimmed === f.name) return;
+  const html = `
+    <div id="fornecedor-edit-form" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.remove()">
+      <div style="background:var(--surface-card);border-radius:16px;padding:24px;width:min(360px,92vw);box-shadow:0 8px 40px rgba(0,0,0,.22);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <span style="font-size:15px;font-weight:700;color:var(--text-main);">Editar Fornecedor</span>
+          <button onclick="document.getElementById('fornecedor-edit-form').remove()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;">×</button>
+        </div>
+        <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Nome</label>
+        <input id="fed-name" type="text" value="${escapeHtml(f.name)}" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);" autocomplete="off">
+        <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
+          <button onclick="document.getElementById('fornecedor-edit-form').remove()" style="padding:8px 16px;border:1px solid var(--border-soft);border-radius:8px;background:none;color:var(--text-muted);cursor:pointer;font-size:13px;">Cancelar</button>
+          <button id="fed-save-btn" onclick="saveFornecedorEdit('${id}')" style="padding:8px 18px;border:none;border-radius:8px;background:var(--brand-shell);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.getElementById('fed-name')?.focus();
+}
+
+async function saveFornecedorEdit(id) {
+  const f = fornecedoresData.find(x => x.id === id);
+  const trimmed = (document.getElementById('fed-name')?.value || '').trim();
+  if (!trimmed || trimmed === f?.name) { document.getElementById('fornecedor-edit-form')?.remove(); return; }
+  const btn = document.getElementById('fed-save-btn');
+  if (btn) btn.disabled = true;
   try {
     const res = await apiPut(`/api/suppliers/${id}`, { name: trimmed });
     if (res.success) {
+      document.getElementById('fornecedor-edit-form')?.remove();
       toast('✅ Fornecedor atualizado.', 'success');
       await loadFornecedores();
     } else {
       toast('❌ ' + (res.error || 'Erro ao atualizar.'), 'error');
+      if (btn) btn.disabled = false;
     }
   } catch (e) {
     toast('❌ ' + (e?.payload?.error || 'Erro de ligação ao servidor.'), 'error');
+    if (btn) btn.disabled = false;
   }
 }
 

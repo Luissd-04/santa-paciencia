@@ -130,6 +130,7 @@ const TASK_TYPE_ICONS = {
   checkin: '🏨',
   checkout: '🔑',
   manutencao: '🔧',
+  agenda_local: '🎉',
   outro: '📋',
 };
 

@@ -292,10 +292,10 @@
                 <div class="quick-label">Pagamentos</div>
                 <div class="quick-sub" id="qk-payments">— pendentes</div>
               </div>
-              <div class="quick-item" onclick="showView('definicoes');switchSettingsTab('emails')">
-                <div class="quick-icon blue"><i data-lucide="mail"></i></div>
-                <div class="quick-label">Emails</div>
-                <div class="quick-sub">Templates</div>
+              <div class="quick-item" onclick="quickScanReceiptFromDashboard()">
+                <div class="quick-icon blue"><i data-lucide="scan-line"></i></div>
+                <div class="quick-label">Registar Despesa</div>
+                <div class="quick-sub">Foto do talão</div>
               </div>
             </div>
           </div>
@@ -605,8 +605,13 @@
                 <div class="cal-grid" id="eventos-cal-grid"></div>
               </div>
               <div id="eventos-timeline-wrap" style="display:none;"></div>
+              <div id="eventos-agenda-mobile" class="calendar-agenda-mobile"></div>
             </div>
           </div>
+
+          <button class="mobile-fab eventos-mobile-fab" id="eventos-mobile-fab" onclick="openEventoModal(null, new Date().toISOString().slice(0,10))">
+            <i data-lucide="plus"></i>
+          </button>
 
           <div class="eventos-panel" id="eventos-panel-list">
             <div class="view-toolbar eventos-list-toolbar">
@@ -733,6 +738,7 @@
             <tbody id="aloj-body"></tbody>
           </table>
           </div>
+          <div id="aloj-mobile-cards" class="aloj-mobile-cards"></div>
           <div id="aloj-loading" class="loading"><div class="spinner"></div> A carregar...</div>
 
           <div style="padding:14px 16px;border-top:1px solid var(--cinza-claro);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -1459,6 +1465,7 @@
                 <tbody id="despesas-body"></tbody>
               </table>
             </div>
+            <div id="despesas-mobile-cards" class="despesas-mobile-cards"></div>
             <div id="despesas-empty" style="display:none;" class="empty-state">
               <div class="es-icon">💸</div>
               <h3>Sem despesas</h3>
@@ -1572,7 +1579,7 @@
 
         <!-- Painel: Calendário -->
         <div id="precos-panel-calendario">
-          <div style="display:flex;gap:18px;align-items:flex-start;">
+          <div class="precos-cal-layout" style="display:flex;gap:18px;align-items:flex-start;">
 
             <!-- Calendário -->
             <div class="card" style="flex:1;min-width:0;overflow:visible;">
@@ -1582,8 +1589,14 @@
               <div id="precos-selection-hint" style="padding:0 4px 8px;"></div>
             </div>
 
+            <div class="precos-sheet-backdrop" id="precos-sheet-backdrop" onclick="cancelPrecosSelection()"></div>
+
             <!-- Painel lateral de edição -->
             <div class="card" id="precos-side-panel" style="width:290px;flex-shrink:0;">
+              <div class="precos-sheet-header">
+                <span>Editar preços</span>
+                <button type="button" class="precos-sheet-close" onclick="cancelPrecosSelection()"><i data-lucide="x"></i></button>
+              </div>
               <div id="precos-side-panel-empty" style="padding:32px 16px;text-align:center;color:var(--cinza);font-size:13px;">
                 <i data-lucide="mouse-pointer-click" style="width:28px;height:28px;margin:0 auto 10px;display:block;opacity:.4;"></i>
                 Seleciona um alojamento para editar preços
@@ -2432,6 +2445,7 @@
             <option value="checkin">Check-in</option>
             <option value="checkout">Check-out</option>
             <option value="manutencao">Manutenção</option>
+            <option value="agenda_local">Agenda Local</option>
             <option value="outro">Outro</option>
           </select>
         </div>
@@ -2973,8 +2987,8 @@
   <button class="bn-item" id="bn-calendario" onclick="showView('calendario')">
     <i data-lucide="calendar-days"></i><span>Calendário</span>
   </button>
-  <button class="bn-item" id="bn-hospedes" onclick="showView('hospedes')">
-    <i data-lucide="users"></i><span>Hóspedes</span>
+  <button class="bn-item" id="bn-eventos" onclick="showView('eventos')">
+    <i data-lucide="calendar-check"></i><span>Eventos</span>
   </button>
   <button class="bn-item" id="bn-mais" onclick="openSideDrawer()">
     <i data-lucide="more-horizontal"></i><span>Mais</span>

@@ -41,6 +41,7 @@ function showView(v, pushState = true) {
   });
   document.getElementById('topbar-title').textContent = VIEW_TITLES[v] || v;
   setActiveBN(v);
+  document.body.classList.toggle('view-eventos-active', v === 'eventos');
   if (pushState) history.pushState({ view: v }, '', '/' + (v === 'dashboard' ? '' : v));
   if (window.lucide) lucide.createIcons();
   if (v === 'dashboard') renderDashboard();
@@ -71,7 +72,7 @@ window.addEventListener('popstate', (e) => {
 });
 
 // ── MOBILE BOTTOM NAV ──
-const BOTTOM_NAV_VIEWS = ['dashboard', 'reservas', 'calendario', 'hospedes'];
+const BOTTOM_NAV_VIEWS = ['dashboard', 'reservas', 'calendario', 'eventos'];
 
 function setActiveBN(v) {
   BOTTOM_NAV_VIEWS.forEach(name => {

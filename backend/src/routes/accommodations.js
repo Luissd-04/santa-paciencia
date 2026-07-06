@@ -10,6 +10,7 @@ router.get('/',                     ctrl.getAll);
 router.get('/settings',             ctrl.getSettings);
 router.post('/settings',            ctrl.saveSettings);
 router.get('/blocks',               ctrl.listBlocks);
+router.put('/blocks/:blockId',      ctrl.updateBlock);
 router.delete('/blocks/:blockId',   ctrl.deleteBlock);
 router.get('/:id',                  ctrl.getById);
 router.post('/',                    ctrl.create);

@@ -749,6 +749,11 @@ body.tl-is-panning * {
   background: rgba(196, 106, 45, .13);
 }
 
+.eventos-pill-agenda_local {
+  color: #b0468a;
+  background: rgba(176, 70, 138, .13);
+}
+
 .eventos-pill-outro {
   color: var(--cinza);
   background: rgba(70, 70, 70, .1);

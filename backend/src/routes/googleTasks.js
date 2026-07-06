@@ -13,6 +13,7 @@ const TASK_TYPE_LABELS = {
   limpeza:         'Limpeza',
   pequeno_almoco:  'Pequeno-almoço',
   manutencao:      'Manutenção',
+  agenda_local:    'Agenda Local',
   outro:           'Tarefa',
 };
 
