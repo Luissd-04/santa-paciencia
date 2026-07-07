@@ -17,8 +17,19 @@ function isIosWithoutInstall() {
   return isIos && !isStandalone;
 }
 
+// Garante um service worker registado e ativo (regista se necessário).
+// Nunca usar `navigator.serviceWorker.ready` diretamente: se não houver
+// registo, essa promise fica pendurada para sempre.
+async function getPushRegistration() {
+  let reg = await navigator.serviceWorker.getRegistration();
+  if (!reg) reg = await navigator.serviceWorker.register('/service-worker.js');
+  await navigator.serviceWorker.ready;
+  return reg;
+}
+
 async function getPushSubscription() {
-  const reg = await navigator.serviceWorker.ready;
+  const reg = await navigator.serviceWorker.getRegistration();
+  if (!reg) return null;
   return reg.pushManager.getSubscription();
 }
 
@@ -79,7 +90,7 @@ async function enablePushNotifications() {
     }
 
     const { data } = await apiGet('/api/push/public-key');
-    const reg = await navigator.serviceWorker.ready;
+    const reg = await getPushRegistration();
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
       sub = await reg.pushManager.subscribe({
