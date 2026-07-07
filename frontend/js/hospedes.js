@@ -196,8 +196,10 @@ function setHospedesView(mode) {
 
 function renderHospedes() {
   updateHospedesSummary();
-  if (hospedesViewMode === 'cards') renderHospedesCards();
-  else renderHospedesList();
+  // Renderizar sempre ambas as vistas (dual-render): em mobile o CSS força a
+  // vista de cards visível independentemente do modo guardado no desktop.
+  renderHospedesCards();
+  renderHospedesList();
 }
 
 function updateHospedesSummary() {

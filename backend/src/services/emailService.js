@@ -24,6 +24,23 @@ async function sendMail(organizationId, { to, subject, html }) {
 const BRAND_COLOR = '#843424';
 const ACCENT_COLOR = '#c9a84c';
 
+// Escape de HTML para dados do hóspede/reserva interpolados nos templates (S10).
+// O nome/email vêm do formulário público — sem escape, permitem injetar
+// links de phishing ou partir a estrutura do email enviado ao owner.
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Versão escapada das vars para uso em corpos HTML (o subject usa as raw,
+// porque é texto simples — entidades HTML apareceriam literalmente).
+function escapeVars(vars) {
+  const out = {};
+  for (const [key, value] of Object.entries(vars)) out[key] = escapeHtml(value);
+  return out;
+}
+
 function getEmailSettings(accommodation, organizationId) {
   try {
     const { db } = require('../config/database');
@@ -159,7 +176,7 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation) {
   return sendMail(orgId, {
     to,
     subject: interpolate(template.subject, vars),
-    html: baseTemplate(interpolate(template.body, vars), settings),
+    html: baseTemplate(interpolate(template.body, escapeVars(vars)), settings),
   });
 }
 
@@ -181,8 +198,8 @@ async function sendPaymentConfirmationEmail(guest, reservation, accommodation) {
   if (template) return sendTemplatedEmail('pagamento', guest, reservation, accommodation);
   const settings = getEmailSettings(null, orgId);
   const content = `<h2 style="color:#27ae60;margin-top:0;">💶 Pagamento Confirmado</h2>
-    <p style="color:#555;">Olá <strong>${guest.name}</strong>,</p>
-    <p style="color:#555;">Confirmamos a receção do pagamento da sua reserva em <strong>${accommodation.name || ''}</strong>.</p>
+    <p style="color:#555;">Olá <strong>${escapeHtml(guest.name)}</strong>,</p>
+    <p style="color:#555;">Confirmamos a receção do pagamento da sua reserva em <strong>${escapeHtml(accommodation.name || '')}</strong>.</p>
     <p style="color:#27ae60;font-weight:bold;font-size:20px;">€${Number(reservation.total_amount || 0).toFixed(2)}</p>`;
   return sendMail(orgId, {
     to: guest.email,
@@ -196,8 +213,8 @@ async function sendPreCheckinEmail(guest, reservation, accommodation, preCheckin
   const orgId = reservation.organization_id || accommodation.organization_id;
   const settings = getEmailSettings(accommodation, orgId);
   const content = `<h2 style="color:${BRAND_COLOR};margin-top:0;">Pré check-in</h2>
-    <p style="color:#555;">Olá <strong>${guest.name || ''}</strong>,</p>
-    <p style="color:#555;">A sua reserva em <strong>${accommodation.name || ''}</strong> foi aprovada. Para prepararmos a chegada, pedimos que complete o pré check-in com a hora prevista de chegada e os dados legais dos hóspedes.</p>
+    <p style="color:#555;">Olá <strong>${escapeHtml(guest.name || '')}</strong>,</p>
+    <p style="color:#555;">A sua reserva em <strong>${escapeHtml(accommodation.name || '')}</strong> foi aprovada. Para prepararmos a chegada, pedimos que complete o pré check-in com a hora prevista de chegada e os dados legais dos hóspedes.</p>
     <p style="text-align:center;margin:28px 0;">
       <a href="${preCheckinUrl}" style="display:inline-block;background:${BRAND_COLOR};color:#fff;text-decoration:none;border-radius:8px;padding:13px 22px;font-family:sans-serif;font-weight:700;">Completar pré check-in</a>
     </p>
@@ -236,9 +253,9 @@ async function sendOwnerNewReservationEmail(organizationId, guest, reservation, 
   const content = `
     <h2 style="color:${BRAND_COLOR};margin-top:0;">Nova reserva recebida</h2>
     <table style="width:100%;border-collapse:collapse;font-size:15px;color:#444;">
-      ${row('Referência',  `<strong>${reservation.id}</strong>`)}
-      ${row('Hóspede',     `${guest.name || ''} &lt;${guest.email || ''}&gt;`)}
-      ${row('Alojamento',  accommodation.name || '')}
+      ${row('Referência',  `<strong>${escapeHtml(reservation.id)}</strong>`)}
+      ${row('Hóspede',     `${escapeHtml(guest.name || '')} &lt;${escapeHtml(guest.email || '')}&gt;`)}
+      ${row('Alojamento',  escapeHtml(accommodation.name || ''))}
       ${row('Check-in',    formatDate(reservation.check_in))}
       ${row('Check-out',   formatDate(reservation.check_out))}
       ${row('Hóspedes',    String(reservation.num_guests || 1))}

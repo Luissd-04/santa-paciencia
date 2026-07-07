@@ -376,7 +376,7 @@ async function loadThreadMessages(thread, silent = false) {
             <span class="ib-date">${fmtDateTime(m.date)}</span>
           </div>
           <div class="ib-subject">${esc(m.subject)}</div>
-          <div class="ib-body">${m.body}</div>
+          <div class="ib-body">${renderEmailBodySandboxed(m.body)}</div>
         </div>
       `).join('');
 
@@ -789,6 +789,18 @@ function initials(name) {
 
 function esc(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* Renderiza o HTML de um email recebido dentro de um iframe sandbox (S11).
+   Sem `allow-scripts`, nenhum JS do email executa; `allow-same-origin` serve
+   apenas para o onload conseguir medir a altura; `allow-popups` deixa os
+   links (target=_blank via <base>) abrirem em nova aba. */
+function renderEmailBodySandboxed(body) {
+  const doc = `<base target="_blank">` +
+    `<style>body{margin:8px;font-family:'DM Sans',Helvetica,Arial,sans-serif;font-size:13px;color:#2b211b;word-break:break-word;}img{max-width:100%;height:auto;}</style>` +
+    String(body || '');
+  return `<iframe class="ib-body-frame" sandbox="allow-same-origin allow-popups" srcdoc="${esc(doc)}"
+    onload="try{this.style.height=Math.min(this.contentDocument.body.scrollHeight+20,420)+'px'}catch(e){this.style.height='120px'}"></iframe>`;
 }
 
 function fmtDate(d) {

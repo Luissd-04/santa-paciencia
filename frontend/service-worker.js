@@ -1,11 +1,12 @@
 /* ═══════════════════════════════════════════════════════════════
    Santa Paciência — Service Worker
-   Estratégia: Cache-first para assets estáticos,
-               Network-first para API e HTML.
+   Estratégia: Network-first para API e assets locais (HTML/CSS/JS
+               ficam sempre frescos após deploy; cache é só fallback
+               offline). Cache-first apenas para CDNs (fontes, libs).
 ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'sp-v16';
-const CACHE_VERSION = 16;
+const CACHE_NAME = 'sp-v17';
+const CACHE_VERSION = 17;
 
 /* Assets estáticos que devem funcionar offline */
 const STATIC_ASSETS = [
@@ -30,6 +31,7 @@ const STATIC_ASSETS = [
   '/js/ui.js',
   '/js/pubsub.js',
   '/js/notifications.js',
+  '/js/push.js',
   '/js/dashboard.js',
   '/js/reserva-lista.js',
   '/js/reserva-wizard.js',
@@ -168,8 +170,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body || '',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    icon: '/favicon.png',
+    badge: '/favicon.png',
     tag: data.tag || 'sp-notification',
     data: { url: data.url || '/' },
     requireInteraction: data.requireInteraction || false,

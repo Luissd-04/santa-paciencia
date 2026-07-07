@@ -1922,6 +1922,9 @@
             <button class="settings-tab" data-settings-tab="fornecedores" onclick="switchSettingsTab('fornecedores')">
               <i data-lucide="truck"></i> Fornecedores
             </button>
+            <button class="settings-tab" data-settings-tab="push" onclick="switchSettingsTab('push')">
+              <i data-lucide="bell-ring"></i> Notificações
+            </button>
             <button class="settings-tab" data-settings-tab="equipa" data-owner-only="true" style="display:none;" onclick="switchSettingsTab('equipa')">
               <i data-lucide="users-round"></i> Equipa
             </button>
@@ -2246,6 +2249,49 @@
             </div>
           </div>
 
+          <div class="settings-panel" id="settings-push">
+            <div class="gcal-banner" style="margin-bottom:16px;">
+              <div class="gcal-icon">
+                <i data-lucide="bell-ring"></i>
+              </div>
+              <div class="gcal-text">
+                <h3>Notificações Push</h3>
+                <p>Receba notificações neste dispositivo, mesmo com a app fechada. No iPhone é necessário adicionar a app ao ecrã inicial primeiro (Safari → Partilhar → Adicionar ao ecrã principal).</p>
+                <span id="push-badge" class="gcal-status" style="margin-top:6px;display:inline-flex;"><span class="dot dot-red"></span> Desligadas</span>
+                <div id="push-ios-hint" style="display:none;font-size:12.5px;color:var(--vermelho);margin-top:6px;">
+                  ⚠️ Está a usar o Safari diretamente. Abra a app a partir do ícone no ecrã inicial para poder ativar notificações.
+                </div>
+              </div>
+              <div class="gcal-actions">
+                <button id="push-enable-btn" class="btn btn-primary btn-sm" onclick="enablePushNotifications()">
+                  <i data-lucide="bell-plus"></i> Ativar neste dispositivo
+                </button>
+                <button id="push-disable-btn" class="btn btn-ghost btn-sm" style="display:none;" onclick="disablePushNotifications()">
+                  <i data-lucide="bell-off"></i> Desligar
+                </button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">
+                  <i data-lucide="send"></i> Enviar notificação de teste
+                </span>
+              </div>
+              <div style="padding:16px;">
+                <div style="font-size:12.5px;color:var(--cinza);margin-bottom:12px;">
+                  A mensagem é enviada para todos os dispositivos da organização com notificações ativas.
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <input class="form-control" id="push-test-message" placeholder="Escreva a mensagem de teste..." maxlength="500" style="flex:1;min-width:220px;" autocomplete="off" onkeydown="if(event.key==='Enter')sendTestPush()">
+                  <button id="push-test-btn" class="btn btn-primary btn-sm" onclick="sendTestPush()">
+                    <i data-lucide="send"></i> Enviar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="settings-panel" id="settings-equipa" data-owner-only="true" style="display:none;">
             <div class="card" style="margin-bottom:24px;">
               <div class="card-header">
@@ -2438,16 +2484,8 @@
         </div>
         <div class="form-group">
           <label class="form-label">Tipo</label>
-          <select class="form-control" id="evento-type" data-enhance-select data-app-select-class="app-select--modal">
-            <option value="limpeza">Limpeza</option>
-            <option value="reuniao">Compromisso</option>
-            <option value="pequeno_almoco">Pequeno-almoço</option>
-            <option value="checkin">Check-in</option>
-            <option value="checkout">Check-out</option>
-            <option value="manutencao">Manutenção</option>
-            <option value="agenda_local">Agenda Local</option>
-            <option value="outro">Outro</option>
-          </select>
+          <!-- Options geradas por populateEventoTypeSelect() a partir de EVENT_TYPES (eventos.js) -->
+          <select class="form-control" id="evento-type" data-enhance-select data-app-select-class="app-select--modal"></select>
         </div>
         <div class="form-group">
           <label class="form-label">Estado</label>
@@ -3102,6 +3140,7 @@
 <script src="js/team.js"></script>
 <script src="js/relatorios.js"></script>
 <script src="js/notifications.js"></script>
+<script src="js/push.js"></script>
 <script src="js/vouchers.js"></script>
 <script src="js/precos.js"></script>
 <script src="js/invoice.js"></script>

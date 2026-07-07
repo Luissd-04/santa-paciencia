@@ -123,16 +123,7 @@ function addOneHour(time) {
   return `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-const TASK_TYPE_ICONS = {
-  limpeza: '🧹',
-  reuniao: '👥',
-  pequeno_almoco: '☕',
-  checkin: '🏨',
-  checkout: '🔑',
-  manutencao: '🔧',
-  agenda_local: '🎉',
-  outro: '📋',
-};
+const { EVENT_TYPE_EMOJIS: TASK_TYPE_ICONS } = require('../config/eventTypes');
 
 async function createTaskCalendarEvent(task, calendarUser = {}) {
   const { userId, organizationId } = calendarUser;

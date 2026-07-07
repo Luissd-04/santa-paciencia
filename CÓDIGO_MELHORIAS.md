@@ -1,6 +1,27 @@
 # Melhorias de Código — Lista Viva
 
-> Atualizado em 2026-06-11 (sessão 9 — anti-bot + CSP + autocomplete). Itens marcados ✅ foram resolvidos; ⚠️ parcialmente; 🔴 ainda pendente.
+> Atualizado em 2026-07-06 (sessão 10 — XSS emails + auditoria mobile). Itens marcados ✅ foram resolvidos; ⚠️ parcialmente; 🔴 ainda pendente.
+
+---
+
+## ✅ Resolvido (sessão 10 — 2026-07-06)
+
+- **S1/S11 — XSS no viewer de emails Gmail**: `invoice.js` renderiza agora `m.body` dentro de `<iframe sandbox="allow-same-origin allow-popups" srcdoc="...">` via `renderEmailBodySandboxed()` — sem `allow-scripts`, nenhum JS do email executa. Links abrem em nova aba via `<base target="_blank">`. CSS `.ib-body-frame` em `invoice.css`.
+- **S19 — mitigado pela mesma via**: o `extractBody` do backend continua a devolver HTML cru, mas o único consumidor renderiza-o sandboxed. Sanitização server-side (DOMPurify+JSDOM) fica como defesa em profundidade opcional.
+- **S10 — Templates de email escapam dados do hóspede**: `emailService.js` ganhou `escapeHtml()`/`escapeVars()` locais; corpos HTML usam vars escapadas (`sendTemplatedEmail`), e os templates hardcoded (`pagamento`, pré-checkin, notificação ao owner) escapam `guest.name`, `guest.email`, `accommodation.name`, `reservation.id`. Subjects mantêm vars raw (texto simples).
+- **XSS — 8 escapes em falta em ficheiros fora da auditoria de junho**: `dashboard.js` (guest_name na tabela de chegadas, accommodation_name no chip) e `calendario.js` (spans do calendário, titles, blocos da timeline, agenda mobile, mensagens de conflito/movimentação).
+- **Bug hóspedes mobile**: `renderHospedes()` passou a renderizar sempre cards + lista (dual-render); antes, com modo "lista" guardado, o mobile mostrava a grelha de cards vazia.
+- **Dedup filtro de reservas**: expressão de 7 condições duplicada entre `renderTabela` e `renderMobileCards` extraída para `getFilteredReservas()` (fonte única).
+- **`mobileChipFilter` removido**: era estado morto (escrito, nunca lido). Chips mobile passaram a UI pura sobre `filter-estado`, com `syncMobileChips()` a realinhar o chip ativo no load/restore de filtros — corrige também a dessincronia visual pós-reload.
+- **Tipos de evento centralizados no backend**: novo `backend/src/config/eventTypes.js` (fonte única) consumido por `eventController` (validação), `calendarService` (emojis) e `googleTasks` (labels, com overrides legacy `check_in`/`check_out`).
+- **Select de tipo de evento gerado de `EVENT_TYPES`**: `populateEventoTypeSelect()` em `eventos.js`; `<option>` hardcoded removidas do `index.html`.
+- **Categorias de despesas**: `relatorios.js` deriva `CAT_COLORS`/`CAT_LABELS` de `EXPENSE_CATS` (despesas.js) em vez de duplicar.
+- **Comentário do service worker corrigido**: o cabeçalho dizia "cache-first para assets estáticos" mas o handler real já é network-first para assets locais — comentário alinhado com o comportamento (falso alarme de stale-cache em auditorias futuras).
+- **api.js**: confirmado removido (item da lista antiga encerrado).
+
+### 🔴 Ainda pendente pós-sessão 10
+- S23/S24 (logos email via CDN externa), S28 (logger estruturado/PII), B8 (re-seed de templates), empty catch blocks, S4 completo (migrar 229 onclick → CSP estrita), testes de integração, audit log, email scheduler (adiado pelo utilizador).
+- Reuso ainda por fazer (sprint própria): timeline gantt duplicada (`calendario.js` vs `eventos.js`, ~200 linhas), helper de modais rápidos (`openPaymentForm`/`openInvoiceForm`/`editFornecedor`), `lucide.createIcons` com escopo por container, FAB contextual por vista.
 
 > A revisão 2026-06-09 cobriu todo o `backend/src/` e os ficheiros mais expostos do `frontend/`, com foco em XSS, isolamento multi-tenant, race conditions, gestão de tokens OAuth, cadeia de suprimentos (CDN) e bugs funcionais latentes.
 

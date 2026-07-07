@@ -18,8 +18,9 @@ let _chartLucro        = null;
 const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MONTH_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const CHANNEL_COLORS = { airbnb:'#FF5A5F', booking:'#003580', direto:'#843424', expedia:'#FFC72C', vrbo:'#195ABA', outro:'#8a8278' };
-const CAT_COLORS = { limpeza:'#4a90d9', produtos_limpeza:'#3498db', pequenos_almocos:'#e8a33d', roupas:'#8e6bb0', manutencao:'#e67e22', marketing:'#9b59b6', impostos:'#e74c3c', servicos:'#2ecc71', consumiveis:'#f39c12', supermercado:'#27ae60', outro:'#95a5a6' };
-const CAT_LABELS = { limpeza:'Limpeza', produtos_limpeza:'Produtos de limpeza', pequenos_almocos:'Pequenos-almoços', roupas:'Roupas', manutencao:'Manutenção', marketing:'Marketing', impostos:'Impostos', servicos:'Serviços', consumiveis:'Consumíveis', supermercado:'Supermercado', outro:'Outro' };
+// Derivados de EXPENSE_CATS (despesas.js, carregado antes) — fonte única de categorias.
+const CAT_COLORS = Object.fromEntries(Object.entries(EXPENSE_CATS).map(([k, v]) => [k, v.color]));
+const CAT_LABELS = Object.fromEntries(Object.entries(EXPENSE_CATS).map(([k, v]) => [k, v.label]));
 const MARCA = '#843424';
 
 const fmtEur = v => '€' + Number(v || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

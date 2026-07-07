@@ -7,14 +7,13 @@ const {
   getOrCreateTaskList,
 } = require('../config/googleTasks');
 
+const { EVENT_TYPE_LABELS } = require('../config/eventTypes');
+// Base partilhada + chaves legacy próprias das operational_events
 const TASK_TYPE_LABELS = {
-  check_in:        'Check-in',
-  check_out:       'Check-out',
-  limpeza:         'Limpeza',
-  pequeno_almoco:  'Pequeno-almoço',
-  manutencao:      'Manutenção',
-  agenda_local:    'Agenda Local',
-  outro:           'Tarefa',
+  ...EVENT_TYPE_LABELS,
+  check_in:  'Check-in',
+  check_out: 'Check-out',
+  outro:     'Tarefa',
 };
 
 /* ── GET /api/tasks/status ── */

@@ -634,9 +634,21 @@ function renderEventoPillCompact(evento) {
   </button>`;
 }
 
+// Preenche o <select> de tipo a partir de EVENT_TYPES — fonte única no frontend
+// (evita manter as <option> hardcoded no index.html em sincronia).
+function populateEventoTypeSelect() {
+  const el = document.getElementById('evento-type');
+  if (!el || el.dataset.populated === '1') return;
+  const current = el.value;
+  el.innerHTML = EVENT_TYPES.map(t => `<option value="${t.id}">${t.singular}</option>`).join('');
+  el.value = current || 'limpeza';
+  el.dataset.populated = '1';
+}
+
 function openEventoModal(id = null, date = null, accId = null) {
   eventosEditingId = id;
   const evento = id ? eventosData.find(e => e.id === id) : null;
+  populateEventoTypeSelect();
   populateEventosAccommodationSelects();
   populateEventosResponsibleSelect(evento?.responsible || currentUser?.name || '');
   document.getElementById('evento-modal-title').textContent = evento ? 'Editar Evento' : 'Novo Evento';

@@ -286,6 +286,7 @@ function initDatabase() {
   migrateReservationPayments();
   migrateAccommodationBlocks();
   migrateSuppliers();
+  migratePushSubscriptions();
   migrateLegacyDataToOrganizations();
 
   console.log('✅ Base de dados inicializada');
@@ -899,6 +900,23 @@ function migrateAccommodationBlocks() {
     );
     CREATE INDEX IF NOT EXISTS idx_ab_org_accom ON accommodation_blocks(organization_id, accommodation_id);
     CREATE INDEX IF NOT EXISTS idx_ab_dates ON accommodation_blocks(start_date, end_date);
+  `);
+}
+
+function migratePushSubscriptions() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id              TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      user_id         TEXT NOT NULL,
+      endpoint        TEXT NOT NULL UNIQUE,
+      keys_json       TEXT NOT NULL,
+      created_at      TEXT DEFAULT (datetime('now')),
+      updated_at      TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_push_subs_org ON push_subscriptions(organization_id);
   `);
 }
 

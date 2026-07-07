@@ -1,20 +1,48 @@
 let sortCol = SS.get('res:sort', 'check_in');
 let sortAsc = SS.get('res:asc', true);
-let mobileChipFilter = SS.get('res:chip', '');
 let reservasViewMode = SS.get('res:view', 'card');
 let reservasDetailOpen = false;
 
+// Os chips mobile são apenas UI sobre o dropdown filter-estado — fonte única
+// de verdade. syncMobileChips() realinha o chip ativo com o valor do dropdown.
 function setMobileChip(el, filter) {
-  mobileChipFilter = filter;
-  SS.set('res:chip', filter);
-  document.querySelectorAll('.mobile-filter-chips .chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
   const fe = document.getElementById('filter-estado');
   if (fe) {
     fe.value = filter;
     AppUI.refreshDropdowns(document.getElementById('view-reservas'));
   }
+  syncMobileChips(filter);
   renderTabela();
+}
+
+function syncMobileChips(filterValue) {
+  document.querySelectorAll('.mobile-filter-chips .chip').forEach(chip => {
+    const on = chip.getAttribute('onclick') || '';
+    const match = on.match(/setMobileChip\(this,'([^']*)'\)/);
+    chip.classList.toggle('active', !!match && match[1] === (filterValue || ''));
+  });
+}
+
+// Filtro partilhado entre a tabela desktop e os cards mobile (fonte única).
+function getFilteredReservas() {
+  const searchEl = document.getElementById('search-input') || document.getElementById('mobile-search-input');
+  const q  = (searchEl?.value || '').toLowerCase();
+  const fe = document.getElementById('filter-estado')?.value || '';
+  const fs = document.getElementById('filter-suite')?.value || '';
+  const fc = document.getElementById('filter-canal')?.value || '';
+  const fp = document.getElementById('filter-pagamento')?.value || '';
+  const fd = normalizeIsoDateValue(document.getElementById('filter-date-from')?.value || '');
+  const ft = normalizeIsoDateValue(document.getElementById('filter-date-to')?.value || '');
+  return reservas.filter(r => {
+    const matchQ = !q || (r.guest_name + ' ' + r.id + ' ' + (r.guest_email || '') + ' ' + r.accommodation_name).toLowerCase().includes(q);
+    const matchE = !fe || r.status === fe;
+    const matchS = !fs || r.accommodation_id === fs;
+    const matchC = !fc || r.channel === fc;
+    const matchP = !fp || r.payment_status === fp;
+    const matchD = !fd || r.check_in >= fd;
+    const matchT = !ft || r.check_out <= ft;
+    return matchQ && matchE && matchS && matchC && matchP && matchD && matchT;
+  });
 }
 
 const STATUS_COLORS = {
@@ -85,24 +113,7 @@ function renderMobileCards() {
   const container = document.getElementById('mobile-res-cards');
   if (!container) return;
 
-  const searchEl = document.getElementById('search-input') || document.getElementById('mobile-search-input');
-  const q = (searchEl?.value || '').toLowerCase();
-  const fe = document.getElementById('filter-estado')?.value || '';
-  const fs = document.getElementById('filter-suite')?.value || '';
-  const fc = document.getElementById('filter-canal')?.value || '';
-  const fp = document.getElementById('filter-pagamento')?.value || '';
-  const fd = normalizeIsoDateValue(document.getElementById('filter-date-from')?.value || '');
-  const ft = normalizeIsoDateValue(document.getElementById('filter-date-to')?.value || '');
-  const filtered = reservas.filter(r => {
-    const matchQ = !q || (r.guest_name + ' ' + r.id + ' ' + (r.guest_email || '') + ' ' + r.accommodation_name).toLowerCase().includes(q);
-    const matchE = !fe || r.status === fe;
-    const matchS = !fs || r.accommodation_id === fs;
-    const matchC = !fc || r.channel === fc;
-    const matchP = !fp || r.payment_status === fp;
-    const matchD = !fd || r.check_in >= fd;
-    const matchT = !ft || r.check_out <= ft;
-    return matchQ && matchE && matchS && matchC && matchP && matchD && matchT;
-  }).sort((a, b) => new Date(b.check_in) - new Date(a.check_in));
+  const filtered = getFilteredReservas().sort((a, b) => new Date(b.check_in) - new Date(a.check_in));
   updateReservasSummary(filtered.length, filtered.length === 1 ? 'reserva visível' : 'resultados visíveis');
 
   if (filtered.length === 0) {
@@ -192,27 +203,17 @@ function sortTabela(col) {
 }
 
 function renderTabela() {
-  const q  = (document.getElementById('search-input')    || { value: '' }).value.toLowerCase();
-  const fe = (document.getElementById('filter-estado')   || { value: '' }).value;
-  const fs = (document.getElementById('filter-suite')    || { value: '' }).value;
-  const fc = (document.getElementById('filter-canal')    || { value: '' }).value;
-  const fp = (document.getElementById('filter-pagamento')|| { value: '' }).value;
-  const fd = normalizeIsoDateValue((document.getElementById('filter-date-from')|| { value: '' }).value);
-  const ft = normalizeIsoDateValue((document.getElementById('filter-date-to')  || { value: '' }).value);
+  const fe = document.getElementById('filter-estado')?.value || '';
   SS.set('res:q', document.getElementById('search-input')?.value || '');
-  SS.set('res:fe', fe); SS.set('res:fs', fs); SS.set('res:fc', fc);
-  SS.set('res:fp', fp); SS.set('res:fd', fd); SS.set('res:ft', ft);
+  SS.set('res:fe', fe);
+  SS.set('res:fs', document.getElementById('filter-suite')?.value || '');
+  SS.set('res:fc', document.getElementById('filter-canal')?.value || '');
+  SS.set('res:fp', document.getElementById('filter-pagamento')?.value || '');
+  SS.set('res:fd', normalizeIsoDateValue(document.getElementById('filter-date-from')?.value || ''));
+  SS.set('res:ft', normalizeIsoDateValue(document.getElementById('filter-date-to')?.value || ''));
+  syncMobileChips(fe);
 
-  let data = reservas.filter(r => {
-    const matchQ = !q || (r.guest_name + ' ' + r.id + ' ' + (r.guest_email || '') + ' ' + r.accommodation_name).toLowerCase().includes(q);
-    const matchE = !fe || r.status === fe;
-    const matchS = !fs || r.accommodation_id === fs;
-    const matchC = !fc || r.channel === fc;
-    const matchP = !fp || r.payment_status === fp;
-    const matchD = !fd || r.check_in >= fd;
-    const matchT = !ft || r.check_out <= ft;
-    return matchQ && matchE && matchS && matchC && matchP && matchD && matchT;
-  }).sort((a, b) => {
+  let data = getFilteredReservas().sort((a, b) => {
     let va = a[sortCol] ?? '';
     let vb = b[sortCol] ?? '';
     if (sortCol === 'check_in' || sortCol === 'check_out') {
@@ -334,12 +335,8 @@ function clearReservasFilters() {
     if (el) el.value = '';
   });
   ['res:q', 'res:fe', 'res:fs', 'res:fc', 'res:fp', 'res:fd', 'res:ft', 'res:chip'].forEach(key => SS.set(key, ''));
-  mobileChipFilter = '';
-  document.querySelectorAll('.mobile-filter-chips .chip').forEach((chip, index) => {
-    chip.classList.toggle('active', index === 0);
-  });
   AppUI.refreshDropdowns(document.getElementById('view-reservas'));
-  renderTabela();
+  renderTabela(); // renderTabela chama syncMobileChips com o valor limpo
 }
 
 async function deleteReserva(id) {

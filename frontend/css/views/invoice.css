@@ -374,6 +374,17 @@
   border: 1px solid var(--border, #e8ddd0);
 }
 
+/* Iframe sandbox onde o HTML do email é renderizado (S11) */
+.ib-body-frame {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  height: 120px;
+  border: none;
+  border-radius: 8px;
+  background: #fff;
+}
+
 /* Área de mensagens como coluna de chat */
 .invoice-messages-area {
   display: flex;

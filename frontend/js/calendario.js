@@ -310,14 +310,14 @@ function renderCal() {
         const suites     = calReservationSuites(r);
         const isMulti    = suites.length > 1;
         const barH       = Math.min(suites.length, MAX_SUITE_ROWS) * LANE_H;
-        const firstName  = r.guest_name.split(' ')[0];
+        const firstName  = escapeHtml(r.guest_name.split(' ')[0]);
         const inner      = isMulti
           ? `<span class="cal-span-text cal-span-multi"><span class="cal-span-guest">${firstName}</span>${suites.slice(0, MAX_SUITE_ROWS).map(s => `<span class="cal-span-suite">${s.replace('Suite ','')}</span>`).join('')}</span>`
-          : `<span class="cal-span-text">${firstName} · ${r.accommodation_name.replace('Suite ','')}</span>`;
+          : `<span class="cal-span-text">${firstName} · ${escapeHtml(r.accommodation_name.replace('Suite ',''))}</span>`;
         eventHtml += `<div class="cal-event-span ${statusCls} ${roundCls}${isMulti ? ' cal-event-multi' : ''}"
           style="left:${leftPct.toFixed(2)}%;width:${widthPct.toFixed(2)}%;top:${topPx}px;height:${barH}px;background:${color}22;color:${color};border-left:${borderLeft};"
           onclick="event.stopPropagation();showDetail('${r.id}')"
-          title="${r.guest_name} — ${suites.join(' + ')}">
+          title="${escapeHtml(r.guest_name)} — ${escapeHtml(suites.join(' + '))}">
           ${inner}
         </div>`;
       }
@@ -373,8 +373,8 @@ function renderCalendarAgenda(monthDays, filters = getCalendarFilters()) {
           return `<button type="button" class="agenda-item" onclick="showDetail('${r.id}')" style="--agenda-color:${color};">
             <span class="agenda-item-dot"></span>
             <span class="agenda-item-main">
-              <strong>${r.guest_name || 'Reserva'}</strong>
-              <small>${r.accommodation_name || accommodation?.name || 'Alojamento'} · ${marker}</small>
+              <strong>${escapeHtml(r.guest_name || 'Reserva')}</strong>
+              <small>${escapeHtml(r.accommodation_name || accommodation?.name || 'Alojamento')} · ${marker}</small>
             </span>
             <span class="agenda-item-status">${r.status || '—'}</span>
           </button>`;
@@ -508,10 +508,10 @@ function renderTimeline(autoScroll = true) {
                        data-res-id="${r.id}"
                        data-acc-id="${r.accommodation_id}"
                        onpointerdown="tlPointerDown(event,'${r.id}','move')"
-                       title="${r.guest_name} · ${r.check_in} → ${r.check_out}">
+                       title="${escapeHtml(r.guest_name)} · ${r.check_in} → ${r.check_out}">
             <div class="tl-resize-handle tl-resize-left" onpointerdown="event.stopPropagation();tlPointerDown(event,'${r.id}','resize-left')"></div>
             <div class="tl-block-main">
-              <span class="tl-block-name">${r.guest_name.split(' ')[0]}</span>
+              <span class="tl-block-name">${escapeHtml(r.guest_name.split(' ')[0])}</span>
               <span class="tl-block-status" style="color:${bg};">${r.status}</span>
             </div>
             <span class="tl-block-meta">${shortDatePt(r.check_in)} → ${shortDatePt(r.check_out)} · ${nights} noite${nights !== 1 ? 's' : ''}</span>
@@ -846,7 +846,7 @@ function tlOnPointerUp() {
   );
 
   const fromAcc = accommodations.find(a => a.id === origAccId);
-  let msgBody = `<b>${r?.guest_name || 'reserva'}</b>`;
+  let msgBody = `<b>${escapeHtml(r?.guest_name || 'reserva')}</b>`;
   msgBody += `<table style="margin-top:12px;width:100%;font-size:13px;border-collapse:collapse;">`;
   if (roomChanged) {
     msgBody += `<tr>
@@ -865,7 +865,7 @@ function tlOnPointerUp() {
   msgBody += `</table>`;
 
   if (conflicts.length > 0) {
-    const names = conflicts.map(c => `<b>${c.guest_name}</b>`).join(', ');
+    const names = conflicts.map(c => `<b>${escapeHtml(c.guest_name)}</b>`).join(', ');
     msgBody += `<div style="margin-top:12px;padding:10px 12px;background:#fff3f3;border:1.5px solid #fbb;border-radius:8px;font-size:12.5px;color:#b91c1c;">
       ⚠️ Overbooking — ${names} já tem${conflicts.length > 1 ? 'm' : ''} reserva nestas datas neste quarto.
     </div>`;
