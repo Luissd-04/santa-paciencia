@@ -161,6 +161,8 @@ let _nightlyOverrides = {};
 let _nightlyPrices = [];        // array atual [{date, price}] (calculado)
 let _nightlyGridSig = '';       // assinatura das datas para saber quando reconstruir a grelha
 let _manualTotalOverride = null;
+let _standardNightlyByDate = {}; // preço padrão por noite (calendário dinâmico, sem overrides)
+let _editingPriceInfo = null;    // { price_edited_at, price_edited_by_name } da reserva em edição
 
 async function loadWizPricingPeriods(alojId) {
   if (!alojId) return [];
@@ -205,10 +207,12 @@ function updateNumHospedes() {
   const children = parseInt(document.getElementById('f-num-criancas')?.value) || 0;
   const hidden = document.getElementById('f-num-hospedes');
   if (hidden) hidden.value = adults + children;
+  renderWizChildAges();
 }
 
 function openModal(config = {}) {
   editingId = null;
+  _editingPriceInfo = null;
   const titleEl = document.getElementById('modal-title');
   if (titleEl) titleEl.textContent = 'Nova Reserva';
   const saveBtn = document.getElementById('btn-guardar');
@@ -289,6 +293,7 @@ async function openEditModal(id) {
     try { const gd = await apiGet(`/api/guests/${r.guest_id}`); guestFull = gd.data || {}; } catch {}
 
     editingId = id;
+    _editingPriceInfo = { price_edited_at: r.price_edited_at, price_edited_by_name: r.price_edited_by_name };
     document.getElementById('modal-title').textContent = 'Editar Reserva — ' + id;
     document.getElementById('btn-guardar').textContent = 'Atualizar Reserva';
     buildCountrySelects();
@@ -388,6 +393,8 @@ async function openEditModal(id) {
       setVal('doc_emissor',    g.document_issuer_country);
       setVal('nif',            g.nif);
     });
+    // Idades das crianças derivadas das datas de nascimento agora preenchidas
+    renderWizChildAges();
 
     const rgpdWrap = document.getElementById('wiz-rgpd-wrap');
     if (rgpdWrap) rgpdWrap.style.display = 'none';
@@ -626,11 +633,14 @@ async function calcTotal() {
       check_out: co,
       num_guests: numHospedes,
       breakfast_included: breakfast,
-      birth_dates: getGuestBirthDatesFromUi(),
+      birth_dates: wizEffectiveBirthDates(),
       pricing_periods: pricingPeriods,
       nightly_prices: nightlyOverrideArray(),
     });
     _nightlyPrices = totals.nightlyPrices || [];
+    // Padrão por noite (sem overrides) para referência em cinzento na grelha
+    const stdNightly = window.ReservationPricing.buildNightlyPrices(Number(suite.price_per_night || 0), ci, co, pricingPeriods);
+    _standardNightlyByDate = Object.fromEntries(stdNightly.map(n => [n.date, n.price]));
     renderNightlyGrid();
 
     const discVal = parseFloat(document.getElementById('f-discount-val')?.value) || 0;
@@ -714,8 +724,9 @@ function renderNightlyGrid() {
   _nightlyGridSig = sig;
   grid.innerHTML = _nightlyPrices.map(n => {
     const edited = _nightlyOverrides[n.date] != null;
+    const std = _standardNightlyByDate[n.date];
     return `<div class="resf-nightly-row${edited ? ' edited' : ''}" data-date="${n.date}">
-      <span class="resf-nightly-date">${formatNightLabel(n.date)}${edited ? '<span class="resf-nightly-tag">editado</span>' : ''}</span>
+      <span class="resf-nightly-date">${formatNightLabel(n.date)}${edited ? '<span class="resf-nightly-tag">editado</span>' : ''}${std != null ? `<span class="resf-nightly-std">padrão €${Number(std).toFixed(2)}</span>` : ''}</span>
       <div class="resf-nightly-input">
         <span>€</span>
         <input type="number" min="0" step="0.01" value="${Number(n.price).toFixed(2)}"
@@ -810,6 +821,87 @@ function getGuestBirthDatesFromUi() {
     getBirthDateValue(document.getElementById('f-nascimento')),
     ...Array.from(document.querySelectorAll('.extra-guest-row [data-field="birth_date"]')).map(el => getBirthDateValue(el))
   ].filter(Boolean);
+}
+
+// ── Idades das crianças (seleção rápida, como no formulário público) ──
+
+function wizChildRowBirthDates() {
+  return Array.from(document.querySelectorAll('.extra-guest-row[data-is-child="true"] [data-field="birth_date"]'))
+    .map(el => getBirthDateValue(el) || null);
+}
+
+function renderWizChildAges() {
+  const wrap = document.getElementById('resf-child-ages');
+  if (!wrap) return;
+  const count = parseInt(document.getElementById('f-num-criancas')?.value) || 0;
+  if (count <= 0) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+
+  const ci = normalizeIsoDateValue(document.getElementById('f-checkin')?.value) || new Date().toISOString().slice(0, 10);
+  const prev = Array.from(wrap.querySelectorAll('select')).map(s => s.value);
+  const rowAges = wizChildRowBirthDates().map(d => (d ? getAgeAtDate(d, ci) : null));
+
+  let html = '<label class="form-label">Idade das crianças</label><div style="display:flex;flex-wrap:wrap;gap:8px;">';
+  for (let i = 0; i < count; i++) {
+    // Preferência: valor já escolhido → idade derivada da ficha da criança → vazio
+    const sel = prev[i] || (rowAges[i] != null && rowAges[i] >= 0 ? String(Math.min(rowAges[i], 17)) : '');
+    let opts = '<option value="">Idade</option>';
+    for (let a = 0; a <= 17; a++) opts += `<option value="${a}"${String(a) === sel ? ' selected' : ''}>${a} ano${a !== 1 ? 's' : ''}</option>`;
+    html += `<label style="flex:1;min-width:110px;display:flex;flex-direction:column;gap:3px;">
+      <select class="form-control" data-wiz-child-age="${i}" onchange="onWizChildAgeChange()">${opts}</select>
+      <small class="wiz-child-age-hint" style="font-size:11px;color:var(--cinza);min-height:14px;"></small>
+    </label>`;
+  }
+  html += '</div>';
+  wrap.innerHTML = html;
+  wrap.style.display = '';
+  updateWizChildAgeHints();
+}
+
+function onWizChildAgeChange() {
+  updateWizChildAgeHints();
+  calcTotal();
+}
+
+function updateWizChildAgeHints() {
+  const suite = accommodations.find(a => a.id === document.getElementById('f-aloj')?.value);
+  const babyLimit = Number(suite?.baby_age_limit ?? 2);
+  const childLimit = Number(suite?.child_age_limit ?? 12);
+  const babyPrice = Number(suite?.baby_price ?? 0);
+  const childPrice = Number(suite?.child_price ?? 0);
+  document.querySelectorAll('#resf-child-ages [data-wiz-child-age]').forEach(sel => {
+    const hint = sel.parentElement?.querySelector('.wiz-child-age-hint');
+    if (!hint) return;
+    if (sel.value === '' || !suite) { hint.textContent = ''; return; }
+    const age = Number(sel.value);
+    if (age < babyLimit) hint.textContent = babyPrice > 0 ? `Bebé · €${babyPrice.toFixed(2)}/noite` : 'Bebé · sem custo';
+    else if (age < childLimit) hint.textContent = childPrice > 0 ? `Criança · €${childPrice.toFixed(2)}/noite` : 'Criança · sem custo';
+    else hint.textContent = 'Preço de adulto';
+  });
+}
+
+// Converte cada idade escolhida numa data de nascimento aproximada alinhada ao
+// check-in (idade-ao-check-in = idade escolhida), como no formulário público.
+function wizChildAgeBirthDates() {
+  const ci = normalizeIsoDateValue(document.getElementById('f-checkin')?.value) || new Date().toISOString().slice(0, 10);
+  const year = Number(ci.slice(0, 4));
+  const monthDay = ci.slice(4); // "-MM-DD"
+  return Array.from(document.querySelectorAll('#resf-child-ages [data-wiz-child-age]')).map(s =>
+    s.value === '' ? null : `${year - Number(s.value)}${monthDay}`
+  );
+}
+
+// Datas de nascimento efetivas para o cálculo: adultos primeiro (posições sem
+// desconto), depois as crianças — data explícita da ficha da criança quando
+// preenchida, senão a derivada da idade escolhida.
+function wizEffectiveBirthDates() {
+  const adults = parseInt(document.getElementById('f-num-adultos')?.value) || 1;
+  const children = parseInt(document.getElementById('f-num-criancas')?.value) || 0;
+  if (!children) return getGuestBirthDatesFromUi();
+  const rowDates = wizChildRowBirthDates();
+  const ageDates = wizChildAgeBirthDates();
+  const childDates = [];
+  for (let i = 0; i < children; i++) childDates.push(rowDates[i] || ageDates[i] || null);
+  return [...Array(adults).fill(null), ...childDates];
 }
 
 function formatDateForBirthInput(value) {
@@ -1308,7 +1400,7 @@ function suiteCardPriceHtml(a, ci, co) {
     check_in: ci,
     check_out: co,
     num_guests: numHospedes,
-    birth_dates: getGuestBirthDatesFromUi(),
+    birth_dates: wizEffectiveBirthDates(),
     pricing_periods: _cachedPricingPeriods[a.id] || [],
   });
   if (!totals || !totals.baseAmount || !totals.nights) return fallback;
@@ -1360,7 +1452,7 @@ function buildWizConfirm() {
   const numH = parseInt(document.getElementById('f-num-hospedes')?.value) || 1;
   const bkf = document.getElementById('f-breakfast')?.value === 'true';
   const total = parseFloat(document.getElementById('f-total')?.value) || 0;
-  const extraOccupancyCost = getExtraOccupancyCharge(suite, numH, nights, getGuestBirthDatesFromUi(), ci);
+  const extraOccupancyCost = getExtraOccupancyCharge(suite, numH, nights, wizEffectiveBirthDates(), ci);
   const hasPeriods = (_cachedPricingPeriods[alojId] || []).length > 0;
   const hasNightlyEdits = Object.keys(_nightlyOverrides).length > 0;
   const priceLabel = hasNightlyEdits ? 'Preço por noite personalizado' : (hasPeriods ? 'Preço dinâmico' : `€${suite?.price_per_night || 0}/noite`);
@@ -1500,6 +1592,30 @@ function collectExtraGuests() {
   }).filter(g => g.name || g.email);
 }
 
+// Total padrão do calendário dinâmico para as escolhas atuais (sem overrides,
+// sem desconto) — a referência que nunca é usada para cobrar, só para comparar.
+async function wizStandardTotal() {
+  const alojId = document.getElementById('f-aloj')?.value;
+  const suite = accommodations.find(a => a.id === alojId);
+  const ci = normalizeIsoDateValue(document.getElementById('f-checkin')?.value);
+  const co = normalizeIsoDateValue(document.getElementById('f-checkout')?.value);
+  if (!suite || !ci || !co) return null;
+  try {
+    const periods = await loadWizPricingPeriods(alojId);
+    const totals = window.ReservationPricing.calculateReservationTotal(suite, servicosData, {
+      check_in: ci,
+      check_out: co,
+      num_guests: parseInt(document.getElementById('f-num-hospedes')?.value) || 1,
+      breakfast_included: document.getElementById('f-breakfast')?.value === 'true',
+      birth_dates: wizEffectiveBirthDates(),
+      pricing_periods: periods,
+    });
+    return totals.totalAmount;
+  } catch {
+    return null;
+  }
+}
+
 async function saveReserva() {
   const nomeCompleto = document.getElementById('f-nome-completo').value.trim();
   const nomeParts    = nomeCompleto.split(' ');
@@ -1523,6 +1639,25 @@ async function saveReserva() {
   if (selectedAccommodation?.max_guests && requestedGuests > selectedAccommodation.max_guests) {
     toast(`Este alojamento permite no máximo ${selectedAccommodation.max_guests} hóspede${selectedAccommodation.max_guests !== 1 ? 's' : ''}.`, 'error');
     return;
+  }
+
+  // Confirmação quando os valores da estadia foram alterados face ao padrão
+  // do calendário dinâmico (overrides por noite, total manual ou desconto).
+  const hasValueEdits = _manualTotalOverride != null
+    || Object.keys(_nightlyOverrides).length > 0
+    || (parseFloat(document.getElementById('f-discount-val')?.value) || 0) > 0;
+  if (hasValueEdits && typeof confirmPriceChange === 'function') {
+    const standardTotal = await wizStandardTotal();
+    const newTotal = parseFloat(document.getElementById('f-total')?.value);
+    if (standardTotal != null && !isNaN(newTotal) && Math.abs(newTotal - standardTotal) > 0.005) {
+      const ok = await confirmPriceChange({
+        standardTotal,
+        newTotal,
+        editedAt: _editingPriceInfo?.price_edited_at || null,
+        editedByName: _editingPriceInfo?.price_edited_by_name || null,
+      });
+      if (!ok) return;
+    }
   }
 
   const nomeFull = nomeCompleto;

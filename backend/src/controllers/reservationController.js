@@ -14,6 +14,7 @@ const {
   findBlockConflict,
   getBlockedAccommodationIds,
 } = require('../services/accommodationBlockService');
+const { notifyOrganization } = require('../services/pushService');
 
 function safeJson(value, fallback) {
   if (!value) return fallback;
@@ -220,6 +221,7 @@ async function getById(req, res, next) {
     const reservation = db.prepare(`
       SELECT r.*, g.name as guest_name, g.email as guest_email, g.phone as guest_phone,
              g.document_number, g.nationality, g.rgpd_consent,
+             g.company as guest_company, g.nif as guest_nif,
              a.name as accommodation_name, a.license_number
       FROM reservations r
       JOIN guests g ON r.guest_id = g.id
@@ -234,6 +236,35 @@ async function getById(req, res, next) {
       WHERE reservation_id = ? AND organization_id = ?
       ORDER BY payment_date ASC, created_at ASC
     `).all(req.params.id, req.user.organization_id);
+
+    // Estado das tarefas de check-in/check-out (para os botões "feito" na ficha)
+    reservation.task_status = getReservationTaskStatus(req.user.organization_id, reservation);
+
+    // Total padrão do calendário dinâmico (referência para desconto/acréscimo na ficha)
+    try {
+      const orgId = req.user.organization_id;
+      const acc = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?')
+        .get(reservation.accommodation_id, orgId);
+      const periods = db.prepare('SELECT * FROM pricing_periods WHERE accommodation_id = ? AND organization_id = ? ORDER BY start_date ASC')
+        .all(reservation.accommodation_id, orgId);
+      const guestRow = db.prepare('SELECT birth_date FROM guests WHERE id = ? AND organization_id = ?')
+        .get(reservation.guest_id, orgId) || {};
+      const standard = calculateReservationTotals(acc, getOrganizationServices(orgId), {
+        check_in: reservation.check_in,
+        check_out: reservation.check_out,
+        num_guests: reservation.num_guests,
+        breakfast_included: reservation.breakfast_included,
+        birth_dates: getReservationBirthDates(guestRow, safeJson(reservation.guests_data, [])),
+        pricing_periods: periods,
+      });
+      reservation.standard_total = standard.totalAmount;
+      reservation.standard_nightly_prices = standard.nightlyPrices;
+    } catch { /* referência indisponível */ }
+
+    if (reservation.price_edited_by_user_id) {
+      reservation.price_edited_by_name = db.prepare('SELECT name FROM users WHERE id = ?')
+        .get(reservation.price_edited_by_user_id)?.name || null;
+    }
 
     res.json({ success: true, data: reservation });
   } catch (err) {
@@ -348,8 +379,8 @@ async function create(req, res, next) {
       amount_paid, payment_date, payment_status: reqPaymentStatus,
       total_amount: manualTotalCreate, nightly_prices: nightlyPricesCreate
     } = req.body;
-    const totalGuests = (num_adults != null && num_children != null)
-      ? (Number(num_adults) + Number(num_children))
+    const totalGuests = (num_adults != null || num_children != null)
+      ? (Number(num_adults ?? 1) + Number(num_children ?? 0))
       : (num_guests || 1);
     const organizationId = req.user.organization_id;
 
@@ -472,6 +503,18 @@ async function create(req, res, next) {
     const voucherAdjusted = Math.max(0, totals.totalAmount - voucherDiscount);
     const finalTotal = manualTotalCreate !== undefined ? Number(manualTotalCreate) : voucherAdjusted;
 
+    // Edição manual = total gravado difere do padrão do calendário dinâmico
+    // (sem overrides por noite), descontado o voucher. Fica registado quem/quando.
+    let priceEdited = false;
+    try {
+      const standard = calculateReservationTotals(accommodation, getOrganizationServices(organizationId), {
+        check_in, check_out, num_guests: totalGuests,
+        pricing_periods: pricingPeriods, breakfast_included,
+        guest, guests_data: guests_data || [],
+      });
+      priceEdited = Math.abs(finalTotal - Math.max(0, standard.totalAmount - voucherDiscount)) > 0.01;
+    } catch { /* referência indisponível — não marcar */ }
+
     const paidAmt = Number(amount_paid) || 0;
     const autoPaymentStatus = getPaymentStatus(paidAmt, finalTotal, reqPaymentStatus || 'pendente');
 
@@ -482,8 +525,9 @@ async function create(req, res, next) {
         id, organization_id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
         num_adults, num_children,
         total_amount, breakfast_included, tourist_tax, channel, payment_method,
-        notes, license_number, guests_data, amount_paid, payment_date, payment_status, nightly_prices
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        notes, license_number, guests_data, amount_paid, payment_date, payment_status, nightly_prices,
+        price_edited_at, price_edited_by_user_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       reservationId, organizationId, guestRecord.id, accommodation_id, totals.checkIn, totals.checkOut,
       totals.nights, totals.guests,
@@ -494,7 +538,9 @@ async function create(req, res, next) {
       notes || null, accommodation.license_number,
       JSON.stringify(upsertAdditionalGuests(guests_data, organizationId)),
       paidAmt, payment_date || null, autoPaymentStatus,
-      JSON.stringify(totals.nightlyPrices || [])
+      JSON.stringify(totals.nightlyPrices || []),
+      priceEdited ? new Date().toISOString() : null,
+      priceEdited ? req.user.id : null
     );
     if (appliedVoucherId) {
       db.prepare(
@@ -521,6 +567,13 @@ async function create(req, res, next) {
     // Email de confirmação (async)
     sendConfirmationEmail(guestRecord, reservation, accommodation)
       .catch(err => console.warn('Email não enviado:', err.message));
+
+    notifyOrganization(organizationId, 'new_reservation', {
+      title: '🆕 Nova reserva',
+      body: `${guestRecord.name} · ${accommodation.name} · ${reservation.check_in} → ${reservation.check_out}`,
+      url: '/reservas',
+      excludeUserId: req.user.id,
+    });
 
     res.status(201).json({
       success: true,
@@ -627,6 +680,30 @@ async function update(req, res, next) {
     }
     const newPaidAmt = amount_paid !== undefined ? Number(amount_paid) : (existing.amount_paid || 0);
     const effectiveTotal = manualTotal !== undefined ? Number(manualTotal) : totals.totalAmount;
+
+    // Edição manual = total efetivo difere do padrão do calendário dinâmico
+    // (sem overrides por noite). Preserva o registo anterior se continuar editada.
+    let priceEditedAt = existing.price_edited_at || null;
+    let priceEditedBy = existing.price_edited_by_user_id || null;
+    try {
+      const standard = calculateReservationTotals(accommodation, getOrganizationServices(organizationId), {
+        check_in: newCheckIn,
+        check_out: newCheckOut,
+        num_guests: guests,
+        breakfast_included: bkfOn2,
+        birth_dates: getReservationBirthDates(guestForBirthDates, incomingGuestsData),
+        pricing_periods: pricingPeriods2,
+      });
+      const edited = Math.abs(effectiveTotal - standard.totalAmount) > 0.01;
+      if (edited && Math.abs(effectiveTotal - Number(existing.total_amount)) > 0.01) {
+        // Nova edição manual — atualizar quem/quando
+        priceEditedAt = new Date().toISOString();
+        priceEditedBy = req.user.id;
+      } else if (!edited) {
+        priceEditedAt = null;
+        priceEditedBy = null;
+      }
+    } catch { /* referência indisponível — manter registo atual */ }
     const autoPaymentStatus2 = getPaymentStatus(newPaidAmt, effectiveTotal, payment_status || existing.payment_status || 'pendente');
     const reactivating = existing.status === 'cancelada' && status && status !== 'cancelada';
     const nextStatus = reactivating
@@ -651,7 +728,8 @@ async function update(req, res, next) {
         total_amount = ?, breakfast_included = ?, tourist_tax = ?,
         channel = ?, payment_method = ?, notes = ?, status = ?,
         payment_status = ?, guests_data = ?, accommodations_data = ?,
-        amount_paid = ?, payment_date = ?, nightly_prices = ?, updated_at = datetime('now')
+        amount_paid = ?, payment_date = ?, nightly_prices = ?,
+        price_edited_at = ?, price_edited_by_user_id = ?, updated_at = datetime('now')
       WHERE id = ? AND organization_id = ?
     `).run(
       newAccommodationId,
@@ -668,6 +746,7 @@ async function update(req, res, next) {
       newPaidAmt,
       payment_date !== undefined ? (payment_date || null) : existing.payment_date,
       JSON.stringify(totals.nightlyPrices || []),
+      priceEditedAt, priceEditedBy,
       req.params.id,
       organizationId
     );
@@ -729,6 +808,13 @@ async function cancel(req, res, next) {
       .get(reservation.accommodation_id, organizationId);
     sendCancellationEmail(guest, reservation, accommodation)
       .catch(err => console.warn('Email não enviado:', err.message));
+
+    notifyOrganization(organizationId, 'cancellation', {
+      title: '❌ Reserva cancelada',
+      body: `${guest?.name || 'Hóspede'} · ${accommodation?.name || ''} · ${reservation.check_in} → ${reservation.check_out}`,
+      url: '/reservas',
+      excludeUserId: req.user.id,
+    });
 
     res.json({ success: true, message: 'Reserva cancelada' });
   } catch (err) {
@@ -853,6 +939,77 @@ async function getDashboardStats(req, res, next) {
   }
 }
 
+// Tarefa operacional de check-in/check-out de uma reserva (a mais relevante:
+// primeiro a que coincide com a data atual da reserva, senão a mais recente).
+function findReservationTask(orgId, reservationId, kind, date) {
+  return db.prepare(`
+    SELECT * FROM operational_events
+    WHERE organization_id = ? AND reservation_id = ? AND auto_kind = ?
+    ORDER BY (date = ?) DESC, created_at DESC
+  `).get(orgId, reservationId, kind, date);
+}
+
+function getReservationTaskStatus(orgId, reservation) {
+  const checkin = findReservationTask(orgId, reservation.id, 'checkin', reservation.check_in);
+  const checkout = findReservationTask(orgId, reservation.id, 'checkout', reservation.check_out);
+  return {
+    checkin_done: checkin?.status === 'concluido',
+    checkout_done: checkout?.status === 'concluido',
+  };
+}
+
+// POST /api/reservations/:id/task-status  { kind: 'checkin'|'checkout', done: bool }
+// Marca a tarefa de check-in/check-out como feita (ou volta a planeado) a partir
+// da ficha da reserva. Cria a tarefa já concluída se ainda não existir (ex.:
+// geração automática desligada nas definições).
+function setTaskStatus(req, res, next) {
+  try {
+    const orgId = req.user.organization_id;
+    const kind = req.body?.kind;
+    const done = !!req.body?.done;
+    if (!['checkin', 'checkout'].includes(kind)) {
+      return res.status(400).json({ success: false, error: 'Tipo de tarefa inválido.' });
+    }
+
+    const r = db.prepare(`
+      SELECT r.*, a.name AS accommodation_name
+      FROM reservations r
+      JOIN accommodations a ON a.id = r.accommodation_id
+      WHERE r.id = ? AND r.organization_id = ?
+    `).get(req.params.id, orgId);
+    if (!r) return res.status(404).json({ success: false, error: 'Reserva não encontrada.' });
+
+    const date = kind === 'checkin' ? r.check_in : r.check_out;
+    const existing = findReservationTask(orgId, r.id, kind, date);
+
+    if (existing) {
+      db.prepare(`
+        UPDATE operational_events
+        SET status = ?, completed_at = ?, updated_at = datetime('now')
+        WHERE id = ? AND organization_id = ?
+      `).run(done ? 'concluido' : 'planeado', done ? new Date().toISOString() : null, existing.id, orgId);
+    } else if (done) {
+      db.prepare(`
+        INSERT OR IGNORE INTO operational_events (
+          id, organization_id, title, type, date, accommodation_id,
+          status, notes, reservation_id, created_by_user_id, completed_at,
+          auto_generated, auto_kind, auto_key, important
+        ) VALUES (?, ?, ?, ?, ?, ?, 'concluido', ?, ?, ?, ?, 1, ?, ?, 0)
+      `).run(
+        uuidv4(), orgId,
+        `${kind === 'checkin' ? 'Check-in' : 'Check-out'} · ${r.accommodation_name}`,
+        kind, date, r.accommodation_id,
+        `Reserva ${r.id}`, r.id, req.user.id, new Date().toISOString(),
+        kind, `${r.id}:${kind}:${date}:${r.accommodation_id || 'geral'}`
+      );
+    }
+
+    res.json({ success: true, data: getReservationTaskStatus(orgId, r) });
+  } catch (err) {
+    next(err);
+  }
+}
+
 function getNotifications(req, res, next) {
   try {
     const orgId = req.user.organization_id;
@@ -867,9 +1024,20 @@ function getNotifications(req, res, next) {
       JOIN accommodations a ON a.id = r.accommodation_id
       WHERE r.organization_id = ?`;
 
-    const checkinsToday    = db.prepare(`${baseSelect} AND r.check_in = ?  AND r.status != 'cancelada'`).all(orgId, today);
-    const checkinsTomorrow = db.prepare(`${baseSelect} AND r.check_in = ?  AND r.status != 'cancelada'`).all(orgId, tomorrow);
-    const checkoutsToday   = db.prepare(`${baseSelect} AND r.check_out = ? AND r.status != 'cancelada'`).all(orgId, today);
+    // Check-ins/outs com a tarefa operacional já concluída não geram notificação
+    // (o motivo do alerta está resolvido — marcado como feito na ficha ou nos eventos).
+    const notDone = kind => `
+      AND NOT EXISTS (
+        SELECT 1 FROM operational_events e
+        WHERE e.organization_id = r.organization_id
+          AND e.reservation_id = r.id
+          AND e.auto_kind = '${kind}'
+          AND e.status = 'concluido'
+      )`;
+
+    const checkinsToday    = db.prepare(`${baseSelect} AND r.check_in = ?  AND r.status != 'cancelada' ${notDone('checkin')}`).all(orgId, today);
+    const checkinsTomorrow = db.prepare(`${baseSelect} AND r.check_in = ?  AND r.status != 'cancelada' ${notDone('checkin')}`).all(orgId, tomorrow);
+    const checkoutsToday   = db.prepare(`${baseSelect} AND r.check_out = ? AND r.status != 'cancelada' ${notDone('checkout')}`).all(orgId, today);
     const pending          = db.prepare(`${baseSelect} AND r.status = 'pendente'`).all(orgId);
     const unpaid           = db.prepare(`${baseSelect} AND r.status = 'confirmada' AND r.total_amount > 0 AND r.amount_paid < r.total_amount`).all(orgId);
     const importantTasks   = db.prepare(`
@@ -936,4 +1104,4 @@ function getNotifications(req, res, next) {
   }
 }
 
-module.exports = { getAll, getById, create, update, approve, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, addPayment, deletePayment, saveInvoice };
+module.exports = { getAll, getById, create, update, approve, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, addPayment, deletePayment, saveInvoice, setTaskStatus };

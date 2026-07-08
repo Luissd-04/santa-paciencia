@@ -50,9 +50,46 @@ function deleteSubscription(endpoint) {
   db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').run(endpoint);
 }
 
-async function sendToOrganization(organizationId, payload) {
+// ── Preferências por tipo (switches nas Definições, guardadas por utilizador) ──
+
+const PUSH_TYPES = ['new_reservation', 'cancellation', 'precheckin', 'daily_summary'];
+const DEFAULT_PUSH_PREFS = Object.fromEntries(PUSH_TYPES.map(t => [t, true]));
+
+function getUserPushPrefs(organizationId, userId) {
+  const row = db.prepare('SELECT value FROM organization_settings WHERE organization_id = ? AND key = ?')
+    .get(organizationId, `push_prefs:${userId}`);
+  try {
+    return { ...DEFAULT_PUSH_PREFS, ...(row ? JSON.parse(row.value) : {}) };
+  } catch {
+    return { ...DEFAULT_PUSH_PREFS };
+  }
+}
+
+function saveUserPushPrefs(organizationId, userId, prefs = {}) {
+  const next = { ...DEFAULT_PUSH_PREFS };
+  PUSH_TYPES.forEach(t => { if (prefs[t] !== undefined) next[t] = !!prefs[t]; });
+  db.prepare(`
+    INSERT OR REPLACE INTO organization_settings (organization_id, key, value, updated_at)
+    VALUES (?, ?, ?, datetime('now'))
+  `).run(organizationId, `push_prefs:${userId}`, JSON.stringify(next));
+  return next;
+}
+
+// Envia para todos os dispositivos da organização.
+// options.excludeUserId — não notificar quem fez a ação.
+// options.type — tipo de notificação; respeita os switches de cada utilizador.
+async function sendToOrganization(organizationId, payload, options = {}) {
   getVapidKeys();
-  const rows = db.prepare('SELECT endpoint, keys_json FROM push_subscriptions WHERE organization_id = ?').all(organizationId);
+  const { excludeUserId = null, type = null } = options;
+  let rows = db.prepare('SELECT endpoint, keys_json, user_id FROM push_subscriptions WHERE organization_id = ?').all(organizationId);
+  if (excludeUserId) rows = rows.filter(r => r.user_id !== excludeUserId);
+  if (type) {
+    const prefsCache = {};
+    rows = rows.filter(r => {
+      if (!(r.user_id in prefsCache)) prefsCache[r.user_id] = getUserPushPrefs(organizationId, r.user_id);
+      return prefsCache[r.user_id][type] !== false;
+    });
+  }
   const body = JSON.stringify(payload);
 
   let sent = 0, removed = 0;
@@ -74,4 +111,13 @@ async function sendToOrganization(organizationId, payload) {
   return { total: rows.length, sent, removed };
 }
 
-module.exports = { getPublicKey, saveSubscription, deleteSubscription, sendToOrganization };
+// Fire-and-forget para usar nos controllers sem nunca falhar o request.
+function notifyOrganization(organizationId, type, { title, body, url = '/', excludeUserId = null }) {
+  sendToOrganization(organizationId, { title, body, url, tag: `sp-${type}` }, { type, excludeUserId })
+    .catch(err => console.error('Erro ao enviar push:', err.message));
+}
+
+module.exports = {
+  getPublicKey, saveSubscription, deleteSubscription, sendToOrganization,
+  notifyOrganization, getUserPushPrefs, saveUserPushPrefs, PUSH_TYPES,
+};

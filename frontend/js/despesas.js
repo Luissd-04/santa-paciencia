@@ -275,6 +275,10 @@ async function saveDespesa() {
     if (res.success) {
       if (res.propagated > 0) {
         toast(`✅ Nº de fatura atualizado em mais ${res.propagated} despesa${res.propagated !== 1 ? 's' : ''} da mesma fatura.`, 'success');
+      } else if (res.nif_propagated > 0) {
+        toast(`✅ Estado do NIF aplicado a mais ${res.nif_propagated} linha${res.nif_propagated !== 1 ? 's' : ''} da mesma fatura.`, 'success');
+      } else if (res.inherited_nif) {
+        toast('✅ Despesa adicionada — herdou o estado Com/Sem NIF da fatura existente.', 'success');
       } else {
         toast(despesaEditId ? '✅ Despesa atualizada!' : '✅ Despesa adicionada!', 'success');
       }

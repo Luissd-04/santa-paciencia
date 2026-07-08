@@ -261,14 +261,19 @@ function renderCal() {
     });
 
     // Day cells — just the day number, click opens new-reservation modal
+    const dayIsBlocked = day => !day.otherMonth && typeof isDateBlockedAnywhere === 'function' && (
+      filters.suite
+        ? isDateBlockedForAccommodation(filters.suite, day.dateStr)
+        : isDateBlockedAnywhere(day.dateStr)
+    );
+    // Dia bloqueado: o clique abre o bloqueio para edição em vez de nova reserva
+    const dayClickAttr = day => day.otherMonth ? '' : (dayIsBlocked(day)
+      ? `onclick="openBlockFromCalendar('${day.dateStr}', '${filters.suite || ''}')"`
+      : `onclick="openModalFromCalendar('${day.dateStr}')"`);
+
     const dayCells = week.map(day => {
-      const click = day.otherMonth ? '' : `onclick="openModalFromCalendar('${day.dateStr}')"`;
-      const blocked = !day.otherMonth && typeof isDateBlockedAnywhere === 'function' && (
-        filters.suite
-          ? isDateBlockedForAccommodation(filters.suite, day.dateStr)
-          : isDateBlockedAnywhere(day.dateStr)
-      );
-      return `<div class="cal-day${day.otherMonth ? ' other-month' : ''}${day.isToday ? ' today' : ''}${blocked ? ' cal-day-blocked' : ''}" ${click}${blocked ? ' title="🔒 Data bloqueada"' : ''}>
+      const blocked = dayIsBlocked(day);
+      return `<div class="cal-day${day.otherMonth ? ' other-month' : ''}${day.isToday ? ' today' : ''}${blocked ? ' cal-day-blocked' : ''}" ${dayClickAttr(day)}${blocked ? ' title="🔒 Data bloqueada — clique para editar"' : ''}>
         <div class="day-num">${day.dayNum}</div>
         ${blocked ? '<span class="cal-day-lock">🔒</span>' : ''}
       </div>`;
@@ -337,7 +342,7 @@ function renderCal() {
 
     const containerH = stackTop + (lanes.length > MAX_LANES ? LANE_H + LANE_GAP : 0);
     const clickOverlays = week.map((day, col) =>
-      day.otherMonth ? '' : `<div class="cal-day-click-area" style="left:${(col/7*100).toFixed(2)}%;width:${(100/7).toFixed(2)}%;" onclick="openModalFromCalendar('${day.dateStr}')"></div>`
+      day.otherMonth ? '' : `<div class="cal-day-click-area" style="left:${(col/7*100).toFixed(2)}%;width:${(100/7).toFixed(2)}%;" ${dayClickAttr(day)}></div>`
     ).join('');
     const eventsRow  = `<div class="cal-week-events" style="height:${containerH}px;">${clickOverlays}${eventHtml}</div>`;
     const colSeps    = [1,2,3,4,5,6].map(i => `<div class="cal-col-sep" style="left:calc(${i}*100%/7)"></div>`).join('');
@@ -563,7 +568,7 @@ function attachTimelinePan() {
 
 function tlPanPointerDown(e) {
   if (e.button !== 0 || tlPointerDrag) return;
-  if (e.target.closest('.tl-block, .tl-resize-handle, button, a, input, select, textarea')) return;
+  if (e.target.closest('.tl-block, .tl-block-blocked, .tl-resize-handle, button, a, input, select, textarea')) return;
   e.preventDefault();
 
   const wrap = e.currentTarget;

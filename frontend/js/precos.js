@@ -279,7 +279,7 @@ function renderPrecosCalendar() {
     if (_rangeStart && !_rangeEnd) {
       hintEl.innerHTML = `<div style="margin-top:10px;padding:9px 14px;background:rgba(74,127,165,.1);border-left:3px solid var(--azul);border-radius:6px;font-size:13px;color:var(--azul);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         ${lcIcon('info',14)}
-        <span><b>Início:</b> ${_fmtDisplay(_rangeStart)} — Clica noutro dia para definir o fim do período.</span>
+        <span><b>Início:</b> ${_fmtDisplay(_rangeStart)} — Clica noutro dia para definir o fim, ou no mesmo dia para editar só essa noite.</span>
         <button class="btn btn-ghost btn-sm" style="margin-left:auto;font-size:12px;color:var(--cinza);" onclick="cancelPrecosSelection()">Cancelar</button>
       </div>`;
       if (window.lucide) lucide.createIcons();
@@ -325,7 +325,7 @@ function handlePrecosDayClick(iso) {
     return;
   }
 
-  // Complete range
+  // Complete range (start == end é válido: edita o preço só dessa noite)
   let start = _rangeStart, end = iso;
   if (start > end) [start, end] = [end, start];
   _rangeStart = start;
@@ -336,6 +336,19 @@ function handlePrecosDayClick(iso) {
   const endEl   = document.getElementById('precos-bulk-end');
   if (startEl) startEl.value = _isoToPt(start);
   if (endEl)   endEl.value   = _isoToPt(end);
+
+  // Seleção de 1 dia: pré-preencher com o preço efetivo dessa noite e um nome
+  // sugerido, para editar a noite diretamente.
+  if (start === end) {
+    const { price } = _getPriceForDay(start);
+    const priceEl = document.getElementById('precos-bulk-price');
+    if (priceEl) priceEl.value = Number(price).toFixed(2);
+    const nameEl = document.getElementById('precos-bulk-name');
+    if (nameEl && !nameEl.value.trim()) nameEl.value = `Preço ${_fmtDisplay(start)}`;
+    const minEl = document.getElementById('precos-bulk-min-nights');
+    if (minEl && !minEl.value) minEl.value = 1;
+  }
+
   renderPrecosCalendar();
   setPrecosMobileSheetOpen(true); // no telemóvel, o painel de edição sobe como folha inferior assim que o intervalo fica completo
 }
@@ -583,7 +596,7 @@ async function savePrecosBulk() {
   if (!name)  { toast('Introduz um nome para o período.', 'error'); return; }
   if (!start) { toast('Seleciona a data de início.', 'error'); return; }
   if (!end)   { toast('Seleciona a data de fim.', 'error'); return; }
-  if (start >= end) { toast('A data de início deve ser anterior à data de fim.', 'error'); return; }
+  if (start > end) { toast('A data de início não pode ser depois da data de fim.', 'error'); return; }
   if (isNaN(price) || price < 0) { toast('Introduz um preço válido.', 'error'); return; }
   if (_precosDowState.size === 0) { toast('Seleciona pelo menos um dia da semana.', 'error'); return; }
 
@@ -671,7 +684,7 @@ async function savePrecosPeriod() {
   const end   = _ptToIso(endRaw);
   if (!start) { toast('Data de início inválida. Usa o formato dd-mm-aaaa.', 'error'); return; }
   if (!end)   { toast('Data de fim inválida. Usa o formato dd-mm-aaaa.', 'error'); return; }
-  if (start >= end) { toast('A data de início deve ser anterior à data de fim.', 'error'); return; }
+  if (start > end) { toast('A data de início não pode ser depois da data de fim.', 'error'); return; }
   if (isNaN(price) || price < 0) { toast('Introduz um preço válido.', 'error'); return; }
 
   const btn = document.getElementById('btn-save-precos-period');

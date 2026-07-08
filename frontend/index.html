@@ -186,6 +186,7 @@
       <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Menu">
         <i data-lucide="menu" style="width:20px;height:20px;"></i>
       </button>
+      <img src="favicon.png" alt="Santa Paciência" class="topbar-logo">
       <div class="topbar-heading">
         <span class="topbar-title" id="topbar-title">Dashboard</span>
         <span class="topbar-subtitle">Operação centralizada por espaço</span>
@@ -2272,6 +2273,61 @@
               </div>
             </div>
 
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-header">
+                <span class="card-title">
+                  <i data-lucide="sliders-horizontal"></i> Tipos de notificações
+                </span>
+              </div>
+              <div style="padding:16px;">
+                <div style="font-size:12.5px;color:var(--cinza);margin-bottom:14px;">
+                  Escolha o que quer receber. As preferências aplicam-se aos seus dispositivos.
+                </div>
+                <div id="push-prefs-list" style="display:flex;flex-direction:column;gap:14px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                    <div>
+                      <div style="font-weight:600;font-size:13px;">🆕 Nova reserva</div>
+                      <div style="font-size:12px;color:var(--cinza);">Reservas novas do site público ou criadas pela equipa</div>
+                    </div>
+                    <label class="toggle-switch" style="flex-shrink:0;">
+                      <input type="checkbox" data-push-pref="new_reservation" onchange="savePushPrefs()">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                    <div>
+                      <div style="font-weight:600;font-size:13px;">❌ Cancelamentos</div>
+                      <div style="font-size:12px;color:var(--cinza);">Quando uma reserva é cancelada</div>
+                    </div>
+                    <label class="toggle-switch" style="flex-shrink:0;">
+                      <input type="checkbox" data-push-pref="cancellation" onchange="savePushPrefs()">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                    <div>
+                      <div style="font-weight:600;font-size:13px;">📝 Pré-check-in recebido</div>
+                      <div style="font-size:12px;color:var(--cinza);">Quando um hóspede submete o formulário de pré-check-in</div>
+                    </div>
+                    <label class="toggle-switch" style="flex-shrink:0;">
+                      <input type="checkbox" data-push-pref="precheckin" onchange="savePushPrefs()">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                    <div>
+                      <div style="font-weight:600;font-size:13px;">📅 Resumo do dia</div>
+                      <div style="font-size:12px;color:var(--cinza);">De manhã, com os check-ins e check-outs previstos para hoje</div>
+                    </div>
+                    <label class="toggle-switch" style="flex-shrink:0;">
+                      <input type="checkbox" data-push-pref="daily_summary" onchange="savePushPrefs()">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="card">
               <div class="card-header">
                 <span class="card-title">
@@ -2334,22 +2390,19 @@
         </section>
       </div>
 
-    </div><!-- /content -->
-  </div><!-- /main -->
-</div><!-- /layout -->
-
-<!-- MODAL EDITAR HÓSPEDE -->
-<div class="modal-bg" id="guest-modal-bg" onclick="if(event.target===this)closeGuestModal()">
-  <div class="modal" style="width:760px;">
-    <div class="modal-header" style="background:var(--azul);color:#fff;">
-      <span class="modal-title" style="color:#fff;display:inline-flex;align-items:center;gap:8px;">
-        <i data-lucide="contact" style="width:18px;height:18px;"></i> Editar hóspede
-      </span>
-      <button class="modal-close" onclick="closeGuestModal()" style="color:#fff;opacity:.7;">
-        <i data-lucide="x" style="width:20px;height:20px;"></i>
-      </button>
-    </div>
-    <div class="modal-body">
+      <!-- ══ FICHA DE HÓSPEDE (página completa) ══ -->
+      <div class="view" id="view-hospede-detalhe">
+        <section class="card" style="max-width:940px;margin:0 auto;">
+          <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <span class="card-title" style="display:inline-flex;align-items:center;gap:10px;">
+              <button class="btn btn-ghost btn-sm" onclick="closeGuestModal()"><i data-lucide="arrow-left"></i> Voltar</button>
+              <i data-lucide="contact"></i> <span id="gedit-page-title">Ficha de hóspede</span>
+            </span>
+            <button class="btn btn-primary btn-sm" id="btn-guardar-hospede" onclick="saveGuestEdit()">
+              <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
+            </button>
+          </div>
+          <div style="padding:20px;">
       <div class="form-grid">
 
         <!-- ── Identificação ── -->
@@ -2391,6 +2444,10 @@
           <label class="form-label">NIF</label>
           <input class="form-control" id="gedit-nif" placeholder="000 000 000" autocomplete="off">
         </div>
+        <div class="form-group">
+          <label class="form-label">Empresa</label>
+          <input class="form-control" id="gedit-company" placeholder="Nome da empresa (opcional)" autocomplete="off">
+        </div>
 
         <!-- ── Contacto ── -->
         <div class="section-subtitle form-full" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);padding-bottom:4px;border-bottom:1px solid var(--cinza-claro);margin-top:8px;">
@@ -2404,7 +2461,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Email (canal) <span class="req-star">*</span></label>
+          <label class="form-label">Email (canal)</label>
           <input class="form-control" id="gedit-email" type="email" placeholder="email@canal.com" autocomplete="off">
         </div>
         <div class="form-group">
@@ -2448,15 +2505,22 @@
           <span class="gtt-label"><span class="gtt-icon">🚫</span> Não desejado</span>
         </label>
       </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeGuestModal()">Cancelar</button>
-      <button class="btn btn-primary" id="btn-guardar-hospede" onclick="saveGuestEdit()">
-        <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
-      </button>
-    </div>
-  </div>
-</div>
+
+      <!-- Histórico de reservas do hóspede -->
+      <div id="gedit-reservas-historico" style="margin-top:24px;"></div>
+
+      <div style="display:flex;justify-content:flex-end;margin-top:24px;border-top:1px solid var(--borda);padding-top:16px;">
+        <button class="btn btn-danger btn-sm" id="gedit-delete-btn">
+          <i data-lucide="trash-2" style="width:13px;height:13px;"></i> Remover hóspede
+        </button>
+      </div>
+          </div>
+        </section>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /layout -->
 
 <div class="modal-bg" id="image-lightbox-bg" onclick="closeImageLightbox()">
   <div class="image-lightbox" onclick="event.stopPropagation()">
@@ -2738,6 +2802,7 @@
             <label class="form-label">Crianças</label>
             <input class="form-control" id="f-num-criancas" type="number" min="0" max="20" value="0" onchange="updateNumHospedes();renderSuiteCards();calcTotal();renderExtraGuests()" autocomplete="off">
           </div>
+          <div class="form-group form-full" id="resf-child-ages" style="display:none;"></div>
           <input type="hidden" id="f-num-hospedes" value="2">
           <div class="form-group">
             <label class="form-label">Pequeno-almoço</label>

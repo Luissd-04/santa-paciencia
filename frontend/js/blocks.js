@@ -90,6 +90,14 @@ function blockBandsHtml(accId, yearStart, totalDays, dayW) {
   }).join('');
 }
 
+// Abrir o bloqueio que cobre uma data (clique num dia bloqueado do calendário).
+// Com filtro de suite ativa usa os bloqueios efetivos dessa suite; senão, qualquer um.
+function openBlockFromCalendar(iso, accId = '') {
+  const candidates = (accId ? effectiveBlocksForAccommodation(accId) : accommodationBlocks)
+    .filter(b => b.start_date <= iso && b.end_date >= iso);
+  if (candidates.length) openBlockEditModal(candidates[0].id);
+}
+
 // ── Modal de criação de bloqueio (programático, self-contained) ──
 function openBlockModal(prefillAccId = '', prefillStart = '') {
   const opts = (typeof accommodations !== 'undefined' ? accommodations : [])

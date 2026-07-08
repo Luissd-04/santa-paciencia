@@ -26,6 +26,16 @@ router.post('/unsubscribe', (req, res) => {
   res.json({ success: true });
 });
 
+// Preferências por tipo de notificação (switches nas Definições)
+router.get('/prefs', (req, res) => {
+  res.json({ success: true, data: push.getUserPushPrefs(req.user.organization_id, req.user.id) });
+});
+
+router.post('/prefs', (req, res) => {
+  const prefs = push.saveUserPushPrefs(req.user.organization_id, req.user.id, req.body || {});
+  res.json({ success: true, data: prefs });
+});
+
 // Envio de teste para todos os dispositivos da organização
 router.post('/test', async (req, res, next) => {
   try {

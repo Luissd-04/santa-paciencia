@@ -96,7 +96,7 @@ function renderEventosAgendaMobile() {
               <strong>${escapeHtml(e.title)}</strong>
               <small>${type.singular}${e.accommodation_name ? ' · ' + escapeHtml(e.accommodation_name) : ''}${time ? ' · ' + time : ''}</small>
             </span>
-            <span class="agenda-item-status">${done ? '✓' : (Number(e.important) ? '!' : '')}</span>
+            <span class="agenda-item-status${done ? ' agenda-status-done' : ''}">${done ? lcIcon('check', 14) : (Number(e.important) ? '!' : '')}</span>
           </button>`;
         }).join('')}
       </div>
@@ -429,6 +429,8 @@ function toggleEventoTypeChip(typeId) {
   if (eventosView === 'list') renderEventosList();
   else if (eventosMode === 'timeline') renderEventosTimeline();
   else renderEventosCalendar();
+  // No mobile o que está visível é a agenda, não o calendário/timeline
+  renderEventosAgendaMobile();
 }
 
 function renderEventosList() {

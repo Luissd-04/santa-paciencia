@@ -12,7 +12,8 @@ const VIEW_TITLES = {
   relatorios: 'Relatórios Financeiros',
   vouchers:   'Vouchers',
   precos:     'Preços Dinâmicos',
-  definicoes: 'Definições'
+  definicoes: 'Definições',
+  'hospede-detalhe': 'Ficha de Hóspede'
 };
 
 /* Dark mode removido — sempre light */

@@ -621,7 +621,8 @@ function createPricingPeriod(req, res) {
   if (!name || !start_date || !end_date || price_per_night == null) {
     return res.status(400).json({ error: 'Nome, datas e preço são obrigatórios' });
   }
-  if (start_date >= end_date) return res.status(400).json({ error: 'A data de fim deve ser posterior à data de início' });
+  // start == end é válido: período de 1 dia (edição de preço noite-a-noite)
+  if (start_date > end_date) return res.status(400).json({ error: 'A data de fim não pode ser anterior à data de início' });
   if (Number(price_per_night) < 0) return res.status(400).json({ error: 'O preço não pode ser negativo' });
 
   const periodId = uuidv4().slice(0, 8);
@@ -640,7 +641,7 @@ function updatePricingPeriod(req, res) {
   const { name, start_date, end_date, price_per_night, min_nights } = req.body;
   const newStart = start_date || existing.start_date;
   const newEnd = end_date || existing.end_date;
-  if (newStart >= newEnd) return res.status(400).json({ error: 'A data de fim deve ser posterior à data de início' });
+  if (newStart > newEnd) return res.status(400).json({ error: 'A data de fim não pode ser anterior à data de início' });
 
   db.prepare(`
     UPDATE pricing_periods SET
@@ -670,7 +671,8 @@ function bulkCreatePricingPeriods(req, res) {
   if (!name || !start_date || !end_date || price_per_night == null) {
     return res.status(400).json({ error: 'Nome, datas e preço são obrigatórios' });
   }
-  if (start_date >= end_date) return res.status(400).json({ error: 'A data de fim deve ser posterior à data de início' });
+  // start == end é válido: período de 1 dia (edição de preço noite-a-noite)
+  if (start_date > end_date) return res.status(400).json({ error: 'A data de fim não pode ser anterior à data de início' });
 
   // days_of_week: array of integers 0-6 (0=Sun). Empty/missing = all days.
   const hasDowFilter = Array.isArray(days_of_week) && days_of_week.length > 0 && days_of_week.length < 7;

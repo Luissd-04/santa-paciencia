@@ -483,6 +483,8 @@ function migrateReservations() {
     ['invoice_date', 'TEXT'],
     ['invoice_sent_date', 'TEXT'],
     ['invoice_sent_method', 'TEXT'],
+    ['price_edited_at', 'TEXT'],
+    ['price_edited_by_user_id', 'TEXT'],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {
@@ -513,6 +515,7 @@ function migrateGuests() {
     ['id_type',                  'TEXT'],
     ['document_type',            'TEXT'],
     ['document_number',          'TEXT'],
+    ['company',                  'TEXT'],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {
@@ -917,6 +920,7 @@ function migratePushSubscriptions() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_push_subs_org ON push_subscriptions(organization_id);
+    CREATE INDEX IF NOT EXISTS idx_push_subs_org_user ON push_subscriptions(organization_id, user_id);
   `);
 }
 

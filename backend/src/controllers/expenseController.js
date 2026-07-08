@@ -71,11 +71,31 @@ function create(req, res) {
   if (!date || !description || amount == null) {
     return res.status(400).json({ error: 'Data, descrição e valor são obrigatórios' });
   }
+  const orgId = req.user.organization_id;
   const receiptImage = image ? saveReceiptImage(image) : null;
   const id = uuidv4().slice(0, 8);
+
+  // O estado Com/Sem NIF pertence à fatura (nº + fornecedor): uma linha nova
+  // de uma fatura já registada herda o estado das linhas existentes.
+  let effectiveHasNif = has_nif ? 1 : 0;
+  let inheritedNif = false;
+  const ref = (invoice_ref || '').trim();
+  const sup = (supplier || '').trim() || null;
+  if (ref) {
+    const sibling = db.prepare(`
+      SELECT has_nif FROM expenses
+      WHERE organization_id = ? AND invoice_ref = ? AND IFNULL(supplier,'') = IFNULL(?, '')
+      LIMIT 1
+    `).get(orgId, ref, sup);
+    if (sibling && (sibling.has_nif ? 1 : 0) !== effectiveHasNif) {
+      effectiveHasNif = sibling.has_nif ? 1 : 0;
+      inheritedNif = true;
+    }
+  }
+
   db.prepare('INSERT INTO expenses (id,organization_id,date,description,category,amount,payment_method,notes,invoice_ref,supplier,receipt_image,has_nif) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-    .run(id, req.user.organization_id, date, description, category || 'outro', parseFloat(amount), payment_method || 'numerário', notes || null, invoice_ref || null, (supplier || '').trim() || null, receiptImage, has_nif ? 1 : 0);
-  res.status(201).json({ success: true, data: db.prepare('SELECT * FROM expenses WHERE id=? AND organization_id = ?').get(id, req.user.organization_id) });
+    .run(id, orgId, date, description, category || 'outro', parseFloat(amount), payment_method || 'numerário', notes || null, ref || null, sup, receiptImage, effectiveHasNif);
+  res.status(201).json({ success: true, data: db.prepare('SELECT * FROM expenses WHERE id=? AND organization_id = ?').get(id, orgId), inherited_nif: inheritedNif });
 }
 
 // POST /api/expenses/scan-receipt — lê a foto do talão via IA e devolve os campos.
@@ -153,8 +173,21 @@ function update(req, res) {
     propagated = info.changes || 0;
   }
 
+  // O estado Com/Sem NIF pertence à fatura: aplicar às restantes linhas da mesma
+  // fatura (corre depois da propagação do nº, para apanhar as linhas renomeadas).
+  let nifPropagated = 0;
+  if (has_nif !== undefined && newInvoiceRef) {
+    const finalSupplier = supplier !== undefined ? ((supplier || '').trim() || null) : existing.supplier;
+    const info = db.prepare(`
+      UPDATE expenses SET has_nif = ?
+      WHERE organization_id = ? AND invoice_ref = ? AND IFNULL(supplier,'') = IFNULL(?, '')
+        AND id != ? AND has_nif != ?
+    `).run(has_nif ? 1 : 0, orgId, newInvoiceRef, finalSupplier, id, has_nif ? 1 : 0);
+    nifPropagated = info.changes || 0;
+  }
+
   const data = db.prepare('SELECT * FROM expenses WHERE id=? AND organization_id = ?').get(id, orgId);
-  res.json({ success: true, data, propagated });
+  res.json({ success: true, data, propagated, nif_propagated: nifPropagated });
 }
 
 function remove(req, res) {

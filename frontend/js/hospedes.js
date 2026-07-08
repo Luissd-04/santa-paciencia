@@ -217,7 +217,7 @@ function filteredHospedes() {
   SS.set('hsp:q', document.getElementById('hospedes-search')?.value || '');
   if (!q) return hospedes;
   return hospedes.filter(g =>
-    (g.name + ' ' + (realEmail(g.email) || '') + ' ' + (g.email_personal || '') + ' ' + (g.nationality || '') + ' ' + (g.phone || '') + ' ' + (g.country || '')).toLowerCase().includes(q)
+    (g.name + ' ' + (realEmail(g.email) || '') + ' ' + (g.email_personal || '') + ' ' + (g.nationality || '') + ' ' + (g.phone || '') + ' ' + (g.country || '') + ' ' + (g.company || '')).toLowerCase().includes(q)
   );
 }
 
@@ -241,6 +241,7 @@ function renderHospedesCards() {
         ${flagImg(g, 72)}
       </div>
       <div class="hospede-name">${escapeHtml(g.name)}</div>
+      ${g.company ? `<div class="hospede-info-row" style="margin-top:-4px;"><span style="font-size:12px;color:var(--cinza);">${escapeHtml(g.company)}</span></div>` : ''}
       <div class="hospede-info-row">
         ${lcIcon('briefcase', 14)}
         <span>${g.reservation_count || 0} reserva${g.reservation_count !== 1 ? 's' : ''}</span>
@@ -327,65 +328,33 @@ function renderHospedesList() {
 }
 
 // ── DETAIL MODAL ──
-async function showHospedeDetail(id) {
-  try {
-    const data = await apiGet(`/api/guests/${id}`);
-    const g = data.data;
-    const reservations = g.reservations || [];
+// A ficha do hóspede é agora uma página completa (view-hospede-detalhe) —
+// mantida como alias para os pontos de entrada existentes (cards, lista).
+function showHospedeDetail(id) {
+  return openGuestEdit(id);
+}
 
-    document.getElementById('detail-title').innerHTML = `
-      <span style="display:inline-flex;align-items:center;gap:8px;">${escapeHtml(g.name)}${guestTagsHtml(g)}</span>
-    `;
-    document.getElementById('detail-body').innerHTML = `
-      <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;">
-        ${flagImg(g, 80)}
+function renderGuestReservationsHistory(g) {
+  const wrap = document.getElementById('gedit-reservas-historico');
+  if (!wrap) return;
+  const reservations = g.reservations || [];
+  if (!reservations.length) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = `
+    <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);margin-bottom:10px;">
+      Histórico de reservas (${reservations.length})
+    </div>
+    ${reservations.map(r => `
+      <div onclick="showDetail('${r.id}')" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;background:var(--cinza-claro);border-radius:8px;margin-bottom:6px;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='var(--creme)'" onmouseout="this.style.background='var(--cinza-claro)'">
         <div>
-          <div style="font-size:20px;font-weight:700;color:var(--azul);font-family:'Playfair Display',serif;">${escapeHtml(g.name)}</div>
-          ${(g.country || g.nationality) ? `<div style="font-size:13px;color:var(--cinza);margin-top:4px;display:flex;align-items:center;gap:4px;">${lcIcon('map-pin', 12)} ${escapeHtml(g.country || g.nationality)}</div>` : ''}
+          <span style="font-size:12px;color:var(--azul-claro);font-family:monospace;">${escapeHtml(r.id)}</span>
+          <span style="font-size:13px;color:var(--texto);margin-left:8px;">${escapeHtml(r.accommodation_name)}</span>
         </div>
-      </div>
-      <div class="detail-grid">
-        ${realEmail(g.email) ? `<div class="detail-row"><div class="detail-label">Email (canal)</div><div class="detail-val">${escapeHtml(realEmail(g.email))}</div></div>` : ''}
-        ${g.email_personal ? `<div class="detail-row"><div class="detail-label">Email (pessoal)</div><div class="detail-val">${escapeHtml(g.email_personal)}</div></div>` : ''}
-        ${g.phone ? `<div class="detail-row"><div class="detail-label">Telefone</div><div class="detail-val">${escapeHtml(g.phone)}</div></div>` : ''}
-        ${g.birth_date ? `<div class="detail-row"><div class="detail-label">Nascimento</div><div class="detail-val">${formatDate(g.birth_date)}</div></div>` : ''}
-        ${g.nif ? `<div class="detail-row"><div class="detail-label">NIF</div><div class="detail-val">${escapeHtml(g.nif)}</div></div>` : ''}
-        ${g.document_type ? `<div class="detail-row"><div class="detail-label">Documento</div><div class="detail-val">${escapeHtml(g.document_type.toUpperCase())}${g.document_number ? ' · ' + escapeHtml(g.document_number) : ''}</div></div>` : ''}
-        ${g.address ? `<div class="detail-row"><div class="detail-label">Morada</div><div class="detail-val">${escapeHtml(g.address)}${g.postal_code ? ', ' + escapeHtml(g.postal_code) : ''}${g.city ? ' ' + escapeHtml(g.city) : ''}</div></div>` : ''}
-        <div class="detail-row"><div class="detail-label">Reservas</div><div class="detail-val"><b>${reservations.length}</b></div></div>
-        <div class="detail-row"><div class="detail-label">Desde</div><div class="detail-val">${formatDate(g.created_at)}</div></div>
-      </div>
-      ${reservations.length > 0 ? `
-      <div style="margin-top:20px;">
-        <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);margin-bottom:10px;">Histórico de reservas</div>
-        ${reservations.map(r => `
-          <div onclick="AppUI.closeModal('detail-bg');showDetail('${r.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--cinza-claro);border-radius:8px;margin-bottom:6px;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='var(--creme)'" onmouseout="this.style.background='var(--cinza-claro)'">
-            <div>
-              <span style="font-size:12px;color:var(--azul-claro);font-family:monospace;">${escapeHtml(r.id)}</span>
-              <span style="font-size:13px;color:var(--texto);margin-left:8px;">${escapeHtml(r.accommodation_name)}</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;">
-              <span style="font-size:12px;color:var(--cinza);">${formatDate(r.check_in)} → ${formatDate(r.check_out)}</span>
-              <b>€${Number(r.total_amount||0).toFixed(2)}</b>
-              ${badgeEstado(r.status)}
-            </div>
-          </div>`).join('')}
-      </div>` : ''}
-    `;
-    document.getElementById('detail-footer').innerHTML = `
-      <button class="btn btn-ghost" onclick="AppUI.closeModal('detail-bg')">Fechar</button>
-      <button class="btn btn-danger" onclick="AppUI.closeModal('detail-bg');deleteGuest('${g.id}',decodeURIComponent('${encodeURIComponent(g.name)}'))">
-        ${lcIcon('trash-2', 13)} Remover
-      </button>
-      <button class="btn btn-primary" onclick="AppUI.closeModal('detail-bg');openGuestEdit('${g.id}')">
-        ${lcIcon('pencil', 13)} Editar
-      </button>
-    `;
-    if (window.lucide) lucide.createIcons();
-    AppUI.openModal('detail-bg');
-  } catch (e) {
-    toast('❌ Erro ao carregar hóspede.', 'error');
-  }
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:12px;color:var(--cinza);">${formatDate(r.check_in)} → ${formatDate(r.check_out)}</span>
+          <b>€${Number(r.total_amount||0).toFixed(2)}</b>
+          ${badgeEstado(r.status)}
+        </div>
+      </div>`).join('')}`;
 }
 
 // ── EDIT MODAL ──
@@ -428,6 +397,8 @@ async function openGuestEdit(id) {
     document.getElementById('gedit-address').value      = g.address || '';
     document.getElementById('gedit-postal-code').value  = g.postal_code || '';
     document.getElementById('gedit-city').value         = g.city || '';
+    const companyEl = document.getElementById('gedit-company');
+    if (companyEl) companyEl.value = g.company || '';
     document.getElementById('gedit-favorito').checked   = !!g.is_favorite;
     document.getElementById('gedit-vip').checked        = !!g.is_vip;
     document.getElementById('gedit-nao-desejado').checked = !!g.is_unwanted;
@@ -454,19 +425,27 @@ async function openGuestEdit(id) {
       numInput.value = rawPhone;
     }
 
+    const pageTitle = document.getElementById('gedit-page-title');
+    if (pageTitle) pageTitle.textContent = g.name || 'Ficha de hóspede';
+    renderGuestReservationsHistory(g);
+    const delBtn = document.getElementById('gedit-delete-btn');
+    if (delBtn) delBtn.onclick = async () => {
+      await deleteGuest(g.id, g.name);
+      if (!hospedes.find(h => h.id === g.id)) showView('hospedes');
+    };
+
+    // Página completa em vez de modal
+    showView('hospede-detalhe');
     if (window.lucide) lucide.createIcons();
-    AppUI.refreshDropdowns(document.getElementById('guest-modal-bg'));
-    AppUI.openModal('guest-modal-bg');
+    AppUI.refreshDropdowns(document.getElementById('view-hospede-detalhe'));
   } catch (e) {
     toast('❌ Erro ao carregar hóspede.', 'error');
   }
 }
 
 function closeGuestModal() {
-  const bg = document.getElementById('guest-modal-bg');
-  const modal = bg.querySelector('.modal');
-  modal.classList.add('modal-closing');
-  setTimeout(() => { AppUI.closeModal(bg); modal.classList.remove('modal-closing'); editingGuestId = null; }, 320);
+  editingGuestId = null;
+  showView('hospedes');
 }
 
 // ── DELETE ──
@@ -619,7 +598,6 @@ async function saveGuestEdit() {
   if (!firstName) { toast('Insira o primeiro nome.', 'error'); return; }
   if (!lastName)  { toast('Insira o apelido.', 'error'); return; }
   if (!telNum)    { toast('Insira o telefone.', 'error'); return; }
-  if (!email)     { toast('Insira o email.', 'error'); return; }
   if (!country)   { toast('Selecione o país.', 'error'); return; }
 
   const btn = document.getElementById('btn-guardar-hospede');
@@ -629,7 +607,8 @@ async function saveGuestEdit() {
     const body = {
       first_name: firstName,
       last_name: lastName,
-      email,
+      email: email || null, // vazio → backend mantém o email existente
+
       email_personal: document.getElementById('gedit-email-personal').value.trim() || null,
       phone,
       birth_date:      normalizeIsoDateValue(document.getElementById('gedit-birth-date').value) || null,
@@ -641,6 +620,7 @@ async function saveGuestEdit() {
       address:         document.getElementById('gedit-address').value.trim()     || null,
       postal_code:     document.getElementById('gedit-postal-code').value.trim() || null,
       city:            document.getElementById('gedit-city').value.trim()        || null,
+      company:         document.getElementById('gedit-company')?.value.trim() || null,
       is_favorite:     document.getElementById('gedit-favorito').checked,
       is_vip:          document.getElementById('gedit-vip').checked,
       is_unwanted:     document.getElementById('gedit-nao-desejado').checked,

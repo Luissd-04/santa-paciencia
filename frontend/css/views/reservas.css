@@ -1022,3 +1022,14 @@
   padding: 14px 22px;
   border-top: 1px solid var(--border-soft);
 }
+
+/* Valor padrão do calendário dinâmico (referência, visível quando a noite foi editada) */
+.resf-nightly-std {
+  display: none;
+  font-size: 11px;
+  color: var(--cinza);
+}
+
+.resf-nightly-row.edited .resf-nightly-std {
+  display: inline;
+}

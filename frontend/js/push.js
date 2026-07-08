@@ -33,6 +33,28 @@ async function getPushSubscription() {
   return reg.pushManager.getSubscription();
 }
 
+async function loadPushPrefs() {
+  try {
+    const { data } = await apiGet('/api/push/prefs');
+    document.querySelectorAll('[data-push-pref]').forEach(input => {
+      input.checked = data[input.dataset.pushPref] !== false;
+    });
+  } catch {}
+}
+
+async function savePushPrefs() {
+  const prefs = {};
+  document.querySelectorAll('[data-push-pref]').forEach(input => {
+    prefs[input.dataset.pushPref] = input.checked;
+  });
+  try {
+    await apiPost('/api/push/prefs', prefs);
+    toast('✅ Preferências de notificações guardadas.', 'success');
+  } catch (err) {
+    toast('❌ ' + (err?.payload?.error || 'Erro ao guardar preferências.'), 'error');
+  }
+}
+
 async function initPushSettings() {
   const badge = document.getElementById('push-badge');
   const enableBtn = document.getElementById('push-enable-btn');
@@ -43,6 +65,7 @@ async function initPushSettings() {
   const setBadge = (cls, label) => { badge.innerHTML = `<span class="dot ${cls}"></span> ${label}`; };
 
   if (hint) hint.style.display = isIosWithoutInstall() ? '' : 'none';
+  loadPushPrefs();
 
   if (!pushIsSupported()) {
     setBadge('dot-red', 'Não suportado neste browser');

@@ -4,6 +4,7 @@ const { db } = require('../config/database');
 const { recordConsent } = require('../services/rgpdService');
 const { syncReservationOperationalTasks } = require('../services/operationalTasksService');
 const { sendOwnerNewReservationEmail } = require('../services/emailService');
+const { notifyOrganization } = require('../services/pushService');
 const {
   calculateReservationTotals,
   normalizeDateValue,
@@ -431,6 +432,12 @@ async function createReservation(req, res, next) {
       publicUrl(req)
     ).catch(() => {});
 
+    notifyOrganization(parent.organization_id, 'new_reservation', {
+      title: '🆕 Nova reserva',
+      body: `${txResult.name} · ${accommodationName} · ${reservation.check_in} → ${reservation.check_out}`,
+      url: '/reservas',
+    });
+
     res.status(201).json({
       success: true,
       data: {
@@ -590,6 +597,12 @@ function submitPreCheckin(req, res) {
       reservation.id,
       reservation.organization_id
     );
+
+  notifyOrganization(reservation.organization_id, 'precheckin', {
+    title: '📝 Pré-check-in recebido',
+    body: `${mainGuest.name} · entrada a ${reservation.check_in}`,
+    url: '/reservas',
+  });
 
   res.json({ success: true });
 }

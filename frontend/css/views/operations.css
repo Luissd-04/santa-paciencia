@@ -709,23 +709,21 @@ body.tl-is-panning * {
   cursor: pointer;
 }
 
-/* Marca de concluído: certinho verde no lado direito do pill */
+/* Marca de concluído: ícone de certo verde encostado à borda direita do pill */
 .eventos-pill-check {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  margin-left: 3px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--verde);
+  margin-left: auto;
+  padding-left: 4px;
 }
-.eventos-pill-check i[data-lucide] {
-  width: 10px !important;
-  height: 10px !important;
-  color: #fff;
-  stroke-width: 3.2;
+.eventos-pill-check i,
+.eventos-pill-check svg {
+  width: 13px !important;
+  height: 13px !important;
+  color: var(--verde);
+  stroke-width: 3.4;
 }
 .eventos-pill-done { opacity: 0.72; }
 
@@ -1363,6 +1361,18 @@ body.tl-is-panning * {
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: .05em;
+  }
+
+  /* Concluído: certo verde encostado à borda direita */
+  .agenda-item-status.agenda-status-done {
+    margin-left: auto;
+    color: var(--verde);
+  }
+  .agenda-item-status.agenda-status-done i,
+  .agenda-item-status.agenda-status-done svg {
+    width: 15px !important;
+    height: 15px !important;
+    stroke-width: 3.2;
   }
 
   .agenda-empty {
