@@ -15,7 +15,25 @@ router.post('/subscribe', (req, res) => {
   if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth) {
     return res.status(400).json({ success: false, error: 'Subscrição inválida.' });
   }
-  push.saveSubscription(req.user.organization_id, req.user.id, sub);
+  const deviceName = push.deviceLabelFromUA(req.headers['user-agent'] || '');
+  push.saveSubscription(req.user.organization_id, req.user.id, sub, deviceName);
+  res.json({ success: true });
+});
+
+// Dispositivos com notificações da organização (lista nas Definições)
+router.get('/devices', (req, res) => {
+  res.json({ success: true, data: push.listDevices(req.user.organization_id) });
+});
+
+router.put('/devices/:id', (req, res) => {
+  const ok = push.setDeviceActive(req.user.organization_id, req.params.id, !!req.body?.active);
+  if (!ok) return res.status(404).json({ success: false, error: 'Dispositivo não encontrado.' });
+  res.json({ success: true });
+});
+
+router.delete('/devices/:id', (req, res) => {
+  const ok = push.deleteDeviceById(req.user.organization_id, req.params.id);
+  if (!ok) return res.status(404).json({ success: false, error: 'Dispositivo não encontrado.' });
   res.json({ success: true });
 });
 

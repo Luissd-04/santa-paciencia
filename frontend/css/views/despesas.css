@@ -26,6 +26,28 @@
   padding: 18px 24px 24px;
 }
 
+/* Tabela fluida: as colunas com largura fixa (datas, valores) ficam estáveis e
+   a Descrição absorve o espaço restante do monitor. Abaixo do min-width o
+   wrap faz scroll horizontal em vez de esmagar colunas. */
+.despesas-table-wrap table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 920px;
+}
+
+/* Texto longo (sobretudo a descrição) corta com reticências em vez de esticar
+   a tabela; o texto completo fica no title (hover). */
+.despesas-table-wrap tbody td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A coluna de ações precisa dos botões visíveis por inteiro */
+.despesas-table-wrap tbody td:last-child {
+  overflow: visible;
+  text-overflow: clip;
+}
+
 #despesas-kpi-grid .kpi-card {
   min-height: 158px;
   background:

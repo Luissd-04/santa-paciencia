@@ -142,7 +142,7 @@ function renderDespesas() {
     return `<tr>
       <td style="font-size:13px;">${formatDate(d.date)}</td>
       <td><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;background:${cat.color}22;color:${cat.color};">${cat.icon ? `<i data-lucide="${cat.icon}" style="width:11px;height:11px;"></i>` : ''}${cat.label}</span></td>
-      <td>${escapeHtml(d.description)}${d.notes ? `<br><span style="font-size:11px;color:var(--cinza);">${escapeHtml(d.notes)}</span>` : ''}</td>
+      <td title="${escapeHtml(d.description)}${d.notes ? ' — ' + escapeHtml(d.notes) : ''}">${escapeHtml(d.description)}${d.notes ? `<br><span style="font-size:11px;color:var(--cinza);">${escapeHtml(d.notes)}</span>` : ''}</td>
       <td style="font-size:12.5px;">${escapeHtml(d.supplier || '—')}</td>
       <td style="font-size:12px;color:var(--cinza);">${escapeHtml(d.invoice_ref || '—')}${d.receipt_image ? ` <a href="${escapeHtml(d.receipt_image)}" target="_blank" title="Ver talão" style="color:var(--marca);text-decoration:none;">${lcIcon('paperclip',12)}</a>` : ''}</td>
       <td style="font-size:11.5px;">${d.has_nif

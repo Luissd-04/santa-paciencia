@@ -1296,7 +1296,20 @@ select.form-control { cursor:pointer; }
   overflow-y: visible;
   -webkit-overflow-scrolling: touch;
 }
-#view-reservas table { table-layout: fixed; min-width: 1400px; width: 1400px; }
+/* Tabela fluida: estica com o monitor; abaixo do min-width o wrap faz scroll
+   horizontal em vez de esmagar colunas. Colunas curtas em px, longas em %. */
+#view-reservas table { table-layout: fixed; width: 100%; min-width: 1240px; }
+#view-reservas thead th:nth-child(1) { width: 92px; }   /* ID */
+#view-reservas thead th:nth-child(2) { width: 15%; }    /* Hóspede */
+#view-reservas thead th:nth-child(3) { width: 12%; }    /* Alojamento */
+#view-reservas thead th:nth-child(4),
+#view-reservas thead th:nth-child(5) { width: 96px; }   /* Check-in / Check-out */
+#view-reservas thead th:nth-child(6) { width: 60px; }   /* Noites */
+#view-reservas thead th:nth-child(7) { width: 76px; }   /* Hóspedes */
+#view-reservas thead th:nth-child(8) { width: 86px; }   /* Total */
+#view-reservas thead th:nth-child(9) { width: 8%; }     /* Canal */
+#view-reservas thead th:nth-child(10) { width: 10%; }   /* Estado */
+#view-reservas thead th:nth-child(11) { width: 10%; }   /* Pagamento */
 #view-reservas thead th {
   padding: 10px 8px;
   font-size: 12.5px;

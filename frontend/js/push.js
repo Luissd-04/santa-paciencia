@@ -33,6 +33,84 @@ async function getPushSubscription() {
   return reg.pushManager.getSubscription();
 }
 
+// ── Lista de dispositivos subscritos (organização) ──
+
+async function loadPushDevices() {
+  const wrap = document.getElementById('push-devices-list');
+  if (!wrap) return;
+  try {
+    const [{ data: devices }, ownSub] = await Promise.all([
+      apiGet('/api/push/devices'),
+      getPushSubscription().catch(() => null),
+    ]);
+    const ownTail = ownSub?.endpoint ? ownSub.endpoint.slice(-16) : null;
+
+    if (!devices.length) {
+      wrap.innerHTML = '<div style="font-size:13px;color:var(--cinza);">Nenhum dispositivo subscrito ainda.</div>';
+      return;
+    }
+
+    wrap.innerHTML = devices.map(d => {
+      const isThis = ownTail && d.endpoint_tail === ownTail;
+      const since = d.created_at ? new Date(d.created_at.replace(' ', 'T') + 'Z').toLocaleDateString('pt-PT') : '';
+      return `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--cinza-claro);${d.active ? '' : 'opacity:.55;'}">
+          <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+            <i data-lucide="${/iPhone|iPad|Android/.test(d.device_name) ? 'smartphone' : 'monitor'}" style="width:17px;height:17px;color:var(--cinza);flex-shrink:0;"></i>
+            <div style="min-width:0;">
+              <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                ${escapeHtml(d.device_name)}
+                ${isThis ? '<span style="font-size:10.5px;font-weight:700;color:var(--marca);background:rgba(132,52,36,.09);border-radius:10px;padding:1px 7px;margin-left:6px;">este dispositivo</span>' : ''}
+              </div>
+              <div style="font-size:11.5px;color:var(--cinza);">${escapeHtml(d.user_name)}${since ? ` · desde ${since}` : ''}${d.active ? '' : ' · pausado'}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            <label class="toggle-switch" title="${d.active ? 'Pausar notificações neste dispositivo' : 'Reativar notificações neste dispositivo'}">
+              <input type="checkbox" ${d.active ? 'checked' : ''} onchange="togglePushDevice('${d.id}', this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+            <button class="btn btn-ghost btn-sm" style="color:var(--vermelho);padding:4px 8px;" onclick="removePushDevice('${d.id}', ${isThis ? 'true' : 'false'})" title="Remover dispositivo">
+              <i data-lucide="trash-2" style="width:13px;height:13px;"></i>
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+    if (window.lucide) lucide.createIcons();
+  } catch {
+    wrap.innerHTML = '<div style="font-size:13px;color:var(--cinza);">Não foi possível carregar os dispositivos.</div>';
+  }
+}
+
+async function togglePushDevice(id, active) {
+  try {
+    await apiPut(`/api/push/devices/${id}`, { active });
+    toast(active ? '🔔 Dispositivo reativado.' : '🔕 Dispositivo pausado.', 'success');
+  } catch (err) {
+    toast('❌ ' + (err?.payload?.error || 'Erro ao atualizar dispositivo.'), 'error');
+  } finally {
+    loadPushDevices();
+  }
+}
+
+async function removePushDevice(id, isThisDevice) {
+  if (!confirm('Remover este dispositivo? Para voltar a receber notificações nele será preciso ativá-las de novo nesse aparelho.')) return;
+  try {
+    await apiDelete(`/api/push/devices/${id}`);
+    // Se for o próprio dispositivo, limpar também a subscrição local do browser
+    if (isThisDevice) {
+      const sub = await getPushSubscription().catch(() => null);
+      if (sub) await sub.unsubscribe().catch(() => {});
+    }
+    toast('🗑 Dispositivo removido.', 'info');
+  } catch (err) {
+    toast('❌ ' + (err?.payload?.error || 'Erro ao remover dispositivo.'), 'error');
+  } finally {
+    loadPushDevices();
+    initPushSettings();
+  }
+}
+
 async function loadPushPrefs() {
   try {
     const { data } = await apiGet('/api/push/prefs');
@@ -66,6 +144,7 @@ async function initPushSettings() {
 
   if (hint) hint.style.display = isIosWithoutInstall() ? '' : 'none';
   loadPushPrefs();
+  loadPushDevices();
 
   if (!pushIsSupported()) {
     setBadge('dot-red', 'Não suportado neste browser');

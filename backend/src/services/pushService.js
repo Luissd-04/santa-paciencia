@@ -34,20 +34,76 @@ function getPublicKey() {
   return getVapidKeys().publicKey;
 }
 
-function saveSubscription(organizationId, userId, subscription) {
+// Nome legível do dispositivo a partir do User-Agent (ex.: "iPhone · Safari").
+// Nota: a PWA instalada no iOS não inclui o token "Safari" — fica só "iPhone".
+function deviceLabelFromUA(ua = '') {
+  const os = /iPhone/.test(ua) ? 'iPhone'
+    : /iPad/.test(ua) ? 'iPad'
+    : /Android/.test(ua) ? 'Android'
+    : /Macintosh|Mac OS X/.test(ua) ? 'Mac'
+    : /Windows/.test(ua) ? 'Windows'
+    : /Linux/.test(ua) ? 'Linux'
+    : 'Dispositivo';
+  const browser = /Edg\//.test(ua) ? 'Edge'
+    : /Firefox\//.test(ua) ? 'Firefox'
+    : /Chrome\//.test(ua) && !/Chromium/.test(ua) ? 'Chrome'
+    : /Safari\//.test(ua) && !/Chrome/.test(ua) ? 'Safari'
+    : '';
+  return browser ? `${os} · ${browser}` : os;
+}
+
+function saveSubscription(organizationId, userId, subscription, deviceName = null) {
+  // Reativar sempre ao (re)subscrever: é um opt-in explícito do dispositivo.
   db.prepare(`
-    INSERT INTO push_subscriptions (id, organization_id, user_id, endpoint, keys_json)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO push_subscriptions (id, organization_id, user_id, endpoint, keys_json, device_name, active)
+    VALUES (?, ?, ?, ?, ?, ?, 1)
     ON CONFLICT (endpoint) DO UPDATE SET
       organization_id = excluded.organization_id,
       user_id = excluded.user_id,
       keys_json = excluded.keys_json,
+      device_name = COALESCE(excluded.device_name, push_subscriptions.device_name),
+      active = 1,
       updated_at = datetime('now')
-  `).run(crypto.randomUUID(), organizationId, userId, subscription.endpoint, JSON.stringify(subscription.keys || {}));
+  `).run(crypto.randomUUID(), organizationId, userId, subscription.endpoint, JSON.stringify(subscription.keys || {}), deviceName);
 }
 
 function deleteSubscription(endpoint) {
   db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').run(endpoint);
+}
+
+// ── Gestão de dispositivos (lista nas Definições → Notificações) ──
+
+function listDevices(organizationId) {
+  return db.prepare(`
+    SELECT s.id, s.device_name, s.active, s.created_at, s.updated_at, s.endpoint,
+           u.name AS user_name
+    FROM push_subscriptions s
+    LEFT JOIN users u ON u.id = s.user_id
+    WHERE s.organization_id = ?
+    ORDER BY s.created_at DESC
+  `).all(organizationId).map(d => ({
+    id: d.id,
+    device_name: d.device_name || 'Dispositivo',
+    user_name: d.user_name || '—',
+    active: !!d.active,
+    created_at: d.created_at,
+    // Só a cauda do endpoint (para o browser identificar "este dispositivo"
+    // sem expor o URL-capacidade completo a toda a equipa)
+    endpoint_tail: String(d.endpoint).slice(-16),
+  }));
+}
+
+function setDeviceActive(organizationId, id, active) {
+  const info = db.prepare(`
+    UPDATE push_subscriptions SET active = ?, updated_at = datetime('now')
+    WHERE id = ? AND organization_id = ?
+  `).run(active ? 1 : 0, id, organizationId);
+  return info.changes > 0;
+}
+
+function deleteDeviceById(organizationId, id) {
+  const info = db.prepare('DELETE FROM push_subscriptions WHERE id = ? AND organization_id = ?').run(id, organizationId);
+  return info.changes > 0;
 }
 
 // ── Preferências por tipo (switches nas Definições, guardadas por utilizador) ──
@@ -81,7 +137,7 @@ function saveUserPushPrefs(organizationId, userId, prefs = {}) {
 async function sendToOrganization(organizationId, payload, options = {}) {
   getVapidKeys();
   const { excludeUserId = null, type = null } = options;
-  let rows = db.prepare('SELECT endpoint, keys_json, user_id FROM push_subscriptions WHERE organization_id = ?').all(organizationId);
+  let rows = db.prepare('SELECT endpoint, keys_json, user_id FROM push_subscriptions WHERE organization_id = ? AND active = 1').all(organizationId);
   if (excludeUserId) rows = rows.filter(r => r.user_id !== excludeUserId);
   if (type) {
     const prefsCache = {};
@@ -120,4 +176,5 @@ function notifyOrganization(organizationId, type, { title, body, url = '/', excl
 module.exports = {
   getPublicKey, saveSubscription, deleteSubscription, sendToOrganization,
   notifyOrganization, getUserPushPrefs, saveUserPushPrefs, PUSH_TYPES,
+  deviceLabelFromUA, listDevices, setDeviceActive, deleteDeviceById,
 };

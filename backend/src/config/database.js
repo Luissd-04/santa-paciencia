@@ -914,6 +914,8 @@ function migratePushSubscriptions() {
       user_id         TEXT NOT NULL,
       endpoint        TEXT NOT NULL UNIQUE,
       keys_json       TEXT NOT NULL,
+      device_name     TEXT,
+      active          INTEGER NOT NULL DEFAULT 1,
       created_at      TEXT DEFAULT (datetime('now')),
       updated_at      TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
@@ -922,6 +924,14 @@ function migratePushSubscriptions() {
     CREATE INDEX IF NOT EXISTS idx_push_subs_org ON push_subscriptions(organization_id);
     CREATE INDEX IF NOT EXISTS idx_push_subs_org_user ON push_subscriptions(organization_id, user_id);
   `);
+  const existing = db.pragma('table_info(push_subscriptions)').map(c => c.name);
+  const cols = [
+    ['device_name', 'TEXT'],
+    ['active', 'INTEGER NOT NULL DEFAULT 1'],
+  ];
+  for (const [col, type] of cols) {
+    if (!existing.includes(col)) db.exec(`ALTER TABLE push_subscriptions ADD COLUMN ${col} ${type}`);
+  }
 }
 
 function migrateConversationArchives() {
