@@ -67,9 +67,17 @@ const CSP_DIRECTIVES = {
     'https:',                           // logos de email/etc em CDN externa
     'blob:',                            // canvas captures (XLSX/PDF preview)
   ],
+  // connect-src também governa os fetch() feitos DENTRO do service worker —
+  // que interceta os CDNs (cache-first). Sem estes hosts, o SW devolve 503
+  // para todos os assets externos e a app fica sem ícones/fonts/libs.
   connectSrc: [
     "'self'",
     'https://challenges.cloudflare.com',
+    'https://unpkg.com',
+    'https://cdn.jsdelivr.net',
+    'https://cdnjs.cloudflare.com',
+    'https://fonts.googleapis.com',
+    'https://fonts.gstatic.com',
   ],
   frameSrc: [
     'https://challenges.cloudflare.com', // widget Turnstile

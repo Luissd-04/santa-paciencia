@@ -284,6 +284,7 @@ function initDatabase() {
   migratePricingPeriods();
   migrateConversationArchives();
   migrateReservationPayments();
+  migrateReservationHistory();
   migrateAccommodationBlocks();
   migrateSuppliers();
   migratePushSubscriptions();
@@ -884,6 +885,28 @@ function migrateReservationPayments() {
   for (const r of toMigrate) {
     ins.run(`rp-${r.id}-legacy`, r.id, r.organization_id, r.amount_paid, r.payment_method, r.payment_date);
   }
+}
+
+// Timeline da reserva: registo de tudo o que foi feito/alterado e por quem.
+// Sem FK em reservation_id — apagar definitivamente uma reserva limpa as
+// entradas via hardDelete (mesmo padrão de reservation_payments).
+function migrateReservationHistory() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS reservation_history (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      reservation_id TEXT NOT NULL,
+      user_id TEXT,
+      action TEXT NOT NULL,
+      changes TEXT,
+      meta TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_res_history_res
+    ON reservation_history (reservation_id, organization_id, created_at);
+  `);
 }
 
 function migrateAccommodationBlocks() {

@@ -15,6 +15,7 @@ const {
   getBlockedAccommodationIds,
 } = require('../services/accommodationBlockService');
 const { notifyOrganization } = require('../services/pushService');
+const { recordHistory, diffReservationFields } = require('../services/reservationHistoryService');
 
 function safeJson(value, fallback) {
   if (!value) return fallback;
@@ -306,6 +307,11 @@ async function addPayment(req, res, next) {
     db.prepare(`UPDATE reservations SET amount_paid = ?, payment_status = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?`)
       .run(newPaid, autoStatus, id, organizationId);
 
+    recordHistory({
+      organizationId, reservationId: id, userId: req.user.id, action: 'payment_added',
+      meta: { amount: numAmount, method: method || null, payment_date: payment_date || null },
+    });
+
     res.json({ success: true, data: { id: paymentId, amount: numAmount, method, payment_date, notes, newTotalPaid: newPaid, newPaymentStatus: autoStatus } });
   } catch (err) {
     next(err);
@@ -332,6 +338,11 @@ async function deletePayment(req, res, next) {
 
     db.prepare(`UPDATE reservations SET amount_paid = ?, payment_status = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?`)
       .run(newPaid, autoStatus, id, organizationId);
+
+    recordHistory({
+      organizationId, reservationId: id, userId: req.user.id, action: 'payment_deleted',
+      meta: { amount: payment.amount, method: payment.method || null, payment_date: payment.payment_date || null },
+    });
 
     res.json({ success: true, newTotalPaid: newPaid, newPaymentStatus: autoStatus });
   } catch (err) {
@@ -363,6 +374,10 @@ async function saveInvoice(req, res, next) {
     const updated = db.prepare(
       'SELECT invoice_number, invoice_date, invoice_sent_date, invoice_sent_method FROM reservations WHERE id = ? AND organization_id = ?'
     ).get(id, organizationId);
+    recordHistory({
+      organizationId, reservationId: id, userId: req.user.id, action: 'invoice_saved',
+      meta: { invoice_number: updated.invoice_number || null },
+    });
     res.json({ success: true, data: updated });
   } catch (err) {
     next(err);
@@ -549,6 +564,10 @@ async function create(req, res, next) {
     }
 
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservationId, organizationId);
+    recordHistory({
+      organizationId, reservationId, userId: req.user.id, action: 'created',
+      meta: { check_in: reservation.check_in, check_out: reservation.check_out, accommodation_id: reservation.accommodation_id, total_amount: reservation.total_amount },
+    });
     syncReservationOperationalTasks({
       ...reservation,
       guest_name: guestRecord.name,
@@ -752,6 +771,14 @@ async function update(req, res, next) {
     );
 
     const updated = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
+    const historyChanges = diffReservationFields(existing, updated);
+    if (historyChanges.length) {
+      recordHistory({
+        organizationId, reservationId: req.params.id, userId: req.user.id, action: 'updated',
+        changes: historyChanges,
+        meta: reactivating ? { reactivated: true } : null,
+      });
+    }
     syncReservationOperationalTasks({
       ...updated,
       accommodation_name: accommodation.name,
@@ -794,6 +821,7 @@ async function cancel(req, res, next) {
         updated_at = datetime('now')
       WHERE id = ? AND organization_id = ?
     `).run(req.params.id, organizationId);
+    recordHistory({ organizationId, reservationId: req.params.id, userId: req.user.id, action: 'cancelled' });
     syncReservationOperationalTasks({ ...reservation, status: 'cancelada' }, req.user.id);
 
     // Remover do Google Calendar
@@ -843,6 +871,8 @@ async function hardDelete(req, res, next) {
         .run(reservation.id, organizationId);
       db.prepare('DELETE FROM operational_events WHERE reservation_id = ? AND organization_id = ?')
         .run(reservation.id, organizationId);
+      db.prepare('DELETE FROM reservation_history WHERE reservation_id = ? AND organization_id = ?')
+        .run(reservation.id, organizationId);
       db.prepare('DELETE FROM reservations WHERE id = ? AND organization_id = ?')
         .run(reservation.id, organizationId);
     })();
@@ -875,6 +905,7 @@ async function approve(req, res, next) {
     const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(updated.accommodation_id, organizationId);
     const preCheckinUrl = `${publicUrl(req)}/pre-checkin/${precheckinToken}`;
 
+    recordHistory({ organizationId, reservationId: req.params.id, userId: req.user.id, action: 'approved' });
     sendPreCheckinEmail(guest, updated, accommodation, preCheckinUrl)
       .catch(err => console.warn('Email de pre-check-in não enviado:', err.message));
     syncReservationOperationalTasks({ ...updated, guest_name: guest.name, accommodation_name: accommodation.name }, req.user.id);
@@ -1004,7 +1035,34 @@ function setTaskStatus(req, res, next) {
       );
     }
 
+    recordHistory({
+      organizationId: orgId, reservationId: r.id, userId: req.user.id, action: 'task_status',
+      meta: { kind, done },
+    });
+
     res.json({ success: true, data: getReservationTaskStatus(orgId, r) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// GET /api/reservations/:id/history — timeline da reserva (staff)
+function getHistory(req, res, next) {
+  try {
+    const organizationId = req.user.organization_id;
+    const reservation = db.prepare('SELECT id FROM reservations WHERE id = ? AND organization_id = ?')
+      .get(req.params.id, organizationId);
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+
+    const rows = db.prepare(`
+      SELECT h.*, u.name AS user_name
+      FROM reservation_history h
+      LEFT JOIN users u ON u.id = h.user_id
+      WHERE h.reservation_id = ? AND h.organization_id = ?
+      ORDER BY h.created_at DESC, h.rowid DESC
+    `).all(req.params.id, organizationId);
+
+    res.json({ success: true, data: rows });
   } catch (err) {
     next(err);
   }
@@ -1104,4 +1162,4 @@ function getNotifications(req, res, next) {
   }
 }
 
-module.exports = { getAll, getById, create, update, approve, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, addPayment, deletePayment, saveInvoice, setTaskStatus };
+module.exports = { getAll, getById, create, update, approve, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, addPayment, deletePayment, saveInvoice, setTaskStatus, getHistory };

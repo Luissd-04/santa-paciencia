@@ -163,6 +163,8 @@ let _nightlyGridSig = '';       // assinatura das datas para saber quando recons
 let _manualTotalOverride = null;
 let _standardNightlyByDate = {}; // preço padrão por noite (calendário dinâmico, sem overrides)
 let _editingPriceInfo = null;    // { price_edited_at, price_edited_by_name } da reserva em edição
+let _wizardPageMode = false;     // "Editar reserva" aberto como página completa (a partir do detalhe)
+let _returnToDetailId = null;    // reserva cujo detalhe deve ser refrescado ao guardar em modo página
 
 async function loadWizPricingPeriods(alojId) {
   if (!alojId) return [];
@@ -213,6 +215,9 @@ function updateNumHospedes() {
 function openModal(config = {}) {
   editingId = null;
   _editingPriceInfo = null;
+  _wizardPageMode = false;
+  _returnToDetailId = null;
+  document.getElementById('modal-bg')?.classList.remove('resf-page-mode');
   const titleEl = document.getElementById('modal-title');
   if (titleEl) titleEl.textContent = 'Nova Reserva';
   const saveBtn = document.getElementById('btn-guardar');
@@ -283,6 +288,14 @@ function openModalFromCalendar(checkIn, accommodationId = '') {
     accommodationId,
     step: 1
   });
+}
+
+// Abre o formulário de edição como página completa (a partir do detalhe da reserva).
+async function openEditPage(id) {
+  _wizardPageMode = true;
+  _returnToDetailId = id;
+  await openEditModal(id);
+  if (!reservaModalIsOpen()) { _wizardPageMode = false; _returnToDetailId = null; }
 }
 
 async function openEditModal(id) {
@@ -418,6 +431,7 @@ async function openEditModal(id) {
     renderSuiteCards();
     updateWizSummary();
     AppUI.refreshDropdowns(document.getElementById('modal-bg'));
+    document.getElementById('modal-bg').classList.toggle('resf-page-mode', _wizardPageMode);
     AppUI.openModal('modal-bg');
   } catch (e) {
     toast('❌ Erro ao carregar reserva.', 'error');
@@ -427,8 +441,15 @@ async function openEditModal(id) {
 function closeModal() {
   const bg = document.getElementById('modal-bg');
   const modal = bg.querySelector('.modal');
+  _wizardPageMode = false;
+  _returnToDetailId = null;
   modal.classList.add('modal-closing');
-  setTimeout(() => { AppUI.closeModal(bg); modal.classList.remove('modal-closing'); editingId = null; }, 320);
+  setTimeout(() => {
+    AppUI.closeModal(bg);
+    modal.classList.remove('modal-closing');
+    bg.classList.remove('resf-page-mode');
+    editingId = null;
+  }, 320);
 }
 
 // ── FECHO SEGURO + RASCUNHO (só para Nova Reserva) ──
@@ -1711,8 +1732,12 @@ async function saveReserva() {
       const res = await apiPut(`/api/reservations/${editingId}`, body);
       if (res.success) {
         toast('✅ Reserva atualizada!', 'success');
+        const wasPage = _wizardPageMode;
+        const retId = _returnToDetailId;
         closeModal();
         await loadReservas();
+        // Em modo página viemos do detalhe — reabri-lo com os dados atualizados.
+        if (wasPage && retId && typeof showDetail === 'function') showDetail(retId);
         if (typeof renderCalView === 'function') renderCalView();
         renderDashboard();
         if (typeof loadNotifications === 'function') loadNotifications();

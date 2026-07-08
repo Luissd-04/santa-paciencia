@@ -542,9 +542,193 @@
   .rdv2-tabs { flex-wrap: wrap; }
 }
 
+/* ══ Tabs Tarefas / Timeline da ficha de reserva ══ */
+.rdv2-tab-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.rdv2-tarefas-card,
+.rdv2-timeline-card {
+  max-width: 720px;
+  padding: 18px 20px;
+}
+
+.rdv2-tarefas-head {
+  margin-bottom: 14px;
+}
+
+.rdv2-tarefas-add {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 8px;
+}
+.rdv2-tarefas-add input[type="text"] { flex: 2 1 180px; }
+.rdv2-tarefas-add input[type="date"] { flex: 0 1 150px; }
+.rdv2-tarefas-add select { flex: 0 1 150px; }
+
+.rdv2-tarefa-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.rdv2-tarefa-row:last-child { border-bottom: none; }
+
+.rdv2-tarefa-check {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 2px;
+  margin-top: 1px;
+}
+.rdv2-tarefa-done .rdv2-tarefa-check { color: #0f9d58; }
+
+.rdv2-tarefa-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.rdv2-tarefa-title { font-size: 13.5px; font-weight: 600; color: var(--text-main); }
+.rdv2-tarefa-done .rdv2-tarefa-title { text-decoration: line-through; color: var(--text-muted); }
+.rdv2-tarefa-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.rdv2-tarefa-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 12px;
+  border: 1px solid;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.rdv2-tarefa-auto {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-soft);
+  border-radius: 10px;
+  padding: 1px 7px;
+}
+.rdv2-tarefa-notes { font-size: 12px; color: var(--text-muted); }
+
+/* Timeline */
+.rdv2-tl-list { display: flex; flex-direction: column; }
+.rdv2-tl-entry {
+  display: flex;
+  gap: 12px;
+  position: relative;
+  padding: 12px 2px;
+}
+.rdv2-tl-entry:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 42px;
+  bottom: -6px;
+  width: 2px;
+  background: var(--border-soft);
+}
+.rdv2-tl-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--surface-muted);
+  border: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  z-index: 1;
+}
+.rdv2-tl-body { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.rdv2-tl-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+.rdv2-tl-action { font-size: 13px; font-weight: 600; color: var(--text-main); }
+.rdv2-tl-when {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.rdv2-tl-meta { font-size: 12.5px; color: var(--text-main); }
+.rdv2-tl-change {
+  display: flex;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-main);
+}
+.rdv2-tl-field {
+  color: var(--text-muted);
+  min-width: 130px;
+  flex-shrink: 0;
+}
+.rdv2-tl-footnote {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-soft);
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
 /* ══ Single-page reservation form (resf) ══ */
 .resf-modal {
   width: 780px;
+}
+
+/* ── Modo página: "Editar reserva" aberto como ecrã completo ── */
+.modal-bg.resf-page-mode {
+  background: var(--creme);
+  backdrop-filter: none;
+  align-items: stretch;
+  justify-content: center;
+  padding: 0;
+}
+
+.modal-bg.resf-page-mode .resf-modal {
+  width: 960px;
+  max-width: 100%;
+  height: 100%;
+  max-height: 100%;
+  max-height: 100dvh;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+}
+
+.modal-bg.resf-page-mode #resf-page-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.modal-bg.resf-page-mode .modal-close {
+  display: none;
 }
 
 .resf-body {

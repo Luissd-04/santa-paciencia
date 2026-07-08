@@ -12,6 +12,7 @@ const {
 const { getAccommodationScope } = require('../services/availabilityRules');
 const { findBlockConflict } = require('../services/accommodationBlockService');
 const turnstile = require('../services/turnstileService');
+const { recordHistory } = require('../services/reservationHistoryService');
 
 const COMMON_AREAS_KEY = 'areas_comuns';
 
@@ -417,6 +418,10 @@ async function createReservation(req, res, next) {
 
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?')
       .get(reservationId, parent.organization_id);
+    recordHistory({
+      organizationId: parent.organization_id, reservationId, userId: null, action: 'created',
+      meta: { check_in: reservation.check_in, check_out: reservation.check_out, accommodation_id: reservation.accommodation_id, total_amount: reservation.total_amount, source: 'public' },
+    });
     syncReservationOperationalTasks({
       ...reservation,
       guest_name: txResult.name,

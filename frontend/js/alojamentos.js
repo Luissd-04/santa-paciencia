@@ -61,7 +61,7 @@ function buildImageSections(images, explicitSections = [], hasParent = false) {
 }
 
 function getActiveAlojTab() {
-  return ['info', 'comodidades', 'imagens'].find(tab =>
+  return ['info', 'comodidades', 'imagens', 'rgpd', 'bloqueios', 'precos'].find(tab =>
     document.getElementById('tab-' + tab)?.classList.contains('active')
   ) || 'info';
 }
@@ -506,12 +506,18 @@ function refreshAmenitiesFilter() {
 
 async function showAlojTab(tab) {
   SS.set('aloj:tab', tab);
-  ['info','comodidades','imagens','rgpd','bloqueios'].forEach(t => {
+  ['info','comodidades','imagens','rgpd','bloqueios','precos'].forEach(t => {
     const el = document.getElementById('aloj-tab-' + t);
     if (el) el.style.display = t === tab ? '' : 'none';
     const btn = document.getElementById('tab-' + t);
     if (btn) btn.classList.toggle('active', t === tab);
   });
+  if (tab === 'precos') {
+    const id = document.getElementById('aloj-editing-id')?.value;
+    if (id && typeof mountPrecosWidgetInAloj === 'function') mountPrecosWidgetInAloj(id);
+  } else if (typeof unmountPrecosWidget === 'function') {
+    unmountPrecosWidget();
+  }
   if (tab === 'bloqueios') {
     const id = document.getElementById('aloj-editing-id')?.value;
     if (id && typeof renderAccommodationBlocks === 'function') renderAccommodationBlocks(id);

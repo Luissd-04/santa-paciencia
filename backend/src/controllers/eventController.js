@@ -79,6 +79,7 @@ function getAll(req, res) {
   if (req.query.type) { query += ' AND e.type = ?'; params.push(req.query.type); }
   if (req.query.status) { query += ' AND e.status = ?'; params.push(req.query.status); }
   if (req.query.accommodation_id) { query += ' AND e.accommodation_id = ?'; params.push(req.query.accommodation_id); }
+  if (req.query.reservation_id) { query += ' AND e.reservation_id = ?'; params.push(req.query.reservation_id); }
   if (req.query.from) { query += ' AND e.date >= ?'; params.push(req.query.from); }
   if (req.query.to) { query += ' AND e.date <= ?'; params.push(req.query.to); }
   query += " ORDER BY e.date ASC, COALESCE(e.start_time, '99:99') ASC, e.created_at ASC";

@@ -5,8 +5,8 @@
                offline). Cache-first apenas para CDNs (fontes, libs).
 ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'sp-v18';
-const CACHE_VERSION = 18;
+const CACHE_NAME = 'sp-v19';
+const CACHE_VERSION = 19;
 
 /* Assets estáticos que devem funcionar offline */
 const STATIC_ASSETS = [

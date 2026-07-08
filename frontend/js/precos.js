@@ -15,6 +15,8 @@ let _precosNavClick = false;
 let _precosOutsideListenerAttached = false;
 
 function initPrecos() {
+  // O widget de calendário pode ter ficado montado na tab Preços de um alojamento.
+  unmountPrecosWidget();
   _rangeStart = null;
   _rangeEnd   = null;
   _hoverDay   = null;
@@ -42,9 +44,44 @@ function _precosHandleOutsideClick(e) {
   if (!_rangeStart || _rangeEnd) return;
   // Nav buttons set _precosNavClick before re-render; skip cancellation
   if (_precosNavClick) { _precosNavClick = false; return; }
-  // If click is inside the pricing view, don't cancel
-  if (e.target.closest('#view-precos')) return;
+  // If click is inside the pricing view (or the widget mounted in the
+  // accommodation detail tab), don't cancel
+  if (e.target.closest('#view-precos') || e.target.closest('#aloj-tab-precos')) return;
   cancelPrecosSelection();
+}
+
+// ── Widget na tab "Preços" do detalhe do alojamento ──
+// O calendário é um nó DOM único (ids fixos, estado single-instance): é movido
+// entre a vista Preços e a tab do alojamento — nunca clonado.
+
+function _precosWidgetEl() {
+  return document.getElementById('precos-calendar-widget');
+}
+
+async function mountPrecosWidgetInAloj(alojId) {
+  const widget = _precosWidgetEl();
+  const host = document.getElementById('aloj-tab-precos');
+  if (!widget || !host || !alojId) return;
+  host.appendChild(widget);
+  _precosAlojId = alojId;
+  if (typeof SS !== 'undefined') SS.set('precos:aloj', alojId);
+  _rangeStart = null;
+  _rangeEnd   = null;
+  _hoverDay   = null;
+  setPrecosMobileSheetOpen(false);
+  _updatePrecosBase();
+  _initPrecosDow();
+  updatePrecosSidePanel();
+  await loadPrecosPeriods();
+  if (window.lucide) lucide.createIcons();
+}
+
+function unmountPrecosWidget() {
+  const widget = _precosWidgetEl();
+  const home = document.getElementById('precos-panel-calendario');
+  if (!widget || !home || home.contains(widget)) return;
+  if (_rangeStart && !_rangeEnd) cancelPrecosSelection();
+  home.appendChild(widget);
 }
 
 function populatePrecosAlojSelector() {

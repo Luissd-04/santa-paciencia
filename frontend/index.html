@@ -814,6 +814,9 @@
           <button class="aloj-tab" onclick="showAlojTab('bloqueios')" id="tab-bloqueios">
             <i data-lucide="lock"></i> Bloqueios
           </button>
+          <button class="aloj-tab" onclick="showAlojTab('precos')" id="tab-precos">
+            <i data-lucide="euro"></i> Preços
+          </button>
         </div>
 
         <!-- Tab: Informação -->
@@ -1237,6 +1240,13 @@
           </div>
         </div>
 
+        <!-- Tab: Preços (recebe o #precos-calendar-widget da vista Preços) -->
+        <div id="aloj-tab-precos" style="display:none;">
+          <p style="font-size:13px;color:var(--cinza);margin:0 0 14px;">
+            Preços noite a noite deste alojamento (calendário dinâmico) — usados no cálculo do total das reservas. O "Valor por noite" da tab Informação é o preço base, aplicado apenas às noites sem período definido.
+          </p>
+        </div>
+
         <input type="hidden" id="aloj-editing-id">
       </div>
 
@@ -1579,8 +1589,10 @@
         </div>
 
         <!-- Painel: Calendário -->
+        <!-- #precos-calendar-widget é um nó único (ids fixos) que também é montado
+             na tab "Preços" do detalhe do alojamento — é movido, nunca duplicado. -->
         <div id="precos-panel-calendario">
-          <div class="precos-cal-layout" style="display:flex;gap:18px;align-items:flex-start;">
+          <div class="precos-cal-layout" id="precos-calendar-widget" style="display:flex;gap:18px;align-items:flex-start;">
 
             <!-- Calendário -->
             <div class="card" style="flex:1;min-width:0;overflow:visible;">
@@ -2763,6 +2775,9 @@
   <div class="modal resf-modal">
 
     <div class="modal-header">
+      <button class="btn btn-ghost btn-sm" id="resf-page-back" onclick="requestCloseReservaModal()" style="display:none;">
+        <i data-lucide="arrow-left" style="width:15px;height:15px;"></i> Voltar à reserva
+      </button>
       <span class="modal-title" id="modal-title">Nova Reserva</span>
       <button class="modal-close" onclick="requestCloseReservaModal()">
         <i data-lucide="x" style="width:20px;height:20px;"></i>
@@ -3210,6 +3225,7 @@
 <script src="js/dashboard.js"></script>
 <script src="js/reserva-wizard.js"></script>
 <script src="js/reserva-lista.js"></script>
+<script src="js/reserva-detalhe-tabs.js"></script>
 <script src="js/calendario.js"></script>
 <script src="js/blocks.js"></script>
 <script src="js/eventos.js"></script>

@@ -384,6 +384,7 @@ async function toggleReservationTask(resId, kind, done) {
       if (window.lucide) lucide.createIcons();
     }
     toast(done ? '✅ Marcado como feito.' : '↩️ Reposto como por fazer.', 'success');
+    if (typeof rdv2InvalidateTarefas === 'function') rdv2InvalidateTarefas();
     if (typeof loadNotifications === 'function') loadNotifications();
   } catch (err) {
     toast('❌ ' + (err?.payload?.error || 'Erro ao atualizar.'), 'error');
@@ -499,14 +500,14 @@ async function showDetail(id) {
           <span class="rdv2-id-pill">${r.id}</span>
         </div>
         <div class="rdv2-tabs">
-          <button class="rdv2-tab rdv2-tab-active">${lcIcon('clipboard', 12)} Reserva</button>
-          <button class="rdv2-tab rdv2-tab-disabled">${lcIcon('list-checks', 12)} Tarefas</button>
-          <button class="rdv2-tab rdv2-tab-disabled">${lcIcon('git-branch', 12)} Timeline</button>
+          <button class="rdv2-tab rdv2-tab-active" id="rdv2-tab-btn-reserva" onclick="rdv2ShowTab('reserva')">${lcIcon('clipboard', 12)} Reserva</button>
+          <button class="rdv2-tab" id="rdv2-tab-btn-tarefas" onclick="rdv2ShowTab('tarefas')">${lcIcon('list-checks', 12)} Tarefas</button>
+          <button class="rdv2-tab" id="rdv2-tab-btn-timeline" onclick="rdv2ShowTab('timeline')">${lcIcon('git-branch', 12)} Timeline</button>
         </div>
       </div>
 
       <!-- Body -->
-      <div class="rdv2-body">
+      <div class="rdv2-body" id="rdv2-panel-reserva">
 
         <!-- Main card -->
         <div class="rdv2-main">
@@ -705,7 +706,7 @@ async function showDetail(id) {
             <div class="rdv2-widget-title">Reserva</div>
             ${r.status === 'pendente' ? `<button class="rdv2-action-link rdv2-action-success" onclick="aprovarReserva('${r.id}')">${lcIcon('check', 12)} Aprovar e enviar pre check-in</button>` : ''}
             <button class="rdv2-action-link" data-accs="${(JSON.stringify(accsData)).replace(/"/g,'&quot;')}" data-res='{"id":"${r.id}","accId":"${r.accommodation_id}","ci":"${r.check_in}","co":"${r.check_out}","ng":${r.num_guests||1},"na":${r.num_adults||1},"nc":${r.num_children||0},"bkf":${r.breakfast_included?true:false},"nights":${r.nights||1}}' onclick="openAccommodationPanelFromBtn(this)">${lcIcon('home', 12)} Editar alojamento</button>
-            <button class="rdv2-action-link" onclick="openEditModal('${r.id}')">${lcIcon('pencil', 12)} Editar reserva</button>
+            <button class="rdv2-action-link" onclick="openEditPage('${r.id}')">${lcIcon('pencil', 12)} Editar reserva</button>
             <button class="rdv2-action-link" onclick="openPaymentForm('${r.id}', ${paid}, ${total})">${lcIcon('credit-card', 12)} Registar pagamento</button>
             <button class="rdv2-action-link" data-inv='${JSON.stringify({ n: r.invoice_number || '', d: r.invoice_date || '', sd: r.invoice_sent_date || '', m: r.invoice_sent_method || '' }).replace(/'/g, "&#39;")}' onclick="openInvoiceFormFromBtn('${r.id}', this)">${lcIcon('file-text', 12)} Registar fatura</button>
             ${r.guest_email ? `<button class="rdv2-action-link" onclick="openInvoiceForReservation('${r.id}',decodeURIComponent('${guestEmail}'),decodeURIComponent('${guestName}'))">${lcIcon('mail', 12)} Enviar email</button>` : ''}
@@ -740,6 +741,10 @@ async function showDetail(id) {
 
         </div>
       </div>
+
+      <!-- Painéis Tarefas / Timeline (carregados ao abrir a tab) -->
+      <div id="rdv2-panel-tarefas" style="display:none;"></div>
+      <div id="rdv2-panel-timeline" style="display:none;"></div>
     `;
     if (window.lucide) lucide.createIcons();
   } catch (e) {
