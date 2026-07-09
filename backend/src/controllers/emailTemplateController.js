@@ -121,16 +121,14 @@ async function preview(req, res) {
   const { isEmailAuthenticated, getEmailConnectionInfo, sendViaGmail } = require('../config/googleEmail');
   const orgId = req.user.organization_id;
   const gmailInfo = getEmailConnectionInfo(orgId);
-  const previewTo = req.body.to || gmailInfo.email || process.env.EMAIL_USER;
+  const previewTo = req.body.to || gmailInfo.email;
   if (!previewTo) return res.status(400).json({ error: 'Sem endereço de destino configurado' });
+  if (!isEmailAuthenticated(orgId)) {
+    return res.status(400).json({ error: 'Gmail não ligado — liga a conta Google nas definições' });
+  }
 
   try {
-    if (isEmailAuthenticated(orgId)) {
-      await sendViaGmail(orgId, { to: previewTo, subject: `[PREVIEW] ${subject}`, html });
-    } else {
-      const transporter = require('../config/email');
-      await transporter.sendMail({ from: process.env.EMAIL_FROM, to: previewTo, subject: `[PREVIEW] ${subject}`, html });
-    }
+    await sendViaGmail(orgId, { to: previewTo, subject: `[PREVIEW] ${subject}`, html });
     res.json({ success: true, message: `Preview enviado para ${previewTo}` });
   } catch (e) {
     res.status(500).json({ error: e.message });

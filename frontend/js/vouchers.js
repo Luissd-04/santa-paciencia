@@ -90,11 +90,11 @@ function renderVouchersList() {
       <td style="font-weight:700;font-size:15px;">${formatVoucherValue(v)}</td>
       <td style="font-size:12px;color:var(--cinza);">${validRange}</td>
       <td><span class="badge ${statusInfo.class}">${statusInfo.label}</span>${expiryWarning}</td>
-      <td style="font-size:12px;color:var(--cinza);">${v.used_in_reservation_id ? v.used_in_reservation_id : '—'}</td>
+      <td style="font-size:12px;">${v.used_in_reservation_id ? `<button class="btn btn-ghost btn-xs" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;" onclick="showDetail('${v.used_in_reservation_id}')"><i data-lucide="external-link" style="width:12px;height:12px;"></i> Ver reserva</button>` : '<span style="color:var(--cinza);">—</span>'}</td>
       <td>
         <div style="display:flex;gap:6px;">
           ${status === 'active' ? `<button class="btn btn-ghost btn-xs" onclick="openVoucherModal('${v.id}')"><i data-lucide="pencil" style="width:13px;height:13px;"></i></button>` : ''}
-          ${status !== 'used' ? `<button class="btn btn-ghost btn-xs" onclick="deleteVoucher('${v.id}')"><i data-lucide="trash-2" style="width:13px;height:13px;"></i></button>` : ''}
+          <button class="btn btn-ghost btn-xs" onclick="deleteVoucher('${v.id}')"><i data-lucide="trash-2" style="width:13px;height:13px;"></i></button>
         </div>
       </td>
     </tr>`;
@@ -128,10 +128,10 @@ function renderVouchersList() {
         </div>
         ${v.description ? `<div class="vmc-desc">${escapeHtml(v.description)}</div>` : ''}
         ${validRange ? `<div class="vmc-validity"><i data-lucide="calendar"></i> ${validRange}</div>` : ''}
-        ${v.used_in_reservation_id ? `<div class="vmc-res"><i data-lucide="link"></i> Reserva: ${v.used_in_reservation_id}</div>` : ''}
+        ${v.used_in_reservation_id ? `<button class="vmc-res" style="background:none;border:0;padding:0;cursor:pointer;color:var(--marca);font:inherit;display:inline-flex;align-items:center;gap:4px;" onclick="showDetail('${v.used_in_reservation_id}')"><i data-lucide="external-link"></i> Ver reserva</button>` : ''}
         <div class="vmc-actions">
           ${status === 'active' ? `<button class="vmc-btn" onclick="openVoucherModal('${v.id}')"><i data-lucide="pencil"></i> Editar</button>` : ''}
-          ${status !== 'used' ? `<button class="vmc-btn vmc-btn-danger" onclick="deleteVoucher('${v.id}')"><i data-lucide="trash-2"></i> Eliminar</button>` : ''}
+          <button class="vmc-btn vmc-btn-danger" onclick="deleteVoucher('${v.id}')"><i data-lucide="trash-2"></i> Eliminar</button>
         </div>
       </div>`;
   }).join('');
@@ -261,7 +261,10 @@ async function saveVoucher() {
 async function deleteVoucher(id) {
   const v = vouchersData.find(x => x.id === id);
   if (!v) return;
-  if (!confirm(`Eliminar voucher "${v.code}"?`)) return;
+  const msg = getVoucherStatus(v) === 'used'
+    ? `⚠️ O voucher "${v.code}" já foi usado numa reserva. Eliminar mesmo assim?`
+    : `Eliminar voucher "${v.code}"?`;
+  if (!confirm(msg)) return;
   try {
     await apiDelete(`/api/vouchers/${id}`);
     toast('✅ Voucher eliminado.', 'success');

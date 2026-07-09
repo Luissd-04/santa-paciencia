@@ -182,10 +182,10 @@ function buildEmailPreviewHtml(bodyHtml) {
   const web = s.social_website   || s.website   || '';
 
   const socialBtns = [
-    fb  ? `<a href="${fb}"  style="display:inline-flex;align-items:center;gap:6px;margin:0 4px;padding:8px 16px;background:#1877f2;color:#fff;border-radius:8px;text-decoration:none;font-size:12px;font-weight:600;">
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg> Facebook</a>` : '',
-    ig  ? `<a href="${ig}"  style="display:inline-flex;align-items:center;gap:6px;margin:0 4px;padding:8px 16px;background:#e1306c;color:#fff;border-radius:8px;text-decoration:none;font-size:12px;font-weight:600;">
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="#fff" stroke="none"/></svg> Instagram</a>` : '',
+    fb  ? `<a href="${fb}"  title="Facebook"  style="display:inline-flex;align-items:center;justify-content:center;margin:0 4px;padding:9px;background:#1877f2;color:#fff;border-radius:50%;text-decoration:none;">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>` : '',
+    ig  ? `<a href="${ig}"  title="Instagram" style="display:inline-flex;align-items:center;justify-content:center;margin:0 4px;padding:9px;background:#e1306c;color:#fff;border-radius:50%;text-decoration:none;">
+             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="#fff" stroke="none"/></svg></a>` : '',
     web ? `<a href="${web}" style="display:inline-flex;align-items:center;gap:6px;margin:0 4px;padding:8px 16px;background:#843424;color:#fff;border-radius:8px;text-decoration:none;font-size:12px;font-weight:600;">
              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Website</a>` : '',
   ].filter(Boolean).join('');

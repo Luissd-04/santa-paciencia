@@ -1,24 +1,17 @@
 const EMAIL_DISABLED = process.env.EMAIL_ENABLED === 'false';
 
-let transporter = null;
-if (!EMAIL_DISABLED) {
-  try { transporter = require('../config/email'); } catch (e) {
-    console.warn('⚠️ Email transporter não carregado:', e.message);
-  }
-}
-
 const { isEmailAuthenticated, sendViaGmail, getEmailConnectionInfo } = require('../config/googleEmail');
 
 async function sendMail(organizationId, { to, subject, html }) {
   if (EMAIL_DISABLED) return null;
-  if (organizationId && isEmailAuthenticated(organizationId)) {
-    const info = getEmailConnectionInfo(organizationId);
-    const fromName = process.env.PROPERTY_NAME || 'Santa Paciência';
-    const from = info.email ? `${fromName} <${info.email}>` : fromName;
-    return sendViaGmail(organizationId, { to, subject, html, from });
+  if (!organizationId || !isEmailAuthenticated(organizationId)) {
+    console.warn('⚠️ Email não enviado: Gmail não ligado para a organização', organizationId || '(sem organização)');
+    return null;
   }
-  if (!transporter) return null;
-  return transporter.sendMail({ from: process.env.EMAIL_FROM, to, subject, html });
+  const info = getEmailConnectionInfo(organizationId);
+  const fromName = process.env.PROPERTY_NAME || 'Santa Paciência';
+  const from = info.email ? `${fromName} <${info.email}>` : fromName;
+  return sendViaGmail(organizationId, { to, subject, html, from });
 }
 
 const BRAND_COLOR = '#843424';
@@ -68,7 +61,7 @@ function getEmailSettings(accommodation, organizationId) {
       property_name:    orgName || process.env.PROPERTY_NAME || 'Santa Paciência',
       property_address: s.property_address || process.env.PROPERTY_ADDRESS || '',
       license_number:   s.license_number   || process.env.LICENSE_NUMBER   || '',
-      email_contact:    s.email_contact    || process.env.EMAIL_USER        || '',
+      email_contact:    s.email_contact    || '',
     };
   } catch {
     return {
@@ -77,7 +70,7 @@ function getEmailSettings(accommodation, organizationId) {
       property_name:    process.env.PROPERTY_NAME    || 'Santa Paciência',
       property_address: process.env.PROPERTY_ADDRESS || '',
       license_number:   process.env.LICENSE_NUMBER   || '',
-      email_contact:    process.env.EMAIL_USER        || '',
+      email_contact:    '',
     };
   }
 }
@@ -89,8 +82,8 @@ const WEB_ICON = `<img src="https://cdn.simpleicons.org/googlechrome/ffffff" wid
 
 function buildSocialButtons(settings) {
   const btns = [];
-  if (settings.facebook)  btns.push(`<a href="${settings.facebook}"  style="display:inline-flex;align-items:center;gap:7px;margin:0 5px;padding:9px 18px;background:#1877f2;color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;font-family:sans-serif;">${FB_ICON} Facebook</a>`);
-  if (settings.instagram) btns.push(`<a href="${settings.instagram}" style="display:inline-flex;align-items:center;gap:7px;margin:0 5px;padding:9px 18px;background:#e1306c;color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;font-family:sans-serif;">${IG_ICON} Instagram</a>`);
+  if (settings.facebook)  btns.push(`<a href="${settings.facebook}"  title="Facebook"  style="display:inline-flex;align-items:center;justify-content:center;margin:0 5px;padding:10px;background:#1877f2;color:#fff;border-radius:50%;text-decoration:none;">${FB_ICON}</a>`);
+  if (settings.instagram) btns.push(`<a href="${settings.instagram}" title="Instagram" style="display:inline-flex;align-items:center;justify-content:center;margin:0 5px;padding:10px;background:#e1306c;color:#fff;border-radius:50%;text-decoration:none;">${IG_ICON}</a>`);
   if (settings.website)   btns.push(`<a href="${settings.website}"   style="display:inline-flex;align-items:center;gap:7px;margin:0 5px;padding:9px 18px;background:${BRAND_COLOR};color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;font-family:sans-serif;">${WEB_ICON} Website</a>`);
   if (!btns.length) return '';
   return `<tr><td style="background:${BRAND_COLOR};padding:20px 40px;border-top:1px solid rgba(255,255,255,.1);text-align:center;">

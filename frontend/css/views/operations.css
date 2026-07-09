@@ -780,11 +780,20 @@ body.tl-is-panning * {
   height: 13px;
   flex-shrink: 0;
 }
+.eventos-pill-compact .pill-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  font-size: 10px;
+  font-weight: 600;
+}
 .pill-acc-name {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.03em;
   white-space: nowrap;
+  flex-shrink: 0; /* o título é que trunca, não as iniciais */
   opacity: 0.9;
 }
 .tl-block-header {

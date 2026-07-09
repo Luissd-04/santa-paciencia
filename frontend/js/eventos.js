@@ -632,7 +632,7 @@ function renderEventoPillCompact(evento) {
     title="${tooltip}"
     aria-label="${tooltip}"
     onclick="event.stopPropagation();openEventoModal('${evento.id}')">
-    <i data-lucide="${type.icon}"></i>${Number(evento.important) ? lcIcon('circle-alert', 10) : ''}${initials ? `<span class="pill-acc-name">${initials}</span>` : ''}${done ? DONE_CHECK : ''}
+    <i data-lucide="${type.icon}"></i>${Number(evento.important) ? lcIcon('circle-alert', 10) : ''}<span class="pill-title">${escapeHtml(evento.title)}</span>${initials ? `<span class="pill-acc-name">${initials}</span>` : ''}${done ? DONE_CHECK : ''}
   </button>`;
 }
 

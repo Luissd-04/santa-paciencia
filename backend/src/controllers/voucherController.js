@@ -162,7 +162,6 @@ function apply(req, res) {
 function remove(req, res) {
   const existing = db.prepare('SELECT * FROM vouchers WHERE id = ? AND organization_id = ?').get(req.params.id, req.user.organization_id);
   if (!existing) return res.status(404).json({ error: 'Voucher não encontrado' });
-  if (existing.status === 'used') return res.status(400).json({ error: 'Não é possível eliminar um voucher já utilizado' });
   db.prepare('DELETE FROM vouchers WHERE id = ? AND organization_id = ?').run(req.params.id, req.user.organization_id);
   res.json({ success: true });
 }

@@ -591,22 +591,19 @@ async function saveGuestEdit() {
   const lastName  = document.getElementById('gedit-last-name').value.trim();
   const telPrefix = document.getElementById('gedit-tel-prefix')?.value || '';
   const telNum    = document.getElementById('gedit-phone').value.trim();
-  const phone     = telPrefix + telNum.replace(/\s/g, '');
+  // Sem número, não gravar o prefixo sozinho (ex.: "+351")
+  const phone     = telNum ? telPrefix + telNum.replace(/\s/g, '') : null;
   const email     = document.getElementById('gedit-email').value.trim();
   const country   = document.getElementById('gedit-country').value;
-
-  if (!firstName) { toast('Insira o primeiro nome.', 'error'); return; }
-  if (!lastName)  { toast('Insira o apelido.', 'error'); return; }
-  if (!telNum)    { toast('Insira o telefone.', 'error'); return; }
-  if (!country)   { toast('Selecione o país.', 'error'); return; }
 
   const btn = document.getElementById('btn-guardar-hospede');
   AppUI.setButtonLoading(btn, true, 'A guardar...');
 
   try {
     const body = {
-      first_name: firstName,
-      last_name: lastName,
+      // vazio → null → backend mantém o valor existente
+      first_name: firstName || null,
+      last_name: lastName || null,
       email: email || null, // vazio → backend mantém o email existente
 
       email_personal: document.getElementById('gedit-email-personal').value.trim() || null,
@@ -615,8 +612,8 @@ async function saveGuestEdit() {
       nif:             document.getElementById('gedit-nif').value.trim()  || null,
       document_type:   document.getElementById('gedit-doc-type')?.value   || null,
       document_number: document.getElementById('gedit-doc-number')?.value.trim() || null,
-      nationality: country,
-      country,
+      nationality: country || null,
+      country: country || null,
       address:         document.getElementById('gedit-address').value.trim()     || null,
       postal_code:     document.getElementById('gedit-postal-code').value.trim() || null,
       city:            document.getElementById('gedit-city').value.trim()        || null,

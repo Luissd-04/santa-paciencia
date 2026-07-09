@@ -4,7 +4,7 @@ function getOrgData(orgId) {
   if (!orgId) {
     return {
       name:    process.env.PROPERTY_NAME  || 'Santa Paciência',
-      email:   process.env.EMAIL_USER     || '',
+      email:   '',
     };
   }
   const org = db.prepare('SELECT name FROM organizations WHERE id = ?').get(orgId);
@@ -16,7 +16,7 @@ function getOrgData(orgId) {
   rows.forEach(r => s[r.key] = r.value);
   return {
     name:  s.property_name || org?.name || process.env.PROPERTY_NAME || 'Santa Paciência',
-    email: s.email_contact || process.env.EMAIL_USER || '',
+    email: s.email_contact || '',
   };
 }
 

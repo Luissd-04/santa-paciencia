@@ -28,14 +28,6 @@ const {
   verifyPassword,
 } = require('../services/authService');
 
-const transporter = (() => {
-  try { return require('../config/email'); } catch { return null; }
-})();
-
-function canSendEmail() {
-  return transporter && process.env.EMAIL_ENABLED !== 'false' && process.env.EMAIL_FROM;
-}
-
 function appUrl() {
   return process.env.PUBLIC_APP_URL || process.env.FRONTEND_PUBLIC_URL || '';
 }
