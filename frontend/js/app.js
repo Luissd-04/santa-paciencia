@@ -69,8 +69,28 @@ window.addEventListener('popstate', (e) => {
   if (v === 'gcal') { settingsTab = 'gcal'; v = 'definicoes'; }
   if (v === 'equipa') { settingsTab = 'equipa'; v = 'definicoes'; }
   if (v === 'emails') { settingsTab = 'emails'; v = 'definicoes'; }
+  if (e.state?.reservaDetail && v === 'reservas' && typeof showDetail === 'function') {
+    window.__openingReservationDetail = true;
+    showView('reservas', false);
+    window.__openingReservationDetail = false;
+    showDetail(e.state.reservaDetail, { fromHistory: true });
+    return;
+  }
   if (VIEW_TITLES[v]) showView(v, false);
 });
+
+// Deep-link: /reservas?reserva=<id> abre diretamente a ficha da reserva.
+// Usado no boot (links de email) e nos cliques em notificações push.
+function handleDeepLinkUrl(raw) {
+  const u = new URL(raw, window.location.origin);
+  const view = u.pathname.replace(/^\/+|\/+$/g, '') || 'dashboard';
+  const reservaId = u.searchParams.get('reserva');
+  if (view === 'reservas' && reservaId && typeof showDetail === 'function') {
+    showDetail(reservaId);
+    return;
+  }
+  showView(VIEW_TITLES[view] ? view : 'dashboard');
+}
 
 // ── MOBILE BOTTOM NAV ──
 const BOTTOM_NAV_VIEWS = ['dashboard', 'reservas', 'calendario', 'eventos'];
@@ -549,7 +569,13 @@ async function initApp() {
   let pathView = window.location.pathname.replace(/^\/+|\/+$/g, '') || 'dashboard';
   if (pathView === 'gcal') { settingsTab = 'gcal'; pathView = 'definicoes'; }
   if (pathView === 'equipa') { settingsTab = 'equipa'; pathView = 'definicoes'; }
+  // Deep-link /reservas?reserva=<id>: limpar o estado ANTES do showView — após
+  // F5 o history.state ainda traz `reservaDetail` e o showReservasList interno
+  // faria history.back() indevido. A entrada base fica a lista.
+  const deepId = new URLSearchParams(window.location.search).get('reserva');
+  if (deepId && pathView === 'reservas') history.replaceState({ view: 'reservas' }, '', '/reservas');
   showView(VIEW_TITLES[pathView] ? pathView : 'dashboard', false);
+  if (deepId && pathView === 'reservas' && typeof showDetail === 'function') showDetail(deepId);
   if (window.AppDatePicker) {
     ['f-checkin','f-checkout','f-payment-date','despesa-date','evento-date','manual-notification-date','filter-date-from','filter-date-to'].forEach(id => {
       AppDatePicker.attach(document.getElementById(id));
@@ -577,5 +603,9 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js')
       .catch(() => {});
+  });
+  // Navegação pedida pelo SW (clique numa notificação push com a app já aberta)
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    if (e.data?.type === 'sp-navigate' && e.data.url) handleDeepLinkUrl(e.data.url);
   });
 }

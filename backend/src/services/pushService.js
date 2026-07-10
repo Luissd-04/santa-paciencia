@@ -168,8 +168,8 @@ async function sendToOrganization(organizationId, payload, options = {}) {
 }
 
 // Fire-and-forget para usar nos controllers sem nunca falhar o request.
-function notifyOrganization(organizationId, type, { title, body, url = '/', excludeUserId = null }) {
-  sendToOrganization(organizationId, { title, body, url, tag: `sp-${type}` }, { type, excludeUserId })
+function notifyOrganization(organizationId, type, { title, body, url = '/', excludeUserId = null, requireInteraction = false, tag = null }) {
+  sendToOrganization(organizationId, { title, body, url, tag: tag || `sp-${type}`, requireInteraction }, { type, excludeUserId })
     .catch(err => console.error('Erro ao enviar push:', err.message));
 }
 

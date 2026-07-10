@@ -2,6 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
 const {
   calculateReservationTotals,
+  buildNightlyPrices,
   getPaymentStatus,
   getReservationBirthDates,
   validateReservationBirthDates,
@@ -21,6 +22,35 @@ function safeJson(value, fallback) {
   if (!value) return fallback;
   if (typeof value === 'object') return value;
   try { return JSON.parse(value); } catch { return fallback; }
+}
+
+// Total padrão do calendário dinâmico. Reservas multi-suite: base = soma, por
+// suite, dos preços/noite dessa suite (períodos dinâmicos próprios); extras
+// (taxa turística, pequeno-almoço, ocupação extra) contam uma única vez.
+function computeStandardTotals(organizationId, resLike, primaryAccommodation, primaryPeriods, services, birthDates) {
+  const single = calculateReservationTotals(primaryAccommodation, services, {
+    check_in: resLike.check_in,
+    check_out: resLike.check_out,
+    num_guests: resLike.num_guests,
+    breakfast_included: resLike.breakfast_included,
+    birth_dates: birthDates,
+    pricing_periods: primaryPeriods,
+  });
+  const accsData = safeJson(resLike.accommodations_data, []);
+  if (!Array.isArray(accsData) || accsData.length <= 1) return single;
+
+  let base = 0;
+  for (const item of accsData) {
+    const acc = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?')
+      .get(item.accommodation_id, organizationId);
+    if (!acc) { base += Number(item.subtotal || 0); continue; }
+    const periods = db.prepare('SELECT * FROM pricing_periods WHERE accommodation_id = ? AND organization_id = ? ORDER BY start_date ASC')
+      .all(item.accommodation_id, organizationId);
+    base += buildNightlyPrices(Number(acc.price_per_night || 0), single.checkIn, single.checkOut, periods)
+      .reduce((sum, n) => sum + (Number(n.price) || 0), 0);
+  }
+  const extras = single.touristTax + single.breakfastCost + single.extraOccupancyCost;
+  return { ...single, baseAmount: base, totalAmount: base + extras };
 }
 
 function upsertAdditionalGuests(guestsData, organizationId) {
@@ -250,14 +280,10 @@ async function getById(req, res, next) {
         .all(reservation.accommodation_id, orgId);
       const guestRow = db.prepare('SELECT birth_date FROM guests WHERE id = ? AND organization_id = ?')
         .get(reservation.guest_id, orgId) || {};
-      const standard = calculateReservationTotals(acc, getOrganizationServices(orgId), {
-        check_in: reservation.check_in,
-        check_out: reservation.check_out,
-        num_guests: reservation.num_guests,
-        breakfast_included: reservation.breakfast_included,
-        birth_dates: getReservationBirthDates(guestRow, safeJson(reservation.guests_data, [])),
-        pricing_periods: periods,
-      });
+      const standard = computeStandardTotals(
+        orgId, reservation, acc, periods, getOrganizationServices(orgId),
+        getReservationBirthDates(guestRow, safeJson(reservation.guests_data, []))
+      );
       reservation.standard_total = standard.totalAmount;
       reservation.standard_nightly_prices = standard.nightlyPrices;
     } catch { /* referência indisponível */ }
@@ -590,7 +616,7 @@ async function create(req, res, next) {
     notifyOrganization(organizationId, 'new_reservation', {
       title: '🆕 Nova reserva',
       body: `${guestRecord.name} · ${accommodation.name} · ${reservation.check_in} → ${reservation.check_out}`,
-      url: '/reservas',
+      url: `/reservas?reserva=${reservation.id}`,
       excludeUserId: req.user.id,
     });
 
@@ -657,20 +683,26 @@ async function update(req, res, next) {
       return res.status(400).json({ error: error.message });
     }
 
-    // Verificar disponibilidade (excluir a própria reserva)
-    const conflict2 = findConflict(organizationId, newAccommodationId, totals.checkIn, totals.checkOut, req.params.id);
-    if (conflict2) {
-      return res.status(409).json({
-        error: `Este alojamento já está ocupado nessas datas (reserva ${conflict2.id}).`
-      });
-    }
+    // Cancelamento via mudança de estado (dropdown/wizard) — só na transição.
+    const cancelling = existing.status !== 'cancelada' && status === 'cancelada';
 
-    // Verificar bloqueios manuais
-    const block2 = findBlockConflict(organizationId, newAccommodationId, totals.checkIn, totals.checkOut);
-    if (block2) {
-      return res.status(409).json({
-        error: `Estas datas estão bloqueadas${block2.reason ? ` (${block2.reason})` : ''}.`
-      });
+    // Cancelar nunca deve falhar por disponibilidade — saltar as verificações.
+    if (!cancelling) {
+      // Verificar disponibilidade (excluir a própria reserva)
+      const conflict2 = findConflict(organizationId, newAccommodationId, totals.checkIn, totals.checkOut, req.params.id);
+      if (conflict2) {
+        return res.status(409).json({
+          error: `Este alojamento já está ocupado nessas datas (reserva ${conflict2.id}).`
+        });
+      }
+
+      // Verificar bloqueios manuais
+      const block2 = findBlockConflict(organizationId, newAccommodationId, totals.checkIn, totals.checkOut);
+      if (block2) {
+        return res.status(409).json({
+          error: `Estas datas estão bloqueadas${block2.reason ? ` (${block2.reason})` : ''}.`
+        });
+      }
     }
 
     // Actualizar dados do hóspede se fornecidos
@@ -698,21 +730,33 @@ async function update(req, res, next) {
       );
     }
     const newPaidAmt = amount_paid !== undefined ? Number(amount_paid) : (existing.amount_paid || 0);
-    const effectiveTotal = manualTotal !== undefined ? Number(manualTotal) : totals.totalAmount;
+    const newAccData = accommodations_data !== undefined
+      ? JSON.stringify(accommodations_data)
+      : (existing.accommodations_data || '[]');
+    // Multi-suite sem total explícito: preservar o total guardado — o recálculo
+    // só conhece a suite principal e destruiria o valor das restantes.
+    const accsCount = safeJson(newAccData, []).length;
+    const effectiveTotal = manualTotal !== undefined
+      ? Number(manualTotal)
+      : (accsCount > 1 ? Number(existing.total_amount) : totals.totalAmount);
 
     // Edição manual = total efetivo difere do padrão do calendário dinâmico
     // (sem overrides por noite). Preserva o registo anterior se continuar editada.
     let priceEditedAt = existing.price_edited_at || null;
     let priceEditedBy = existing.price_edited_by_user_id || null;
     try {
-      const standard = calculateReservationTotals(accommodation, getOrganizationServices(organizationId), {
-        check_in: newCheckIn,
-        check_out: newCheckOut,
-        num_guests: guests,
-        breakfast_included: bkfOn2,
-        birth_dates: getReservationBirthDates(guestForBirthDates, incomingGuestsData),
-        pricing_periods: pricingPeriods2,
-      });
+      const standard = computeStandardTotals(
+        organizationId,
+        {
+          check_in: newCheckIn,
+          check_out: newCheckOut,
+          num_guests: guests,
+          breakfast_included: bkfOn2,
+          accommodations_data: newAccData,
+        },
+        accommodation, pricingPeriods2, getOrganizationServices(organizationId),
+        getReservationBirthDates(guestForBirthDates, incomingGuestsData)
+      );
       const edited = Math.abs(effectiveTotal - standard.totalAmount) > 0.01;
       if (edited && Math.abs(effectiveTotal - Number(existing.total_amount)) > 0.01) {
         // Nova edição manual — atualizar quem/quando
@@ -736,10 +780,6 @@ async function update(req, res, next) {
       ? (existing.cancelled_previous_payment_status || existing.payment_status || autoPaymentStatus2)
       : autoPaymentStatus2;
 
-    const newAccData = accommodations_data !== undefined
-      ? JSON.stringify(accommodations_data)
-      : (existing.accommodations_data || '[]');
-
     db.prepare(`
       UPDATE reservations SET
         accommodation_id = ?, check_in = ?, check_out = ?, nights = ?, num_guests = ?,
@@ -748,13 +788,14 @@ async function update(req, res, next) {
         channel = ?, payment_method = ?, notes = ?, status = ?,
         payment_status = ?, guests_data = ?, accommodations_data = ?,
         amount_paid = ?, payment_date = ?, nightly_prices = ?,
+        cancelled_previous_status = ?, cancelled_previous_payment_status = ?,
         price_edited_at = ?, price_edited_by_user_id = ?, updated_at = datetime('now')
       WHERE id = ? AND organization_id = ?
     `).run(
       newAccommodationId,
       totals.checkIn, totals.checkOut, totals.nights, totals.guests,
       newAdults ?? totals.guests, newChildren ?? 0,
-      manualTotal !== undefined ? Number(manualTotal) : totals.totalAmount, totals.breakfastIncluded,
+      effectiveTotal, totals.breakfastIncluded,
       totals.touristTax,
       channel || existing.channel,
       payment_method !== undefined ? (payment_method || null) : existing.payment_method,
@@ -765,6 +806,8 @@ async function update(req, res, next) {
       newPaidAmt,
       payment_date !== undefined ? (payment_date || null) : existing.payment_date,
       JSON.stringify(totals.nightlyPrices || []),
+      cancelling ? existing.status : (existing.cancelled_previous_status || null),
+      cancelling ? existing.payment_status : (existing.cancelled_previous_payment_status || null),
       priceEditedAt, priceEditedBy,
       req.params.id,
       organizationId
@@ -776,7 +819,7 @@ async function update(req, res, next) {
       recordHistory({
         organizationId, reservationId: req.params.id, userId: req.user.id, action: 'updated',
         changes: historyChanges,
-        meta: reactivating ? { reactivated: true } : null,
+        meta: reactivating ? { reactivated: true } : (cancelling ? { cancelled: true } : null),
       });
     }
     syncReservationOperationalTasks({
@@ -787,11 +830,31 @@ async function update(req, res, next) {
     // Google Calendar tarefas (async)
     syncReservationTasksToCalendar(req.params.id, organizationId, req.user.id);
 
-    // Atualizar no Google Calendar
-    updateCalendarEvent(updated, {
-      userId: updated.google_calendar_user_id || req.user.id,
-      organizationId
-    });
+    // Google Calendar: cancelar remove o evento (paridade com o DELETE)
+    if (cancelling) {
+      deleteCalendarEvent(updated, {
+        userId: updated.google_calendar_user_id || req.user.id,
+        organizationId
+      });
+    } else {
+      updateCalendarEvent(updated, {
+        userId: updated.google_calendar_user_id || req.user.id,
+        organizationId
+      });
+    }
+
+    // Email + push de cancelamento (paridade com o DELETE)
+    if (cancelling) {
+      const guestRecord = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(updated.guest_id, organizationId);
+      sendCancellationEmail(guestRecord, updated, accommodation)
+        .catch(err => console.warn('Email não enviado:', err.message));
+      notifyOrganization(organizationId, 'cancellation', {
+        title: '❌ Reserva cancelada',
+        body: `${guestRecord?.name || 'Hóspede'} · ${accommodation.name} · ${updated.check_in} → ${updated.check_out}`,
+        url: `/reservas?reserva=${req.params.id}`,
+        excludeUserId: req.user.id,
+      });
+    }
 
     // Email de pagamento se confirmado agora
     if (nextPaymentStatus === 'confirmado' && existing.payment_status !== 'confirmado') {
@@ -840,7 +903,7 @@ async function cancel(req, res, next) {
     notifyOrganization(organizationId, 'cancellation', {
       title: '❌ Reserva cancelada',
       body: `${guest?.name || 'Hóspede'} · ${accommodation?.name || ''} · ${reservation.check_in} → ${reservation.check_out}`,
-      url: '/reservas',
+      url: `/reservas?reserva=${req.params.id}`,
       excludeUserId: req.user.id,
     });
 
@@ -1141,7 +1204,7 @@ function getNotifications(req, res, next) {
       });
     });
     pending.forEach(r => notifications.push({
-      type: 'pending', priority: 'low', icon: 'clock',
+      type: 'pending', priority: 'high', icon: 'clock',
       title: 'Reserva pendente',
       subtitle: `${r.guest_name} · ${r.accommodation_name}`,
       reservation_id: r.id,

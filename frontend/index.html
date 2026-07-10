@@ -2884,9 +2884,8 @@
               <label>Total final</label>
               <div class="resf-nightly-input">
                 <span>€</span>
-                <input type="number" id="f-total-manual" min="0" step="0.01" placeholder="0.00" oninput="onManualTotalInput(this.value)" autocomplete="off">
+                <input type="number" id="f-total-manual" min="0" step="0.01" placeholder="0.00" onfocus="snapshotManualDistribWeights()" oninput="onManualTotalInput(this.value)" autocomplete="off">
               </div>
-              <button type="button" class="resf-nightly-reset" id="resf-total-reset" onclick="resetManualTotal()" style="display:none;">Repor</button>
             </div>
           </div>
         </div>

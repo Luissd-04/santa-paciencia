@@ -237,7 +237,7 @@ async function sendOwnerNewReservationEmail(organizationId, guest, reservation, 
   if (!owners.length) return null;
 
   const settings = getEmailSettings(accommodation, organizationId);
-  const reservationUrl = appUrl ? `${appUrl}/?view=reservas` : '';
+  const reservationUrl = appUrl ? `${appUrl}/reservas?reserva=${encodeURIComponent(reservation.id)}` : '';
 
   const row = (label, value) =>
     `<tr><td style="padding:8px 0;border-bottom:1px solid #f0e8e0;color:#888;width:130px;">${label}</td>` +

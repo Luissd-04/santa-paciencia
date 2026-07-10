@@ -161,6 +161,10 @@ let _nightlyOverrides = {};
 let _nightlyPrices = [];        // array atual [{date, price}] (calculado)
 let _nightlyGridSig = '';       // assinatura das datas para saber quando reconstruir a grelha
 let _manualTotalOverride = null;
+let _lastExtrasTotal = 0;        // extras (taxa turística, PA, ocupação extra) do último calcTotal
+let _manualDistribWeights = null; // pesos por noite fixados ao focar o campo de total manual
+let _manualDistribWarned = false; // evita repetir o aviso "total < extras" a cada tecla
+let _wizMultiSuite = false;      // reserva em edição tem >1 suites (grelha só mostra a principal)
 let _standardNightlyByDate = {}; // preço padrão por noite (calendário dinâmico, sem overrides)
 let _editingPriceInfo = null;    // { price_edited_at, price_edited_by_name } da reserva em edição
 let _wizardPageMode = false;     // "Editar reserva" aberto como página completa (a partir do detalhe)
@@ -421,11 +425,22 @@ async function openEditModal(id) {
     if (saveBtn) saveBtn.innerHTML = '<i data-lucide="save" style="width:14px;height:14px;"></i> Atualizar Reserva';
     await calcTotal();
     // Preservar o total efetivamente cobrado: se diferir do recalculado a partir das
-    // noites + extras (ex.: desconto ou ajuste manual antigo), fixá-lo como total manual.
+    // noites + extras (ex.: desconto ou ajuste manual antigo), distribuí-lo pelas
+    // noites para a ficha abrir já uniforme. Multi-suite mantém o total fixo — as
+    // noites da grelha só refletem a suite principal e distribuir inflava-as.
     const storedTotal = Number(r.total_amount);
     const recomputed = parseFloat(document.getElementById('f-total')?.value);
+    const accsData = typeof r.accommodations_data === 'string'
+      ? (() => { try { return JSON.parse(r.accommodations_data || '[]'); } catch { return []; } })()
+      : (r.accommodations_data || []);
+    _wizMultiSuite = Array.isArray(accsData) && accsData.length > 1;
     if (!isNaN(storedTotal) && !isNaN(recomputed) && Math.abs(storedTotal - recomputed) > 0.01) {
-      _manualTotalOverride = storedTotal;
+      if (_wizMultiSuite) {
+        _manualTotalOverride = storedTotal;
+      } else {
+        _manualDistribWeights = null;
+        distributeManualTotal(storedTotal);
+      }
       await calcTotal();
     }
     renderSuiteCards();
@@ -682,6 +697,7 @@ async function calcTotal() {
 
     // Breakdown + campo de total editável
     const extras = (totals.extraOccupancyCost || 0) + (totals.touristTax || 0) + (totals.breakfastCost || 0);
+    _lastExtrasTotal = extras;
     const baseEl = document.getElementById('resf-nightly-base');
     if (baseEl) baseEl.textContent = `€${(totals.baseAmount || 0).toFixed(2)}`;
     const extrasEl = document.getElementById('resf-nightly-extras');
@@ -786,21 +802,62 @@ function resetNightlyOverrides() {
 
 function updateNightlyTotalField(finalTotal) {
   const inp = document.getElementById('f-total-manual');
-  const resetBtn = document.getElementById('resf-total-reset');
   if (!inp) return;
-  if (resetBtn) resetBtn.style.display = _manualTotalOverride != null ? '' : 'none';
   // Reflete sempre o total atual, exceto enquanto o utilizador está a escrever no campo.
   if (document.activeElement !== inp) inp.value = finalTotal.toFixed(2);
 }
 
-function onManualTotalInput(value) {
-  const v = value === '' ? null : Number(value);
-  _manualTotalOverride = (v == null || isNaN(v)) ? null : Math.max(0, v);
-  calcTotal();
+// Fixa os pesos por noite ao entrar no campo de total — enquanto o utilizador
+// digita ("1" → "12" → "120") as proporções mantêm-se as de partida.
+function snapshotManualDistribWeights() {
+  _manualDistribWeights = _nightlyPrices.map(n => Math.max(0, Number(n.price) || 0));
+  _manualDistribWarned = false;
 }
 
-function resetManualTotal() {
-  _manualTotalOverride = null;
+// Distribui o total digitado (menos extras) pelas noites, proporcionalmente
+// aos preços atuais, em cêntimos; o resto do arredondamento vai para a última
+// noite para a soma bater exata. Todas as noites a €0 → divisão igual.
+function distributeManualTotal(target) {
+  if (!_nightlyPrices.length) return;
+  const extras = _lastExtrasTotal || 0;
+  const baseCents = Math.max(0, Math.round((target - extras) * 100));
+  if (target > 0 && target < extras && !_manualDistribWarned) {
+    _manualDistribWarned = true;
+    toast(`O total é inferior aos extras (€${extras.toFixed(2)}) — noites ficam a €0.`, 'info');
+  }
+  const weights = (_manualDistribWeights && _manualDistribWeights.length === _nightlyPrices.length)
+    ? _manualDistribWeights
+    : _nightlyPrices.map(n => Math.max(0, Number(n.price) || 0));
+  const wSum = weights.reduce((a, b) => a + b, 0);
+  const n = _nightlyPrices.length;
+  let allocated = 0;
+  _nightlyPrices.forEach((night, i) => {
+    let cents;
+    if (i === n - 1) cents = Math.max(0, baseCents - allocated);
+    else if (wSum > 0) cents = Math.round(baseCents * weights[i] / wSum);
+    else cents = Math.round(baseCents / n);
+    allocated += cents;
+    _nightlyOverrides[night.date] = cents / 100;
+  });
+  _manualTotalOverride = null;      // o total volta a ser derivado das noites
+  _nightlyGridSig = '';             // forçar rebuild da grelha com os novos valores
+}
+
+function onManualTotalInput(value) {
+  const v = value === '' ? null : Number(value);
+  if (v == null || isNaN(v) || v < 0) return; // input incompleto/inválido: não distribuir
+  // Multi-suite: a grelha só mostra a suite principal — distribuir o total das
+  // duas suites inflava-a. Mantém-se o total fixo (comportamento antigo).
+  if (_wizMultiSuite) {
+    _manualTotalOverride = Math.max(0, v);
+    calcTotal();
+    return;
+  }
+  // O total digitado é o valor final desejado — um desconto ativo voltaria a
+  // subtrair-se em cima dele, por isso é limpo.
+  const discInp = document.getElementById('f-discount-val');
+  if (discInp && parseFloat(discInp.value) > 0) discInp.value = '';
+  distributeManualTotal(v);
   calcTotal();
 }
 
@@ -809,6 +866,8 @@ function resetNightlyState() {
   _nightlyPrices = [];
   _nightlyGridSig = '';
   _manualTotalOverride = null;
+  _manualDistribWeights = null;
+  _wizMultiSuite = false;
   const allInp = document.getElementById('resf-nightly-all-val'); if (allInp) allInp.value = '';
 }
 

@@ -438,9 +438,11 @@ async function createReservation(req, res, next) {
     ).catch(() => {});
 
     notifyOrganization(parent.organization_id, 'new_reservation', {
-      title: '🆕 Nova reserva',
-      body: `${txResult.name} · ${accommodationName} · ${reservation.check_in} → ${reservation.check_out}`,
-      url: '/reservas',
+      title: '🟠 Nova reserva pendente',
+      body: `${txResult.name} · ${accommodationName} · ${reservation.check_in} → ${reservation.check_out} · Requer aprovação`,
+      url: `/reservas?reserva=${reservationId}`,
+      requireInteraction: true,
+      tag: `sp-new_reservation-${reservationId}`,
     });
 
     res.status(201).json({
@@ -606,7 +608,7 @@ function submitPreCheckin(req, res) {
   notifyOrganization(reservation.organization_id, 'precheckin', {
     title: '📝 Pré-check-in recebido',
     body: `${mainGuest.name} · entrada a ${reservation.check_in}`,
-    url: '/reservas',
+    url: `/reservas?reserva=${reservation.id}`,
   });
 
   res.json({ success: true });

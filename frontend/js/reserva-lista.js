@@ -320,6 +320,9 @@ function setReservasDetailMode(isDetail) {
 }
 
 function showReservasList() {
+  // Detalhe aberto com entrada própria no history: voltar atrás — o popstate
+  // volta a chamar esta função já sem `reservaDetail` e fecha via DOM.
+  if (history.state?.reservaDetail) { history.back(); return; }
   setReservasDetailMode(false);
   AppUI.closeModal('detail-bg');
   if (window.innerWidth <= 600) renderMobileCards();
@@ -391,7 +394,7 @@ async function toggleReservationTask(resId, kind, done) {
   }
 }
 
-async function showDetail(id) {
+async function showDetail(id, opts = {}) {
   try {
     if (!document.getElementById('view-reservas')?.classList.contains('active')) {
       window.__openingReservationDetail = true;
@@ -399,6 +402,14 @@ async function showDetail(id) {
       window.__openingReservationDetail = false;
     }
     setReservasDetailMode(true);
+    // Entrada no history para o back do browser/telemóvel fechar o detalhe.
+    // Detalhe→detalhe substitui a entrada para não empilhar "backs mortos".
+    if (!opts.fromHistory) {
+      const url = `/reservas?reserva=${encodeURIComponent(id)}`;
+      const st = { view: 'reservas', reservaDetail: id };
+      if (history.state?.reservaDetail) history.replaceState(st, '', url);
+      else history.pushState(st, '', url);
+    }
     const detailContent = document.getElementById('reserva-detail-content');
     const detailLoading = document.querySelector('#reserva-detail-page .reserva-detail-loading');
     if (detailContent) detailContent.innerHTML = '';

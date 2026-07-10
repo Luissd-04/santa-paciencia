@@ -5,8 +5,8 @@
                offline). Cache-first apenas para CDNs (fontes, libs).
 ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'sp-v19';
-const CACHE_VERSION = 19;
+const CACHE_NAME = 'sp-v20';
+const CACHE_VERSION = 20;
 
 /* Assets estáticos que devem funcionar offline */
 const STATIC_ASSETS = [
@@ -186,14 +186,19 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = event.notification.data?.url || '/';
 
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      for (const client of windowClients) {
-        if (client.url === targetUrl && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) return clients.openWindow(targetUrl);
-    })
-  );
+  event.waitUntil((async () => {
+    const windowClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    /* Só janelas da app (excluir páginas públicas, que não têm o handler de message) */
+    const isApp = (w) => {
+      const p = new URL(w.url).pathname;
+      return !p.startsWith('/pre-checkin') && !p.startsWith('/reservar') && !/^\/reserva\//.test(p);
+    };
+    const client = windowClients.find((w) => new URL(w.url).origin === self.location.origin && isApp(w));
+    if (client) {
+      if ('focus' in client) await client.focus();
+      client.postMessage({ type: 'sp-navigate', url: targetUrl });
+      return;
+    }
+    if (clients.openWindow) await clients.openWindow(targetUrl);
+  })());
 });
