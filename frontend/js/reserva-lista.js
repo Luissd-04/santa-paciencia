@@ -3,6 +3,39 @@ let sortAsc = SS.get('res:asc', true);
 let reservasViewMode = SS.get('res:view', 'card');
 let reservasDetailOpen = false;
 
+// Filtro de data exata (distinto do filtro de intervalo filter-date-from/to),
+// usado pelos atalhos "Chegadas hoje"/"Partidas hoje" do dashboard.
+let resExactDateFilter = null; // { field: 'check_in'|'check_out', date: 'AAAA-MM-DD' } | null
+
+function setResExactDateFilter(field, date) {
+  resExactDateFilter = { field, date };
+  ['filter-date-from', 'filter-date-to'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  renderResExactFilterChip();
+  renderTabela();
+}
+
+function clearResExactDateFilter() {
+  if (!resExactDateFilter) return;
+  resExactDateFilter = null;
+  renderResExactFilterChip();
+}
+
+function renderResExactFilterChip() {
+  const el = document.getElementById('res-exact-filter-chip');
+  if (!el) return;
+  if (!resExactDateFilter) {
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+  const label = resExactDateFilter.field === 'check_in' ? 'Chegadas de hoje' : 'Partidas de hoje';
+  el.style.display = 'block';
+  el.innerHTML = `<div class="chip active" style="display:inline-flex;align-items:center;gap:6px;" onclick="clearResExactDateFilter();renderTabela();">${label} ✕</div>`;
+}
+
 // Os chips mobile são apenas UI sobre o dropdown filter-estado — fonte única
 // de verdade. syncMobileChips() realinha o chip ativo com o valor do dropdown.
 function setMobileChip(el, filter) {
@@ -11,6 +44,7 @@ function setMobileChip(el, filter) {
     fe.value = filter;
     AppUI.refreshDropdowns(document.getElementById('view-reservas'));
   }
+  clearResExactDateFilter();
   syncMobileChips(filter);
   renderTabela();
 }
@@ -41,7 +75,8 @@ function getFilteredReservas() {
     const matchP = !fp || r.payment_status === fp;
     const matchD = !fd || r.check_in >= fd;
     const matchT = !ft || r.check_out <= ft;
-    return matchQ && matchE && matchS && matchC && matchP && matchD && matchT;
+    const matchExact = !resExactDateFilter || r[resExactDateFilter.field] === resExactDateFilter.date;
+    return matchQ && matchE && matchS && matchC && matchP && matchD && matchT && matchExact;
   });
 }
 
@@ -338,6 +373,7 @@ function clearReservasFilters() {
     if (el) el.value = '';
   });
   ['res:q', 'res:fe', 'res:fs', 'res:fc', 'res:fp', 'res:fd', 'res:ft', 'res:chip'].forEach(key => SS.set(key, ''));
+  clearResExactDateFilter();
   AppUI.refreshDropdowns(document.getElementById('view-reservas'));
   renderTabela(); // renderTabela chama syncMobileChips com o valor limpo
 }

@@ -1279,7 +1279,8 @@ select.form-control { cursor:pointer; }
 .sort-icon { font-size: 11px; margin-left: 3px; color: var(--azul-claro); }
 
 /* Tabela compacta — reservas */
-#view-reservas {
+#view-reservas,
+#view-alojamentos {
   min-width: 0;
   overflow-x: hidden;
 }

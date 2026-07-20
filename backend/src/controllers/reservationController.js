@@ -440,14 +440,15 @@ async function create(req, res, next) {
       const guestId = uuidv4();
       db.prepare(`
         INSERT INTO guests (id, name, email, phone, document_type, document_number, document_issuer_country,
-          nationality, first_name, last_name, birth_date, birth_city, nif, country, address, postal_code, city, organization_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          nationality, first_name, last_name, birth_date, birth_city, nif, country, address, postal_code, city, company, organization_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(guestId, guestName, guestEmail, guest?.phone || null,
              guest?.document_type || null, guest?.document_number || null,
              guest?.document_issuer_country || null, guest?.nationality || null,
              guest?.first_name || null, guest?.last_name || null, guest?.birth_date || null,
              guest?.birth_city || null, guest?.nif || null, guest?.country || null,
-             guest?.address || null, guest?.postal_code || null, guest?.city || null, organizationId);
+             guest?.address || null, guest?.postal_code || null, guest?.city || null,
+             guest?.company || null, organizationId);
       guestRecord = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(guestId, organizationId);
     } else {
       db.prepare(`UPDATE guests SET
@@ -458,7 +459,8 @@ async function create(req, res, next) {
         last_name = COALESCE(?, last_name), birth_date = COALESCE(?, birth_date),
         birth_city = COALESCE(?, birth_city),
         nif = COALESCE(?, nif), country = COALESCE(?, country),
-        address = COALESCE(?, address), postal_code = COALESCE(?, postal_code), city = COALESCE(?, city)
+        address = COALESCE(?, address), postal_code = COALESCE(?, postal_code), city = COALESCE(?, city),
+        company = COALESCE(?, company)
         WHERE id = ? AND organization_id = ?`).run(
         guest?.name || null, guest?.phone || null,
         guest?.document_type || null, guest?.document_number || null,
@@ -468,6 +470,7 @@ async function create(req, res, next) {
         guest?.birth_city || null,
         guest?.nif || null, guest?.country || null,
         guest?.address || null, guest?.postal_code || null, guest?.city || null,
+        guest?.company || null,
         guestRecord.id,
         organizationId
       );
@@ -696,6 +699,21 @@ async function update(req, res, next) {
         });
       }
 
+      // Multi-suite: verificar também os quartos adicionais (não só a suite
+      // principal) — sem isto seria possível fazer double-booking de um quarto
+      // secundário via API, mesmo que a UI já bloqueie isso no cliente.
+      if (Array.isArray(accommodations_data)) {
+        for (const item of accommodations_data) {
+          if (!item?.accommodation_id || item.accommodation_id === newAccommodationId) continue;
+          const extraConflict = findConflict(organizationId, item.accommodation_id, totals.checkIn, totals.checkOut, req.params.id);
+          if (extraConflict) {
+            return res.status(409).json({
+              error: `O alojamento adicional "${item.name || item.accommodation_id}" já está ocupado nessas datas (reserva ${extraConflict.id}).`
+            });
+          }
+        }
+      }
+
       // Verificar bloqueios manuais
       const block2 = findBlockConflict(organizationId, newAccommodationId, totals.checkIn, totals.checkOut);
       if (block2) {
@@ -715,7 +733,8 @@ async function update(req, res, next) {
         last_name = COALESCE(?, last_name), birth_date = COALESCE(?, birth_date),
         birth_city = COALESCE(?, birth_city),
         nif = COALESCE(?, nif), country = COALESCE(?, country),
-        address = COALESCE(?, address), postal_code = COALESCE(?, postal_code), city = COALESCE(?, city)
+        address = COALESCE(?, address), postal_code = COALESCE(?, postal_code), city = COALESCE(?, city),
+        company = COALESCE(?, company)
         WHERE id = ? AND organization_id = ?`).run(
         guest.name || null, guest.phone || null,
         guest.document_type || null, guest.document_number || null,
@@ -725,6 +744,7 @@ async function update(req, res, next) {
         guest.birth_city || null,
         guest.nif || null, guest.country || null,
         guest.address || null, guest.postal_code || null, guest.city || null,
+        guest.company || null,
         existing.guest_id,
         organizationId
       );

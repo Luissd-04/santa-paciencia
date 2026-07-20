@@ -47,6 +47,7 @@ function showView(v, pushState = true) {
   if (window.lucide) lucide.createIcons();
   if (v === 'dashboard') renderDashboard();
   if (v === 'reservas') {
+    if (typeof clearResExactDateFilter === 'function') clearResExactDateFilter();
     if (!window.__openingReservationDetail && typeof showReservasList === 'function') showReservasList();
     loadReservas();
   }

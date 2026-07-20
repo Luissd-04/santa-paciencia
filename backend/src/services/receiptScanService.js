@@ -65,18 +65,26 @@ async function scanReceipt({ base64, mediaType }) {
 
   const client = new Anthropic(); // lê ANTHROPIC_API_KEY do ambiente
 
-  const message = await client.messages.create({
-    model: MODEL,
-    max_tokens: 2048,
-    system: SYSTEM_PROMPT,
-    messages: [{
-      role: 'user',
-      content: [
-        { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-        { type: 'text', text: 'Extrai os artigos deste talão em JSON, seguindo estritamente o formato indicado.' },
-      ],
-    }],
-  });
+  let message;
+  try {
+    message = await client.messages.create({
+      model: MODEL,
+      max_tokens: 2048,
+      system: SYSTEM_PROMPT,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+          { type: 'text', text: 'Extrai os artigos deste talão em JSON, seguindo estritamente o formato indicado.' },
+        ],
+      }],
+    });
+  } catch (err) {
+    console.error('Erro na chamada Claude Vision:', err);
+    const wrapped = new Error('Não foi possível contactar o serviço de leitura de talões. Tenta novamente.');
+    wrapped.statusCode = 502;
+    throw wrapped;
+  }
 
   const textBlock = (message.content || []).find(b => b.type === 'text');
   const parsed = extractJson(textBlock && textBlock.text);

@@ -168,17 +168,16 @@ function goToTodayCheckins() {
   const today = new Date().toISOString().split('T')[0];
   showView('reservas');
   setTimeout(() => {
-    const fd = document.getElementById('filter-date-from');
-    const ft = document.getElementById('filter-date-to');
-    if (fd) fd.value = today;
-    if (ft) ft.value = today;
-    renderTabela();
-    renderMobileCards();
+    setResExactDateFilter('check_in', today);
   }, 50);
 }
 
 function goToTodayCheckouts() {
+  const today = new Date().toISOString().split('T')[0];
   showView('reservas');
+  setTimeout(() => {
+    setResExactDateFilter('check_out', today);
+  }, 50);
 }
 
 function quickScanReceiptFromDashboard() {

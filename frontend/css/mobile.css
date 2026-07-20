@@ -154,6 +154,7 @@
   /* Prevenir pull-to-refresh acidental */
   .main {
     overscroll-behavior-y: contain;
+    overflow-x: hidden;
   }
   .aloj-tabs,
   .reservas-mobile-chips,

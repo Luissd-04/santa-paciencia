@@ -340,26 +340,40 @@ const RECEIPT_CATS = [
 // Redimensiona/comprime a foto no browser antes de enviar.
 // 2560px + qualidade 0.9 aproveita a visão de alta resolução do modelo (lê melhor
 // talões pequenos/amarrotados); continua barato porque comprime para JPEG.
+//
+// Fotos tiradas diretamente com a câmara trazem a tag EXIF "Orientation" (ex. rodado
+// 90° em retrato no iPhone); desenhar o ficheiro tal como está num <img>+canvas ignora
+// essa tag e envia a imagem rodada para a IA de visão, que falha a ler o talão.
+// createImageBitmap com imageOrientation:'from-image' já lê essa tag nativamente —
+// tentamos primeiro essa via e só caímos no caminho antigo (Image+canvas) se a API
+// não existir ou falhar, sem alterar o comportamento nesses browsers.
 function _compressImage(file, maxDim = 2560, quality = 0.9) {
-  return new Promise((resolve, reject) => {
+  const drawAndResolve = (source, resolve) => {
+    let { width, height } = source;
+    if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
+    else if (height >= width && height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    canvas.getContext('2d').drawImage(source, 0, 0, width, height);
+    resolve(canvas.toDataURL('image/jpeg', quality));
+  };
+
+  const legacyPath = () => new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = e => {
       const img = new Image();
-      img.onload = () => {
-        let { width, height } = img;
-        if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
-        else if (height >= width && height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
-        const canvas = document.createElement('canvas');
-        canvas.width = width; canvas.height = height;
-        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
+      img.onload = () => drawAndResolve(img, resolve);
       img.onerror = reject;
       img.src = e.target.result;
     };
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+
+  if (!window.createImageBitmap) return legacyPath();
+  return createImageBitmap(file, { imageOrientation: 'from-image' })
+    .then(bitmap => new Promise(resolve => drawAndResolve(bitmap, resolve)))
+    .catch(() => legacyPath());
 }
 
 // As câmaras Apple gravam por defeito em HEIC, que a maioria dos browsers (fora o
@@ -419,7 +433,12 @@ async function onReceiptSelected(input) {
     if (res.success) _renderReceiptReview(res.data);
     else _renderReceiptError(res.error || 'Erro ao ler o talão.');
   } catch (e) {
-    _renderReceiptError(e?.payload?.error || 'Erro ao ler o talão. Verifica a ligação e a chave da API no servidor.');
+    if (e?.payload?.error) {
+      _renderReceiptError(e.payload.error);
+    } else {
+      console.error('Falha ao contactar /api/expenses/scan-receipt:', e);
+      _renderReceiptError('Não foi possível contactar o servidor. Verifica a tua ligação à internet e tenta novamente.');
+    }
   }
 }
 

@@ -84,7 +84,7 @@ function updateForeignRequirements() {
 
 function _resetGuestFields() {
   ['f-nome-completo','f-email','f-tel-num',
-   'f-doc-num','f-local-nascimento','f-nascimento','f-nif','f-morada','f-cp','f-cidade','f-notas'].forEach(id => {
+   'f-doc-num','f-local-nascimento','f-nascimento','f-nif','f-empresa','f-morada','f-cp','f-cidade','f-notas'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   const docTipo = document.getElementById('f-doc-tipo'); if (docTipo) docTipo.value = '';
@@ -165,6 +165,8 @@ let _lastExtrasTotal = 0;        // extras (taxa turística, PA, ocupação extr
 let _manualDistribWeights = null; // pesos por noite fixados ao focar o campo de total manual
 let _manualDistribWarned = false; // evita repetir o aviso "total < extras" a cada tecla
 let _wizMultiSuite = false;      // reserva em edição tem >1 suites (grelha só mostra a principal)
+let _wizExtraRooms = [];         // quartos extra escolhidos no wizard: [{accommodation_id, name, price_per_night, subtotal}]
+let _wizHadMultiSuiteOnLoad = false; // reserva já era multi-suite ao abrir para edição (para poder limpar quartos extra)
 let _standardNightlyByDate = {}; // preço padrão por noite (calendário dinâmico, sem overrides)
 let _editingPriceInfo = null;    // { price_edited_at, price_edited_by_name } da reserva em edição
 let _wizardPageMode = false;     // "Editar reserva" aberto como página completa (a partir do detalhe)
@@ -221,6 +223,10 @@ function openModal(config = {}) {
   _editingPriceInfo = null;
   _wizardPageMode = false;
   _returnToDetailId = null;
+  _wizMultiSuite = false;
+  _wizExtraRooms = [];
+  _wizHadMultiSuiteOnLoad = false;
+  _wizResetExtraRoomsPanel();
   document.getElementById('modal-bg')?.classList.remove('resf-page-mode');
   const titleEl = document.getElementById('modal-title');
   if (titleEl) titleEl.textContent = 'Nova Reserva';
@@ -311,6 +317,8 @@ async function openEditModal(id) {
 
     editingId = id;
     _editingPriceInfo = { price_edited_at: r.price_edited_at, price_edited_by_name: r.price_edited_by_name };
+    _wizExtraRooms = [];
+    _wizResetExtraRoomsPanel();
     document.getElementById('modal-title').textContent = 'Editar Reserva — ' + id;
     document.getElementById('btn-guardar').textContent = 'Atualizar Reserva';
     buildCountrySelects();
@@ -347,6 +355,7 @@ async function openEditModal(id) {
     document.getElementById('f-local-nascimento').value  = guestFull.birth_city || '';
     updateForeignRequirements();
     document.getElementById('f-nif').value            = guestFull.nif || '';
+    document.getElementById('f-empresa').value        = guestFull.company || '';
     document.getElementById('f-morada').value         = guestFull.address || '';
     document.getElementById('f-cp').value             = guestFull.postal_code || '';
     document.getElementById('f-cidade').value         = guestFull.city || '';
@@ -434,6 +443,17 @@ async function openEditModal(id) {
       ? (() => { try { return JSON.parse(r.accommodations_data || '[]'); } catch { return []; } })()
       : (r.accommodations_data || []);
     _wizMultiSuite = Array.isArray(accsData) && accsData.length > 1;
+    _wizHadMultiSuiteOnLoad = _wizMultiSuite;
+    // Suites adicionais (além da principal) — preenchem o painel "Adicionar outro
+    // quarto" para poderem ser vistas/editadas também a partir do wizard.
+    _wizExtraRooms = (Array.isArray(accsData) ? accsData : [])
+      .filter(item => item.accommodation_id !== r.accommodation_id)
+      .map(item => ({
+        accommodation_id: item.accommodation_id,
+        name: item.name || '',
+        price_per_night: Number(item.price_per_night || 0),
+        subtotal: Number(item.subtotal || 0),
+      }));
     if (!isNaN(storedTotal) && !isNaN(recomputed) && Math.abs(storedTotal - recomputed) > 0.01) {
       if (_wizMultiSuite) {
         _manualTotalOverride = storedTotal;
@@ -441,7 +461,14 @@ async function openEditModal(id) {
         _manualDistribWeights = null;
         distributeManualTotal(storedTotal);
       }
-      await calcTotal();
+    }
+    await calcTotal();
+    if (_wizExtraRooms.length > 0) {
+      const extraPanel = document.getElementById('wiz-extra-rooms-panel');
+      const extraLabel = document.getElementById('wiz-extra-rooms-toggle-label');
+      if (extraPanel) extraPanel.style.display = '';
+      if (extraLabel) extraLabel.textContent = 'Esconder quartos extra';
+      renderWizExtraRooms();
     }
     renderSuiteCards();
     updateWizSummary();
@@ -679,13 +706,18 @@ async function calcTotal() {
     _standardNightlyByDate = Object.fromEntries(stdNightly.map(n => [n.date, n.price]));
     renderNightlyGrid();
 
+    // Quartos extra (multi-suite): somam-se à suite principal antes do desconto;
+    // os extras (taxa turística, PA, ocupação extra) já só contam para a principal.
+    _wizMultiSuite = _wizExtraRooms.length > 0;
+    const combinedBaseTotal = totals.totalAmount + wizExtraRoomsSubtotal();
+
     const discVal = parseFloat(document.getElementById('f-discount-val')?.value) || 0;
     const discType = document.getElementById('f-discount-type')?.value || 'pct';
-    let finalTotal = totals.totalAmount;
+    let finalTotal = combinedBaseTotal;
     if (discVal > 0) {
       finalTotal = discType === 'pct'
-        ? totals.totalAmount * (1 - Math.min(discVal, 100) / 100)
-        : Math.max(0, totals.totalAmount - discVal);
+        ? combinedBaseTotal * (1 - Math.min(discVal, 100) / 100)
+        : Math.max(0, combinedBaseTotal - discVal);
     }
     // Total manual sobrepõe-se a tudo (mas coexiste com o desconto, que continua visível).
     if (_manualTotalOverride != null) finalTotal = _manualTotalOverride;
@@ -812,6 +844,7 @@ function updateNightlyTotalField(finalTotal) {
 function snapshotManualDistribWeights() {
   _manualDistribWeights = _nightlyPrices.map(n => Math.max(0, Number(n.price) || 0));
   _manualDistribWarned = false;
+  document.getElementById('f-total-manual')?.select();
 }
 
 // Distribui o total digitado (menos extras) pelas noites, proporcionalmente
@@ -1320,6 +1353,125 @@ async function fetchSuiteAvailability() {
     updateWizSummary();
     calcTotal();
   }
+  const extraPanel = document.getElementById('wiz-extra-rooms-panel');
+  if (extraPanel && extraPanel.style.display !== 'none') renderWizExtraRooms();
+}
+
+// ── Quartos extra na mesma reserva (multi-suite) ──
+
+function _wizResetExtraRoomsPanel() {
+  const panel = document.getElementById('wiz-extra-rooms-panel');
+  const label = document.getElementById('wiz-extra-rooms-toggle-label');
+  if (panel) panel.style.display = 'none';
+  if (label) label.textContent = 'Adicionar outro quarto';
+}
+
+function wizToggleExtraRooms() {
+  const panel = document.getElementById('wiz-extra-rooms-panel');
+  const label = document.getElementById('wiz-extra-rooms-toggle-label');
+  if (!panel) return;
+  const opening = panel.style.display === 'none';
+  panel.style.display = opening ? '' : 'none';
+  if (label) label.textContent = opening ? 'Esconder quartos extra' : 'Adicionar outro quarto';
+  if (opening) renderWizExtraRooms();
+}
+
+function _wizExtraRoomNights() {
+  const ci = normalizeIsoDateValue(document.getElementById('f-checkin')?.value);
+  const co = normalizeIsoDateValue(document.getElementById('f-checkout')?.value);
+  return window.ReservationDates?.countNights(ci, co) || 0;
+}
+
+function wizExtraRoomsSubtotal() {
+  return _wizExtraRooms.reduce((sum, r) => sum + (Number(r.subtotal) || 0), 0);
+}
+
+// Monta o array accommodations_data (suite principal + quartos extra) no mesmo
+// formato já usado pelo painel "Editar Alojamento" (reserva-lista.js), para o
+// backend persistir e recalcular exatamente da mesma forma.
+function _wizBuildAccommodationsData(primaryId, primaryName) {
+  const nights = _nightlyPrices.length || _wizExtraRoomNights() || 1;
+  const primarySubtotal = _nightlyPrices.reduce((sum, n) => sum + (Number(n.price) || 0), 0);
+  const primaryRoom = {
+    accommodation_id: primaryId,
+    name: primaryName || '',
+    price_per_night: nights > 0 ? primarySubtotal / nights : 0,
+    nights,
+    subtotal: primarySubtotal,
+  };
+  return [primaryRoom, ..._wizExtraRooms.map(r => ({ ...r, nights }))];
+}
+
+async function renderWizExtraRooms() {
+  const panel = document.getElementById('wiz-extra-rooms-panel');
+  if (!panel) return;
+  const ci = normalizeIsoDateValue(document.getElementById('f-checkin')?.value);
+  const co = normalizeIsoDateValue(document.getElementById('f-checkout')?.value);
+  const primaryId = document.getElementById('f-aloj')?.value;
+  if (!ci || !co || new Date(co) <= new Date(ci) || !primaryId) {
+    panel.innerHTML = '<div style="font-size:13px;color:var(--cinza);padding:8px 2px;">Define primeiro as datas e o alojamento principal.</div>';
+    return;
+  }
+  panel.innerHTML = '<div class="rdv2-acc-loading">A verificar disponibilidade…</div>';
+  let unavailable = new Set();
+  try {
+    const excludeParam = editingId ? `&exclude_id=${encodeURIComponent(editingId)}` : '';
+    const data = await apiGet(`/api/reservations/availability?check_in=${ci}&check_out=${co}${excludeParam}`);
+    unavailable = new Set(data.data?.unavailable || []);
+  } catch { /* falha a verificar disponibilidade — mostra tudo como disponível */ }
+
+  const selectedIds = new Set(_wizExtraRooms.map(r => r.accommodation_id));
+  const rows = accommodations.filter(a => a.id !== primaryId).map(a => {
+    const isChecked = selectedIds.has(a.id);
+    const isUnavail = unavailable.has(a.id) && !isChecked;
+    const existing = _wizExtraRooms.find(r => r.accommodation_id === a.id);
+    const price = existing ? Number(existing.price_per_night) : Number(a.price_per_night || 0);
+    return `
+      <div class="rdv2-acc-option${isUnavail ? ' rdv2-acc-unavail' : ''}${isChecked ? ' rdv2-acc-selected' : ''}" data-id="${a.id}">
+        <label class="rdv2-acc-check-wrap">
+          <input type="checkbox" class="rdv2-acc-cb" value="${a.id}" ${isChecked ? 'checked' : ''} ${isUnavail ? 'disabled' : ''} onchange="onWizExtraRoomCheck(this)">
+        </label>
+        <div class="rdv2-acc-opt-info">
+          <div class="rdv2-acc-opt-name">${a.name}${isUnavail ? ' <span class="rdv2-badge-unavail">ocupado</span>' : ''}</div>
+          <div class="rdv2-acc-opt-meta">${a.max_guests ? `max ${a.max_guests} hósp. · ` : ''}Base: €${Number(a.price_per_night || 0).toFixed(0)}/noite</div>
+        </div>
+        <div class="rdv2-acc-price-edit">
+          <input type="number" class="rdv2-acc-priceinput" data-accid="${a.id}" min="0" step="0.01" value="${price.toFixed(2)}" oninput="onWizExtraRoomPriceInput(this)" autocomplete="off">
+          <span class="rdv2-acc-priceinput-label">€/noite</span>
+        </div>
+      </div>`;
+  }).join('');
+  panel.innerHTML = rows || '<div style="font-size:13px;color:var(--cinza);padding:8px 2px;">Não há mais alojamentos.</div>';
+  if (window.lucide) lucide.createIcons({ nodes: [panel] });
+}
+
+function onWizExtraRoomCheck(cb) {
+  const row = cb.closest('.rdv2-acc-option');
+  if (row) row.classList.toggle('rdv2-acc-selected', cb.checked);
+  const accId = cb.value;
+  const nights = _wizExtraRoomNights();
+  _wizExtraRooms = _wizExtraRooms.filter(r => r.accommodation_id !== accId);
+  if (cb.checked) {
+    const acc = accommodations.find(a => a.id === accId);
+    const priceInput = row?.querySelector('.rdv2-acc-priceinput');
+    const pricePerNight = parseFloat(priceInput?.value) || Number(acc?.price_per_night || 0);
+    _wizExtraRooms.push({
+      accommodation_id: accId, name: acc?.name || '',
+      price_per_night: pricePerNight, subtotal: pricePerNight * nights,
+    });
+  }
+  _manualTotalOverride = null;
+  calcTotal();
+}
+
+function onWizExtraRoomPriceInput(input) {
+  const accId = input.dataset.accid;
+  const pricePerNight = parseFloat(input.value) || 0;
+  const nights = _wizExtraRoomNights();
+  const item = _wizExtraRooms.find(r => r.accommodation_id === accId);
+  if (item) { item.price_per_night = pricePerNight; item.subtotal = pricePerNight * nights; }
+  _manualTotalOverride = null;
+  calcTotal();
 }
 
 function updateWizUI() {
@@ -1510,6 +1662,12 @@ function selectSuiteCard(id) {
     _nightlyGridSig = '';
     const allInp = document.getElementById('resf-nightly-all-val'); if (allInp) allInp.value = '';
   }
+  // A nova suite principal não pode continuar também na lista de quartos extra.
+  if (_wizExtraRooms.some(r => r.accommodation_id === id)) {
+    _wizExtraRooms = _wizExtraRooms.filter(r => r.accommodation_id !== id);
+  }
+  const extraPanel = document.getElementById('wiz-extra-rooms-panel');
+  if (extraPanel && extraPanel.style.display !== 'none') renderWizExtraRooms();
   renderSuiteCards();
   calcTotal();
 }
@@ -1553,6 +1711,7 @@ function buildWizConfirm() {
       </div>
       <div class="wiz-conf-sub">${canal} · ${numH} hóspede${numH !== 1 ? 's' : ''}</div>
       <div class="wiz-conf-sub">${bkf ? '🥐 Pequeno-almoço incl.' : 'Sem pequeno-almoço'}</div>
+      ${_wizExtraRooms.length > 0 ? `<div class="wiz-conf-sub">+ ${_wizExtraRooms.length} quarto${_wizExtraRooms.length !== 1 ? 's' : ''} extra: ${_wizExtraRooms.map(r => r.name).join(', ')}</div>` : ''}
     </div>
     <div class="wiz-conf-cell">
       <div class="wiz-conf-lbl">Datas</div>
@@ -1618,6 +1777,7 @@ function wizSelectGuest(idx) {
   document.getElementById('f-nascimento').value = formatDateForBirthInput(g.birth_date || '');
   document.getElementById('f-local-nascimento').value = g.birth_city || '';
   document.getElementById('f-nif').value = g.nif || '';
+  document.getElementById('f-empresa').value = g.company || '';
   document.getElementById('f-morada').value = g.address || '';
   document.getElementById('f-cp').value = g.postal_code || '';
   document.getElementById('f-cidade').value = g.city || '';
@@ -1774,6 +1934,9 @@ async function saveReserva() {
         guests_data: collectExtraGuests(),
         nightly_prices: nightlyPricesPayload,
         ...(manualTotalOverride !== undefined ? { total_amount: manualTotalOverride } : {}),
+        ...((_wizExtraRooms.length > 0 || _wizHadMultiSuiteOnLoad)
+          ? { accommodations_data: _wizExtraRooms.length > 0 ? _wizBuildAccommodationsData(alojId, selectedAccommodation?.name) : [] }
+          : {}),
         guest: {
           name: nomeFull, first_name: primeiroNome, last_name: apelido,
           email, phone: tel, nationality: pais, country: pais,
@@ -1783,6 +1946,7 @@ async function saveReserva() {
           birth_date:               birthDate || null,
           birth_city:               document.getElementById('f-local-nascimento')?.value  || null,
           nif:                      document.getElementById('f-nif')?.value               || null,
+          company:                  document.getElementById('f-empresa')?.value           || null,
           address:                  document.getElementById('f-morada')?.value            || null,
           postal_code:              document.getElementById('f-cp')?.value                || null,
           city:                     document.getElementById('f-cidade')?.value            || null,
@@ -1814,6 +1978,7 @@ async function saveReserva() {
           birth_date:               birthDate || null,
           birth_city:               document.getElementById('f-local-nascimento')?.value  || null,
           nif:                      document.getElementById('f-nif')?.value               || null,
+          company:                  document.getElementById('f-empresa')?.value           || null,
           address:                  document.getElementById('f-morada')?.value            || null,
           postal_code:              document.getElementById('f-cp')?.value                || null,
           city:                     document.getElementById('f-cidade')?.value            || null,
@@ -1840,7 +2005,28 @@ async function saveReserva() {
       };
       const res = await apiPost('/api/reservations', body);
       if (res.success) {
-        toast('✅ Reserva criada com sucesso!', 'success');
+        // Quartos extra: a criação é sempre single-room; anexamos os quartos
+        // adicionais logo a seguir através do mesmo PUT que o painel "Editar
+        // Alojamento" já usa (reutiliza toda a lógica de backend já testada).
+        let extraRoomsWarning = '';
+        if (_wizExtraRooms.length > 0) {
+          const combinedTotal = parseFloat(document.getElementById('f-total')?.value);
+          try {
+            const putRes = await apiPut(`/api/reservations/${res.data.id}`, {
+              accommodation_id: alojId,
+              accommodations_data: _wizBuildAccommodationsData(alojId, selectedAccommodation?.name),
+              ...(!isNaN(combinedTotal) ? { total_amount: combinedTotal } : {}),
+            });
+            if (!putRes.success) extraRoomsWarning = putRes.error || 'Erro ao associar os quartos extra.';
+          } catch (e) {
+            extraRoomsWarning = e?.payload?.error || 'Erro de ligação ao associar os quartos extra.';
+          }
+        }
+        if (extraRoomsWarning) {
+          toast(`⚠️ Reserva criada, mas os quartos extra não foram associados (${extraRoomsWarning}). Usa "Editar alojamento" no detalhe da reserva para os adicionar.`, 'error');
+        } else {
+          toast('✅ Reserva criada com sucesso!', 'success');
+        }
         clearReservaDraft();
         closeModal();
         await loadReservas();

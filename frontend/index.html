@@ -366,7 +366,7 @@
                 <i data-lucide="search"></i>
                 <input type="text" id="search-input" placeholder="Pesquisar hóspede, ID..." oninput="renderTabela()" autocomplete="off">
               </div>
-              <select class="form-control" id="filter-estado" data-enhance-select data-app-select-class="app-select--filter" onchange="renderTabela()">
+              <select class="form-control" id="filter-estado" data-enhance-select data-app-select-class="app-select--filter" onchange="clearResExactDateFilter();renderTabela()">
                 <option value="">Todos os estados</option>
                 <option value="pre_reserva">Pré-reserva</option>
                 <option value="confirmada">Confirmada</option>
@@ -396,9 +396,9 @@
                 <option value="pendente">Não pago</option>
               </select>
               <div style="display:flex;align-items:center;gap:4px;">
-                <input type="date" class="form-control" id="filter-date-from" title="Check-in a partir de" onchange="renderTabela();_openDateTo()" style="width:auto;" autocomplete="off">
+                <input type="date" class="form-control" id="filter-date-from" title="Check-in a partir de" onchange="clearResExactDateFilter();renderTabela();_openDateTo()" style="width:auto;" autocomplete="off">
                 <span style="color:var(--cinza);font-size:13px;">→</span>
-                <input type="date" class="form-control" id="filter-date-to" title="Check-out até" onchange="renderTabela()" style="width:auto;" autocomplete="off">
+                <input type="date" class="form-control" id="filter-date-to" title="Check-out até" onchange="clearResExactDateFilter();renderTabela()" style="width:auto;" autocomplete="off">
               </div>
               <button class="btn btn-ghost btn-sm" onclick="clearReservasFilters()" title="Limpar filtros">
                 <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar
@@ -427,6 +427,7 @@
               <div class="chip" onclick="setMobileChip(this,'pre_checkin')">Pre Check-in</div>
               <div class="chip" onclick="setMobileChip(this,'cancelada')">Canceladas</div>
             </div>
+            <div id="res-exact-filter-chip" style="display:none;"></div>
             <div id="mobile-res-cards" class="reservas-mobile-cards"></div>
           </div>
 
@@ -1889,7 +1890,7 @@
             <div class="card-header">
               <span class="card-title"><i data-lucide="bar-chart-2"></i> Receita vs Despesas</span>
             </div>
-            <div style="position:relative;height:300px;">
+            <div style="position:relative;height:260px;">
               <canvas id="chart-lucro"></canvas>
             </div>
           </div>
@@ -2862,6 +2863,15 @@
           <div class="suite-cards" id="suite-cards-grid"></div>
         </div>
 
+        <!-- ── Adicionar quartos extra à mesma reserva (multi-suite) ── -->
+        <div class="form-group form-full" id="wiz-extra-rooms-toggle-wrap" style="margin-top:10px;">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="wizToggleExtraRooms()">
+            <i data-lucide="plus" style="width:14px;height:14px;"></i>
+            <span id="wiz-extra-rooms-toggle-label">Adicionar outro quarto</span>
+          </button>
+        </div>
+        <div class="form-group form-full" id="wiz-extra-rooms-panel" style="display:none;margin-top:10px;"></div>
+
         <!-- ── Preço por noite (editável, noite a noite) ── -->
         <div id="resf-nightly-wrap" class="resf-nightly" style="margin-top:16px;display:none;">
           <div class="resf-nightly-head">
@@ -2972,6 +2982,10 @@
           <div class="form-group">
             <label class="form-label">NIF</label>
             <input class="form-control" id="f-nif" placeholder="000 000 000" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Empresa</label>
+            <input class="form-control" id="f-empresa" placeholder="Nome da empresa (opcional)" autocomplete="off">
           </div>
           <div class="form-group form-full">
             <label class="form-label">Morada</label>
