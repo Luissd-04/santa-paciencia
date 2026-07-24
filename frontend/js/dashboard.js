@@ -159,7 +159,7 @@ function renderMobileDashboard(upcoming = []) {
   }
 
   // Mirror desktop KPI values into mobile
-  [['m-kpi-faturado','kpi-faturado'],['m-kpi-ativas','kpi-ativas'],
+  [['m-kpi-ativas','kpi-ativas'],
    ['m-kpi-noites','kpi-noites'],['m-kpi-ocup','kpi-ocup']].forEach(([mId, dId]) => {
     const mel = document.getElementById(mId);
     const del = document.getElementById(dId);

@@ -1,0 +1,62 @@
+/* ═══════════════════════════════════════════════════════════════
+   SANTA PACIÊNCIA — folha inferior partilhada (bottom sheet)
+   Qualquer painel adota o padrão: .m-sheet no elemento, .m-sheet-backdrop
+   no scrim, alternar .m-sheet-open em ambos para abrir/fechar.
+   Mesmo mecanismo já usado em #precos-side-panel (ver precos.js).
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+  .m-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 260;
+    background: var(--branco);
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -8px 30px rgba(42, 24, 16, 0.18);
+    max-height: 80dvh;
+    overflow-y: auto;
+    transform: translateY(100%);
+    transition: transform 280ms cubic-bezier(0.4, 0, 0.2, 1);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .m-sheet.m-sheet-open {
+    transform: translateY(0);
+  }
+
+  .m-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(42, 24, 16, 0.35);
+    z-index: 259;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 280ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .m-sheet-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .m-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(43, 24, 16, 0.08);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--azul);
+  }
+  .m-sheet-close {
+    background: none;
+    border: none;
+    color: var(--cinza);
+    cursor: pointer;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}

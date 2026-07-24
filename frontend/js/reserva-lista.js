@@ -136,7 +136,7 @@ function renderResCardActions(r) {
 
 function renderResCard(r) {
   const bc = STATUS_COLORS[r.status] || 'var(--marca)';
-  return `<div class="m-res-card" style="border-left-color:${bc}" onclick="showDetail('${r.id}')">
+  return `<div class="m-res-card m-card" style="border-left-color:${bc}" onclick="showDetail('${r.id}')">
     ${renderResCardHeader(r)}
     ${renderResCardMeta(r)}
     ${renderResCardTotal(r)}
@@ -186,6 +186,13 @@ function applyReservasViewMode() {
   if (cards) cards.style.setProperty('display', reservasViewMode === 'card' ? 'block' : 'none', 'important');
   if (list) list.style.setProperty('display', reservasViewMode === 'list' ? 'block' : 'none', 'important');
   updateReservasViewToggle();
+}
+
+// No mobile, o painel de filtros (suite/canal/pagamento/datas) vira uma
+// folha deslizante — mesmo mecanismo de #precos-side-panel (precos.js).
+function toggleReservasFiltersSheet(open) {
+  document.getElementById('reservas-filter-panel')?.classList.toggle('m-sheet-open', open);
+  document.getElementById('reservas-filters-backdrop')?.classList.toggle('active', open);
 }
 
 function setReservasViewMode(mode) {

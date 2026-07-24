@@ -32,6 +32,7 @@
 <link rel="stylesheet" href="css/views/operations.css">
 <link rel="stylesheet" href="css/views/invoice.css">
 <link rel="stylesheet" href="css/components/card.css">
+<link rel="stylesheet" href="css/components/sheet.css">
 <link rel="stylesheet" href="css/animations.css">
 <link rel="stylesheet" href="css/mobile.css">
 <script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js" integrity="sha384-bdZtphetAEBgkGZvhZXOFDWc55tHGLqaSo1f4qZtgvEiolEBqlJ9u6FTk+CoLfj0" crossorigin="anonymous"></script>
@@ -256,11 +257,6 @@
             </div>
             <div class="m-kpi-strip m-card stagger-2">
               <div class="m-kpi-col">
-                <div class="m-kpi-label">Faturado</div>
-                <div class="m-kpi-value" id="m-kpi-faturado">€—</div>
-                <div class="m-kpi-sub">confirmadas</div>
-              </div>
-              <div class="m-kpi-col">
                 <div class="m-kpi-label">Ativas</div>
                 <div class="m-kpi-value" id="m-kpi-ativas">—</div>
                 <div class="m-kpi-sub">em curso</div>
@@ -368,7 +364,14 @@
             </div>
           </div>
 
-          <div class="reservas-filter-panel">
+          <div class="m-sheet-backdrop" id="reservas-filters-backdrop" onclick="toggleReservasFiltersSheet(false)"></div>
+          <div class="reservas-filter-panel m-sheet" id="reservas-filter-panel">
+            <div class="m-sheet-header">
+              <span>Filtros</span>
+              <button class="m-sheet-close" onclick="toggleReservasFiltersSheet(false)" aria-label="Fechar">
+                <i data-lucide="x"></i>
+              </button>
+            </div>
             <div class="toolbar reservas-toolbar">
               <div class="search-box reservas-search-box">
                 <i data-lucide="search"></i>
@@ -435,6 +438,9 @@
               <div class="chip" onclick="setMobileChip(this,'pre_checkin')">Pre Check-in</div>
               <div class="chip" onclick="setMobileChip(this,'cancelada')">Canceladas</div>
             </div>
+            <button class="m-filters-trigger" onclick="toggleReservasFiltersSheet(true)">
+              <i data-lucide="sliders-horizontal"></i> Filtros
+            </button>
             <div id="res-exact-filter-chip" style="display:none;"></div>
             <div id="mobile-res-cards" class="reservas-mobile-cards"></div>
           </div>

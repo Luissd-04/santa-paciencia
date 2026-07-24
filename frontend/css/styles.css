@@ -2982,11 +2982,12 @@ select.form-control { cursor:pointer; }
 }
 .chip.active { background: var(--marca); color: #fff; border-color: var(--marca); }
 
-/* ── Mobile Reservation Cards ── */
+/* ── Mobile Reservation Cards — radius/sombra/borda vêm de .m-card ── */
 .m-res-card {
-  background: var(--branco); border-radius: 14px; padding: 14px;
-  margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.04);
-  border-left: 3px solid var(--marca); cursor: pointer;
+  padding: 14px;
+  margin-bottom: 10px;
+  border-left: 3px solid var(--marca);
+  cursor: pointer;
 }
 .m-res-card .mrc-top {
   display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px;

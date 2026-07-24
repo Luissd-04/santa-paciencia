@@ -1324,7 +1324,8 @@ body.tl-is-panning * {
     width: 100%;
     border: 1px solid var(--border-soft);
     border-left: 4px solid var(--agenda-color, var(--marca));
-    border-radius: 12px;
+    border-radius: var(--mobile-radius, 16px);
+    box-shadow: var(--mobile-shadow-card);
     background: var(--surface-card-strong);
     padding: 11px 12px;
     display: grid;
