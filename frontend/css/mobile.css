@@ -433,6 +433,13 @@
     display: none !important;
   }
 
+  /* Neutraliza o transform preso de view-entering (ver comentário em
+     toggleReservasFiltersSheet, reserva-lista.js) para que a folha de
+     filtros fique position:fixed relativa ao viewport, não à vista. */
+  #view-reservas.m-sheet-ancestor-fix {
+    transform: none !important;
+  }
+
   /* .reservas-filter-panel já é .m-sheet (ver components/sheet.css);
      dentro da folha só interessam suite/canal/pagamento/datas —
      estado já está nos chips, pesquisa já está no campo mobile,

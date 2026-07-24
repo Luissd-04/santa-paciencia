@@ -190,9 +190,18 @@ function applyReservasViewMode() {
 
 // No mobile, o painel de filtros (suite/canal/pagamento/datas) vira uma
 // folha deslizante — mesmo mecanismo de #precos-side-panel (precos.js).
+//
+// #view-reservas fica com transform:translateY(0) preso (herdado da
+// animação de entrada view-entering, que a showView() nunca remove
+// enquanto a vista está ativa — ver app.js:34-39). Qualquer transform
+// no ancestral, mesmo um "no-op" como translateY(0), vira o containing
+// block de elementos position:fixed — a folha ficava fixa à vista
+// (que é mais alta que o ecrã), não ao viewport, por isso abria fora
+// de vista. m-sheet-ancestor-fix neutraliza isso enquanto a folha está aberta.
 function toggleReservasFiltersSheet(open) {
   document.getElementById('reservas-filter-panel')?.classList.toggle('m-sheet-open', open);
   document.getElementById('reservas-filters-backdrop')?.classList.toggle('active', open);
+  document.getElementById('view-reservas')?.classList.toggle('m-sheet-ancestor-fix', open);
 }
 
 function setReservasViewMode(mode) {
