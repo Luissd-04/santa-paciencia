@@ -31,6 +31,8 @@
 <link rel="stylesheet" href="css/views/despesas.css">
 <link rel="stylesheet" href="css/views/operations.css">
 <link rel="stylesheet" href="css/views/invoice.css">
+<link rel="stylesheet" href="css/components/card.css">
+<link rel="stylesheet" href="css/animations.css">
 <link rel="stylesheet" href="css/mobile.css">
 <script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js" integrity="sha384-bdZtphetAEBgkGZvhZXOFDWc55tHGLqaSo1f4qZtgvEiolEBqlJ9u6FTk+CoLfj0" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script>
@@ -240,7 +242,8 @@
       <div class="view active" id="view-dashboard">
         <section class="dashboard-shell">
           <div id="dash-mobile" class="dashboard-mobile-layout" style="display:none">
-            <div class="dashboard-mobile-highlight" onclick="showView('reservas')">
+            <div class="dashboard-mobile-highlight m-card stagger-1" onclick="showView('reservas')">
+              <div class="m-hero-icon"><i data-lucide="door-open"></i></div>
               <div class="dashboard-mobile-highlight-copy">
                 <div class="mac-label">Chegadas Hoje</div>
                 <div class="mac-count" id="mac-count">—</div>
@@ -251,54 +254,59 @@
                 <span id="mac-next-text"></span>
               </div>
             </div>
-            <div class="mobile-kpi-grid dashboard-mobile-kpis">
-              <div class="m-kpi gold">
+            <div class="m-kpi-strip m-card stagger-2">
+              <div class="m-kpi-col">
                 <div class="m-kpi-label">Faturado</div>
                 <div class="m-kpi-value" id="m-kpi-faturado">€—</div>
-                <div class="m-kpi-sub">reservas confirmadas</div>
+                <div class="m-kpi-sub">confirmadas</div>
               </div>
-              <div class="m-kpi green">
+              <div class="m-kpi-col">
                 <div class="m-kpi-label">Ativas</div>
                 <div class="m-kpi-value" id="m-kpi-ativas">—</div>
                 <div class="m-kpi-sub">em curso</div>
               </div>
-              <div class="m-kpi brown">
+              <div class="m-kpi-col">
                 <div class="m-kpi-label">Noites</div>
                 <div class="m-kpi-value" id="m-kpi-noites">—</div>
                 <div class="m-kpi-sub">este mês</div>
               </div>
-              <div class="m-kpi">
+              <div class="m-kpi-col">
                 <div class="m-kpi-label">Ocupação</div>
                 <div class="m-kpi-value" id="m-kpi-ocup">—</div>
                 <div class="m-kpi-sub">média</div>
               </div>
             </div>
-            <div class="view-section-heading">
+            <div class="view-section-heading stagger-3">
               <h3>Ações Rápidas</h3>
               <span>Atalhos para a operação diária</span>
             </div>
-            <div class="mobile-quick-grid dashboard-mobile-actions">
-              <div class="quick-item" onclick="goToTodayCheckins()">
-                <div class="quick-icon green"><i data-lucide="log-in"></i></div>
+            <div class="mobile-quick-grid dashboard-mobile-actions stagger-4">
+              <div class="quick-item m-card" onclick="goToTodayCheckins()">
+                <div class="quick-icon"><i data-lucide="log-in"></i></div>
                 <div class="quick-label">Check-in Hoje</div>
                 <div class="quick-sub" id="qk-checkin">— hóspedes</div>
               </div>
-              <div class="quick-item" onclick="goToTodayCheckouts()">
-                <div class="quick-icon brown"><i data-lucide="log-out"></i></div>
+              <div class="quick-item m-card" onclick="goToTodayCheckouts()">
+                <div class="quick-icon"><i data-lucide="log-out"></i></div>
                 <div class="quick-label">Check-out</div>
                 <div class="quick-sub" id="qk-checkout">— hóspedes</div>
               </div>
-              <div class="quick-item" onclick="goToPendingPayments()">
-                <div class="quick-icon gold"><i data-lucide="receipt"></i></div>
+              <div class="quick-item m-card" onclick="goToPendingPayments()">
+                <div class="quick-icon"><i data-lucide="receipt"></i></div>
                 <div class="quick-label">Pagamentos</div>
                 <div class="quick-sub" id="qk-payments">— pendentes</div>
               </div>
-              <div class="quick-item" onclick="quickScanReceiptFromDashboard()">
-                <div class="quick-icon blue"><i data-lucide="scan-line"></i></div>
+              <div class="quick-item m-card" onclick="quickScanReceiptFromDashboard()">
+                <div class="quick-icon"><i data-lucide="scan-line"></i></div>
                 <div class="quick-label">Registar Despesa</div>
                 <div class="quick-sub">Foto do talão</div>
               </div>
             </div>
+            <div class="view-section-heading stagger-5">
+              <h3>Próximas Chegadas</h3>
+              <span class="m-section-link" onclick="showView('reservas')">Ver todas</span>
+            </div>
+            <div class="m-arrivals-list m-card stagger-5" id="m-proximas-list"></div>
           </div>
 
           <div id="dash-desktop" class="dashboard-desktop-layout">

@@ -2925,31 +2925,7 @@ select.form-control { cursor:pointer; }
 }
 .mac-next i[data-lucide] { width: 13px; height: 13px; }
 
-/* ── Mobile KPI Grid ── */
-.mobile-kpi-grid {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 10px; margin-bottom: 20px;
-}
-.m-kpi {
-  background: var(--branco); border-radius: 14px; padding: 14px;
-  border-top: 3px solid var(--dourado); position: relative; overflow: hidden;
-}
-.m-kpi::after {
-  content: ''; position: absolute;
-  right: -10px; top: -10px; width: 50px; height: 50px;
-  background: rgba(201,168,76,.08); border-radius: 50%;
-}
-.m-kpi.green { border-top-color: var(--verde); }
-.m-kpi.brown { border-top-color: var(--marca); }
-.m-kpi-label {
-  font-size: 9.5px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: .6px; color: var(--cinza); margin-bottom: 4px; position: relative; z-index: 1;
-}
-.m-kpi-value {
-  font-family: 'Playfair Display', serif;
-  font-size: 22px; font-weight: 700; color: var(--azul); position: relative; z-index: 1;
-}
-.m-kpi-sub { font-size: 10px; color: var(--cinza); margin-top: 2px; position: relative; z-index: 1; }
+/* ── Mobile KPI Strip — ver .m-kpi-strip/.m-kpi-col em views/dashboard.css ── */
 
 /* ── Mobile Section Title ── */
 .m-section-title {
@@ -2970,12 +2946,9 @@ select.form-control { cursor:pointer; }
 .quick-icon {
   width: 36px; height: 36px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
+  background: rgba(139, 58, 36, 0.08); color: var(--marca);
 }
 .quick-icon i[data-lucide] { width: 18px; height: 18px; }
-.quick-icon.brown { background: var(--marca-bg); color: var(--marca); }
-.quick-icon.green  { background: rgba(46,125,82,.12); color: var(--verde); }
-.quick-icon.gold   { background: rgba(201,168,76,.18); color: #8a6820; }
-.quick-icon.blue   { background: rgba(74,127,165,.15); color: #4a7fa5; }
 .quick-label { font-size: 12px; font-weight: 600; color: var(--azul); }
 .quick-sub   { font-size: 10px; color: var(--cinza); }
 

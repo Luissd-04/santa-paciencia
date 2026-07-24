@@ -120,7 +120,15 @@ function accomChip(r) {
   return `<span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;background:${color}20;color:${color};border:1px solid ${color}40;">${escapeHtml(r.accommodation_name)}</span>`;
 }
 
-function renderMobileDashboard() {
+function relativeArrivalLabel(dateStr, todayStr) {
+  if (dateStr === todayStr) return 'Hoje';
+  const tomorrow = new Date(todayStr + 'T00:00:00');
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (dateStr === tomorrow.toISOString().slice(0, 10)) return 'Amanhã';
+  return formatDate(dateStr);
+}
+
+function renderMobileDashboard(upcoming = []) {
   const today = new Date().toISOString().split('T')[0];
   const todayArrivals = reservas.filter(r => r.check_in === today && r.status !== 'cancelada');
   const todayDeps     = reservas.filter(r => r.check_out === today && r.status !== 'cancelada');
@@ -162,6 +170,26 @@ function renderMobileDashboard() {
   set('qk-checkin',  todayArrivals.length + ' hóspede' + (todayArrivals.length !== 1 ? 's' : ''));
   set('qk-checkout', todayDeps.length     + ' hóspede' + (todayDeps.length     !== 1 ? 's' : ''));
   set('qk-payments', pendingPay.length    + ' pendente' + (pendingPay.length   !== 1 ? 's' : ''));
+
+  // Próximas chegadas
+  const list = document.getElementById('m-proximas-list');
+  if (list) {
+    if (upcoming.length === 0) {
+      list.innerHTML = '<div class="m-arrival-row"><div class="m-arrival-copy"><div class="m-arrival-meta">Sem chegadas próximas</div></div></div>';
+    } else {
+      list.innerHTML = upcoming.map(r => {
+        const dotColor = r.status === 'confirmada' ? 'var(--verde)' : 'var(--laranja)';
+        return `<div class="m-arrival-row" onclick="showDetail('${r.id}')">
+          <span class="m-arrival-dot" style="background:${dotColor}"></span>
+          <div class="m-arrival-copy">
+            <div class="m-arrival-name">${escapeHtml(r.guest_name)}</div>
+            <div class="m-arrival-meta">${escapeHtml(r.accommodation_name)} · ${r.nights} noite${r.nights !== 1 ? 's' : ''}</div>
+          </div>
+          <div class="m-arrival-date">${relativeArrivalLabel(r.check_in, today)}</div>
+        </div>`;
+      }).join('');
+    }
+  }
 }
 
 function goToTodayCheckins() {
@@ -221,7 +249,7 @@ async function renderDashboard() {
       </tr>`).join('') + '</tbody></table>';
   }
 
-  renderMobileDashboard();
+  renderMobileDashboard(upcoming);
   if (window.lucide) lucide.createIcons();
 
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();

@@ -1,0 +1,12 @@
+/* ═══════════════════════════════════════════════════════════════
+   SANTA PACIÊNCIA — cartão único mobile
+   Um só invólucro (radius, borda, sombra) para hero, KPIs, ações
+   rápidas, linhas de reserva e de agenda. Tokens em mobile.css
+   (--mobile-radius / --mobile-shadow-card).
+═══════════════════════════════════════════════════════════════ */
+.m-card {
+  background: var(--branco, #fff);
+  border-radius: var(--mobile-radius, 16px);
+  border: 1px solid rgba(43, 24, 16, 0.08);
+  box-shadow: var(--mobile-shadow-card, 0 2px 14px rgba(42, 24, 16, 0.06));
+}

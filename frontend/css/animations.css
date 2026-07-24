@@ -1,0 +1,36 @@
+/* ═══════════════════════════════════════════════════════════════
+   SANTA PACIÊNCIA — animações mobile partilhadas
+   fadeUp/stagger para entrada de secções (mesma curva/duração do
+   mobileViewEnter em mobile.css); m-press para feedback de toque.
+═══════════════════════════════════════════════════════════════ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.stagger-1, .stagger-2, .stagger-3, .stagger-4, .stagger-5 {
+  animation: fadeUp 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.stagger-1 { animation-delay: 0ms; }
+.stagger-2 { animation-delay: 40ms; }
+.stagger-3 { animation-delay: 80ms; }
+.stagger-4 { animation-delay: 120ms; }
+.stagger-5 { animation-delay: 160ms; }
+
+.m-press {
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+.m-press:active {
+  transform: scale(0.97);
+  opacity: 0.92;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-1, .stagger-2, .stagger-3, .stagger-4, .stagger-5 {
+    animation: none;
+  }
+  .m-press, .m-press:active {
+    transition: none;
+    transform: none;
+  }
+}
