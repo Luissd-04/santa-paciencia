@@ -74,6 +74,67 @@
   box-shadow: var(--shadow-soft);
 }
 
+/* Separador "futuras/ativas vs. passadas" — não são cartões de reserva,
+   por isso anulam o estilo de cartão herdado de "#mobile-res-cards > div". */
+#mobile-res-cards > .m-res-section-label,
+#mobile-res-cards > .m-res-past-list {
+  background: none;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.m-res-section-label {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-muted, var(--cinza));
+  padding: 0 2px 2px;
+}
+
+.m-res-past-list {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  margin-top: 14px;
+}
+
+.m-res-past-toggle {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  background: var(--surface-card);
+  color: var(--text-main, var(--azul));
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.m-res-past-count {
+  color: var(--text-muted, var(--cinza));
+  font-weight: 500;
+}
+
+.m-res-past-chevron {
+  margin-left: auto;
+  width: 16px;
+  height: 16px;
+  transition: transform 200ms ease;
+}
+
+.m-res-past-chevron.is-open {
+  transform: rotate(180deg);
+}
+
 .reserva-detail-page {
   background: var(--surface-card);
   border: 1px solid var(--border-soft);

@@ -108,6 +108,21 @@
   justify-content: flex-start;
 }
 
+/* Desktop: os filtros do Calendário vivem numa segunda linha própria
+   (saíram do .view-toolbar-actions para poderem virar bottom sheet em
+   mobile — ver .calendario-filter-panel em mobile.css). */
+.calendario-filter-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.calendario-filter-panel .m-sheet-header {
+  display: none;
+}
+
 .section-card-calendar .cal-wrap {
   padding: 18px 24px 24px;
 }
@@ -599,13 +614,13 @@ body.tl-is-panning * {
   gap: 5px;
   padding: 4px 11px;
   border-radius: 20px;
-  border: 1.5px solid var(--chip-color, var(--border));
+  border: 1px solid rgba(43, 24, 16, .14);
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--azul);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 120ms ease;
   white-space: nowrap;
 }
 
@@ -613,18 +628,26 @@ body.tl-is-panning * {
   width: 13px;
   height: 13px;
   flex-shrink: 0;
+  color: var(--chip-color);
+  transition: color 0.15s;
 }
 
 .evt-type-chip.active {
-  background: var(--chip-color);
+  background: var(--marca);
   color: #fff;
-  border-color: var(--chip-color);
+  border-color: var(--marca);
+}
+
+.evt-type-chip.active i[data-lucide] {
+  color: #fff;
 }
 
 .evt-type-chip:hover:not(.active) {
-  background: color-mix(in srgb, var(--chip-color) 12%, transparent);
-  color: var(--chip-color);
-  border-color: var(--chip-color);
+  background: rgba(43, 24, 16, .05);
+}
+
+.evt-type-chip:active {
+  transform: scale(0.97);
 }
 
 .eventos-search-box {
@@ -1391,6 +1414,89 @@ body.tl-is-panning * {
     color: var(--text-muted);
     font-size: 13px;
   }
+
+  /* Cartão de tarefa em Eventos — variante do .agenda-item partilhado
+     (Calendário de reservas continua com o layout dot+status original).
+     Checkbox substitui o dot; border-left passa a sinalizar prioridade
+     (important) em vez de só a categoria. */
+  .agenda-item.eventos-task-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .eventos-task-check {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    accent-color: var(--marca);
+    cursor: pointer;
+  }
+
+  .eventos-agenda-day-empty {
+    padding: 10px 12px;
+    border: 1px dashed var(--border-soft);
+    border-radius: var(--mobile-radius, 16px);
+    color: var(--text-muted);
+    font-size: 12.5px;
+    text-align: center;
+  }
+
+  /* Tira de datas — navegação/scroll-to sobre a lista multi-dia abaixo */
+  .eventos-date-strip {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+  .eventos-date-strip::-webkit-scrollbar { display: none; }
+
+  .eds-day {
+    flex-shrink: 0;
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    min-width: 42px;
+    padding: 6px 4px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, transform 120ms ease;
+  }
+  .eds-day-name {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-muted);
+  }
+  .eds-day-num {
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .eds-day.is-today {
+    border-color: rgba(43, 24, 16, .14);
+  }
+  .eds-day.active {
+    background: var(--marca);
+    color: #fff;
+  }
+  .eds-day.active .eds-day-name {
+    color: rgba(255, 255, 255, .8);
+  }
+  .eds-day:active {
+    transform: scale(0.97);
+  }
+
+  /* Chips de categoria em scroll horizontal só em mobile (desktop mantém wrap) */
+  .eventos-type-chips-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+  .eventos-type-chips-row::-webkit-scrollbar { display: none; }
 
   #timeline-wrap,
   #eventos-timeline-wrap {

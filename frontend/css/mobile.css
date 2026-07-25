@@ -474,6 +474,32 @@
 }
 
 /* ══════════════════════════════════════════════════════════════
+   CALENDÁRIO — mobile: barra de filtros de secretária dá lugar a
+   um botão "Filtros" (mesmo mecanismo de .reservas-filter-panel)
+══════════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+  #view-calendario.m-sheet-ancestor-fix {
+    transform: none !important;
+  }
+
+  /* .calendario-filter-panel já é .m-sheet (ver components/sheet.css)
+     e em desktop é a 2ª linha inline do toolbar (ver operations.css);
+     aqui vira a folha propriamente dita. */
+  .calendario-filter-panel.m-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    margin-top: 0;
+  }
+  .calendario-filter-panel .m-sheet-header {
+    display: flex;
+    margin: -16px -16px 4px;
+    width: calc(100% + 32px);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
    VOUCHERS — cards mobile (visíveis em ≤600px, escondidos no desktop)
 ══════════════════════════════════════════════════════════════ */
 
@@ -1158,7 +1184,9 @@
 @media (max-width: 600px) {
   #view-eventos #eventos-cal-wrap,
   #view-eventos #eventos-timeline-wrap,
-  #eventos-panel-calendar .view-toolbar-actions {
+  #eventos-panel-calendar .view-toolbar-actions,
+  #view-eventos #eventos-cal-chips-row,
+  #view-eventos .eventos-add-btn {
     display: none !important;
   }
 

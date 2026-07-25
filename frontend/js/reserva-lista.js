@@ -144,11 +144,37 @@ function renderResCard(r) {
   </div>`;
 }
 
+let reservasPastExpanded = false;
+
+// Sem filtros ativos, um utilizador no telemóvel quer sobretudo ver o
+// que está para vir (chegadas/estadias) — as passadas ficam atrás de um
+// separador colapsável. Com um filtro explícito (pesquisa, estado,
+// suite, canal, pagamento, datas) mostramos a lista plana como antes,
+// porque o filtro já é uma pesquisa deliberada (pode incluir passadas).
+function hasActiveReservasFilter() {
+  const q = document.getElementById('search-input')?.value || document.getElementById('mobile-search-input')?.value || '';
+  return Boolean(
+    q ||
+    document.getElementById('filter-estado')?.value ||
+    document.getElementById('filter-suite')?.value ||
+    document.getElementById('filter-canal')?.value ||
+    document.getElementById('filter-pagamento')?.value ||
+    document.getElementById('filter-date-from')?.value ||
+    document.getElementById('filter-date-to')?.value ||
+    resExactDateFilter
+  );
+}
+
+function toggleReservasPastSection() {
+  reservasPastExpanded = !reservasPastExpanded;
+  renderMobileCards();
+}
+
 function renderMobileCards() {
   const container = document.getElementById('mobile-res-cards');
   if (!container) return;
 
-  const filtered = getFilteredReservas().sort((a, b) => new Date(b.check_in) - new Date(a.check_in));
+  const filtered = getFilteredReservas();
   updateReservasSummary(filtered.length, filtered.length === 1 ? 'reserva visível' : 'resultados visíveis');
 
   if (filtered.length === 0) {
@@ -156,7 +182,30 @@ function renderMobileCards() {
     return;
   }
 
-  container.innerHTML = filtered.map(renderResCard).join('');
+  if (hasActiveReservasFilter()) {
+    container.innerHTML = filtered.sort((a, b) => new Date(b.check_in) - new Date(a.check_in)).map(renderResCard).join('');
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const upcoming = filtered.filter(r => r.check_out >= todayStr).sort((a, b) => new Date(a.check_in) - new Date(b.check_in));
+  const past = filtered.filter(r => r.check_out < todayStr).sort((a, b) => new Date(b.check_out) - new Date(a.check_out));
+
+  const expanded = reservasPastExpanded || upcoming.length === 0;
+  const upcomingHtml = upcoming.length
+    ? `<div class="m-res-section-label">Próximas · ativas</div>${upcoming.map(renderResCard).join('')}`
+    : '';
+  const pastHtml = past.length
+    ? `<button type="button" class="m-res-past-toggle m-press" onclick="toggleReservasPastSection()">
+        <span>Reservas passadas</span>
+        <span class="m-res-past-count">${past.length}</span>
+        <i data-lucide="chevron-down" class="m-res-past-chevron${expanded ? ' is-open' : ''}"></i>
+      </button>
+      <div class="m-res-past-list" style="display:${expanded ? 'grid' : 'none'}">${past.map(renderResCard).join('')}</div>`
+    : '';
+
+  container.innerHTML = upcomingHtml + pastHtml;
   if (window.lucide) lucide.createIcons();
 }
 

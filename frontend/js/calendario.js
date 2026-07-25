@@ -5,6 +5,15 @@ let timelineDays  = SS.get('tlDays', 14);
 const TL_LABEL_W  = 190;
 const TL_ZOOM     = { 7: 80, 14: 48, 30: 24 };
 
+// No mobile, os filtros do Calendário (suite/estado/canal) viram uma
+// folha deslizante — mesmo mecanismo de #reservas-filter-panel
+// (ver comentário em toggleReservasFiltersSheet, reserva-lista.js).
+function toggleCalendarioFiltersSheet(open) {
+  document.getElementById('calendario-filter-panel')?.classList.toggle('m-sheet-open', open);
+  document.getElementById('calendario-filters-backdrop')?.classList.toggle('active', open);
+  document.getElementById('view-calendario')?.classList.toggle('m-sheet-ancestor-fix', open);
+}
+
 function getCalendarFilters() {
   return {
     suite: document.getElementById('cal-suite-filter')?.value || '',

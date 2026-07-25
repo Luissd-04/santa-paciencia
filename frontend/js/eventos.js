@@ -62,8 +62,12 @@ function renderEventosView() {
   if (window.lucide) lucide.createIcons();
 }
 
+const EVENTOS_AGENDA_DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
 // No mobile, Calendário/Timeline dão lugar a uma agenda dia-a-dia
 // (mesmo padrão de #calendar-agenda-mobile usado no calendário de reservas).
+// Ordem: tira de datas (navegação/scroll-to) → chips de categoria → agenda
+// multi-dia (todos os dias do horizonte, incl. estado vazio por dia).
 function renderEventosAgendaMobile() {
   const wrap = document.getElementById('eventos-agenda-mobile');
   if (!wrap) return;
@@ -76,34 +80,62 @@ function renderEventosAgendaMobile() {
     dates.push(isoDate(d.getFullYear(), d.getMonth(), d.getDate()));
   }
   const events = filteredEventos();
-  const groups = dates.map(dateStr => {
+
+  const stripHtml = dates.map(dateStr => {
+    const d = new Date(dateStr + 'T12:00:00');
+    const isToday = dateStr === todayStr;
+    return `<button type="button" class="eds-day${isToday ? ' is-today active' : ''}" data-date="${dateStr}" onclick="scrollToEventosAgendaDay('${dateStr}', this)">
+      <span class="eds-day-name">${EVENTOS_AGENDA_DAY_NAMES[d.getDay()]}</span>
+      <span class="eds-day-num">${d.getDate()}</span>
+    </button>`;
+  }).join('');
+
+  const daySections = dates.map(dateStr => {
     const dayEvents = events.filter(e => e.date === dateStr)
       .sort((a, b) => (a.start_time || '99:99').localeCompare(b.start_time || '99:99'));
-    if (!dayEvents.length) return '';
     const d = new Date(dateStr + 'T12:00:00');
     let dayLabel = d.toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: 'short' });
     if (dateStr === todayStr) dayLabel = 'Hoje · ' + dayLabel;
-    return `<section class="agenda-day">
+    const body = dayEvents.length
+      ? `<div class="agenda-day-list">${dayEvents.map(renderEventoTaskCard).join('')}</div>`
+      : `<div class="eventos-agenda-day-empty">Sem eventos neste dia</div>`;
+    return `<section class="agenda-day" id="eventos-agenda-day-${dateStr}">
       <div class="agenda-day-title">${dayLabel}</div>
-      <div class="agenda-day-list">
-        ${dayEvents.map(e => {
-          const type = getEventoType(e.type);
-          const done = e.status === 'concluido';
-          const time = formatEventoTime(e);
-          return `<button type="button" class="agenda-item${done ? ' eventos-pill-done' : ''}" onclick="openEventoModal('${e.id}')" style="--agenda-color:${type.color};">
-            <span class="agenda-item-dot"></span>
-            <span class="agenda-item-main">
-              <strong>${escapeHtml(e.title)}</strong>
-              <small>${type.singular}${e.accommodation_name ? ' · ' + escapeHtml(e.accommodation_name) : ''}${time ? ' · ' + time : ''}</small>
-            </span>
-            <span class="agenda-item-status${done ? ' agenda-status-done' : ''}">${done ? lcIcon('check', 14) : (Number(e.important) ? '!' : '')}</span>
-          </button>`;
-        }).join('')}
-      </div>
+      ${body}
     </section>`;
-  }).filter(Boolean);
-  wrap.innerHTML = groups.join('') || `<div class="agenda-empty">Sem eventos nos próximos ${horizonDays} dias.</div>`;
+  });
+
+  wrap.innerHTML = `
+    <div class="eventos-date-strip" id="eventos-date-strip">${stripHtml}</div>
+    <div class="eventos-type-chips-row"></div>
+    <div class="eventos-agenda-days">${daySections.join('')}</div>
+  `;
+  renderEventosTypeChips();
   if (window.lucide) lucide.createIcons();
+}
+
+function renderEventoTaskCard(evento) {
+  const type = getEventoType(evento.type);
+  const done = evento.status === 'concluido';
+  const important = Number(evento.important) > 0;
+  const priorityColor = important ? 'var(--vermelho)' : type.color;
+  const time = formatEventoTime(evento);
+  return `<div class="agenda-item eventos-task-item${done ? ' eventos-pill-done' : ''}" style="--agenda-color:${priorityColor};" role="button" tabindex="0" onclick="openEventoModal('${evento.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openEventoModal('${evento.id}');}">
+    <input type="checkbox" class="eventos-task-check" ${done ? 'checked' : ''} onclick="event.stopPropagation();toggleEventoStatus('${evento.id}')" aria-label="Marcar concluído">
+    <span class="agenda-item-main">
+      <strong>${escapeHtml(evento.title)}</strong>
+      <small>${type.singular}${evento.accommodation_name ? ' · ' + escapeHtml(evento.accommodation_name) : ''}${time ? ' · ' + time : ''}</small>
+    </span>
+  </div>`;
+}
+
+// Tocar num dia da tira desloca até à secção correspondente na lista
+// abaixo (a lista mostra sempre todos os dias do horizonte, não troca
+// para uma vista de dia único) e marca esse chip como selecionado.
+function scrollToEventosAgendaDay(dateStr, btn) {
+  document.getElementById('eventos-agenda-day-' + dateStr)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.querySelectorAll('#eventos-date-strip .eds-day').forEach(el => el.classList.remove('active'));
+  btn?.classList.add('active');
 }
 
 function setEventosView(view) {

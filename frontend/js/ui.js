@@ -87,7 +87,9 @@
     const menu = document.createElement('div');
     menu.className = 'app-select-menu';
     menu.hidden = true;
-    menu.innerHTML = '<input class="app-select-search" type="search" autocomplete="off" placeholder="Pesquisar..."><div class="app-select-options"></div>';
+    menu.innerHTML = options.noSearch
+      ? '<div class="app-select-options"></div>'
+      : '<input class="app-select-search" type="search" autocomplete="off" placeholder="Pesquisar..."><div class="app-select-options"></div>';
 
     select.parentNode.insertBefore(wrapper, select);
     wrapper.appendChild(select);
@@ -103,16 +105,16 @@
       });
       wrapper.classList.add('is-open');
       menu.hidden = false;
-      search.value = '';
+      if (search) search.value = '';
       renderDropdownItems(select, list);
-      search.focus({ preventScroll: true });
+      search?.focus({ preventScroll: true });
     };
 
     button.addEventListener('click', event => {
       event.stopPropagation();
       wrapper.classList.contains('is-open') ? closeDropdown(wrapper) : open();
     });
-    search.addEventListener('input', () => renderDropdownItems(select, list, search.value));
+    search?.addEventListener('input', () => renderDropdownItems(select, list, search.value));
     menu.addEventListener('mousedown', event => event.preventDefault());
     menu.addEventListener('click', event => {
       const item = event.target.closest('.app-select-option');
@@ -127,7 +129,7 @@
     select._appSelectApi = {
       refresh() {
         updateButton();
-        renderDropdownItems(select, list, search.value);
+        renderDropdownItems(select, list, search?.value || '');
       },
       open,
       close: () => closeDropdown(wrapper),
@@ -141,6 +143,7 @@
       enhanceSelect(select, {
         placeholder: select.dataset.appSelectPlaceholder || select.dataset.placeholder,
         className: select.dataset.appSelectClass || '',
+        noSearch: select.dataset.appSelectNosearch === '1',
       });
     });
   }

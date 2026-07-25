@@ -377,7 +377,7 @@
                 <i data-lucide="search"></i>
                 <input type="text" id="search-input" placeholder="Pesquisar hóspede, ID..." oninput="renderTabela()" autocomplete="off">
               </div>
-              <select class="form-control" id="filter-estado" data-enhance-select data-app-select-class="app-select--filter" onchange="clearResExactDateFilter();renderTabela()">
+              <select class="form-control" id="filter-estado" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" onchange="clearResExactDateFilter();renderTabela()">
                 <option value="">Todos os estados</option>
                 <option value="pre_reserva">Pré-reserva</option>
                 <option value="confirmada">Confirmada</option>
@@ -386,10 +386,10 @@
                 <option value="aguardar_pagamento">Aguardar Pagamento</option>
                 <option value="cancelada">Cancelada</option>
               </select>
-              <select class="form-control" id="filter-suite" data-enhance-select data-app-select-class="app-select--filter app-select--filter-wide" onchange="renderTabela()">
+              <select class="form-control" id="filter-suite" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter app-select--filter-wide" onchange="renderTabela()">
                 <option value="">Todas as suites</option>
               </select>
-              <select class="form-control" id="filter-canal" data-enhance-select data-app-select-class="app-select--filter" onchange="renderTabela()">
+              <select class="form-control" id="filter-canal" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" onchange="renderTabela()">
                 <option value="">Todos os canais</option>
                 <option value="airbnb">Airbnb</option>
                 <option value="booking">Booking.com</option>
@@ -400,7 +400,7 @@
                 <option value="vrbo">VRBO</option>
                 <option value="outro">Outro</option>
               </select>
-              <select class="form-control" id="filter-pagamento" data-enhance-select data-app-select-class="app-select--filter app-select--filter-wide" onchange="renderTabela()">
+              <select class="form-control" id="filter-pagamento" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter app-select--filter-wide" onchange="renderTabela()">
                 <option value="">Todos os pagamentos</option>
                 <option value="confirmado">Completo</option>
                 <option value="parcial">Parcial</option>
@@ -502,28 +502,9 @@
               <button class="btn btn-ghost btn-sm" onclick="calNext()">
                 Próximo <i data-lucide="chevron-right"></i>
               </button>
-              <select class="form-control" id="cal-suite-filter" data-enhance-select data-app-select-class="app-select--filter app-select--filter-wide" onchange="renderCalView()">
-                <option value="">Todas as Suites</option>
-              </select>
-              <select class="form-control" id="cal-status-filter" data-enhance-select data-app-select-class="app-select--filter" onchange="renderCalView()">
-                <option value="">Todos os estados</option>
-                <option value="pre_reserva">Pré-reserva</option>
-                <option value="confirmada">Confirmadas</option>
-                <option value="pendente">Pendentes</option>
-                <option value="pre_checkin">Pre Check-in</option>
-                <option value="aguardar_pagamento">Aguardar Pagamento</option>
-              </select>
-              <select class="form-control" id="cal-channel-filter" data-enhance-select data-app-select-class="app-select--filter" onchange="renderCalView()">
-                <option value="">Todos os canais</option>
-                <option value="airbnb">Airbnb</option>
-                <option value="booking">Booking.com</option>
-                <option value="direto">Direto</option>
-                <option value="whatsapp">WhatsApp</option>
-                <option value="instagram">Instagram</option>
-                <option value="expedia">Expedia</option>
-                <option value="vrbo">VRBO</option>
-                <option value="outro">Outro</option>
-              </select>
+              <button class="m-filters-trigger" onclick="toggleCalendarioFiltersSheet(true)">
+                <i data-lucide="sliders-horizontal"></i> Filtros
+              </button>
               <div class="cal-mode-toggle" id="cal-main-toggle">
                 <span class="cal-mode-pill" id="cal-mode-pill"></span>
                 <button class="cal-mode-btn active" data-mode="calendar" onclick="setCalMode('calendar')">
@@ -542,6 +523,38 @@
                 <i data-lucide="lock"></i> Bloquear datas
               </button>
             </div>
+          </div>
+
+          <div class="m-sheet-backdrop" id="calendario-filters-backdrop" onclick="toggleCalendarioFiltersSheet(false)"></div>
+          <div class="calendario-filter-panel m-sheet" id="calendario-filter-panel">
+            <div class="m-sheet-header">
+              <span>Filtros</span>
+              <button class="m-sheet-close" onclick="toggleCalendarioFiltersSheet(false)" aria-label="Fechar">
+                <i data-lucide="x"></i>
+              </button>
+            </div>
+            <select class="form-control" id="cal-suite-filter" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter app-select--filter-wide" onchange="renderCalView()">
+              <option value="">Todas as Suites</option>
+            </select>
+            <select class="form-control" id="cal-status-filter" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" onchange="renderCalView()">
+              <option value="">Todos os estados</option>
+              <option value="pre_reserva">Pré-reserva</option>
+              <option value="confirmada">Confirmadas</option>
+              <option value="pendente">Pendentes</option>
+              <option value="pre_checkin">Pre Check-in</option>
+              <option value="aguardar_pagamento">Aguardar Pagamento</option>
+            </select>
+            <select class="form-control" id="cal-channel-filter" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" onchange="renderCalView()">
+              <option value="">Todos os canais</option>
+              <option value="airbnb">Airbnb</option>
+              <option value="booking">Booking.com</option>
+              <option value="direto">Direto</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="instagram">Instagram</option>
+              <option value="expedia">Expedia</option>
+              <option value="vrbo">VRBO</option>
+              <option value="outro">Outro</option>
+            </select>
           </div>
 
           <div class="section-card section-card-calendar">
@@ -603,7 +616,7 @@
                   <button class="cal-mode-btn" data-eventos-range="30" onclick="setEventosTimelineRange(30)">Pequeno</button>
                 </div>
               </div>
-              <button class="btn btn-primary btn-sm" onclick="openEventoModal()">
+              <button class="btn btn-primary btn-sm eventos-add-btn" onclick="openEventoModal()">
                 <i data-lucide="plus"></i> Adicionar Evento
               </button>
             </div>
@@ -651,7 +664,7 @@
                   <option value="week">Esta semana</option>
                   <option value="month">Este mês</option>
                 </select>
-                <button class="btn btn-primary btn-sm" onclick="openEventoModal()">
+                <button class="btn btn-primary btn-sm eventos-add-btn" onclick="openEventoModal()">
                   <i data-lucide="plus"></i> Adicionar Evento
                 </button>
               </div>
