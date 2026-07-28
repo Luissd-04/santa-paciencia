@@ -119,9 +119,12 @@ app.use(cors({
   credentials: true
 }));
 
-// Body limits — global pequeno; rotas de upload usam o seu próprio parser
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+// Body limits — o parser global corre antes de qualquer parser específico de
+// rota, por isso o limite tem de já cobrir os casos maiores (fotos de talões,
+// imagens de alojamentos); um limite pequeno aqui rejeitava o pedido (413) antes
+// de chegar ao parser de 15mb definido em expenses.js/accommodations.js.
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 const path = require('path');
 

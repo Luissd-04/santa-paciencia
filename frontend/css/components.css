@@ -124,6 +124,11 @@
   max-width: min(320px, calc(100vw - 32px));
 }
 
+.app-select--drop-up .app-select-menu {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
 .app-select-search {
   width: 100%;
   margin-bottom: 6px;

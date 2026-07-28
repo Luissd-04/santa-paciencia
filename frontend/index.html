@@ -406,7 +406,7 @@
                 <option value="parcial">Parcial</option>
                 <option value="pendente">Não pago</option>
               </select>
-              <div style="display:flex;align-items:center;gap:4px;">
+              <div class="reservas-date-range" style="display:flex;align-items:center;gap:4px;">
                 <input type="date" class="form-control" id="filter-date-from" title="Check-in a partir de" onchange="clearResExactDateFilter();renderTabela();_openDateTo()" style="width:auto;" autocomplete="off">
                 <span style="color:var(--cinza);font-size:13px;">→</span>
                 <input type="date" class="form-control" id="filter-date-to" title="Check-out até" onchange="clearResExactDateFilter();renderTabela()" style="width:auto;" autocomplete="off">
@@ -586,6 +586,9 @@
             </button>
             <button class="report-tab" data-eventos-view="list" onclick="setEventosView('list')">
               <i data-lucide="list-checks" style="width:14px;height:14px;"></i> Lista
+            </button>
+            <button class="btn btn-primary btn-sm eventos-mobile-add-btn" onclick="openEventoModal()">
+              <i data-lucide="plus" style="width:14px;height:14px;"></i> Novo evento
             </button>
           </div>
 

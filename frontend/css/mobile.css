@@ -456,6 +456,32 @@
     display: none !important;
   }
 
+  /* Cada filtro ocupa sempre a largura toda da folha — a variante
+     --filter/--filter-wide tem min-width/flex pensados para uma barra
+     horizontal de secretária e não deve limitar a largura aqui. */
+  .reservas-filter-panel .reservas-toolbar > .app-select {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    flex: 1 1 auto !important;
+  }
+
+  .reservas-filter-panel .reservas-toolbar .app-select-menu {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .reservas-filter-panel .reservas-toolbar .reservas-date-range {
+    width: 100%;
+  }
+
+  .reservas-filter-panel .reservas-toolbar .reservas-date-range input[type="date"] {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto !important;
+  }
+
   .m-filters-trigger {
     display: inline-flex;
     align-items: center;
@@ -1160,8 +1186,12 @@
    CALENDÁRIO — mobile (grelha/timeline/toggle dão lugar à agenda
    por dia; força a agenda mesmo que calMode esteja em 'timeline'
    — o JS de setCalMode() só usa display inline, sem !important)
+   Também se aplica com o telemóvel em paisagem (altura baixa): sem
+   isto, rodar o ecrã trocava a meio para a grelha de secretária —
+   que não cabe num telemóvel — o que disparava o zoom automático do
+   Safari a meio da transição de orientação.
 ══════════════════════════════════════════════════════════════ */
-@media (max-width: 600px) {
+@media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {
   #cal-main-toggle,
   .section-card-calendar .cal-wrap,
   #timeline-wrap,
@@ -1180,14 +1210,36 @@
 ══════════════════════════════════════════════════════════════ */
 
 #eventos-mobile-fab { display: none; }
+.eventos-mobile-add-btn { display: none; }
 
-@media (max-width: 600px) {
+/* Também em paisagem no telemóvel — mesma razão do bloco CALENDÁRIO acima. */
+@media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {
   #view-eventos #eventos-cal-wrap,
   #view-eventos #eventos-timeline-wrap,
   #eventos-panel-calendar .view-toolbar-actions,
+  #eventos-panel-calendar .calendar-toolbar,
   #view-eventos #eventos-cal-chips-row,
-  #view-eventos .eventos-add-btn {
+  #view-eventos .eventos-add-btn,
+  #view-eventos #eventos-panel-list,
+  /* Lista deixa de ser uma opção no telemóvel — só a agenda dia-a-dia */
+  #view-eventos .eventos-tabs .report-tab {
     display: none !important;
+  }
+
+  /* A vista de calendário/agenda fica sempre ativa e visível no telemóvel */
+  #view-eventos #eventos-panel-calendar {
+    display: block !important;
+  }
+
+  #view-eventos .eventos-tabs {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 14px;
+    justify-content: flex-end;
+  }
+
+  #view-eventos .eventos-mobile-add-btn {
+    display: inline-flex !important;
   }
 
   #view-eventos #eventos-agenda-mobile {
@@ -1382,11 +1434,13 @@
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
-  margin-left: 8px;
+  margin-left: auto;
 }
 
 @media (max-width: 767px) {
   .topbar-logo {
     display: block;
+    width: 34px;
+    height: 34px;
   }
 }

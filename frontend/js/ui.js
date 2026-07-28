@@ -63,8 +63,24 @@
 
   function closeDropdown(wrapper) {
     wrapper?.classList.remove('is-open');
+    wrapper?.classList.remove('app-select--drop-up');
     const menu = wrapper?.querySelector('.app-select-menu');
     if (menu) menu.hidden = true;
+  }
+
+  // Decide se o menu abre para baixo (padrão) ou para cima, consoante o
+  // espaço disponível no ecrã — evita que o dropdown fique cortado quando
+  // o botão está perto do fundo do ecrã ou de uma bottom sheet.
+  function positionMenu(wrapper, menu) {
+    wrapper.classList.remove('app-select--drop-up');
+    const buttonRect = wrapper.getBoundingClientRect();
+    const menuHeight = menu.offsetHeight || 0;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const spaceBelow = viewportHeight - buttonRect.bottom;
+    const spaceAbove = buttonRect.top;
+    if (menuHeight > spaceBelow && spaceAbove > spaceBelow) {
+      wrapper.classList.add('app-select--drop-up');
+    }
   }
 
   function enhanceSelect(select, options = {}) {
@@ -107,6 +123,7 @@
       menu.hidden = false;
       if (search) search.value = '';
       renderDropdownItems(select, list);
+      positionMenu(wrapper, menu);
       search?.focus({ preventScroll: true });
     };
 
@@ -188,6 +205,19 @@
         }
       }
     }
+  });
+
+  // O Safari do iOS (sobretudo em PWA "adicionada ao ecrã principal") por
+  // vezes fica preso num zoom depois de rodar o ecrã, porque o layout muda
+  // a meio da transição de orientação e o WebKit não recalcula bem a escala.
+  // Forçar um reset momentâneo do viewport corrige o zoom preso sem afetar
+  // o pinch-zoom normal do utilizador no resto do tempo.
+  window.addEventListener('orientationchange', () => {
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (!viewport) return;
+    const original = viewport.getAttribute('content');
+    viewport.setAttribute('content', original + ', maximum-scale=1.0');
+    setTimeout(() => viewport.setAttribute('content', original), 350);
   });
 
   window.AppUI = {
