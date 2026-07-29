@@ -1280,7 +1280,11 @@ body.tl-is-panning * {
   }
 }
 
-@media (max-width: 600px) {
+/* Também em paisagem no telemóvel (altura baixa): mobile.css e styles.css
+   já forçam o layout/agenda mobile neste caso — sem o mesmo critério aqui,
+   a agenda do Calendário/Eventos ficava visível mas sem estilo nenhum
+   (mobile.css só liga o display:grid, quem estiliza os itens é este bloco). */
+@media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {
   .view-toolbar-actions {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
