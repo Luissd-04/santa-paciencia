@@ -43,6 +43,7 @@ function showView(v, pushState = true) {
   document.getElementById('topbar-title').textContent = VIEW_TITLES[v] || v;
   setActiveBN(v);
   document.body.classList.toggle('view-eventos-active', v === 'eventos');
+  document.body.classList.toggle('view-calendario-active', v === 'calendario');
   if (pushState) history.pushState({ view: v }, '', '/' + (v === 'dashboard' ? '' : v));
   if (window.lucide) lucide.createIcons();
   if (v === 'dashboard') renderDashboard();

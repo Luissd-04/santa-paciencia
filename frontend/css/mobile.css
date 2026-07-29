@@ -1196,12 +1196,11 @@
    CALENDÁRIO — mobile (grelha/timeline/toggle dão lugar à agenda
    por dia; força a agenda mesmo que calMode esteja em 'timeline'
    — o JS de setCalMode() só usa display inline, sem !important)
-   Também se aplica com o telemóvel em paisagem (altura baixa): sem
-   isto, rodar o ecrã trocava a meio para a grelha de secretária —
-   que não cabe num telemóvel — o que disparava o zoom automático do
-   Safari a meio da transição de orientação.
+   Isto é só para telemóvel em pé (largura estreita) — em paisagem
+   queremos a grelha real a ecrã inteiro, ver bloco "PAISAGEM" mais
+   abaixo.
 ══════════════════════════════════════════════════════════════ */
-@media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {
+@media (max-width: 600px) {
   #cal-main-toggle,
   .section-card-calendar .cal-wrap,
   #timeline-wrap,
@@ -1222,8 +1221,8 @@
 #eventos-mobile-fab { display: none; }
 .eventos-mobile-add-btn { display: none; }
 
-/* Também em paisagem no telemóvel — mesma razão do bloco CALENDÁRIO acima. */
-@media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {
+/* Só telemóvel em pé — em paisagem ver bloco "PAISAGEM" mais abaixo. */
+@media (max-width: 600px) {
   #view-eventos #eventos-cal-wrap,
   #view-eventos #eventos-timeline-wrap,
   #eventos-panel-calendar .view-toolbar-actions,
@@ -1271,6 +1270,76 @@
 
   body.view-eventos-active #eventos-mobile-fab {
     display: flex !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CALENDÁRIO/EVENTOS — telemóvel em PAISAGEM (altura baixa): ao
+   contrário do telemóvel em pé (que mostra a agenda por dia), aqui
+   há largura de sobra e só falta altura — mostra-se a grelha real,
+   igual à de secretária, a ecrã inteiro, escondendo o "chrome" à
+   volta (topbar, menu inferior, filtros, toggle timeline) para lhe
+   dar o máximo de espaço. Scroll vertical interno cobre os meses em
+   que as 6 semanas não cabem na altura disponível.
+══════════════════════════════════════════════════════════════ */
+@media (max-height: 500px) and (orientation: landscape) {
+  body.view-calendario-active .topbar,
+  body.view-calendario-active .bottom-nav-bar,
+  body.view-calendario-active #mobile-fab,
+  body.view-eventos-active .topbar,
+  body.view-eventos-active .bottom-nav-bar,
+  body.view-eventos-active #mobile-fab,
+  body.view-eventos-active #eventos-mobile-fab,
+  body.view-eventos-active .eventos-mobile-add-btn {
+    display: none !important;
+  }
+
+  body.view-calendario-active .main,
+  body.view-eventos-active .main {
+    padding-bottom: 0 !important;
+  }
+
+  /* Calendário: força a grelha, esconde a agenda por dia e o toggle timeline */
+  body.view-calendario-active #cal-main-toggle,
+  body.view-calendario-active #timeline-wrap,
+  body.view-calendario-active #timeline-range-toggle,
+  body.view-calendario-active .m-filters-trigger,
+  body.view-calendario-active .calendario-filter-panel,
+  body.view-calendario-active .calendar-legend,
+  body.view-calendario-active #calendar-agenda-mobile {
+    display: none !important;
+  }
+
+  body.view-calendario-active .section-card-calendar .cal-wrap {
+    display: block !important;
+  }
+
+  /* Eventos: mesma ideia — força o painel de calendário com a grelha real */
+  body.view-eventos-active #eventos-mode-toggle,
+  body.view-eventos-active #eventos-range-toggle,
+  body.view-eventos-active #eventos-timeline-wrap,
+  body.view-eventos-active #eventos-cal-chips-row,
+  body.view-eventos-active #eventos-panel-list,
+  body.view-eventos-active .eventos-tabs .report-tab,
+  body.view-eventos-active #eventos-agenda-mobile {
+    display: none !important;
+  }
+
+  body.view-eventos-active #eventos-panel-calendar {
+    display: block !important;
+  }
+
+  body.view-eventos-active #eventos-cal-wrap {
+    display: block !important;
+  }
+
+  /* Altura das 6 linhas do mês foi pensada para ecrã de secretária —
+     não cabe sempre nos ~380px de um telemóvel deitado, daí o scroll. */
+  body.view-calendario-active .section-card-calendar .cal-wrap,
+  body.view-eventos-active .section-card-calendar .cal-wrap {
+    max-height: calc(100dvh - 90px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
 
