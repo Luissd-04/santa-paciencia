@@ -3446,8 +3446,12 @@ select.form-control { cursor:pointer; }
 
 /* ══════════════════════════════════════════
    MOBILE ≤600px — Show/hide switching
+   Também em paisagem (altura baixa) — ver nota em mobile.css junto ao
+   bloco da sidebar; sem isto o telemóvel deitado ficava com o layout
+   de secretária inteiro (sidebar + topbar altos), sem espaço para o
+   conteúdo da view.
 ══════════════════════════════════════════ */
-@media (max-width: 600px) {
+@media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {
   /* Show mobile elements */
   #dash-mobile    { display: block !important; }
   #reservas-mobile { display: block !important; }

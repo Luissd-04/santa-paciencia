@@ -689,7 +689,7 @@ function openEventoModal(id = null, date = null, accId = null) {
   document.getElementById('evento-title').value = evento?.title || '';
   document.getElementById('evento-type').value = evento?.type || 'limpeza';
   document.getElementById('evento-status').value = evento?.status || 'planeado';
-  document.getElementById('evento-date').value = evento?.date || date || new Date().toISOString().slice(0, 10);
+  document.getElementById('evento-date').value = window.ReservationDates?.formatPtDate(evento?.date || date || new Date().toISOString().slice(0, 10)) || '';
   document.getElementById('evento-start-time').value = evento?.start_time || '';
   document.getElementById('evento-end-time').value = evento?.end_time || '';
   document.getElementById('evento-accommodation').value = evento?.accommodation_id || accId || '';
@@ -714,7 +714,7 @@ async function saveEvento() {
     title: document.getElementById('evento-title').value.trim(),
     type: document.getElementById('evento-type').value,
     status: document.getElementById('evento-status').value,
-    date: document.getElementById('evento-date').value,
+    date: window.ReservationDates?.normalizeIsoDate(document.getElementById('evento-date').value) || '',
     start_time: document.getElementById('evento-start-time').value || null,
     end_time: document.getElementById('evento-end-time').value || null,
     accommodation_id: document.getElementById('evento-accommodation').value || null,

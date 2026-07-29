@@ -4,7 +4,7 @@
    no scrim, alternar .m-sheet-open em ambos para abrir/fechar.
    Mesmo mecanismo já usado em #precos-side-panel (ver precos.js).
 ═══════════════════════════════════════════════════════════════ */
-@media (max-width: 600px) {
+@media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {
   .m-sheet {
     position: fixed;
     left: 0;

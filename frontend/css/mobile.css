@@ -105,8 +105,12 @@
 /* ──────────────────────────────────────────────────────────────
    TELEMÓVEL ≤767px — SIDEBAR SEMPRE ESCONDIDA
    !important garante que nenhum conflito de cascade a mostra.
+   Também em paisagem (altura baixa): a largura lógica de um telemóvel
+   deitado facilmente passa dos 767px, e sem isto a sidebar de
+   secretária ocupa a largura toda e empurra o conteúdo (ex.: Calendário)
+   para fora do ecrã, que já tem pouca altura disponível.
 ────────────────────────────────────────────────────────────── */
-@media (max-width: 767px) {
+@media (max-width: 767px), (max-height: 500px) and (orientation: landscape) {
   /* ID + classe para máxima especificidade — sidebar nunca visível por defeito */
   #main-sidebar,
   .sidebar {
@@ -128,8 +132,9 @@
 
 /* ──────────────────────────────────────────────────────────────
    TELEMÓVEL ≤600px — LAYOUT E FLUÍDEZ
+   Também em paisagem (altura baixa) — ver nota no bloco da sidebar acima.
 ────────────────────────────────────────────────────────────── */
-@media (max-width: 600px) {
+@media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {
 
   /* Prevenir auto-zoom iOS em inputs (font-size < 16px dispara zoom) */
   input,
@@ -355,8 +360,13 @@
 /* ──────────────────────────────────────────────────────────────
    iPAD — 768px a 1023px
    Sidebar persistente. Layout intermédio mais próximo do desktop.
+   min-height exclui telemóveis deitados: a largura lógica de um
+   telemóvel em paisagem cai facilmente neste intervalo (ex.: 844px),
+   mas com muito menos altura do que um iPad — sem esta exclusão,
+   este bloco reponha a sidebar de secretária e anulava o modo mobile
+   forçado para telemóvel deitado (ver blocos acima).
 ────────────────────────────────────────────────────────────── */
-@media (min-width: 768px) and (max-width: 1023px) {
+@media (min-width: 768px) and (max-width: 1023px) and (min-height: 501px) {
 
   /* Reverter sidebar para sempre visível
      (o bloco max-width: 900px em styles.css esconde-a) */
