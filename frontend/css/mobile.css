@@ -1283,60 +1283,75 @@
    que as 6 semanas não cabem na altura disponível.
 ══════════════════════════════════════════════════════════════ */
 @media (max-height: 500px) and (orientation: landscape) {
+  /* Elementos fora de #view-calendario/#view-eventos (topbar, menu
+     inferior, FAB) — :has() identifica qual vista está ativa sem
+     depender de nenhuma classe posta por JS em body. Repetido com
+     body.view-calendario-active/body.view-eventos-active só como
+     rede de segurança (ver toggle em app.js/showView). */
+  body:has(#view-calendario.active) .topbar,
+  body:has(#view-calendario.active) .bottom-nav-bar,
+  body:has(#view-calendario.active) #mobile-fab,
+  body:has(#view-eventos.active) .topbar,
+  body:has(#view-eventos.active) .bottom-nav-bar,
+  body:has(#view-eventos.active) #mobile-fab,
   body.view-calendario-active .topbar,
   body.view-calendario-active .bottom-nav-bar,
   body.view-calendario-active #mobile-fab,
   body.view-eventos-active .topbar,
   body.view-eventos-active .bottom-nav-bar,
-  body.view-eventos-active #mobile-fab,
-  body.view-eventos-active #eventos-mobile-fab,
-  body.view-eventos-active .eventos-mobile-add-btn {
+  body.view-eventos-active #mobile-fab {
     display: none !important;
   }
 
+  .main:has(#view-calendario.active),
+  .main:has(#view-eventos.active),
   body.view-calendario-active .main,
   body.view-eventos-active .main {
     padding-bottom: 0 !important;
   }
 
-  /* Calendário: força a grelha, esconde a agenda por dia e o toggle timeline */
-  body.view-calendario-active #cal-main-toggle,
-  body.view-calendario-active #timeline-wrap,
-  body.view-calendario-active #timeline-range-toggle,
-  body.view-calendario-active .m-filters-trigger,
-  body.view-calendario-active .calendario-filter-panel,
-  body.view-calendario-active .calendar-legend,
-  body.view-calendario-active #calendar-agenda-mobile {
+  /* Calendário: força a grelha, esconde a agenda por dia e o toggle
+     timeline. Estes já estão todos dentro de #view-calendario, por
+     isso ".active" chega — não precisam de :has() nem de body class. */
+  #view-calendario.active #cal-main-toggle,
+  #view-calendario.active #timeline-wrap,
+  #view-calendario.active #timeline-range-toggle,
+  #view-calendario.active .m-filters-trigger,
+  #view-calendario.active .calendario-filter-panel,
+  #view-calendario.active .calendar-legend,
+  #view-calendario.active #calendar-agenda-mobile {
     display: none !important;
   }
 
-  body.view-calendario-active .section-card-calendar .cal-wrap {
+  #view-calendario.active .section-card-calendar .cal-wrap {
     display: block !important;
   }
 
   /* Eventos: mesma ideia — força o painel de calendário com a grelha real */
-  body.view-eventos-active #eventos-mode-toggle,
-  body.view-eventos-active #eventos-range-toggle,
-  body.view-eventos-active #eventos-timeline-wrap,
-  body.view-eventos-active #eventos-cal-chips-row,
-  body.view-eventos-active #eventos-panel-list,
-  body.view-eventos-active .eventos-tabs .report-tab,
-  body.view-eventos-active #eventos-agenda-mobile {
+  #view-eventos.active #eventos-mode-toggle,
+  #view-eventos.active #eventos-range-toggle,
+  #view-eventos.active #eventos-timeline-wrap,
+  #view-eventos.active #eventos-cal-chips-row,
+  #view-eventos.active #eventos-panel-list,
+  #view-eventos.active .eventos-tabs .report-tab,
+  #view-eventos.active #eventos-agenda-mobile,
+  #view-eventos.active #eventos-mobile-fab,
+  #view-eventos.active .eventos-mobile-add-btn {
     display: none !important;
   }
 
-  body.view-eventos-active #eventos-panel-calendar {
+  #view-eventos.active #eventos-panel-calendar {
     display: block !important;
   }
 
-  body.view-eventos-active #eventos-cal-wrap {
+  #view-eventos.active #eventos-cal-wrap {
     display: block !important;
   }
 
   /* Altura das 6 linhas do mês foi pensada para ecrã de secretária —
      não cabe sempre nos ~380px de um telemóvel deitado, daí o scroll. */
-  body.view-calendario-active .section-card-calendar .cal-wrap,
-  body.view-eventos-active .section-card-calendar .cal-wrap {
+  #view-calendario.active .section-card-calendar .cal-wrap,
+  #view-eventos.active .section-card-calendar .cal-wrap {
     max-height: calc(100dvh - 90px);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;

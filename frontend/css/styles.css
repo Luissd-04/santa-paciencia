@@ -511,6 +511,12 @@ i[data-lucide] { display:inline-flex; align-items:center; justify-content:center
   min-height: 100vh;
   min-width: 0;
   transition: margin-left .25s cubic-bezier(0.4, 0, 0.2, 1);
+  /* viewport-fit=cover deixa o conteúdo entrar na área do notch/ilha
+     dinâmica — sem isto o Safari reserva essa faixa em branco. Em
+     paisagem no iPhone o notch/home indicator caem nos lados
+     (esquerdo/direito), não em cima; em pé caem em cima/baixo. */
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 .topbar {
@@ -522,7 +528,12 @@ i[data-lucide] { display:inline-flex; align-items:center; justify-content:center
   align-items:center;
   justify-content:space-between;
   position: sticky;
-  top:0;
+  /* top:0 puro ficava debaixo do notch/ilha dinâmica em pé — o offset
+     também tem de estar aqui (não só num padding do ancestral),
+     porque position:sticky recalcula a posição "presa" a partir do
+     próprio "top", ignorando padding do container ao fazer scroll. */
+  top: env(safe-area-inset-top, 0px);
+  margin-top: env(safe-area-inset-top, 0px);
   z-index:50;
 }
 
@@ -989,10 +1000,8 @@ select.form-control { cursor:pointer; }
 .cal-span-round-right { border-radius:0 4px 4px 0; }
 .cal-span-round-left.cal-span-round-right { border-radius:4px; }
 .cal-span-text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
-.cal-event-span.cal-event-multi { align-items:stretch; padding:2px 6px; }
-.cal-span-multi { display:flex; flex-direction:column; justify-content:center; white-space:normal; line-height:1.1; gap:1px; }
-.cal-span-multi .cal-span-guest { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.cal-span-multi .cal-span-suite { font-size:9.5px; font-weight:500; opacity:.85; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cal-event-span.cal-event-multi { padding:0; }
+.cal-span-row { position:absolute; left:0; right:0; display:flex; align-items:center; padding:0 6px; overflow:hidden; box-sizing:border-box; }
 .cal-event-more { position:absolute; height:20px; font-size:10px; color:var(--cinza); padding:0 4px; display:flex; align-items:center; }
 .cal-day-click-area { position:absolute; top:0; bottom:0; cursor:pointer; }
 

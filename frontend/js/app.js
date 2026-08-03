@@ -37,6 +37,14 @@ function showView(v, pushState = true) {
   nextView.classList.add('active');
   void nextView.offsetWidth;
   nextView.classList.add('view-entering');
+  // animation-fill-mode:forwards deixa o transform:translateY(0) colado
+  // no fim da animação — isso torna a .view containing block de filhos
+  // position:fixed (ex.: folhas .m-sheet), que ficam mal ancoradas se a
+  // vista for mais alta que o ecrã. Remover a classe ao terminar a
+  // animação larga o transform e evita o bug.
+  nextView.addEventListener('animationend', () => {
+    nextView.classList.remove('view-entering');
+  }, { once: true });
   document.querySelectorAll('.nav-item').forEach(x => {
     x.classList.toggle('active', x.getAttribute('onclick')?.includes("'" + v + "'"));
   });

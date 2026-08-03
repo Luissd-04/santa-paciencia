@@ -1388,6 +1388,26 @@ body.tl-is-panning * {
     font-size: 11.5px;
   }
 
+  .agenda-item-suites {
+    display: grid;
+    gap: 1px;
+  }
+
+  .agenda-item-suites small {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 600;
+  }
+
+  .agenda-item-suite-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    background: currentColor;
+  }
+
   .agenda-item-status {
     color: var(--agenda-color, var(--marca));
     font-size: 10px;

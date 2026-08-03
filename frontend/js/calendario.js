@@ -50,6 +50,25 @@ function calReservationSuites(r) {
   return [r.accommodation_name || accommodations.find(a => a.id === r.accommodation_id)?.name || '—'];
 }
 
+// Como calReservationSuites, mas devolve também a cor de cada alojamento
+// (para pintar cada linha da reserva multi-suíte com a cor certa).
+function calReservationSuiteInfo(r) {
+  let accs = [];
+  try {
+    accs = typeof r.accommodations_data === 'string'
+      ? JSON.parse(r.accommodations_data || '[]')
+      : (r.accommodations_data || []);
+  } catch { accs = []; }
+  if (Array.isArray(accs) && accs.length > 1) {
+    return accs.map(a => {
+      const found = accommodations.find(x => x.id === a.accommodation_id);
+      return { name: a.name || found?.name || '—', color: found?.color || '#843424' };
+    });
+  }
+  const acc = accommodations.find(a => a.id === r.accommodation_id);
+  return [{ name: r.accommodation_name || acc?.name || '—', color: acc?.color || '#843424' }];
+}
+
 function updateTimelineRangeUi() {
   document.querySelectorAll('#timeline-range-toggle .cal-mode-btn').forEach(btn => {
     btn.classList.toggle('active', Number(btn.dataset.range) === timelineDays);
@@ -321,17 +340,22 @@ function renderCal() {
         const roundCls   = (startsHere ? 'cal-span-round-left ' : '') + (endsHere ? 'cal-span-round-right' : '');
         const borderLeft = startsHere ? `3px solid ${color}` : '3px solid transparent';
         const topPx      = laneTops[l];
-        const suites     = calReservationSuites(r);
-        const isMulti    = suites.length > 1;
-        const barH       = Math.min(suites.length, MAX_SUITE_ROWS) * LANE_H;
+        const suiteInfos = calReservationSuiteInfo(r);
+        const isMulti    = suiteInfos.length > 1;
+        const barH       = Math.min(suiteInfos.length, MAX_SUITE_ROWS) * LANE_H;
         const firstName  = escapeHtml(r.guest_name.split(' ')[0]);
         const inner      = isMulti
-          ? `<span class="cal-span-text cal-span-multi"><span class="cal-span-guest">${firstName}</span>${suites.slice(0, MAX_SUITE_ROWS).map(s => `<span class="cal-span-suite">${s.replace('Suite ','')}</span>`).join('')}</span>`
+          ? suiteInfos.slice(0, MAX_SUITE_ROWS).map((s, idx) => {
+              const rowBorder = startsHere ? `3px solid ${s.color}` : '3px solid transparent';
+              return `<div class="cal-span-row" style="top:${idx * LANE_H}px;height:${LANE_H}px;background:${s.color}22;color:${s.color};border-left:${rowBorder};">
+                <span class="cal-span-text">${firstName} · ${escapeHtml(s.name.replace('Suite ',''))}</span>
+              </div>`;
+            }).join('')
           : `<span class="cal-span-text">${firstName} · ${escapeHtml(r.accommodation_name.replace('Suite ',''))}</span>`;
         eventHtml += `<div class="cal-event-span ${statusCls} ${roundCls}${isMulti ? ' cal-event-multi' : ''}"
-          style="left:${leftPct.toFixed(2)}%;width:${widthPct.toFixed(2)}%;top:${topPx}px;height:${barH}px;background:${color}22;color:${color};border-left:${borderLeft};"
+          style="left:${leftPct.toFixed(2)}%;width:${widthPct.toFixed(2)}%;top:${topPx}px;height:${barH}px;${isMulti ? '' : `background:${color}22;color:${color};border-left:${borderLeft};`}"
           onclick="event.stopPropagation();showDetail('${r.id}')"
-          title="${escapeHtml(r.guest_name)} — ${escapeHtml(suites.join(' + '))}">
+          title="${escapeHtml(r.guest_name)} — ${escapeHtml(suiteInfos.map(s => s.name).join(' + '))}">
           ${inner}
         </div>`;
       }
@@ -379,16 +403,20 @@ function renderCalendarAgenda(monthDays, filters = getCalendarFilters()) {
       <div class="agenda-day-title">${dayLabel}</div>
       <div class="agenda-day-list">
         ${dayReservations.map(r => {
-          const accommodation = accommodations.find(a => a.id === r.accommodation_id);
-          const color = accommodation?.color || '#843424';
-          const isCheckIn = r.check_in === dateStr;
+          const suiteInfos = calReservationSuiteInfo(r);
+          const isMulti    = suiteInfos.length > 1;
+          const color      = suiteInfos[0].color;
+          const isCheckIn  = r.check_in === dateStr;
           const isCheckOut = r.check_out === dateStr;
-          const marker = isCheckIn ? 'Check-in' : isCheckOut ? 'Check-out' : 'Estadia';
-          return `<button type="button" class="agenda-item" onclick="showDetail('${r.id}')" style="--agenda-color:${color};">
+          const marker     = isCheckIn ? 'Check-in' : isCheckOut ? 'Check-out' : 'Estadia';
+          const suitesHtml = isMulti
+            ? `<span class="agenda-item-suites">${suiteInfos.map(s => `<small style="color:${s.color};"><span class="agenda-item-suite-dot" style="background:${s.color};"></span>${escapeHtml(s.name)}</small>`).join('')}</span>`
+            : `<small>${escapeHtml(suiteInfos[0].name)} · ${marker}</small>`;
+          return `<button type="button" class="agenda-item${isMulti ? ' agenda-item-multi' : ''}" onclick="showDetail('${r.id}')" style="--agenda-color:${color};">
             <span class="agenda-item-dot"></span>
             <span class="agenda-item-main">
               <strong>${escapeHtml(r.guest_name || 'Reserva')}</strong>
-              <small>${escapeHtml(r.accommodation_name || accommodation?.name || 'Alojamento')} · ${marker}</small>
+              ${suitesHtml}
             </span>
             <span class="agenda-item-status">${r.status || '—'}</span>
           </button>`;
