@@ -448,14 +448,16 @@ function renderCalLandscape(allDays, filters = getCalendarFilters()) {
   const visStart = allDays[0].dateStr;
   const visEnd   = allDays[allDays.length - 1].dateStr;
   const visReservas = reservas.filter(r =>
-    reservationMatchesCalendarFilters(r, filters) && r.check_in >= visStart && r.check_in <= visEnd
+    reservationMatchesCalendarFilters(r, filters) && r.check_out >= visStart && r.check_in <= visEnd
   );
 
   grid.innerHTML = allDays.map(day => {
     if (day.otherMonth) return `<div class="cll-cell cll-other"><div class="cll-day-num">${day.dayNum}</div></div>`;
 
     const blocked = typeof isDateBlockedAnywhere === 'function' && isDateBlockedAnywhere(day.dateStr);
-    const dayRes  = visReservas.filter(r => r.check_in === day.dateStr);
+    // Mostra a reserva em todos os dias da estadia (check-in → check-out),
+    // não só no dia de check-in — mesmo critério da agenda por dia.
+    const dayRes  = visReservas.filter(r => r.check_in <= day.dateStr && r.check_out >= day.dateStr);
     const bars = dayRes.slice(0, 2).map(r => {
       const accom     = accommodations.find(a => a.id === r.accommodation_id);
       const color     = accom?.color || '#843424';
