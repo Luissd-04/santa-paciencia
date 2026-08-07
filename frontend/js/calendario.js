@@ -4,6 +4,8 @@ let tlPanDrag = null;
 let timelineDays  = SS.get('tlDays', 14);
 const TL_LABEL_W  = 190;
 const TL_ZOOM     = { 7: 80, 14: 48, 30: 24 };
+const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+let calLandSelectedDate = null;
 
 // No mobile, os filtros do Calendário (suite/estado/canal) viram uma
 // folha deslizante — mesmo mecanismo de #reservas-filter-panel
@@ -383,10 +385,11 @@ function renderCal() {
   }
 
   renderCalendarAgenda(allDays.filter(day => !day.otherMonth).map(day => day.dateStr), filters);
+  renderCalLandscape(allDays, filters);
 }
 
-function renderCalendarAgenda(monthDays, filters = getCalendarFilters()) {
-  const agenda = document.getElementById('calendar-agenda-mobile');
+function renderCalendarAgenda(monthDays, filters = getCalendarFilters(), targetId = 'calendar-agenda-mobile') {
+  const agenda = document.getElementById(targetId);
   if (!agenda) return;
 
   const monthReservations = reservas
@@ -425,8 +428,79 @@ function renderCalendarAgenda(monthDays, filters = getCalendarFilters()) {
     </section>`;
   }).filter(Boolean);
 
-  agenda.innerHTML = groups.join('') || `<div class="agenda-empty">Sem reservas visíveis neste mês.</div>`;
+  const emptyMsg = monthDays.length === 1 ? 'Sem reservas visíveis neste dia.' : 'Sem reservas visíveis neste mês.';
+  agenda.innerHTML = groups.join('') || `<div class="agenda-empty">${emptyMsg}</div>`;
   if (window.lucide) lucide.createIcons();
+}
+
+// ── TELEMÓVEL EM PAISAGEM: grelha mensal dedicada a ecrã inteiro ──
+// Chamada a partir de renderCal() com os dias já calculados (allDays),
+// evita repetir a matemática do mês. Só tem efeito visual dentro do
+// media query de paisagem (ver mobile.css) — em qualquer outra
+// orientação/largura fica escondida, por isso é barato renderizar sempre.
+function renderCalLandscape(allDays, filters = getCalendarFilters()) {
+  const grid  = document.getElementById('cll-grid');
+  const title = document.getElementById('cll-title');
+  if (!grid || !title) return;
+
+  title.textContent = MONTHS_PT[calMonth] + ' ' + calYear;
+
+  const visStart = allDays[0].dateStr;
+  const visEnd   = allDays[allDays.length - 1].dateStr;
+  const visReservas = reservas.filter(r =>
+    reservationMatchesCalendarFilters(r, filters) && r.check_in >= visStart && r.check_in <= visEnd
+  );
+
+  grid.innerHTML = allDays.map(day => {
+    if (day.otherMonth) return `<div class="cll-cell cll-other"><div class="cll-day-num">${day.dayNum}</div></div>`;
+
+    const blocked = typeof isDateBlockedAnywhere === 'function' && isDateBlockedAnywhere(day.dateStr);
+    const dayRes  = visReservas.filter(r => r.check_in === day.dateStr);
+    const bars = dayRes.slice(0, 2).map(r => {
+      const accom     = accommodations.find(a => a.id === r.accommodation_id);
+      const color     = accom?.color || '#843424';
+      const firstName = escapeHtml((r.guest_name || '').split(' ')[0]);
+      const accName   = escapeHtml((r.accommodation_name || '').replace('Suite ', ''));
+      return `<div class="cll-booking" style="background:${color}18;border-left-color:${color};color:${color};" title="${escapeHtml(r.guest_name || '')} · ${escapeHtml(r.accommodation_name || '')}" onclick="event.stopPropagation();showDetail('${r.id}')">${firstName} · ${accName}</div>`;
+    }).join('');
+    const extra = dayRes.length > 2 ? `<div class="cll-more">+${dayRes.length - 2} mais</div>` : '';
+    const numHtml = day.isToday
+      ? `<div class="cll-today-num">${day.dayNum}</div>`
+      : `<div class="cll-day-num">${day.dayNum}</div>`;
+
+    return `<div class="cll-cell${blocked ? ' cll-locked' : ''}" onclick="openCalLandscapeDay('${day.dateStr}')">
+      ${numHtml}
+      ${blocked ? '<i data-lucide="lock" class="cll-lock-icon"></i>' : ''}
+      ${bars}${extra}
+    </div>`;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// Toque num dia da grelha de paisagem: abre a agenda desse dia numa folha
+// (reaproveita renderCalendarAgenda passando um único dia + um alvo próprio).
+function openCalLandscapeDay(dateStr) {
+  calLandSelectedDate = dateStr;
+  const titleEl = document.getElementById('cll-day-title');
+  if (titleEl) {
+    const label = new Date(`${dateStr}T12:00:00`).toLocaleDateString('pt-PT', { weekday: 'long', day: '2-digit', month: 'long' });
+    titleEl.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+  }
+  renderCalendarAgenda([dateStr], getCalendarFilters(), 'cll-day-agenda');
+  document.getElementById('cal-landscape-day-sheet')?.classList.add('m-sheet-open');
+  document.getElementById('cal-landscape-day-backdrop')?.classList.add('active');
+}
+
+function closeCalLandscapeDay() {
+  document.getElementById('cal-landscape-day-sheet')?.classList.remove('m-sheet-open');
+  document.getElementById('cal-landscape-day-backdrop')?.classList.remove('active');
+}
+
+// Atalho do botão "Bloquear datas" no topo da grelha de paisagem — usa o
+// último dia tocado (ou hoje, se ainda nenhum foi selecionado).
+function calLandBlockShortcut() {
+  openBlockModal('', calLandSelectedDate || now.toISOString().slice(0, 10));
 }
 
 function calPrev() {

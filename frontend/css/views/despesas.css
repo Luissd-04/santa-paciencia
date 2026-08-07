@@ -7,6 +7,25 @@
   gap: 18px;
 }
 
+.despesas-kpi-mobile { display: none; }
+
+/* Desktop: linha própria de filtros acima da tabela (mesmo padrão do
+   .calendario-filter-panel) — em mobile vira folha deslizante, ver
+   mobile.css. */
+.despesas-filter-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: -8px;
+}
+
+.despesas-filter-panel .m-sheet-header {
+  display: none;
+}
+
+.despesas-mobile-toolbar { display: none; }
+
 .despesas-table-card {
   overflow: hidden;
   padding: 0;

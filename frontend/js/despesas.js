@@ -19,6 +19,14 @@ const EXPENSE_CATS = {
 
 let suppliersData = [];
 
+// Filtros de Despesas viram uma folha deslizante no telemóvel — mesmo
+// mecanismo de #reservas-filter-panel/#calendario-filter-panel.
+function toggleDespesasFiltersSheet(open) {
+  document.getElementById('despesas-filter-panel')?.classList.toggle('m-sheet-open', open);
+  document.getElementById('despesas-filters-backdrop')?.classList.toggle('active', open);
+  document.getElementById('view-despesas')?.classList.toggle('m-sheet-ancestor-fix', open);
+}
+
 // ── LOAD ──
 async function loadDespesas() {
   document.getElementById('despesas-loading').style.display = 'flex';
@@ -48,6 +56,7 @@ async function loadDespesas() {
     suppliersData = suppliers.data || [];
     populateSupplierFilter();
     renderDespesasKpi(summary.data || {});
+    renderDespesasKpiMobile(summary.data || {});
     renderDespesas();
   } catch (e) {
     toast('❌ Erro ao carregar despesas.', 'error');
@@ -80,6 +89,28 @@ function renderDespesasKpi(s) {
         ${s.byCategory && s.byCategory[0] ? (EXPENSE_CATS[s.byCategory[0].category]?.label || s.byCategory[0].category) : '—'}
       </div>
       <div class="kpi-sub">${s.byCategory && s.byCategory[0] ? '€' + Number(s.byCategory[0].total).toFixed(2) : ''}</div>
+    </div>`;
+}
+
+// Versão mobile: as 3 primeiras métricas juntam-se num único cartão de 3
+// colunas (em vez de cartões soltos com contorno colorido) e "Maior
+// categoria" fica num cartão à parte — mesmo sistema usado no Dashboard.
+function renderDespesasKpiMobile(s) {
+  const wrap = document.getElementById('despesas-kpi-mobile');
+  if (!wrap) return;
+  const top = s.byCategory && s.byCategory[0];
+  wrap.innerHTML = `
+    <div class="dkm-band">
+      <div class="dkm-col"><div class="dkm-value">€${Number(s.monthTotal||0).toFixed(2)}</div><div class="dkm-label">Este mês</div></div>
+      <div class="dkm-col"><div class="dkm-value">€${Number(s.yearTotal||0).toFixed(2)}</div><div class="dkm-label">Este ano</div></div>
+      <div class="dkm-col"><div class="dkm-value">€${Number(s.allTotal||0).toFixed(2)}</div><div class="dkm-label">Acumulado</div></div>
+    </div>
+    <div class="dkm-top-cat">
+      <div>
+        <div class="dkm-top-cat-label">Maior categoria (ano)</div>
+        <div class="dkm-top-cat-value">${top ? (EXPENSE_CATS[top.category]?.label || top.category) : '—'}</div>
+      </div>
+      <div class="dkm-top-cat-amount">${top ? '€' + Number(top.total).toFixed(2) : ''}</div>
     </div>`;
 }
 
@@ -170,9 +201,9 @@ function renderDespesasMobileCards(filtered, total) {
   if (!wrap) return;
   wrap.innerHTML = filtered.map(d => {
     const cat = EXPENSE_CATS[d.category] || EXPENSE_CATS.outro;
-    return `<div class="m-expense-card" style="border-left-color:${cat.color}">
+    return `<div class="m-expense-card">
       <div class="mec-top">
-        <span class="mec-cat" style="background:${cat.color}22;color:${cat.color};">${cat.icon ? `<i data-lucide="${cat.icon}"></i>` : ''}${cat.label}</span>
+        <span class="mec-cat">${cat.icon ? `<i data-lucide="${cat.icon}" style="color:${cat.color};"></i>` : ''}${cat.label}</span>
         <span class="mec-date">${formatDate(d.date)}</span>
       </div>
       <div class="mec-desc">${escapeHtml(d.description)}</div>

@@ -52,6 +52,7 @@ function showView(v, pushState = true) {
   setActiveBN(v);
   document.body.classList.toggle('view-eventos-active', v === 'eventos');
   document.body.classList.toggle('view-calendario-active', v === 'calendario');
+  document.body.classList.toggle('view-despesas-active', v === 'despesas');
   if (pushState) history.pushState({ view: v }, '', '/' + (v === 'dashboard' ? '' : v));
   if (window.lucide) lucide.createIcons();
   if (v === 'dashboard') renderDashboard();
@@ -103,15 +104,13 @@ function handleDeepLinkUrl(raw) {
 }
 
 // ── MOBILE BOTTOM NAV ──
-const BOTTOM_NAV_VIEWS = ['dashboard', 'reservas', 'calendario', 'eventos'];
+const BOTTOM_NAV_VIEWS = ['dashboard', 'reservas', 'calendario', 'eventos', 'despesas'];
 
 function setActiveBN(v) {
   BOTTOM_NAV_VIEWS.forEach(name => {
     const el = document.getElementById('bn-' + name);
     if (el) el.classList.toggle('active', name === v);
   });
-  const mais = document.getElementById('bn-mais');
-  if (mais) mais.classList.toggle('active', !BOTTOM_NAV_VIEWS.includes(v));
 }
 
 function openSideDrawer() {

@@ -574,6 +574,38 @@
             <div class="calendar-agenda-mobile" id="calendar-agenda-mobile"></div>
             <div id="timeline-wrap" style="display:none;"></div>
           </div>
+
+          <!-- Telemóvel em paisagem: grelha mensal dedicada a ecrã inteiro -->
+          <div class="cal-landscape" id="cal-landscape">
+            <div class="cll-toolbar">
+              <button class="cll-pill" onclick="calPrev()">
+                <i data-lucide="chevron-left"></i> Anterior
+              </button>
+              <button class="cll-pill" onclick="goToday()">
+                <i data-lucide="calendar-check"></i> Hoje
+              </button>
+              <button class="cll-pill" onclick="calNext()">
+                Próximo <i data-lucide="chevron-right"></i>
+              </button>
+              <div class="cll-toolbar-spacer"></div>
+              <button class="cll-pill" onclick="calLandBlockShortcut()">
+                <i data-lucide="lock"></i> Bloquear datas
+              </button>
+            </div>
+            <div class="cll-title" id="cll-title"></div>
+            <div class="cll-grid" id="cll-grid"></div>
+          </div>
+
+          <div class="m-sheet-backdrop" id="cal-landscape-day-backdrop" onclick="closeCalLandscapeDay()"></div>
+          <div class="cal-landscape-day-sheet m-sheet" id="cal-landscape-day-sheet">
+            <div class="m-sheet-header">
+              <span id="cll-day-title">Agenda</span>
+              <button class="m-sheet-close" onclick="closeCalLandscapeDay()" aria-label="Fechar">
+                <i data-lucide="x"></i>
+              </button>
+            </div>
+            <div class="calendar-agenda-mobile" id="cll-day-agenda"></div>
+          </div>
         </section>
       </div>
 
@@ -1452,31 +1484,59 @@
           <input type="month" class="form-control" id="despesa-filter-month" style="display:none;" value="" onchange="loadDespesas()" autocomplete="off">
 
           <div class="kpi-grid despesas-kpi-grid" id="despesas-kpi-grid"></div>
+          <div class="despesas-kpi-mobile" id="despesas-kpi-mobile"></div>
+
+          <div class="m-sheet-backdrop" id="despesas-filters-backdrop" onclick="toggleDespesasFiltersSheet(false)"></div>
+          <div class="despesas-filter-panel m-sheet" id="despesas-filter-panel">
+            <div class="m-sheet-header">
+              <span>Filtros</span>
+              <button class="m-sheet-close" onclick="toggleDespesasFiltersSheet(false)" aria-label="Fechar">
+                <i data-lucide="x"></i>
+              </button>
+            </div>
+            <select class="form-control" id="despesa-filter-period" data-enhance-select data-app-select-class="app-select--filter" style="width:auto;" onchange="loadDespesas()">
+              <option value="ano">Ano inteiro</option>
+              <option value="mes">Este mês</option>
+              <option value="tudo">Tudo</option>
+            </select>
+            <select class="form-control" id="despesa-filter-category" data-enhance-select data-app-select-class="app-select--filter" style="width:auto;" onchange="renderDespesas()">
+              <option value="">Todas as categorias</option>
+              <option value="limpeza">Limpeza</option>
+              <option value="produtos_limpeza">Produtos de limpeza</option>
+              <option value="pequenos_almocos">Pequenos-almoços</option>
+              <option value="roupas">Roupas</option>
+              <option value="manutencao">Manutenção</option>
+              <option value="marketing">Marketing</option>
+              <option value="impostos">Impostos</option>
+              <option value="servicos">Serviços</option>
+              <option value="consumiveis">Consumíveis</option>
+              <option value="outro">Outro</option>
+            </select>
+            <select class="form-control" id="despesa-filter-supplier" data-enhance-select data-app-select-class="app-select--filter" style="width:auto;" onchange="renderDespesas()">
+              <option value="">Todos os fornecedores</option>
+            </select>
+          </div>
+
+          <div class="despesas-mobile-toolbar">
+            <button class="m-filters-trigger" onclick="toggleDespesasFiltersSheet(true)">
+              <i data-lucide="sliders-horizontal"></i> Filtros
+            </button>
+            <button class="despesas-icon-btn" onclick="exportDespesasXLSX()" title="Exportar lista de despesas">
+              <i data-lucide="download"></i>
+            </button>
+            <button class="despesas-icon-btn" onclick="document.getElementById('receipt-file-input').click()" title="Ler talão por foto (IA)">
+              <i data-lucide="scan-line"></i>
+            </button>
+          </div>
+
+          <button class="mobile-fab despesas-mobile-fab" id="despesas-mobile-fab" onclick="openDespesaModal()">
+            <i data-lucide="plus"></i>
+          </button>
+
           <div class="card despesas-table-card">
             <div class="card-header despesas-card-header">
               <span class="card-title"><i data-lucide="receipt"></i> Registo de Despesas</span>
-              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <select class="form-control" id="despesa-filter-period" data-enhance-select data-app-select-class="app-select--filter" style="width:auto;" onchange="loadDespesas()">
-                  <option value="ano">Ano inteiro</option>
-                  <option value="mes">Este mês</option>
-                  <option value="tudo">Tudo</option>
-                </select>
-                <select class="form-control" id="despesa-filter-category" data-enhance-select data-app-select-class="app-select--filter" style="width:auto;" onchange="renderDespesas()">
-                  <option value="">Todas as categorias</option>
-                  <option value="limpeza">Limpeza</option>
-                  <option value="produtos_limpeza">Produtos de limpeza</option>
-                  <option value="pequenos_almocos">Pequenos-almoços</option>
-                  <option value="roupas">Roupas</option>
-                  <option value="manutencao">Manutenção</option>
-                  <option value="marketing">Marketing</option>
-                  <option value="impostos">Impostos</option>
-                  <option value="servicos">Serviços</option>
-                  <option value="consumiveis">Consumíveis</option>
-                  <option value="outro">Outro</option>
-                </select>
-                <select class="form-control" id="despesa-filter-supplier" data-enhance-select data-app-select-class="app-select--filter" style="width:auto;" onchange="renderDespesas()">
-                  <option value="">Todos os fornecedores</option>
-                </select>
+              <div class="despesas-desktop-actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <button class="btn btn-ghost btn-sm" onclick="exportDespesasXLSX()" title="Exportar lista de despesas">
                   <i data-lucide="download" style="width:13px;height:13px;"></i> Exportar
                 </button>
@@ -3167,8 +3227,8 @@
   <button class="bn-item" id="bn-eventos" onclick="showView('eventos')">
     <i data-lucide="calendar-check"></i><span>Eventos</span>
   </button>
-  <button class="bn-item" id="bn-mais" onclick="openSideDrawer()">
-    <i data-lucide="more-horizontal"></i><span>Mais</span>
+  <button class="bn-item" id="bn-despesas" onclick="showView('despesas')">
+    <i data-lucide="receipt"></i><span>Despesas</span>
   </button>
 </nav>
 
