@@ -532,6 +532,7 @@ function cleanGuestData(item = {}) {
   const parts = fullName.split(/\s+/).filter(Boolean);
   return {
     name: fullName,
+    email: String(item.email || '').trim(),
     first_name: String(item.first_name || parts[0] || '').trim(),
     last_name: String(item.last_name || parts.slice(1).join(' ') || '').trim(),
     birth_date: normalizeDateValue(item.birth_date) || null,
@@ -564,8 +565,10 @@ function submitPreCheckin(req, res) {
   const extraGuests = Array.isArray(req.body?.guests_data) ? req.body.guests_data.map(cleanGuestData) : [];
   const allGuests = [mainGuest, ...extraGuests].slice(0, expectedGuests);
   const isPortuguese = g => (g.nationality || '').toLowerCase().trim() === 'portugal';
-  const missingIndex = allGuests.findIndex(g => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const missingIndex = allGuests.findIndex((g, idx) => {
     if (!g.name || !g.nationality) return true;
+    if (idx === 0 && !emailRegex.test(g.email || '')) return true;
     if (!isPortuguese(g) && (!g.birth_date || !g.document_type || !g.document_number || !g.document_issuer_country)) return true;
     return false;
   });
@@ -575,6 +578,7 @@ function submitPreCheckin(req, res) {
 
   db.prepare(`UPDATE guests SET
     name = COALESCE(?, name),
+    email = COALESCE(?, email),
     first_name = COALESCE(?, first_name),
     last_name = COALESCE(?, last_name),
     birth_date = COALESCE(?, birth_date),
@@ -585,7 +589,7 @@ function submitPreCheckin(req, res) {
     document_issuer_country = COALESCE(?, document_issuer_country)
     WHERE id = ? AND organization_id = ?`)
     .run(
-      mainGuest.name, mainGuest.first_name, mainGuest.last_name, mainGuest.birth_date,
+      mainGuest.name, mainGuest.email || null, mainGuest.first_name, mainGuest.last_name, mainGuest.birth_date,
       mainGuest.nationality, mainGuest.country, mainGuest.document_type,
       mainGuest.document_number, mainGuest.document_issuer_country,
       reservation.guest_id, reservation.organization_id

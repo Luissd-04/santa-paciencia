@@ -58,6 +58,7 @@
     const yearMin = cur.opts.minYear ?? (isBirthDate ? 1900 : nowYear - 5);
     const yearMax = cur.opts.maxYear ?? (isBirthDate ? nowYear : nowYear + 10);
     const selIso  = isoVal(cur.input.value);
+    const todayIso = new Date().toISOString().slice(0, 10);
     const offset  = (new Date(y, m, 1).getDay() + 6) % 7;
     const days    = new Date(y, m + 1, 0).getDate();
 
@@ -84,11 +85,12 @@
     for (let d = 1; d <= days; d++) {
       const dayIso  = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const isSel   = dayIso === selIso;
+      const isToday = dayIso === todayIso;
       const disabled = (minDate && dayIso < minDate) || (maxDate && dayIso > maxDate);
       if (disabled) {
-        html += `<button type="button" class="dp-day dp-disabled">${d}</button>`;
+        html += `<button type="button" class="dp-day dp-disabled${isToday?' today':''}">${d}</button>`;
       } else {
-        html += `<button type="button" class="dp-day${isSel?' selected':''}" onclick="AppDatePicker._c(${d})">${d}</button>`;
+        html += `<button type="button" class="dp-day${isSel?' selected':''}${isToday?' today':''}" onclick="AppDatePicker._c(${d})">${d}</button>`;
       }
     }
     html += '</div>';

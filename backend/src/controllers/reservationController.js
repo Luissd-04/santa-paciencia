@@ -999,6 +999,47 @@ async function approve(req, res, next) {
   }
 }
 
+// POST /api/reservations/:id/send-precheckin
+// Gera (se necessário) e envia o link de pré-checkin sem alterar o estado da
+// reserva — ao contrário de approve(), serve para reservas criadas
+// diretamente no backoffice (nascem "confirmada", nunca passam por "pendente").
+async function sendPrecheckinLink(req, res, next) {
+  try {
+    const organizationId = req.user.organization_id;
+    const reservation = db.prepare(`
+      SELECT r.*, g.name as guest_name, g.email as guest_email
+      FROM reservations r
+      JOIN guests g ON r.guest_id = g.id AND r.organization_id = g.organization_id
+      WHERE r.id = ? AND r.organization_id = ?
+    `).get(req.params.id, organizationId);
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+    if (reservation.status === 'cancelada') return res.status(400).json({ error: 'Reserva cancelada não pode receber link de pré-checkin.' });
+
+    ensurePublicToken(reservation);
+    const precheckinToken = ensurePrecheckinToken(reservation);
+
+    const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(reservation.guest_id, organizationId);
+    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(reservation.accommodation_id, organizationId);
+    const preCheckinUrl = `${publicUrl(req)}/pre-checkin/${precheckinToken}`;
+
+    let emailSent = true;
+    if (guest.email) {
+      try {
+        await sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl);
+      } catch (err) {
+        emailSent = false;
+        console.warn('Email de pre-check-in não enviado:', err.message);
+      }
+    } else {
+      emailSent = false;
+    }
+
+    res.json({ success: true, data: { pre_checkin_url: preCheckinUrl, email_sent: emailSent } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /api/reservations/stats/dashboard
 async function getDashboardStats(req, res, next) {
   try {
@@ -1245,4 +1286,4 @@ function getNotifications(req, res, next) {
   }
 }
 
-module.exports = { getAll, getById, create, update, approve, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, addPayment, deletePayment, saveInvoice, setTaskStatus, getHistory };
+module.exports = { getAll, getById, create, update, approve, sendPrecheckinLink, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, addPayment, deletePayment, saveInvoice, setTaskStatus, getHistory };

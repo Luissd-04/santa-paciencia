@@ -1481,8 +1481,6 @@
       <!-- ══ DESPESAS ══ -->
       <div class="view" id="view-despesas">
         <section class="despesas-shell">
-          <input type="month" class="form-control" id="despesa-filter-month" style="display:none;" value="" onchange="loadDespesas()" autocomplete="off">
-
           <div class="kpi-grid despesas-kpi-grid" id="despesas-kpi-grid"></div>
           <div class="despesas-kpi-mobile" id="despesas-kpi-mobile"></div>
 
@@ -1499,6 +1497,7 @@
               <option value="mes">Este mês</option>
               <option value="tudo">Tudo</option>
             </select>
+            <input type="month" class="form-control" id="despesa-filter-month" style="display:none;width:auto;" value="" onchange="loadDespesas()" autocomplete="off">
             <select class="form-control" id="despesa-filter-category" data-enhance-select data-app-select-class="app-select--filter" style="width:auto;" onchange="renderDespesas()">
               <option value="">Todas as categorias</option>
               <option value="limpeza">Limpeza</option>
@@ -1515,11 +1514,20 @@
             <select class="form-control" id="despesa-filter-supplier" data-enhance-select data-app-select-class="app-select--filter" style="width:auto;" onchange="renderDespesas()">
               <option value="">Todos os fornecedores</option>
             </select>
+            <div class="despesas-filter-panel-actions">
+              <button class="btn btn-ghost btn-sm" onclick="clearDespesasFiltros()">
+                <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar filtros
+              </button>
+              <button class="btn btn-primary btn-sm despesas-filter-apply" onclick="toggleDespesasFiltersSheet(false)">Aplicar</button>
+            </div>
           </div>
 
           <div class="despesas-mobile-toolbar">
-            <button class="m-filters-trigger" onclick="toggleDespesasFiltersSheet(true)">
+            <button class="m-filters-trigger despesas-filters-trigger" onclick="toggleDespesasFiltersSheet(true)">
               <i data-lucide="sliders-horizontal"></i> Filtros
+              <span class="despesas-filter-badge" id="despesas-filter-badge" onclick="event.stopPropagation();clearDespesasFiltros()" title="Limpar filtros" style="display:none;">
+                <i data-lucide="x"></i>
+              </span>
             </button>
             <button class="despesas-icon-btn" onclick="exportDespesasXLSX()" title="Exportar lista de despesas">
               <i data-lucide="download"></i>

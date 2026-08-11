@@ -24,6 +24,14 @@
   display: none;
 }
 
+.despesas-filter-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.despesas-filter-apply { display: none; }
+
 .despesas-mobile-toolbar { display: none; }
 
 .despesas-table-card {

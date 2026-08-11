@@ -356,6 +356,7 @@ table td {
   font-size: 12px; font-weight: 500;
 }
 .dp-day:hover            { background: var(--creme); }
+.dp-day.today:not(.selected) { background: var(--cinza-claro); border-radius: 50%; }
 .dp-day.selected         { background: var(--marca); color: #fff; }
 .dp-day.dp-disabled      { opacity: .3; cursor: default; pointer-events: none; }
 

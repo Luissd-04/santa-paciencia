@@ -261,8 +261,6 @@ function renderCal() {
     return lenA !== lenB ? lenB - lenA : a.check_in.localeCompare(b.check_in);
   });
 
-  const MAX_LANES = 3;
-
   for (let w = 0; w < allDays.length; w += 7) {
     const week     = allDays.slice(w, w + 7);
     const weekStart = week[0].dateStr;
@@ -311,7 +309,7 @@ function renderCal() {
 
     // Event spans — absolutely positioned so bars start/end at the midpoint of each day column
     let eventHtml = '';
-    const visLanes = Math.min(lanes.length, MAX_LANES);
+    const visLanes = lanes.length;
     const LANE_H = 20, LANE_GAP = 2, MAX_SUITE_ROWS = 3;
 
     // Altura de cada lane = maior barra nela. Reservas multi-suíte ocupam a
@@ -363,19 +361,7 @@ function renderCal() {
       }
     }
 
-    // "+N mais" per-day overflow indicator when lanes exceed MAX_LANES
-    if (lanes.length > MAX_LANES) {
-      week.forEach((day, col) => {
-        const extra = lanes.slice(MAX_LANES).filter(lane =>
-          lane.some(({effStart, effEnd}) => day.dateStr >= effStart && day.dateStr <= effEnd)
-        ).length;
-        if (extra > 0) {
-          eventHtml += `<div class="cal-event-more" style="left:${(col/7*100).toFixed(2)}%;width:${(100/7).toFixed(2)}%;top:${stackTop}px;" onclick="event.stopPropagation()">+${extra} mais</div>`;
-        }
-      });
-    }
-
-    const containerH = stackTop + (lanes.length > MAX_LANES ? LANE_H + LANE_GAP : 0);
+    const containerH = stackTop;
     const clickOverlays = week.map((day, col) =>
       day.otherMonth ? '' : `<div class="cal-day-click-area" style="left:${(col/7*100).toFixed(2)}%;width:${(100/7).toFixed(2)}%;" ${dayClickAttr(day)}></div>`
     ).join('');
@@ -447,36 +433,98 @@ function renderCalLandscape(allDays, filters = getCalendarFilters()) {
 
   const visStart = allDays[0].dateStr;
   const visEnd   = allDays[allDays.length - 1].dateStr;
+  // Mesmo critério do grid de secretária: barras contínuas por reserva,
+  // mais longas primeiro para um empacotamento de lanes mais estável.
   const visReservas = reservas.filter(r =>
     reservationMatchesCalendarFilters(r, filters) && r.check_out >= visStart && r.check_in <= visEnd
-  );
+  ).sort((a, b) => {
+    const lenA = new Date(a.check_out) - new Date(a.check_in);
+    const lenB = new Date(b.check_out) - new Date(b.check_in);
+    return lenA !== lenB ? lenB - lenA : a.check_in.localeCompare(b.check_in);
+  });
 
-  grid.innerHTML = allDays.map(day => {
-    if (day.otherMonth) return `<div class="cll-cell cll-other"><div class="cll-day-num">${day.dayNum}</div></div>`;
+  const LANE_H = 20, LANE_GAP = 3;
+  let html = '';
 
-    const blocked = typeof isDateBlockedAnywhere === 'function' && isDateBlockedAnywhere(day.dateStr);
-    // Mostra a reserva em todos os dias da estadia (check-in → check-out),
-    // não só no dia de check-in — mesmo critério da agenda por dia.
-    const dayRes  = visReservas.filter(r => r.check_in <= day.dateStr && r.check_out >= day.dateStr);
-    const bars = dayRes.slice(0, 2).map(r => {
-      const accom     = accommodations.find(a => a.id === r.accommodation_id);
-      const color     = accom?.color || '#843424';
-      const firstName = escapeHtml((r.guest_name || '').split(' ')[0]);
-      const accName   = escapeHtml((r.accommodation_name || '').replace('Suite ', ''));
-      return `<div class="cll-booking" style="background:${color}18;border-left-color:${color};color:${color};" title="${escapeHtml(r.guest_name || '')} · ${escapeHtml(r.accommodation_name || '')}" onclick="event.stopPropagation();showDetail('${r.id}')">${firstName} · ${accName}</div>`;
+  for (let w = 0; w < allDays.length; w += 7) {
+    const week      = allDays.slice(w, w + 7);
+    const weekStart = week[0].dateStr;
+    const weekEnd   = week[6].dateStr;
+    const weekRes   = visReservas.filter(r => r.check_out >= weekStart && r.check_in <= weekEnd);
+
+    // Empacotamento greedy em lanes — igual ao grid de secretária, mas sem
+    // limite de lanes: aqui a semana cresce em altura em vez de cortar
+    // com "+N mais".
+    const lanes = [];
+    weekRes.forEach(r => {
+      const effStart = r.check_in  < weekStart ? weekStart : r.check_in;
+      const effEnd   = r.check_out > weekEnd   ? weekEnd   : r.check_out;
+      let placed = false;
+      for (let l = 0; l < lanes.length; l++) {
+        const last = lanes[l][lanes[l].length - 1];
+        const aEndsInWeek   = last.r.check_out <= weekEnd;
+        const bStartsInWeek = r.check_in >= weekStart;
+        if (aEndsInWeek && bStartsInWeek && effStart >= last.effEnd) {
+          lanes[l].push({ r, effStart, effEnd }); placed = true; break;
+        }
+      }
+      if (!placed) lanes.push([{ r, effStart, effEnd }]);
+    });
+
+    const laneTops = [];
+    let stackTop = 0;
+    for (let l = 0; l < lanes.length; l++) {
+      laneTops[l] = stackTop;
+      stackTop += LANE_H + LANE_GAP;
+    }
+
+    const dayCells = week.map(day => {
+      if (day.otherMonth) return `<div class="cll-day-cell cll-other"><div class="cll-day-num">${day.dayNum}</div></div>`;
+      const blocked = typeof isDateBlockedAnywhere === 'function' && isDateBlockedAnywhere(day.dateStr);
+      const numHtml = day.isToday
+        ? `<div class="cll-today-num">${day.dayNum}</div>`
+        : `<div class="cll-day-num">${day.dayNum}</div>`;
+      return `<div class="cll-day-cell${blocked ? ' cll-locked' : ''}" onclick="openCalLandscapeDay('${day.dateStr}')">
+        ${numHtml}
+        ${blocked ? '<i data-lucide="lock" class="cll-lock-icon"></i>' : ''}
+      </div>`;
     }).join('');
-    const extra = dayRes.length > 2 ? `<div class="cll-more">+${dayRes.length - 2} mais</div>` : '';
-    const numHtml = day.isToday
-      ? `<div class="cll-today-num">${day.dayNum}</div>`
-      : `<div class="cll-day-num">${day.dayNum}</div>`;
 
-    return `<div class="cll-cell${blocked ? ' cll-locked' : ''}" onclick="openCalLandscapeDay('${day.dateStr}')">
-      ${numHtml}
-      ${blocked ? '<i data-lucide="lock" class="cll-lock-icon"></i>' : ''}
-      ${bars}${extra}
+    // Área de clique por coluna (dia inteiro) por baixo das barras — mesma
+    // técnica do grid de secretária (clickOverlays antes, eventos depois).
+    const clickAreas = week.map((day, col) =>
+      day.otherMonth ? '' : `<div class="cll-day-click-area" style="left:${(col/7*100).toFixed(2)}%;width:${(100/7).toFixed(2)}%;" onclick="openCalLandscapeDay('${day.dateStr}')"></div>`
+    ).join('');
+
+    let eventHtml = '';
+    for (let l = 0; l < lanes.length; l++) {
+      for (const { r, effStart, effEnd } of lanes[l]) {
+        const accom      = accommodations.find(a => a.id === r.accommodation_id);
+        const color      = accom?.color || '#843424';
+        const col0       = week.findIndex(d => d.dateStr === effStart);
+        const col1       = week.findIndex(d => d.dateStr === effEnd);
+        const startsHere = r.check_in  >= weekStart;
+        const endsHere   = r.check_out <= weekEnd;
+        const sameDay    = col0 === col1 && startsHere && endsHere;
+        const leftPct  = sameDay ? col0 / 7 * 100 : (startsHere ? (col0 + 0.5) / 7 * 100 : 0);
+        const rightPct = sameDay ? (col0 + 1) / 7 * 100 : (endsHere ? (col1 + 0.5) / 7 * 100 : 100);
+        const widthPct = rightPct - leftPct;
+        const roundCls  = (startsHere ? 'cll-span-round-left ' : '') + (endsHere ? 'cll-span-round-right' : '');
+        const firstName = escapeHtml((r.guest_name || '').split(' ')[0]);
+        const accName   = escapeHtml((r.accommodation_name || '').replace('Suite ', ''));
+        eventHtml += `<div class="cll-booking ${roundCls}" style="left:${leftPct.toFixed(2)}%;width:${widthPct.toFixed(2)}%;top:${laneTops[l]}px;height:${LANE_H}px;background:${color}18;border-left-color:${color};color:${color};" title="${escapeHtml(r.guest_name || '')} · ${escapeHtml(r.accommodation_name || '')}" onclick="event.stopPropagation();showDetail('${r.id}')">${firstName} · ${accName}</div>`;
+      }
+    }
+
+    const colSeps = [1, 2, 3, 4, 5, 6].map(i => `<div class="cll-col-sep" style="left:calc(${i}*100%/7)"></div>`).join('');
+
+    html += `<div class="cll-week">${colSeps}
+      <div class="cll-week-days">${dayCells}</div>
+      <div class="cll-week-events" style="height:${stackTop}px;">${clickAreas}${eventHtml}</div>
     </div>`;
-  }).join('');
+  }
 
+  grid.innerHTML = html;
   if (window.lucide) lucide.createIcons();
 }
 

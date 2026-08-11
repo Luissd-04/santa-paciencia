@@ -499,7 +499,7 @@ async function showDetail(id, opts = {}) {
   try {
     if (!document.getElementById('view-reservas')?.classList.contains('active')) {
       window.__openingReservationDetail = true;
-      showView('reservas');
+      showView('reservas', false);
       window.__openingReservationDetail = false;
     }
     setReservasDetailMode(true);
@@ -817,6 +817,7 @@ async function showDetail(id, opts = {}) {
           <div class="rdv2-widget">
             <div class="rdv2-widget-title">Reserva</div>
             ${r.status === 'pendente' ? `<button class="rdv2-action-link rdv2-action-success" onclick="aprovarReserva('${r.id}')">${lcIcon('check', 12)} Aprovar e enviar pre check-in</button>` : ''}
+            ${r.status !== 'pendente' && r.status !== 'cancelada' ? `<button class="rdv2-action-link" onclick="enviarLinkPrecheckin('${r.id}')">${lcIcon('send', 12)} Enviar link de pré-checkin</button>` : ''}
             <button class="rdv2-action-link" data-accs="${(JSON.stringify(accsData)).replace(/"/g,'&quot;')}" data-res='{"id":"${r.id}","accId":"${r.accommodation_id}","ci":"${r.check_in}","co":"${r.check_out}","ng":${r.num_guests||1},"na":${r.num_adults||1},"nc":${r.num_children||0},"bkf":${r.breakfast_included?true:false},"nights":${r.nights||1}}' onclick="openAccommodationPanelFromBtn(this)">${lcIcon('home', 12)} Editar alojamento</button>
             <button class="rdv2-action-link" onclick="openEditPage('${r.id}')">${lcIcon('pencil', 12)} Editar reserva</button>
             <button class="rdv2-action-link" onclick="openPaymentForm('${r.id}', ${paid}, ${total})">${lcIcon('credit-card', 12)} Registar pagamento</button>
@@ -1049,6 +1050,11 @@ function buildReservationSheetData(r) {
 
   const baseAmount = nightly.reduce((s, n) => s + Number(n.price || 0), 0);
   const acc = accommodations.find(a => a.id === r.accommodation_id);
+  const accsData = typeof r.accommodations_data === 'string' ? JSON.parse(r.accommodations_data || '[]') : (r.accommodations_data || []);
+  const accRows = accsData.length > 0
+    ? accsData
+    : [{ accommodation_id: r.accommodation_id, name: r.accommodation_name || acc?.name || '—', price_per_night: Number(acc?.price_per_night || 0), nights: r.nights, subtotal: Number(acc?.price_per_night || 0) * r.nights }];
+  const roomNames = accRows.map(row => row.name || row.accommodation_name || '—').join(', ');
   const guestsData = typeof r.guests_data === 'string' ? JSON.parse(r.guests_data || '[]') : (r.guests_data || []);
   const extraOcc = getExtraOccupancyCharge(acc, r.num_guests || 1, r.nights || 0, guestsData.map(g => g.birth_date).filter(Boolean), r.check_in);
   const bkfPrice = servicosData.find(s => s.id === 'breakfast')?.value ?? 19;
@@ -1067,7 +1073,7 @@ function buildReservationSheetData(r) {
   const standardTotal = Number(r.standard_total);
   const stdDiff = !isNaN(standardTotal) && standardTotal > 0 ? total - standardTotal : null;
 
-  return { r, fmt, sd, nightly, payments, total, paid, remaining: total - paid, baseAmount, extras, adjustment, standardTotal, stdDiff };
+  return { r, fmt, sd, nightly, payments, total, paid, remaining: total - paid, baseAmount, extras, adjustment, standardTotal, stdDiff, accRows, roomNames };
 }
 
 async function openReservationSheet(resId) {
@@ -1131,7 +1137,7 @@ async function openReservationSheet(resId) {
           ${realEmail(r.guest_email) ? `<div class="stmt-sum-row"><span>Email</span><span>${escapeHtml(realEmail(r.guest_email))}</span></div>` : ''}
           ${r.guest_phone ? `<div class="stmt-sum-row"><span>Telefone</span><span>${escapeHtml(r.guest_phone)}</span></div>` : ''}
           ${r.guest_nif ? `<div class="stmt-sum-row"><span>NIF</span><span>${escapeHtml(r.guest_nif)}</span></div>` : ''}
-          <div class="stmt-sum-row"><span>Alojamento</span><span>${escapeHtml(r.accommodation_name || '—')}</span></div>
+          <div class="stmt-sum-row"><span>${d.accRows.length > 1 ? 'Alojamentos' : 'Alojamento'}</span><span>${escapeHtml(d.roomNames || r.accommodation_name || '—')}</span></div>
           <div class="stmt-sum-row"><span>Estadia</span><span>${sd(r.check_in)} → ${sd(r.check_out)} · ${r.nights} noite${r.nights !== 1 ? 's' : ''}</span></div>
           <div class="stmt-sum-row"><span>Ocupação</span><span>${r.num_adults || r.num_guests || 1} adulto${(r.num_adults || r.num_guests || 1) !== 1 ? 's' : ''}${r.num_children ? ` · ${r.num_children} criança${r.num_children !== 1 ? 's' : ''}` : ''}</span></div>
           <div class="stmt-sum-row"><span>Canal · Estado</span><span>${escapeHtml(r.channel || '—')} · ${escapeHtml(r.status || '—')}</span></div>
@@ -1207,7 +1213,7 @@ function downloadReservationSheetPdf() {
     ...(realEmail(r.guest_email) ? [['Email', realEmail(r.guest_email)]] : []),
     ...(r.guest_phone ? [['Telefone', r.guest_phone]] : []),
     ...(r.guest_nif ? [['NIF', r.guest_nif]] : []),
-    ['Alojamento', r.accommodation_name || '—'],
+    [d.accRows.length > 1 ? 'Alojamentos' : 'Alojamento', d.roomNames || r.accommodation_name || '—'],
     ['Estadia', `${sd(r.check_in)} → ${sd(r.check_out)} · ${r.nights} noite${r.nights !== 1 ? 's' : ''}`],
     ['Ocupação', `${r.num_adults || r.num_guests || 1} adultos${r.num_children ? ` · ${r.num_children} crianças` : ''}`],
     ['Canal · Estado', `${r.channel || '—'} · ${r.status || '—'}`],
@@ -1263,7 +1269,7 @@ function downloadReservationSheetXls() {
     ['Email', realEmail(r.guest_email) || '—'],
     ['Telefone', r.guest_phone || '—'],
     ['NIF', r.guest_nif || '—'],
-    ['Alojamento', r.accommodation_name || '—'],
+    [d.accRows.length > 1 ? 'Alojamentos' : 'Alojamento', d.roomNames || r.accommodation_name || '—'],
     ['Estadia', `${sd(r.check_in)} → ${sd(r.check_out)}`],
     ['Noites', r.nights],
     ['Ocupação', `${r.num_adults || r.num_guests || 1} adultos · ${r.num_children || 0} crianças`],
@@ -1799,6 +1805,21 @@ async function aprovarReserva(id) {
       showDetail(id);
     } else {
       toast('❌ ' + (res.error || 'Erro ao aprovar reserva.'), 'error');
+    }
+  } catch (e) {
+    toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
+  }
+}
+
+async function enviarLinkPrecheckin(id) {
+  try {
+    const res = await apiPost(`/api/reservations/${id}/send-precheckin`, {});
+    if (res.success) {
+      toast(res.data?.email_sent ? '✅ Link de pré-checkin enviado por email.' : '🔗 Link de pré-checkin gerado — copia-o para enviar (o hóspede não tem email registado).', 'success');
+      await loadReservas();
+      showDetail(id);
+    } else {
+      toast('❌ ' + (res.error || 'Erro ao enviar link de pré-checkin.'), 'error');
     }
   } catch (e) {
     toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');

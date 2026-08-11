@@ -527,11 +527,19 @@
     gap: 12px;
     padding: 16px;
     margin-top: 0;
+    top: 12px;
+    bottom: 0;
+    height: auto;
+    max-height: none;
   }
   .calendario-filter-panel .m-sheet-header {
     display: flex;
     margin: -16px -16px 4px;
     width: calc(100% + 32px);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--branco);
   }
 }
 
@@ -1029,7 +1037,7 @@
     border-radius: var(--mobile-radius);
     box-shadow: var(--mobile-shadow-card);
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     margin-bottom: 10px;
   }
 
@@ -1099,15 +1107,53 @@
     gap: 12px;
     padding: 16px;
     margin: 0;
+    top: 12px;
+    bottom: 0;
+    height: auto;
+    max-height: none;
   }
   .despesas-filter-panel .m-sheet-header {
     display: flex;
     margin: -16px -16px 4px;
     width: calc(100% + 32px);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--branco);
   }
-  .despesas-filter-panel select {
+  .despesas-filter-panel select,
+  .despesas-filter-panel input[type="month"] {
     width: 100% !important;
   }
+  .despesas-filter-panel-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: auto;
+    padding-top: 12px;
+    position: sticky;
+    bottom: 0;
+    background: var(--branco);
+  }
+  .despesas-filter-panel-actions .btn { flex: 1; }
+  .despesas-filter-apply { display: flex !important; flex: 2 !important; }
+
+  .despesas-filters-trigger {
+    position: relative;
+  }
+  .despesas-filter-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--vermelho);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .despesas-filter-badge i[data-lucide] { width: 11px; height: 11px; }
 
   .despesas-mobile-toolbar {
     display: flex;
@@ -1569,31 +1615,58 @@
     min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    grid-auto-rows: minmax(64px, 1fr);
+    display: flex;
+    flex-direction: column;
     border-top: 1px solid rgba(43, 24, 16, 0.1);
     border-left: 1px solid rgba(43, 24, 16, 0.1);
   }
 
-  .cll-cell {
-    border-right: 1px dashed rgba(43, 24, 16, 0.14);
-    border-bottom: 1px dashed rgba(43, 24, 16, 0.14);
-    padding: 6px 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
+  /* Uma semana = linha de números do dia + faixa de eventos por baixo
+     (barras absolutas), tal como o grid de secretária — permite uma
+     barra contínua de dia para dia e a faixa cresce em altura consoante
+     o número de reservas sobrepostas nessa semana, sem cortar nada. */
+  .cll-week {
     position: relative;
-    cursor: pointer;
-    overflow: hidden;
   }
 
-  .cll-cell.cll-other {
+  .cll-week:not(:first-child) {
+    border-top: 1px dashed rgba(43, 24, 16, 0.14);
+  }
+
+  .cll-col-sep {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(43, 24, 16, 0.14) 0, rgba(43, 24, 16, 0.14) 4px,
+      transparent 4px, transparent 8px
+    );
+    z-index: 1;
+  }
+
+  .cll-week-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+  }
+
+  .cll-day-cell {
+    min-height: 38px;
+    padding: 6px 8px 4px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .cll-day-cell.cll-other {
     opacity: 0.35;
     cursor: default;
   }
 
-  .cll-cell.cll-locked {
+  .cll-day-cell.cll-locked {
     background: rgba(139, 58, 36, 0.05);
   }
 
@@ -1625,21 +1698,41 @@
     color: #9b8f86;
   }
 
+  .cll-week-events {
+    position: relative;
+    min-height: 6px;
+    padding-bottom: 6px;
+  }
+
+  .cll-day-click-area {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    cursor: pointer;
+  }
+
+  /* Barra contínua de dia para dia — mesma matemática de left/width do
+     grid de secretária (.cal-event-span); arredondada só onde a estadia
+     começa/acaba dentro desta semana. */
   .cll-booking {
+    position: absolute;
+    display: flex;
+    align-items: center;
     border-left: 3px solid;
-    border-radius: 4px;
-    padding: 2px 5px;
+    border-radius: 0;
+    padding: 0 6px;
     font-size: 9.5px;
     font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    cursor: pointer;
+    z-index: 2;
   }
 
-  .cll-more {
-    font-size: 9px;
-    color: var(--cinza);
-  }
+  .cll-span-round-left { border-radius: 4px 0 0 4px; }
+  .cll-span-round-right { border-radius: 0 4px 4px 0; }
+  .cll-span-round-left.cll-span-round-right { border-radius: 4px; }
 
   /* Folha de agenda de um único dia, aberta ao tocar numa célula da
      grelha de paisagem — reaproveita .m-sheet (ver components/sheet.css,

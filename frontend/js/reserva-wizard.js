@@ -1179,12 +1179,12 @@ function renderExtraGuests() {
             </div>
           </div>` : ''}
           <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">País <span class="req-star">*</span></label>
+            <label class="form-label">País</label>
             <select class="form-control guest-country" data-field="country"
               onchange="updateExtraForeignReqs(this.closest('.extra-guest-row'))">${countryOpts}</select>
           </div>
           <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Data de Nascimento <span class="req-star">*</span></label>
+            <label class="form-label">Data de Nascimento</label>
             <div class="birth-date-control">
               <input class="form-control birth-date-input" data-field="birth_date" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" value="${formatDateForBirthInput(p.birth_date || '')}" oninput="handleBirthDateInput(this)" onblur="normalizeBirthDateInput(this);calcTotal();updateSpecialRateHints()" autocomplete="off">
               <button class="birth-date-picker-btn" type="button" onclick="AppDatePicker.open(this.closest('.birth-date-control').querySelector('.birth-date-input'),{isBirthDate:true})" aria-label="Abrir calendário">

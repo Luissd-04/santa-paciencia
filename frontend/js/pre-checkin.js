@@ -74,6 +74,11 @@ function guestForm(guest, index, numAdults) {
         <span>Nome completo *</span>
         <input data-field="name" required value="${escapeAttr(guest?.name || '')}" placeholder="Nome completo" autocomplete="off">
       </label>
+      ${index === 0 ? `
+      <label>
+        <span>Email *</span>
+        <input data-field="email" type="email" required value="${escapeAttr(guest?.email || '')}" placeholder="email@exemplo.com" autocomplete="off">
+      </label>` : ''}
       <div class="field-grid two">
         <label>
           <span>Data de nascimento *</span>
@@ -131,6 +136,7 @@ function collectGuest(card) {
   const nationality = get('nationality');
   return {
     name,
+    email: get('email'),
     first_name: parts[0] || '',
     last_name: parts.slice(1).join(' '),
     birth_date: isoDate(get('birth_date')),

@@ -27,24 +27,52 @@ function toggleDespesasFiltersSheet(open) {
   document.getElementById('view-despesas')?.classList.toggle('m-sheet-ancestor-fix', open);
 }
 
+// Filtros ativos = qualquer coisa diferente dos valores por omissão.
+function despesasFiltersActive() {
+  const period = document.getElementById('despesa-filter-period')?.value || 'ano';
+  const cat    = document.getElementById('despesa-filter-category')?.value || '';
+  const sup    = document.getElementById('despesa-filter-supplier')?.value || '';
+  return period !== 'ano' || cat !== '' || sup !== '';
+}
+
+function updateDespesasFilterBadge() {
+  const badge = document.getElementById('despesas-filter-badge');
+  if (badge) badge.style.display = despesasFiltersActive() ? '' : 'none';
+}
+
+function clearDespesasFiltros() {
+  const period = document.getElementById('despesa-filter-period');
+  const cat = document.getElementById('despesa-filter-category');
+  const sup = document.getElementById('despesa-filter-supplier');
+  if (period) period.value = 'ano';
+  if (cat) cat.value = '';
+  if (sup) sup.value = '';
+  AppUI.refreshDropdowns(document.getElementById('view-despesas'));
+  loadDespesas();
+}
+
 // ── LOAD ──
 async function loadDespesas() {
   document.getElementById('despesas-loading').style.display = 'flex';
   document.getElementById('despesas-body').innerHTML = '';
   document.getElementById('despesas-empty').style.display = 'none';
 
+  const period = document.getElementById('despesa-filter-period')?.value || 'ano';
+
   const monthInput = document.getElementById('despesa-filter-month');
   if (monthInput) {
+    monthInput.style.display = period === 'mes' ? '' : 'none';
     if (!monthInput.value) monthInput.value = despesaFilterMonth;
     despesaFilterMonth = monthInput.value;
     SS.set('desp:month', despesaFilterMonth);
   }
 
-  const period = document.getElementById('despesa-filter-period')?.value || 'ano';
   let listUrl = '/api/expenses';
   if (period === 'mes')      listUrl += `?month=${despesaFilterMonth}`;
   else if (period === 'ano') listUrl += `?year=${new Date().getFullYear()}`;
   // 'tudo' => sem filtro
+
+  updateDespesasFilterBadge();
 
   try {
     const [data, summary, suppliers] = await Promise.all([
@@ -78,11 +106,6 @@ function renderDespesasKpi(s) {
       <div class="kpi-value" style="color:var(--laranja);">€${Number(s.yearTotal||0).toFixed(2)}</div>
       <div class="kpi-sub">${new Date().getFullYear()}</div>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Total acumulado</div>
-      <div class="kpi-value">€${Number(s.allTotal||0).toFixed(2)}</div>
-      <div class="kpi-sub">todas as despesas</div>
-    </div>
     <div class="kpi-card" style="border-color:var(--roxo);">
       <div class="kpi-label">Maior categoria (ano)</div>
       <div class="kpi-value" style="font-size:18px;padding-top:4px;">
@@ -103,7 +126,6 @@ function renderDespesasKpiMobile(s) {
     <div class="dkm-band">
       <div class="dkm-col"><div class="dkm-value">€${Number(s.monthTotal||0).toFixed(2)}</div><div class="dkm-label">Este mês</div></div>
       <div class="dkm-col"><div class="dkm-value">€${Number(s.yearTotal||0).toFixed(2)}</div><div class="dkm-label">Este ano</div></div>
-      <div class="dkm-col"><div class="dkm-value">€${Number(s.allTotal||0).toFixed(2)}</div><div class="dkm-label">Acumulado</div></div>
     </div>
     <div class="dkm-top-cat">
       <div>
@@ -131,6 +153,7 @@ function renderDespesas() {
   const tbody   = document.getElementById('despesas-body');
   const empty   = document.getElementById('despesas-empty');
   loading.style.display = 'none';
+  updateDespesasFilterBadge();
 
   const mobileWrap = document.getElementById('despesas-mobile-cards');
 
