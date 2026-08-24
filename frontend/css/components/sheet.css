@@ -59,4 +59,7 @@
     align-items: center;
     justify-content: center;
   }
+
+  #cal-landscape-day-sheet,
+  #cal-landscape-day-backdrop { display: block; }
 }

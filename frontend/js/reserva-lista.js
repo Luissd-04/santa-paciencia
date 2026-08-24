@@ -817,9 +817,9 @@ async function showDetail(id, opts = {}) {
           <div class="rdv2-widget">
             <div class="rdv2-widget-title">Reserva</div>
             ${r.status === 'pendente' ? `<button class="rdv2-action-link rdv2-action-success" onclick="aprovarReserva('${r.id}')">${lcIcon('check', 12)} Aprovar e enviar pre check-in</button>` : ''}
-            ${r.status !== 'pendente' && r.status !== 'cancelada' ? `<button class="rdv2-action-link" onclick="enviarLinkPrecheckin('${r.id}')">${lcIcon('send', 12)} Enviar link de pré-checkin</button>` : ''}
             <button class="rdv2-action-link" data-accs="${(JSON.stringify(accsData)).replace(/"/g,'&quot;')}" data-res='{"id":"${r.id}","accId":"${r.accommodation_id}","ci":"${r.check_in}","co":"${r.check_out}","ng":${r.num_guests||1},"na":${r.num_adults||1},"nc":${r.num_children||0},"bkf":${r.breakfast_included?true:false},"nights":${r.nights||1}}' onclick="openAccommodationPanelFromBtn(this)">${lcIcon('home', 12)} Editar alojamento</button>
             <button class="rdv2-action-link" onclick="openEditPage('${r.id}')">${lcIcon('pencil', 12)} Editar reserva</button>
+            <button class="rdv2-action-link" onclick="openAddGuestForm('${r.id}')">${lcIcon('user-plus', 12)} Adicionar hóspede</button>
             <button class="rdv2-action-link" onclick="openPaymentForm('${r.id}', ${paid}, ${total})">${lcIcon('credit-card', 12)} Registar pagamento</button>
             <button class="rdv2-action-link" data-inv='${JSON.stringify({ n: r.invoice_number || '', d: r.invoice_date || '', sd: r.invoice_sent_date || '', m: r.invoice_sent_method || '' }).replace(/'/g, "&#39;")}' onclick="openInvoiceFormFromBtn('${r.id}', this)">${lcIcon('file-text', 12)} Registar fatura</button>
             ${r.guest_email ? `<button class="rdv2-action-link" onclick="openInvoiceForReservation('${r.id}',decodeURIComponent('${guestEmail}'),decodeURIComponent('${guestName}'))">${lcIcon('mail', 12)} Enviar email</button>` : ''}
@@ -839,8 +839,9 @@ async function showDetail(id, opts = {}) {
               <button class="rdv2-icon-btn" onclick="navigator.clipboard.writeText('${preCheckinUrl}');toast('🔗 Link copiado','success')" title="Copiar">${lcIcon('copy', 12)}</button>
             </div>
             <div class="rdv2-concierge-btns">
-              <button class="rdv2-cta-btn" onclick="window.open('${preCheckinUrl}','_blank')" title="Abrir pre check-in">${lcIcon('arrow-right', 13)}</button>
-              ${r.guest_email ? `<button class="rdv2-cta-btn" onclick="openInvoiceForReservation('${r.id}',decodeURIComponent('${guestEmail}'),decodeURIComponent('${guestName}'))" title="Enviar email">${lcIcon('mail', 13)}</button>` : ''}
+              <button class="rdv2-cta-btn" onclick="window.open('${preCheckinUrl}','_blank')" title="Abrir pre check-in">${lcIcon('arrow-right', 13)} Abrir</button>
+              ${r.status !== 'pendente' && r.status !== 'cancelada' ? `<button class="rdv2-cta-btn" onclick="enviarLinkPrecheckin('${r.id}')" title="Enviar link de pré-checkin">${lcIcon('send', 13)} Enviar pré-checkin</button>` : ''}
+              ${r.guest_email ? `<button class="rdv2-cta-btn" onclick="openInvoiceForReservation('${r.id}',decodeURIComponent('${guestEmail}'),decodeURIComponent('${guestName}'))" title="Enviar email">${lcIcon('mail', 13)} Email</button>` : ''}
             </div>
           </div>` : ''}
 
@@ -932,6 +933,71 @@ async function savePaymentForm(reservationId) {
     if (res.success) {
       document.getElementById('rdv2-pay-form')?.remove();
       toast('✅ Pagamento registado', 'success');
+      await loadReservas();
+      showDetail(reservationId);
+    } else {
+      toast('❌ ' + (res.error || 'Erro'), 'error');
+      if (btn) btn.disabled = false;
+    }
+  } catch (e) {
+    toast('❌ Erro de ligação', 'error');
+    if (btn) btn.disabled = false;
+  }
+}
+
+function openAddGuestForm(reservationId) {
+  const html = `
+    <div id="rdv2-addguest-form" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.remove()">
+      <div style="background:var(--surface-card);border-radius:16px;padding:24px;width:min(360px,92vw);box-shadow:0 8px 40px rgba(0,0,0,.22);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <span style="font-size:15px;font-weight:700;color:var(--text-main);">Adicionar Hóspede</span>
+          <button onclick="document.getElementById('rdv2-addguest-form').remove()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;">×</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Nome *</label>
+            <input id="ag-name" type="text" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);" autocomplete="off">
+          </div>
+          <div>
+            <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Email (opcional)</label>
+            <input id="ag-email" type="email" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);" autocomplete="off">
+          </div>
+          <div>
+            <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Telefone (opcional)</label>
+            <input id="ag-phone" type="text" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);" autocomplete="off">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
+          <button onclick="document.getElementById('rdv2-addguest-form').remove()" style="padding:8px 16px;border:1px solid var(--border-soft);border-radius:8px;background:none;color:var(--text-muted);cursor:pointer;font-size:13px;">Cancelar</button>
+          <button id="ag-save-btn" onclick="saveAddGuestForm('${reservationId}')" style="padding:8px 18px;border:none;border-radius:8px;background:var(--brand-shell);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.getElementById('ag-name')?.focus();
+}
+
+async function saveAddGuestForm(reservationId) {
+  const name = document.getElementById('ag-name')?.value.trim();
+  const email = document.getElementById('ag-email')?.value.trim();
+  const phone = document.getElementById('ag-phone')?.value.trim();
+  if (!name) { toast('⚠️ Indique o nome do hóspede', 'error'); return; }
+  const btn = document.getElementById('ag-save-btn');
+  if (btn) btn.disabled = true;
+  try {
+    const current = await apiGet(`/api/reservations/${reservationId}`);
+    if (!current.success) { toast('❌ Erro ao carregar reserva', 'error'); if (btn) btn.disabled = false; return; }
+    const r = current.data;
+    const guestsData = typeof r.guests_data === 'string' ? JSON.parse(r.guests_data || '[]') : (r.guests_data || []);
+    guestsData.push({ name, email: email || undefined, phone: phone || undefined });
+    const res = await apiPut(`/api/reservations/${reservationId}`, {
+      guests_data: guestsData,
+      num_guests: (r.num_guests || 1) + 1,
+      num_adults: (r.num_adults || 1) + 1,
+    });
+    if (res.success) {
+      document.getElementById('rdv2-addguest-form')?.remove();
+      toast('✅ Hóspede adicionado', 'success');
       await loadReservas();
       showDetail(reservationId);
     } else {

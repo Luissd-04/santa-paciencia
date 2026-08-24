@@ -1001,6 +1001,7 @@ select.form-control { cursor:pointer; }
 .cal-span-round-left.cal-span-round-right { border-radius:4px; }
 .cal-span-text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
 .cal-event-span.cal-event-multi { padding:0; }
+.cal-event-span.cal-event-checked-out { outline: 2px solid #c0392b; outline-offset: -1px; }
 .cal-span-row { position:absolute; left:0; right:0; display:flex; align-items:center; padding:0 6px; overflow:hidden; box-sizing:border-box; }
 .cal-event-more { position:absolute; height:20px; font-size:10px; color:var(--cinza); padding:0 4px; display:flex; align-items:center; }
 .cal-day-click-area { position:absolute; top:0; bottom:0; cursor:pointer; }
@@ -2043,6 +2044,7 @@ select.form-control { cursor:pointer; }
 }
 .tl-block:hover { opacity: .85; transform: translateY(-1px); }
 .tl-block.tl-dragging { opacity: .75; cursor: grabbing; transition: none; z-index: 10; transform: none; }
+.tl-block.tl-block-checked-out { outline: 2px solid #c0392b; outline-offset: -1px; }
 
 /* Faixa de bloqueio (datas indisponíveis) na timeline */
 .tl-block-blocked {

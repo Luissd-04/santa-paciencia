@@ -327,6 +327,7 @@ function renderCal() {
         const accom      = accommodations.find(a => a.id === r.accommodation_id);
         const color      = accom?.color || '#843424';
         const statusCls  = r.status === 'pendente' ? 'cal-event-pending' : 'cal-event-confirmed';
+        const checkoutCls = r.task_status?.checkout_done ? ' cal-event-checked-out' : '';
         const col0       = week.findIndex(d => d.dateStr === effStart); // 0-indexed
         const col1       = week.findIndex(d => d.dateStr === effEnd);   // 0-indexed
         const startsHere = r.check_in  >= weekStart;
@@ -352,7 +353,7 @@ function renderCal() {
               </div>`;
             }).join('')
           : `<span class="cal-span-text">${firstName} · ${escapeHtml(r.accommodation_name.replace('Suite ',''))}</span>`;
-        eventHtml += `<div class="cal-event-span ${statusCls} ${roundCls}${isMulti ? ' cal-event-multi' : ''}"
+        eventHtml += `<div class="cal-event-span ${statusCls}${checkoutCls} ${roundCls}${isMulti ? ' cal-event-multi' : ''}"
           style="left:${leftPct.toFixed(2)}%;width:${widthPct.toFixed(2)}%;top:${topPx}px;height:${barH}px;${isMulti ? '' : `background:${color}22;color:${color};border-left:${borderLeft};`}"
           onclick="event.stopPropagation();showDetail('${r.id}')"
           title="${escapeHtml(r.guest_name)} — ${escapeHtml(suiteInfos.map(s => s.name).join(' + '))}">
@@ -670,7 +671,8 @@ function renderTimeline(autoScroll = true) {
           const width = Math.max(18, right - left - 4);
           if (right <= 0 || left >= totalWidth || width <= 0) return '';
           const bg = ACCOM_COLOR[r.accommodation_id] || '#843424';
-          return `<div class="tl-block tl-block-${r.status}" style="left:${left}px;width:${width}px;--tl-color:${bg};background:${bg}18;border-color:${bg}55;"
+          const checkoutCls = r.task_status?.checkout_done ? ' tl-block-checked-out' : '';
+          return `<div class="tl-block tl-block-${r.status}${checkoutCls}" style="left:${left}px;width:${width}px;--tl-color:${bg};background:${bg}18;border-color:${bg}55;"
                        data-res-id="${r.id}"
                        data-acc-id="${r.accommodation_id}"
                        onpointerdown="tlPointerDown(event,'${r.id}','move')"

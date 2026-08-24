@@ -55,9 +55,9 @@ function computeStandardTotals(organizationId, resLike, primaryAccommodation, pr
 
 function upsertAdditionalGuests(guestsData, organizationId) {
   if (!Array.isArray(guestsData) || !guestsData.length) return guestsData || [];
-  return guestsData.map(g => {
+  return guestsData.map((g, i) => {
     if (!g?.name) return g;
-    const email = g.email?.trim() || null;
+    const email = g.email?.trim() || `guest_${Date.now()}_${i}@sem-email.local`;
     let existing = email
       ? db.prepare('SELECT id FROM guests WHERE email = ? AND organization_id = ?').get(email, organizationId)
       : null;
@@ -240,6 +240,26 @@ async function getAll(req, res, next) {
     query += ' ORDER BY r.check_in ASC';
 
     const reservations = db.prepare(query).all(...params);
+
+    if (reservations.length) {
+      const checkoutRows = db.prepare(`
+        SELECT reservation_id, status FROM (
+          SELECT oe.reservation_id, oe.status,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY oe.reservation_id
+                   ORDER BY (oe.date = r.check_out) DESC, oe.created_at DESC
+                 ) as rn
+          FROM operational_events oe
+          JOIN reservations r ON r.id = oe.reservation_id
+          WHERE oe.organization_id = ? AND oe.auto_kind = 'checkout'
+        ) t WHERE rn = 1
+      `).all(organizationId);
+      const checkoutDoneMap = new Map(checkoutRows.map(row => [row.reservation_id, row.status === 'concluido']));
+      reservations.forEach(r => {
+        r.task_status = { checkout_done: checkoutDoneMap.get(r.id) || false };
+      });
+    }
+
     res.json({ success: true, data: reservations });
   } catch (err) {
     next(err);
@@ -726,7 +746,7 @@ async function update(req, res, next) {
     // Actualizar dados do hóspede se fornecidos
     if (guest) {
       db.prepare(`UPDATE guests SET
-        name = COALESCE(?, name), phone = COALESCE(?, phone),
+        name = COALESCE(?, name), email = COALESCE(?, email), phone = COALESCE(?, phone),
         document_type = COALESCE(?, document_type), document_number = COALESCE(?, document_number),
         document_issuer_country = COALESCE(?, document_issuer_country),
         nationality = COALESCE(?, nationality), first_name = COALESCE(?, first_name),
@@ -736,7 +756,7 @@ async function update(req, res, next) {
         address = COALESCE(?, address), postal_code = COALESCE(?, postal_code), city = COALESCE(?, city),
         company = COALESCE(?, company)
         WHERE id = ? AND organization_id = ?`).run(
-        guest.name || null, guest.phone || null,
+        guest.name || null, guest.email || null, guest.phone || null,
         guest.document_type || null, guest.document_number || null,
         guest.document_issuer_country || null,
         guest.nationality || null, guest.first_name || null,

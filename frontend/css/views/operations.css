@@ -1334,7 +1334,11 @@ body.tl-is-panning * {
     text-transform: uppercase;
     letter-spacing: .08em;
     color: var(--text-muted);
-    padding: 0 2px;
+    padding: 6px 2px;
+    position: sticky;
+    top: calc(64px + env(safe-area-inset-top, 0px));
+    z-index: 5;
+    background: var(--creme);
   }
 
   .agenda-day-list {

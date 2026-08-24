@@ -753,6 +753,10 @@ function migrateOperationalEvents() {
     ON operational_events (organization_id, auto_key)
     WHERE auto_key IS NOT NULL
   `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_operational_events_reservation_kind
+    ON operational_events (reservation_id, auto_kind)
+  `);
 }
 
 

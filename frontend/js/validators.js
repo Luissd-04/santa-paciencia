@@ -2,7 +2,7 @@
   const SCHEMAS = {
     guest: {
       name:  { required: true, pattern: /^.{2,100}$/,                   message: 'Nome deve ter 2-100 caracteres' },
-      email: { required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,   message: 'Email inválido' },
+      email: { required: false, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,  message: 'Email inválido' },
     },
     reservation: {
       accommodation_id: { required: true, message: 'Selecione um alojamento' },
