@@ -830,19 +830,24 @@ async function showDetail(id, opts = {}) {
                  ${hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" onclick="apagarReservaDefinitivo('${r.id}')">${lcIcon('trash-2', 12)} Apagar reserva</button>` : ''}`}
           </div>
 
-          ${preCheckinUrl ? `
+          ${r.status !== 'pendente' && r.status !== 'cancelada' ? `
           <!-- Concierge -->
           <div class="rdv2-widget">
             <div class="rdv2-widget-title">Concierge</div>
+            ${preCheckinUrl ? `
             <div class="rdv2-concierge-url">
               <span class="rdv2-url-text">${preCheckinUrl}</span>
               <button class="rdv2-icon-btn" onclick="navigator.clipboard.writeText('${preCheckinUrl}');toast('🔗 Link copiado','success')" title="Copiar">${lcIcon('copy', 12)}</button>
             </div>
             <div class="rdv2-concierge-btns">
               <button class="rdv2-cta-btn" onclick="window.open('${preCheckinUrl}','_blank')" title="Abrir pre check-in">${lcIcon('arrow-right', 13)} Abrir</button>
-              ${r.status !== 'pendente' && r.status !== 'cancelada' ? `<button class="rdv2-cta-btn" onclick="enviarLinkPrecheckin('${r.id}')" title="Enviar link de pré-checkin">${lcIcon('send', 13)} Enviar pré-checkin</button>` : ''}
+              <button class="rdv2-cta-btn" onclick="enviarLinkPrecheckin('${r.id}')" title="Enviar link de pré-checkin">${lcIcon('send', 13)} Enviar pré-checkin</button>
               ${r.guest_email ? `<button class="rdv2-cta-btn" onclick="openInvoiceForReservation('${r.id}',decodeURIComponent('${guestEmail}'),decodeURIComponent('${guestName}'))" title="Enviar email">${lcIcon('mail', 13)} Email</button>` : ''}
-            </div>
+            </div>` : `
+            <div class="rdv2-concierge-btns">
+              <button class="rdv2-cta-btn" onclick="enviarLinkPrecheckin('${r.id}')" title="Gerar e enviar link de pré-checkin">${lcIcon('send', 13)} Gerar e enviar pré-checkin</button>
+              ${r.guest_email ? `<button class="rdv2-cta-btn" onclick="openInvoiceForReservation('${r.id}',decodeURIComponent('${guestEmail}'),decodeURIComponent('${guestName}'))" title="Enviar email">${lcIcon('mail', 13)} Email</button>` : ''}
+            </div>`}
           </div>` : ''}
 
           <!-- Documentos -->

@@ -1494,8 +1494,6 @@
    que as 6 semanas não cabem na altura disponível.
 ══════════════════════════════════════════════════════════════ */
 .cal-landscape { display: none; }
-#cal-landscape-day-sheet,
-#cal-landscape-day-backdrop { display: none; }
 
 @media (max-height: 500px) and (orientation: landscape) {
   /* Elementos fora de #view-calendario/#view-eventos (topbar, menu
@@ -1754,18 +1752,22 @@
     z-index: 2;
   }
 
+  .cll-booking.cll-booking-checked-out { padding-right: 12px; }
+  .cll-booking.cll-booking-checked-out::after {
+    content: '';
+    position: absolute;
+    right: 3px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #c0392b;
+  }
+
   .cll-span-round-left { border-radius: 4px 0 0 4px; }
   .cll-span-round-right { border-radius: 0 4px 4px 0; }
   .cll-span-round-left.cll-span-round-right { border-radius: 4px; }
-
-  /* Folha de agenda de um único dia, aberta ao tocar numa célula da
-     grelha de paisagem — reaproveita .m-sheet (ver components/sheet.css,
-     já cobre esta orientação) e .calendar-agenda-mobile para o conteúdo. */
-  #cll-day-agenda {
-    display: grid;
-    gap: 12px;
-    padding: 14px 16px;
-  }
 }
 
 /* ══════════════════════════════════════════════════════════════

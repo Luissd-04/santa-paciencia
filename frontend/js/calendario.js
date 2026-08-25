@@ -402,7 +402,9 @@ function renderCalendarAgenda(monthDays, filters = getCalendarFilters(), targetI
           const suitesHtml = isMulti
             ? `<span class="agenda-item-suites">${suiteInfos.map(s => `<small style="color:${s.color};"><span class="agenda-item-suite-dot" style="background:${s.color};"></span>${escapeHtml(s.name)}</small>`).join('')}</span>`
             : `<small>${escapeHtml(suiteInfos[0].name)} · ${marker}</small>`;
+          const checkoutDot = r.task_status?.checkout_done ? '<span class="agenda-item-checkout-dot"></span>' : '';
           return `<button type="button" class="agenda-item${isMulti ? ' agenda-item-multi' : ''}" onclick="showDetail('${r.id}')" style="--agenda-color:${color};">
+            ${checkoutDot}
             <span class="agenda-item-dot"></span>
             <span class="agenda-item-main">
               <strong>${escapeHtml(r.guest_name || 'Reserva')}</strong>
@@ -485,7 +487,7 @@ function renderCalLandscape(allDays, filters = getCalendarFilters()) {
       const numHtml = day.isToday
         ? `<div class="cll-today-num">${day.dayNum}</div>`
         : `<div class="cll-day-num">${day.dayNum}</div>`;
-      return `<div class="cll-day-cell${blocked ? ' cll-locked' : ''}" onclick="openCalLandscapeDay('${day.dateStr}')">
+      return `<div class="cll-day-cell${blocked ? ' cll-locked' : ''}" onclick="openCalLandscapeNewReservation('${day.dateStr}')">
         ${numHtml}
         ${blocked ? '<i data-lucide="lock" class="cll-lock-icon"></i>' : ''}
       </div>`;
@@ -494,7 +496,7 @@ function renderCalLandscape(allDays, filters = getCalendarFilters()) {
     // Área de clique por coluna (dia inteiro) por baixo das barras — mesma
     // técnica do grid de secretária (clickOverlays antes, eventos depois).
     const clickAreas = week.map((day, col) =>
-      day.otherMonth ? '' : `<div class="cll-day-click-area" style="left:${(col/7*100).toFixed(2)}%;width:${(100/7).toFixed(2)}%;" onclick="openCalLandscapeDay('${day.dateStr}')"></div>`
+      day.otherMonth ? '' : `<div class="cll-day-click-area" style="left:${(col/7*100).toFixed(2)}%;width:${(100/7).toFixed(2)}%;" onclick="openCalLandscapeNewReservation('${day.dateStr}')"></div>`
     ).join('');
 
     let eventHtml = '';
@@ -513,7 +515,8 @@ function renderCalLandscape(allDays, filters = getCalendarFilters()) {
         const roundCls  = (startsHere ? 'cll-span-round-left ' : '') + (endsHere ? 'cll-span-round-right' : '');
         const firstName = escapeHtml((r.guest_name || '').split(' ')[0]);
         const accName   = escapeHtml((r.accommodation_name || '').replace('Suite ', ''));
-        eventHtml += `<div class="cll-booking ${roundCls}" style="left:${leftPct.toFixed(2)}%;width:${widthPct.toFixed(2)}%;top:${laneTops[l]}px;height:${LANE_H}px;background:${color}18;border-left-color:${color};color:${color};" title="${escapeHtml(r.guest_name || '')} · ${escapeHtml(r.accommodation_name || '')}" onclick="event.stopPropagation();showDetail('${r.id}')">${firstName} · ${accName}</div>`;
+        const checkoutCls = r.task_status?.checkout_done ? ' cll-booking-checked-out' : '';
+        eventHtml += `<div class="cll-booking${checkoutCls} ${roundCls}" style="left:${leftPct.toFixed(2)}%;width:${widthPct.toFixed(2)}%;top:${laneTops[l]}px;height:${LANE_H}px;background:${color}18;border-left-color:${color};color:${color};" title="${escapeHtml(r.guest_name || '')} · ${escapeHtml(r.accommodation_name || '')}" onclick="event.stopPropagation();showDetail('${r.id}')">${firstName} · ${accName}</div>`;
       }
     }
 
@@ -529,23 +532,11 @@ function renderCalLandscape(allDays, filters = getCalendarFilters()) {
   if (window.lucide) lucide.createIcons();
 }
 
-// Toque num dia da grelha de paisagem: abre a agenda desse dia numa folha
-// (reaproveita renderCalendarAgenda passando um único dia + um alvo próprio).
-function openCalLandscapeDay(dateStr) {
+// Toque num dia da grelha de paisagem: abre logo a criação de reserva nesse
+// dia (tal como a grelha de secretária já faz via openModalFromCalendar).
+function openCalLandscapeNewReservation(dateStr) {
   calLandSelectedDate = dateStr;
-  const titleEl = document.getElementById('cll-day-title');
-  if (titleEl) {
-    const label = new Date(`${dateStr}T12:00:00`).toLocaleDateString('pt-PT', { weekday: 'long', day: '2-digit', month: 'long' });
-    titleEl.textContent = label.charAt(0).toUpperCase() + label.slice(1);
-  }
-  renderCalendarAgenda([dateStr], getCalendarFilters(), 'cll-day-agenda');
-  document.getElementById('cal-landscape-day-sheet')?.classList.add('m-sheet-open');
-  document.getElementById('cal-landscape-day-backdrop')?.classList.add('active');
-}
-
-function closeCalLandscapeDay() {
-  document.getElementById('cal-landscape-day-sheet')?.classList.remove('m-sheet-open');
-  document.getElementById('cal-landscape-day-backdrop')?.classList.remove('active');
+  openModalFromCalendar(dateStr);
 }
 
 // Atalho do botão "Bloquear datas" no topo da grelha de paisagem — usa o

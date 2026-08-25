@@ -1347,6 +1347,7 @@ body.tl-is-panning * {
   }
 
   .agenda-item {
+    position: relative;
     appearance: none;
     width: 100%;
     border: 1px solid var(--border-soft);
@@ -1368,6 +1369,16 @@ body.tl-is-panning * {
     height: 9px;
     border-radius: 999px;
     background: var(--agenda-color, var(--marca));
+  }
+
+  .agenda-item-checkout-dot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #c0392b;
   }
 
   .agenda-item-main {
