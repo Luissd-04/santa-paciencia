@@ -1569,8 +1569,9 @@
   }
 
   /* Calendário: grelha mensal dedicada a ecrã inteiro (substitui a
-     grelha de secretária forçada — ver .cll-* abaixo). Clearance de
-     54px no topo para não sobrepor a status bar do dispositivo. */
+     grelha de secretária forçada — ver .cll-* abaixo). Topo com o
+     mínimo de folga possível, só respeitando o entalhe/notch quando
+     o dispositivo o reporta (env safe-area-inset-top). */
   #view-calendario.active .cal-landscape {
     display: flex;
     flex-direction: column;
@@ -1578,7 +1579,7 @@
     inset: 0;
     z-index: 140;
     background: var(--creme);
-    padding: 54px max(18px, env(safe-area-inset-right, 18px)) 12px max(18px, env(safe-area-inset-left, 18px));
+    padding: max(8px, env(safe-area-inset-top, 8px)) max(18px, env(safe-area-inset-right, 18px)) 12px max(18px, env(safe-area-inset-left, 18px));
     overflow: hidden;
   }
 
