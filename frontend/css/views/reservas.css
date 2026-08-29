@@ -555,12 +555,12 @@
   flex-shrink: 0;
 }
 .rdv2-icon-btn:hover { color: var(--brand-shell); border-color: var(--brand-shell); }
-.rdv2-concierge-btns { display: flex; gap: 6px; }
+.rdv2-concierge-btns { display: flex; flex-direction: column; gap: 6px; }
 .rdv2-cta-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  flex: 1;
+  width: 100%;
   gap: 6px;
   padding: 7px 10px;
   font-size: 12px;

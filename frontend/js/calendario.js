@@ -1,4 +1,7 @@
 let calMode = SS.get('calMode', 'calendar');
+// Agenda vertical (telemóvel em pé): por padrão só mostra reservas cujo
+// check-out ainda não foi marcado — evita lista cheia de estadias já saídas.
+let calAgendaHideCheckedOut = SS.get('calAgendaHideCheckedOut', true);
 let tlPointerDrag = null;
 let tlPanDrag = null;
 let timelineDays  = SS.get('tlDays', 14);
@@ -375,12 +378,25 @@ function renderCal() {
   renderCalLandscape(allDays, filters);
 }
 
+function toggleAgendaCheckoutFilter() {
+  calAgendaHideCheckedOut = !calAgendaHideCheckedOut;
+  SS.set('calAgendaHideCheckedOut', calAgendaHideCheckedOut);
+  renderCal();
+}
+
 function renderCalendarAgenda(monthDays, filters = getCalendarFilters(), targetId = 'calendar-agenda-mobile') {
   const agenda = document.getElementById(targetId);
   if (!agenda) return;
 
+  const filterBar = `<div class="agenda-checkout-filter-bar">
+    <button type="button" class="legend-pill legend-checkout-filter${calAgendaHideCheckedOut ? ' active' : ''}" onclick="toggleAgendaCheckoutFilter()">
+      ${calAgendaHideCheckedOut ? 'A mostrar: sem check-out' : 'A mostrar: todas'}
+    </button>
+  </div>`;
+
   const monthReservations = reservas
     .filter(r => reservationMatchesCalendarFilters(r, filters))
+    .filter(r => !calAgendaHideCheckedOut || !r.task_status?.checkout_done)
     .filter(r => r.check_out >= monthDays[0] && r.check_in <= monthDays[monthDays.length - 1])
     .sort((a, b) => a.check_in.localeCompare(b.check_in) || a.check_out.localeCompare(b.check_out));
 
@@ -418,7 +434,7 @@ function renderCalendarAgenda(monthDays, filters = getCalendarFilters(), targetI
   }).filter(Boolean);
 
   const emptyMsg = monthDays.length === 1 ? 'Sem reservas visíveis neste dia.' : 'Sem reservas visíveis neste mês.';
-  agenda.innerHTML = groups.join('') || `<div class="agenda-empty">${emptyMsg}</div>`;
+  agenda.innerHTML = filterBar + (groups.join('') || `<div class="agenda-empty">${emptyMsg}</div>`);
   if (window.lucide) lucide.createIcons();
 }
 

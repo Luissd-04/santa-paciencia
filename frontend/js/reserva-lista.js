@@ -845,8 +845,7 @@ async function showDetail(id, opts = {}) {
               ${r.guest_email ? `<button class="rdv2-cta-btn" onclick="openInvoiceForReservation('${r.id}',decodeURIComponent('${guestEmail}'),decodeURIComponent('${guestName}'))" title="Enviar email">${lcIcon('mail', 13)} Email</button>` : ''}
             </div>` : `
             <div class="rdv2-concierge-btns">
-              <button class="rdv2-cta-btn" onclick="enviarLinkPrecheckin('${r.id}')" title="Gerar e enviar link de pré-checkin">${lcIcon('send', 13)} Gerar e enviar pré-checkin</button>
-              ${r.guest_email ? `<button class="rdv2-cta-btn" onclick="openInvoiceForReservation('${r.id}',decodeURIComponent('${guestEmail}'),decodeURIComponent('${guestName}'))" title="Enviar email">${lcIcon('mail', 13)} Email</button>` : ''}
+              <button class="rdv2-cta-btn" onclick="enviarLinkPrecheckin('${r.id}', false)" title="Gerar link de pré-checkin">${lcIcon('link', 13)} Gerar pré-checkin</button>
             </div>`}
           </div>` : ''}
 
@@ -1882,11 +1881,15 @@ async function aprovarReserva(id) {
   }
 }
 
-async function enviarLinkPrecheckin(id) {
+async function enviarLinkPrecheckin(id, send = true) {
   try {
-    const res = await apiPost(`/api/reservations/${id}/send-precheckin`, {});
+    const res = await apiPost(`/api/reservations/${id}/send-precheckin`, { send });
     if (res.success) {
-      toast(res.data?.email_sent ? '✅ Link de pré-checkin enviado por email.' : '🔗 Link de pré-checkin gerado — copia-o para enviar (o hóspede não tem email registado).', 'success');
+      if (!send) {
+        toast('🔗 Link de pré-checkin gerado.', 'success');
+      } else {
+        toast(res.data?.email_sent ? '✅ Link de pré-checkin enviado por email.' : '🔗 Link de pré-checkin gerado — copia-o para enviar (o hóspede não tem email registado).', 'success');
+      }
       await loadReservas();
       showDetail(id);
     } else {

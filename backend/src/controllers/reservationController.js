@@ -1042,16 +1042,17 @@ async function sendPrecheckinLink(req, res, next) {
     const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(reservation.accommodation_id, organizationId);
     const preCheckinUrl = `${publicUrl(req)}/pre-checkin/${precheckinToken}`;
 
-    let emailSent = true;
-    if (guest.email) {
-      try {
-        await sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl);
-      } catch (err) {
-        emailSent = false;
-        console.warn('Email de pre-check-in não enviado:', err.message);
+    const shouldSend = req.body?.send !== false;
+    let emailSent = false;
+    if (shouldSend) {
+      if (guest.email) {
+        try {
+          await sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl);
+          emailSent = true;
+        } catch (err) {
+          console.warn('Email de pre-check-in não enviado:', err.message);
+        }
       }
-    } else {
-      emailSent = false;
     }
 
     res.json({ success: true, data: { pre_checkin_url: preCheckinUrl, email_sent: emailSent } });

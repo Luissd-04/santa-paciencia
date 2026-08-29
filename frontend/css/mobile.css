@@ -1590,8 +1590,6 @@
     margin-bottom: 10px;
   }
 
-  .cll-toolbar-spacer { flex: 1; }
-
   .cll-pill {
     display: flex;
     align-items: center;
@@ -1611,12 +1609,15 @@
   .cll-pill:active { transform: scale(0.96); }
 
   .cll-title {
+    flex: 1;
     font-family: 'Playfair Display', serif;
-    font-size: 26px;
+    font-size: 18px;
     font-weight: 700;
     color: var(--azul);
-    margin-bottom: 10px;
-    flex-shrink: 0;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .cll-week-days-head {
