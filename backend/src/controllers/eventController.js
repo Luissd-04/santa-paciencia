@@ -6,7 +6,7 @@ const {
   syncOrganizationOperationalTasks,
 } = require('../services/operationalTasksService');
 const { isAuthenticated } = require('../config/google');
-const { createTaskCalendarEvent, updateTaskCalendarEvent } = require('../services/calendarService');
+const { createTaskCalendarEvent, updateTaskCalendarEvent, deleteTaskCalendarEvent } = require('../services/calendarService');
 
 const GCAL_SYNC_TASKS_KEY = 'gcal_sync_tasks';
 function getOrgSetting(orgId, key) {
@@ -145,10 +145,14 @@ function update(req, res) {
 
 function remove(req, res) {
   const orgId = req.user.organization_id;
-  const existing = db.prepare('SELECT id FROM operational_events WHERE id = ? AND organization_id = ?').get(req.params.id, orgId);
+  const existing = db.prepare('SELECT * FROM operational_events WHERE id = ? AND organization_id = ?').get(req.params.id, orgId);
   if (!existing) return res.status(404).json({ error: 'Evento não encontrado' });
   db.prepare('DELETE FROM operational_events WHERE id = ? AND organization_id = ?').run(req.params.id, orgId);
   res.json({ success: true });
+  if (existing.google_event_id) {
+    deleteTaskCalendarEvent(existing, { userId: existing.google_calendar_user_id, organizationId: orgId })
+      .catch(err => console.error('Erro ao remover evento de tarefa do Google Calendar:', err.message));
+  }
 }
 
 function getSettings(req, res) {

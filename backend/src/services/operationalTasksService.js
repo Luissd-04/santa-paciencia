@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
+const { deleteTaskCalendarEvent } = require('./calendarService');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const AUTO_TASK_SETTINGS_KEY = 'auto_task_settings';
@@ -157,17 +158,30 @@ const syncReservationTx = db.transaction((reservation, userId = null) => {
   const desiredKeys = new Set(desired.map(t => t.auto_key));
 
   const existingRows = db.prepare(`
-    SELECT id, auto_key, status FROM operational_events
+    SELECT id, auto_key, status, accommodation_id, google_event_id, google_calendar_user_id
+    FROM operational_events
     WHERE organization_id = ? AND reservation_id = ? AND auto_generated = 1
   `).all(orgId, reservation.id);
   const byKey = new Map(existingRows.map(r => [r.auto_key, r]));
 
   // Remover as auto-tarefas que já não fazem sentido (ex.: datas mudaram, opção
-  // desligada), exceto as concluídas (mantidas para histórico).
+  // desligada, reserva cancelada), exceto as concluídas (mantidas para histórico).
+  // As que já tinham evento no Google Calendar ficariam órfãs lá — são devolvidas
+  // para o caller apagar depois da transação (a API do Google não pode ser
+  // chamada dentro de uma transação síncrona do better-sqlite3).
+  const orphanedCalendarEvents = [];
   const delStmt = db.prepare('DELETE FROM operational_events WHERE id = ? AND organization_id = ?');
   for (const row of existingRows) {
     if (!desiredKeys.has(row.auto_key) && row.status !== 'concluido') {
       delStmt.run(row.id, orgId);
+      if (row.google_event_id) {
+        orphanedCalendarEvents.push({
+          google_event_id: row.google_event_id,
+          google_calendar_user_id: row.google_calendar_user_id,
+          accommodation_id: row.accommodation_id,
+          organization_id: orgId,
+        });
+      }
     }
   }
 
@@ -193,11 +207,20 @@ const syncReservationTx = db.transaction((reservation, userId = null) => {
       );
     }
   }
+
+  return orphanedCalendarEvents;
 });
+
+function deleteOrphanedCalendarEvents(rows) {
+  rows.forEach(row => {
+    deleteTaskCalendarEvent(row, { userId: row.google_calendar_user_id, organizationId: row.organization_id })
+      .catch(err => console.error('Erro ao remover evento de tarefa do Google Calendar:', err.message));
+  });
+}
 
 function syncReservationOperationalTasks(reservation, userId = null) {
   if (!reservation?.id || !reservation.organization_id) return;
-  syncReservationTx(reservation, userId);
+  deleteOrphanedCalendarEvents(syncReservationTx(reservation, userId));
 }
 
 function syncOrganizationOperationalTasks(organizationId) {
@@ -209,10 +232,12 @@ function syncOrganizationOperationalTasks(organizationId) {
     WHERE r.organization_id = ?
   `).all(organizationId);
 
+  const orphaned = [];
   const tx = db.transaction(rows => {
-    rows.forEach(row => syncReservationTx(row, null));
+    rows.forEach(row => orphaned.push(...syncReservationTx(row, null)));
   });
   tx(reservations);
+  deleteOrphanedCalendarEvents(orphaned);
 }
 
 module.exports = {

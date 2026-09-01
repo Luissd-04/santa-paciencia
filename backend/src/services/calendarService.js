@@ -276,4 +276,27 @@ async function cleanDuplicateAppEvents(userId, organizationId) {
   return { deleted };
 }
 
-module.exports = { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, createTaskCalendarEvent, updateTaskCalendarEvent, cleanDuplicateAppEvents };
+async function deleteTaskCalendarEvent(task, calendarUser = {}) {
+  const userId = calendarUser.userId || task.google_calendar_user_id;
+  const organizationId = calendarUser.organizationId;
+  if (!isAuthenticated(userId, organizationId) || !task.google_event_id) return;
+
+  try {
+    const auth = getAuthenticatedClient(userId, organizationId);
+    const accommodation = task.accommodation_id
+      ? db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(task.accommodation_id, organizationId)
+      : null;
+    const calendarId = accommodation?.google_calendar_id || 'primary';
+
+    await auth.request({ url: calUrl(calendarId, task.google_event_id), method: 'DELETE' });
+    console.log(`🗑️  Evento de tarefa removido do Google Calendar: ${task.google_event_id}`);
+  } catch (err) {
+    console.error('Erro ao remover evento de tarefa:', err.message);
+  }
+}
+
+module.exports = {
+  createCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
+  createTaskCalendarEvent, updateTaskCalendarEvent, deleteTaskCalendarEvent,
+  cleanDuplicateAppEvents,
+};

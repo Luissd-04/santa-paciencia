@@ -23,12 +23,12 @@ router.get('/status', (req, res) => {
 
   const total = db.prepare(`
     SELECT COUNT(*) as c FROM operational_events
-    WHERE organization_id = ? AND status != 'cancelado' AND google_task_id IS NOT NULL
+    WHERE organization_id = ? AND google_task_id IS NOT NULL
   `).get(req.user.organization_id)?.c ?? 0;
 
   const pending = db.prepare(`
     SELECT COUNT(*) as c FROM operational_events
-    WHERE organization_id = ? AND status != 'cancelado' AND date >= date('now') AND google_task_id IS NULL
+    WHERE organization_id = ? AND date >= date('now') AND google_task_id IS NULL
   `).get(req.user.organization_id)?.c ?? 0;
 
   res.json({ success: true, data: { connected: true, email: info.email, synced: total, pending } });
@@ -51,7 +51,6 @@ router.post('/sync', async (req, res) => {
       FROM operational_events e
       LEFT JOIN accommodations a ON a.id = e.accommodation_id
       WHERE e.organization_id = ?
-        AND e.status != 'cancelado'
         AND e.date >= date('now', '-1 day')
         AND e.date <= date('now', '+90 days')
       ORDER BY e.date ASC, e.start_time ASC

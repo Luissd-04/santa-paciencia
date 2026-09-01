@@ -1,4 +1,6 @@
 const { db } = require('../config/database');
+const { syncReservationOperationalTasks } = require('./operationalTasksService');
+const { deleteCalendarEvent } = require('./calendarService');
 
 // TTL em horas para reservas vindas do motor público (canal != 'direto') que
 // nunca pagaram. Configurável via env.
@@ -15,21 +17,40 @@ const SCHEDULER_INTERVAL_MS = Number(process.env.PENDING_EXPIRY_INTERVAL_MS) || 
  */
 function expirePendingReservations() {
   try {
-    const result = db.prepare(`
-      UPDATE reservations
-      SET status = 'cancelada',
-          notes = COALESCE(notes || char(10), '') || '[Auto-cancelada por TTL — pendente >' || ? || 'h]',
-          updated_at = datetime('now')
+    const rows = db.prepare(`
+      SELECT * FROM reservations
       WHERE status = 'pendente'
         AND channel != 'direto'
         AND (amount_paid IS NULL OR amount_paid = 0)
         AND datetime(created_at) < datetime('now', '-' || ? || ' hours')
-    `).run(PENDING_TTL_HOURS, PENDING_TTL_HOURS);
+    `).all(PENDING_TTL_HOURS);
 
-    if (result.changes > 0) {
-      console.log(`🧹 ${result.changes} reserva(s) pendente(s) expirada(s) por TTL`);
+    if (!rows.length) return 0;
+
+    const updateStmt = db.prepare(`
+      UPDATE reservations
+      SET status = 'cancelada',
+          notes = COALESCE(notes || char(10), '') || '[Auto-cancelada por TTL — pendente >' || ? || 'h]',
+          updated_at = datetime('now')
+      WHERE id = ? AND organization_id = ?
+    `);
+
+    // Passar pelo mesmo caminho do cancelamento manual: apagar as tarefas
+    // auto-geradas (check-in/checkout/limpeza) e o evento no Google Calendar —
+    // este UPDATE em massa era o único ponto de cancelamento que não o fazia,
+    // deixando tarefas "ativas" ligadas a reservas já canceladas.
+    for (const reservation of rows) {
+      updateStmt.run(PENDING_TTL_HOURS, reservation.id, reservation.organization_id);
+      const cancelled = { ...reservation, status: 'cancelada' };
+      syncReservationOperationalTasks(cancelled);
+      deleteCalendarEvent(cancelled, {
+        userId: cancelled.google_calendar_user_id,
+        organizationId: cancelled.organization_id,
+      }).catch(err => console.error('Erro ao remover evento de reserva expirada do Google Calendar:', err.message));
     }
-    return result.changes;
+
+    console.log(`🧹 ${rows.length} reserva(s) pendente(s) expirada(s) por TTL`);
+    return rows.length;
   } catch (err) {
     console.error('Erro ao expirar reservas pendentes:', err.message);
     return 0;
