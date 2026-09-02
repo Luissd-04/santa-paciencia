@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { loginLimiter, forgotPasswordLimiter, oauthCallbackLimiter } = require('../middleware/rateLimiter');
-const { deleteTokens, getOAuth2Client, isAuthenticated, saveTokens } = require('../config/google');
+const { deleteTokens, getOAuth2Client, isAuthenticated, saveTokens, revokeTokens } = require('../config/google');
+const { deleteAllSyncedEvents } = require('../services/calendarService');
 const {
   getEmailOAuth2Client, saveEmailTokens, deleteEmailTokens,
   isEmailAuthenticated, getEmailConnectionInfo, GMAIL_SCOPES,
@@ -8,6 +9,7 @@ const {
 const {
   getTasksOAuth2Client, saveTasksTokens, deleteTasksTokens,
   isTasksAuthenticated, getTasksConnectionInfo, TASKS_SCOPES,
+  revokeTasksTokens, deleteAllSyncedTasks,
 } = require('../config/googleTasks');
 const { db } = require('../config/database');
 const requireAuth = require('../middleware/requireAuth');
@@ -394,9 +396,19 @@ router.get('/google/status', requireAuth, (req, res) => {
   res.json({ connected: isAuthenticated(req.user.id, req.user.organization_id) });
 });
 
-router.delete('/google', requireAuth, (req, res) => {
-  deleteTokens(req.user.id, req.user.organization_id);
-  res.json({ success: true, message: 'Google Calendar desligado' });
+router.delete('/google', requireAuth, async (req, res) => {
+  const { id: userId, organization_id: organizationId } = req.user;
+  let removed = 0;
+  if (isAuthenticated(userId, organizationId)) {
+    try {
+      removed = await deleteAllSyncedEvents(userId, organizationId);
+    } catch (err) {
+      console.error('Erro ao limpar eventos antes de desligar o Google Calendar:', err.message);
+    }
+    await revokeTokens(userId, organizationId);
+  }
+  deleteTokens(userId, organizationId);
+  res.json({ success: true, message: `Google Calendar desligado (${removed} eventos removidos)` });
 });
 
 // ── GMAIL OAUTH ──
@@ -746,9 +758,19 @@ router.get('/google-tasks/status', requireAuth, (req, res) => {
   res.json({ success: true, data: info });
 });
 
-router.delete('/google-tasks', requireAuth, (req, res) => {
-  deleteTasksTokens(req.user.organization_id);
-  res.json({ success: true, message: 'Google Tasks desligado' });
+router.delete('/google-tasks', requireAuth, async (req, res) => {
+  const organizationId = req.user.organization_id;
+  let removed = 0;
+  if (isTasksAuthenticated(organizationId)) {
+    try {
+      removed = await deleteAllSyncedTasks(organizationId);
+    } catch (err) {
+      console.error('Erro ao limpar tarefas antes de desligar o Google Tasks:', err.message);
+    }
+    await revokeTasksTokens(organizationId);
+  }
+  deleteTasksTokens(organizationId);
+  res.json({ success: true, message: `Google Tasks desligado (${removed} tarefas removidas)` });
 });
 
 module.exports = router;

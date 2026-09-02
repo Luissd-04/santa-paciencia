@@ -110,6 +110,7 @@ const {
 } = require('../services/operationalTasksService');
 
 const { isAuthenticated } = require('../config/google');
+const { isTasksAuthenticated, syncOrganizationTasksToGoogleTasks } = require('../config/googleTasks');
 
 function publicUrl(req) {
   const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
@@ -141,26 +142,32 @@ function getGcalSyncTasks(organizationId) {
   return row?.value === '1';
 }
 
-async function syncReservationTasksToCalendar(reservationId, organizationId, userId) {
-  if (!isAuthenticated(userId, organizationId)) return;
+async function syncReservationTasksToGoogle(reservationId, organizationId, userId) {
   if (!getGcalSyncTasks(organizationId)) return;
-  try {
-    const tasks = db.prepare(
-      "SELECT * FROM operational_events WHERE reservation_id = ? AND organization_id = ? AND auto_generated = 1 AND status != 'concluido'"
-    ).all(reservationId, organizationId);
-    for (const task of tasks) {
-      if (task.google_event_id && task.google_calendar_user_id === userId) {
-        await updateTaskCalendarEvent(task, { userId, organizationId });
-      } else if (!task.google_event_id) {
-        const eventId = await createTaskCalendarEvent(task, { userId, organizationId });
-        if (eventId) {
-          db.prepare('UPDATE operational_events SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ?')
-            .run(eventId, userId, task.id);
+
+  if (isAuthenticated(userId, organizationId)) {
+    try {
+      const tasks = db.prepare(
+        "SELECT * FROM operational_events WHERE reservation_id = ? AND organization_id = ? AND auto_generated = 1 AND status != 'concluido'"
+      ).all(reservationId, organizationId);
+      for (const task of tasks) {
+        if (task.google_event_id && task.google_calendar_user_id === userId) {
+          await updateTaskCalendarEvent(task, { userId, organizationId });
+        } else if (!task.google_event_id) {
+          const eventId = await createTaskCalendarEvent(task, { userId, organizationId });
+          if (eventId) {
+            db.prepare('UPDATE operational_events SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ?')
+              .run(eventId, userId, task.id);
+          }
         }
       }
+    } catch (err) {
+      console.error('Erro ao sincronizar tarefas da reserva:', err.message);
     }
-  } catch (err) {
-    console.error('Erro ao sincronizar tarefas da reserva:', err.message);
+  }
+
+  if (isTasksAuthenticated(organizationId)) {
+    syncOrganizationTasksToGoogleTasks(organizationId).catch(err => console.error('Erro ao sincronizar tarefas da reserva com Google Tasks:', err.message));
   }
 }
 
@@ -624,7 +631,7 @@ async function create(req, res, next) {
     }, req.user.id);
 
     // Google Calendar (async, não bloqueia resposta)
-    syncReservationTasksToCalendar(reservationId, organizationId, req.user.id);
+    syncReservationTasksToGoogle(reservationId, organizationId, req.user.id);
     createCalendarEvent(reservation, { userId: req.user.id, organizationId }).then(eventId => {
       if (eventId) {
         db.prepare('UPDATE reservations SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ? AND organization_id = ?')
@@ -868,7 +875,7 @@ async function update(req, res, next) {
     }, req.user.id);
 
     // Google Calendar tarefas (async)
-    syncReservationTasksToCalendar(req.params.id, organizationId, req.user.id);
+    syncReservationTasksToGoogle(req.params.id, organizationId, req.user.id);
 
     // Google Calendar: cancelar remove o evento (paridade com o DELETE)
     if (cancelling) {

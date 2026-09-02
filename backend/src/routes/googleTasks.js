@@ -1,20 +1,12 @@
 const router = require('express').Router();
 const { db } = require('../config/database');
-const TASKS_BASE = 'https://tasks.googleapis.com/tasks/v1';
 const {
   getAuthenticatedTasksClient,
   getTasksConnectionInfo,
   getOrCreateTaskList,
+  syncOrganizationTasksToGoogleTasks,
+  TASKS_BASE,
 } = require('../config/googleTasks');
-
-const { EVENT_TYPE_LABELS } = require('../config/eventTypes');
-// Base partilhada + chaves legacy próprias das operational_events
-const TASK_TYPE_LABELS = {
-  ...EVENT_TYPE_LABELS,
-  check_in:  'Check-in',
-  check_out: 'Check-out',
-  outro:     'Tarefa',
-};
 
 /* ── GET /api/tasks/status ── */
 router.get('/status', (req, res) => {
@@ -42,68 +34,8 @@ router.post('/sync', async (req, res) => {
   }
 
   try {
-    const auth = getAuthenticatedTasksClient(orgId);
-    const listId = await getOrCreateTaskList(auth, orgId);
-
-    /* Buscar eventos dos próximos 90 dias que não estão cancelados */
-    const events = db.prepare(`
-      SELECT e.*, a.name as accommodation_name
-      FROM operational_events e
-      LEFT JOIN accommodations a ON a.id = e.accommodation_id
-      WHERE e.organization_id = ?
-        AND e.date >= date('now', '-1 day')
-        AND e.date <= date('now', '+90 days')
-      ORDER BY e.date ASC, e.start_time ASC
-    `).all(orgId);
-
-    let created = 0, updated = 0, errors = 0;
-
-    for (const ev of events) {
-      try {
-        const typeLabel = TASK_TYPE_LABELS[ev.type] || ev.type;
-        const title = ev.accommodation_name
-          ? `[${ev.accommodation_name}] ${ev.title || typeLabel}`
-          : (ev.title || typeLabel);
-
-        const notes = [
-          ev.notes || '',
-          ev.responsible ? `Responsável: ${ev.responsible}` : '',
-          ev.start_time  ? `Hora: ${ev.start_time}${ev.end_time ? '–' + ev.end_time : ''}` : '',
-          ev.status !== 'planeado' ? `Estado: ${ev.status}` : '',
-        ].filter(Boolean).join('\n');
-
-        /* RFC 3339 — Google Tasks quer YYYY-MM-DDT00:00:00.000Z */
-        const due = ev.date ? new Date(ev.date + 'T00:00:00Z').toISOString() : undefined;
-
-        const taskBody = { title, notes, due };
-        if (ev.status === 'concluido') taskBody.status = 'completed';
-
-        if (ev.google_task_id) {
-          await auth.request({
-            url: `${TASKS_BASE}/lists/${listId}/tasks/${ev.google_task_id}`,
-            method: 'PUT',
-            data: taskBody,
-          });
-          updated++;
-        } else {
-          const { data } = await auth.request({
-            url: `${TASKS_BASE}/lists/${listId}/tasks`,
-            method: 'POST',
-            data: taskBody,
-          });
-          db.prepare(`
-            UPDATE operational_events SET google_task_id = ?, updated_at = datetime('now')
-            WHERE id = ?
-          `).run(data.id, ev.id);
-          created++;
-        }
-      } catch (err) {
-        console.error('Tasks sync erro (evento', ev.id, '):', err.message);
-        errors++;
-      }
-    }
-
-    res.json({ success: true, data: { created, updated, errors, total: events.length } });
+    const data = await syncOrganizationTasksToGoogleTasks(orgId);
+    res.json({ success: true, data });
   } catch (err) {
     console.error('Tasks sync erro:', err);
     res.status(500).json({ success: false, error: err.message });

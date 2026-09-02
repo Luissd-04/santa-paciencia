@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
 const { deleteTaskCalendarEvent } = require('./calendarService');
+const { deleteSyncedTask } = require('../config/googleTasks');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const AUTO_TASK_SETTINGS_KEY = 'auto_task_settings';
@@ -158,7 +159,7 @@ const syncReservationTx = db.transaction((reservation, userId = null) => {
   const desiredKeys = new Set(desired.map(t => t.auto_key));
 
   const existingRows = db.prepare(`
-    SELECT id, auto_key, status, accommodation_id, google_event_id, google_calendar_user_id
+    SELECT id, auto_key, status, accommodation_id, google_event_id, google_calendar_user_id, google_task_id
     FROM operational_events
     WHERE organization_id = ? AND reservation_id = ? AND auto_generated = 1
   `).all(orgId, reservation.id);
@@ -166,10 +167,11 @@ const syncReservationTx = db.transaction((reservation, userId = null) => {
 
   // Remover as auto-tarefas que já não fazem sentido (ex.: datas mudaram, opção
   // desligada, reserva cancelada), exceto as concluídas (mantidas para histórico).
-  // As que já tinham evento no Google Calendar ficariam órfãs lá — são devolvidas
-  // para o caller apagar depois da transação (a API do Google não pode ser
-  // chamada dentro de uma transação síncrona do better-sqlite3).
+  // As que já tinham evento no Google Calendar / tarefa no Google Tasks ficariam
+  // órfãs lá — são devolvidas para o caller apagar depois da transação (a API do
+  // Google não pode ser chamada dentro de uma transação síncrona do better-sqlite3).
   const orphanedCalendarEvents = [];
+  const orphanedTasks = [];
   const delStmt = db.prepare('DELETE FROM operational_events WHERE id = ? AND organization_id = ?');
   for (const row of existingRows) {
     if (!desiredKeys.has(row.auto_key) && row.status !== 'concluido') {
@@ -181,6 +183,9 @@ const syncReservationTx = db.transaction((reservation, userId = null) => {
           accommodation_id: row.accommodation_id,
           organization_id: orgId,
         });
+      }
+      if (row.google_task_id) {
+        orphanedTasks.push(row.google_task_id);
       }
     }
   }
@@ -208,7 +213,7 @@ const syncReservationTx = db.transaction((reservation, userId = null) => {
     }
   }
 
-  return orphanedCalendarEvents;
+  return { orphanedCalendarEvents, orphanedTasks };
 });
 
 function deleteOrphanedCalendarEvents(rows) {
@@ -218,9 +223,18 @@ function deleteOrphanedCalendarEvents(rows) {
   });
 }
 
+function deleteOrphanedTasks(organizationId, googleTaskIds) {
+  googleTaskIds.forEach(taskId => {
+    deleteSyncedTask(organizationId, taskId)
+      .catch(err => console.error('Erro ao remover tarefa do Google Tasks:', err.message));
+  });
+}
+
 function syncReservationOperationalTasks(reservation, userId = null) {
   if (!reservation?.id || !reservation.organization_id) return;
-  deleteOrphanedCalendarEvents(syncReservationTx(reservation, userId));
+  const { orphanedCalendarEvents, orphanedTasks } = syncReservationTx(reservation, userId);
+  deleteOrphanedCalendarEvents(orphanedCalendarEvents);
+  deleteOrphanedTasks(reservation.organization_id, orphanedTasks);
 }
 
 function syncOrganizationOperationalTasks(organizationId) {
@@ -232,12 +246,18 @@ function syncOrganizationOperationalTasks(organizationId) {
     WHERE r.organization_id = ?
   `).all(organizationId);
 
-  const orphaned = [];
+  const orphanedCalendarEvents = [];
+  const orphanedTasks = [];
   const tx = db.transaction(rows => {
-    rows.forEach(row => orphaned.push(...syncReservationTx(row, null)));
+    rows.forEach(row => {
+      const result = syncReservationTx(row, null);
+      orphanedCalendarEvents.push(...result.orphanedCalendarEvents);
+      orphanedTasks.push(...result.orphanedTasks);
+    });
   });
   tx(reservations);
-  deleteOrphanedCalendarEvents(orphaned);
+  deleteOrphanedCalendarEvents(orphanedCalendarEvents);
+  deleteOrphanedTasks(organizationId, orphanedTasks);
 }
 
 module.exports = {

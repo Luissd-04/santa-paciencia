@@ -2,6 +2,7 @@ const { db } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
+const { recolorAccommodationCalendar } = require('../services/calendarService');
 
 const UPLOADS_DIR = path.resolve('./data/uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -392,6 +393,10 @@ function update(req, res) {
 
   const resolved = getResolvedAccommodationsForOrg(req.user.organization_id).find(a => a.id === id);
   res.json({ success: true, data: resolved });
+
+  if (color !== undefined && resolved?.google_calendar_id) {
+    recolorAccommodationCalendar(resolved).catch(err => console.error('Erro ao recolorir calendário:', err.message));
+  }
 }
 
 // ─── UPLOAD COVER IMAGE ────────────────────────────────────

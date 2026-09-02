@@ -7,6 +7,7 @@ const {
 } = require('../services/operationalTasksService');
 const { isAuthenticated } = require('../config/google');
 const { createTaskCalendarEvent, updateTaskCalendarEvent, deleteTaskCalendarEvent } = require('../services/calendarService');
+const { isTasksAuthenticated, syncOrganizationTasksToGoogleTasks, deleteSyncedTask } = require('../config/googleTasks');
 
 const GCAL_SYNC_TASKS_KEY = 'gcal_sync_tasks';
 function getOrgSetting(orgId, key) {
@@ -14,21 +15,29 @@ function getOrgSetting(orgId, key) {
   return row?.value ?? null;
 }
 
-async function syncTaskToCalendar(task, userId, orgId) {
-  if (!isAuthenticated(userId, orgId)) return;
+// Sincroniza um evento operacional com o Google Calendar e o Google Tasks, quando a
+// definição "Sincronizar eventos automaticamente" estiver ativa e as integrações ligadas.
+async function syncTaskToGoogle(task, userId, orgId) {
   if (getOrgSetting(orgId, GCAL_SYNC_TASKS_KEY) !== '1') return;
-  try {
-    if (task.google_event_id && task.google_calendar_user_id === userId) {
-      await updateTaskCalendarEvent(task, { userId, organizationId: orgId });
-    } else {
-      const eventId = await createTaskCalendarEvent(task, { userId, organizationId: orgId });
-      if (eventId) {
-        db.prepare('UPDATE operational_events SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ?')
-          .run(eventId, userId, task.id);
+
+  if (isAuthenticated(userId, orgId)) {
+    try {
+      if (task.google_event_id && task.google_calendar_user_id === userId) {
+        await updateTaskCalendarEvent(task, { userId, organizationId: orgId });
+      } else {
+        const eventId = await createTaskCalendarEvent(task, { userId, organizationId: orgId });
+        if (eventId) {
+          db.prepare('UPDATE operational_events SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ?')
+            .run(eventId, userId, task.id);
+        }
       }
+    } catch (err) {
+      console.error('Erro ao sincronizar tarefa com Google Calendar:', err.message);
     }
-  } catch (err) {
-    console.error('Erro ao sincronizar tarefa com Google Calendar:', err.message);
+  }
+
+  if (isTasksAuthenticated(orgId)) {
+    syncOrganizationTasksToGoogleTasks(orgId).catch(err => console.error('Erro ao sincronizar tarefa com Google Tasks:', err.message));
   }
 }
 
@@ -110,7 +119,7 @@ function create(req, res) {
 
   const created = db.prepare('SELECT * FROM operational_events WHERE id = ? AND organization_id = ?').get(id, orgId);
   res.status(201).json({ success: true, data: created });
-  syncTaskToCalendar(created, req.user.id, orgId);
+  syncTaskToGoogle(created, req.user.id, orgId);
 }
 
 function update(req, res) {
@@ -140,7 +149,7 @@ function update(req, res) {
 
   const updated = db.prepare('SELECT * FROM operational_events WHERE id = ? AND organization_id = ?').get(req.params.id, orgId);
   res.json({ success: true, data: updated });
-  syncTaskToCalendar(updated, req.user.id, orgId);
+  syncTaskToGoogle(updated, req.user.id, orgId);
 }
 
 function remove(req, res) {
@@ -152,6 +161,10 @@ function remove(req, res) {
   if (existing.google_event_id) {
     deleteTaskCalendarEvent(existing, { userId: existing.google_calendar_user_id, organizationId: orgId })
       .catch(err => console.error('Erro ao remover evento de tarefa do Google Calendar:', err.message));
+  }
+  if (existing.google_task_id) {
+    deleteSyncedTask(orgId, existing.google_task_id)
+      .catch(err => console.error('Erro ao remover tarefa do Google Tasks:', err.message));
   }
 }
 

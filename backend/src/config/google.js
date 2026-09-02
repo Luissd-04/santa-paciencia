@@ -73,11 +73,26 @@ function isAuthenticated(userId, organizationId) {
   return !!getStoredTokens(userId, organizationId);
 }
 
+async function revokeTokens(userId, organizationId) {
+  const token = getStoredTokens(userId, organizationId);
+  const revokeToken = token?.refresh_token || token?.access_token;
+  if (!revokeToken) return;
+  try {
+    await fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(revokeToken), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+  } catch (err) {
+    console.error('Erro ao revogar token do Google Calendar:', err.message);
+  }
+}
+
 module.exports = {
   getOAuth2Client,
   getAuthenticatedClient,
   isAuthenticated,
   saveTokens,
   deleteTokens,
+  revokeTokens,
   TOKEN_PATH
 };

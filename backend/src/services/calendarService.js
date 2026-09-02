@@ -33,7 +33,6 @@ async function createCalendarEvent(reservation, calendarUser = {}) {
       ].filter(Boolean).join('\n'),
       start: { date: reservation.check_in, timeZone: 'Europe/Lisbon' },
       end: { date: reservation.check_out, timeZone: 'Europe/Lisbon' },
-      colorId: getColorForAccommodation(reservation.accommodation_id),
       reminders: {
         useDefault: false,
         overrides: [
@@ -43,7 +42,7 @@ async function createCalendarEvent(reservation, calendarUser = {}) {
       },
     };
 
-    const calendarId = accommodation.google_calendar_id || 'primary';
+    const calendarId = await ensureAccommodationCalendar(auth, accommodation, organizationId);
     const response = await auth.request({ url: calUrl(calendarId), method: 'POST', data: event });
     console.log(`📅 Evento criado no Google Calendar: ${response.data.id}`);
     return response.data.id;
@@ -82,7 +81,6 @@ async function updateCalendarEvent(reservation, calendarUser = {}) {
         ].filter(Boolean).join('\n'),
         start: { date: reservation.check_in, timeZone: 'Europe/Lisbon' },
         end: { date: reservation.check_out, timeZone: 'Europe/Lisbon' },
-        colorId: getColorForAccommodation(reservation.accommodation_id),
       },
     });
     console.log(`📅 Evento atualizado: ${reservation.google_event_id}`);
@@ -108,14 +106,94 @@ async function deleteCalendarEvent(reservation, calendarUser = {}) {
   }
 }
 
-function getColorForAccommodation(accommodationId) {
-  const colors = {
-    'suite-mezzanine-deluxe': '1',
-    'suite-familiar-deluxe': '2',
-    'suite-king-deluxe': '4',
-    'suite-queen-deluxe': '6'
-  };
-  return colors[accommodationId] || '1';
+// Garante que o alojamento tem um Google Calendar próprio (cria-o automaticamente
+// à primeira sincronização) e que a cor desse calendário reflete accommodation.color.
+// A Calendar API só aceita ~11 cores fixas por EVENTO, mas o calendário em si aceita
+// qualquer hex via colorRgbFormat — por isso a cor é aplicada ao calendário, não ao evento.
+async function ensureAccommodationCalendar(auth, accommodation, organizationId) {
+  if (accommodation.google_calendar_id) {
+    try {
+      await auth.request({ url: `${CAL_BASE}/${encodeURIComponent(accommodation.google_calendar_id)}` });
+      return accommodation.google_calendar_id;
+    } catch { /* calendário apagado ou inacessível — recriar abaixo */ }
+  }
+
+  try {
+    const { data } = await auth.request({
+      url: CAL_BASE,
+      method: 'POST',
+      data: { summary: accommodation.name, timeZone: 'Europe/Lisbon' },
+    });
+    const calendarId = data.id;
+
+    try {
+      await auth.request({
+        url: `https://www.googleapis.com/calendar/v3/users/me/calendarList/${encodeURIComponent(calendarId)}?colorRgbFormat=true`,
+        method: 'PATCH',
+        data: { backgroundColor: accommodation.color || '#843424', foregroundColor: '#ffffff' },
+      });
+    } catch (err) {
+      console.error('Erro ao definir cor do calendário:', err.message);
+    }
+
+    db.prepare('UPDATE accommodations SET google_calendar_id = ? WHERE id = ? AND organization_id = ?')
+      .run(calendarId, accommodation.id, organizationId);
+    accommodation.google_calendar_id = calendarId;
+    console.log(`📅 Calendário criado automaticamente para "${accommodation.name}": ${calendarId}`);
+    return calendarId;
+  } catch (err) {
+    console.error('Erro ao criar calendário do alojamento:', err.message);
+    return 'primary';
+  }
+}
+
+// Recolore o calendário de um alojamento quando accommodation.color muda.
+// Best-effort: usa qualquer ligação Google Calendar ativa da organização.
+async function recolorAccommodationCalendar(accommodation) {
+  if (!accommodation.google_calendar_id) return;
+  const conn = db.prepare(
+    'SELECT user_id FROM google_calendar_connections WHERE organization_id = ? LIMIT 1'
+  ).get(accommodation.organization_id);
+  if (!conn || !isAuthenticated(conn.user_id, accommodation.organization_id)) return;
+
+  try {
+    const auth = getAuthenticatedClient(conn.user_id, accommodation.organization_id);
+    await auth.request({
+      url: `https://www.googleapis.com/calendar/v3/users/me/calendarList/${encodeURIComponent(accommodation.google_calendar_id)}?colorRgbFormat=true`,
+      method: 'PATCH',
+      data: { backgroundColor: accommodation.color || '#843424', foregroundColor: '#ffffff' },
+    });
+  } catch (err) {
+    console.error('Erro ao recolorir calendário do alojamento:', err.message);
+  }
+}
+
+// Apaga do Google Calendar todos os eventos (reservas + tarefas) que este utilizador
+// criou, e limpa as referências locais. Usado ao desligar a integração.
+async function deleteAllSyncedEvents(userId, organizationId) {
+  let deleted = 0;
+
+  const reservations = db.prepare(`
+    SELECT * FROM reservations
+    WHERE organization_id = ? AND google_calendar_user_id = ? AND google_event_id IS NOT NULL
+  `).all(organizationId, userId);
+  for (const r of reservations) {
+    await deleteCalendarEvent(r, { userId, organizationId });
+    db.prepare('UPDATE reservations SET google_event_id = NULL, google_calendar_user_id = NULL WHERE id = ?').run(r.id);
+    deleted++;
+  }
+
+  const tasks = db.prepare(`
+    SELECT * FROM operational_events
+    WHERE organization_id = ? AND google_calendar_user_id = ? AND google_event_id IS NOT NULL
+  `).all(organizationId, userId);
+  for (const t of tasks) {
+    await deleteTaskCalendarEvent(t, { userId, organizationId });
+    db.prepare('UPDATE operational_events SET google_event_id = NULL, google_calendar_user_id = NULL WHERE id = ?').run(t.id);
+    deleted++;
+  }
+
+  return deleted;
 }
 
 function addOneHour(time) {
@@ -123,7 +201,34 @@ function addOneHour(time) {
   return `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-const { EVENT_TYPE_EMOJIS: TASK_TYPE_ICONS } = require('../config/eventTypes');
+const { EVENT_TYPE_EMOJIS: TASK_TYPE_ICONS, EVENT_TYPE_COLORS } = require('../config/eventTypes');
+
+// Paleta fixa de cores de EVENTO da Calendar API (colorId 1-11) — não aceita hex livre,
+// ao contrário da cor do calendário em si (ver ensureAccommodationCalendar acima).
+const GOOGLE_EVENT_COLORS = {
+  '1': '7986cb', '2': '33b679', '3': '8e24aa', '4': 'e67c73', '5': 'f6bf26',
+  '6': 'f4511e', '7': '039be5', '8': '616161', '9': '3f51b5', '10': '0b8043', '11': 'd50000',
+};
+
+function hexToRgb(hex) {
+  const clean = String(hex || '').replace('#', '');
+  const n = parseInt(clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+// Aproxima uma cor hex arbitrária (ex.: a cor do tipo de evento na app) à cor de
+// evento fixa mais próxima da Calendar API, para eventos sem alojamento associado
+// (que ficam no calendário 'primary', partilhado — não têm calendário próprio a colorir).
+function nearestGoogleColorId(hex) {
+  const [r, g, b] = hexToRgb(hex);
+  let best = '8', bestDist = Infinity;
+  for (const [id, gHex] of Object.entries(GOOGLE_EVENT_COLORS)) {
+    const [gr, gg, gb] = hexToRgb(gHex);
+    const dist = (r - gr) ** 2 + (g - gg) ** 2 + (b - gb) ** 2;
+    if (dist < bestDist) { bestDist = dist; best = id; }
+  }
+  return best;
+}
 
 async function createTaskCalendarEvent(task, calendarUser = {}) {
   const { userId, organizationId } = calendarUser;
@@ -150,7 +255,12 @@ async function createTaskCalendarEvent(task, calendarUser = {}) {
       endEvt   = { date: nextDay.toISOString().slice(0, 10) };
     }
 
-    const calendarId = accommodation?.google_calendar_id || 'primary';
+    const calendarId = accommodation
+      ? await ensureAccommodationCalendar(auth, accommodation, organizationId)
+      : 'primary';
+    // Sem alojamento não há calendário próprio a colorir — aproxima a cor do tipo
+    // de evento (já usada na app) à cor de evento fixa mais próxima da API.
+    const colorId = accommodation ? undefined : nearestGoogleColorId(EVENT_TYPE_COLORS[task.type]);
     const response = await auth.request({
       url: calUrl(calendarId),
       method: 'POST',
@@ -159,6 +269,7 @@ async function createTaskCalendarEvent(task, calendarUser = {}) {
         description: [task.notes, task.responsible ? `Responsável: ${task.responsible}` : null].filter(Boolean).join('\n'),
         start: startEvt,
         end: endEvt,
+        colorId,
       },
     });
     return response.data.id;
@@ -194,10 +305,11 @@ async function updateTaskCalendarEvent(task, calendarUser = {}) {
     }
 
     const calendarId = accommodation?.google_calendar_id || 'primary';
+    const colorId = accommodation ? undefined : nearestGoogleColorId(EVENT_TYPE_COLORS[task.type]);
     await auth.request({
       url: calUrl(calendarId, task.google_event_id),
       method: 'PUT',
-      data: { summary, start: startEvt, end: endEvt },
+      data: { summary, start: startEvt, end: endEvt, colorId },
     });
   } catch (err) {
     console.error('Erro ao atualizar evento de tarefa:', err.message);
@@ -299,4 +411,5 @@ module.exports = {
   createCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
   createTaskCalendarEvent, updateTaskCalendarEvent, deleteTaskCalendarEvent,
   cleanDuplicateAppEvents,
+  ensureAccommodationCalendar, recolorAccommodationCalendar, deleteAllSyncedEvents,
 };
