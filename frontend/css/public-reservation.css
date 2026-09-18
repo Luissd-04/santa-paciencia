@@ -418,6 +418,24 @@ textarea { resize: vertical; }
   background: rgba(132,52,36,.06);
 }
 
+/* Bandeiras SVG (flag-icons) — substituem os emoji, que o Windows não desenha */
+.fi {
+  border-radius: 3px;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .08);
+}
+.country-dropdown-item .fi,
+.phone-code-btn .fi {
+  width: 22px;
+  height: 16px;
+}
+.flag-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 .country-dropdown-item.highlighted {
   background: rgba(132,52,36,.12);
 }
@@ -613,70 +631,7 @@ textarea { resize: vertical; }
 
 .success-box.show { display: block; }
 
-.date-pop {
-  position: fixed;
-  z-index: 30;
-  width: 286px;
-  padding: 12px;
-  border: 1px solid rgba(132,52,36,.14);
-  border-radius: 18px;
-  background: #fff;
-  box-shadow: 0 18px 44px rgba(45,34,28,.2);
-}
-
-.date-head {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-bottom: 10px;
-}
-
-.date-head strong {
-  flex: 1;
-  text-align: center;
-  text-transform: capitalize;
-  font-size: 13px;
-}
-
-.date-head button,
-.date-grid button {
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  cursor: pointer;
-  font-weight: 700;
-}
-
-.date-head button {
-  width: 28px;
-  height: 30px;
-  background: #f4f0ec;
-}
-
-.date-week,
-.date-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-  text-align: center;
-}
-
-.date-week {
-  margin-bottom: 5px;
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.date-grid button {
-  height: 32px;
-}
-
-.date-grid button:hover,
-.date-grid button.selected {
-  background: var(--brand);
-  color: #fff;
-}
+/* Date picker → css/components/date-picker.css (partilhado com o backoffice) */
 
 .is-loading {
   pointer-events: none;
@@ -799,6 +754,14 @@ textarea { resize: vertical; }
 
 .pc-country-code {
   width: 24px;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.pc-country-code .fi {
+  width: 22px;
+  height: 16px;
 }
 
 .birth-date-control {
@@ -832,26 +795,6 @@ textarea { resize: vertical; }
   background: #fff;
   box-shadow: 0 18px 50px rgba(0,0,0,.22);
   border: 1px solid rgba(132,52,36,.12);
-}
-
-.dp-day {
-  border: 0;
-  border-radius: 9px;
-  height: 32px;
-  background: transparent;
-  cursor: pointer;
-  font-weight: 700;
-}
-
-.dp-day:hover,
-.dp-day.selected {
-  background: var(--brand);
-  color: #fff;
-}
-
-.dp-day.dp-disabled {
-  opacity: .3;
-  pointer-events: none;
 }
 
 @keyframes spinSmooth {

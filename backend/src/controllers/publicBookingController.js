@@ -1,3 +1,5 @@
+const { findConflict, unavailableUnits, validateExtraUnits } = require('../services/reservationAvailability');
+const { validateReservationInput } = require('../services/reservationValidation');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
@@ -13,6 +15,8 @@ const { getAccommodationScope } = require('../services/availabilityRules');
 const { findBlockConflict } = require('../services/accommodationBlockService');
 const turnstile = require('../services/turnstileService');
 const { recordHistory } = require('../services/reservationHistoryService');
+
+const { createReservationGuest, savePrecheckin } = require('../services/publicGuestService');
 
 const COMMON_AREAS_KEY = 'areas_comuns';
 
@@ -116,29 +120,7 @@ function getChildren(parent) {
   `).all(parent.organization_id, parent.id);
 }
 
-function findConflict(organizationId, accommodationId, checkIn, checkOut, excludeId = null) {
-  const accommodations = db.prepare('SELECT id, type, parent_id FROM accommodations WHERE organization_id = ?').all(organizationId);
-  const idsToCheck = getAccommodationScope(accommodations, accommodationId);
-  if (!idsToCheck.length) return null;
 
-  const placeholders = idsToCheck.map(() => '?').join(',');
-  const excludeClause = excludeId ? ' AND id != ?' : '';
-  const params = [organizationId, checkOut, checkIn, ...idsToCheck];
-  if (excludeId) params.push(excludeId);
-  const reservationConflict = db.prepare(`
-    SELECT id FROM reservations
-    WHERE status != 'cancelada'
-      AND organization_id = ?
-      AND check_in < ?
-      AND check_out > ?
-      AND accommodation_id IN (${placeholders})${excludeClause}
-    LIMIT 1
-  `).get(...params);
-  if (reservationConflict) return reservationConflict;
-
-  // Datas bloqueadas manualmente também tornam o alojamento indisponível.
-  return findBlockConflict(organizationId, accommodationId, checkIn, checkOut);
-}
 
 function getServices(organizationId) {
   const row = db.prepare("SELECT value FROM organization_settings WHERE organization_id = ? AND key = 'services'").get(organizationId);
@@ -155,7 +137,7 @@ function getPricingPeriods(organizationId, accommodationId) {
 
 function calculateTotal(accommodation, organizationId, payload) {
   const pricing_periods = getPricingPeriods(organizationId, accommodation.id);
-  return calculateReservationTotals(accommodation, getServices(organizationId), { ...payload, pricing_periods });
+  return calculateReservationTotals(accommodation, getServices(organizationId), { check_in: payload.check_in, check_out: payload.check_out, num_guests: payload.num_guests, breakfast_included: payload.breakfast_included, guest: payload.guest, guests_data: payload.guests_data, pricing_periods });
 }
 
 function getLanding(req, res) {
@@ -224,15 +206,15 @@ function getAvailability(req, res) {
       id: parent.id,
       name: 'Alojamento completo',
       type: 'property',
-      available: !children.length || children.every(child => {
+      available: reservable.every(child => {
         const conflict = checkIn && checkOut ? findConflict(parent.organization_id, child.id, checkIn, checkOut) : null;
         return !conflict && guests <= Number(child.max_guests || 0);
       }),
-      occupied: children.length && children.some(child => {
+      occupied: reservable.some(child => {
         const conflict = checkIn && checkOut ? findConflict(parent.organization_id, child.id, checkIn, checkOut) : null;
         return !!conflict;
       }),
-      over_capacity: children.length && children.some(child => guests > Number(child.max_guests || 0)),
+      over_capacity: reservable.some(child => guests > Number(child.max_guests || 0)),
       max_guests: Math.max(...reservable.map(u => Number(u.max_guests || 0)))
     }
   ];
@@ -263,6 +245,7 @@ async function createReservation(req, res, next) {
     const parent = getPropertyBySlug(req.params.slug);
     if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado.' });
     const payload = req.body || {};
+    validateReservationInput({ ...payload, nightly_prices: undefined, total_amount: undefined, amount_paid: undefined, status: undefined, payment_status: undefined });
 
     // Anti-bot camada 1 — Honeypot. Bots de auto-fill preenchem o campo
     // escondido; humanos nunca o vêem.
@@ -319,7 +302,7 @@ async function createReservation(req, res, next) {
     if (totals.nights < minNights) {
       return res.status(400).json({ success: false, error: `A estadia mínima é de ${minNights} noite${minNights !== 1 ? 's' : ''}.` });
     }
-    if (!isCompleteProperty && findConflict(parent.organization_id, unit.id, totals.checkIn, totals.checkOut)) {
+    if (findConflict(parent.organization_id, unit.id, totals.checkIn, totals.checkOut)) {
       return res.status(409).json({ success: false, error: 'Este alojamento já está ocupado nessas datas.' });
     }
     if (!payload.rgpd_consent) return res.status(400).json({ success: false, error: 'É necessário aceitar o RGPD.' });
@@ -365,20 +348,10 @@ async function createReservation(req, res, next) {
 
     // Transação atómica: guest + reserva + marcar voucher como usado em simultâneo
     const txResult = db.transaction(() => {
-      // Criar ou obter hóspede
-      let g = db.prepare('SELECT * FROM guests WHERE email = ? AND organization_id = ?').get(payload.guest.email, parent.organization_id);
-      if (!g) {
-        const guestId = uuidv4();
-        db.prepare(`
-          INSERT INTO guests (id, organization_id, name, email, phone, first_name, last_name, birth_date, country)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          guestId, parent.organization_id, payload.guest.name, payload.guest.email, payload.guest.phone || null,
-          payload.guest.first_name || null, payload.guest.last_name || null, normalizeDateValue(payload.guest.birth_date) || null,
-          payload.guest.nationality || payload.guest.country || null
-        );
-        g = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(guestId, parent.organization_id);
-      }
+      if (findConflict(parent.organization_id, accommodationId, totals.checkIn, totals.checkOut)) throw Object.assign(new Error('Alojamento indisponível.'), { status: 409 });
+      const g = createReservationGuest(parent.organization_id, {
+        ...cleanGuestData(payload.guest), phone: String(payload.guest.phone || '').slice(0, 40),
+      });
 
       // Validar e marcar voucher atomicamente — re-verifica status dentro da transação
       let confirmedVoucherId = null;
@@ -401,18 +374,18 @@ async function createReservation(req, res, next) {
         INSERT INTO reservations (
           id, organization_id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
           total_amount, breakfast_included, tourist_tax, channel, payment_method, notes, license_number, status,
-          guests_data, amount_paid, payment_status, public_token, precheckin_token, precheckin_token_expires_at, arrival_time
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, 0, 'pendente', ?, ?, ?, ?)
+          guests_data, amount_paid, payment_status, public_token, precheckin_token, precheckin_token_expires_at, arrival_time, guest_snapshot
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, 0, 'pendente', ?, ?, ?, ?, ?)
       `).run(
         reservationId, parent.organization_id, g.id, accommodationId,
         totals.checkIn, totals.checkOut, totals.nights, totals.guests,
         finalTotal, payload.breakfast_included ? 1 : 0, totals.touristTax,
         'website', null, payload.notes || null, licenseNumber,
-        JSON.stringify(normalizedGuestsData), token, precheckinToken, precheckinExpiresAt, payload.arrival_time || null
+        JSON.stringify(normalizedGuestsData), token, precheckinToken, precheckinExpiresAt, payload.arrival_time || null, JSON.stringify({ name: g.name, email: g.email, phone: g.phone })
       );
 
       return g;
-    })();
+    }).immediate();
 
     recordConsent(txResult.id, req.ip, parent.organization_id);
 
@@ -489,6 +462,7 @@ function getPreCheckin(req, res) {
   if (reservation.check_out && new Date(reservation.check_out + 'T23:59:59') < new Date()) {
     return res.status(410).json({ success: false, error: 'O pré check-in não está disponível após a data de saída.' });
   }
+  const snapshot = parseJson(reservation.guest_snapshot, {});
   // PII sensível (documento, nacionalidade, nascimento, dados de hóspedes
   // adicionais) NÃO é devolvida pelo GET — apenas escrita pelo POST. Quem
   // tiver o link consegue ver o nome/email/telefone que já enviou na reserva
@@ -510,9 +484,9 @@ function getPreCheckin(req, res) {
         precheckin_submitted_at: reservation.precheckin_submitted_at || null,
       },
       guest: {
-        name: reservation.guest_name,
-        email: reservation.guest_email,
-        phone: reservation.guest_phone,
+        name: snapshot.name || '',
+        email: snapshot.email || '',
+        phone: snapshot.phone || '',
         first_name: '',
         last_name: '',
         birth_date: null,
@@ -576,38 +550,7 @@ function submitPreCheckin(req, res) {
     return res.status(400).json({ success: false, error: 'Preencha os dados obrigatórios de todos os hóspedes.' });
   }
 
-  db.prepare(`UPDATE guests SET
-    name = COALESCE(?, name),
-    email = COALESCE(?, email),
-    first_name = COALESCE(?, first_name),
-    last_name = COALESCE(?, last_name),
-    birth_date = COALESCE(?, birth_date),
-    nationality = COALESCE(?, nationality),
-    country = COALESCE(?, country),
-    document_type = COALESCE(?, document_type),
-    document_number = COALESCE(?, document_number),
-    document_issuer_country = COALESCE(?, document_issuer_country)
-    WHERE id = ? AND organization_id = ?`)
-    .run(
-      mainGuest.name, mainGuest.email || null, mainGuest.first_name, mainGuest.last_name, mainGuest.birth_date,
-      mainGuest.nationality, mainGuest.country, mainGuest.document_type,
-      mainGuest.document_number, mainGuest.document_issuer_country,
-      reservation.guest_id, reservation.organization_id
-    );
-
-  db.prepare(`UPDATE reservations SET
-    guests_data = ?,
-    arrival_time = ?,
-    status = CASE WHEN status != 'confirmada' THEN 'aguardar_pagamento' ELSE status END,
-    precheckin_submitted_at = datetime('now'),
-    updated_at = datetime('now')
-    WHERE id = ? AND organization_id = ?`)
-    .run(
-      JSON.stringify(allGuests.slice(1)),
-      String(req.body?.arrival_time || '').trim() || null,
-      reservation.id,
-      reservation.organization_id
-    );
+  savePrecheckin(reservation, mainGuest, allGuests.slice(1), String(req.body?.arrival_time || '').trim().slice(0, 10) || null);
 
   notifyOrganization(reservation.organization_id, 'precheckin', {
     title: '📝 Pré-check-in recebido',

@@ -264,6 +264,7 @@ function initDatabase() {
   }
 
   // Migração: adicionar colunas novas se não existirem
+  migrateOrganizationEmailTemplates();
   migrateAccommodations();
   migrateGuests();
   migrateReservations();
@@ -289,6 +290,10 @@ function initDatabase() {
   migrateSuppliers();
   migratePushSubscriptions();
   migrateLegacyDataToOrganizations();
+  const reservationColumns = db.pragma('table_info(reservations)').map(c => c.name);
+  if (!reservationColumns.includes('guest_snapshot')) db.exec('ALTER TABLE reservations ADD COLUMN guest_snapshot TEXT');
+  require('./migrations').runMigrations(db);
+  ensureNewEmailTemplateDefaults();
 
   console.log('✅ Base de dados inicializada');
 }
@@ -322,6 +327,8 @@ function migrateAuthSessions() {
   const cols = [
     ['organization_id', 'TEXT'],
     ['last_seen_at', "TEXT DEFAULT (datetime('now'))"],
+    ['user_agent', 'TEXT'],   // para a lista "Sessões ativas"
+    ['ip', 'TEXT'],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {
@@ -543,6 +550,7 @@ function migrateAccommodations() {
     ['images',          "TEXT DEFAULT '{}'"],
     ['wifi_name',       'TEXT'],
     ['wifi_password',   'TEXT'],
+    ['door_code',       'TEXT'],
     ['description_en',  'TEXT'],
     ['description_fr',  'TEXT'],
     ['description_es',  'TEXT'],
@@ -571,6 +579,8 @@ function migrateAccommodations() {
     ['rgpd_text',            'TEXT'],
     ['airbnb_ical_url',      'TEXT'],
     ['booking_ical_url',     'TEXT'],
+    ['logo_url',             'TEXT'],
+    ['google_calendar_manual', 'INTEGER DEFAULT 0'],
   ];
   for (const [col, type] of cols) {
     if (!existing.includes(col)) {
@@ -589,6 +599,61 @@ function migrateAccommodations() {
       updated_at TEXT DEFAULT (datetime('now'))
     )`);
   } catch(e) {}
+}
+
+function migrateOrganizationEmailTemplates() {
+  const cols = db.pragma('table_info(organization_email_templates)').map(c => c.name);
+  if (!cols.includes('bcc'))          db.exec(`ALTER TABLE organization_email_templates ADD COLUMN bcc TEXT DEFAULT ''`);
+  if (!cols.includes('window_start')) db.exec(`ALTER TABLE organization_email_templates ADD COLUMN window_start TEXT`);
+  if (!cols.includes('window_end'))   db.exec(`ALTER TABLE organization_email_templates ADD COLUMN window_end TEXT`);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS organization_email_queue (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      template_slug TEXT NOT NULL,
+      reservation_id TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE (organization_id, template_slug, reservation_id),
+      FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+    );
+  `);
+}
+
+// Templates novos introduzidos depois do lançamento inicial: adiciona-os à
+// tabela legacy (fonte usada ao criar novas organizações) e faz backfill
+// para as organizações já existentes, sem duplicar (INSERT OR IGNORE).
+function ensureNewEmailTemplateDefaults() {
+  const NEW_DEFAULTS = [
+    {
+      slug: 'pre_checkin', name: 'Preenchimento do formulário de check-in',
+      subject: '📝 Complete o seu pré check-in — {{alojamento}} | Santa Paciência',
+      body: `<h2 style="color:#843424;margin-top:0;">📝 Pré check-in</h2><p style="color:#555;">Olá <strong>{{primeiro_nome}}</strong>,</p><p style="color:#555;">A sua reserva em <strong>{{alojamento}}</strong> foi aprovada! Para prepararmos a sua chegada, pedimos que complete o pré check-in com a hora prevista de chegada e os dados dos hóspedes.</p><p style="text-align:center;margin:28px 0;"><a href="{{link_pre_checkin}}" style="display:inline-block;background:#843424;color:#fff;text-decoration:none;border-radius:8px;padding:13px 22px;font-family:sans-serif;font-weight:700;">Completar pré check-in</a></p><p style="color:#777;font-size:13px;">Referência da reserva: <strong>{{referencia}}</strong></p>`,
+      timing_offset: 0, timing_unit: 'hours', timing_direction: 'after', timing_event: 'approval',
+    },
+    {
+      slug: 'codigo_porta', name: 'Código de abertura de portas',
+      subject: '🔑 Código de acesso — {{alojamento}} | Santa Paciência',
+      body: `<h2 style="color:#843424;margin-top:0;">🔑 Código de acesso</h2><p style="color:#555;">Olá <strong>{{primeiro_nome}}</strong>,</p><p style="color:#555;">Aqui fica o código para abrir a porta do seu alojamento <strong>{{alojamento}}</strong>:</p><table width="100%" cellpadding="8" cellspacing="0" style="background:#f9f9f9;border-radius:6px;margin:20px 0;border:1px solid #eee;"><tr><td style="color:#888;font-size:13px;width:40%;">Código da porta</td><td style="color:#843424;font-weight:bold;font-family:monospace;font-size:18px;">{{codigo_porta}}</td></tr></table><p style="color:#555;font-size:14px;">Se tiver alguma dificuldade em aceder ao alojamento, não hesite em contactar-nos.</p>`,
+      timing_offset: 1, timing_unit: 'days', timing_direction: 'before', timing_event: 'checkin',
+    },
+  ];
+
+  const insLegacy = db.prepare(`
+    INSERT OR IGNORE INTO email_templates (slug,name,subject,body,timing_offset,timing_unit,timing_direction,timing_event,active)
+    VALUES (?,?,?,?,?,?,?,?,1)
+  `);
+  NEW_DEFAULTS.forEach(t => insLegacy.run(t.slug, t.name, t.subject, t.body, t.timing_offset, t.timing_unit, t.timing_direction, t.timing_event));
+
+  const orgs = db.prepare('SELECT id FROM organizations').all();
+  const insOrg = db.prepare(`
+    INSERT OR IGNORE INTO organization_email_templates (
+      organization_id, slug, name, subject, body, timing_offset, timing_unit, timing_direction, timing_event, active, updated_at
+    ) VALUES (?,?,?,?,?,?,?,?,?,1,datetime('now'))
+  `);
+  for (const org of orgs) {
+    NEW_DEFAULTS.forEach(t => insOrg.run(org.id, t.slug, t.name, t.subject, t.body, t.timing_offset, t.timing_unit, t.timing_direction, t.timing_event));
+  }
 }
 
 function migrateEmailTemplates() {
@@ -800,19 +865,37 @@ function migrateGoogleEmailConnections() {
 function migrateInvoiceMessages() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS invoice_messages (
-      id              TEXT PRIMARY KEY,
-      organization_id TEXT NOT NULL,
-      to_email        TEXT NOT NULL,
-      to_name         TEXT,
-      subject         TEXT NOT NULL,
-      body_html       TEXT NOT NULL,
-      reservation_id  TEXT,
-      sent_by_user_id TEXT,
-      sent_at         TEXT DEFAULT (datetime('now')),
+      id                     TEXT PRIMARY KEY,
+      organization_id        TEXT NOT NULL,
+      to_email               TEXT NOT NULL,
+      to_name                TEXT,
+      subject                TEXT NOT NULL,
+      body_html              TEXT NOT NULL,
+      reservation_id         TEXT,
+      sent_by_user_id        TEXT,
+      sent_at                TEXT DEFAULT (datetime('now')),
+      gmail_message_id       TEXT,
+      gmail_thread_id        TEXT,
+      message_id_header      TEXT,
+      in_reply_to_message_id TEXT,
       FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
       FOREIGN KEY (reservation_id) REFERENCES reservations(id) ON DELETE SET NULL
     )
   `);
+
+  // Threading real com o Gmail (S12): guardar os ids devolvidos pela Gmail API
+  // e o Message-ID gerado por nós ao enviar, para conseguirmos responder de
+  // forma encadeada mais tarde (In-Reply-To/References + threadId).
+  const existing = db.pragma('table_info(invoice_messages)').map(c => c.name);
+  const newCols = [
+    ['gmail_message_id',       'TEXT'],
+    ['gmail_thread_id',        'TEXT'],
+    ['message_id_header',      'TEXT'],
+    ['in_reply_to_message_id', 'TEXT'],
+  ];
+  for (const [col, type] of newCols) {
+    if (!existing.includes(col)) db.exec(`ALTER TABLE invoice_messages ADD COLUMN ${col} ${type}`);
+  }
 }
 
 function migrateGoogleTasksConnections() {

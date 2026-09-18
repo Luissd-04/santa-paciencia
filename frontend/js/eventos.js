@@ -10,6 +10,26 @@ let eventosData = [];
 let eventosTeamMembers = [];
 const EVENTOS_LABEL_W = 190;
 const EVENTOS_ZOOM = { 7: 80, 14: 48, 30: 24 };
+// Constantes de layout da timeline de Eventos (antes magic numbers soltos).
+const EVT = {
+  tlZoomDefault: 48,
+  weekdayNameMinDayW: 40,   // px/dia abaixo dos quais se esconde o nome do dia
+  tlBlockMinW: 18,
+  tlBlockInset: 4,
+  alpha: { fill: '18', border: '55' },
+};
+
+// Contador da barra ("N eventos") — mesmo padrão de #view-reservas / #view-calendario.
+function setEventosCount(n) {
+  const label = Number(n) === 1 ? 'evento' : 'eventos';
+  [['eventos-results-total', 'eventos-results-detail'],
+   ['eventos-list-total', 'eventos-list-detail']].forEach(([totalId, detailId]) => {
+    const t = document.getElementById(totalId);
+    const d = document.getElementById(detailId);
+    if (t) t.textContent = String(n ?? 0);
+    if (d) d.textContent = label;
+  });
+}
 
 const EVENT_TYPES = [
   { id: 'limpeza', label: 'Limpezas', singular: 'Limpeza', icon: 'brush-cleaning', color: '#8B3A24' },
@@ -217,7 +237,7 @@ function setEventosTimelineRange(days) {
 }
 
 function getEventosDayWidth() {
-  return EVENTOS_ZOOM[eventosTimelineDays] || 48;
+  return EVENTOS_ZOOM[eventosTimelineDays] || EVT.tlZoomDefault;
 }
 
 function scrollEventosTimelineToToday(dayW) {
@@ -315,6 +335,15 @@ function renderEventosCalendar() {
       </div>
     </div>`;
   }).join('');
+
+  const monthEvents = events.filter(e => visibleDays.some(d => !d.otherMonth && d.dateStr === e.date));
+  setEventosCount(monthEvents.length);
+  const emptyBox = document.getElementById('eventos-cal-empty');
+  if (emptyBox) {
+    emptyBox.innerHTML = monthEvents.length ? '' : emptyStateHtml(
+      '📅', 'Sem eventos neste mês', 'Nenhum evento visível com estes filtros.', { inline: true }
+    );
+  }
   if (window.lucide) lucide.createIcons();
 }
 
@@ -341,6 +370,13 @@ function renderEventosTimeline(autoScroll = true) {
     (eventosTypeFilters.size === 0 || eventosTypeFilters.has(e.type)) && e.date >= startStr && e.date < endStr
   );
 
+  // Geometria por CSS custom properties (ver css/styles.css .tl-* + views/calendar.css) —
+  // deixa de haver width/min-width inline em centenas de células.
+  wrap.style.setProperty('--tl-day-w', dayW + 'px');
+  wrap.style.setProperty('--tl-days-total', String(totalDays));
+  wrap.style.setProperty('--tl-label-w', EVENTOS_LABEL_W + 'px');
+  setEventosCount(filteredEvents.length);
+
   const generalRow = { id: '', name: 'Sem alojamento', type: 'geral' };
   const hasGeneralEvents = filteredEvents.some(e => !e.accommodation_id);
   const alojList = eventosTypeFilters.size > 0
@@ -355,7 +391,7 @@ function renderEventosTimeline(autoScroll = true) {
     const mStart = `${year}-${String(m + 1).padStart(2, '0')}-01`;
     const mEnd   = m === 11 ? `${year + 1}-01-01` : `${year}-${String(m + 2).padStart(2, '0')}-01`;
     const hasToday = todayStr >= mStart && todayStr < mEnd;
-    monthCells += `<div class="tl-month-head${hasToday ? ' tl-month-today' : ''}" style="width:${mDays * dayW}px;min-width:${mDays * dayW}px;">${monthNames[m]}</div>`;
+    monthCells += `<div class="tl-month-head${hasToday ? ' tl-month-today' : ''}" style="--tl-month-days:${mDays};">${monthNames[m]}</div>`;
   }
 
   // Day header cells
@@ -366,21 +402,21 @@ function renderEventosTimeline(autoScroll = true) {
     const isToday      = ds === todayStr;
     const isWeekend    = d.getDay() === 0 || d.getDay() === 6;
     const isMonthStart = d.getDate() === 1 && i > 0;
-    dayCells += `<div class="tl-day-head${isToday ? ' tl-today' : ''}${isWeekend ? ' tl-weekend' : ''}${isMonthStart ? ' tl-month-start' : ''}" style="width:${dayW}px;min-width:${dayW}px;">
-      ${dayW >= 40 ? `<div class="tl-day-name">${dayNames[d.getDay()]}</div>` : ''}
+    dayCells += `<div class="tl-day-head${isToday ? ' tl-today' : ''}${isWeekend ? ' tl-weekend' : ''}${isMonthStart ? ' tl-month-start' : ''}">
+      ${dayW >= EVT.weekdayNameMinDayW ? `<div class="tl-day-name">${dayNames[d.getDay()]}</div>` : ''}
       <div class="tl-day-num">${d.getDate()}</div>
     </div>`;
   }
 
   const rows = rowList.length === 0
-    ? `<div style="padding:40px;text-align:center;color:var(--cinza);">Nenhum alojamento encontrado.</div>`
+    ? ''
     : rowList.map(row => {
         let cellHtml = '';
         for (let i = 0; i < totalDays; i++) {
           const d  = new Date(year, 0, 1 + i);
           const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
           const isMonthStart = d.getDate() === 1 && i > 0;
-          cellHtml += `<div class="tl-cell${ds === todayStr ? ' tl-today-col' : ''}${isMonthStart ? ' tl-month-start' : ''}" style="width:${dayW}px;min-width:${dayW}px;"></div>`;
+          cellHtml += `<div class="tl-cell${ds === todayStr ? ' tl-today-col' : ''}${isMonthStart ? ' tl-month-start' : ''}"></div>`;
         }
 
         const rowEvents = filteredEvents.filter(e => row.id ? e.accommodation_id === row.id : !e.accommodation_id);
@@ -395,11 +431,11 @@ function renderEventosTimeline(autoScroll = true) {
           const totalWidth = totalDays * dayW;
           const left  = Math.max(0, offset * dayW + dayW / 2);
           const right = Math.min(totalWidth, (offset + 1) * dayW + dayW / 2);
-          const width = Math.max(18, right - left - 4);
+          const width = Math.max(EVT.tlBlockMinW, right - left - EVT.tlBlockInset);
           if (right <= 0 || left >= totalWidth || width <= 0) return '';
           const doneCls = e.status === 'concluido' ? ' eventos-tl-done' : '';
           const tlInitials = accInitials(e.accommodation_name);
-          return `<div class="tl-block eventos-tl-block${doneCls}" style="left:${left}px;width:${width}px;--tl-color:${color};background:${color}18;border-color:${color}55;cursor:pointer;"
+          return `<div class="tl-block eventos-tl-block${doneCls}" style="left:${left}px;width:${width}px;--tl-color:${color};background:${color}${EVT.alpha.fill};border-color:${color}${EVT.alpha.border};cursor:pointer;"
                        onclick="openEventoModal('${e.id}')"
                        title="${escapeHtml(type.singular)} · ${escapeHtml(e.title)}${e.accommodation_name ? ' · ' + escapeHtml(e.accommodation_name) : ''}">
             <div class="tl-block-header">
@@ -412,29 +448,36 @@ function renderEventosTimeline(autoScroll = true) {
         return `<div class="tl-row"
                      data-acc-id="${row.id}"
                      data-acc-name="${escapeHtml(row.name)}">
-          <div class="tl-label" style="min-width:${EVENTOS_LABEL_W}px;max-width:${EVENTOS_LABEL_W}px;">
+          <div class="tl-label">
             <div class="tl-label-title">${escapeHtml(row.name)}</div>
             <div class="tl-label-sub">${row.type || 'alojamento'} · ${monthCount} evento${monthCount !== 1 ? 's' : ''} este mês</div>
           </div>
-          <div class="tl-days-area" style="width:${totalDays * dayW}px;flex:none;">
+          <div class="tl-days-area">
             <div class="tl-cells">${cellHtml}</div>
             ${blocks}
           </div>
         </div>`;
       }).join('');
 
-  const totalW = EVENTOS_LABEL_W + totalDays * dayW;
+  const emptyBanner =
+    rowList.length === 0
+      ? emptyStateHtml('🏠', 'Sem alojamentos', 'Não há alojamentos para mostrar.', { inline: true })
+      : (filteredEvents.length === 0
+          ? emptyStateHtml('📅', 'Sem eventos', 'Nenhum evento no período com estes filtros.', { inline: true })
+          : '');
+
   wrap.innerHTML = `
-    <div class="timeline-scroll" style="min-width:${totalW}px;">
+    <div class="timeline-scroll">
       <div class="tl-header">
-        <div class="tl-label tl-header-label" style="min-width:${EVENTOS_LABEL_W}px;max-width:${EVENTOS_LABEL_W}px;">Alojamento</div>
+        <div class="tl-label tl-header-label">Alojamento</div>
         <div class="tl-header-cols">
           <div class="tl-months-row">${monthCells}</div>
           <div class="tl-days-row">${dayCells}</div>
         </div>
       </div>
       <div class="tl-body">${rows}</div>
-    </div>`;
+    </div>
+    ${emptyBanner}`;
 
   attachEventosTimelinePan();
   if (autoScroll) scheduleEventosTimelineTodayScroll(dayW);
@@ -471,6 +514,7 @@ function renderEventosList() {
   const empty = document.getElementById('eventos-list-empty');
   if (!body) return;
   const rows = getEventosListFiltered();
+  setEventosCount(rows.length);
   if (!rows.length) {
     body.innerHTML = '';
     if (empty) empty.style.display = 'block';

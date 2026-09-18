@@ -1,334 +1,79 @@
-const express = require('express');
-const router = express.Router();
-const { db } = require('../config/database');
-const requireRole = require('../middleware/requireRole');
+const router = require('express').Router();
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const crypto = require('crypto');
+const { randomUUID } = require('crypto');
 const archiver = require('archiver');
-const unzipper = require('unzipper');
-
-const backupParser = express.json({ limit: '100mb' });
-
-const ORG_TABLES = [
-  'organization_settings',
-  'organization_email_templates',
-  'organization_email_log',
-  'accommodations',
-  'pricing_periods',
-  'vouchers',
-  'guests',
-  'expenses',
-  'reservations',
-  'reservation_payments',
-  'operational_events'
-];
-
-const DELETE_ORDER = [
-  'operational_events',
-  'reservation_payments',
-  'reservations',
-  'expenses',
-  'organization_email_log',
-  'organization_email_templates',
-  'guests',
-  'vouchers',
-  'pricing_periods',
-  'accommodations',
-  'organization_settings'
-];
-
-const INSERT_ORDER = [
-  'organization_settings',
-  'organization_email_templates',
-  'organization_email_log',
-  'accommodations',
-  'pricing_periods',
-  'vouchers',
-  'guests',
-  'expenses',
-  'reservations',
-  'reservation_payments',
-  'operational_events'
-];
-
-const UPLOADS_DIR = path.resolve('./data/uploads');
-
-const ALLOWED_TABLES = new Set([...ORG_TABLES]);
-
-function isSafeIdentifier(name) {
-  return typeof name === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
-}
-
-function sanitizeCols(cols) {
-  const safe = cols.filter(isSafeIdentifier);
-  if (safe.length !== cols.length) {
-    throw new Error(`Coluna inválida no backup: ${cols.find(c => !isSafeIdentifier(c))}`);
-  }
-  return safe;
-}
-
+const requireRole = require('../middleware/requireRole');
+const { exportData, prepareImport, restoreData, uploadUrls } = require('../services/backupData');
+const { extractArchive } = require('../services/backupArchive');
+const { UPLOADS_DIR, uploadPath, removeUnreferencedImage } = require('../services/mediaStorage');
 router.use(requireRole('owner'));
-router.use(backupParser);
 
-function safeJson(value, fallback) {
+router.get('/export', async (req, res, next) => {
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'sp-export-'));
   try {
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function collectUploadUrlsFromAccommodations(rows = []) {
-  const urls = new Set();
-  for (const row of rows) {
-    if (row.cover_image && String(row.cover_image).startsWith('/uploads/')) {
-      urls.add(row.cover_image);
-    }
-    const images = safeJson(row.images, {});
-    Object.values(images).forEach(list => {
-      if (!Array.isArray(list)) return;
-      list.forEach(url => {
-        if (typeof url === 'string' && url.startsWith('/uploads/')) urls.add(url);
-      });
-    });
-  }
-  return urls;
-}
-
-function getOrgUploadUrls(orgId) {
-  const rows = db.prepare('SELECT cover_image, images FROM accommodations WHERE organization_id = ?').all(orgId);
-  return collectUploadUrlsFromAccommodations(rows);
-}
-
-function getOtherOrgUploadUrls(orgId) {
-  const rows = db.prepare('SELECT cover_image, images FROM accommodations WHERE organization_id != ?').all(orgId);
-  return collectUploadUrlsFromAccommodations(rows);
-}
-
-function copyReferencedUploads(uploadUrls, targetDir) {
-  fs.mkdirSync(targetDir, { recursive: true });
-  for (const uploadUrl of uploadUrls) {
-    const filename = path.basename(uploadUrl);
-    const sourcePath = path.join(UPLOADS_DIR, filename);
-    if (!fs.existsSync(sourcePath)) continue;
-    fs.copyFileSync(sourcePath, path.join(targetDir, filename));
-  }
-}
-
-function cleanupTempDir(dir) {
-  if (dir && fs.existsSync(dir)) {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-}
-
-function buildBackupPayload(orgId) {
-  const tables = {};
-  for (const table of ORG_TABLES) {
-    try {
-      tables[table] = db.prepare(`SELECT * FROM ${table} WHERE organization_id = ?`).all(orgId);
-    } catch {
-      tables[table] = [];
-    }
-  }
-
-  return {
-    exported_at: new Date().toISOString(),
-    version: 3,
-    scope: 'client-data',
-    tables
-  };
-}
-
-function ensureTableRows(rows) {
-  return Array.isArray(rows) ? rows : [];
-}
-
-function tableHasId(table) {
-  try {
-    return db.pragma(`table_info(${table})`).some(col => col.name === 'id');
-  } catch {
-    return false;
-  }
-}
-
-function idBelongsToOtherOrg(table, id, orgId) {
-  if (!id || !tableHasId(table)) return false;
-  try {
-    const row = db.prepare(`SELECT organization_id FROM ${table} WHERE id = ?`).get(id);
-    return !!row && row.organization_id !== orgId;
-  } catch {
-    return false;
-  }
-}
-
-function makeImportedId(table, oldId) {
-  if (table === 'reservations') return `${oldId}-IMP-${crypto.randomBytes(3).toString('hex')}`;
-  return crypto.randomUUID();
-}
-
-function remapImportedRowsForOrg(tables, orgId) {
-  const next = {};
-  for (const table of Object.keys(tables || {})) {
-    next[table] = ensureTableRows(tables[table]).map(row => ({ ...row }));
-  }
-
-  const maps = {
-    accommodations: new Map(),
-    guests: new Map(),
-    reservations: new Map(),
-    expenses: new Map(),
-    operational_events: new Map(),
-    organization_email_log: new Map(),
-  };
-
-  for (const table of Object.keys(maps)) {
-    for (const row of ensureTableRows(next[table])) {
-      if (idBelongsToOtherOrg(table, row.id, orgId)) {
-        const newId = makeImportedId(table, row.id);
-        maps[table].set(row.id, newId);
-        row.id = newId;
-      }
-    }
-  }
-
-  for (const row of ensureTableRows(next.accommodations)) {
-    if (maps.accommodations.has(row.parent_id)) row.parent_id = maps.accommodations.get(row.parent_id);
-  }
-  for (const row of ensureTableRows(next.reservations)) {
-    if (maps.guests.has(row.guest_id)) row.guest_id = maps.guests.get(row.guest_id);
-    if (maps.accommodations.has(row.accommodation_id)) row.accommodation_id = maps.accommodations.get(row.accommodation_id);
-    if (row.google_event_id) row.google_event_id = null;
-    if (row.google_calendar_user_id) row.google_calendar_user_id = null;
-  }
-  for (const row of ensureTableRows(next.operational_events)) {
-    if (maps.accommodations.has(row.accommodation_id)) row.accommodation_id = maps.accommodations.get(row.accommodation_id);
-    if (maps.reservations.has(row.reservation_id)) row.reservation_id = maps.reservations.get(row.reservation_id);
-    if (row.auto_key && row.reservation_id) {
-      const parts = String(row.auto_key).split(':');
-      if (parts.length >= 4) {
-        parts[0] = row.reservation_id;
-        parts[3] = row.accommodation_id || 'geral';
-        row.auto_key = parts.join(':');
-      }
-    }
-  }
-  for (const row of ensureTableRows(next.organization_email_log)) {
-    if (maps.reservations.has(row.reservation_id)) row.reservation_id = maps.reservations.get(row.reservation_id);
-  }
-
-  return next;
-}
-
-// GET /api/backup/export
-router.get('/export', async (req, res) => {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sp-export-'));
-  try {
-    const orgId = req.user.organization_id;
-    const payload = buildBackupPayload(orgId);
-    const jsonPath = path.join(tempDir, 'backup.json');
-    const uploadsTempDir = path.join(tempDir, 'uploads');
-    fs.writeFileSync(jsonPath, JSON.stringify(payload, null, 2), 'utf8');
-    copyReferencedUploads(collectUploadUrlsFromAccommodations(payload.tables.accommodations), uploadsTempDir);
-
-    const zipPath = path.join(tempDir, 'backup.zip');
+    const payload = exportData(req.user.organization_id);
+    const file = path.join(temporary, 'backup.zip');
     await new Promise((resolve, reject) => {
-      const output = fs.createWriteStream(zipPath);
-      const archive = archiver('zip', { zlib: { level: 6 } });
-      output.on('close', resolve);
-      archive.on('error', reject);
-      archive.pipe(output);
-      archive.file(jsonPath, { name: 'backup.json' });
-      if (fs.existsSync(uploadsTempDir)) archive.directory(uploadsTempDir, 'uploads');
-      archive.finalize();
+      const output = fs.createWriteStream(file, { mode: 0o600 });
+      const zip = archiver('zip', { zlib: { level: 6 } });
+      output.on('close', resolve); output.on('error', reject); zip.on('error', reject);
+      zip.pipe(output);
+      zip.append(JSON.stringify(payload), { name: 'backup.json' });
+      for (const url of uploadUrls(payload.tables)) {
+        const source = uploadPath(url);
+        if (!fs.existsSync(source)) { zip.abort(); reject(new Error('Um ficheiro referenciado está em falta; backup incompleto recusado.')); return; }
+        zip.file(source, { name: url.slice(1) });
+      }
+      zip.finalize().catch(reject);
     });
-
-    const filename = `santa_paciencia_${new Date().toISOString().slice(0, 10)}.zip`;
-    res.download(zipPath, filename, () => cleanupTempDir(tempDir));
-  } catch (e) {
-    cleanupTempDir(tempDir);
-    res.status(500).json({ success: false, error: e.message });
+    res.download(file, `santa_paciencia_${new Date().toISOString().slice(0, 10)}.zip`, () => fs.rmSync(temporary, { recursive: true, force: true }));
+  } catch (error) {
+    fs.rmSync(temporary, { recursive: true, force: true });
+    next(error);
   }
 });
 
-// POST /api/backup/import
 router.post('/import', async (req, res) => {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sp-import-'));
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'sp-import-'));
+  const created = [];
+  let committed = false;
   try {
-    const orgId = req.user.organization_id;
-    const { archiveBase64 } = req.body || {};
-    if (!archiveBase64) {
-      cleanupTempDir(tempDir);
-      return res.status(400).json({ success: false, error: 'Ficheiro ZIP em falta.' });
+    const encoded = req.body?.archiveBase64;
+    if (typeof encoded !== 'string' || !encoded || encoded.length > 100 * 1024 * 1024) throw new Error('Ficheiro ZIP em falta ou demasiado grande.');
+    const payload = await extractArchive(Buffer.from(encoded, 'base64'), temporary);
+    const org = req.user.organization_id;
+    const tables = prepareImport(payload, org);
+    const previous = uploadUrls(exportData(org).tables);
+    const replacements = new Map();
+    // Ficheiros novos imutáveis: nunca substituir um caminho de outra organização.
+    for (const url of uploadUrls(tables)) {
+      const source = path.join(temporary, url.slice(1));
+      if (!fs.existsSync(source)) throw new Error('Backup incompleto: ficheiro referenciado em falta.');
+      const relative = `${url.startsWith('/uploads/receipts/') ? 'receipts/' : ''}import_${randomUUID()}${path.extname(url)}`;
+      const target = path.join(UPLOADS_DIR, relative);
+      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.copyFileSync(source, target, fs.constants.COPYFILE_EXCL);
+      fs.chmodSync(target, 0o600); created.push(target);
+      replacements.set(url, '/uploads/' + relative);
     }
-
-    const zipPath = path.join(tempDir, 'backup.zip');
-    const extractDir = path.join(tempDir, 'unzipped');
-    fs.mkdirSync(extractDir, { recursive: true });
-    fs.writeFileSync(zipPath, Buffer.from(String(archiveBase64), 'base64'));
-
-    await fs.createReadStream(zipPath)
-      .pipe(unzipper.Extract({ path: extractDir }))
-      .promise();
-
-    const jsonPath = path.join(extractDir, 'backup.json');
-    if (!fs.existsSync(jsonPath)) {
-      cleanupTempDir(tempDir);
-      return res.status(400).json({ success: false, error: 'ZIP inválido: falta o ficheiro backup.json.' });
+    for (const row of tables.accommodations) {
+      row.cover_image = replacements.get(row.cover_image) || row.cover_image;
+      row.logo_url = replacements.get(row.logo_url) || row.logo_url;
+      const images = JSON.parse(row.images || '{}');
+      for (const [key, list] of Object.entries(images)) if (key !== '_sections' && Array.isArray(list)) images[key] = list.map(url => replacements.get(url) || url);
+      row.images = JSON.stringify(images);
     }
-
-    const payload = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-    let tables = payload.tables;
-    if (!tables || typeof tables !== 'object') {
-      cleanupTempDir(tempDir);
-      return res.status(400).json({ success: false, error: 'Ficheiro inválido: sem dados.' });
-    }
-    tables = remapImportedRowsForOrg(tables, orgId);
-
-    const oldOrgUploads = getOrgUploadUrls(orgId);
-    const otherOrgUploads = getOtherOrgUploadUrls(orgId);
-    const importedUploadUrls = collectUploadUrlsFromAccommodations(ensureTableRows(tables.accommodations));
-    const importedUploadsDir = path.join(extractDir, 'uploads');
-
-    db.transaction(() => {
-      for (const table of DELETE_ORDER) {
-        try {
-          db.prepare(`DELETE FROM ${table} WHERE organization_id = ?`).run(orgId);
-        } catch {}
-      }
-
-      for (const table of INSERT_ORDER) {
-        if (!ALLOWED_TABLES.has(table)) continue;
-        const rows = ensureTableRows(tables[table]);
-        if (!rows.length) continue;
-        const cols = sanitizeCols(Object.keys(rows[0]));
-        const stmt = db.prepare(`INSERT OR REPLACE INTO ${table} (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`);
-        for (const row of rows) {
-          const scopedRow = { ...row, organization_id: orgId };
-          stmt.run(cols.map(c => scopedRow[c] ?? null));
-        }
-      }
-    })();
-
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-    for (const uploadUrl of oldOrgUploads) {
-      if (otherOrgUploads.has(uploadUrl) || importedUploadUrls.has(uploadUrl)) continue;
-      const oldPath = path.join(UPLOADS_DIR, path.basename(uploadUrl));
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-    }
-    for (const uploadUrl of importedUploadUrls) {
-      const sourcePath = path.join(importedUploadsDir, path.basename(uploadUrl));
-      if (!fs.existsSync(sourcePath)) continue;
-      fs.copyFileSync(sourcePath, path.join(UPLOADS_DIR, path.basename(uploadUrl)));
-    }
-
-    cleanupTempDir(tempDir);
-    res.json({ success: true, message: 'Base de dados restaurada com sucesso.' });
-  } catch (e) {
-    cleanupTempDir(tempDir);
-    res.status(500).json({ success: false, error: e.message });
-  }
+    for (const row of tables.expenses) row.receipt_image = replacements.get(row.receipt_image) || row.receipt_image;
+    restoreData(tables, org);
+    committed = true;
+    // A limpeza é posterior ao commit; ficheiros partilhados continuam protegidos.
+    for (const url of previous) { try { removeUnreferencedImage(url); } catch (error) { console.warn('Limpeza de upload adiada:', error.code); } }
+    res.json({ success: true, message: 'Dados e ficheiros restaurados com sucesso.' });
+  } catch (error) {
+    if (!committed) for (const file of created) fs.rmSync(file, { force: true });
+    res.status(400).json({ success: false, error: error.message });
+  } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
 });
-
 module.exports = router;

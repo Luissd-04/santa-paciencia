@@ -212,6 +212,11 @@ function renderNotificationsPage() {
   const list = document.getElementById('notifications-page-list');
   if (!list) return;
 
+  const countEl = document.getElementById('notifications-page-count');
+  const countLabel = document.getElementById('notifications-page-count-label');
+  if (countEl) countEl.textContent = String(_notifications.length);
+  if (countLabel) countLabel.textContent = _notifications.length === 1 ? 'notificação' : 'notificações';
+
   if (_notifications.length === 0) {
     list.innerHTML = `
       <div class="empty-state">

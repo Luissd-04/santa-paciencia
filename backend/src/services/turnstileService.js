@@ -1,3 +1,4 @@
+const { fetchWithTimeout } = require('./httpClient');
 // Cloudflare Turnstile — CAPTCHA invisível/leve, gratuito, sem cookies.
 // Docs: https://developers.cloudflare.com/turnstile/
 //
@@ -39,7 +40,7 @@ async function verify(token, remoteIp) {
     params.append('response', token);
     if (remoteIp) params.append('remoteip', remoteIp);
 
-    const response = await fetch(VERIFY_URL, {
+    const response = await fetchWithTimeout(VERIFY_URL, {
       method: 'POST',
       body: params,
     });

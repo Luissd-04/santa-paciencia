@@ -1,5 +1,6 @@
 const { getAuthenticatedClient, isAuthenticated } = require('../config/google');
 const { db } = require('../config/database');
+const { isTasksAuthenticated, syncOrganizationTasksToGoogleTasks } = require('../config/googleTasks');
 
 const CAL_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
 
@@ -84,7 +85,21 @@ async function updateCalendarEvent(reservation, calendarUser = {}) {
       },
     });
     console.log(`📅 Evento atualizado: ${reservation.google_event_id}`);
+    return 'updated';
   } catch (err) {
+    if (err?.response?.status === 404) {
+      // O evento (ou o calendário inteiro, ex.: apagado à mão no Google) já não
+      // existe — limpar a referência local e recriar, em vez de continuar a
+      // "atualizar" (com sucesso aparente) um evento que já não existe.
+      console.warn(`Evento ${reservation.google_event_id} não encontrado no Google — a recriar.`);
+      db.prepare('UPDATE reservations SET google_event_id = NULL, google_calendar_user_id = NULL WHERE id = ?').run(reservation.id);
+      const newEventId = await createCalendarEvent({ ...reservation, google_event_id: null }, { userId, organizationId });
+      if (newEventId) {
+        db.prepare('UPDATE reservations SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ?').run(newEventId, userId, reservation.id);
+        return 'recreated';
+      }
+      return;
+    }
     console.error('Erro ao atualizar evento:', err.message);
   }
 }
@@ -115,7 +130,15 @@ async function ensureAccommodationCalendar(auth, accommodation, organizationId) 
     try {
       await auth.request({ url: `${CAL_BASE}/${encodeURIComponent(accommodation.google_calendar_id)}` });
       return accommodation.google_calendar_id;
-    } catch { /* calendário apagado ou inacessível — recriar abaixo */ }
+    } catch (err) {
+      // Só recriar quando o calendário já não existe mesmo (404). Qualquer outro
+      // erro (rede, rate-limit, falha momentânea a seguir a reconectar) é
+      // transitório — recriar aqui criava um calendário duplicado desnecessário.
+      if (err?.response?.status !== 404) {
+        console.error(`Erro a verificar calendário de "${accommodation.name}" (a manter o existente):`, err.message);
+        return accommodation.google_calendar_id;
+      }
+    }
   }
 
   try {
@@ -136,9 +159,10 @@ async function ensureAccommodationCalendar(auth, accommodation, organizationId) 
       console.error('Erro ao definir cor do calendário:', err.message);
     }
 
-    db.prepare('UPDATE accommodations SET google_calendar_id = ? WHERE id = ? AND organization_id = ?')
+    db.prepare('UPDATE accommodations SET google_calendar_id = ?, google_calendar_manual = 0 WHERE id = ? AND organization_id = ?')
       .run(calendarId, accommodation.id, organizationId);
     accommodation.google_calendar_id = calendarId;
+    accommodation.google_calendar_manual = 0;
     console.log(`📅 Calendário criado automaticamente para "${accommodation.name}": ${calendarId}`);
     return calendarId;
   } catch (err) {
@@ -147,10 +171,41 @@ async function ensureAccommodationCalendar(auth, accommodation, organizationId) 
   }
 }
 
+// Garante um calendário para TODOS os alojamentos da organização, incluindo os
+// que ainda não têm reservas. ensureAccommodationCalendar() é lazy (só corre ao
+// sincronizar um evento), pelo que o alojamento-pai — que também pode ser
+// arrendado por inteiro — ficava sem calendário até à primeira reserva.
+async function ensureAllAccommodationCalendars(userId, organizationId) {
+  if (!isAuthenticated(userId, organizationId)) return { created: 0, errors: 0 };
+
+  const rows = db.prepare(`
+    SELECT * FROM accommodations
+    WHERE organization_id = ?
+      AND (google_calendar_id IS NULL OR google_calendar_id = '')
+      AND (google_calendar_manual IS NULL OR google_calendar_manual = 0)
+  `).all(organizationId);
+  if (!rows.length) return { created: 0, errors: 0 };
+
+  const auth = getAuthenticatedClient(userId, organizationId);
+  let created = 0, errors = 0;
+  for (const acc of rows) {
+    try {
+      const calendarId = await ensureAccommodationCalendar(auth, acc, organizationId);
+      if (calendarId && calendarId !== 'primary') created++; else errors++;
+    } catch (err) {
+      console.error(`Erro a criar calendário de "${acc.name}":`, err.message);
+      errors++;
+    }
+  }
+  return { created, errors };
+}
+
 // Recolore o calendário de um alojamento quando accommodation.color muda.
 // Best-effort: usa qualquer ligação Google Calendar ativa da organização.
+// Não mexe em calendários ligados manualmente (google_calendar_manual) — o
+// utilizador pode querer afinar a cor diretamente no Google Calendar.
 async function recolorAccommodationCalendar(accommodation) {
-  if (!accommodation.google_calendar_id) return;
+  if (!accommodation.google_calendar_id || accommodation.google_calendar_manual) return;
   const conn = db.prepare(
     'SELECT user_id FROM google_calendar_connections WHERE organization_id = ? LIMIT 1'
   ).get(accommodation.organization_id);
@@ -311,7 +366,20 @@ async function updateTaskCalendarEvent(task, calendarUser = {}) {
       method: 'PUT',
       data: { summary, start: startEvt, end: endEvt, colorId },
     });
+    return 'updated';
   } catch (err) {
+    if (err?.response?.status === 404) {
+      // Mesmo raciocínio de updateCalendarEvent: evento/calendário desapareceu do
+      // lado do Google — limpar e recriar em vez de continuar a "atualizar" no vazio.
+      console.warn(`Evento de tarefa ${task.google_event_id} não encontrado no Google — a recriar.`);
+      db.prepare('UPDATE operational_events SET google_event_id = NULL, google_calendar_user_id = NULL WHERE id = ?').run(task.id);
+      const newEventId = await createTaskCalendarEvent({ ...task, google_event_id: null }, { userId, organizationId });
+      if (newEventId) {
+        db.prepare('UPDATE operational_events SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ?').run(newEventId, userId, task.id);
+        return 'recreated';
+      }
+      return;
+    }
     console.error('Erro ao atualizar evento de tarefa:', err.message);
   }
 }
@@ -407,9 +475,65 @@ async function deleteTaskCalendarEvent(task, calendarUser = {}) {
   }
 }
 
+const GCAL_SYNC_CALENDAR_KEY = 'gcal_sync_calendar';
+const GCAL_SYNC_TASKS_KEY = 'gcal_sync_tasks';
+
+function getOrgSyncSetting(organizationId, key) {
+  const row = db.prepare('SELECT value FROM organization_settings WHERE organization_id = ? AND key = ?').get(organizationId, key);
+  return row?.value === '1';
+}
+
+// Sincroniza eventos operacionais (check-in/check-out/limpeza/tarefas — qualquer
+// tipo, ver eventTypes.js) com o Google Calendar e/ou o Google Tasks, cada um gated
+// pela sua própria definição de organização. Ponto único partilhado por
+// eventController.js (create/update de um evento), reservationController.js (tarefas
+// auto-geradas de uma reserva) e calendarController.js (botão "Sincronizar agora"),
+// que antes duplicavam esta lógica com o mesmo par de flags — e o de "Sincronizar
+// agora" nunca chegava a acionar o Google Tasks. As reservas em si (o evento da
+// estadia) não passam por aqui — continuam sempre automáticas, à parte destas duas
+// definições.
+async function syncOperationalEventsToGoogle(tasks, { userId, organizationId }) {
+  const list = Array.isArray(tasks) ? tasks.filter(Boolean) : [tasks].filter(Boolean);
+  if (!list.length) return { calendarCreated: 0, calendarUpdated: 0, calendarErrors: 0 };
+
+  let calendarCreated = 0, calendarUpdated = 0, calendarErrors = 0;
+
+  if (getOrgSyncSetting(organizationId, GCAL_SYNC_CALENDAR_KEY) && isAuthenticated(userId, organizationId)) {
+    for (const task of list) {
+      try {
+        if (task.google_event_id && task.google_calendar_user_id === userId) {
+          const result = await updateTaskCalendarEvent(task, { userId, organizationId });
+          if (result === 'recreated') calendarCreated++; else calendarUpdated++;
+        } else if (!task.google_event_id) {
+          const eventId = await createTaskCalendarEvent(task, { userId, organizationId });
+          if (eventId) {
+            db.prepare('UPDATE operational_events SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ?')
+              .run(eventId, userId, task.id);
+            calendarCreated++;
+          } else {
+            calendarErrors++;
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao sincronizar evento com o Google Calendar:', err.message);
+        calendarErrors++;
+      }
+    }
+  }
+
+  if (getOrgSyncSetting(organizationId, GCAL_SYNC_TASKS_KEY)) {
+    if (isTasksAuthenticated(organizationId)) {
+      syncOrganizationTasksToGoogleTasks(organizationId).catch(err => console.error('Erro ao sincronizar com o Google Tasks:', err.message));
+    }
+  }
+
+  return { calendarCreated, calendarUpdated, calendarErrors };
+}
+
 module.exports = {
   createCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
   createTaskCalendarEvent, updateTaskCalendarEvent, deleteTaskCalendarEvent,
-  cleanDuplicateAppEvents,
-  ensureAccommodationCalendar, recolorAccommodationCalendar, deleteAllSyncedEvents,
+  cleanDuplicateAppEvents, syncOperationalEventsToGoogle,
+  ensureAccommodationCalendar, ensureAllAccommodationCalendars,
+  recolorAccommodationCalendar, deleteAllSyncedEvents,
 };

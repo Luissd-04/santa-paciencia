@@ -1,0 +1,202 @@
+/* ── Accommodation map ── */
+.aloj-map-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 220px;
+  gap: 12px;
+  color: var(--cinza);
+  background: var(--cinza-claro);
+  border-radius: 0 0 var(--raio-grande) var(--raio-grande);
+  font-size: 13.5px;
+}
+#aloj-map {
+  height: 320px;
+  border-radius: 0 0 var(--raio-grande) var(--raio-grande);
+}
+
+/* ── Email codes dropdown ── */
+.codes-dropdown-wrap { position: relative; display: inline-block; }
+.codes-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--cinza-claro);
+  background: var(--branco);
+  color: var(--cinza);
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.codes-btn:hover { color: var(--azul); border-color: var(--azul-claro); background: var(--creme); }
+/* Vive em document.body e é posicionado por JS (toggleCodesDropdown),
+   para não ser recortado pelo overflow dos contentores do editor. */
+.codes-dropdown {
+  position: fixed;
+  background: var(--branco);
+  border: 1px solid var(--cinza-claro);
+  border-radius: 10px;
+  box-shadow: var(--sombra-forte);
+  width: 220px;
+  z-index: 2000;
+  overflow-y: auto;
+  max-height: min(70vh, 420px);
+  padding: 4px 0;
+}
+.codes-cat-title {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--cinza);
+  padding: 10px 14px 4px;
+}
+.codes-item {
+  padding: 6px 14px;
+  font-size: 12.5px;
+  cursor: pointer;
+  color: var(--texto);
+  transition: background .12s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.codes-item::before { content: '{{'; font-size: 10px; color: var(--cinza); font-family: monospace; }
+.codes-item:hover { background: var(--cinza-claro); color: var(--azul); }
+.codes-cat-divider { height: 1px; background: var(--cinza-claro); margin: 4px 0; }
+
+/* ── Despesas page ── */
+.despesas-cat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+/* ── Image section drag-drop ── */
+.img-row.drag-over {
+  border-color: var(--azul-claro);
+  background: rgba(139,58,36,.05);
+}
+.img-thumb-wrap[draggable=true] { cursor: grab; }
+.img-thumb-wrap[draggable=true]:active { cursor: grabbing; opacity: .7; }
+
+/* ── Image section management ── */
+.img-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.img-section-inherited {
+  padding: 16px 16px 18px;
+  border: 1px solid rgba(132, 52, 36, 0.12);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(132, 52, 36, 0.05), rgba(132, 52, 36, 0.02));
+}
+.img-section-title-static {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--marca);
+}
+.img-section-subtitle {
+  margin-top: 6px;
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: var(--cinza);
+}
+.img-section-label-input {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--cinza);
+  background: none;
+  border: none;
+  border-bottom: 1.5px solid transparent;
+  outline: none;
+  padding: 2px 4px;
+  font-family: 'DM Sans', sans-serif;
+  cursor: text;
+  transition: border-color .15s;
+  flex: 1;
+}
+.img-section-label-input:focus { border-bottom-color: var(--azul-claro); color: var(--azul); }
+.img-section-actions { display: flex; gap: 4px; }
+.img-section-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--cinza);
+  padding: 3px 5px;
+  border-radius: 4px;
+  transition: color .15s, background .15s;
+  display: inline-flex;
+  align-items: center;
+}
+.img-section-btn:hover { color: var(--vermelho); background: rgba(176,48,48,.08); }
+.img-section-btn.add:hover { color: var(--verde); background: rgba(46,125,82,.08); }
+.img-add-section-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 14px 16px;
+  border-top: 1px dashed var(--cinza-claro);
+  margin-top: 8px;
+}
+
+/* ── Email formatting toolbar ── */
+.email-fmt-toolbar {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: var(--cinza-claro);
+  border-radius: 8px 8px 0 0;
+  border: 1.5px solid rgba(26,46,74,.12);
+  border-bottom: none;
+}
+.fmt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 28px;
+  border-radius: 5px;
+  border: none;
+  background: var(--branco);
+  color: var(--azul);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background .12s;
+  font-family: 'DM Sans', sans-serif;
+}
+.fmt-btn:hover { background: var(--creme); color: var(--marca); }
+.fmt-btn-sep { width: 1px; background: rgba(26,46,74,.12); margin: 4px 2px; align-self: stretch; }
+.fmt-btn-wide { width: auto; padding: 0 10px; font-size: 11.5px; }
+.email-body-textarea.with-toolbar {
+  border-radius: 0 0 8px 8px;
+  border-top: none;
+}
+.email-preview {
+  border: 1.5px solid rgba(26,46,74,.12);
+  border-radius: 0 0 8px 8px;
+  padding: 16px;
+  min-height: 200px;
+  background: var(--branco);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--texto);
+}
+
+/* ── Timeline improved ── */

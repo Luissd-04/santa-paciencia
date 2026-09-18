@@ -1,0 +1,298 @@
+/* ─── ALOJAMENTOS ─── */
+.aloj-tab {
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--cinza);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: all .2s;
+}
+.aloj-tab:hover { color: var(--azul); }
+.aloj-tab.active { color: var(--azul); border-bottom-color: var(--dourado); font-weight: 600; }
+
+#aloj-table tbody tr:hover { background: rgba(74,127,165,.05); cursor: pointer; }
+#aloj-table td, #aloj-table th { padding: 10px 12px; font-size: 13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+.amenity-section { margin-bottom: 24px; }
+.amenity-section-title { font-weight: 700; font-size: 14px; color: var(--azul); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--cinza-claro); }
+.amenity-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.amenity-item { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--texto); cursor: pointer; padding: 4px 0; }
+.amenity-item input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--azul-claro); cursor: pointer; }
+.amenity-item.checked { color: var(--azul); }
+.amenity-item-inherited {
+  color: var(--texto);
+  cursor: default;
+  opacity: .92;
+}
+.amenity-item-inherited input[type=checkbox] {
+  cursor: default;
+}
+.amenity-item-inherited.checked {
+  color: var(--marca);
+}
+.amenity-badge-inherited {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  margin-left: 4px;
+  border-radius: 999px;
+  background: rgba(132, 52, 36, 0.10);
+  color: var(--marca);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+/* Toggle switch */
+.toggle-switch { position:relative; display:inline-block; width:38px; height:22px; }
+.toggle-switch input { opacity:0; width:0; height:0; }
+.toggle-slider { position:absolute; cursor:pointer; inset:0; background:var(--cinza-claro); border-radius:22px; transition:.3s; }
+.toggle-slider:before { position:absolute; content:""; height:16px; width:16px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.3s; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+.toggle-switch input:checked + .toggle-slider { background:var(--verde); }
+.toggle-switch input:checked + .toggle-slider:before { transform:translateX(16px); }
+
+/* Image gallery */
+.img-section { margin-bottom:28px; }
+.img-section-title { font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--cinza); margin-bottom:12px; }
+.img-row { display:flex; flex-wrap:wrap; gap:10px; min-height:80px; padding:8px; border:1px dashed var(--cinza-claro); border-radius:8px; }
+.img-row-inherited {
+  background: rgba(132, 52, 36, 0.04);
+  border-style: solid;
+  border-color: rgba(132, 52, 36, 0.16);
+}
+.img-thumb {
+  width:120px; height:80px; border-radius:8px; object-fit:cover;
+  cursor:grab; border:2px solid transparent; transition:border .2s;
+  position:relative;
+}
+.img-thumb:hover { border-color:var(--azul-claro); }
+.img-thumb-wrap { position:relative; display:inline-block; }
+.img-thumb-wrap .img-remove {
+  position:absolute; top:4px; right:4px; background:rgba(0,0,0,.55);
+  color:#fff; border:none; border-radius:50%; width:20px; height:20px;
+  font-size:11px; cursor:pointer; display:none; align-items:center; justify-content:center;
+}
+.img-thumb-wrap:hover .img-remove { display:flex; }
+.img-empty { width:100px; height:70px; border:1.5px dashed var(--cinza-claro); border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--cinza-claro); font-size:22px; }
+.img-inherited-empty {
+  width: 100%;
+  min-height: 70px;
+  border: 1px dashed rgba(132, 52, 36, 0.14);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cinza);
+  font-size: 12px;
+  background: rgba(132, 52, 36, 0.03);
+  text-align: center;
+  padding: 10px 12px;
+}
+.detail-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; padding:20px; background:var(--cinza-claro); border-radius:10px; margin-top:12px; }
+
+/* Colunas ordenáveis */
+.th-sort {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.th-sort:hover { background: #e4e0da; }
+.sort-icon { font-size: 11px; margin-left: 3px; color: var(--azul-claro); }
+
+/* Tabela compacta — reservas */
+#view-reservas,
+#view-alojamentos {
+  min-width: 0;
+  overflow-x: hidden;
+}
+#view-reservas .reservas-shell,
+#view-reservas .reservas-desktop-layout,
+#view-reservas .reservas-table-card {
+  min-width: 0;
+  max-width: 100%;
+}
+#view-reservas .reservas-table-wrap {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+/* Larguras das colunas via <colgroup> (JS: applyReservasColWidths, com
+   larguras guardadas por utilizador em SS 'res:colw'). O JS fixa
+   table.width = soma exata das colunas, por isso arrastar a pega no bordo
+   de um <th> altera só essa coluna; o wrap faz scroll-x quando não cabe. */
+#view-reservas table { table-layout: fixed; width: auto; }
+#view-reservas thead th {
+  padding: 10px 8px;
+  font-size: 12.5px;
+  white-space: nowrap;
+  position: relative;
+}
+#view-reservas tbody td {
+  padding: 10px 8px;
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#view-reservas thead th[data-col="actions"],
+#view-reservas tbody td[data-col="actions"] {
+  overflow: visible;
+  text-overflow: clip;
+}
+#view-reservas tbody td[data-col="actions"] {
+  display: table-cell;
+}
+#view-reservas tbody td[data-col="actions"] > .res-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+#view-reservas tbody td[data-col="actions"] .res-actions .btn {
+  flex: 0 0 auto;
+}
+
+/* As 3 últimas colunas (na ordem atual, seja ela qual for) ficam coladas à
+   direita; as restantes fazem scroll horizontal por baixo. Os offsets
+   --sr-0/1/2 vêm do JS (recomputeReservasTableMetrics) com as larguras reais. */
+#view-reservas thead th:nth-last-child(-n+3) { position: sticky; z-index: 3; background: var(--cinza-claro); }
+#view-reservas tbody td:nth-last-child(-n+3) { position: sticky; z-index: 2; background: var(--branco); }
+/* Fundo OPACO no hover — senão o conteúdo que faz scroll por trás das colunas
+   coladas aparece através do tint translúcido. */
+#view-reservas tr:hover td:nth-last-child(-n+3) {
+  background: linear-gradient(rgba(139,58,36,.045), rgba(139,58,36,.045)), var(--branco);
+}
+#view-reservas th:nth-last-child(1), #view-reservas td:nth-last-child(1) { right: var(--sr-0, 0px); }
+#view-reservas th:nth-last-child(2), #view-reservas td:nth-last-child(2) { right: var(--sr-1, 132px); }
+#view-reservas th:nth-last-child(3), #view-reservas td:nth-last-child(3) { right: var(--sr-2, 252px); box-shadow: -4px 0 8px rgba(0,0,0,.06); }
+
+/* Cabeçalho arrastável para reordenar colunas */
+#view-reservas thead th.th-col { cursor: pointer; user-select: none; }
+#view-reservas thead th.th-col:not(.th-sort) { cursor: default; }
+#view-reservas thead th[draggable="true"]:active { cursor: grabbing; }
+#view-reservas thead th.th-dragging { opacity: .4; }
+#view-reservas thead th.th-drop-l::before,
+#view-reservas thead th.th-drop-r::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 3px;
+  background: var(--marca); z-index: 5;
+}
+#view-reservas thead th.th-drop-l::before { left: -1px; }
+#view-reservas thead th.th-drop-r::after { right: -1px; }
+
+/* Pega de redimensionamento de coluna */
+#view-reservas thead th .col-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 4;
+  touch-action: none;
+}
+#view-reservas thead th .col-resizer::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  right: 3px;
+  width: 2px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background .12s;
+}
+#view-reservas thead th:hover .col-resizer::after { background: rgba(0, 0, 0, .14); }
+#view-reservas thead th .col-resizer:hover::after { background: var(--marca); }
+body.col-resizing,
+body.col-resizing * { cursor: col-resize !important; user-select: none !important; }
+
+/* Tabs de língua na descrição */
+.desc-lang-tab {
+  background: none; border: none; border-bottom: 2px solid transparent;
+  padding: 10px 14px; font-size: 12.5px; cursor: pointer; color: var(--cinza);
+  white-space: nowrap; transition: all .15s;
+}
+.desc-lang-tab:hover { color: var(--azul); }
+.desc-lang-tab.active { color: var(--azul); border-bottom-color: var(--azul); font-weight: 600; }
+
+/* Remove spinners do input number nos serviços */
+#servicos-table input[type=number]::-webkit-inner-spin-button,
+#servicos-table input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+#servicos-table input[type=number] { -moz-appearance: textfield; }
+
+/* Drag handle */
+.drag-handle { color: var(--cinza); font-size: 16px; cursor: grab; padding: 0 4px; user-select: none; display:inline-flex; align-items:center; }
+.drag-handle:active { cursor: grabbing; }
+#aloj-body tr.drag-over { background: rgba(74,127,165,.12); border-top: 2px solid var(--azul-claro); }
+#aloj-body tr.dragging { opacity: .4; }
+
+.loading {
+  display:flex; align-items:center; justify-content:center;
+  padding:40px; color:var(--cinza); gap:10px;
+  font-size:14px;
+}
+.spinner {
+  width:20px; height:20px;
+  border:2px solid rgba(139,58,36,.15);
+  border-top-color:var(--marca);
+  border-radius:50%;
+  animation:spinSmooth 1.2s cubic-bezier(0.645, 0.045, 0.355, 1) infinite;
+}
+@keyframes spinSmooth { 0%{transform:rotate(0deg);} 100%{transform:rotate(360deg);} }
+
+/* ── View fade transition ── */
+@keyframes viewFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Nav border entrance ── */
+@keyframes navBorderIn { from { border-left-color: transparent; } to { border-left-color: var(--dourado); } }
+
+/* ── Skeleton shimmer ── */
+.skeleton-line {
+  background: linear-gradient(90deg, rgba(139,58,36,.08) 0%, rgba(139,58,36,.12) 50%, rgba(139,58,36,.08) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+  border-radius: 6px;
+  display: block;
+  height: 12px;
+  margin-bottom: 10px;
+}
+.skeleton-line.h-full { height: 40px; margin-bottom: 0; }
+@keyframes shimmer { 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+
+/* ── Availability bar fill ── */
+@keyframes fillBar { from { width: 0%; } to { width: var(--fill-pct, 0%); } }
+
+/* ── Card/KPI entrance animation ── */
+@keyframes fadeScaleIn {
+  from { opacity: 0; transform: scale(0.93) translateY(12px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.card-entrance { animation: fadeScaleIn .6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+.hospedes-grid .hospede-card { animation: fadeScaleIn .6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.hospedes-grid .hospede-card:nth-child(1) { animation-delay: 0s; }
+.hospedes-grid .hospede-card:nth-child(2) { animation-delay: .08s; }
+.hospedes-grid .hospede-card:nth-child(3) { animation-delay: .16s; }
+.hospedes-grid .hospede-card:nth-child(4) { animation-delay: .24s; }
+.hospedes-grid .hospede-card:nth-child(n+5) { animation-delay: .32s; }
+
+.kpi-grid .kpi-card { animation: fadeScaleIn .5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.kpi-grid .kpi-card:nth-child(1) { animation-delay: 0s; }
+.kpi-grid .kpi-card:nth-child(2) { animation-delay: .1s; }
+.kpi-grid .kpi-card:nth-child(3) { animation-delay: .2s; }
+.kpi-grid .kpi-card:nth-child(4) { animation-delay: .3s; }
+
+/* ── KPI value entrance ── */
+@keyframes kpiEnter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.kpi-value.kpi-animated { animation: kpiEnter .8s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+

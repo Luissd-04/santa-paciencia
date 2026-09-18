@@ -1,0 +1,59 @@
+{
+  "js/reserva-lista.js": {
+    "scripts": [
+      "js/reserva-lista.js",
+      "js/features/reserva-lista/lista-colunas.js",
+      "js/features/reserva-lista/lista-render.js",
+      "js/features/reserva-lista/detalhe.js",
+      "js/features/reserva-lista/detalhe-formularios.js",
+      "js/features/reserva-lista/documentos.js",
+      "js/features/reserva-lista/alojamento-painel.js",
+      "js/features/reserva-lista/acoes.js",
+      "js/features/reserva-lista/exportacao.js"
+    ],
+    "original_sha256": "848352be19d2a00c3b3b6d4719b1c2cc83a32abed699ef61f18df803dcdc8a2d"
+  },
+  "js/reserva-wizard.js": {
+    "scripts": [
+      "js/reserva-wizard.js",
+      "js/features/reserva-wizard/editor.js",
+      "js/features/reserva-wizard/rascunhos.js",
+      "js/features/reserva-wizard/precos.js",
+      "js/features/reserva-wizard/datas-hospedes.js",
+      "js/features/reserva-wizard/disponibilidade.js",
+      "js/features/reserva-wizard/passos.js",
+      "js/features/reserva-wizard/guardar.js"
+    ],
+    "original_sha256": "a50f743709d5e3a828730fa5384686a7fd23d8a9d92daa6543d73d4bbe7c22cc"
+  },
+  "js/alojamentos.js": {
+    "scripts": [
+      "js/alojamentos.js",
+      "js/features/alojamentos/galeria.js",
+      "js/features/alojamentos/servicos-heranca.js",
+      "js/features/alojamentos/exportacao.js",
+      "js/features/alojamentos/configuracao.js"
+    ],
+    "original_sha256": "0f614b3a1d647a4bef452d53798e42756f00bdf4942b5ca0c8b87db124223a85"
+  },
+  "js/calendario.js": {
+    "scripts": [
+      "js/calendario.js",
+      "js/features/calendario/mes-agenda.js",
+      "js/features/calendario/paisagem.js",
+      "js/features/calendario/timeline.js",
+      "js/features/calendario/interacoes.js"
+    ],
+    "original_sha256": "c12b2a990ebd71648466331a2969fb88aa1e524db8ac53e0742318dcba3ea630"
+  },
+  "js/invoice.js": {
+    "scripts": [
+      "js/invoice.js",
+      "js/features/invoice/historico.js",
+      "js/features/invoice/arquivo.js",
+      "js/features/invoice/composicao.js",
+      "js/features/invoice/auxiliares.js"
+    ],
+    "original_sha256": "42a2e9dec6044f993922c7f32943f11a0cbba96a32ade7bad1648f7e865fdcd5"
+  }
+}

@@ -1,3 +1,7 @@
+const { addPayment, deletePayment, saveInvoice } = require('./reservationPaymentsController');
+const { ledgerTotal, ensureLegacyPayment, setPaidAmount } = require('../services/paymentLedger');
+const { findConflict, unavailableUnits, validateExtraUnits } = require('../services/reservationAvailability');
+const { validateReservationInput } = require('../services/reservationValidation');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
 const {
@@ -17,6 +21,7 @@ const {
 } = require('../services/accommodationBlockService');
 const { notifyOrganization } = require('../services/pushService');
 const { recordHistory, diffReservationFields } = require('../services/reservationHistoryService');
+const { getOccupancyStats, occupancyRate, firstOfMonth: firstDayOfMonth } = require('../services/occupancyStats');
 
 function safeJson(value, fallback) {
   if (!value) return fallback;
@@ -101,16 +106,13 @@ function getOrganizationServices(organizationId) {
   return row ? safeJson(row.value, []) : [];
 }
 
-const { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, createTaskCalendarEvent, updateTaskCalendarEvent } = require('../services/calendarService');
+const { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent, syncOperationalEventsToGoogle } = require('../services/calendarService');
 const { sendConfirmationEmail, sendCancellationEmail, sendPaymentConfirmationEmail, sendPreCheckinEmail } = require('../services/emailService');
 const { recordConsent } = require('../services/rgpdService');
 const {
   syncReservationOperationalTasks,
   syncOrganizationOperationalTasks,
 } = require('../services/operationalTasksService');
-
-const { isAuthenticated } = require('../config/google');
-const { isTasksAuthenticated, syncOrganizationTasksToGoogleTasks } = require('../config/googleTasks');
 
 function publicUrl(req) {
   const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
@@ -137,60 +139,22 @@ function ensurePrecheckinToken(reservation) {
   return token;
 }
 
-function getGcalSyncTasks(organizationId) {
-  const row = db.prepare("SELECT value FROM organization_settings WHERE organization_id = ? AND key = 'gcal_sync_tasks'").get(organizationId);
-  return row?.value === '1';
-}
-
-async function syncReservationTasksToGoogle(reservationId, organizationId, userId) {
-  if (!getGcalSyncTasks(organizationId)) return;
-
-  if (isAuthenticated(userId, organizationId)) {
-    try {
-      const tasks = db.prepare(
-        "SELECT * FROM operational_events WHERE reservation_id = ? AND organization_id = ? AND auto_generated = 1 AND status != 'concluido'"
-      ).all(reservationId, organizationId);
-      for (const task of tasks) {
-        if (task.google_event_id && task.google_calendar_user_id === userId) {
-          await updateTaskCalendarEvent(task, { userId, organizationId });
-        } else if (!task.google_event_id) {
-          const eventId = await createTaskCalendarEvent(task, { userId, organizationId });
-          if (eventId) {
-            db.prepare('UPDATE operational_events SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ?')
-              .run(eventId, userId, task.id);
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Erro ao sincronizar tarefas da reserva:', err.message);
-    }
-  }
-
-  if (isTasksAuthenticated(organizationId)) {
-    syncOrganizationTasksToGoogleTasks(organizationId).catch(err => console.error('Erro ao sincronizar tarefas da reserva com Google Tasks:', err.message));
-  }
+// Sincroniza as tarefas auto-geradas de uma reserva (check-in/check-out/limpeza) com
+// o Google Calendar e/ou o Google Tasks — ver syncOperationalEventsToGoogle em
+// services/calendarService.js. A reserva em si (createCalendarEvent/updateCalendarEvent,
+// chamados à parte) não passa por aqui — continua sempre automática.
+function syncReservationTasksToGoogle(reservationId, organizationId, userId) {
+  const tasks = db.prepare(
+    "SELECT * FROM operational_events WHERE reservation_id = ? AND organization_id = ? AND auto_generated = 1 AND status != 'concluido'"
+  ).all(reservationId, organizationId);
+  if (!tasks.length) return;
+  syncOperationalEventsToGoogle(tasks, { userId, organizationId })
+    .catch(err => console.error('Erro ao sincronizar tarefas da reserva:', err.message));
 }
 
 // Returns conflicting reservation ID (if any) for the given accommodation + date range.
 // Uses parent_id hierarchy: booking an alojamento blocks all child suites and vice versa.
-function findConflict(organizationId, accommodationId, checkIn, checkOut, excludeId) {
-  const accommodations = db.prepare('SELECT id, type, parent_id FROM accommodations WHERE organization_id = ?').all(organizationId);
-  const idsToCheck = getAccommodationScope(accommodations, accommodationId);
-  if (!idsToCheck.length) return null;
 
-  const placeholders = idsToCheck.map(() => '?').join(',');
-  let query = `
-    SELECT r.id FROM reservations r
-    WHERE r.status != 'cancelada'
-      AND r.organization_id = ?
-      AND r.check_in < ?
-      AND r.check_out > ?
-      AND r.accommodation_id IN (${placeholders})
-  `;
-  const params = [organizationId, checkOut, checkIn, ...idsToCheck];
-  if (excludeId) { query += ' AND r.id != ?'; params.push(excludeId); }
-  return db.prepare(query).get(...params) || null;
-}
 
 // GET /api/reservations/availability?check_in=&check_out=&exclude_id=
 async function getAvailability(req, res, next) {
@@ -201,22 +165,7 @@ async function getAvailability(req, res, next) {
       return res.json({ success: true, data: { unavailable: [] } });
     }
 
-    let query = `SELECT DISTINCT accommodation_id FROM reservations WHERE organization_id = ? AND status != 'cancelada' AND check_in < ? AND check_out > ?`;
-    const params = [organizationId, check_out, check_in];
-    if (exclude_id) { query += ' AND id != ?'; params.push(exclude_id); }
-
-    const conflicting = db.prepare(query).all(...params).map(r => r.accommodation_id);
-    const blocked = getBlockedAccommodationIds(organizationId, check_in, check_out);
-
-    if (!conflicting.length && !blocked.length) {
-      return res.json({ success: true, data: { unavailable: [] } });
-    }
-
-    const allAccom = db.prepare('SELECT id, type, parent_id FROM accommodations WHERE organization_id = ?').all(organizationId);
-    const unavailable = [...new Set([
-      ...getUnavailableAccommodationIds(allAccom, conflicting),
-      ...blocked,
-    ])];
+    const unavailable = unavailableUnits(organizationId, check_in, check_out, exclude_id);
     res.json({ success: true, data: { unavailable } });
   } catch (err) {
     next(err);
@@ -327,119 +276,11 @@ async function getById(req, res, next) {
 }
 
 // POST /api/reservations/:id/payments
-async function addPayment(req, res, next) {
-  try {
-    const { id } = req.params;
-    const organizationId = req.user.organization_id;
-    const { amount, method, payment_date, notes } = req.body;
-
-    const numAmount = Number(amount);
-    if (!Number.isFinite(numAmount) || numAmount <= 0) {
-      return res.status(400).json({ error: 'Montante inválido' });
-    }
-
-    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(id, organizationId);
-    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
-
-    const reservationTotal = Number(reservation.total_amount) || 0;
-    const paymentCap = Math.max(reservationTotal * 10, 1000000);
-    if (numAmount > paymentCap) {
-      return res.status(400).json({ error: `Montante excessivo (máximo permitido: €${paymentCap.toFixed(2)}).` });
-    }
-
-    const paymentId = `rp-${uuidv4()}`;
-    db.prepare(`
-      INSERT INTO reservation_payments (id, reservation_id, organization_id, amount, method, payment_date, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(paymentId, id, organizationId, numAmount, method || null, payment_date || null, notes || null);
-
-    const { total_paid } = db.prepare('SELECT SUM(amount) as total_paid FROM reservation_payments WHERE reservation_id = ? AND organization_id = ?').get(id, organizationId);
-    const newPaid = total_paid || 0;
-    const autoStatus = getPaymentStatus(newPaid, reservation.total_amount, reservation.payment_status);
-
-    db.prepare(`UPDATE reservations SET amount_paid = ?, payment_status = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?`)
-      .run(newPaid, autoStatus, id, organizationId);
-
-    recordHistory({
-      organizationId, reservationId: id, userId: req.user.id, action: 'payment_added',
-      meta: { amount: numAmount, method: method || null, payment_date: payment_date || null },
-    });
-
-    res.json({ success: true, data: { id: paymentId, amount: numAmount, method, payment_date, notes, newTotalPaid: newPaid, newPaymentStatus: autoStatus } });
-  } catch (err) {
-    next(err);
-  }
-}
-
-// DELETE /api/reservations/:id/payments/:paymentId
-async function deletePayment(req, res, next) {
-  try {
-    const { id, paymentId } = req.params;
-    const organizationId = req.user.organization_id;
-
-    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(id, organizationId);
-    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
-
-    const payment = db.prepare('SELECT * FROM reservation_payments WHERE id = ? AND reservation_id = ? AND organization_id = ?').get(paymentId, id, organizationId);
-    if (!payment) return res.status(404).json({ error: 'Pagamento não encontrado' });
-
-    db.prepare('DELETE FROM reservation_payments WHERE id = ? AND organization_id = ?').run(paymentId, organizationId);
-
-    const { total_paid } = db.prepare('SELECT SUM(amount) as total_paid FROM reservation_payments WHERE reservation_id = ? AND organization_id = ?').get(id, organizationId);
-    const newPaid = total_paid || 0;
-    const autoStatus = getPaymentStatus(newPaid, reservation.total_amount, 'pendente');
-
-    db.prepare(`UPDATE reservations SET amount_paid = ?, payment_status = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?`)
-      .run(newPaid, autoStatus, id, organizationId);
-
-    recordHistory({
-      organizationId, reservationId: id, userId: req.user.id, action: 'payment_deleted',
-      meta: { amount: payment.amount, method: payment.method || null, payment_date: payment.payment_date || null },
-    });
-
-    res.json({ success: true, newTotalPaid: newPaid, newPaymentStatus: autoStatus });
-  } catch (err) {
-    next(err);
-  }
-}
-
-// PUT /api/reservations/:id/invoice — regista/atualiza a fatura da reserva (uma por reserva).
-async function saveInvoice(req, res, next) {
-  try {
-    const { id } = req.params;
-    const organizationId = req.user.organization_id;
-    const { invoice_number, invoice_date, invoice_sent_date, invoice_sent_method } = req.body;
-
-    const reservation = db.prepare('SELECT id FROM reservations WHERE id = ? AND organization_id = ?').get(id, organizationId);
-    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
-
-    db.prepare(`UPDATE reservations SET
-        invoice_number = ?, invoice_date = ?, invoice_sent_date = ?, invoice_sent_method = ?, updated_at = datetime('now')
-      WHERE id = ? AND organization_id = ?`)
-      .run(
-        (invoice_number || '').trim() || null,
-        invoice_date || null,
-        invoice_sent_date || null,
-        (invoice_sent_method || '').trim() || null,
-        id, organizationId
-      );
-
-    const updated = db.prepare(
-      'SELECT invoice_number, invoice_date, invoice_sent_date, invoice_sent_method FROM reservations WHERE id = ? AND organization_id = ?'
-    ).get(id, organizationId);
-    recordHistory({
-      organizationId, reservationId: id, userId: req.user.id, action: 'invoice_saved',
-      meta: { invoice_number: updated.invoice_number || null },
-    });
-    res.json({ success: true, data: updated });
-  } catch (err) {
-    next(err);
-  }
-}
-
 // POST /api/reservations
 async function create(req, res, next) {
   try {
+    const { reservation, reservationId, guestRecord, accommodation, organizationId } = db.transaction(() => {
+    validateReservationInput(req.body);
     const {
       guest, accommodation_id, check_in, check_out,
       num_guests, num_adults, num_children, breakfast_included, channel, payment_method,
@@ -447,13 +288,15 @@ async function create(req, res, next) {
       amount_paid, payment_date, payment_status: reqPaymentStatus,
       total_amount: manualTotalCreate, nightly_prices: nightlyPricesCreate
     } = req.body;
+    const initialStatus = req.body.status || 'confirmada';
+    const extraUnits = req.body.accommodations_data || [];
     const totalGuests = (num_adults != null || num_children != null)
       ? (Number(num_adults ?? 1) + Number(num_children ?? 0))
       : (num_guests || 1);
     const organizationId = req.user.organization_id;
 
     if (!accommodation_id || !check_in || !check_out) {
-      return res.status(400).json({ error: 'Datas e alojamento são obrigatórios' });
+      throw Object.assign(new Error(({ error: 'Datas e alojamento são obrigatórios' }).error), { status: 400 });
     }
 
     // Normalizar dados do hóspede — todos os campos são opcionais no backoffice
@@ -511,9 +354,9 @@ async function create(req, res, next) {
 
     // Calcular valores
     const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(accommodation_id, organizationId);
-    if (!accommodation) return res.status(404).json({ error: 'Alojamento não encontrado' });
+    if (!accommodation) throw Object.assign(new Error(({ error: 'Alojamento não encontrado' }).error), { status: 404 });
     if (totalGuests > Number(accommodation.max_guests || 0)) {
-      return res.status(400).json({ error: `Este alojamento permite no máximo ${accommodation.max_guests} hóspedes.` });
+      throw Object.assign(new Error(({ error: `Este alojamento permite no máximo ${accommodation.max_guests} hóspedes.` }).error), { status: 400 });
     }
 
     const pricingPeriods = db.prepare(
@@ -533,24 +376,26 @@ async function create(req, res, next) {
         nightly_prices: nightlyPricesCreate,
       });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      throw Object.assign(new Error(({ error: error.message }).error), { status: 400 });
     }
 
     // Verificar disponibilidade (anti double-booking)
     const conflict = findConflict(organizationId, accommodation_id, totals.checkIn, totals.checkOut, null);
     if (conflict) {
-      return res.status(409).json({
+      throw Object.assign(new Error(({
         error: `Este alojamento já está ocupado nessas datas (reserva ${conflict.id}).`
-      });
+      }).error), { status: 409 });
     }
 
     // Verificar bloqueios manuais (manutenção, uso pessoal, etc.)
     const block = findBlockConflict(organizationId, accommodation_id, totals.checkIn, totals.checkOut);
     if (block) {
-      return res.status(409).json({
+      throw Object.assign(new Error(({
         error: `Estas datas estão bloqueadas${block.reason ? ` (${block.reason})` : ''}.`
-      });
+      }).error), { status: 409 });
     }
+
+    validateExtraUnits(organizationId, extraUnits, accommodation_id, totals.checkIn, totals.checkOut, null);
 
     // Aplicar voucher se fornecido
     let voucherDiscount = 0;
@@ -597,8 +442,8 @@ async function create(req, res, next) {
         num_adults, num_children,
         total_amount, breakfast_included, tourist_tax, channel, payment_method,
         notes, license_number, guests_data, amount_paid, payment_date, payment_status, nightly_prices,
-        price_edited_at, price_edited_by_user_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        price_edited_at, price_edited_by_user_id, status, accommodations_data
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       reservationId, organizationId, guestRecord.id, accommodation_id, totals.checkIn, totals.checkOut,
       totals.nights, totals.guests,
@@ -611,7 +456,7 @@ async function create(req, res, next) {
       paidAmt, payment_date || null, autoPaymentStatus,
       JSON.stringify(totals.nightlyPrices || []),
       priceEdited ? new Date().toISOString() : null,
-      priceEdited ? req.user.id : null
+      priceEdited ? req.user.id : null, initialStatus, JSON.stringify(extraUnits)
     );
     if (appliedVoucherId) {
       db.prepare(
@@ -620,6 +465,7 @@ async function create(req, res, next) {
     }
 
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservationId, organizationId);
+    ensureLegacyPayment(reservation);
     recordHistory({
       organizationId, reservationId, userId: req.user.id, action: 'created',
       meta: { check_in: reservation.check_in, check_out: reservation.check_out, accommodation_id: reservation.accommodation_id, total_amount: reservation.total_amount },
@@ -629,6 +475,9 @@ async function create(req, res, next) {
       guest_name: guestRecord.name,
       accommodation_name: accommodation.name,
     }, req.user.id);
+
+      return { reservation, reservationId, guestRecord, accommodation, organizationId };
+    }).immediate();
 
     // Google Calendar (async, não bloqueia resposta)
     syncReservationTasksToGoogle(reservationId, organizationId, req.user.id);
@@ -663,9 +512,11 @@ async function create(req, res, next) {
 // PUT /api/reservations/:id
 async function update(req, res, next) {
   try {
+    const { updated, accommodation, organizationId, cancelling, nextPaymentStatus, existing } = db.transaction(() => {
+    validateReservationInput(req.body);
     const organizationId = req.user.organization_id;
     const existing = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
-    if (!existing) return res.status(404).json({ error: 'Reserva não encontrada' });
+    if (!existing) throw Object.assign(new Error(({ error: 'Reserva não encontrada' }).error), { status: 404 });
 
     const {
       check_in, check_out, num_guests, num_adults, num_children, breakfast_included,
@@ -677,7 +528,7 @@ async function update(req, res, next) {
     const newAccommodationId = accommodation_id || existing.accommodation_id;
     const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?')
       .get(newAccommodationId, organizationId);
-    if (!accommodation) return res.status(404).json({ error: 'Alojamento não encontrado' });
+    if (!accommodation) throw Object.assign(new Error(({ error: 'Alojamento não encontrado' }).error), { status: 404 });
 
     const pricingPeriods2 = db.prepare(
       'SELECT * FROM pricing_periods WHERE accommodation_id = ? AND organization_id = ? ORDER BY start_date ASC'
@@ -710,7 +561,7 @@ async function update(req, res, next) {
         nightly_prices: incomingNightly,
       });
     } catch (error) {
-      return res.status(400).json({ error: error.message });
+      throw Object.assign(new Error(({ error: error.message }).error), { status: 400 });
     }
 
     // Cancelamento via mudança de estado (dropdown/wizard) — só na transição.
@@ -721,9 +572,9 @@ async function update(req, res, next) {
       // Verificar disponibilidade (excluir a própria reserva)
       const conflict2 = findConflict(organizationId, newAccommodationId, totals.checkIn, totals.checkOut, req.params.id);
       if (conflict2) {
-        return res.status(409).json({
+        throw Object.assign(new Error(({
           error: `Este alojamento já está ocupado nessas datas (reserva ${conflict2.id}).`
-        });
+        }).error), { status: 409 });
       }
 
       // Multi-suite: verificar também os quartos adicionais (não só a suite
@@ -734,9 +585,9 @@ async function update(req, res, next) {
           if (!item?.accommodation_id || item.accommodation_id === newAccommodationId) continue;
           const extraConflict = findConflict(organizationId, item.accommodation_id, totals.checkIn, totals.checkOut, req.params.id);
           if (extraConflict) {
-            return res.status(409).json({
+            throw Object.assign(new Error(({
               error: `O alojamento adicional "${item.name || item.accommodation_id}" já está ocupado nessas datas (reserva ${extraConflict.id}).`
-            });
+            }).error), { status: 409 });
           }
         }
       }
@@ -744,11 +595,13 @@ async function update(req, res, next) {
       // Verificar bloqueios manuais
       const block2 = findBlockConflict(organizationId, newAccommodationId, totals.checkIn, totals.checkOut);
       if (block2) {
-        return res.status(409).json({
+        throw Object.assign(new Error(({
           error: `Estas datas estão bloqueadas${block2.reason ? ` (${block2.reason})` : ''}.`
-        });
+        }).error), { status: 409 });
       }
     }
+
+    if (!cancelling) validateExtraUnits(organizationId, accommodations_data ?? safeJson(existing.accommodations_data, []), newAccommodationId, totals.checkIn, totals.checkOut, req.params.id);
 
     // Actualizar dados do hóspede se fornecidos
     if (guest) {
@@ -860,6 +713,7 @@ async function update(req, res, next) {
       organizationId
     );
 
+    if (amount_paid !== undefined) setPaidAmount(existing, newPaidAmt);
     const updated = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
     const historyChanges = diffReservationFields(existing, updated);
     if (historyChanges.length) {
@@ -873,6 +727,9 @@ async function update(req, res, next) {
       ...updated,
       accommodation_name: accommodation.name,
     }, req.user.id);
+
+      return { updated, accommodation, organizationId, cancelling, nextPaymentStatus, existing };
+    }).immediate();
 
     // Google Calendar tarefas (async)
     syncReservationTasksToGoogle(req.params.id, organizationId, req.user.id);
@@ -1073,9 +930,12 @@ async function getDashboardStats(req, res, next) {
   try {
     const organizationId = req.user.organization_id;
     const now = new Date();
-    const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-    const lastOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-      .toISOString().split('T')[0];
+    // Janela [1 do mês, 1 do mês seguinte) — o limite superior é exclusivo para
+    // que a última noite do mês (check-out no dia 1 seguinte) também conte.
+    const monthStart = firstDayOfMonth(now.getFullYear(), now.getMonth() + 1);
+    const nextMonthStart = now.getMonth() === 11
+      ? firstDayOfMonth(now.getFullYear() + 1, 1)
+      : firstDayOfMonth(now.getFullYear(), now.getMonth() + 2);
 
     const totalBilled = db.prepare(`
       SELECT COALESCE(SUM(total_amount), 0) as total
@@ -1086,35 +946,38 @@ async function getDashboardStats(req, res, next) {
       SELECT COUNT(*) as count FROM reservations WHERE organization_id = ? AND status = 'confirmada'
     `).get(organizationId);
 
-    const nightsThisMonth = db.prepare(`
-      SELECT COALESCE(SUM(
-        MIN(julianday(?), julianday(check_out)) - MAX(julianday(?), julianday(check_in))
-      ), 0) as total
-      FROM reservations
-      WHERE organization_id = ?
-        AND status != 'cancelada'
-        AND check_in < ? AND check_out > ?
-    `).get(lastOfMonth, firstOfMonth, organizationId, lastOfMonth, firstOfMonth);
+    // Noites-quarto: uma reserva do alojamento inteiro (ou multi-suite) ocupa
+    // várias unidades por noite, não apenas uma.
+    const occupancy = getOccupancyStats(organizationId, monthStart, nextMonthStart);
 
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const totalRooms = db.prepare(`
-      SELECT COUNT(*) as c FROM accommodations
-      WHERE organization_id = ?
-        AND id NOT IN (
-          SELECT DISTINCT parent_id FROM accommodations
-          WHERE parent_id IS NOT NULL AND organization_id = ?
-        )
-    `).get(organizationId, organizationId).c || 1;
-    const occupiedNights = nightsThisMonth.total;
-    const occupancyRate = Math.round((occupiedNights / (daysInMonth * totalRooms)) * 100);
+    // Ocupação por unidade no mês corrente, para o painel "Disponibilidade".
+    const unitRows = occupancy.unitIds.length ? db.prepare(`
+      SELECT id, name, color, price_per_night FROM accommodations
+      WHERE organization_id = ? AND id IN (${occupancy.unitIds.map(() => '?').join(',')})
+      ORDER BY name
+    `).all(organizationId, ...occupancy.unitIds) : [];
+    const availability = unitRows.map(unit => {
+      const nights = occupancy.byUnit[unit.id] || 0;
+      return {
+        id: unit.id,
+        name: unit.name,
+        color: unit.color,
+        price_per_night: unit.price_per_night,
+        nights,
+        days_in_month: occupancy.totalDays,
+        occupancy_rate: occupancyRate(nights, occupancy.totalDays),
+      };
+    });
 
     res.json({
       success: true,
       data: {
         totalBilled: totalBilled.total,
         confirmedReservations: confirmedReservations.count,
-        nightsThisMonth: nightsThisMonth.total,
-        occupancyRate: Math.min(occupancyRate, 100)
+        nightsThisMonth: occupancy.occupiedNights,
+        occupancyRate: occupancy.rate,
+        month: monthStart.slice(0, 7),
+        availability
       }
     });
   } catch (err) {

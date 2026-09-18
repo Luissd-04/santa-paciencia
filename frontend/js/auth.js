@@ -68,7 +68,92 @@ function updateOwnerUiVisibility() {
   });
 }
 
+// ── Contas guardadas neste dispositivo ──
+// Só guardamos email + nome (localStorage). A password nunca: fica a cargo do
+// Keychain (iPhone/Mac) ou do gestor de passwords do browser.
+const SAVED_ACCOUNTS_KEY = 'sp:saved-accounts';
+const SAVED_ACCOUNTS_MAX = 5;
+
+function getSavedAccounts() {
+  try {
+    const list = JSON.parse(localStorage.getItem(SAVED_ACCOUNTS_KEY) || '[]');
+    return Array.isArray(list) ? list.filter(a => a && typeof a.email === 'string') : [];
+  } catch { return []; }
+}
+
+function setSavedAccounts(list) {
+  try { localStorage.setItem(SAVED_ACCOUNTS_KEY, JSON.stringify(list.slice(0, SAVED_ACCOUNTS_MAX))); } catch { /* storage bloqueado */ }
+}
+
+function rememberAccount(user) {
+  if (!user?.email) return;
+  const email = user.email.toLowerCase();
+  setSavedAccounts([{ email, name: user.name || '' }, ...getSavedAccounts().filter(a => a.email !== email)]);
+}
+
+function forgetSavedAccount(email) {
+  setSavedAccounts(getSavedAccounts().filter(a => a.email !== email));
+  const input = document.getElementById('login-email');
+  if (input && input.value.trim().toLowerCase() === email) input.value = '';
+  renderSavedAccounts();
+  input?.focus();
+}
+
+function pickSavedAccount(email) {
+  const input = document.getElementById('login-email');
+  const pw = document.getElementById('login-password');
+  if (input) input.value = email;
+  if (pw) pw.value = '';
+  clearFieldErrors();
+  renderSavedAccounts();
+  pw?.focus();   // no iPhone/Mac, o foco na password faz o Keychain sugerir a password guardada
+}
+
+function renderSavedAccounts() {
+  const wrap = document.getElementById('auth-saved-accounts');
+  if (!wrap) return;
+  const accounts = authMode === 'login' ? getSavedAccounts() : [];
+  if (!accounts.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  const selected = (document.getElementById('login-email')?.value || '').trim().toLowerCase();
+  wrap.style.display = '';
+  wrap.innerHTML = accounts.map(a => {
+    const initial = escapeHtml((a.name || a.email).trim().charAt(0).toUpperCase());
+    const email = escapeHtml(a.email);
+    return `<div class="auth-saved-account${a.email === selected ? ' is-selected' : ''}">
+      <button type="button" class="auth-saved-account-pick" data-email="${email}" onclick="pickSavedAccount(this.dataset.email)">
+        <span class="auth-saved-account-avatar">${initial}</span>
+        <span class="auth-saved-account-copy">
+          ${a.name ? `<strong>${escapeHtml(a.name)}</strong>` : ''}
+          <span>${email}</span>
+        </span>
+      </button>
+      <button type="button" class="auth-saved-account-forget" data-email="${email}" onclick="forgetSavedAccount(this.dataset.email)" title="Esquecer esta conta neste dispositivo" aria-label="Esquecer ${email}">
+        ${lcIcon('x', 13)}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+// Prepara o ecrã de login com a última conta usada (email preenchido, foco na password).
+function prefillLastAccount() {
+  const input = document.getElementById('login-email');
+  const pw = document.getElementById('login-password');
+  if (pw) pw.value = '';
+  const last = getSavedAccounts()[0];
+  if (input && last && !inviteToken && !resetToken) {
+    input.value = last.email;
+    renderSavedAccounts();
+    pw?.focus();
+  } else {
+    renderSavedAccounts();
+  }
+}
+
 function updateUserBadge() {
+  const menuName = document.getElementById('user-menu-name');
+  const menuEmail = document.getElementById('user-menu-email');
+  if (menuName) menuName.textContent = currentUser?.name || '';
+  if (menuEmail) menuEmail.textContent = currentUser?.email || '';
   const nameEl = document.getElementById('auth-user-name');
   const roleEl = document.getElementById('auth-user-role');
   if (nameEl) nameEl.textContent = currentUser?.name || 'Sessão';
@@ -196,6 +281,14 @@ function setAuthMode(mode) {
   } else {
     document.getElementById('auth-back-btn')?.remove();
   }
+
+  // Campos escondidos ficam desativados: o Keychain do iPhone/Mac (e outros
+  // gestores de passwords) ignora-os e reconhece isto como um login simples
+  // (email + password atual), em vez de um registo com "nova password".
+  document.querySelectorAll('#login-form .auth-field input').forEach(input => {
+    input.disabled = !!input.closest('.auth-field.is-hidden');
+  });
+  renderSavedAccounts();
 
   setAuthScreenMessage('');
   clearFieldErrors();
@@ -347,6 +440,7 @@ async function handleLoginSubmit(event) {
         ? await apiPost('/auth/register', { name, organization_name: orgName, email, password, confirm_password: confirm }, { skipAuthRedirect: true })
         : await apiPost('/auth/login', { email, password }, { skipAuthRedirect: true });
     currentUser = payload?.data?.user || null;
+    rememberAccount(currentUser);
     // Tell the browser to offer to save/update credentials
     if (window.PasswordCredential && (authMode === 'login' || authMode === 'register' || authMode === 'invite')) {
       try {
@@ -375,6 +469,14 @@ async function handleLoginSubmit(event) {
 }
 
 async function logout() {
+  if (typeof cancelApiRequests === 'function') cancelApiRequests();
+  if (typeof _stopInvoicePoll === 'function') _stopInvoicePoll();
+  if (typeof clearReservaDraft === 'function') clearReservaDraft();
+  try {
+    localStorage.removeItem('sp_reserva_draft_v1');
+    Object.keys(sessionStorage).filter(key => key.startsWith('sp_reserva_draft_')).forEach(key => sessionStorage.removeItem(key));
+    if ('caches' in window) await Promise.all((await caches.keys()).filter(key => key.startsWith('sp-')).map(key => caches.delete(key)));
+  } catch (_) {}
   try {
     await fetch(API_BASE + '/auth/logout', {
       method: 'POST',
@@ -385,13 +487,27 @@ async function logout() {
   currentUser = null;
   setAuthenticatedLayout(false);
   setAuthMode(inviteToken ? 'invite' : 'login');
+  prefillLastAccount();
   setAuthScreenMessage('Sessão terminada.', 'info');
+}
+
+// Termina a sessão e deixa o login pronto para outra conta (email em branco,
+// contas guardadas visíveis para escolher).
+async function switchAccount() {
+  document.getElementById('user-menu').style.display = 'none';
+  await logout();
+  const input = document.getElementById('login-email');
+  if (input) input.value = '';
+  renderSavedAccounts();
+  setAuthScreenMessage(getSavedAccounts().length ? 'Escolhe uma conta ou escreve outro email.' : '', 'info');
+  input?.focus();
 }
 
 async function handleUnauthorized() {
   currentUser = null;
   setAuthenticatedLayout(false);
   setAuthMode(inviteToken ? 'invite' : 'login');
+  prefillLastAccount();
   setAuthScreenMessage('A tua sessão expirou. Entra novamente para continuar.', 'error');
 }
 
@@ -407,59 +523,39 @@ async function loadMemberships() {
   renderOrgSwitcher();
 }
 
+// "Trocar de espaço" vive no menu da conta; só aparece com 2+ espaços.
 function renderOrgSwitcher() {
-  const el = document.getElementById('org-switcher');
+  const el = document.getElementById('user-menu-orgs');
   if (!el) return;
-  if (_userMemberships.length <= 1) {
-    el.style.display = 'none';
-    return;
-  }
-  el.style.display = '';
+  if (_userMemberships.length <= 1) { el.innerHTML = ''; return; }
   const currentOrgId = currentUser?.organization_id;
   el.innerHTML = `
-    <div class="org-switcher-label sb-label">Espaço ativo</div>
-    <div class="org-switcher-dropdown">
-      <button class="org-switcher-btn" onclick="toggleOrgMenu(event)">
-        <span class="org-switcher-name">${currentUser?.organization_name || '—'}</span>
-        <i data-lucide="chevrons-up-down" style="width:14px;height:14px;flex-shrink:0;"></i>
-      </button>
-      <div class="org-switcher-menu" id="org-menu" style="display:none;">
-        ${_userMemberships.map(m => `
-          <button class="org-menu-item${m.organization_id === currentOrgId ? ' active' : ''}"
-            onclick="switchOrg('${m.organization_id}')">
-            <span>${m.organization_name}</span>
-            <span class="org-menu-role">${m.role}</span>
-          </button>
-        `).join('')}
-      </div>
-    </div>
-  `;
+    <div class="user-menu-sep"></div>
+    <div class="user-menu-label">Trocar de espaço</div>
+    ${_userMemberships.map(m => {
+      const active = m.organization_id === currentOrgId;
+      return `<button class="user-menu-item${active ? ' is-active' : ''}" data-org="${escapeHtml(m.organization_id)}" onclick="switchOrg(this.dataset.org)">
+        ${lcIcon(active ? 'check' : 'building-2', 14)}
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.organization_name)}</span>
+        <span class="user-menu-role">${escapeHtml(m.role)}</span>
+      </button>`;
+    }).join('')}`;
   if (window.lucide) lucide.createIcons();
 }
 
-function toggleOrgMenu(e) {
-  e.stopPropagation();
-  const menu = document.getElementById('org-menu');
-  if (!menu) return;
-  const isOpen = menu.style.display !== 'none';
-  menu.style.display = isOpen ? 'none' : '';
-}
-
 async function switchOrg(organizationId) {
-  const menu = document.getElementById('org-menu');
+  const menu = document.getElementById('user-menu');
   if (menu) menu.style.display = 'none';
   if (organizationId === currentUser?.organization_id) return;
   try {
+    if (typeof clearReservaDraft === 'function') clearReservaDraft();
+    if (typeof cancelApiRequests === 'function') cancelApiRequests();
+    if (typeof _stopInvoicePoll === 'function') _stopInvoicePoll();
     const payload = await apiPost('/auth/switch-org', { organization_id: organizationId });
     currentUser = payload?.data?.user || null;
-    updateUserBadge();
-    updateOwnerUiVisibility();
-    await loadAccommodations();
-    await renderDashboard();
-    if (currentUser?.role === 'owner') await loadTeamOverview();
-    await loadMemberships();
+    window.location.reload();
   } catch (err) {
-    alert(err?.payload?.error || 'Não foi possível mudar de espaço.');
+    toast(err?.payload?.error || 'Não foi possível mudar de espaço.', 'error');
   }
 }
 
@@ -546,12 +642,12 @@ function openChangePasswordModal() {
   });
   const fb = document.getElementById('cp-feedback');
   if (fb) { fb.style.display = 'none'; fb.textContent = ''; }
-  document.getElementById('change-password-modal').style.display = 'flex';
-  document.getElementById('cp-current')?.focus();
+  AppUI.openModal('change-password-modal');
+  setTimeout(() => document.getElementById('cp-current')?.focus(), 50);
 }
 
 function closeChangePasswordModal() {
-  document.getElementById('change-password-modal').style.display = 'none';
+  AppUI.closeModal('change-password-modal');
 }
 
 async function submitChangePassword() {
@@ -577,11 +673,166 @@ async function submitChangePassword() {
   try {
     await apiPost('/auth/change-password', { current_password: current, password: newPw, confirm_password: confirm });
     showCpMsg('Palavra-passe alterada com sucesso!', true);
-    setTimeout(() => closeChangePasswordModal(), 1500);
+    toast('Palavra-passe alterada.', 'success');
+    setTimeout(() => closeChangePasswordModal(), 1200);
   } catch (err) {
     showCpMsg(err?.payload?.error || 'Não foi possível alterar a palavra-passe.');
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="key-round" style="width:14px;height:14px;"></i> Alterar'; if (window.lucide) lucide.createIcons(); }
+  }
+}
+
+// ── O meu perfil ──
+function openProfileModal() {
+  document.getElementById('user-menu').style.display = 'none';
+  document.getElementById('pf-name').value = currentUser?.name || '';
+  document.getElementById('pf-email').value = currentUser?.email || '';
+  document.getElementById('pf-password').value = '';
+  document.getElementById('pf-org').textContent = currentUser?.organization_name || '—';
+  document.getElementById('pf-role').textContent = currentUser?.role || '—';
+  const fb = document.getElementById('pf-feedback');
+  fb.style.display = 'none'; fb.textContent = '';
+  updateProfilePasswordVisibility();
+  AppUI.openModal('profile-modal');
+  setTimeout(() => document.getElementById('pf-name')?.focus(), 50);
+}
+
+function closeProfileModal() {
+  AppUI.closeModal('profile-modal');
+}
+
+// A palavra-passe só é pedida quando o email muda.
+function updateProfilePasswordVisibility() {
+  const email = (document.getElementById('pf-email')?.value || '').trim().toLowerCase();
+  const changed = !!email && email !== (currentUser?.email || '').toLowerCase();
+  const group = document.getElementById('pf-password-group');
+  if (group) group.style.display = changed ? '' : 'none';
+}
+
+async function submitProfile() {
+  const name = document.getElementById('pf-name').value.trim();
+  const email = document.getElementById('pf-email').value.trim();
+  const password = document.getElementById('pf-password').value;
+  const fb = document.getElementById('pf-feedback');
+  const showMsg = (msg) => { fb.textContent = msg; fb.style.display = ''; fb.style.color = 'var(--vermelho, #c0392b)'; };
+
+  if (!name) return showMsg('O nome é obrigatório.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showMsg('O email não tem um formato válido.');
+  const emailChanged = email.toLowerCase() !== (currentUser?.email || '').toLowerCase();
+  if (emailChanged && !password) return showMsg('Para mudar o email, confirma a palavra-passe atual.');
+
+  const btn = document.getElementById('pf-save-btn');
+  btn.disabled = true;
+  try {
+    const oldEmail = (currentUser?.email || '').toLowerCase();
+    const payload = await apiPut('/auth/profile', { name, email, current_password: password });
+    currentUser = { ...currentUser, ...(payload?.data?.user || {}) };
+    if (emailChanged) setSavedAccounts(getSavedAccounts().filter(a => a.email !== oldEmail));
+    rememberAccount(currentUser);
+    updateUserBadge();
+    toast(emailChanged ? 'Perfil guardado. Usa o novo email no próximo login.' : 'Perfil guardado.', 'success');
+    closeProfileModal();
+  } catch (err) {
+    showMsg(err?.payload?.error || 'Não foi possível guardar o perfil.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Sessões ativas ──
+function describeUserAgent(ua) {
+  ua = ua || '';
+  const os = /iPhone/.test(ua) ? 'iPhone'
+    : /iPad/.test(ua) ? 'iPad'
+    : /Android/.test(ua) ? 'Android'
+    : /Macintosh|Mac OS X/.test(ua) ? 'Mac'
+    : /Windows/.test(ua) ? 'Windows'
+    : /Linux/.test(ua) ? 'Linux' : '';
+  const browser = /Edg\//.test(ua) ? 'Edge'
+    : /OPR\//.test(ua) ? 'Opera'
+    : /Firefox\/|FxiOS/.test(ua) ? 'Firefox'
+    : /Chrome\/|CriOS/.test(ua) ? 'Chrome'
+    : /Safari\//.test(ua) ? 'Safari' : '';
+  const icon = os === 'iPhone' || os === 'Android' ? 'smartphone' : os === 'iPad' ? 'tablet' : 'monitor';
+  const label = [browser, os].filter(Boolean).join(' em ') || 'Dispositivo desconhecido';
+  return { label, icon };
+}
+
+function sessionTimeAgo(sqlDate) {
+  if (!sqlDate) return '';
+  const t = new Date(sqlDate.replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(sqlDate) ? '' : 'Z')).getTime();
+  const diff = Math.max(0, (Date.now() - t) / 1000);
+  if (diff < 90) return 'agora mesmo';
+  if (diff < 3600) return `há ${Math.round(diff / 60)} min`;
+  if (diff < 86400) return `há ${Math.round(diff / 3600)} h`;
+  const days = Math.round(diff / 86400);
+  return days === 1 ? 'ontem' : `há ${days} dias`;
+}
+
+function openSessionsModal() {
+  document.getElementById('user-menu').style.display = 'none';
+  AppUI.openModal('sessions-modal');
+  loadSessions();
+}
+
+function closeSessionsModal() {
+  AppUI.closeModal('sessions-modal');
+}
+
+async function loadSessions() {
+  const list = document.getElementById('sessions-list');
+  const revokeBtn = document.getElementById('sessions-revoke-others-btn');
+  list.innerHTML = `<p style="font-size:13px;color:var(--cinza);">A carregar…</p>`;
+  try {
+    const sessions = (await apiGet('/auth/sessions')).data || [];
+    if (revokeBtn) revokeBtn.style.display = sessions.some(s => !s.current) ? '' : 'none';
+    list.innerHTML = sessions.map(s => {
+      const d = describeUserAgent(s.user_agent);
+      const meta = [
+        s.current ? 'Este dispositivo' : `Ativa ${sessionTimeAgo(s.last_seen_at)}`,
+        s.ip ? escapeHtml(s.ip) : '',
+        s.organization_name ? escapeHtml(s.organization_name) : '',
+      ].filter(Boolean).join(' · ');
+      return `<div class="session-row${s.current ? ' is-current' : ''}">
+        <span class="session-row-icon">${lcIcon(d.icon, 18)}</span>
+        <div class="session-row-copy">
+          <strong>${escapeHtml(d.label)}${s.current ? ' <span class="session-row-badge">Atual</span>' : ''}</strong>
+          <span>${meta}</span>
+          <span>Iniciada ${sessionTimeAgo(s.created_at)}</span>
+        </div>
+        ${s.current ? '' : `<button type="button" class="btn btn-ghost btn-sm" data-id="${escapeHtml(s.id)}" onclick="revokeSession(this.dataset.id, this)">Terminar</button>`}
+      </div>`;
+    }).join('') || `<p style="font-size:13px;color:var(--cinza);">Sem sessões.</p>`;
+    if (window.lucide) lucide.createIcons();
+  } catch (err) {
+    list.innerHTML = `<p style="font-size:13px;color:var(--vermelho);">${escapeHtml(err?.payload?.error || 'Não foi possível carregar as sessões.')}</p>`;
+  }
+}
+
+async function revokeSession(id, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    await apiDelete(`/auth/sessions/${encodeURIComponent(id)}`);
+    toast('Sessão terminada.', 'success');
+    loadSessions();
+  } catch (err) {
+    if (btn) btn.disabled = false;
+    toast(err?.payload?.error || 'Não foi possível terminar a sessão.', 'error');
+  }
+}
+
+async function revokeOtherSessions() {
+  const btn = document.getElementById('sessions-revoke-others-btn');
+  btn.disabled = true;
+  try {
+    const res = await apiPost('/auth/sessions/revoke-others', {});
+    const n = res?.data?.removed || 0;
+    toast(n === 1 ? '1 sessão terminada.' : `${n} sessões terminadas.`, 'success');
+    loadSessions();
+  } catch (err) {
+    toast(err?.payload?.error || 'Não foi possível terminar as sessões.', 'error');
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -591,10 +842,6 @@ async function boot() {
   document.getElementById('tab-login')?.addEventListener('click', () => setAuthMode('login'));
   document.getElementById('tab-register')?.addEventListener('click', () => setAuthMode('register'));
   document.addEventListener('click', function(e) {
-    const orgMenu = document.getElementById('org-menu');
-    if (orgMenu && orgMenu.style.display !== 'none') {
-      if (!orgMenu.closest('.org-switcher-dropdown')?.contains(e.target)) orgMenu.style.display = 'none';
-    }
     const userMenu = document.getElementById('user-menu');
     if (userMenu && userMenu.style.display !== 'none') {
       if (!e.target.closest('#auth-user-chip')) userMenu.style.display = 'none';
@@ -613,6 +860,7 @@ async function boot() {
   }
 
   currentUser = await fetchCurrentUser();
+  if (!currentUser && !inviteParam && !resetParam) prefillLastAccount();
   if (currentUser) {
     setAuthenticatedLayout(true);
     await bootstrapApp();

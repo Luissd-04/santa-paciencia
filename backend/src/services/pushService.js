@@ -137,7 +137,7 @@ function saveUserPushPrefs(organizationId, userId, prefs = {}) {
 async function sendToOrganization(organizationId, payload, options = {}) {
   getVapidKeys();
   const { excludeUserId = null, type = null } = options;
-  let rows = db.prepare('SELECT endpoint, keys_json, user_id FROM push_subscriptions WHERE organization_id = ? AND active = 1').all(organizationId);
+  let rows = db.prepare('SELECT s.endpoint, s.keys_json, s.user_id FROM push_subscriptions s JOIN memberships m ON m.user_id=s.user_id AND m.organization_id=s.organization_id JOIN users u ON u.id=s.user_id WHERE s.organization_id = ? AND s.active = 1 AND m.active = 1 AND u.active = 1').all(organizationId);
   if (excludeUserId) rows = rows.filter(r => r.user_id !== excludeUserId);
   if (type) {
     const prefsCache = {};

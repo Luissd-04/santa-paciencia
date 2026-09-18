@@ -1,26 +1,27 @@
 function normalizeDateValue(value) {
   const raw = String(value || '').trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  let iso = raw;
   const pt = raw.match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/);
-  if (pt) return `${pt[3]}-${pt[2]}-${pt[1]}`;
-  const digits = raw.replace(/\D/g, '');
-  if (digits.length === 8) return `${digits.slice(4, 8)}-${digits.slice(2, 4)}-${digits.slice(0, 2)}`;
-  return '';
+  if (pt) iso = `${pt[3]}-${pt[2]}-${pt[1]}`;
+  else if (/^\d{8}$/.test(raw)) iso = `${raw.slice(4)}-${raw.slice(2, 4)}-${raw.slice(0, 2)}`;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
+  const date = new Date(`${iso}T12:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === iso ? iso : '';
 }
 
 function countNights(checkIn, checkOut) {
   const ci = normalizeDateValue(checkIn);
   const co = normalizeDateValue(checkOut);
   if (!ci || !co) return 0;
-  return Math.round((new Date(`${co}T12:00:00`) - new Date(`${ci}T12:00:00`)) / 86400000);
+  return Math.round((new Date(`${co}T12:00:00Z`) - new Date(`${ci}T12:00:00Z`)) / 86400000);
 }
 
 function getAgeAtDate(birthDate, refDate) {
   const birthIso = normalizeDateValue(birthDate);
   const refIso = normalizeDateValue(refDate);
   if (!birthIso || !refIso) return null;
-  const birth = new Date(`${birthIso}T12:00:00`);
-  const ref = new Date(`${refIso}T12:00:00`);
+  const birth = new Date(`${birthIso}T12:00:00Z`);
+  const ref = new Date(`${refIso}T12:00:00Z`);
   if (Number.isNaN(birth.getTime()) || Number.isNaN(ref.getTime()) || birth > ref) return null;
   let age = ref.getFullYear() - birth.getFullYear();
   const monthDiff = ref.getMonth() - birth.getMonth();
@@ -101,7 +102,7 @@ function getExtraOccupancyCharge(accommodation, guests, nights, birthDates = [],
 
 function getReservationBirthDates(guest = {}, guestsData = []) {
   const extra = Array.isArray(guestsData) ? guestsData : [];
-  return [guest.birth_date, ...extra.map(g => g?.birth_date)].filter(Boolean);
+  return [guest.birth_date, ...extra.map(g => g?.birth_date)];
 }
 
 function validateReservationBirthDates(numGuests, guest = {}, guestsData = []) {
@@ -128,7 +129,7 @@ function calcBaseAmountWithPeriods(basePrice, checkIn, checkOut, periods = []) {
   if (!nights) return 0;
   const sorted = [...periods].sort((a, b) => a.start_date.localeCompare(b.start_date));
   let total = 0;
-  const d = new Date(`${checkIn}T12:00:00`);
+  const d = new Date(`${checkIn}T12:00:00Z`);
   for (let i = 0; i < nights; i++) {
     const iso = d.toISOString().slice(0, 10);
     const period = sorted.find(p => periodMatchesDay(p, iso));
@@ -154,7 +155,7 @@ function buildNightlyPrices(basePrice, checkIn, checkOut, periods = [], override
     });
   }
   const result = [];
-  const d = new Date(`${checkIn}T12:00:00`);
+  const d = new Date(`${checkIn}T12:00:00Z`);
   for (let i = 0; i < nights; i++) {
     const iso = d.toISOString().slice(0, 10);
     let price;
@@ -173,9 +174,10 @@ function buildNightlyPrices(basePrice, checkIn, checkOut, periods = [], override
 function calculateReservationTotals(accommodation, services = [], payload = {}) {
   const checkIn = normalizeDateValue(payload.check_in);
   const checkOut = normalizeDateValue(payload.check_out);
-  const guests = Math.max(1, Number(payload.num_guests) || 1);
+  const guests = Number(payload.num_guests ?? 1);
+  if (!Number.isInteger(guests) || guests < 1) throw Object.assign(new Error('Número de hóspedes inválido.'), { status: 400 });
   const nights = countNights(checkIn, checkOut);
-  if (!checkIn || !checkOut || nights <= 0) throw new Error('Datas inválidas.');
+  if (!checkIn || !checkOut || nights <= 0 || nights > 366) throw Object.assign(new Error('Datas inválidas ou estadia superior a 366 noites.'), { status: 400 });
   if (guests > Number(accommodation?.max_guests || 0)) {
     throw new Error(`Este alojamento permite no máximo ${accommodation?.max_guests || 0} hóspedes.`);
   }

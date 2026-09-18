@@ -1,6 +1,21 @@
 const { db } = require('../config/database');
 const { interpolate, baseTemplate, getEmailSettings } = require('../services/emailService');
 
+// Ordem cronológica da jornada do hóspede, para a lista ficar percetível
+// nas definições (o cancelamento fica no fim, como percurso de exceção).
+const TEMPLATE_ORDER = [
+  'confirmacao', 'pre_checkin', 'coordenadas', 'codigo_porta',
+  'apos_checkin', 'antes_checkout', 'obrigado', 'cancelamento',
+];
+
+function sortTemplates(templates) {
+  return [...templates].sort((a, b) => {
+    const ia = TEMPLATE_ORDER.indexOf(a.slug);
+    const ib = TEMPLATE_ORDER.indexOf(b.slug);
+    return (ia === -1 ? TEMPLATE_ORDER.length : ia) - (ib === -1 ? TEMPLATE_ORDER.length : ib);
+  });
+}
+
 function getAll(req, res) {
   const templates = db.prepare(`
     SELECT * FROM organization_email_templates
@@ -8,7 +23,7 @@ function getAll(req, res) {
     ORDER BY rowid
   `).all(req.user.organization_id);
   const settings = getEmailSettings(null, req.user.organization_id);
-  res.json({ success: true, data: templates, settings });
+  res.json({ success: true, data: sortTemplates(templates), settings });
 }
 
 function update(req, res) {
@@ -23,6 +38,7 @@ function update(req, res) {
     subject, body, timing_offset, timing_unit, timing_direction, timing_event, active,
     subject_en, body_en, subject_fr, body_fr, subject_es, body_es,
     subject_de, body_de, subject_it, body_it, subject_nl, body_nl,
+    bcc, window_start, window_end,
   } = req.body;
 
   db.prepare(`
@@ -40,6 +56,9 @@ function update(req, res) {
       subject_de = COALESCE(?, subject_de), body_de = COALESCE(?, body_de),
       subject_it = COALESCE(?, subject_it), body_it = COALESCE(?, body_it),
       subject_nl = COALESCE(?, subject_nl), body_nl = COALESCE(?, body_nl),
+      bcc = CASE WHEN ? THEN ? ELSE bcc END,
+      window_start = CASE WHEN ? THEN ? ELSE window_start END,
+      window_end = CASE WHEN ? THEN ? ELSE window_end END,
       updated_at = datetime('now')
     WHERE organization_id = ? AND slug = ?
   `).run(
@@ -53,6 +72,9 @@ function update(req, res) {
     subject_de ?? null, body_de ?? null,
     subject_it ?? null, body_it ?? null,
     subject_nl ?? null, body_nl ?? null,
+    bcc !== undefined ? 1 : 0, bcc || '',
+    window_start !== undefined ? 1 : 0, window_start || null,
+    window_end !== undefined ? 1 : 0, window_end || null,
     req.user.organization_id, slug
   );
 
@@ -113,6 +135,8 @@ async function preview(req, res) {
     referencia: 'SP-PREVIEW-001',
     wifi_nome: 'SantaPaciencia_WiFi',
     wifi_password: '••••••••',
+    codigo_porta: '1234#',
+    link_pre_checkin: `${req.protocol}://${req.get('host')}/pre-checkin/preview`,
   };
 
   const subject = interpolate(template.subject, fakeVars);

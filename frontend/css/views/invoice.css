@@ -257,6 +257,9 @@
   align-items: center;
 }
 
+.btn-danger-ghost { color: var(--vermelho, #c0392b); }
+.btn-danger-ghost:hover { background: rgba(192, 57, 43, .08); }
+
 /* ── Área de mensagens ── */
 .invoice-messages-area {
   flex: 1;
@@ -302,6 +305,46 @@
   padding: 3px 8px;
 }
 
+.tpl-btn-disabled { opacity: .45; cursor: not-allowed; }
+
+.ica-tpl-reason {
+  font-size: 11px;
+  color: var(--cinza, #6b6460);
+  opacity: .8;
+  white-space: nowrap;
+}
+
+/* ── Indicador "a responder a esta mensagem" ── */
+.ica-reply-context {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-secondary, #f5f0eb);
+  border: 1px solid var(--border, #e8ddd0);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--cinza, #6b6460);
+}
+
+.ica-reply-context span {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ica-reply-context button {
+  border: none;
+  background: transparent;
+  color: var(--cinza, #6b6460);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+}
+.ica-reply-context button:hover { color: var(--marca, #843424); }
+
 .ica-footer {
   display: flex;
   justify-content: flex-end;
@@ -322,18 +365,30 @@
 .invoice-bubble {
   display: flex;
   flex-direction: column;
-  max-width: 78%;
-  gap: 4px;
+  width: min(720px, 92%);
 }
 
-.invoice-bubble--sent {
-  align-self: flex-end;
+.invoice-bubble--sent   { align-self: flex-end; }
+.invoice-bubble--received { align-self: flex-start; }
+
+/* Botão de responder fica ao lado da bolha, do lado voltado para o centro da
+   conversa — à esquerda quando fomos nós a enviar (bolha à direita), à
+   direita quando é do hóspede (bolha à esquerda) — como num chat normal. */
+.ib-row {
+  display: flex;
   align-items: flex-end;
+  gap: 6px;
+  width: 100%;
 }
 
-.invoice-bubble--received {
-  align-self: flex-start;
-  align-items: flex-start;
+.invoice-bubble--sent .ib-row { flex-direction: row-reverse; }
+
+.ib-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
 }
 
 .ib-meta {
@@ -344,7 +399,59 @@
   color: var(--cinza, #6b6460);
 }
 
+/* Autor/hora à direita para as nossas mensagens — sem isto herdava o
+   align-items da coluna, que também esticava (ou não) o corpo do email por
+   engano: a caixa de texto tem de esticar sempre para preencher .ib-content,
+   senão o iframe cai para a largura mínima do browser (~300px) e fica com um
+   espaço enorme entre o botão de responder e a bolha. */
+.invoice-bubble--sent .ib-meta { justify-content: flex-end; }
+
 .ib-author { font-weight: 600; }
+
+.ib-reply-btn {
+  border: 1px solid var(--border, #e8ddd0);
+  background: var(--bg-card, #fff);
+  color: var(--cinza, #6b6460);
+  opacity: .6;
+  cursor: pointer;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 120ms, background 120ms;
+}
+.ib-reply-btn:hover { opacity: 1; background: var(--bg-hover, #faf7f4); }
+
+/* ── Anexos ── */
+.ib-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.ib-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border: 1px solid var(--border, #e8ddd0);
+  background: var(--bg-secondary, #f5f0eb);
+  border-radius: 7px;
+  font-size: 11px;
+  color: var(--texto, #2a1810);
+  text-decoration: none;
+  transition: background 120ms;
+}
+.ib-attachment:hover { background: var(--bg-hover, #faf7f4); }
+
+.ib-att-size {
+  color: var(--cinza, #6b6460);
+  font-size: 10px;
+}
 
 .ib-subject {
   font-size: 11px;
@@ -354,24 +461,25 @@
 }
 
 .ib-body {
-  padding: 10px 14px;
-  border-radius: 16px;
+  padding: 8px 12px;
+  border-radius: 10px;
   font-size: 13px;
   line-height: 1.55;
   word-break: break-word;
+  background: #fff;
+  border: 1px solid var(--border, #e8ddd0);
+  color: var(--texto, #2a1810);
 }
 
+/* Diferença sutil entre enviado/recebido — sem blocos de cor fortes,
+   consistente com o resto da plataforma (cartões claros, borda fina). */
 .invoice-bubble--sent .ib-body {
-  background: var(--marca, #843424);
-  color: #fff;
+  background: var(--marca-light, #fdf4f2);
   border-bottom-right-radius: 4px;
 }
 
 .invoice-bubble--received .ib-body {
-  background: var(--bg-secondary, #f0ebe4);
-  color: var(--texto, #2a1810);
   border-bottom-left-radius: 4px;
-  border: 1px solid var(--border, #e8ddd0);
 }
 
 /* Iframe sandbox onde o HTML do email é renderizado (S11) */
@@ -472,6 +580,37 @@
 .tpl-picker-sub {
   font-size: 11px;
   color: var(--cinza, #6b6460);
+}
+
+.tpl-picker-warning {
+  margin: 0 20px 4px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fff6e6;
+  border: 1px solid #f0d9a8;
+  color: #8a6100;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ── Compose rico (reply e nova mensagem) ── */
+.compose-fmt-toolbar {
+  border: 1.5px solid rgba(26,46,74,.12);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  background: var(--bg-secondary, #f5f0eb);
+}
+
+.compose-body-editor {
+  min-height: 70px;
+  max-height: 260px;
+  border-radius: 0 0 8px 8px;
+}
+
+.compose-body-editor:empty:before {
+  content: attr(data-placeholder);
+  color: var(--cinza, #6b6460);
+  pointer-events: none;
 }
 
 /* ── Mobile: layout em coluna ── */

@@ -3,6 +3,18 @@
   gap: 24px;
 }
 
+/* barra numa só linha: pesquisa + estado + "Filtros" à esquerda,
+   toggle de vista + "Nova Reserva" encostados à direita. */
+.view-toolbar-reservas {
+  justify-content: flex-start;
+}
+
+/* "Limpar filtros" da barra: só desktop (a barra está oculta em mobile).
+   No mobile o botão "Limpar" vive dentro da folha de filtros. */
+@media (min-width: 601px) {
+  #reservas-filter-panel .drawer-clear-btn { display: none; }
+}
+
 .reservas-filter-panel {
   padding: 18px;
   border-radius: 24px;

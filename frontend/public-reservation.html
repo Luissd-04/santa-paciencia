@@ -4,13 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reservar estadia — Santa Paciência</title>
-  <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
-  <link rel="apple-touch-icon" href="/favicon.png?v=2">
+    <link rel="apple-touch-icon" href="/favicon.png?v=2">
   <link rel="icon" type="image/png" href="/favicon.png?v=2">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/public-reservation.css">
+  <link rel="stylesheet" href="/css/components/date-picker.css">
+  <link rel="stylesheet" href="/css/vendor/flag-icons.min.css">
   <!-- Cloudflare Turnstile (CAPTCHA leve, sem cookies) -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileReady" async defer></script>
 </head>
@@ -95,7 +96,7 @@
                   <span>Telefone *</span>
                   <div class="phone-input-group">
                     <div class="phone-code-wrap">
-                      <button type="button" class="phone-code-btn" id="pb-phone-code-btn">🇵🇹 +351</button>
+                      <button type="button" class="phone-code-btn" id="pb-phone-code-btn"><span class="fi fi-pt"></span> +351</button>
                       <input type="hidden" id="pb-phone-code" value="+351">
                       <div class="country-dropdown" id="pb-phone-code-dropdown" style="display:none;"></div>
                     </div>
@@ -176,7 +177,7 @@
     </main>
   </div>
 
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js" integrity="sha384-bdZtphetAEBgkGZvhZXOFDWc55tHGLqaSo1f4qZtgvEiolEBqlJ9u6FTk+CoLfj0" crossorigin="anonymous"></script>
   <script src="/js/domain/dates.js"></script>
   <script src="/js/domain/pricing.js"></script>
   <script src="/js/domain/date-picker.js"></script>

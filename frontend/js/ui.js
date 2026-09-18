@@ -42,9 +42,30 @@
     return option?.textContent?.trim() || option?.label || option?.value || '—';
   }
 
+  // Bandeira opcional numa <option> via data-flag="pt" (código ISO). Como o
+  // <option> nativo não renderiza HTML, a bandeira SVG só aparece na versão
+  // .app-select (dropdown custom). Ver flagHtml() em helpers.js.
+  function optionFlagCc(option) {
+    const cc = String(option?.dataset?.flag || '').trim().toLowerCase();
+    return /^[a-z]{2}$/.test(cc) ? cc : '';
+  }
+
+  function optionLabelHtml(option) {
+    const text = (typeof escapeHtml === 'function' ? escapeHtml(optionLabel(option)) : optionLabel(option));
+    const cc = optionFlagCc(option);
+    return cc && typeof flagHtml === 'function' ? `${flagHtml(cc, { size: 18 })} ${text}` : text;
+  }
+
   function selectedLabel(select) {
     const selected = select?.options?.[select.selectedIndex];
     return selected && selected.value !== '' ? optionLabel(selected) : (select?.dataset.placeholder || optionLabel(selected) || 'Selecionar');
+  }
+
+  function selectedLabelHtml(select) {
+    const selected = select?.options?.[select.selectedIndex];
+    if (selected && selected.value !== '') return optionLabelHtml(selected);
+    const text = select?.dataset.placeholder || optionLabel(selected) || 'Selecionar';
+    return typeof escapeHtml === 'function' ? escapeHtml(text) : text;
   }
 
   function renderDropdownItems(select, menu, search = '') {
@@ -56,7 +77,7 @@
 
     menu.innerHTML = (scored.length ? scored : options).map(({ option }) => `
       <button type="button" class="app-select-option${option.value === select.value ? ' is-selected' : ''}" data-value="${option.value}">
-        <span>${optionLabel(option)}</span>
+        <span>${optionLabelHtml(option)}</span>
       </button>
     `).join('');
   }
@@ -114,7 +135,7 @@
 
     const search = menu.querySelector('.app-select-search');
     const list = menu.querySelector('.app-select-options');
-    const updateButton = () => { button.textContent = selectedLabel(select); };
+    const updateButton = () => { button.innerHTML = selectedLabelHtml(select); };
     const open = () => {
       document.querySelectorAll('.app-select.is-open').forEach(node => {
         if (node !== wrapper) closeDropdown(node);

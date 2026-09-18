@@ -1,0 +1,161 @@
+/* ── Definições ── */
+.settings-shell {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+.settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-panel);
+  color: var(--text-muted);
+  border-radius: 8px;
+  padding: 9px 13px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .18s, color .18s, border-color .18s, box-shadow .18s;
+}
+
+.settings-tab:hover {
+  color: var(--text-main);
+  border-color: rgba(132, 52, 36, .22);
+}
+
+.settings-tab.active {
+  background: var(--marca);
+  color: #fff;
+  border-color: var(--marca);
+  box-shadow: var(--shadow-soft);
+}
+
+.settings-tab i[data-lucide] {
+  width: 14px;
+  height: 14px;
+}
+
+.settings-panel {
+  display: none;
+}
+
+.settings-panel.active {
+  display: block;
+}
+
+.settings-sync-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.settings-stat {
+  background: var(--cinza-claro);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+
+.settings-stat strong {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--azul);
+  line-height: 1.1;
+}
+
+.settings-stat span {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--cinza);
+}
+
+.settings-db-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.settings-db-card {
+  min-width: 0;
+}
+
+.settings-db-card-full {
+  grid-column: 1 / -1;
+}
+
+.settings-db-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px;
+}
+
+.settings-export-reminders {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--border-soft, rgba(0,0,0,.08));
+}
+
+.settings-export-reminders label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding-top: 12px;
+}
+
+.settings-export-reminders span {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--cinza);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.settings-export-reminders-full {
+  grid-template-columns: minmax(220px, 320px);
+}
+
+.settings-file-btn {
+  position: relative;
+  cursor: pointer;
+  margin: 0;
+}
+
+.settings-file-btn input {
+  display: none;
+}
+
+.settings-team-form {
+  grid-template-columns: 2fr 1fr auto;
+  align-items: end;
+}
+
+@media (max-width: 900px) {
+  .settings-db-grid,
+  .settings-sync-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-team-form {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-export-reminders,
+  .settings-export-reminders-full {
+    grid-template-columns: 1fr;
+  }
+}
+

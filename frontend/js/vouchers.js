@@ -2,8 +2,8 @@ let vouchersData = [];
 let voucherEditingId = null;
 
 const VOUCHER_TYPE_LABELS = {
-  discount_pct:   { label: 'Desconto %',         icon: 'percent',       color: '#4f8f6b' },
-  discount_fixed: { label: 'Desconto €',          icon: 'tag',           color: '#4a7fa5' },
+  discount_pct:   { label: 'Percentagem',         icon: 'percent',       color: '#4f8f6b' },
+  discount_fixed: { label: 'Valor fixo',          icon: 'tag',           color: '#4a7fa5' },
   credit_stay:    { label: 'Crédito de estadia',  icon: 'gift',          color: '#c9a84c' },
 };
 
@@ -50,6 +50,11 @@ function formatVoucherValue(v) {
 function renderVouchersList() {
   const wrap = document.getElementById('vouchers-list-wrap');
   if (!wrap) return;
+
+  const countEl = document.getElementById('vouchers-count');
+  const countLabel = document.getElementById('vouchers-count-label');
+  if (countEl) countEl.textContent = String(vouchersData.length);
+  if (countLabel) countLabel.textContent = vouchersData.length === 1 ? 'voucher' : 'vouchers';
 
   if (vouchersData.length === 0) {
     wrap.innerHTML = `
@@ -139,16 +144,16 @@ function renderVouchersList() {
   wrap.innerHTML = `
     <div class="vouchers-desktop">
       <div class="table-wrap">
-        <table class="table">
+        <table class="table vouchers-table">
           <thead>
             <tr>
-              <th>Código</th>
-              <th>Tipo</th>
-              <th>Valor</th>
-              <th>Validade</th>
-              <th>Estado</th>
-              <th>Reserva</th>
-              <th></th>
+              <th style="width:22%;">Código</th>
+              <th style="width:12%;">Tipo</th>
+              <th style="width:10%;">Valor</th>
+              <th style="width:16%;">Validade</th>
+              <th style="width:15%;">Estado</th>
+              <th style="width:17%;">Reserva</th>
+              <th style="width:8%;"></th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>

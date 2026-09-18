@@ -80,7 +80,7 @@ function encodeFromHeader(from) {
   return from;
 }
 
-async function sendViaGmail(organizationId, { to, subject, html, from }) {
+async function sendViaGmail(organizationId, { to, subject, html, from, bcc, threadId, inReplyTo, references }) {
   if (!to) throw new Error('Endereço de destino em falta');
   const auth = getAuthenticatedEmailClient(organizationId);
 
@@ -89,10 +89,20 @@ async function sendViaGmail(organizationId, { to, subject, html, from }) {
   const propertyName = process.env.PROPERTY_NAME || 'Santa Paciência';
   const fromHeader = encodeFromHeader(from || `${propertyName} <${senderEmail}>`);
 
+  // Message-ID só para cumprir RFC 2822 no raw MIME que enviamos — o Gmail
+  // ignora-o e atribui sempre o seu próprio (ver fetch a seguir ao envio).
+  const { randomUUID } = require('crypto');
+  const senderDomain = senderEmail.includes('@') ? senderEmail.split('@')[1] : 'santapaciencia.pt';
+  const messageIdHeader = `<${randomUUID()}@${senderDomain}>`;
+
   const messageParts = [
     `From: ${fromHeader}`,
     `To: ${to}`,
+    ...(bcc ? [`Bcc: ${bcc}`] : []),
     `Subject: ${encodeSubject(subject)}`,
+    `Message-ID: ${messageIdHeader}`,
+    ...(inReplyTo ? [`In-Reply-To: ${inReplyTo}`] : []),
+    ...(inReplyTo ? [`References: ${references || inReplyTo}`] : []),
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset=UTF-8',
     '',
@@ -100,11 +110,39 @@ async function sendViaGmail(organizationId, { to, subject, html, from }) {
   ];
   const raw = Buffer.from(messageParts.join('\r\n')).toString('base64url');
 
-  return auth.request({
+  const requestBody = { raw };
+  // Só passar threadId à Gmail API quando estamos mesmo a responder a uma
+  // mensagem concreta — uma mensagem "nova e solta" nunca deve ligar-se a
+  // nenhuma conversa anterior (decisão explícita: sem isto, o Gmail pode
+  // agrupar por assunto e criar uma ligação indesejada).
+  if (threadId && inReplyTo) requestBody.threadId = threadId;
+
+  const result = await auth.request({
     url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
     method: 'POST',
-    data: { raw },
+    data: requestBody,
   });
+
+  // O Gmail substitui SEMPRE o header Message-ID que enviamos pelo seu
+  // próprio (formato <...@mail.gmail.com>), mesmo tendo nós definido um no
+  // raw MIME acima — confirmado a testar em produção: guardar o UUID gerado
+  // localmente fazia com que respostas futuras referenciassem (via
+  // In-Reply-To/References) um Message-ID que nunca existiu de verdade, e o
+  // Gmail do destinatário não conseguia agregar a conversa. Por isso vamos
+  // sempre buscar o valor real que o Gmail atribuiu.
+  let realMessageIdHeader = null;
+  try {
+    const sent = await auth.request({
+      url: `https://gmail.googleapis.com/gmail/v1/users/me/messages/${result.data.id}`,
+      params: { format: 'metadata', metadataHeaders: ['Message-Id'] },
+    });
+    const h = (sent.data.payload?.headers || []).find(x => x.name.toLowerCase() === 'message-id');
+    realMessageIdHeader = h?.value || messageIdHeader;
+  } catch {
+    realMessageIdHeader = messageIdHeader; // fallback improvável, mas nunca devolver menos do que tínhamos
+  }
+
+  return { id: result.data.id, threadId: result.data.threadId, messageIdHeader: realMessageIdHeader };
 }
 
 module.exports = {

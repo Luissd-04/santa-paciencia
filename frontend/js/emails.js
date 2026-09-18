@@ -4,22 +4,24 @@ let selectedTemplateSlug = SS.get('email:slug', null);
 let emailLang = SS.get('email:lang', 'pt');
 
 const LANGS = [
-  { code: 'pt', label: 'Português',  flag: '🇵🇹' },
-  { code: 'en', label: 'Inglês',     flag: '🇬🇧' },
-  { code: 'fr', label: 'Francês',    flag: '🇫🇷' },
-  { code: 'es', label: 'Espanhol',   flag: '🇪🇸' },
-  { code: 'de', label: 'Alemão',     flag: '🇩🇪' },
-  { code: 'it', label: 'Italiano',   flag: '🇮🇹' },
-  { code: 'nl', label: 'Neerlandês', flag: '🇳🇱' },
+  { code: 'pt', label: 'Português',  cc: 'pt' },
+  { code: 'en', label: 'Inglês',     cc: 'gb' },
+  { code: 'fr', label: 'Francês',    cc: 'fr' },
+  { code: 'es', label: 'Espanhol',   cc: 'es' },
+  { code: 'de', label: 'Alemão',     cc: 'de' },
+  { code: 'it', label: 'Italiano',   cc: 'it' },
+  { code: 'nl', label: 'Neerlandês', cc: 'nl' },
 ];
 
 const TEMPLATE_META = {
-  confirmacao:    { icon: '✅', label: 'Agradecimento pela reserva', eventLabel: 'Imediatamente após a reserva' },
-  cancelamento:   { icon: '❌', label: 'Cancelamento da reserva',    eventLabel: 'Imediatamente ao cancelar' },
-  apos_checkin:   { icon: '🏡', label: 'Após check-in',              eventLabel: 'Após check-in' },
-  antes_checkout: { icon: '🌅', label: 'Antes do check-out',         eventLabel: 'Antes do check-out' },
-  obrigado:       { icon: '⭐', label: 'Obrigado pela estadia',       eventLabel: 'Após check-out' },
-  coordenadas:    { icon: '🗺️', label: 'Envio das coordenadas',       eventLabel: 'Antes do check-in' },
+  confirmacao:    { icon: '✅', label: 'Agradecimento pela reserva',   eventLabel: 'Imediatamente após a reserva' },
+  pre_checkin:    { icon: '📝', label: 'Preenchimento do formulário', eventLabel: 'Imediatamente após aprovação' },
+  coordenadas:    { icon: '🗺️', label: 'Envio das coordenadas',        eventLabel: 'Antes do check-in' },
+  codigo_porta:   { icon: '🔑', label: 'Código de abertura de portas', eventLabel: 'Antes do check-in' },
+  apos_checkin:   { icon: '🏡', label: 'Após check-in',                eventLabel: 'Após check-in' },
+  antes_checkout: { icon: '🌅', label: 'Antes do check-out',           eventLabel: 'Antes do check-out' },
+  obrigado:       { icon: '⭐', label: 'Obrigado pela estadia',        eventLabel: 'Após check-out' },
+  cancelamento:   { icon: '❌', label: 'Cancelamento da reserva',      eventLabel: 'Imediatamente ao cancelar' },
 };
 
 const TEMPLATE_VAR_CATS = [
@@ -36,6 +38,7 @@ const TEMPLATE_VAR_CATS = [
       { key: 'alojamento',    label: 'Nome do alojamento' },
       { key: 'wifi_nome',     label: 'Wi-Fi — nome da rede' },
       { key: 'wifi_password', label: 'Wi-Fi — senha' },
+      { key: 'codigo_porta',  label: 'Código de abertura de portas' },
     ]
   },
   {
@@ -51,19 +54,26 @@ const TEMPLATE_VAR_CATS = [
       { key: 'total',         label: 'Total (€)' },
     ]
   },
+  {
+    label: 'Ligações',
+    vars: [
+      { key: 'link_pre_checkin', label: 'Botão — completar pré check-in' },
+    ]
+  },
 ];
 
-const FIXED_TIMING_EVENTS = ['booking', 'cancellation'];
+const FIXED_TIMING_EVENTS = ['booking', 'cancellation', 'approval'];
 
 function langField(lang, field) {
   return lang === 'pt' ? field : `${field}_${lang}`;
 }
 
 document.addEventListener('click', e => {
-  if (!e.target.closest('.codes-dropdown-wrap')) {
-    document.querySelectorAll('.codes-dropdown').forEach(d => d.style.display = 'none');
+  if (!e.target.closest('.codes-dropdown-wrap') && !e.target.closest('.codes-dropdown')) {
+    closeCodesDropdown();
   }
 });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCodesDropdown(); });
 
 // ── LOAD ──
 async function loadEmailTemplates() {
@@ -106,22 +116,15 @@ function renderTemplateList() {
 }
 
 // ── CODES DROPDOWN ──
+// O painel vive em document.body (não dentro do editor): os contentores
+// .emails-editor e .emed-body-section têm overflow hidden/auto e recortavam
+// a lista, pelo que o botão parecia não fazer nada.
 function buildCodesDropdown(fieldId) {
-  const cats = TEMPLATE_VAR_CATS.map((cat, i) => `
-    ${i > 0 ? '<div class="codes-cat-divider"></div>' : ''}
-    <div class="codes-cat-title">${cat.label}</div>
-    ${cat.vars.map(v => `
-      <div class="codes-item" onclick="insertVarInField('${fieldId}','${v.key}');event.stopPropagation();">${v.label}</div>
-    `).join('')}
-  `).join('');
   return `
     <div class="codes-dropdown-wrap">
-      <button class="codes-btn" type="button" onclick="toggleCodesDropdown('${fieldId}');event.stopPropagation();">
+      <button class="codes-btn" type="button" onclick="toggleCodesDropdown('${fieldId}', this);event.stopPropagation();">
         ${lcIcon('settings-2', 12)} Códigos
       </button>
-      <div class="codes-dropdown" id="codes-dropdown-${fieldId}" style="display:none;">
-        ${cats}
-      </div>
     </div>`;
 }
 
@@ -181,13 +184,14 @@ function buildEmailPreviewHtml(bodyHtml) {
   const ig  = s.social_instagram || s.instagram || '';
   const web = s.social_website   || s.website   || '';
 
+  // Sem SVG/imagens aqui — a Gmail app remove <svg> do corpo do email (ficava
+  // um círculo vazio), por isso o template real (emailService.js) passou a
+  // usar emoji; o preview segue o mesmo desenho para não divergir do que o
+  // hóspede recebe.
   const socialBtns = [
-    fb  ? `<a href="${fb}"  title="Facebook"  style="display:inline-flex;align-items:center;justify-content:center;margin:0 4px;padding:9px;background:#1877f2;color:#fff;border-radius:50%;text-decoration:none;">
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>` : '',
-    ig  ? `<a href="${ig}"  title="Instagram" style="display:inline-flex;align-items:center;justify-content:center;margin:0 4px;padding:9px;background:#e1306c;color:#fff;border-radius:50%;text-decoration:none;">
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="#fff" stroke="none"/></svg></a>` : '',
-    web ? `<a href="${web}" style="display:inline-flex;align-items:center;gap:6px;margin:0 4px;padding:8px 16px;background:#843424;color:#fff;border-radius:8px;text-decoration:none;font-size:12px;font-weight:600;">
-             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Website</a>` : '',
+    fb  ? `<a href="${fb}"  style="display:inline-flex;align-items:center;gap:6px;margin:0 4px;padding:8px 16px;background:#1877f2;color:#fff;border-radius:8px;text-decoration:none;font-size:12px;font-weight:600;">📘 Facebook</a>` : '',
+    ig  ? `<a href="${ig}"  style="display:inline-flex;align-items:center;gap:6px;margin:0 4px;padding:8px 16px;background:#e1306c;color:#fff;border-radius:8px;text-decoration:none;font-size:12px;font-weight:600;">📷 Instagram</a>` : '',
+    web ? `<a href="${web}" style="display:inline-flex;align-items:center;gap:6px;margin:0 4px;padding:8px 16px;background:#843424;color:#fff;border-radius:8px;text-decoration:none;font-size:12px;font-weight:600;">🌐 Website</a>` : '',
   ].filter(Boolean).join('');
 
   return `<!DOCTYPE html>
@@ -203,7 +207,7 @@ strong{font-weight:700;}a{color:#843424;}hr{border:none;border-top:1px solid #ee
 <tr><td align="center">
 <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);">
   <tr><td style="background:#843424;padding:24px 32px;text-align:center;">
-    <p style="color:rgba(255,255,255,.95);margin:0;font-family:Georgia,serif;font-size:20px;font-weight:bold;">Santa Paciência</p>
+    ${s.logo_url ? `<img src="${s.logo_url}" alt="Logótipo" style="max-width:150px;max-height:50px;object-fit:contain;margin-bottom:6px;">` : `<p style="color:rgba(255,255,255,.95);margin:0;font-family:Georgia,serif;font-size:20px;font-weight:bold;">Santa Paciência</p>`}
     <p style="color:rgba(255,255,255,.55);margin:4px 0 0;font-size:11px;letter-spacing:1.5px;font-family:sans-serif;">ALOJAMENTO LOCAL</p>
   </td></tr>
   <tr><td style="padding:28px 32px;font-family:Georgia,serif;">${bodyHtml}</td></tr>
@@ -227,7 +231,7 @@ function buildLangTabs(slug) {
       <button class="lang-tab${emailLang === l.code ? ' active' : ''}"
               data-lang="${l.code}"
               onclick="switchEmailLang('${l.code}','${slug}')">
-        <span>${l.flag}</span> ${l.label}
+        ${flagHtml(l.cc, { size: 16 })} ${l.label}
       </button>`).join('')}
   </div>`;
 }
@@ -293,23 +297,40 @@ function selectTemplate(slug) {
       </label>
     </div>
 
-    <div class="emed-envelope-fields">
-      <div class="emed-env-row">
-        <span class="emed-env-label">De</span>
-        <span class="emed-env-value">Santa Paciência</span>
+    <div class="emed-top-grid">
+      <div class="emed-envelope-fields">
+        <div class="emed-env-row">
+          <span class="emed-env-label">De</span>
+          <span class="emed-env-value">Santa Paciência</span>
+        </div>
+        <div class="emed-env-row">
+          <span class="emed-env-label">Para</span>
+          <span class="emed-env-value">{{nome_hospede}}</span>
+        </div>
+        <div class="emed-env-row">
+          <span class="emed-env-label">Bcc</span>
+          <input class="form-control emed-env-input" id="et-bcc" placeholder="email@opcional.com (cópia oculta)" value="${escapeAttr(t.bcc || '')}" autocomplete="off">
+        </div>
       </div>
-      <div class="emed-env-row">
-        <span class="emed-env-label">Para</span>
-        <span class="emed-env-value">{{nome_hospede}}</span>
+
+      <div class="emed-timing-card">
+        <div class="emed-section-label">${lcIcon('clock-3', 13)} Momento de envio</div>
+        ${timingHtml}
+        <label class="email-active-toggle" style="margin-top:4px;">
+          <input type="checkbox" id="et-window-toggle" ${t.window_start ? 'checked' : ''} onchange="toggleEmailWindow()">
+          <span class="gtt-switch"></span>
+          <span class="gtt-label">Restringir a uma janela horária</span>
+        </label>
+        <div id="et-window-fields" class="email-window-fields" style="display:${t.window_start ? 'flex' : 'none'};">
+          <span>Entre as</span>
+          <input type="time" class="form-control" id="et-window-start" value="${t.window_start || '09:00'}">
+          <span>e as</span>
+          <input type="time" class="form-control" id="et-window-end" value="${t.window_end || '20:00'}">
+        </div>
       </div>
     </div>
 
     <div class="emed-body-wrap">
-      <div class="emed-section">
-        <div class="emed-section-label">${lcIcon('clock-3', 13)} Momento de envio</div>
-        ${timingHtml}
-      </div>
-
       ${buildLangTabs(slug)}
 
       <div class="emed-section">
@@ -354,6 +375,13 @@ function selectTemplate(slug) {
   }
 }
 
+// ── TOGGLE ENVIO WINDOW ──
+function toggleEmailWindow() {
+  const on = document.getElementById('et-window-toggle')?.checked;
+  const el = document.getElementById('et-window-fields');
+  if (el) el.style.display = on ? 'flex' : 'none';
+}
+
 // ── TOGGLE ACTIVE (auto-save) ──
 async function toggleTemplateActive(slug) {
   const active = document.getElementById('et-active')?.checked ?? true;
@@ -369,13 +397,63 @@ async function toggleTemplateActive(slug) {
 }
 
 // ── CODES DROPDOWN LOGIC ──
-function toggleCodesDropdown(fieldId) {
-  const el = document.getElementById('codes-dropdown-' + fieldId);
-  if (!el) return;
-  const open = el.style.display !== 'none';
-  document.querySelectorAll('.codes-dropdown').forEach(d => d.style.display = 'none');
-  if (!open) el.style.display = 'block';
+let _codesField = null;
+
+function _codesEl() {
+  let el = document.getElementById('codes-dropdown-global');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'codes-dropdown-global';
+    el.className = 'codes-dropdown';
+    el.style.display = 'none';
+    el.addEventListener('click', e => e.stopPropagation());
+    document.body.appendChild(el);
+  }
+  return el;
 }
+
+function closeCodesDropdown() {
+  const el = document.getElementById('codes-dropdown-global');
+  if (el) el.style.display = 'none';
+  _codesField = null;
+}
+
+function _positionCodesDropdown(btn) {
+  if (!btn) return;
+  const el = _codesEl();
+  const r  = btn.getBoundingClientRect();
+  const w  = el.offsetWidth || 220;
+  const h  = el.offsetHeight;
+  let left = r.right - w;
+  left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+  let top = r.bottom + 5;
+  if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 5);
+  el.style.left = left + 'px';
+  el.style.top  = top + 'px';
+}
+
+function toggleCodesDropdown(fieldId, btn) {
+  const el = _codesEl();
+  if (_codesField === fieldId && el.style.display !== 'none') { closeCodesDropdown(); return; }
+  el.innerHTML = TEMPLATE_VAR_CATS.map((cat, i) => `
+    ${i > 0 ? '<div class="codes-cat-divider"></div>' : ''}
+    <div class="codes-cat-title">${cat.label}</div>
+    ${cat.vars.map(v => `
+      <div class="codes-item" onclick="insertVarInField('${fieldId}','${v.key}');event.stopPropagation();">${v.label}</div>
+    `).join('')}
+  `).join('');
+  _codesField = fieldId;
+  el.style.display = 'block';
+  _positionCodesDropdown(btn || document.querySelector(`.codes-btn[onclick*="${fieldId}"]`));
+}
+
+// Reposicionar/fechar quando a página se move por baixo do painel.
+window.addEventListener('resize', closeCodesDropdown);
+window.addEventListener('scroll', e => {
+  // não fechar quando o scroll é dentro da própria lista
+  if (e.target?.id === 'codes-dropdown-global') return;
+  closeCodesDropdown();
+}, true);
 
 function insertVarInField(fieldId, key) {
   const el = document.getElementById(fieldId);
@@ -392,7 +470,7 @@ function insertVarInField(fieldId, key) {
     el.selectionStart = el.selectionEnd = start + v.length;
     el.focus();
   }
-  document.querySelectorAll('.codes-dropdown').forEach(d => d.style.display = 'none');
+  closeCodesDropdown();
 }
 
 function escapeAttr(s) {
@@ -405,10 +483,14 @@ async function saveTemplate(slug) {
   const t = emailTemplates.find(x => x.slug === slug);
   if (!t) return;
   const isFixed = FIXED_TIMING_EVENTS.includes(t.timing_event);
+  const windowOn = document.getElementById('et-window-toggle')?.checked;
   const body = {
     subject: t.subject || '',
     body:    t.body    || '',
     active:  document.getElementById('et-active')?.checked ?? !!t.active,
+    bcc:     document.getElementById('et-bcc')?.value.trim() || '',
+    window_start: windowOn ? (document.getElementById('et-window-start')?.value || '09:00') : '',
+    window_end:   windowOn ? (document.getElementById('et-window-end')?.value   || '20:00') : '',
   };
   // All language variants
   for (const l of LANGS.filter(x => x.code !== 'pt')) {
@@ -447,14 +529,14 @@ async function previewEmail(slug) {
   }
 }
 
-// ── EMAIL SETTINGS (only sender info now — social/checkin moved to accommodation) ──
+// ── EMAIL SETTINGS (info: logótipo/social/checkin configuram-se no alojamento) ──
 function renderEmailSettings() {
   const el = document.getElementById('email-settings-panel');
   if (!el) return;
   el.innerHTML = `
     <div style="padding:0 12px 12px;">
       <div style="font-size:11px;color:var(--cinza);line-height:1.5;background:var(--cinza-claro);border-radius:8px;padding:10px 12px;margin-bottom:12px;">
-        💡 Os horários de check-in/out e as redes sociais são configurados em cada alojamento individualmente.
+        💡 O logótipo, os horários de check-in/out e as redes sociais são configurados em cada alojamento individualmente.
       </div>
       <button class="btn btn-ghost btn-sm" style="width:100%;" onclick="showView('alojamentos')">
         ${lcIcon('building-2', 13)} Ir para configurações de alojamento

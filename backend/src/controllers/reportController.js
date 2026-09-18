@@ -1,4 +1,5 @@
 const { db } = require('../config/database');
+const { getOccupancyStats, occupancyRate } = require('../services/occupancyStats');
 
 function getFinancialReport(req, res, next) {
   try {
@@ -42,39 +43,50 @@ function getFinancialReport(req, res, next) {
       ORDER BY revenue DESC
     `).all(...params);
 
-    const accCount = accommodationId ? 1 :
-      (db.prepare(`SELECT COUNT(*) AS cnt FROM accommodations WHERE organization_id = ?`).get(orgId)?.cnt || 1);
+    // Ocupação: noites-quarto reais dentro do período (uma reserva de 28/01 a
+    // 03/02 dá noites a Janeiro e a Fevereiro; uma reserva multi-suite ou do
+    // alojamento inteiro ocupa várias unidades por noite). O inventário são as
+    // unidades-folha — o alojamento-pai não é uma unidade extra.
+    const occupancy = getOccupancyStats(orgId, startDate, endDate, { accommodationId });
+    const unitCount = occupancy.unitCount;
 
     let months = null, days = null;
 
     if (isMonth) {
       const dailyRaw = db.prepare(`
         SELECT CAST(strftime('%d', r.check_in) AS INTEGER) AS day,
-               COUNT(*) AS reservations, SUM(r.nights) AS nights, SUM(r.total_amount) AS revenue
+               COUNT(*) AS reservations, SUM(r.total_amount) AS revenue
         FROM reservations r WHERE ${baseWhere} GROUP BY day ORDER BY day
       `).all(...params);
-      const daysInMonth = new Date(year, month, 0).getDate();
+      const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
       days = Array.from({ length: daysInMonth }, (_, i) => {
         const d = dailyRaw.find(x => x.day === i + 1) || {};
-        return { day: i + 1, reservations: d.reservations || 0, nights: d.nights || 0, revenue: d.revenue || 0 };
+        const date = `${year}-${mm}-${String(i + 1).padStart(2, '0')}`;
+        const occupiedNights = occupancy.byDay[date] || 0;
+        return {
+          day: i + 1,
+          reservations: d.reservations || 0,
+          nights: occupiedNights,
+          revenue: d.revenue || 0,
+          occupancy_rate: occupancyRate(occupiedNights, unitCount),
+        };
       });
     } else {
       const monthlyRaw = db.prepare(`
         SELECT CAST(strftime('%m', r.check_in) AS INTEGER) - 1 AS month_idx,
-               COUNT(*) AS reservations, SUM(r.nights) AS nights, SUM(r.total_amount) AS revenue
+               COUNT(*) AS reservations, SUM(r.total_amount) AS revenue
         FROM reservations r WHERE ${baseWhere} GROUP BY month_idx ORDER BY month_idx
       `).all(...params);
       months = Array.from({ length: 12 }, (_, i) => {
         const m = monthlyRaw.find(r => r.month_idx === i) || {};
-        const daysInMonth = new Date(year, i + 1, 0).getDate();
-        const occupiedNights = m.nights || 0;
-        const totalNights = daysInMonth * accCount;
+        const daysInMonth = new Date(Date.UTC(year, i + 1, 0)).getUTCDate();
+        const occupiedNights = occupancy.byMonth[`${year}-${String(i + 1).padStart(2, '0')}`] || 0;
         return {
           month: i,
           reservations: m.reservations || 0,
           nights: occupiedNights,
           revenue: m.revenue || 0,
-          occupancy_rate: totalNights > 0 ? Math.min(100, Math.round(occupiedNights / totalNights * 100)) : 0,
+          occupancy_rate: occupancyRate(occupiedNights, daysInMonth * unitCount),
         };
       });
     }
@@ -86,12 +98,9 @@ function getFinancialReport(req, res, next) {
       revenue:      acc.revenue      + m.revenue,
     }), { reservations: 0, nights: 0, revenue: 0 });
 
-    const periodNights = isMonth
-      ? new Date(year, month, 0).getDate() * accCount
-      : 365 * accCount;
-    const avgOccupancy = isMonth
-      ? (periodNights > 0 ? Math.min(100, Math.round(totals.nights / periodNights * 100)) : 0)
-      : Math.round(months.reduce((s, m) => s + m.occupancy_rate, 0) / 12);
+    // Média do período = noites ocupadas / noites disponíveis (ponderada pelos
+    // dias de cada mês) — não a média aritmética das taxas mensais.
+    const avgOccupancy = occupancyRate(occupancy.occupiedNights, occupancy.availableNights);
     const revpar = totals.nights > 0 ? totals.revenue / totals.nights : 0;
 
     const availableYears = db.prepare(`

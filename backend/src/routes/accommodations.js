@@ -17,6 +17,8 @@ router.post('/',                    ctrl.create);
 router.put('/:id',                  ctrl.update);
 router.post('/:id/cover',           uploadParser, ctrl.uploadCover);
 router.delete('/:id/cover',         ctrl.removeCover);
+router.post('/:id/logo',            uploadParser, ctrl.uploadLogo);
+router.delete('/:id/logo',          ctrl.removeLogo);
 router.post('/:id/images',          uploadParser, ctrl.uploadImages);
 router.patch('/:id/images',         ctrl.patchImages);
 router.delete('/:id/images',        ctrl.deleteImage);

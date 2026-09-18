@@ -122,29 +122,11 @@ function resolveCountryCode(g) {
   return null;
 }
 
-function countryFlagEmoji(code) {
-  if (!code || code.length !== 2) return '🌐';
-  return code
-    .toUpperCase()
-    .split('')
-    .map(char => String.fromCodePoint(127397 + char.charCodeAt(0)))
-    .join('');
-}
-
+// Bandeira do hóspede — SVG (flag-icons) em vez de emoji, que o Windows
+// não desenha. Ver flagHtml() em helpers.js.
 function flagImg(g, size = 64) {
   const code = resolveCountryCode(g);
-  const flag = countryFlagEmoji(code);
-
-  if (size <= 40) {
-    const h = Math.round(size * 0.72);
-    const fs = Math.round(size * 0.78);
-    return `<span title="${code || ''}" style="width:${size}px;height:${h}px;display:inline-flex;align-items:center;justify-content:center;background:var(--cinza-claro);border-radius:4px;flex-shrink:0;font-size:${fs}px;line-height:1;overflow:hidden;">${flag}</span>`;
-  }
-
-  const h = Math.round(size * 0.67);
-  const fs = Math.round(size * 0.58);
-  const base = `width:${size}px;height:${h}px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--cinza-claro);font-size:${fs}px;overflow:hidden;position:relative;`;
-  return `<div title="${code || ''}" style="${base}"><span style="line-height:1;flex-shrink:0;">${flag}</span></div>`;
+  return flagHtml(code, { size, className: 'hospede-flag' });
 }
 
 function formatShortDate(s) {
@@ -363,13 +345,13 @@ function populateGuestEditSelects() {
   const countrySel = document.getElementById('gedit-country');
   if (countrySel) {
     countrySel.innerHTML = '<option value="">— Sem país —</option>' +
-      COUNTRIES.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+      COUNTRIES.map(c => `<option value="${c.name}" data-flag="${c.code}">${c.name}</option>`).join('');
   }
   // Phone prefix dropdown — built from DIAL_COUNTRIES defined in reserva-wizard.js
   const prefixSel = document.getElementById('gedit-tel-prefix');
   if (prefixSel && typeof DIAL_COUNTRIES !== 'undefined') {
     prefixSel.innerHTML = DIAL_COUNTRIES.map(c =>
-      `<option value="${c.dial}">${c.flag} ${c.dial}</option>`
+      `<option value="${c.dial}" data-flag="${c.code.toLowerCase()}">${c.dial}</option>`
     ).join('');
   }
   if (window.AppUI) {
@@ -462,25 +444,31 @@ async function deleteGuest(id, name) {
 }
 
 // ── EXPORT ──
+const HOSPEDES_EXPORT_COLUMNS = [
+  { key: 'name',              label: 'Nome',            default: true,  get: g => g.name || '' },
+  { key: 'email',              label: 'Email (canal)',   default: true,  get: g => realEmail(g.email) || '' },
+  { key: 'email_personal',     label: 'Email (pessoal)', default: true,  get: g => g.email_personal || '' },
+  { key: 'phone',               label: 'Telefone',        default: true,  get: g => g.phone || '' },
+  { key: 'country',            label: 'País',            default: true,  get: g => g.country || g.nationality || '' },
+  { key: 'nif',                 label: 'NIF',              default: true,  get: g => g.nif || '' },
+  { key: 'address',            label: 'Morada',          default: true,  get: g => g.address || '' },
+  { key: 'postal_code',        label: 'CP',               default: true,  get: g => g.postal_code || '' },
+  { key: 'city',                label: 'Localidade',      default: true,  get: g => g.city || '' },
+  { key: 'reservation_count',  label: 'Reservas',         default: true,  get: g => String(g.reservation_count || 0) },
+  { key: 'last_check_in',      label: 'Última visita',    default: true,  get: g => g.last_check_in ? new Date(g.last_check_in + 'T12:00:00').toLocaleDateString('pt-PT') : '' },
+  { key: 'is_favorite',        label: 'Favorito',         default: true,  get: g => g.is_favorite ? 'Sim' : 'Não' },
+  { key: 'is_vip',              label: 'VIP',               default: true,  get: g => g.is_vip ? 'Sim' : 'Não' },
+  { key: 'is_unwanted',        label: 'Não desejado',     default: true,  get: g => g.is_unwanted ? 'Sim' : 'Não' },
+];
+
 function exportHospedesXLS() {
   if (typeof XLSX === 'undefined') { toast('❌ Biblioteca XLSX não carregada.', 'error'); return; }
+  openExportColumnPicker('hospedes', 'Hóspedes', HOSPEDES_EXPORT_COLUMNS, selectedKeys => _doExportHospedesXLS(selectedKeys));
+}
+
+function _doExportHospedesXLS(selectedKeys) {
   showOperationProgress('A exportar hóspedes XLS', 'A preparar dados...', 15);
-  const rows = hospedes.map(g => ({
-    'Nome':        g.name,
-    'Email (canal)':   realEmail(g.email) || '',
-    'Email (pessoal)': g.email_personal || '',
-    'Telefone':    g.phone || '',
-    'País':        g.country || g.nationality || '',
-    'NIF':         g.nif || '',
-    'Morada':      g.address || '',
-    'CP':          g.postal_code || '',
-    'Localidade':  g.city || '',
-    'Reservas':    g.reservation_count || 0,
-    'Última visita': g.last_check_in || '',
-    'Favorito':    g.is_favorite ? 'Sim' : 'Não',
-    'VIP':         g.is_vip ? 'Sim' : 'Não',
-    'Não desejado': g.is_unwanted ? 'Sim' : 'Não',
-  }));
+  const rows = buildExportRowsXlsx(hospedes, HOSPEDES_EXPORT_COLUMNS, selectedKeys);
   updateOperationProgress(60, 'A gerar Excel...');
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
@@ -558,27 +546,19 @@ async function importHospedesXLS(input) {
 
 function exportHospedesPDF() {
   if (typeof window.jspdf === 'undefined') { toast('❌ Biblioteca jsPDF não carregada.', 'error'); return; }
+  openExportColumnPicker('hospedes', 'Hóspedes', HOSPEDES_EXPORT_COLUMNS, selectedKeys => _doExportHospedesPDF(selectedKeys));
+}
+
+async function _doExportHospedesPDF(selectedKeys) {
   showOperationProgress('A exportar hóspedes PDF', 'A preparar documento...', 15);
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'landscape' });
-  doc.setFontSize(16);
-  doc.text('Hóspedes — Santa Paciência', 14, 18);
-  doc.setFontSize(10);
-  doc.text(`Exportado em ${new Date().toLocaleDateString('pt-PT')}`, 14, 26);
+  const startY = await drawPdfBrandHeader(doc, 'Hóspedes — Santa Paciência');
 
-  const head = [['Nome', 'Email', 'Telefone', 'País', 'Reservas', 'Última visita', 'Tags']];
-  const body = hospedes.map(g => [
-    g.name,
-    realEmail(g.email) || g.email_personal || '—',
-    g.phone || '—',
-    g.country || g.nationality || '—',
-    String(g.reservation_count || 0),
-    g.last_check_in ? new Date(g.last_check_in + 'T12:00:00').toLocaleDateString('pt-PT') : '—',
-    [g.is_favorite?'⭐':'', g.is_vip?'👑':'', g.is_unwanted?'🚫':''].filter(Boolean).join(' ') || '—',
-  ]);
+  const { head, body } = buildExportTablePdf(hospedes, HOSPEDES_EXPORT_COLUMNS, selectedKeys);
 
   updateOperationProgress(70, 'A gerar PDF...');
-  doc.autoTable({ head, body, startY: 32, styles: { fontSize: 9 }, headStyles: { fillColor: [132, 52, 36] } });
+  doc.autoTable({ head, body, startY, styles: { fontSize: 9 }, headStyles: { fillColor: [132, 52, 36] } });
   updateOperationProgress(90, 'A iniciar download...');
   doc.save(`hospedes_${new Date().toISOString().slice(0,10)}.pdf`);
   updateOperationProgress(100, 'Concluído.');

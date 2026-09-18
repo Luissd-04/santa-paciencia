@@ -1,3 +1,4 @@
+const { fetchWithTimeout } = require('../services/httpClient');
 const { OAuth2Client } = require('google-auth-library');
 const { db } = require('./database');
 const { EVENT_TYPE_LABELS } = require('./eventTypes');
@@ -102,7 +103,7 @@ async function revokeTasksTokens(organizationId) {
   const revokeToken = token?.refresh_token || token?.access_token;
   if (!revokeToken) return;
   try {
-    await fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(revokeToken), {
+    await fetchWithTimeout('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(revokeToken), {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
@@ -182,10 +183,12 @@ async function syncOrganizationTasksToGoogleTasks(organizationId) {
       if (ev.status === 'concluido') taskBody.status = 'completed';
 
       if (ev.google_task_id) {
+        // A API do Google Tasks exige o campo "id" no corpo do pedido, igual ao
+        // ID no URL — sem ele devolve "Missing task ID" mesmo com o URL correto.
         await auth.request({
           url: `${TASKS_BASE}/lists/${listId}/tasks/${ev.google_task_id}`,
           method: 'PUT',
-          data: taskBody,
+          data: { ...taskBody, id: ev.google_task_id },
         });
         updated++;
       } else {

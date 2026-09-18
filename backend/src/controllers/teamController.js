@@ -121,7 +121,12 @@ function removeMember(req, res) {
     return res.status(400).json({ success: false, error: 'O proprietário não pode ser removido.' });
   }
 
-  db.prepare('DELETE FROM memberships WHERE id = ?').run(membership.id);
+  db.transaction(() => {
+    db.prepare('DELETE FROM push_subscriptions WHERE organization_id = ? AND user_id = ?').run(organizationId, membership.user_id);
+    db.prepare('DELETE FROM auth_sessions WHERE organization_id = ? AND user_id = ?').run(organizationId, membership.user_id);
+    db.prepare('DELETE FROM google_calendar_connections WHERE organization_id = ? AND user_id = ?').run(organizationId, membership.user_id);
+    db.prepare('DELETE FROM memberships WHERE id = ?').run(membership.id);
+  })();
   res.json({ success: true });
 }
 

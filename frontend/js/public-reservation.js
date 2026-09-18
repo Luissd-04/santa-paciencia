@@ -228,6 +228,24 @@ const PHONE_CODES = [
   { code: '+64', country: 'Nova Zelândia', flag: '🇳🇿' },
 ];
 
+// Código ISO 3166-1 alpha-2 a partir de um emoji de bandeira (regional
+// indicators) — evita ter de reescrever os arrays COUNTRIES/PHONE_CODES.
+function ccFromFlagEmoji(emoji) {
+  const cps = [...String(emoji || '')].map(ch => ch.codePointAt(0));
+  if (cps.length !== 2) return '';
+  const a = cps[0] - 127397, b = cps[1] - 127397;
+  if (a < 65 || a > 90 || b < 65 || b > 90) return '';
+  return String.fromCharCode(a, b).toLowerCase();
+}
+
+// Bandeira SVG (flag-icons) — o emoji de bandeira não aparece no Windows.
+function flagHtml(codeOrEmoji) {
+  let cc = String(codeOrEmoji || '').trim().toLowerCase();
+  if (!/^[a-z]{2}$/.test(cc)) cc = ccFromFlagEmoji(codeOrEmoji);
+  if (!/^[a-z]{2}$/.test(cc)) return '<span class="flag-fallback">🌐</span>';
+  return `<span class="fi fi-${cc}" title="${cc.toUpperCase()}"></span>`;
+}
+
 function fuzzyMatch(search, target) {
   const s = search.toLowerCase();
   const t = target.toLowerCase();
@@ -581,7 +599,7 @@ function renderCountryDropdown(search, dropdown) {
 
   dropdown.innerHTML = results.map(c => `
     <div class="country-dropdown-item" data-country="${c.name}">
-      <span>${c.flag}</span>
+      <span>${flagHtml(c.flag)}</span>
       <span>${c.name}</span>
     </div>`).join('');
 }
@@ -604,8 +622,8 @@ function buildPhoneSearchDropdown(dropdown) {
           .slice(0, 12)
       : PHONE_CODES;
     results.innerHTML = list.map(p => `
-      <div class="country-dropdown-item" data-code="${p.code}" data-flag="${p.flag}" data-country="${p.country}">
-        <span>${p.flag}</span><span>${p.code}</span>
+      <div class="country-dropdown-item" data-code="${p.code}" data-cc="${ccFromFlagEmoji(p.flag)}" data-country="${p.country}">
+        <span>${flagHtml(p.flag)}</span><span>${p.code}</span>
         <span style="color:#999;margin-left:auto;font-size:12px">${p.country}</span>
       </div>`).join('');
   }
@@ -631,7 +649,7 @@ function setupPhoneCodeSearch() {
     if (!item) return;
     e.preventDefault();
     $('pb-phone-code').value = item.dataset.code;
-    btn.textContent = `${item.dataset.flag} ${item.dataset.code}`;
+    btn.innerHTML = `${flagHtml(item.dataset.cc)} ${item.dataset.code}`;
     dropdown.style.display = 'none';
   });
 
@@ -753,7 +771,7 @@ function setupGuestPhoneCodeSearch(guestIndex) {
     if (!item) return;
     e.preventDefault();
     codeInput.value = item.dataset.code;
-    btn.textContent = `${item.dataset.flag} ${item.dataset.code}`;
+    btn.innerHTML = `${flagHtml(item.dataset.cc)} ${item.dataset.code}`;
     finalDropdown.style.display = 'none';
   });
   document.addEventListener('click', (e) => {
@@ -923,7 +941,7 @@ function renderExtraGuests() {
             <span>Telefone *</span>
             <div class="phone-input-group">
               <div class="phone-code-wrap">
-                <button type="button" class="phone-code-btn guest-phone-code-btn" data-field="phone_code" data-guest-index="${i}">🇵🇹 +351</button>
+                <button type="button" class="phone-code-btn guest-phone-code-btn" data-field="phone_code" data-guest-index="${i}"><span class="fi fi-pt"></span> +351</button>
                 <input type="hidden" data-field="phone_code" value="${prev.phone_code || '+351'}">
               </div>
               <input data-field="phone" type="tel" required value="${prev.phone || ''}" placeholder="912 345 678" autocomplete="off">

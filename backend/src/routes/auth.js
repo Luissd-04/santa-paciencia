@@ -1,3 +1,4 @@
+const { fetchWithTimeout } = require('../services/httpClient');
 const router = require('express').Router();
 const { loginLimiter, forgotPasswordLimiter, oauthCallbackLimiter } = require('../middleware/rateLimiter');
 const { deleteTokens, getOAuth2Client, isAuthenticated, saveTokens, revokeTokens } = require('../config/google');
@@ -69,6 +70,11 @@ function verifyOAuthState(req, res) {
     return false;
   }
   return true;
+}
+
+function sessionMeta(req) {
+  const fwd = String(req.get('cf-connecting-ip') || req.get('x-forwarded-for') || '').split(',')[0].trim();
+  return { userAgent: req.get('user-agent') || '', ip: fwd || req.ip || '' };
 }
 
 function setSessionCookie(res, sessionId) {
@@ -148,7 +154,7 @@ router.post('/login', loginLimiter, (req, res) => {
   }
 
   try {
-    const { sessionId } = createSession(user.id);
+    const { sessionId } = createSession(user.id, null, null, sessionMeta(req));
     setSessionCookie(res, sessionId);
     const sessionUser = require('../services/authService').getSessionUser(sessionId);
     res.json({ success: true, data: { user: serializeUser(sessionUser) } });
@@ -192,7 +198,7 @@ router.post('/invitations/accept', (req, res) => {
       if (!alreadyMember) {
         acceptInvitation({ invitationId: invitation.id, userId: existingUser.id });
       }
-      const { sessionId } = createSession(existingUser.id, invitation.organization_id);
+      const { sessionId } = createSession(existingUser.id, invitation.organization_id, null, sessionMeta(req));
       setSessionCookie(res, sessionId);
       const sessionUser = require('../services/authService').getSessionUser(sessionId);
       return res.json({ success: true, data: { user: serializeUser(sessionUser) } });
@@ -223,7 +229,7 @@ router.post('/invitations/accept', (req, res) => {
       role: invitation.role,
     });
     acceptInvitation({ invitationId: invitation.id, userId: user.id });
-    const { sessionId } = createSession(user.id, invitation.organization_id);
+    const { sessionId } = createSession(user.id, invitation.organization_id, null, sessionMeta(req));
     setSessionCookie(res, sessionId);
     const sessionUser = require('../services/authService').getSessionUser(sessionId);
     res.status(201).json({
@@ -259,7 +265,7 @@ router.post('/switch-org', requireAuth, (req, res) => {
     return res.status(403).json({ success: false, error: 'Não tens acesso a este espaço.' });
   }
   try {
-    const { sessionId } = createSession(req.user.id, organization_id, req.sessionId);
+    const { sessionId } = createSession(req.user.id, organization_id, req.sessionId, sessionMeta(req));
     setSessionCookie(res, sessionId);
     const sessionUser = require('../services/authService').getSessionUser(sessionId);
     res.json({ success: true, data: { user: serializeUser(sessionUser) } });
@@ -286,12 +292,16 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
       const token = createPasswordResetToken(user.id);
       const resetUrl = `${appUrl()}/?reset=${token}`;
       const { sendMail } = require('../services/emailService');
-      await sendMail(user.organization_id, {
+      const sender = db.prepare(`SELECT m.organization_id FROM memberships m
+        JOIN google_email_connections c ON c.organization_id = m.organization_id
+        WHERE m.user_id = ? AND m.active = 1 ORDER BY m.created_at LIMIT 1`).get(user.id);
+      if (!sender) throw new Error('Sem remetente de email configurado para recuperação de conta.');
+      const delivery = await sendMail(sender.organization_id, {
         to: email,
         subject: 'Recuperar palavra-passe — Santa Paciência',
         html: emailWrap(
           'Recuperar palavra-passe',
-          `<p>Olá, ${user.name.split(' ')[0]}.</p>
+          `<p>Olá, ${String(user.name.split(' ')[0]).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]))}.</p>
            <p>Recebemos um pedido para recuperar a tua palavra-passe.</p>
            <p style="margin:24px 0;">
              <a href="${resetUrl}" style="background:#843424;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
@@ -301,6 +311,7 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
            <p style="color:#888;font-size:13px;">Este link expira em 1 hora. Se não pediste a recuperação, ignora este email — a tua conta está segura.</p>`
         ),
       });
+      if (!delivery) throw new Error('Serviço de email não confirmou o envio.');
     } catch (err) {
       console.error('Erro ao enviar email de recuperação:', err.message);
     }
@@ -340,7 +351,8 @@ router.post('/change-password', requireAuth, (req, res) => {
   }
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
   if (!verifyPassword(String(current_password), user.password_hash)) {
-    return res.status(401).json({ success: false, error: 'Palavra-passe atual incorreta.' });
+    // 400 e não 401: o frontend trata 401 como sessão expirada e faz logout.
+    return res.status(400).json({ success: false, error: 'Palavra-passe atual incorreta.' });
   }
   if (password !== confirm_password) {
     return res.status(400).json({ success: false, error: 'As passwords não coincidem.' });
@@ -352,7 +364,80 @@ router.post('/change-password', requireAuth, (req, res) => {
   }
   db.prepare(`UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?`)
     .run(hashPassword(password), req.user.id);
+  // Termina as sessões noutros dispositivos; a atual continua ativa.
+  db.prepare('DELETE FROM auth_sessions WHERE user_id = ? AND id != ?').run(req.user.id, req.sessionId);
   res.json({ success: true });
+});
+
+// ── Perfil ──
+// PUT /auth/profile { name, email, current_password } — a palavra-passe atual
+// só é exigida quando o email muda (o email é o identificador de login).
+router.put('/profile', requireAuth, (req, res) => {
+  const { name, email, current_password } = req.body || {};
+  const trimmedName = String(name || '').trim();
+  const newEmail = normalizeEmail(email);
+  if (!trimmedName) return res.status(400).json({ success: false, error: 'O nome é obrigatório.' });
+  if (trimmedName.length > 120) return res.status(400).json({ success: false, error: 'O nome é demasiado longo.' });
+  if (!isValidEmail(newEmail)) return res.status(400).json({ success: false, error: 'O email não tem um formato válido.' });
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  const emailChanged = newEmail !== user.email;
+  if (emailChanged) {
+    if (!current_password || !verifyPassword(String(current_password), user.password_hash)) {
+      return res.status(400).json({ success: false, error: 'Para mudar o email, confirma a palavra-passe atual.' });
+    }
+    const other = getUserByEmail(newEmail);
+    if (other && other.id !== user.id) {
+      return res.status(400).json({ success: false, error: 'Já existe uma conta com esse email.' });
+    }
+  }
+  db.prepare(`UPDATE users SET name = ?, email = ?, updated_at = datetime('now') WHERE id = ?`)
+    .run(trimmedName, newEmail, user.id);
+  const sessionUser = require('../services/authService').getSessionUser(req.sessionId);
+  res.json({ success: true, data: { user: serializeUser(sessionUser) } });
+});
+
+// ── Sessões ativas ──
+router.get('/sessions', requireAuth, (req, res) => {
+  const rows = db.prepare(`
+    SELECT s.id, s.created_at, s.last_seen_at, s.expires_at, s.user_agent, s.ip, o.name AS organization_name
+    FROM auth_sessions s
+    LEFT JOIN organizations o ON o.id = s.organization_id
+    WHERE s.user_id = ? AND datetime(s.expires_at) > datetime('now')
+    ORDER BY s.last_seen_at DESC
+  `).all(req.user.id);
+  // O id da sessão é o valor do cookie: nunca o devolver. Usa-se um prefixo do hash.
+  const crypto = require('crypto');
+  const publicId = id => crypto.createHash('sha256').update(id).digest('hex').slice(0, 16);
+  res.json({
+    success: true,
+    data: rows.map(r => ({
+      id: publicId(r.id),
+      current: r.id === req.sessionId,
+      created_at: r.created_at,
+      last_seen_at: r.last_seen_at,
+      user_agent: r.user_agent,
+      ip: r.ip,
+      organization_name: r.organization_name,
+    })),
+  });
+});
+
+router.delete('/sessions/:id', requireAuth, (req, res) => {
+  const crypto = require('crypto');
+  const rows = db.prepare('SELECT id FROM auth_sessions WHERE user_id = ?').all(req.user.id);
+  const target = rows.find(r => crypto.createHash('sha256').update(r.id).digest('hex').slice(0, 16) === req.params.id);
+  if (!target) return res.status(404).json({ success: false, error: 'Sessão não encontrada.' });
+  deleteSession(target.id);
+  const current = target.id === req.sessionId;
+  if (current) clearSessionCookie(res);
+  res.json({ success: true, data: { current } });
+});
+
+// Termina todas as sessões exceto a atual.
+router.post('/sessions/revoke-others', requireAuth, (req, res) => {
+  const info = db.prepare('DELETE FROM auth_sessions WHERE user_id = ? AND id != ?').run(req.user.id, req.sessionId);
+  res.json({ success: true, data: { removed: info.changes } });
 });
 
 router.get('/google', requireAuth, (req, res) => {
@@ -412,7 +497,7 @@ router.delete('/google', requireAuth, async (req, res) => {
 });
 
 // ── GMAIL OAUTH ──
-router.get('/google-email', requireAuth, (req, res) => {
+router.get('/google-email', requireAuth, requireRole('manager'), (req, res) => {
   if (!process.env.GOOGLE_EMAIL_REDIRECT_URI) {
     return res.status(500).send('GOOGLE_EMAIL_REDIRECT_URI não configurado no .env');
   }
@@ -426,13 +511,13 @@ router.get('/google-email', requireAuth, (req, res) => {
   res.redirect(authUrl);
 });
 
-router.get('/google-email/callback', oauthCallbackLimiter, requireAuth, async (req, res) => {
+router.get('/google-email/callback', oauthCallbackLimiter, requireAuth, requireRole('manager'), async (req, res) => {
   if (!verifyOAuthState(req, res)) return;
   const { code } = req.query;
   if (!code) return res.status(400).send('Código de autorização em falta.');
   try {
     // Token exchange manual — mais fiável entre versões da biblioteca
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    const tokenRes = await fetchWithTimeout('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -471,17 +556,17 @@ router.get('/google-email/callback', oauthCallbackLimiter, requireAuth, async (r
   }
 });
 
-router.get('/google-email/status', requireAuth, (req, res) => {
+router.get('/google-email/status', requireAuth, requireRole('manager'), (req, res) => {
   const info = getEmailConnectionInfo(req.user.organization_id);
   res.json({ success: true, data: info });
 });
 
-router.delete('/google-email', requireAuth, (req, res) => {
+router.delete('/google-email', requireAuth, requireRole('manager'), (req, res) => {
   deleteEmailTokens(req.user.organization_id);
   res.json({ success: true, message: 'Gmail desligado' });
 });
 
-router.post('/google-email/test', requireAuth, async (req, res) => {
+router.post('/google-email/test', requireAuth, requireRole('manager'), async (req, res) => {
   try {
     const { sendViaGmail } = require('../config/googleEmail');
     const info = getEmailConnectionInfo(req.user.organization_id);
@@ -510,29 +595,71 @@ router.post('/google-email/test', requireAuth, async (req, res) => {
   }
 });
 
+// ── EMAIL: dados do hóspede/reserva ativa para um destinatário (Mensagens) ──
+router.get('/email/lookup', requireAuth, requireRole('manager'), (req, res) => {
+  const to_email = String(req.query.to_email || '').trim();
+  if (!to_email) return res.status(400).json({ success: false, error: 'to_email é obrigatório.' });
+  const { findGuestEmailContext } = require('../services/emailService');
+  const context = findGuestEmailContext(req.user.organization_id, to_email);
+  res.json({ success: true, data: context });
+});
+
 // ── EMAIL: envio avulso (Invoice / Conversas) ──
-router.post('/email/send', requireAuth, async (req, res) => {
-  const { to, subject, html, to_name, reservation_id } = req.body || {};
+router.post('/email/send', requireAuth, requireRole('manager'), async (req, res) => {
+  const { to, subject, html, to_name, reservation_id, thread_id, in_reply_to_message_id, references } = req.body || {};
   if (!to || !subject || !html) {
     return res.status(400).json({ success: false, error: 'to, subject e html são obrigatórios.' });
   }
+  // Nunca deixar sair um {{campo}} por preencher para o hóspede.
+  if (/\{\{\s*\w+\s*\}\}/.test(subject) || /\{\{\s*\w+\s*\}\}/.test(html)) {
+    return res.status(400).json({ success: false, error: 'A mensagem tem campos por preencher (ex.: {{primeiro_nome}}) — confirma os dados antes de enviar.' });
+  }
   try {
-    const { sendMail } = require('../services/emailService');
-    await sendMail(req.user.organization_id, { to, subject, html });
+    const { sendMail, baseTemplate, getEmailSettings, resolveAccommodationInheritance, findGuestEmailContext } = require('../services/emailService');
+    const orgId = req.user.organization_id;
+
+    let accommodation = null;
+    if (reservation_id) {
+      const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservation_id, orgId);
+      if (reservation) {
+        const accom = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(reservation.accommodation_id, orgId);
+        if (accom) accommodation = resolveAccommodationInheritance(accom, orgId);
+      }
+    }
+    if (!accommodation) accommodation = findGuestEmailContext(orgId, to).accommodation;
+
+    const settings = getEmailSettings(accommodation, orgId);
+    const finalHtml = baseTemplate(html, settings);
+
+    // thread_id/in_reply_to_message_id só chegam quando o utilizador clicou
+    // explicitamente em "responder" a uma mensagem específica — por defeito
+    // (nenhum dos dois presente) é sempre uma mensagem nova e solta.
+    const sendResult = await sendMail(orgId, {
+      to, subject, html: finalHtml,
+      threadId: thread_id || undefined,
+      inReplyTo: in_reply_to_message_id || undefined,
+      references: references || undefined,
+    });
 
     const { randomUUID } = require('crypto');
     db.prepare(`
-      INSERT INTO invoice_messages (id, organization_id, to_email, to_name, subject, body_html, reservation_id, sent_by_user_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO invoice_messages
+        (id, organization_id, to_email, to_name, subject, body_html, reservation_id, sent_by_user_id,
+         gmail_message_id, gmail_thread_id, message_id_header, in_reply_to_message_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       randomUUID(),
-      req.user.organization_id,
+      orgId,
       to,
       to_name || null,
       subject,
-      html,
+      finalHtml,
       reservation_id || null,
-      req.user.id
+      req.user.id,
+      sendResult?.id || null,
+      sendResult?.threadId || null,
+      sendResult?.messageIdHeader || null,
+      in_reply_to_message_id || null
     );
 
     res.json({ success: true });
@@ -558,8 +685,8 @@ router.post('/email/send', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/email/inbox', requireAuth, async (req, res) => {
-  const { to_email, max = 30 } = req.query;
+router.get('/email/inbox', requireAuth, requireRole('manager'), async (req, res) => {
+  const { to_email, max = 25, page_token } = req.query;
   if (!to_email) return res.status(400).json({ success: false, error: 'to_email é obrigatório.' });
 
   const { getAuthenticatedEmailClient, getEmailConnectionInfo } = require('../config/googleEmail');
@@ -573,11 +700,12 @@ router.get('/email/inbox', requireAuth, async (req, res) => {
     const q = `from:${to_email} OR to:${to_email}`;
     const listRes = await auth.request({
       url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages',
-      params: { q, maxResults: Number(max) || 30 },
+      params: { q, maxResults: Number(max) || 25, pageToken: page_token || undefined },
     });
 
     const msgIds = listRes.data.messages || [];
-    if (!msgIds.length) return res.json({ success: true, data: { messages: [] } });
+    const nextPageToken = listRes.data.nextPageToken || null;
+    if (!msgIds.length) return res.json({ success: true, data: { messages: [], next_page_token: nextPageToken } });
 
     /* Buscar cada mensagem em paralelo (batch de 10 para não sobrecarregar) */
     const fetchBatch = async (ids) => Promise.all(
@@ -602,21 +730,26 @@ router.get('/email/inbox', requireAuth, async (req, res) => {
       const headers = {};
       (msg.payload?.headers || []).forEach(h => { headers[h.name.toLowerCase()] = h.value; });
 
-      const from    = headers['from']    || '';
-      const to      = headers['to']      || '';
-      const subject = headers['subject'] || '(sem assunto)';
-      const dateStr = headers['date']    || '';
+      const from            = headers['from']       || '';
+      const to              = headers['to']         || '';
+      const subject         = headers['subject']    || '(sem assunto)';
+      const dateStr         = headers['date']       || '';
+      const messageIdHeader = headers['message-id'] || null;
       const date    = dateStr ? new Date(dateStr).toISOString() : new Date(msg.internalDate ? Number(msg.internalDate) : Date.now()).toISOString();
 
       const fromEmail = (from.match(/<([^>]+)>/) || [])[1] || from;
       const direction = fromEmail.toLowerCase() === myEmail ? 'sent' : 'received';
 
       const body = extractBody(msg.payload);
+      const attachments = extractAttachments(msg.payload);
 
-      return { id: msg.id, threadId: msg.threadId, from, to, subject, date, direction, body, snippet: msg.snippet || '' };
+      return {
+        id: msg.id, threadId: msg.threadId, from, to, subject, date, direction, body,
+        snippet: msg.snippet || '', messageIdHeader, attachments,
+      };
     }).sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    res.json({ success: true, data: { messages } });
+    res.json({ success: true, data: { messages, next_page_token: nextPageToken } });
   } catch (err) {
     const errMsg = err.message || '';
     const errData = err.response?.data?.error || '';
@@ -656,8 +789,44 @@ function extractBody(payload) {
   return decodeB64(payload.body?.data);
 }
 
-router.get('/email/messages', requireAuth, (req, res) => {
-  const { to_email, reservation_id, limit = 200 } = req.query;
+/* Percorre o payload MIME (recursivo) e recolhe os anexos reais (com attachmentId) */
+function extractAttachments(payload, out = []) {
+  if (!payload) return out;
+  if (payload.filename && payload.body?.attachmentId) {
+    out.push({
+      filename: payload.filename,
+      mimeType: payload.mimeType || 'application/octet-stream',
+      size: payload.body.size || 0,
+      attachmentId: payload.body.attachmentId,
+    });
+  }
+  (payload.parts || []).forEach(p => extractAttachments(p, out));
+  return out;
+}
+
+/* Download/preview de um anexo de uma mensagem Gmail (referenciado no histórico) */
+router.get('/email/attachment', requireAuth, requireRole('manager'), async (req, res) => {
+  const { message_id, attachment_id, filename } = req.query;
+  if (!message_id || !attachment_id) {
+    return res.status(400).json({ success: false, error: 'message_id e attachment_id são obrigatórios.' });
+  }
+  try {
+    const { getAuthenticatedEmailClient } = require('../config/googleEmail');
+    const auth = getAuthenticatedEmailClient(req.user.organization_id);
+    const r = await auth.request({
+      url: `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(message_id)}/attachments/${encodeURIComponent(attachment_id)}`,
+    });
+    const buf = Buffer.from(String(r.data.data || '').replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+    const safeName = String(filename || 'anexo').replace(/[\r\n"]/g, '');
+    res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
+    res.send(buf);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/email/messages', requireAuth, requireRole('manager'), (req, res) => {
+  const { to_email, reservation_id, limit = 200, before } = req.query;
   let query = `
     SELECT m.*, u.name as sent_by_name
     FROM invoice_messages m
@@ -667,9 +836,32 @@ router.get('/email/messages', requireAuth, (req, res) => {
   const params = [req.user.organization_id];
   if (to_email)       { query += ' AND m.to_email = ?';       params.push(to_email); }
   if (reservation_id) { query += ' AND m.reservation_id = ?'; params.push(reservation_id); }
-  query += ` ORDER BY m.sent_at DESC LIMIT ${Math.min(Number(limit) || 200, 500)}`;
-  const messages = db.prepare(query).all(...params);
-  res.json({ success: true, data: { messages } });
+  if (before)          { query += ' AND m.sent_at < ?';        params.push(before); }
+  const lim = Math.min(Number(limit) || 200, 500);
+  query += ` ORDER BY m.sent_at DESC LIMIT ${lim}`;
+  const rows = db.prepare(query).all(...params);
+  const messages = rows.map(m => ({
+    ...m,
+    // SQLite guarda datetime('now') em UTC mas sem indicação de fuso
+    // ("2026-09-11 12:28:00") — sem o "Z", o browser lê isto como hora local
+    // e desloca a hora mostrada. Normalizar para ISO 8601 UTC explícito.
+    sent_at: m.sent_at ? m.sent_at.replace(' ', 'T') + 'Z' : m.sent_at,
+  }));
+  const next_cursor = rows.length === lim ? rows[rows.length - 1].sent_at : null;
+  res.json({ success: true, data: { messages, next_cursor } });
+});
+
+// Apaga só a nossa cópia local (invoice_messages) de uma conversa arquivada —
+// o correio real fica no Gmail e continua a aparecer via /email/inbox; isto
+// só limpa o histórico que a app guardou das mensagens que ENVIÁMOS.
+router.delete('/email/messages', requireAuth, requireRole('manager'), (req, res) => {
+  const { to_email, reservation_id } = req.query;
+  if (!to_email) return res.status(400).json({ success: false, error: 'to_email é obrigatório.' });
+  let query = 'DELETE FROM invoice_messages WHERE organization_id = ? AND to_email = ?';
+  const params = [req.user.organization_id, to_email];
+  if (reservation_id) { query += ' AND reservation_id = ?'; params.push(reservation_id); }
+  const result = db.prepare(query).run(...params);
+  res.json({ success: true, deleted: result.changes });
 });
 
 // ── CONVERSATION ARCHIVES ──
@@ -695,7 +887,7 @@ router.delete('/email/archives/:thread_key', requireAuth, requireRole('manager')
 });
 
 // ── GOOGLE TASKS OAUTH ──
-router.get('/google-tasks', requireAuth, (req, res) => {
+router.get('/google-tasks', requireAuth, requireRole('manager'), (req, res) => {
   if (!process.env.GOOGLE_TASKS_REDIRECT_URI) {
     return res.status(500).send('GOOGLE_TASKS_REDIRECT_URI não configurado no .env');
   }
@@ -709,13 +901,13 @@ router.get('/google-tasks', requireAuth, (req, res) => {
   res.redirect(authUrl);
 });
 
-router.get('/google-tasks/callback', oauthCallbackLimiter, requireAuth, async (req, res) => {
+router.get('/google-tasks/callback', oauthCallbackLimiter, requireAuth, requireRole('manager'), async (req, res) => {
   if (!verifyOAuthState(req, res)) return;
   const { code } = req.query;
   if (!code) return res.status(400).send('Código de autorização em falta.');
   try {
     // Token exchange manual — mais fiável entre versões da biblioteca
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    const tokenRes = await fetchWithTimeout('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -753,12 +945,12 @@ router.get('/google-tasks/callback', oauthCallbackLimiter, requireAuth, async (r
   }
 });
 
-router.get('/google-tasks/status', requireAuth, (req, res) => {
+router.get('/google-tasks/status', requireAuth, requireRole('manager'), (req, res) => {
   const info = getTasksConnectionInfo(req.user.organization_id);
   res.json({ success: true, data: info });
 });
 
-router.delete('/google-tasks', requireAuth, async (req, res) => {
+router.delete('/google-tasks', requireAuth, requireRole('manager'), async (req, res) => {
   const organizationId = req.user.organization_id;
   let removed = 0;
   if (isTasksAuthenticated(organizationId)) {

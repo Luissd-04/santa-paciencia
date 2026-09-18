@@ -1,7 +1,10 @@
 // Script temporário só para verificação visual local — cria 2 alojamentos +
 // 3 reservas sobrepostas (para testar o empacotamento em lanes na vista de
 // paisagem). Apaga tudo depois com qa-temp-teardown2.js.
-require('dotenv').config();
+if (process.env.NODE_ENV !== 'test' || !process.env.DB_PATH || process.env.DB_PATH === ':memory:') {
+  throw new Error('QA requer NODE_ENV=test e DB_PATH explícito para uma base de testes.');
+}
+if (!process.env.QA_PASSWORD) throw new Error('Definir QA_PASSWORD para a conta de teste.');
 
 const { initDatabase, db } = require('../config/database');
 const { createUser, getUserByEmail } = require('../services/authService');
@@ -12,7 +15,7 @@ initDatabase();
 
 const email = 'qa-temp-verify@local.test';
 let user = getUserByEmail(email);
-if (!user) user = createUser({ name: 'QA Temp', email, password: 'TempPass!2026', role: 'admin' });
+if (!user) user = createUser({ name: 'QA Temp', email, password: process.env.QA_PASSWORD, role: 'admin' });
 
 let membership = getPrimaryMembership(user.id);
 let orgId;

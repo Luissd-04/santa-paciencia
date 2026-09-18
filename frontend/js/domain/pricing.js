@@ -33,8 +33,8 @@
       .map(date => {
         const age = window.ReservationDates?.ageAtDate(date, checkIn);
         if (age === null || age === undefined) return null;
-        if (age < babyLimit) return { age, rate: babyPrice };
-        if (age >= babyLimit && age < childLimit) return { age, rate: childPrice };
+        if (age <= babyLimit) return { age, rate: babyPrice };
+        if (age > babyLimit && age < childLimit) return { age, rate: childPrice };
         return null;
       })
       .filter(Boolean)

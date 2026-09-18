@@ -1,3 +1,8 @@
+const activeApiRequests = new Set();
+function cancelApiRequests() {
+  activeApiRequests.forEach(controller => controller.abort());
+  activeApiRequests.clear();
+}
 // ── API ──
 async function apiRequest(path, options = {}, config = {}) {
   const headers = { ...(options.headers || {}) };
@@ -7,9 +12,19 @@ async function apiRequest(path, options = {}, config = {}) {
     headers
   };
 
-  const res = await fetch(API_BASE + path, request);
+  const controller = new AbortController();
+  activeApiRequests.add(controller);
+  const abort = () => controller.abort();
+  if (options.signal?.aborted) controller.abort();
+  options.signal?.addEventListener('abort', abort, { once: true });
+  const timeout = setTimeout(abort, config.timeoutMs || 30000);
+  let res;
+  try { res = await fetch(API_BASE + path, { ...request, signal: controller.signal }); }
+  finally { clearTimeout(timeout); activeApiRequests.delete(controller); options.signal?.removeEventListener('abort', abort); }
   let payload = null;
-  try { payload = await res.json(); } catch (_) {}
+  try { payload = await res.json(); } catch (_) {
+    if (res.ok) throw new Error('O servidor devolveu uma resposta inválida.');
+  }
 
   if (res.status === 401 && !config.skipAuthRedirect && typeof handleUnauthorized === 'function') {
     handleUnauthorized();
@@ -101,6 +116,25 @@ function confirmPriceChange({ standardTotal, newTotal, editedAt = null, editedBy
 function realEmail(e) {
   if (!e) return null;
   return e.includes('@reserva.local') ? null : e;
+}
+
+// Descarrega uma imagem (mesma origem, com cookies) e devolve como data URL —
+// usado para embutir imagens (capas, logótipo) em PDFs gerados no cliente.
+async function imageUrlToDataUrl(url) {
+  if (!url) return null;
+  try {
+    const res = await fetch(url, { credentials: 'include' });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
 }
 
 // ── FORMAT ──
@@ -200,4 +234,30 @@ function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
   }[ch]));
+}
+
+// Montante em euros — formato uniforme "€1234.56". Uma só implementação em vez
+// do `€${Number(x).toFixed(2)}` repetido por várias views.
+function formatEUR(value) {
+  return '€' + Number(value || 0).toFixed(2);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Bandeiras de país — SVG via flag-icons (css/vendor/flag-icons.min.css).
+   Substitui os emoji de bandeira (regional indicators), que o Windows
+   não desenha (mostra "PT", "GB"...). Recebe um código ISO 3166-1
+   alpha-2; devolve um <span class="fi fi-xx"> ou um globo de fallback.
+   NOTA: não funciona dentro de <option> (elemento nativo, sem HTML) —
+   aí mantém-se o emoji.
+═══════════════════════════════════════════════════════════════ */
+function flagHtml(code, opts = {}) {
+  const size = opts.size || 20;
+  const extra = opts.className ? ' ' + opts.className : '';
+  const cc = String(code || '').trim().toLowerCase();
+  const h = Math.round(size * 0.75);
+  if (!/^[a-z]{2}$/.test(cc)) {
+    return `<span class="flag-fallback${extra}" role="img" aria-label="País desconhecido" title="${opts.title || ''}" style="width:${size}px;height:${h}px;font-size:${Math.round(size * 0.7)}px;">🌐</span>`;
+  }
+  const label = opts.title || cc.toUpperCase();
+  return `<span class="fi fi-${cc}${extra}" role="img" aria-label="${label}" title="${label}" style="width:${size}px;height:${h}px;"></span>`;
 }

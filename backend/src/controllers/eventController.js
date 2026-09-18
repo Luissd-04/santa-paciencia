@@ -5,40 +5,15 @@ const {
   saveAutoTaskSettings,
   syncOrganizationOperationalTasks,
 } = require('../services/operationalTasksService');
-const { isAuthenticated } = require('../config/google');
-const { createTaskCalendarEvent, updateTaskCalendarEvent, deleteTaskCalendarEvent } = require('../services/calendarService');
-const { isTasksAuthenticated, syncOrganizationTasksToGoogleTasks, deleteSyncedTask } = require('../config/googleTasks');
+const { deleteTaskCalendarEvent, syncOperationalEventsToGoogle } = require('../services/calendarService');
+const { deleteSyncedTask } = require('../config/googleTasks');
 
-const GCAL_SYNC_TASKS_KEY = 'gcal_sync_tasks';
-function getOrgSetting(orgId, key) {
-  const row = db.prepare('SELECT value FROM organization_settings WHERE organization_id = ? AND key = ?').get(orgId, key);
-  return row?.value ?? null;
-}
-
-// Sincroniza um evento operacional com o Google Calendar e o Google Tasks, quando a
-// definição "Sincronizar eventos automaticamente" estiver ativa e as integrações ligadas.
-async function syncTaskToGoogle(task, userId, orgId) {
-  if (getOrgSetting(orgId, GCAL_SYNC_TASKS_KEY) !== '1') return;
-
-  if (isAuthenticated(userId, orgId)) {
-    try {
-      if (task.google_event_id && task.google_calendar_user_id === userId) {
-        await updateTaskCalendarEvent(task, { userId, organizationId: orgId });
-      } else {
-        const eventId = await createTaskCalendarEvent(task, { userId, organizationId: orgId });
-        if (eventId) {
-          db.prepare('UPDATE operational_events SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ?')
-            .run(eventId, userId, task.id);
-        }
-      }
-    } catch (err) {
-      console.error('Erro ao sincronizar tarefa com Google Calendar:', err.message);
-    }
-  }
-
-  if (isTasksAuthenticated(orgId)) {
-    syncOrganizationTasksToGoogleTasks(orgId).catch(err => console.error('Erro ao sincronizar tarefa com Google Tasks:', err.message));
-  }
+// Sincroniza um evento operacional com o Google Calendar e/ou o Google Tasks — ver
+// syncOperationalEventsToGoogle em services/calendarService.js (cada destino tem a
+// sua própria definição de organização, "Sincronizar com o Google Calendar/Tasks").
+function syncTaskToGoogle(task, userId, orgId) {
+  syncOperationalEventsToGoogle([task], { userId, organizationId: orgId })
+    .catch(err => console.error('Erro ao sincronizar evento com o Google:', err.message));
 }
 
 const { VALID_EVENT_TYPES: VALID_TYPES } = require('../config/eventTypes');
@@ -76,7 +51,6 @@ function normalizePayload(body = {}, existing = {}) {
 
 function getAll(req, res) {
   const orgId = req.user.organization_id;
-  syncOrganizationOperationalTasks(orgId);
   let query = `
     SELECT e.*, a.name AS accommodation_name, u.name AS created_by_name
     FROM operational_events e

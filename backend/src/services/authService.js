@@ -47,7 +47,8 @@ function verifyPassword(password, stored) {
   return crypto.timingSafeEqual(derived, original);
 }
 
-function createSession(userId, organizationId, oldSessionId = null) {
+// meta = { userAgent, ip } do pedido — só para mostrar em "Sessões ativas".
+function createSession(userId, organizationId, oldSessionId = null, meta = {}) {
   const membership = organizationId
     ? getMembershipByUserAndOrganization(userId, organizationId)
     : getPrimaryMembership(userId);
@@ -65,9 +66,10 @@ function createSession(userId, organizationId, oldSessionId = null) {
   const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 86400000).toISOString();
 
   db.prepare(`
-    INSERT INTO auth_sessions (id, user_id, organization_id, expires_at, created_at, last_seen_at)
-    VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-  `).run(sessionId, userId, membership.organization_id, expiresAt);
+    INSERT INTO auth_sessions (id, user_id, organization_id, expires_at, created_at, last_seen_at, user_agent, ip)
+    VALUES (?, ?, ?, ?, datetime('now'), datetime('now'), ?, ?)
+  `).run(sessionId, userId, membership.organization_id, expiresAt,
+    meta.userAgent ? String(meta.userAgent).slice(0, 400) : null, meta.ip || null);
 
   return { sessionId, expiresAt };
 }
@@ -94,7 +96,7 @@ function getSessionUser(sessionId) {
     return null;
   }
 
-  db.prepare(`UPDATE auth_sessions SET last_seen_at = datetime('now') WHERE id = ?`).run(sessionId);
+  db.prepare(`UPDATE auth_sessions SET last_seen_at = datetime('now') WHERE id = ? AND datetime(last_seen_at) < datetime('now', '-5 minutes')`).run(sessionId);
 
   return {
     id: row.user_id,

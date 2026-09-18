@@ -1,0 +1,21 @@
+name: Checks
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: backend/src/package-lock.json
+      - run: npm ci
+        working-directory: backend/src
+      - run: npm run check && npm test && npm run test:http
+        working-directory: backend/src
+      - run: npm audit --omit=dev --audit-level=moderate
+        working-directory: backend/src

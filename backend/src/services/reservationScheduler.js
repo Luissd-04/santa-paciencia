@@ -19,8 +19,8 @@ function expirePendingReservations() {
   try {
     const rows = db.prepare(`
       SELECT * FROM reservations
-      WHERE status = 'pendente'
-        AND channel != 'direto'
+      WHERE status IN ('pendente', 'aguardar_pagamento', 'pre_reserva')
+        AND channel = 'website'
         AND (amount_paid IS NULL OR amount_paid = 0)
         AND datetime(created_at) < datetime('now', '-' || ? || ' hours')
     `).all(PENDING_TTL_HOURS);

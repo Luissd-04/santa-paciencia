@@ -296,69 +296,7 @@ table td {
   }
 }
 
-/* ── Date picker popup (shared across backoffice) ── */
-.date-pop {
-  position: fixed;
-  z-index: 9000;
-  width: 286px;
-  padding: 12px;
-  border: 1px solid rgba(132,52,36,.14);
-  border-radius: 18px;
-  background: var(--branco);
-  box-shadow: 0 18px 44px rgba(45,34,28,.18);
-}
-
-.date-head {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 8px;
-}
-
-.date-head > button {
-  width: 28px; height: 28px; flex-shrink: 0;
-  border: 0; border-radius: 8px;
-  background: var(--cinza-claro);
-  cursor: pointer;
-  font-weight: 700; font-size: 13px;
-}
-.date-head > button:hover { background: var(--creme); }
-
-.dp-month, .dp-year {
-  flex: 1;
-  padding: 5px 6px;
-  border: 1px solid rgba(0,0,0,.1);
-  border-radius: 8px;
-  font-size: 12px; font-weight: 600;
-  background: var(--branco);
-  cursor: pointer;
-}
-
-.date-week, .date-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 3px;
-  text-align: center;
-}
-
-.date-week {
-  margin-bottom: 4px;
-  color: var(--cinza);
-  font-size: 10px; font-weight: 700;
-  letter-spacing: .4px;
-}
-
-.dp-day {
-  height: 30px;
-  border: 0; border-radius: 8px;
-  background: transparent;
-  cursor: pointer;
-  font-size: 12px; font-weight: 500;
-}
-.dp-day:hover            { background: var(--creme); }
-.dp-day.today:not(.selected) { background: var(--cinza-claro); border-radius: 50%; }
-.dp-day.selected         { background: var(--marca); color: #fff; }
-.dp-day.dp-disabled      { opacity: .3; cursor: default; pointer-events: none; }
+/* Date picker → css/components/date-picker.css (partilhado com páginas públicas) */
 
 /* ── Password show/hide toggle ── */
 .pw-wrap {
@@ -439,6 +377,85 @@ table td {
 }
 .user-menu-item:hover { background: rgba(132,52,36,.08); }
 
+.user-menu-sep {
+  height: 1px;
+  margin: 5px 4px;
+  background: var(--border-soft);
+}
+
+.user-menu { min-width: 240px; }
+.user-menu-head {
+  display: grid;
+  gap: 2px;
+  padding: 8px 12px 6px;
+  min-width: 0;
+}
+.user-menu-head strong { font-size: 13.5px; color: var(--azul); }
+.user-menu-head span {
+  font-size: 12px;
+  color: var(--cinza);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.user-menu-label {
+  padding: 6px 12px 2px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--cinza);
+}
+.user-menu-item.is-active { font-weight: 600; color: var(--marca); }
+.user-menu-role {
+  font-size: 11px;
+  color: var(--cinza);
+  text-transform: capitalize;
+  flex-shrink: 0;
+}
+
+/* ── Sessões ativas ── */
+.sessions-list { display: grid; gap: 8px; }
+.session-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+}
+.session-row.is-current { background: rgba(132,52,36,.05); border-color: rgba(132,52,36,.18); }
+.session-row-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(132,52,36,.08);
+  color: var(--marca);
+  flex-shrink: 0;
+}
+.session-row-copy { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.session-row-copy strong { font-size: 13.5px; color: var(--azul); }
+.session-row-copy span {
+  font-size: 12px;
+  color: var(--cinza);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-row-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: rgba(46,125,82,.12);
+  color: #2e7d52 !important;
+  font-size: 10.5px !important;
+  font-weight: 600;
+  vertical-align: 1px;
+}
+
 /* ── Operation progress ── */
 .operation-progress {
   position: fixed;
@@ -489,3 +506,68 @@ table td {
   color: var(--text-muted);
   font-size: 12px;
 }
+
+/* Cartão sem padding próprio — cabeçalho e conteúdo (tabela/lista) gerem o
+   seu; usado nos registos de página inteira (Despesas, Notificações). */
+.card--flush {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* ── Bandeiras de país (flag-icons + fallback) ── */
+.fi {
+  border-radius: 3px;
+  flex-shrink: 0;
+  vertical-align: middle;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .06);
+}
+
+.flag-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 3px;
+  background: var(--cinza-claro, #f0ece6);
+  line-height: 1;
+}
+
+/* ── Colunas de tabela redimensionáveis + reordenáveis (js/domain/table-cols.js) ──
+   Aplicar a classe .cols-managed à <table>. Larguras via <colgroup> + JS. */
+.cols-managed { table-layout: fixed; width: auto; }
+.cols-managed thead th { position: relative; white-space: nowrap; }
+.cols-managed thead th.th-col { user-select: none; }
+.cols-managed thead th.th-sort { cursor: pointer; }
+.cols-managed thead th.th-sort:hover { background: var(--cinza-claro, #e4e0da); }
+.cols-managed thead th[draggable="true"]:active { cursor: grabbing; }
+.cols-managed thead th.th-dragging { opacity: .4; }
+.cols-managed thead th.th-drop-l::before,
+.cols-managed thead th.th-drop-r::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 3px;
+  background: var(--marca); z-index: 5;
+}
+.cols-managed thead th.th-drop-l::before { left: -1px; }
+.cols-managed thead th.th-drop-r::after { right: -1px; }
+.cols-managed .sort-icon { font-size: 11px; margin-left: 3px; color: var(--azul-claro, #8B3A24); }
+.cols-managed thead th .col-resizer {
+  position: absolute; top: 0; right: 0; width: 8px; height: 100%;
+  cursor: col-resize; z-index: 4; touch-action: none;
+}
+.cols-managed thead th .col-resizer::after {
+  content: ""; position: absolute; top: 6px; bottom: 6px; right: 3px;
+  width: 2px; border-radius: 2px; background: transparent; transition: background .12s;
+}
+.cols-managed thead th:hover .col-resizer::after { background: rgba(0, 0, 0, .14); }
+.cols-managed thead th .col-resizer:hover::after { background: var(--marca); }
+
+/* Picker de colunas dos exports (#export-cols-modal-bg) */
+.export-cols-list {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px;
+  max-height: 340px; overflow-y: auto;
+}
+.export-col-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 8px; border-radius: 6px; cursor: pointer; font-size: 13px;
+}
+.export-col-item:hover { background: var(--cinza-claro); }
+.export-col-item input { width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; }

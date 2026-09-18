@@ -50,6 +50,17 @@ function getSummary(req, res) {
   res.json({ success: true, data: { monthTotal, yearTotal, allTotal, byCategory } });
 }
 
+// GET /api/expenses/periods — meses (YYYY-MM) com despesas, mais recente primeiro.
+// Alimenta os dropdowns Ano/Mês do filtro de período.
+function getPeriods(req, res) {
+  const rows = db.prepare(`
+    SELECT DISTINCT substr(date,1,7) AS ym FROM expenses
+    WHERE organization_id = ? AND date IS NOT NULL AND length(date) >= 7
+    ORDER BY ym DESC
+  `).all(req.user.organization_id);
+  res.json({ success: true, data: rows.map(r => r.ym) });
+}
+
 // GET /api/expenses/check-invoice?invoice_ref=&supplier=&exclude_id=
 // Verifica se já existe despesa com o mesmo nº de fatura + fornecedor (fatura duplicada).
 function checkInvoice(req, res) {
@@ -198,4 +209,4 @@ function remove(req, res) {
   res.json({ success: true });
 }
 
-module.exports = { getAll, getSummary, create, update, remove, scanReceipt, bulkCreate, checkInvoice };
+module.exports = { getAll, getSummary, getPeriods, create, update, remove, scanReceipt, bulkCreate, checkInvoice };

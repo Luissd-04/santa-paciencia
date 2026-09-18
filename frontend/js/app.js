@@ -444,13 +444,15 @@ async function loadCalendarStatus() {
     if (el('sync-ok'))      el('sync-ok').textContent      = d.inCalendar ?? 0;
     if (el('sync-removed')) el('sync-removed').textContent = d.removed    ?? 0;
 
-    const toggle = el('gcal-sync-tasks-toggle');
-    if (toggle) toggle.checked = s.syncTasks ?? false;
+    const calToggle = el('gcal-sync-calendar-toggle');
+    if (calToggle) calToggle.checked = s.syncCalendar ?? false;
+    const tasksToggle = el('gcal-sync-tasks-toggle');
+    if (tasksToggle) tasksToggle.checked = s.syncTasks ?? false;
 
     const tasksStat = el('gcal-tasks-stat');
     if (tasksStat) {
-      if (s.syncTasks && d.tasksInCalendar != null) {
-        tasksStat.textContent = `${d.tasksInCalendar} tarefas no Google Calendar`;
+      if (s.syncCalendar && d.tasksInCalendar != null) {
+        tasksStat.textContent = `${d.tasksInCalendar} eventos no Google Calendar`;
         tasksStat.style.display = '';
       } else {
         tasksStat.style.display = 'none';
@@ -468,12 +470,16 @@ async function loadCalendarStatus() {
   } catch (e) {}
 }
 
-async function saveGcalSyncTasksSetting() {
-  const toggle = document.getElementById('gcal-sync-tasks-toggle');
-  if (!toggle) return;
+async function saveGcalSyncSettings() {
+  const calToggle = document.getElementById('gcal-sync-calendar-toggle');
+  const tasksToggle = document.getElementById('gcal-sync-tasks-toggle');
+  if (!calToggle && !tasksToggle) return;
   try {
-    await apiPost('/api/calendar/settings', { syncTasks: toggle.checked });
-    if (toggle.checked) {
+    await apiPost('/api/calendar/settings', {
+      syncCalendar: calToggle ? calToggle.checked : undefined,
+      syncTasks: tasksToggle ? tasksToggle.checked : undefined,
+    });
+    if ((calToggle && calToggle.checked) || (tasksToggle && tasksToggle.checked)) {
       await syncAllGcal();
     } else {
       await loadCalendarStatus();
@@ -519,7 +525,8 @@ async function syncAllGcal() {
     if (res.success) {
       const d = res.data;
       const taskInfo = d.syncTasks ? ` · Tarefas: ${d.taskCreated} criadas, ${d.taskUpdated} atualizadas${d.taskErrors ? ', ' + d.taskErrors + ' erros' : ''}` : '';
-      toast(`✅ Sincronização completa: ${d.created} criados, ${d.updated} atualizados${d.skipped ? ', ' + d.skipped + ' já ligados a outro membro' : ''}${d.errors ? ', ' + d.errors + ' erros' : ''}${taskInfo}.`, 'success');
+      const calInfo = d.calendarsCreated ? ` · ${d.calendarsCreated} calendário(s) de alojamento criado(s)` : '';
+      toast(`✅ Sincronização completa: ${d.created} criados, ${d.updated} atualizados${d.skipped ? ', ' + d.skipped + ' já ligados a outro membro' : ''}${d.errors ? ', ' + d.errors + ' erros' : ''}${calInfo}${taskInfo}.`, 'success');
       await loadCalendarStatus();
     } else {
       toast('❌ ' + (res.error || 'Erro ao sincronizar.'), 'error');
@@ -586,12 +593,11 @@ async function initApp() {
   showView(VIEW_TITLES[pathView] ? pathView : 'dashboard', false);
   if (deepId && pathView === 'reservas' && typeof showDetail === 'function') showDetail(deepId);
   if (window.AppDatePicker) {
-    ['f-checkin','f-checkout','f-payment-date','despesa-date','evento-date','manual-notification-date','filter-date-from','filter-date-to'].forEach(id => {
-      AppDatePicker.attach(document.getElementById(id));
-    });
-    ['f-nascimento','gedit-birth-date'].forEach(id => {
-      AppDatePicker.attach(document.getElementById(id), { isBirthDate: true });
-    });
+    // Os campos type=date são ligados automaticamente (enhanceAll + observer no
+    // date-picker.js); intervalos via data-dp-range-end e nascimentos via
+    // data-dp-birthdate. Só falta o f-nascimento — input de texto com máscara.
+    AppDatePicker.attach(document.getElementById('f-nascimento'), { isBirthDate: true });
+    AppDatePicker.enhanceAll();
   }
 
   // Restore list filters that can't be recovered from URL alone.

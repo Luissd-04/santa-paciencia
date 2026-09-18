@@ -153,6 +153,7 @@ function _renderRevenueChart(series, granularity = 'month') {
   const textColor = isDark ? '#aaa' : '#8a8278';
   const isDay = granularity === 'day';
   const labels = isDay ? series.map(d => d.day) : MONTH_SHORT;
+  const hasOccupancy = series.some(m => typeof m.occupancy_rate === 'number');
   const datasets = [
     {
       label: 'Receita (€)',
@@ -163,9 +164,7 @@ function _renderRevenueChart(series, granularity = 'month') {
             ? 'rgba(132,52,36,.9)' : 'rgba(132,52,36,.65)'),
       borderRadius: 5, borderSkipped: false,
     },
-  ];
-  if (!isDay) {
-    datasets.push({
+    ...(hasOccupancy ? [{
       label: 'Ocupação (%)',
       data: series.map(m => m.occupancy_rate),
       type: 'line',
@@ -174,8 +173,8 @@ function _renderRevenueChart(series, granularity = 'month') {
       borderWidth: 2, pointRadius: 3,
       pointBackgroundColor: 'rgba(74,111,165,1)',
       yAxisID: 'yOcc', tension: 0.35, fill: true,
-    });
-  }
+    }] : []),
+  ];
   _chartRevenue = new Chart(canvas, {
     type: 'bar',
     data: { labels, datasets },
@@ -194,8 +193,8 @@ function _renderRevenueChart(series, granularity = 'month') {
         x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 } } },
         y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 },
           callback: v => '€' + Number(v).toLocaleString('pt-PT') } },
-        ...(isDay ? {} : { yOcc: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100,
-          ticks: { color: 'rgba(74,111,165,.8)', font: { size: 11 }, callback: v => v + '%' } } })
+        ...(hasOccupancy ? { yOcc: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100,
+          ticks: { color: 'rgba(74,111,165,.8)', font: { size: 11 }, callback: v => v + '%' } } } : {})
       }
     }
   });
@@ -265,7 +264,7 @@ function _renderReportTable(series, granularity = 'month') {
     const isCurrent = isDay
       ? (m.day === today.getDate() && _reportMonth === today.getMonth() + 1 && _reportYear === today.getFullYear())
       : (m.month === today.getMonth() && _reportYear === today.getFullYear());
-    const occCell = isDay ? '—' : `
+    const occCell = typeof m.occupancy_rate !== 'number' ? '—' : `
         <span class="report-occ-bar">
           <span class="report-occ-fill" style="width:${m.occupancy_rate}%;background:${m.occupancy_rate > 70 ? 'var(--verde)' : m.occupancy_rate > 40 ? 'var(--dourado)' : 'var(--cinza)'};"></span>
         </span>

@@ -460,19 +460,14 @@
   }
 
   /* .reservas-filter-panel já é .m-sheet (ver components/sheet.css);
-     dentro da folha só interessam suite/canal/pagamento/datas —
-     estado já está nos chips, pesquisa já está no campo mobile,
-     e o toggle Cartão/Lista não faz sentido num único layout. */
+     dentro da folha só estão suite/canal/pagamento/datas — a pesquisa,
+     o estado (chips) e o toggle Cartão/Lista vivem na barra de topo,
+     que fica oculta no mobile. */
   .reservas-filter-panel .reservas-toolbar {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
     padding: 16px;
-  }
-  .reservas-filter-panel .reservas-search-box,
-  .reservas-filter-panel #filter-estado,
-  .reservas-filter-panel .reservas-view-toggle {
-    display: none !important;
   }
 
   /* Cada filtro ocupa sempre a largura toda da folha — a variante
@@ -705,14 +700,17 @@
     border-color: rgba(176, 48, 48, 0.2);
   }
 
-  /* Header da view vouchers: toolbar com botão */
-  .view-header {
-    margin-bottom: 14px;
+  /* Vouchers: card plano no telemóvel (os .voucher-mobile-card já têm caixa própria) */
+  .vouchers-card {
+    border-radius: 0;
+    box-shadow: none;
+    border: none;
+    background: transparent;
   }
 
-  .view-header-actions {
-    display: flex;
-    justify-content: flex-end;
+  .vouchers-card-header {
+    padding: 0 2px;
+    margin-bottom: 12px;
   }
 }
 

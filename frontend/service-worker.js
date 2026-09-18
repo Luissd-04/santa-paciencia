@@ -5,8 +5,8 @@
                offline). Cache-first apenas para CDNs (fontes, libs).
 ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'sp-v20';
-const CACHE_VERSION = 20;
+const CACHE_NAME = 'sp-v28';
+const CACHE_VERSION = 28;
 
 /* Assets estáticos que devem funcionar offline */
 const STATIC_ASSETS = [
@@ -14,6 +14,16 @@ const STATIC_ASSETS = [
   '/index.html',
   '/pre-checkin.html',
   '/css/styles.css',
+  '/css/styles/base.css',
+  '/css/styles/shell.css',
+  '/css/styles/alojamentos.css',
+  '/css/styles/hospedes.css',
+  '/css/styles/emails.css',
+  '/css/styles/calendario.css',
+  '/css/styles/complementos.css',
+  '/css/styles/relatorios.css',
+  '/css/styles/definicoes.css',
+  '/css/styles/formularios.css',
   '/css/base.css',
   '/css/layout.css',
   '/css/components.css',
@@ -23,12 +33,15 @@ const STATIC_ASSETS = [
   '/css/views/reservas.css',
   '/css/views/despesas.css',
   '/css/views/operations.css',
+  '/css/views/calendar.css',
+  '/css/vendor/flag-icons.min.css',
   '/css/public-reservation.css',
   '/js/app.js',
   '/js/auth.js',
   '/js/state.js',
   '/js/helpers.js',
   '/js/ui.js',
+  '/js/ui-blocks.js',
   '/js/pubsub.js',
   '/js/notifications.js',
   '/js/push.js',
@@ -53,6 +66,35 @@ const STATIC_ASSETS = [
   '/js/domain/dates.js',
   '/js/domain/pricing.js',
   '/js/domain/date-picker.js',
+  '/js/domain/table-cols.js',
+  '/js/features/reserva-lista/lista-colunas.js',
+  '/js/features/reserva-lista/lista-render.js',
+  '/js/features/reserva-lista/detalhe.js',
+  '/js/features/reserva-lista/detalhe-formularios.js',
+  '/js/features/reserva-lista/documentos.js',
+  '/js/features/reserva-lista/alojamento-painel.js',
+  '/js/features/reserva-lista/acoes.js',
+  '/js/features/reserva-lista/exportacao.js',
+  '/js/features/reserva-wizard/editor.js',
+  '/js/features/reserva-wizard/rascunhos.js',
+  '/js/features/reserva-wizard/precos.js',
+  '/js/features/reserva-wizard/datas-hospedes.js',
+  '/js/features/reserva-wizard/disponibilidade.js',
+  '/js/features/reserva-wizard/passos.js',
+  '/js/features/reserva-wizard/guardar.js',
+  '/js/features/alojamentos/galeria.js',
+  '/js/features/alojamentos/servicos-heranca.js',
+  '/js/features/alojamentos/exportacao.js',
+  '/js/features/alojamentos/configuracao.js',
+  '/js/features/calendario/mes-agenda.js',
+  '/js/features/calendario/paisagem.js',
+  '/js/features/calendario/timeline.js',
+  '/js/features/calendario/interacoes.js',
+  '/js/features/invoice/historico.js',
+  '/js/features/invoice/arquivo.js',
+  '/js/features/invoice/composicao.js',
+  '/js/features/invoice/auxiliares.js',
+  '/js/vendor/xlsx-0.20.3.min.js',
   '/favicon.png',
 ];
 
@@ -92,9 +134,10 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   if (url.protocol === 'chrome-extension:') return;
 
-  /* API calls → Network-first (dados têm de ser frescos) */
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirst(request));
+  // Dados autenticados, documentos e URLs com tokens nunca vão para a Cache API.
+  if (url.origin === self.location.origin && !STATIC_ASSETS.includes(url.pathname) &&
+      !/^\/(?:js|css)\//.test(url.pathname)) {
+    event.respondWith(fetch(request, { cache: 'no-store' }));
     return;
   }
 

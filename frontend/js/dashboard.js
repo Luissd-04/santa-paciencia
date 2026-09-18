@@ -1,3 +1,7 @@
+// Ocupação por unidade no mês corrente, servida por /stats/dashboard.
+// null = ainda não respondeu; [] = respondeu sem dados (ex.: backend antigo).
+let _dashAvailability = null;
+
 async function exportDB() {
   showOperationProgress('A exportar base de dados', 'A preparar ZIP...', 8);
   try {
@@ -84,7 +88,7 @@ async function importDB(input) {
       toast('❌ ' + (res.error || 'Erro ao importar.'), 'error');
     }
   } catch (e) {
-    toast('❌ ZIP inválido ou erro de ligação.', 'error');
+    toast('❌ Erro ao importar ZIP: ' + (e.message || 'erro desconhecido'), 'error');
   } finally {
     hideOperationProgress();
   }
@@ -96,6 +100,7 @@ async function loadDashboardStats() {
     const data = await apiGet('/api/reservations/stats/dashboard');
     if (data.success) {
       const s = data.data;
+      _dashAvailability = Array.isArray(s.availability) ? s.availability : [];
       document.getElementById('kpi-faturado').textContent = '€' + Number(s.totalBilled).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       document.getElementById('kpi-ativas').textContent = s.confirmedReservations;
       document.getElementById('kpi-noites').textContent = s.nightsThisMonth;
@@ -252,24 +257,32 @@ async function renderDashboard() {
   renderMobileDashboard(upcoming);
   if (window.lucide) lucide.createIcons();
 
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  renderDashAvailability();
+}
+
+// Ocupação por unidade no mês corrente — vem já calculada do backend (noites
+// dentro do mês, reservas multi-suite e do alojamento inteiro incluídas).
+function renderDashAvailability() {
   const da = document.getElementById('dash-avail');
-  if (accommodations.length === 0) {
+  if (!da) return;
+  if (_dashAvailability === null) {
     da.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
     return;
   }
-  da.innerHTML = accommodations.map(a => {
-    const cor = a.color || '#843424';
-    const ocupadas = reservas.filter(r => r.accommodation_id === a.id && r.status !== 'cancelada')
-      .reduce((s, r) => s + (r.nights || 0), 0);
-    const pct = Math.min(100, Math.round((ocupadas / daysInMonth) * 100));
+  if (!_dashAvailability.length) {
+    da.innerHTML = '<div class="empty-state"><div class="es-icon">🛏️</div><h3>Sem dados de ocupação</h3></div>';
+    return;
+  }
+  da.innerHTML = _dashAvailability.map(u => {
+    const cor = u.color || '#843424';
+    const pct = u.occupancy_rate;
     return `<div class="avail-suite" style="margin-bottom:12px;border-color:${cor}40;">
       <div class="avail-suite-name" style="display:flex;align-items:center;gap:8px;">
         <span style="width:10px;height:10px;border-radius:50%;background:${cor};flex-shrink:0;display:inline-block;"></span>
-        ${a.name}
+        ${escapeHtml(u.name)}
       </div>
       <div class="avail-bar"><div class="avail-fill" style="--fill-pct:${pct}%;background:${cor}"></div></div>
-      <div class="avail-info"><span>${pct}% ocupado</span><span>€${a.price_per_night}/noite</span></div>
+      <div class="avail-info"><span>${pct}% ocupado · ${u.nights}/${u.days_in_month} noites</span><span>€${u.price_per_night}/noite</span></div>
     </div>`;
   }).join('');
 }

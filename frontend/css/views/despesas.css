@@ -3,21 +3,25 @@
   gap: 24px;
 }
 
+/* 3 cartões → grelha de 3 colunas que preenche a largura (o .kpi-grid base
+   é de 4 colunas e deixava uma coluna vazia à direita). O margin-bottom
+   herdado sai — o espaçamento vem do gap do .despesas-shell. */
 .despesas-kpi-grid {
-  gap: 18px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 0;
 }
 
 .despesas-kpi-mobile { display: none; }
 
-/* Desktop: linha própria de filtros acima da tabela (mesmo padrão do
-   .calendario-filter-panel) — em mobile vira folha deslizante, ver
-   mobile.css. */
+/* Desktop: linha própria de filtros acima da tabela. Campos à esquerda,
+   "Limpar filtros" encostado à direita (padrão .view-toolbar). Em mobile
+   vira folha deslizante — ver mobile.css. */
 .despesas-filter-panel {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: -8px;
 }
 
 .despesas-filter-panel .m-sheet-header {
@@ -28,20 +32,25 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-left: auto;
 }
 
 .despesas-filter-apply { display: none; }
 
 .despesas-mobile-toolbar { display: none; }
 
-.despesas-table-card {
-  overflow: hidden;
-  padding: 0;
-}
-
 .despesas-card-header {
   padding: 22px 24px 0;
   align-items: end;
+}
+
+.despesas-scan-btn {
+  color: var(--marca);
+}
+
+/* Cabeçalhos da tabela numa só linha — "Contribuinte" não colide com "Valor" */
+.despesas-table-wrap th {
+  white-space: nowrap;
 }
 
 .despesas-card-caption {
@@ -53,26 +62,24 @@
   padding: 18px 24px 24px;
 }
 
-/* Tabela fluida: as colunas com largura fixa (datas, valores) ficam estáveis e
-   a Descrição absorve o espaço restante do monitor. Abaixo do min-width o
-   wrap faz scroll horizontal em vez de esmagar colunas. */
-.despesas-table-wrap table {
-  table-layout: fixed;
-  width: 100%;
-  min-width: 920px;
-}
+/* Larguras/ordem geridas por js/domain/table-cols.js (colgroup + JS).
+   O wrap faz scroll horizontal quando a soma das colunas não cabe. */
 
-/* Texto longo (sobretudo a descrição) corta com reticências em vez de esticar
-   a tabela; o texto completo fica no title (hover). */
+/* Texto longo (sobretudo a descrição) corta em vez de esticar a tabela;
+   o texto completo fica no title (hover). */
 .despesas-table-wrap tbody td {
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 /* A coluna de ações precisa dos botões visíveis por inteiro */
-.despesas-table-wrap tbody td:last-child {
+.despesas-table-wrap tbody td[data-col="actions"] {
   overflow: visible;
   text-overflow: clip;
+}
+
+.despesas-total-row td {
+  border-top: 2px solid var(--cinza-claro);
 }
 
 #despesas-kpi-grid .kpi-card {

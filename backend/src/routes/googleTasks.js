@@ -1,4 +1,5 @@
 const router = require('express').Router();
+router.use(require('../middleware/requireRole')('manager'));
 const { db } = require('../config/database');
 const {
   getAuthenticatedTasksClient,

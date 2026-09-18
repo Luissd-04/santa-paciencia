@@ -1,3 +1,4 @@
+const { fetchWithTimeout } = require('../services/httpClient');
 const { OAuth2Client } = require('google-auth-library');
 const path = require('path');
 const fs = require('fs');
@@ -78,7 +79,7 @@ async function revokeTokens(userId, organizationId) {
   const revokeToken = token?.refresh_token || token?.access_token;
   if (!revokeToken) return;
   try {
-    await fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(revokeToken), {
+    await fetchWithTimeout('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(revokeToken), {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });

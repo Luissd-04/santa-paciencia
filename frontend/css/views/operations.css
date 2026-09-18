@@ -100,31 +100,17 @@
   flex-shrink: 0;
 }
 
-.calendar-toolbar {
+/* Eventos: barra única igual a #view-reservas / #view-calendario —
+   navegação + contador à esquerda, .view-toolbar-actions encostado à
+   direita (base.css: margin-left:auto em ≥601px). */
+#eventos-panel-calendar .calendar-toolbar {
   justify-content: flex-start;
-}
-
-.calendar-toolbar .view-toolbar-actions {
-  justify-content: flex-start;
-}
-
-/* Desktop: os filtros do Calendário vivem numa segunda linha própria
-   (saíram do .view-toolbar-actions para poderem virar bottom sheet em
-   mobile — ver .calendario-filter-panel em mobile.css). */
-.calendario-filter-panel {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-
-.calendario-filter-panel .m-sheet-header {
-  display: none;
 }
 
 .section-card-calendar .cal-wrap {
   padding: 18px 24px 24px;
+  background: #fff;
+  box-shadow: none;
 }
 
 .section-card-calendar #timeline-wrap,
@@ -177,11 +163,6 @@
 
 .legend-pendente {
   box-shadow: inset 0 0 0 1px rgba(196, 120, 32, 0.16);
-}
-
-.cal-wrap {
-  background: #fff;
-  box-shadow: none;
 }
 
 .cal-week:not(:first-child) {
@@ -245,81 +226,13 @@
 }
 .tl-range-enter { animation: tlRangeIn .22s ease forwards; }
 
-.cal-day {
-  border-radius: 14px;
-  padding: 8px;
-}
-
-.cal-day-events {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-  margin-top: 6px;
-  align-content: start;
-}
-
-.cal-day-events .cal-event {
-  margin-top: 0;
-  max-width: none;
-}
-
-.cal-day.other-month .cal-day-events {
-  opacity: .72;
-}
-
-.cal-event-full,
-.cal-event-more {
-  grid-column: 1 / -1;
-}
-
-.cal-event-half-start,
-.cal-event-half-end,
-.cal-event-half-single {
-  min-width: 0;
-  overflow: hidden;
-}
-
-.cal-event-half-start {
-  grid-column: 2;
-  border-top-left-radius: 7px;
-  border-bottom-left-radius: 7px;
-}
-
-.cal-event-half-end {
-  grid-column: 1;
-  border-top-right-radius: 7px;
-  border-bottom-right-radius: 7px;
-}
-
-.cal-event-half-single {
-  grid-column: 2;
-  border-top-left-radius: 7px;
-  border-bottom-left-radius: 7px;
-  border-top-right-radius: 999px;
-  border-bottom-right-radius: 999px;
-}
-
-.cal-event-more {
-  font-size: 10px;
-  color: var(--cinza);
-  padding: 2px 6px;
-}
-
-.cal-day {
-  border-radius: 14px;
-  padding: 8px;
-}
-
+/* .cal-day base + variantes de dimensão: ver css/styles.css (.cal-day) */
 .cal-day:not(.other-month) {
   cursor: pointer;
 }
 
 .cal-day.other-month {
   cursor: default;
-}
-
-.calendar-controls {
-  margin-bottom: 0;
 }
 
 #timeline-range-toggle {
@@ -587,25 +500,13 @@ body.tl-is-panning * {
 
 .eventos-list-toolbar {
   justify-content: flex-start;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0;
-}
-
-.eventos-list-toolbar .view-toolbar-actions {
-  align-items: center;
-  justify-content: flex-start;
-}
-
-.eventos-list-toolbar .view-toolbar-actions > .btn-primary {
-  margin-left: auto;
 }
 
 .eventos-type-chips-row {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 8px 0 10px;
+  padding: 0 0 4px;
 }
 
 .evt-type-chip {
@@ -897,12 +798,60 @@ body.tl-is-panning * {
 
 .notifications-page-card {
   max-width: 100%;
-  padding: 0;
-  overflow: hidden;
+}
+
+/* Cabeçalho como barra única: título + contador à esquerda, ações
+   (Atualizar / Adicionar) agrupadas à direita. O card tem padding:0,
+   por isso o cabeçalho alinha com os itens da lista (18px laterais). */
+.notifications-page-card .card-header {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 20px 18px 0;
+  margin-bottom: 14px;
+}
+
+.notifications-page-card .card-header .view-toolbar-actions {
+  margin-left: auto;
 }
 
 .notifications-page-list {
   display: grid;
+}
+
+/* ── Vouchers ── */
+.vouchers-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.vouchers-card-header {
+  padding: 20px 22px 0;
+  justify-content: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.vouchers-card-header .view-toolbar-actions {
+  margin-left: auto;
+}
+
+#vouchers-list-wrap .table-wrap {
+  padding: 8px 22px 22px;
+}
+
+/* Colunas com proporções fixas — não se espalham pelo monitor todo */
+.vouchers-table {
+  table-layout: fixed;
+}
+
+.vouchers-table tbody td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vouchers-table tbody td:last-child {
+  overflow: visible;
 }
 
 .notifications-page-item {
@@ -1441,13 +1390,6 @@ body.tl-is-panning * {
     width: 15px !important;
     height: 15px !important;
     stroke-width: 3.2;
-  }
-
-  .agenda-empty {
-    padding: 26px 16px;
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 13px;
   }
 
   .agenda-checkout-filter-bar {

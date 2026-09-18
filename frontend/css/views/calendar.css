@@ -1,0 +1,82 @@
+/* ═══════════════════════════════════════════════════════════════
+   SANTA PACIÊNCIA — Calendário + Timeline
+   Casa única do CSS da view #view-calendario (grelha mensal, agenda,
+   landscape e timeline). Carrega depois de views/operations.css e
+   antes de mobile.css. As classes .cal-* / .tl-* são partilhadas com
+   o separador Eventos (#view-eventos) — alterar com cuidado.
+═══════════════════════════════════════════════════════════════ */
+
+/* ── Barra única + espaçamento do shell (padrão #view-reservas) ── */
+#view-calendario .calendar-shell,
+#view-eventos .calendar-shell {
+  gap: 16px;
+}
+
+@media (min-width: 601px) {
+  /* Os filtros (suite/estado/canal) fluem dentro da própria .view-toolbar,
+     sem segunda linha nem margin-top. O painel continua a ser um bottom
+     sheet .m-sheet no mobile (ver mobile.css). */
+  #calendario-filter-panel {
+    display: contents;
+  }
+  #calendario-filter-panel > .m-sheet-header {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  /* Navegação (Anterior/Hoje/Próximo) partilha a linha e quebra com jeito */
+  .calendar-toolbar > .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
+/* "Setembro 2026" com respiro simétrico: menos espaço vazio em cima
+   (barra), mais em baixo (legenda → grelha). Antes o mês colava ao
+   calendário e sobrava espaço morto por cima. */
+.section-card-calendar .section-card-head {
+  padding-top: 10px;
+}
+.section-card-calendar .calendar-legend {
+  padding-bottom: 26px;
+}
+
+/* ── Eventos: mesma barra única ── */
+/* O separador de vistas (Calendário/Lista) cola à barra seguinte — sem o
+   margin-bottom herdado de .report-tabs, que somava ao gap do shell. */
+#view-eventos .eventos-tabs {
+  margin-bottom: 0;
+}
+
+/* Eventos não tem legenda entre o título e a grelha — o respiro para
+   baixo do "Setembro 2026" vem do padding-bottom do cabeçalho. */
+.section-card-eventos .section-card-head {
+  padding-bottom: 24px;
+}
+
+/* ── Geometria da timeline por CSS custom properties ──
+   O JS (renderTimeline) escreve --tl-day-w / --tl-days-total / --tl-label-w
+   uma vez em #timeline-wrap e --tl-month-days em cada .tl-month-head, em vez
+   de width/min-width inline por célula. As larguras de .tl-label / .tl-day-head
+   / .tl-cell / .tl-days-area / .tl-month-head estão em css/styles.css já a ler
+   estas vars; aqui fica só o que faltava (a largura total do scroller). */
+#timeline-wrap .timeline-scroll,
+#eventos-timeline-wrap .timeline-scroll {
+  min-width: calc(var(--tl-label-w, 190px) + var(--tl-day-w, 48px) * var(--tl-days-total, 365));
+}
+
+/* ── Empty states (componente partilhado .empty-state) ── */
+.empty-state-inline {
+  padding: 32px 20px;
+}
+.empty-state-inline .es-icon {
+  font-size: 34px;
+  margin-bottom: 8px;
+}
+
+#timeline-wrap > .empty-state,
+#eventos-timeline-wrap > .empty-state {
+  position: sticky;
+  left: 0;
+}

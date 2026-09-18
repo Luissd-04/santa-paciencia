@@ -1,6 +1,12 @@
 let despesasData = [];
 let despesaEditId = null;
-let despesaFilterMonth = SS.get('desp:month', new Date().toISOString().slice(0, 7));
+let despesaFilterYear  = SS.get('desp:year', String(new Date().getFullYear()));
+let despesaFilterMonth = SS.get('desp:month', new Date().toISOString().slice(0, 7));   // YYYY-MM
+let despesaPeriods = [];   // meses (YYYY-MM) com despesas, mais recente primeiro
+
+const MESES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+const despMonthLabel = ym => `${MESES_PT[Number(ym.slice(5, 7)) - 1] || ym} ${ym.slice(0, 4)}`;
 
 const EXPENSE_CATS = {
   limpeza:          { label: 'Limpeza',             color: '#4a90d9', icon: 'brush-cleaning' },
@@ -19,6 +25,72 @@ const EXPENSE_CATS = {
 
 let suppliersData = [];
 
+// ── Colunas da tabela: redimensionáveis + reordenáveis + ordenáveis ──
+// Mesmo padrão de #reservas-table — ver js/domain/table-cols.js.
+let despesasSortCol = SS.get('desp:sort', 'date');
+let despesasSortAsc = SS.get('desp:asc', false);   // por defeito: data desc (mais recente 1º)
+
+function sortDespesas(key) {
+  if (despesasSortCol === key) despesasSortAsc = !despesasSortAsc;
+  else { despesasSortCol = key; despesasSortAsc = key !== 'date'; }
+  SS.set('desp:sort', despesasSortCol);
+  SS.set('desp:asc', despesasSortAsc);
+  renderDespesas();
+}
+
+function despSortValue(d, key) {
+  if (key === 'amount') return Number(d.amount) || 0;
+  if (key === 'has_nif') return d.has_nif ? 1 : 0;
+  if (key === 'category') return EXPENSE_CATS[d.category]?.label || d.category || '';
+  return d[key] || '';
+}
+
+const DESP_COLUMNS = [
+  { key: 'date',           label: 'Data',        sort: 'date',           defaultW: 104, minW: 76 },
+  { key: 'category',       label: 'Categoria',   sort: 'category',       defaultW: 140, minW: 96 },
+  { key: 'description',    label: 'Descrição',   sort: 'description',    defaultW: 260, minW: 120, flex: true },
+  { key: 'supplier',       label: 'Fornecedor',  sort: 'supplier',       defaultW: 140, minW: 90, flex: true },
+  { key: 'invoice_ref',    label: 'Nº Fatura',   sort: 'invoice_ref',    defaultW: 118, minW: 84 },
+  { key: 'has_nif',        label: 'Contribuinte', sort: 'has_nif',       defaultW: 128, minW: 112 },
+  { key: 'amount',         label: 'Valor',       sort: 'amount',         defaultW: 104, minW: 78 },
+  { key: 'payment_method', label: 'Método',      sort: 'payment_method', defaultW: 120, minW: 84, flex: true },
+  { key: 'actions',        label: 'Ações',       sort: null,             defaultW: 92, minW: 84 },
+];
+
+const DESP_CELL = {
+  date: d => `<td data-col="date" style="font-size:13px;">${formatDate(d.date)}</td>`,
+  category: d => {
+    const c = EXPENSE_CATS[d.category] || EXPENSE_CATS.outro;
+    return `<td data-col="category"><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;background:${c.color}22;color:${c.color};">${c.icon ? `<i data-lucide="${c.icon}" style="width:11px;height:11px;"></i>` : ''}${c.label}</span></td>`;
+  },
+  description: d => `<td data-col="description" title="${escapeHtml(d.description)}${d.notes ? ' — ' + escapeHtml(d.notes) : ''}">${escapeHtml(d.description)}${d.notes ? `<br><span style="font-size:11px;color:var(--cinza);">${escapeHtml(d.notes)}</span>` : ''}</td>`,
+  supplier: d => `<td data-col="supplier" style="font-size:12.5px;">${escapeHtml(d.supplier || '—')}</td>`,
+  invoice_ref: d => `<td data-col="invoice_ref" style="font-size:12px;color:var(--cinza);">${escapeHtml(d.invoice_ref || '—')}${d.receipt_image ? ` <a href="${escapeHtml(d.receipt_image)}" target="_blank" title="Ver talão" style="color:var(--marca);text-decoration:none;">${lcIcon('paperclip', 12)}</a>` : ''}</td>`,
+  has_nif: d => `<td data-col="has_nif" style="font-size:11.5px;">${d.has_nif
+    ? '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:rgba(46,125,82,.12);color:#2e7d52;font-weight:600;">Com NIF</span>'
+    : '<span style="color:var(--cinza);">Sem NIF</span>'}</td>`,
+  amount: d => `<td data-col="amount" style="font-weight:600;color:var(--vermelho);">${formatEUR(d.amount)}</td>`,
+  payment_method: d => `<td data-col="payment_method" style="font-size:12.5px;color:var(--cinza);">${escapeHtml(d.payment_method || '—')}</td>`,
+  actions: d => `<td data-col="actions" onclick="event.stopPropagation()" style="white-space:nowrap;">
+      <button class="btn btn-ghost btn-sm" onclick="openDespesaModal('${escapeHtml(d.id)}')" title="Editar">${lcIcon('pencil', 13)}</button>
+      <button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho);" onclick="deleteDespesa('${escapeHtml(d.id)}')" title="Remover">${lcIcon('trash-2', 13)}</button>
+    </td>`,
+};
+
+const despCols = createColLayout({
+  tableId: 'despesas-table',
+  storageKey: 'desp',
+  storage: 'local',       // larguras/ordem sobrevivem ao fechar o browser
+  mode: 'fit',            // colunas re-escalam sempre para caber (nunca saem do ecrã)
+  wrapSelector: '.despesas-table-wrap',
+  activeViewId: 'view-despesas',
+  lastFixed: 'actions',
+  columns: DESP_COLUMNS,
+  onSort: sortDespesas,
+  sortState: () => ({ col: despesasSortCol, asc: despesasSortAsc }),
+  onReorder: renderDespesas,
+});
+
 // Filtros de Despesas viram uma folha deslizante no telemóvel — mesmo
 // mecanismo de #reservas-filter-panel/#calendario-filter-panel.
 function toggleDespesasFiltersSheet(open) {
@@ -32,7 +104,8 @@ function despesasFiltersActive() {
   const period = document.getElementById('despesa-filter-period')?.value || 'ano';
   const cat    = document.getElementById('despesa-filter-category')?.value || '';
   const sup    = document.getElementById('despesa-filter-supplier')?.value || '';
-  return period !== 'ano' || cat !== '' || sup !== '';
+  const yearChanged = period === 'ano' && despesaFilterYear !== String(new Date().getFullYear());
+  return period !== 'ano' || yearChanged || cat !== '' || sup !== '';
 }
 
 function updateDespesasFilterBadge() {
@@ -45,10 +118,58 @@ function clearDespesasFiltros() {
   const cat = document.getElementById('despesa-filter-category');
   const sup = document.getElementById('despesa-filter-supplier');
   if (period) period.value = 'ano';
+  // Volta ao ano/mês atuais (syncDespesaPeriodSelects recalcula a partir daqui).
+  const year = document.getElementById('despesa-filter-year');
+  const month = document.getElementById('despesa-filter-month');
+  if (year) year.innerHTML = '';
+  if (month) month.innerHTML = '';
+  despesaFilterYear = String(new Date().getFullYear());
+  despesaFilterMonth = new Date().toISOString().slice(0, 7);
   if (cat) cat.value = '';
   if (sup) sup.value = '';
   AppUI.refreshDropdowns(document.getElementById('view-despesas'));
   loadDespesas();
+}
+
+// Preenche os dropdowns Ano/Mês só com períodos que têm despesas e mostra-os
+// consoante o modo: "Por ano" → Ano; "Por mês" → Ano + Mês; "Tudo" → nenhum.
+function syncDespesaPeriodSelects(period) {
+  const yearSel  = document.getElementById('despesa-filter-year');
+  const monthSel = document.getElementById('despesa-filter-month');
+  if (!yearSel || !monthSel) return;
+
+  const now = new Date();
+  const curYear = String(now.getFullYear());
+  const curMonth = now.toISOString().slice(0, 7);
+
+  // Valor escolhido pelo utilizador tem prioridade sobre o guardado.
+  if (yearSel.value) despesaFilterYear = yearSel.value;
+  const years = [...new Set(despesaPeriods.map(p => p.slice(0, 4)))];
+  if (!years.length) years.push(curYear);
+  if (!years.includes(despesaFilterYear)) despesaFilterYear = years.includes(curYear) ? curYear : years[0];
+
+  const months = despesaPeriods.filter(p => p.startsWith(despesaFilterYear + '-'));
+  if (!months.length) months.push(despesaFilterYear === curYear ? curMonth : `${despesaFilterYear}-01`);
+  const pickedMonth = monthSel.value || despesaFilterMonth;
+  // Ao mudar de ano, o mês salta para o mais recente com despesas nesse ano.
+  despesaFilterMonth = months.includes(pickedMonth) ? pickedMonth
+    : months.includes(curMonth) ? curMonth : months[0];
+
+  yearSel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+  yearSel.value = despesaFilterYear;
+  monthSel.innerHTML = months.map(m => `<option value="${m}">${MESES_PT[Number(m.slice(5, 7)) - 1]}</option>`).join('');
+  monthSel.value = despesaFilterMonth;
+
+  SS.set('desp:year', despesaFilterYear);
+  SS.set('desp:month', despesaFilterMonth);
+
+  const view = document.getElementById('view-despesas');
+  AppUI.enhanceSelects(view);
+  AppUI.refreshSelect(yearSel);
+  AppUI.refreshSelect(monthSel);
+  const wrapOf = sel => sel.closest('.app-select') || sel;
+  wrapOf(yearSel).style.display  = period === 'tudo' ? 'none' : '';
+  wrapOf(monthSel).style.display = period !== 'mes' ? 'none' : '';
 }
 
 // ── LOAD ──
@@ -59,17 +180,14 @@ async function loadDespesas() {
 
   const period = document.getElementById('despesa-filter-period')?.value || 'ano';
 
-  const monthInput = document.getElementById('despesa-filter-month');
-  if (monthInput) {
-    monthInput.style.display = period === 'mes' ? '' : 'none';
-    if (!monthInput.value) monthInput.value = despesaFilterMonth;
-    despesaFilterMonth = monthInput.value;
-    SS.set('desp:month', despesaFilterMonth);
-  }
+  try {
+    despesaPeriods = (await apiGet('/api/expenses/periods')).data || [];
+  } catch { /* sem períodos: os dropdowns caem no ano/mês atual */ }
+  syncDespesaPeriodSelects(period);
 
   let listUrl = '/api/expenses';
   if (period === 'mes')      listUrl += `?month=${despesaFilterMonth}`;
-  else if (period === 'ano') listUrl += `?year=${new Date().getFullYear()}`;
+  else if (period === 'ano') listUrl += `?year=${despesaFilterYear}`;
   // 'tudo' => sem filtro
 
   updateDespesasFilterBadge();
@@ -98,12 +216,12 @@ function renderDespesasKpi(s) {
   grid.innerHTML = `
     <div class="kpi-card" style="border-color:var(--vermelho);">
       <div class="kpi-label">Este mês</div>
-      <div class="kpi-value" style="color:var(--vermelho);">€${Number(s.monthTotal||0).toFixed(2)}</div>
-      <div class="kpi-sub">${despesaFilterMonth}</div>
+      <div class="kpi-value" style="color:var(--vermelho);">${formatEUR(s.monthTotal)}</div>
+      <div class="kpi-sub">${despMonthLabel(new Date().toISOString().slice(0, 7))}</div>
     </div>
     <div class="kpi-card" style="border-color:var(--laranja);">
       <div class="kpi-label">Este ano</div>
-      <div class="kpi-value" style="color:var(--laranja);">€${Number(s.yearTotal||0).toFixed(2)}</div>
+      <div class="kpi-value" style="color:var(--laranja);">${formatEUR(s.yearTotal)}</div>
       <div class="kpi-sub">${new Date().getFullYear()}</div>
     </div>
     <div class="kpi-card" style="border-color:var(--roxo);">
@@ -111,7 +229,7 @@ function renderDespesasKpi(s) {
       <div class="kpi-value" style="font-size:18px;padding-top:4px;">
         ${s.byCategory && s.byCategory[0] ? (EXPENSE_CATS[s.byCategory[0].category]?.label || s.byCategory[0].category) : '—'}
       </div>
-      <div class="kpi-sub">${s.byCategory && s.byCategory[0] ? '€' + Number(s.byCategory[0].total).toFixed(2) : ''}</div>
+      <div class="kpi-sub">${s.byCategory && s.byCategory[0] ? formatEUR(s.byCategory[0].total) : ''}</div>
     </div>`;
 }
 
@@ -124,15 +242,15 @@ function renderDespesasKpiMobile(s) {
   const top = s.byCategory && s.byCategory[0];
   wrap.innerHTML = `
     <div class="dkm-band">
-      <div class="dkm-col"><div class="dkm-value">€${Number(s.monthTotal||0).toFixed(2)}</div><div class="dkm-label">Este mês</div></div>
-      <div class="dkm-col"><div class="dkm-value">€${Number(s.yearTotal||0).toFixed(2)}</div><div class="dkm-label">Este ano</div></div>
+      <div class="dkm-col"><div class="dkm-value">${formatEUR(s.monthTotal)}</div><div class="dkm-label">Este mês</div></div>
+      <div class="dkm-col"><div class="dkm-value">${formatEUR(s.yearTotal)}</div><div class="dkm-label">Este ano</div></div>
     </div>
     <div class="dkm-top-cat">
       <div>
         <div class="dkm-top-cat-label">Maior categoria (ano)</div>
         <div class="dkm-top-cat-value">${top ? (EXPENSE_CATS[top.category]?.label || top.category) : '—'}</div>
       </div>
-      <div class="dkm-top-cat-amount">${top ? '€' + Number(top.total).toFixed(2) : ''}</div>
+      <div class="dkm-top-cat-amount">${top ? formatEUR(top.total) : ''}</div>
     </div>`;
 }
 
@@ -152,21 +270,23 @@ function renderDespesas() {
   const loading = document.getElementById('despesas-loading');
   const tbody   = document.getElementById('despesas-body');
   const empty   = document.getElementById('despesas-empty');
+  const tableWrap = document.querySelector('.despesas-table-wrap');
   loading.style.display = 'none';
   updateDespesasFilterBadge();
 
   const mobileWrap = document.getElementById('despesas-mobile-cards');
+  const showEmpty = () => { if (tableWrap) tableWrap.style.display = 'none'; empty.style.display = 'block'; };
 
   if (despesasData.length === 0) {
     tbody.innerHTML = '';
     if (mobileWrap) mobileWrap.innerHTML = '';
     const period = document.getElementById('despesa-filter-period')?.value || 'ano';
-    const scope = period === 'mes' ? `em ${despesaFilterMonth}` : period === 'ano' ? `em ${new Date().getFullYear()}` : 'registadas';
-    empty.innerHTML = `
-      <div class="es-icon">💸</div>
-      <h3>Sem despesas ${scope}</h3>
-      <p>${period === 'tudo' ? 'Ainda não registaste nenhuma despesa.' : 'Experimenta mudar o período (ex.: <b>Tudo</b>) — as tuas despesas podem estar noutro mês/ano.'}</p>`;
-    empty.style.display = 'block';
+    const scope = period === 'mes' ? `em ${despMonthLabel(despesaFilterMonth)}` : period === 'ano' ? `em ${despesaFilterYear}` : 'registadas';
+    empty.innerHTML = emptyStateHtml('💸', `Sem despesas ${scope}`,
+      period === 'tudo'
+        ? 'Ainda não registaste nenhuma despesa.'
+        : 'Experimenta mudar o período (ex.: <b>Todo o histórico</b>) — as tuas despesas podem estar noutro mês/ano.');
+    showEmpty();
     return;
   }
   // Filtros client-side por categoria e fornecedor
@@ -180,42 +300,37 @@ function renderDespesas() {
   if (filtered.length === 0) {
     tbody.innerHTML = '';
     if (mobileWrap) mobileWrap.innerHTML = '';
-    empty.innerHTML = `
-      <div class="es-icon">🔍</div>
-      <h3>Sem despesas para estes filtros</h3>
-      <p>Nenhuma despesa corresponde à categoria/fornecedor selecionados neste período.</p>`;
-    empty.style.display = 'block';
+    empty.innerHTML = emptyStateHtml('🔍', 'Sem despesas para estes filtros',
+      'Nenhuma despesa corresponde à categoria/fornecedor selecionados neste período.');
+    showEmpty();
     return;
   }
   empty.style.display = 'none';
+  if (tableWrap) tableWrap.style.display = '';
 
-  const total = filtered.reduce((s, d) => s + Number(d.amount), 0);
+  const sorted = filtered.slice().sort((a, b) => {
+    const dir = despesasSortAsc ? 1 : -1;
+    const av = despSortValue(a, despesasSortCol);
+    const bv = despSortValue(b, despesasSortCol);
+    if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+    return String(av).localeCompare(String(bv), 'pt') * dir;
+  });
 
-  tbody.innerHTML = filtered.map(d => {
-    const cat = EXPENSE_CATS[d.category] || EXPENSE_CATS.outro;
-    return `<tr>
-      <td style="font-size:13px;">${formatDate(d.date)}</td>
-      <td><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;background:${cat.color}22;color:${cat.color};">${cat.icon ? `<i data-lucide="${cat.icon}" style="width:11px;height:11px;"></i>` : ''}${cat.label}</span></td>
-      <td title="${escapeHtml(d.description)}${d.notes ? ' — ' + escapeHtml(d.notes) : ''}">${escapeHtml(d.description)}${d.notes ? `<br><span style="font-size:11px;color:var(--cinza);">${escapeHtml(d.notes)}</span>` : ''}</td>
-      <td style="font-size:12.5px;">${escapeHtml(d.supplier || '—')}</td>
-      <td style="font-size:12px;color:var(--cinza);">${escapeHtml(d.invoice_ref || '—')}${d.receipt_image ? ` <a href="${escapeHtml(d.receipt_image)}" target="_blank" title="Ver talão" style="color:var(--marca);text-decoration:none;">${lcIcon('paperclip',12)}</a>` : ''}</td>
-      <td style="font-size:11.5px;">${d.has_nif
-        ? '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:rgba(46,125,82,.12);color:#2e7d52;font-weight:600;">Com NIF</span>'
-        : '<span style="color:var(--cinza);">Sem NIF</span>'}</td>
-      <td style="font-weight:600;color:var(--vermelho);">€${Number(d.amount).toFixed(2)}</td>
-      <td style="font-size:12.5px;color:var(--cinza);">${escapeHtml(d.payment_method || '—')}</td>
-      <td onclick="event.stopPropagation()" style="white-space:nowrap;">
-        <button class="btn btn-ghost btn-sm" onclick="openDespesaModal('${escapeHtml(d.id)}')" title="Editar">${lcIcon('pencil',13)}</button>
-        <button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho);" onclick="deleteDespesa('${escapeHtml(d.id)}')" title="Remover">${lcIcon('trash-2',13)}</button>
-      </td>
-    </tr>`;
-  }).join('') + `
-    <tr style="border-top:2px solid var(--cinza-claro);">
-      <td colspan="6" style="text-align:right;font-weight:600;color:var(--cinza);font-size:13px;">Total do período</td>
-      <td style="font-weight:700;font-size:15px;color:var(--vermelho);">€${total.toFixed(2)}</td>
-      <td colspan="2"></td>
-    </tr>`;
-  renderDespesasMobileCards(filtered, total);
+  const total = sorted.reduce((s, d) => s + Number(d.amount), 0);
+
+  despCols.renderHead();
+
+  const order = despCols.order;
+  const amountIdx = order.indexOf('amount');
+  const labelIdx = amountIdx > 0 ? amountIdx - 1 : 0;
+  const totalRow = `<tr class="despesas-total-row">${order.map((k, i) => {
+    if (k === 'amount') return `<td data-col="amount" style="font-weight:700;font-size:15px;color:var(--vermelho);">${formatEUR(total)}</td>`;
+    if (i === labelIdx) return `<td data-col="${k}" style="text-align:right;font-weight:600;color:var(--cinza);font-size:13px;">Total do período</td>`;
+    return `<td data-col="${k}"></td>`;
+  }).join('')}</tr>`;
+
+  tbody.innerHTML = sorted.map(d => `<tr>${order.map(k => DESP_CELL[k](d)).join('')}</tr>`).join('') + totalRow;
+  renderDespesasMobileCards(sorted, total);
   if (window.lucide) lucide.createIcons();
 }
 
@@ -232,14 +347,14 @@ function renderDespesasMobileCards(filtered, total) {
       <div class="mec-desc">${escapeHtml(d.description)}</div>
       ${d.supplier ? `<div class="mec-supplier"><i data-lucide="truck"></i> ${escapeHtml(d.supplier)}</div>` : ''}
       <div class="mec-bottom">
-        <span class="mec-amount">€${Number(d.amount).toFixed(2)}</span>
+        <span class="mec-amount">${formatEUR(d.amount)}</span>
         <div class="mec-actions" onclick="event.stopPropagation()">
           <button class="m-card-btn" onclick="openDespesaModal('${escapeHtml(d.id)}')"><i data-lucide="pencil"></i></button>
           <button class="m-card-btn" onclick="deleteDespesa('${escapeHtml(d.id)}')"><i data-lucide="trash-2"></i></button>
         </div>
       </div>
     </div>`;
-  }).join('') + `<div class="mec-total-row"><span>Total do período</span><span>€${total.toFixed(2)}</span></div>`;
+  }).join('') + `<div class="mec-total-row"><span>Total do período</span><span>${formatEUR(total)}</span></div>`;
 }
 
 // Popula o dropdown de fornecedores no modal, garantindo que o valor atual
@@ -346,20 +461,26 @@ async function saveDespesa() {
   }
 }
 
+const DESPESAS_EXPORT_COLUMNS = [
+  { key: 'date',            label: 'Data',         default: true, get: d => formatDate(d.date) },
+  { key: 'category',        label: 'Categoria',    default: true, get: d => EXPENSE_CATS[d.category]?.label || d.category },
+  { key: 'description',     label: 'Descrição',    default: true, get: d => d.description },
+  { key: 'supplier',        label: 'Fornecedor',   default: true, get: d => d.supplier || '' },
+  { key: 'invoice_ref',     label: 'Nº Fatura',    default: true, get: d => d.invoice_ref || '' },
+  { key: 'has_nif',         label: 'Contribuinte', default: true, get: d => d.has_nif ? 'Com NIF' : 'Sem NIF' },
+  { key: 'amount',          label: 'Valor (€)',    default: true, get: d => Number(d.amount).toFixed(2) },
+  { key: 'payment_method',  label: 'Método',       default: true, get: d => d.payment_method || '' },
+  { key: 'notes',           label: 'Notas',        default: true, get: d => d.notes || '' },
+];
+
 function exportDespesasXLSX() {
   if (!despesasData.length) { toast('Sem despesas para exportar.', 'error'); return; }
   if (typeof XLSX === 'undefined') { toast('Biblioteca XLSX não carregada.', 'error'); return; }
-  const rows = despesasData.map(d => ({
-    'Data':           formatDate(d.date),
-    'Categoria':      EXPENSE_CATS[d.category]?.label || d.category,
-    'Descrição':      d.description,
-    'Fornecedor':     d.supplier || '',
-    'Nº Fatura':      d.invoice_ref || '',
-    'Contribuinte':   d.has_nif ? 'Com NIF' : 'Sem NIF',
-    'Valor (€)':      Number(d.amount).toFixed(2),
-    'Método':         d.payment_method || '',
-    'Notas':          d.notes || '',
-  }));
+  openExportColumnPicker('despesas', 'Despesas', DESPESAS_EXPORT_COLUMNS, selectedKeys => _doExportDespesasXLSX(selectedKeys));
+}
+
+function _doExportDespesasXLSX(selectedKeys) {
+  const rows = buildExportRowsXlsx(despesasData, DESPESAS_EXPORT_COLUMNS, selectedKeys);
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Despesas');
@@ -613,7 +734,7 @@ function _updateReceiptTotal() {
   let total = 0;
   document.querySelectorAll('#receipt-lines-body [data-rl="amount"]').forEach(i => { total += parseFloat(i.value) || 0; });
   const el = document.getElementById('rl-total');
-  if (el) el.textContent = '€' + total.toFixed(2);
+  if (el) el.textContent = formatEUR(total);
 }
 
 function _syncReceiptLinesFromDom() {

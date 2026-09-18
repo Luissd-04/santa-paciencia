@@ -25,6 +25,8 @@ const googleTasksRoutes = require('./routes/googleTasks');
 const pushRoutes = require('./routes/push');
 
 const app = express();
+if (process.env.TRUST_PROXY) app.set('trust proxy', process.env.TRUST_PROXY.split(',').map(value => value.trim()));
+app.disable('x-powered-by');
 
 const IS_PROD = process.env.NODE_ENV === 'production';
 
@@ -104,6 +106,12 @@ const ALLOWED_ORIGINS_DEV = [
   /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/,
   /^https:\/\/[a-z0-9-]+\.ngrok[a-z0-9.-]*$/,
   /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/,
+  // LAN privada + Tailscale (CGNAT 100.64.0.0/10) + MagicDNS *.ts.net —
+  // para abrir a app noutro PC da rede durante o desenvolvimento.
+  /^https?:\/\/(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/,
+  /^https?:\/\/100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+(:\d+)?$/,
+  /^https?:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.ts\.net(:\d+)?$/i,
+  /^https?:\/\/[a-z0-9-]+(:\d+)?$/i, // hostname simples (MagicDNS curto, ex. http://mac:3001)
 ];
 const ALLOWED_ORIGINS_PROD = [
   /^https?:\/\/santapaciencia\.xyz$/,
@@ -119,17 +127,29 @@ app.use(cors({
   credentials: true
 }));
 
-// Body limits — o parser global corre antes de qualquer parser específico de
-// rota, por isso o limite tem de já cobrir os casos maiores (fotos de talões,
-// imagens de alojamentos); um limite pequeno aqui rejeitava o pedido (413) antes
-// de chegar ao parser de 15mb definido em expenses.js/accommodations.js.
-app.use(express.json({ limit: '20mb' }));
-app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+// Os parsers maiores só ficam acessíveis depois de autenticar e autorizar.
+app.use('/api/backup/import', requireAuth, require('./middleware/requireRole')('owner'), express.json({ limit: '100mb' }));
+app.use(['/api/accommodations', '/api/expenses'], requireAuth, require('./middleware/requireRole')('manager'), express.json({ limit: '15mb' }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '256kb', parameterLimit: 200 }));
 
 const path = require('path');
 
 // Servir ficheiros de upload (imagens dos alojamentos)
-app.use('/uploads', require('express').static(path.resolve('./data/uploads')));
+// Documentos de despesas nunca são recursos públicos.
+app.use('/uploads/receipts', requireAuth, require('./middleware/requireRole')('manager'), (req, res, next) => {
+  const url = '/uploads/receipts' + req.path;
+  const owned = require('./config/database').db.prepare('SELECT 1 FROM expenses WHERE organization_id = ? AND receipt_image = ?').get(req.user.organization_id, url);
+  res.set('Cache-Control', 'no-store');
+  if (!owned) return res.status(404).json({ success: false, error: 'Documento não encontrado.' });
+  next();
+}, express.static(path.resolve('./data/uploads/receipts'), { fallthrough: false }));
+app.use('/uploads', (req, res, next) => {
+  // Impede contornar a rota privada com nomes de pasta percent-encoded.
+  if (!/^\/[A-Za-z0-9_.-]+$/.test(req.path)) return res.status(404).end();
+  next();
+}, express.static(path.resolve('./data/uploads')));
+app.use(['/api', '/auth'], (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 
 // Servir frontend estático (apenas em produção via Docker)
 if (process.env.FRONTEND_PATH) {
@@ -161,7 +181,10 @@ app.use('/api/push', pushRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  try {
+    require('./config/database').db.prepare('SELECT 1').get();
+    res.json({ status: 'ok' });
+  } catch { res.status(503).json({ status: 'unavailable' }); }
 });
 
 // 404 explícito para /api/* — evita que o SPA catch-all engula erros e

@@ -6,3 +6,9 @@ backend/tokens
 *.sqlite
 .DS_Store
 .git
+
+backend/src/scripts/qa-*
+backend/src/test
+**/*.test.js
+**/*.test.cjs
+docs

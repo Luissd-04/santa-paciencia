@@ -43,10 +43,11 @@ function displayDate(value) {
   return value;
 }
 
-function flagEmoji(code) {
-  return String(code || '')
-    .toUpperCase()
-    .replace(/./g, char => String.fromCodePoint(127397 + char.charCodeAt(0)));
+// Bandeira SVG (flag-icons) — o emoji de bandeira não aparece no Windows.
+function flagHtml(code) {
+  const cc = String(code || '').trim().toLowerCase();
+  if (!/^[a-z]{2}$/.test(cc)) return '<span class="flag-fallback">🌐</span>';
+  return `<span class="fi fi-${cc}" title="${cc.toUpperCase()}"></span>`;
 }
 
 async function api(path, options = {}) {
@@ -164,7 +165,7 @@ function renderCountryDropdown(search, dropdown) {
     : COUNTRIES).slice(0, 12);
   dropdown.innerHTML = results.map(c => `
     <div class="country-dropdown-item" data-country="${escapeAttr(c.name)}">
-      <span class="pc-country-code">${flagEmoji(c.flag)}</span>
+      <span class="pc-country-code">${flagHtml(c.flag)}</span>
       <span>${c.name}</span>
     </div>`).join('');
 }
