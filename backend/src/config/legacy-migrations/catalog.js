@@ -12,6 +12,7 @@ module.exports = function createMigrations(db) {
       ['precheckin_token_expires_at', 'TEXT'],
       ['arrival_time', 'TEXT'],
       ['precheckin_submitted_at', 'TEXT'],
+      ['precheckin_reopened_at', 'TEXT'],
       ['cancelled_previous_status', 'TEXT'],
       ['cancelled_previous_payment_status', 'TEXT'],
       ['num_adults',   'INTEGER'],
@@ -55,6 +56,9 @@ module.exports = function createMigrations(db) {
       ['document_type',            'TEXT'],
       ['document_number',          'TEXT'],
       ['company',                  'TEXT'],
+      ['birth_country',            'TEXT'],
+      ['residence_country',        'TEXT'],
+      ['company_nif',              'TEXT'],
     ];
     for (const [col, type] of cols) {
       if (!existing.includes(col)) {

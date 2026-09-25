@@ -40,12 +40,15 @@ function renderGuestReservationsHistory(g) {
 
 // ── EDIT MODAL ──
 function populateGuestEditSelects() {
-  // Country dropdown
+  // Country dropdowns (país, país de nascimento, país de residência)
+  const countryOptions = placeholder => `<option value="">${placeholder}</option>` +
+    AppModules.hospedes.COUNTRIES.map(c => `<option value="${c.name}" data-flag="${c.code}">${c.name}</option>`).join('');
   const countrySel = document.getElementById('gedit-country');
-  if (countrySel) {
-    countrySel.innerHTML = '<option value="">— Sem país —</option>' +
-      AppModules.hospedes.COUNTRIES.map(c => `<option value="${c.name}" data-flag="${c.code}">${c.name}</option>`).join('');
-  }
+  if (countrySel) countrySel.innerHTML = countryOptions('— Sem país —');
+  const birthCountrySel = document.getElementById('gedit-birth-country');
+  if (birthCountrySel) birthCountrySel.innerHTML = countryOptions('— Sem país —');
+  const residenceCountrySel = document.getElementById('gedit-residence-country');
+  if (residenceCountrySel) residenceCountrySel.innerHTML = countryOptions('— Sem país —');
   // Phone prefix dropdown — built from DIAL_COUNTRIES defined in reserva-wizard.js
   const prefixSel = document.getElementById('gedit-tel-prefix');
   if (prefixSel && typeof AppModules.reservas.DIAL_COUNTRIES !== 'undefined') {
@@ -55,6 +58,8 @@ function populateGuestEditSelects() {
   }
   if (window.AppUI) {
     AppUI.enhanceSelect(countrySel, { placeholder: 'País' });
+    AppUI.enhanceSelect(birthCountrySel, { placeholder: 'País de nascimento' });
+    AppUI.enhanceSelect(residenceCountrySel, { placeholder: 'País de residência' });
     AppUI.enhanceSelect(prefixSel, { placeholder: '+351' });
     AppUI.enhanceSelect(document.getElementById('gedit-doc-type'), { placeholder: 'Tipo de documento' });
   }
@@ -78,8 +83,15 @@ async function openGuestEdit(id) {
     document.getElementById('gedit-address').value      = g.address || '';
     document.getElementById('gedit-postal-code').value  = g.postal_code || '';
     document.getElementById('gedit-city').value         = g.city || '';
-    const companyEl = document.getElementById('gedit-company');
-    if (companyEl) companyEl.value = g.company || '';
+    const setValue = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.value = value || '';
+    };
+    setValue('gedit-birth-city', g.birth_city);
+    setValue('gedit-birth-country', g.birth_country);
+    setValue('gedit-residence-country', g.residence_country);
+    setValue('gedit-company', g.company);
+    setValue('gedit-company-nif', g.company_nif);
     document.getElementById('gedit-favorito').checked   = !!g.is_favorite;
     document.getElementById('gedit-vip').checked        = !!g.is_vip;
     document.getElementById('gedit-nao-desejado').checked = !!g.is_unwanted;
@@ -170,10 +182,14 @@ async function saveGuestEdit() {
       document_number: document.getElementById('gedit-doc-number')?.value.trim() || null,
       nationality: country || null,
       country: country || null,
+      birth_city:      document.getElementById('gedit-birth-city')?.value.trim()    || null,
+      birth_country:   document.getElementById('gedit-birth-country')?.value       || null,
       address:         document.getElementById('gedit-address').value.trim()     || null,
       postal_code:     document.getElementById('gedit-postal-code').value.trim() || null,
       city:            document.getElementById('gedit-city').value.trim()        || null,
+      residence_country: document.getElementById('gedit-residence-country')?.value || null,
       company:         document.getElementById('gedit-company')?.value.trim() || null,
+      company_nif:     document.getElementById('gedit-company-nif')?.value.trim() || null,
       is_favorite:     document.getElementById('gedit-favorito').checked,
       is_vip:          document.getElementById('gedit-vip').checked,
       is_unwanted:     document.getElementById('gedit-nao-desejado').checked,

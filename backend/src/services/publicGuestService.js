@@ -6,7 +6,9 @@ const { db } = require('../config/database');
 function createReservationGuest(organizationId, guest) {
   const id = randomUUID();
   const fields = ['name', 'email', 'phone', 'first_name', 'last_name', 'birth_date',
-    'nationality', 'country', 'document_type', 'document_number', 'document_issuer_country'];
+    'nationality', 'country', 'document_type', 'document_number', 'document_issuer_country',
+    'birth_city', 'birth_country', 'address', 'postal_code', 'city', 'residence_country',
+    'nif', 'company', 'company_nif'];
   db.prepare(`INSERT INTO guests (id, organization_id, ${fields.join(',')})
     VALUES (?, ?, ${fields.map(() => '?').join(',')})`)
     .run(id, organizationId, ...fields.map(field => guest[field] || null));
@@ -34,15 +36,19 @@ function savePrecheckin(reservation, guest, extraGuests, arrivalTime) {
       WHERE guest_id = ? AND organization_id = ?`).get(reservation.guest_id, reservation.organization_id)?.total || 0;
     let isolated;
     if (references <= 1) {
-      const fields = ['name', 'email', 'first_name', 'last_name', 'birth_date', 'nationality',
-        'country', 'document_type', 'document_number', 'document_issuer_country'];
-      db.prepare(`UPDATE guests SET ${fields.map(field => `${field} = ?`).join(', ')}
+      const fields = ['name', 'email', 'phone', 'first_name', 'last_name', 'birth_date', 'nationality',
+        'country', 'document_type', 'document_number', 'document_issuer_country',
+        'birth_city', 'birth_country', 'address', 'postal_code', 'city', 'residence_country',
+        'nif', 'company', 'company_nif'];
+      // Campo vazio não apaga o que o backoffice já tinha preenchido — só um
+      // valor novo substitui. Muitos destes campos são opcionais no formulário.
+      db.prepare(`UPDATE guests SET ${fields.map(field => `${field} = COALESCE(NULLIF(?, ''), ${field})`).join(', ')}
         WHERE id = ? AND organization_id = ?`)
-        .run(...fields.map(field => guest[field] || null), reservation.guest_id, reservation.organization_id);
+        .run(...fields.map(field => guest[field] || ''), reservation.guest_id, reservation.organization_id);
       isolated = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?')
         .get(reservation.guest_id, reservation.organization_id);
     } else {
-      isolated = createReservationGuest(reservation.organization_id, { ...guest, phone: snapshot.phone || null });
+      isolated = createReservationGuest(reservation.organization_id, { ...guest, phone: guest.phone || snapshot.phone || null });
     }
     if (!isolated) throw new Error('Não foi possível guardar a ficha do hóspede.');
 

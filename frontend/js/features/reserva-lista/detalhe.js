@@ -188,10 +188,13 @@ async function showDetail(id, opts = {}) {
               <span class="rdv2-if-val">${r.num_children || 0} ${AppModules.core.lcIcon('baby', 11)}</span>
               ${childAges.length ? `<span style="font-size:10.5px;color:var(--text-muted);">${childAges.join(' · ')}</span>` : ''}
             </div>
-            ${r.arrival_time ? `<div class="rdv2-info-field">
+            <div class="rdv2-info-field">
               <span class="rdv2-if-label">Hora chegada</span>
-              <span class="rdv2-if-val">${AppModules.core.lcIcon('clock', 11)} ${r.arrival_time}</span>
-            </div>` : ''}
+              <span class="rdv2-if-val">${AppModules.core.lcIcon('clock', 11)}
+                <span id="rdv2-arrival-val">${r.arrival_time || '—'}</span>
+                <button class="rdv2-edit-btn" ${AppActions.attrs("click", "detalhe-editar-hora-chegada-5c1a9e2", [String((r.id) ?? ''), String((r.arrival_time) ?? '')])} title="Editar hora de chegada">${AppModules.core.lcIcon('pencil', 11)}</button>
+              </span>
+            </div>
           </div>
 
           ${r.status !== 'cancelada' ? `
@@ -384,6 +387,12 @@ async function showDetail(id, opts = {}) {
               <button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-open-7fd73a2", [String((preCheckinUrl) ?? '')])} title="Abrir pre check-in">${AppModules.core.lcIcon('arrow-right', 13)} Abrir</button>
               <button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-enviar-link-precheckin-ae74bc8", [String((r.id) ?? '')])} title="Enviar link de pré-checkin">${AppModules.core.lcIcon('send', 13)} Enviar pré-checkin</button>
               ${r.guest_email ? `<button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-abrir-mensagens-da-reserva-8cd7ba1", [String((r.id) ?? ''), String((guestEmail) ?? ''), String((guestName) ?? '')])} title="Enviar email">${AppModules.core.lcIcon('mail', 13)} Email</button>` : ''}
+              ${r.precheckin_submitted_at ? `<button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-reabrir-precheckin-7b2ef40", [String((r.id) ?? '')])} title="Reabrir o formulário para o hóspede corrigir dados">${AppModules.core.lcIcon('unlock', 13)} Reabrir para editar</button>` : ''}
+            </div>
+            <div style="padding:6px 0 0;font-size:11.5px;color:var(--text-muted);">
+              ${r.precheckin_submitted_at
+                ? `Submetido a ${sd(String(r.precheckin_submitted_at).slice(0, 10))}${r.precheckin_reopened_at ? ' · já reaberto uma vez' : ''}`
+                : (r.precheckin_reopened_at ? 'Reaberto — a aguardar novo envio do hóspede' : 'A aguardar submissão do hóspede')}
             </div>` : `
             <div class="rdv2-concierge-btns">
               <button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-enviar-link-precheckin-1ddc760", [String((r.id) ?? '')])} title="Gerar link de pré-checkin">${AppModules.core.lcIcon('link', 13)} Gerar pré-checkin</button>
@@ -454,6 +463,8 @@ AppActions.register({
   "detalhe-write-text-8f51584": (el, event, args) => { navigator.clipboard.writeText(args[0]);AppModules.core.toast('🔗 Link copiado','success') },
   "detalhe-open-7fd73a2": (el, event, args) => { window.open(args[0],'_blank') },
   "detalhe-enviar-link-precheckin-ae74bc8": (el, event, args) => { AppModules.reservas.enviarLinkPrecheckin(args[0]) },
+  "detalhe-reabrir-precheckin-7b2ef40": (el, event, args) => { AppModules.reservas.reabrirPrecheckin(args[0]) },
+  "detalhe-editar-hora-chegada-5c1a9e2": (el, event, args) => { AppModules.reservas.editarHoraChegada(args[0], args[1]) },
   "detalhe-apagar-reserva-definitivo-727881f": (el, event, args) => { AppModules.reservas.apagarReservaDefinitivo(args[0]) },
   "detalhe-cancelar-reserva-2d9df9b": (el, event, args) => { AppModules.reservas.cancelarReserva(args[0]) },
   "detalhe-reativar-reserva-9888cf4": (el, event, args) => { AppModules.reservas.reativarReserva(args[0]) },

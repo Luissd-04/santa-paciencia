@@ -4,8 +4,10 @@ AppModules.define('reservas', {
   apagarReservaDefinitivo: { get: () => apagarReservaDefinitivo },
   aprovarReserva: { get: () => aprovarReserva },
   cancelarReserva: { get: () => cancelarReserva },
+  editarHoraChegada: { get: () => editarHoraChegada },
   enviarLinkPrecheckin: { get: () => enviarLinkPrecheckin },
   hasRole: { get: () => hasRole },
+  reabrirPrecheckin: { get: () => reabrirPrecheckin },
   reativarReserva: { get: () => reativarReserva },
 });
 
@@ -44,6 +46,68 @@ async function enviarLinkPrecheckin(id, send = true) {
   } catch (e) {
     AppModules.core.toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
   }
+}
+
+async function reabrirPrecheckin(id) {
+  if (!confirm('Reabrir o pré-checkin? O hóspede volta a poder editar os dados no mesmo link (já pré-preenchido) e a equipa recebe notificação quando ele reenviar.')) return;
+  const send = confirm('Enviar também o email com o link ao hóspede?');
+  try {
+    const res = await AppModules.core.apiPost(`/api/reservations/${id}/reopen-precheckin`, { send });
+    if (res.success) {
+      AppModules.core.toast(res.data?.email_sent
+        ? '🔓 Pré-checkin reaberto e link reenviado por email.'
+        : '🔓 Pré-checkin reaberto — o hóspede já pode editar no link.', 'success');
+      await AppModules.reservas.loadReservas();
+      AppModules.reservas.showDetail(id);
+    } else {
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao reabrir o pré-checkin.'), 'error');
+    }
+  } catch (e) {
+    AppModules.core.toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
+  }
+}
+
+// A hora de chegada não está limitada à hora de check-in do alojamento: há
+// chegadas antecipadas (bagagem, por exemplo) que a equipa precisa de registar.
+function editarHoraChegada(id, current) {
+  const span = document.getElementById('rdv2-arrival-val');
+  if (!span) return;
+  const previous = span.textContent;
+  const input = document.createElement('input');
+  input.type = 'time';
+  input.value = /^([01]\d|2[0-3]):[0-5]\d$/.test(String(current || '')) ? current : '';
+  input.style.cssText = 'width:86px;padding:2px 4px;border:1px solid var(--brand-shell);border-radius:6px;font-size:12px;font-weight:600;background:var(--surface-card);color:var(--text-main);';
+
+  let saving = false;
+  const save = async () => {
+    if (saving) return;
+    saving = true;
+    const value = input.value;
+    span.textContent = value || '—';
+    input.replaceWith(span);
+    try {
+      const res = await AppModules.core.apiPut(`/api/reservations/${id}`, { arrival_time: value });
+      if (res.success) {
+        AppModules.core.toast('✅ Hora de chegada atualizada', 'success');
+        await AppModules.reservas.loadReservas();
+      } else {
+        span.textContent = previous;
+        AppModules.core.toast('❌ ' + (res.error || 'Erro ao atualizar a hora de chegada.'), 'error');
+      }
+    } catch (e) {
+      span.textContent = previous;
+      AppModules.core.toast('❌ Erro de ligação', 'error');
+    }
+  };
+
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Enter') { event.preventDefault(); save(); }
+    if (event.key === 'Escape') { saving = true; input.replaceWith(span); }
+  });
+  input.addEventListener('blur', save);
+
+  span.replaceWith(input);
+  input.focus();
 }
 
 async function copyPreCheckinLink(token) {

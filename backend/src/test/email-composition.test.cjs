@@ -263,6 +263,25 @@ test('a composição usa tabelas e estilos inline, sem script, flex ou svg', () 
   assert.ok(html.includes('max-width:600px'), 'contentor limitado a 600px');
 });
 
+test('a composição mantém a paleta clara quando o telemóvel está em modo escuro', () => {
+  const { html } = render('confirmacao');
+  assert.ok(html.includes('<meta name="color-scheme" content="light"'), 'declara apenas o esquema claro');
+  assert.ok(html.includes('color-scheme:light only'), 'bloqueio do esquema também fica inline');
+  assert.ok(html.includes('@media (prefers-color-scheme: dark)'), 'clientes com media query recebem a paleta clara');
+  assert.ok(html.includes('[data-ogsc] .sp-brand-bg'), 'Outlook recebe a correção de modo escuro');
+  assert.ok(html.includes('background-image:linear-gradient(#843424,#843424)'), 'o fundo de marca resiste à inversão do Gmail móvel');
+  assert.ok(html.includes('-webkit-text-fill-color:#fbf3ea'), 'o texto sobre a marca mantém a cor clara');
+
+  // Modelos antigos já guardados também são decorados durante a composição.
+  const legacy = composer.sanitizeBodyHtml(
+    '<p style="color:#5d554c">Texto</p><table><tr><td bgcolor="#fcf9f3" style="background:#fcf9f3">Linha</td></tr></table>',
+    { placeholders: false },
+  );
+  assert.match(legacy, /class="sp-text-soft"/);
+  assert.match(legacy, /class="sp-card-bg"/);
+  assert.match(legacy, /background-image:linear-gradient\(#fcf9f3,#fcf9f3\)/);
+});
+
 test('os ícones vêm de imagens HTTPS e o rótulo continua legível sem elas', () => {
   const social = composer.buildSocialBlock(SETTINGS);
   assert.ok(social.includes('https://exemplo.invalid/img/email/instagram.png'));

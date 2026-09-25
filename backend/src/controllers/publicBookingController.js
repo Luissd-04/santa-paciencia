@@ -442,6 +442,8 @@ function lookupReservationByPrecheckinToken(token) {
     SELECT r.*, g.name as guest_name, g.email as guest_email, g.phone as guest_phone,
            g.first_name, g.last_name, g.birth_date, g.nationality, g.country,
            g.document_type, g.document_number, g.document_issuer_country,
+           g.birth_city, g.birth_country, g.address, g.postal_code, g.city, g.residence_country,
+           g.nif, g.company, g.company_nif,
            a.name as accommodation_name, a.checkin_time, a.checkout_time, a.cover_image, a.images
     FROM reservations r
     JOIN guests g ON g.id = r.guest_id AND g.organization_id = r.organization_id
@@ -501,11 +503,16 @@ function getPreCheckin(req, res) {
   if (reservation.check_out && new Date(reservation.check_out + 'T23:59:59') < new Date()) {
     return res.status(410).json({ success: false, error: 'O pré check-in não está disponível após a data de saída.' });
   }
-  const snapshot = parseJson(reservation.guest_snapshot, {});
-  // PII sensível (documento, nacionalidade, nascimento, dados de hóspedes
-  // adicionais) NÃO é devolvida pelo GET — apenas escrita pelo POST. Quem
-  // tiver o link consegue ver o nome/email/telefone que já enviou na reserva
-  // (e que o backoffice já tem), mas não os documentos pessoais.
+  // O formulário é pré-preenchido com a ficha atual do hóspede (não com o
+  // `guest_snapshot`, que congela no momento da reserva) — assim uma correção
+  // feita no backoffice aparece de imediato no link do hóspede.
+  // Exceção: links antigos podem apontar para uma ficha partilhada por várias
+  // reservas. Aí só o contacto é devolvido, nunca documento/fiscais de terceiros.
+  const shared = (db.prepare(`SELECT COUNT(*) AS total FROM reservations
+    WHERE guest_id = ? AND organization_id = ?`)
+    .get(reservation.guest_id, reservation.organization_id)?.total || 0) > 1;
+  const snapshot = shared ? parseJson(reservation.guest_snapshot, {}) : {};
+  const own = field => (shared ? '' : (reservation[field] || ''));
   res.json({
     success: true,
     data: {
@@ -515,6 +522,8 @@ function getPreCheckin(req, res) {
         check_in: reservation.check_in,
         check_out: reservation.check_out,
         num_guests: reservation.num_guests,
+        num_adults: reservation.num_adults || reservation.num_guests,
+        num_children: reservation.num_children || 0,
         cover_image: imageUrl(req, reservation.cover_image),
         images: normalizeImages(req, reservation).map(img => img.url).filter(Boolean),
         arrival_time: reservation.arrival_time || '',
@@ -523,19 +532,28 @@ function getPreCheckin(req, res) {
         precheckin_submitted_at: reservation.precheckin_submitted_at || null,
       },
       guest: {
-        name: snapshot.name || '',
-        email: snapshot.email || '',
-        phone: snapshot.phone || '',
-        first_name: '',
-        last_name: '',
-        birth_date: null,
-        nationality: '',
-        country: '',
-        document_type: '',
-        document_number: '',
-        document_issuer_country: '',
+        name: (shared ? snapshot.name : reservation.guest_name) || '',
+        email: (shared ? snapshot.email : reservation.guest_email) || '',
+        phone: (shared ? snapshot.phone : reservation.guest_phone) || '',
+        first_name: own('first_name'),
+        last_name: own('last_name'),
+        birth_date: shared ? null : (reservation.birth_date || null),
+        nationality: own('nationality'),
+        country: own('country'),
+        document_type: own('document_type'),
+        document_number: own('document_number'),
+        document_issuer_country: own('document_issuer_country'),
+        birth_city: own('birth_city'),
+        birth_country: own('birth_country'),
+        address: own('address'),
+        postal_code: own('postal_code'),
+        city: own('city'),
+        residence_country: own('residence_country'),
+        nif: own('nif'),
+        company: own('company'),
+        company_nif: own('company_nif'),
       },
-      guests_data: [],
+      guests_data: parseJson(reservation.guests_data, []),
     }
   });
 }
@@ -546,6 +564,7 @@ function cleanGuestData(item = {}) {
   return {
     name: fullName,
     email: String(item.email || '').trim(),
+    phone: String(item.phone || '').trim().slice(0, 40),
     first_name: String(item.first_name || parts[0] || '').trim(),
     last_name: String(item.last_name || parts.slice(1).join(' ') || '').trim(),
     birth_date: normalizeDateValue(item.birth_date) || null,
@@ -554,6 +573,15 @@ function cleanGuestData(item = {}) {
     document_type: String(item.document_type || '').trim(),
     document_number: String(item.document_number || '').trim(),
     document_issuer_country: String(item.document_issuer_country || item.nationality || '').trim(),
+    birth_city: String(item.birth_city || '').trim().slice(0, 120),
+    birth_country: String(item.birth_country || '').trim().slice(0, 80),
+    address: String(item.address || '').trim().slice(0, 200),
+    postal_code: String(item.postal_code || '').trim().slice(0, 20),
+    city: String(item.city || '').trim().slice(0, 120),
+    residence_country: String(item.residence_country || '').trim().slice(0, 80),
+    nif: String(item.nif || '').trim().slice(0, 20),
+    company: String(item.company || '').trim().slice(0, 160),
+    company_nif: String(item.company_nif || '').trim().slice(0, 20),
   };
 }
 
@@ -582,18 +610,35 @@ function submitPreCheckin(req, res) {
   const allGuests = [mainGuest, ...extraGuests].slice(0, expectedGuests);
   const isPortuguese = g => (g.nationality || '').toLowerCase().trim() === 'portugal';
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // As crianças não preenchem documento no formulário (ver guestForm em
+  // pre-checkin.js) — a mesma regra tem de valer aqui, senão uma criança
+  // estrangeira torna a submissão impossível.
+  const numAdults = Math.max(1, Number(reservation.num_adults || reservation.num_guests || expectedGuests));
   const missingIndex = allGuests.findIndex((g, idx) => {
     if (!g.name || !g.nationality) return true;
     if (idx === 0 && !emailRegex.test(g.email || '')) return true;
-    if (!isPortuguese(g) && (!g.birth_date || !g.document_type || !g.document_number || !g.document_issuer_country)) return true;
+    const isChild = idx > 0 && idx >= numAdults;
+    if (!isPortuguese(g)) {
+      if (!g.birth_date) return true;
+      if (!g.birth_city || !g.birth_country || !g.address || !g.city || !g.residence_country) return true;
+      if (!isChild && (!g.document_type || !g.document_number || !g.document_issuer_country)) return true;
+    }
     return false;
   });
   if (missingIndex >= 0 || allGuests.length < expectedGuests) {
     return res.status(400).json({ success: false, error: 'Preencha os dados obrigatórios de todos os hóspedes.' });
   }
+  if (!req.body?.rgpd_consent) {
+    return res.status(400).json({ success: false, error: 'É necessário aceitar o tratamento dos dados (RGPD).' });
+  }
 
+  const arrivalTimeRaw = String(req.body?.arrival_time || '').trim();
+  const arrivalTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(arrivalTimeRaw) ? arrivalTimeRaw : null;
+
+  const isResubmission = Boolean(reservation.precheckin_reopened_at);
+  let savedGuest;
   try {
-    savePrecheckin(reservation, mainGuest, allGuests.slice(1), String(req.body?.arrival_time || '').trim().slice(0, 10) || null);
+    savedGuest = savePrecheckin(reservation, mainGuest, allGuests.slice(1), arrivalTime);
   } catch (error) {
     if (error.code === 'PRECHECKIN_ALREADY_SUBMITTED') {
       return res.status(409).json({ success: false, error: error.message });
@@ -601,15 +646,17 @@ function submitPreCheckin(req, res) {
     throw error;
   }
 
+  if (savedGuest?.id) recordConsent(savedGuest.id, req.ip, reservation.organization_id);
+
   recordHistory({
     organizationId: reservation.organization_id,
     reservationId: reservation.id,
     action: 'precheckin_submitted',
-    meta: { source: 'public_link', guest_count: allGuests.length },
+    meta: { source: 'public_link', guest_count: allGuests.length, resubmission: isResubmission },
   });
 
   notifyOrganization(reservation.organization_id, 'precheckin', {
-    title: '📝 Pré-check-in recebido',
+    title: isResubmission ? '📝 Pré-check-in alterado pelo hóspede' : '📝 Pré-check-in recebido',
     body: `${mainGuest.name} · entrada a ${reservation.check_in}`,
     url: `/reservas?reserva=${reservation.id}`,
   });

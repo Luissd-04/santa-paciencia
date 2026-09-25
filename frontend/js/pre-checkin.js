@@ -82,6 +82,11 @@ function guestForm(guest, index, numAdults) {
         <span>Email *</span>
         <input data-field="email" type="email" required value="${escapeAttr(guest?.email || '')}" placeholder="email@exemplo.com" autocomplete="off">
       </label>` : ''}
+      ${index <= 1 ? `
+      <label>
+        <span>Telefone</span>
+        <input data-field="phone" type="tel" value="${escapeAttr(guest?.phone || '')}" placeholder="+351 900 000 000" autocomplete="off">
+      </label>` : ''}
       <div class="field-grid two">
         <label>
           <span>Data de nascimento *</span>
@@ -95,6 +100,40 @@ function guestForm(guest, index, numAdults) {
           </div>
         </label>
       </div>
+      <div class="field-grid two">
+        <label class="foreign-field">
+          <span data-base-label="Local de nascimento">Local de nascimento</span>
+          <input data-field="birth_city" data-foreign-required value="${escapeAttr(guest?.birth_city || '')}" placeholder="Cidade de nascimento" autocomplete="off">
+        </label>
+        <label class="foreign-field">
+          <span data-base-label="País de nascimento">País de nascimento</span>
+          <div class="country-search">
+            <input data-field="birth_country" data-foreign-required class="country-input pc-country-input" value="${escapeAttr(guest?.birth_country || '')}" placeholder="Portugal" autocomplete="off">
+            <div class="country-dropdown" style="display:none;"></div>
+          </div>
+        </label>
+      </div>
+      <label class="foreign-field">
+        <span data-base-label="Morada de residência">Morada de residência</span>
+        <input data-field="address" data-foreign-required value="${escapeAttr(guest?.address || '')}" placeholder="Rua, número, andar" autocomplete="off">
+      </label>
+      <div class="field-grid two">
+        <label>
+          <span>Código postal</span>
+          <input data-field="postal_code" value="${escapeAttr(guest?.postal_code || '')}" placeholder="0000-000" autocomplete="off">
+        </label>
+        <label class="foreign-field">
+          <span data-base-label="Localidade de residência">Localidade de residência</span>
+          <input data-field="city" data-foreign-required value="${escapeAttr(guest?.city || '')}" placeholder="Localidade" autocomplete="off">
+        </label>
+      </div>
+      <label class="foreign-field">
+        <span data-base-label="País de residência">País de residência</span>
+        <div class="country-search">
+          <input data-field="residence_country" data-foreign-required class="country-input pc-country-input" value="${escapeAttr(guest?.residence_country || '')}" placeholder="Portugal" autocomplete="off">
+          <div class="country-dropdown" style="display:none;"></div>
+        </div>
+      </label>
       ${isChild ? '' : `
       <div class="field-grid two">
         <label class="foreign-field">
@@ -118,8 +157,49 @@ function guestForm(guest, index, numAdults) {
           <div class="country-dropdown" style="display:none;"></div>
         </div>
       </label>`}
+      ${index === 0 ? companyFields(guest) : ''}
     </div>
   `;
+}
+
+// Faturação: o NIF pedido é o da empresa quando a reserva é feita em nome dela.
+function companyFields(guest) {
+  const isCompany = Boolean(guest?.company || guest?.company_nif);
+  return `
+    <label class="pc-company-toggle" style="display:flex;align-items:center;gap:8px;margin:12px 0 4px;">
+      <input type="checkbox" data-field="is_company" ${isCompany ? 'checked' : ''} style="width:auto;margin:0;">
+      <span>Esta reserva é em nome de uma empresa</span>
+    </label>
+    <label data-nif-field="personal" style="${isCompany ? 'display:none;' : ''}">
+      <span>NIF</span>
+      <input data-field="nif" inputmode="numeric" maxlength="20" value="${escapeAttr(guest?.nif || '')}" placeholder="Número de identificação fiscal" autocomplete="off">
+    </label>
+    <div class="field-grid two" data-nif-field="company" style="${isCompany ? '' : 'display:none;'}">
+      <label>
+        <span>Nome da empresa *</span>
+        <input data-field="company" ${isCompany ? 'required' : ''} value="${escapeAttr(guest?.company || '')}" placeholder="Nome da empresa" autocomplete="off">
+      </label>
+      <label>
+        <span>NIF da empresa *</span>
+        <input data-field="company_nif" inputmode="numeric" maxlength="20" ${isCompany ? 'required' : ''} value="${escapeAttr(guest?.company_nif || '')}" placeholder="NIF da empresa" autocomplete="off">
+      </label>
+    </div>
+  `;
+}
+
+function setupCompanyToggle(card) {
+  const toggle = card.querySelector('[data-field="is_company"]');
+  if (!toggle) return;
+  const personal = card.querySelector('[data-nif-field="personal"]');
+  const company = card.querySelector('[data-nif-field="company"]');
+  const apply = () => {
+    const on = toggle.checked;
+    personal.style.display = on ? 'none' : '';
+    company.style.display = on ? '' : 'none';
+    company.querySelectorAll('input').forEach(input => { input.required = on; });
+  };
+  toggle.addEventListener('change', apply);
+  apply();
 }
 
 function escapeAttr(value) {
@@ -146,9 +226,11 @@ function collectGuest(card) {
   const name = get('name');
   const parts = name.split(/\s+/).filter(Boolean);
   const nationality = get('nationality');
+  const isCompany = Boolean(card.querySelector('[data-field="is_company"]')?.checked);
   return {
     name,
     email: get('email'),
+    phone: get('phone'),
     first_name: parts[0] || '',
     last_name: parts.slice(1).join(' '),
     birth_date: isoDate(get('birth_date')),
@@ -157,6 +239,15 @@ function collectGuest(card) {
     document_type: get('document_type'),
     document_number: get('document_number'),
     document_issuer_country: get('document_issuer_country'),
+    birth_city: get('birth_city'),
+    birth_country: get('birth_country'),
+    address: get('address'),
+    postal_code: get('postal_code'),
+    city: get('city'),
+    residence_country: get('residence_country'),
+    nif: isCompany ? '' : get('nif'),
+    company: isCompany ? get('company') : '',
+    company_nif: isCompany ? get('company_nif') : '',
   };
 }
 
@@ -220,9 +311,15 @@ function renderTimePresets(checkInTime) {
   const container = document.getElementById('pc-time-presets');
   if (!container) return;
   const startH = parseInt(String(checkInTime || '').split(':')[0], 10);
-  const from = isNaN(startH) ? 15 : startH;
+  const officialH = isNaN(startH) ? 15 : startH;
+  // As sugestões começam antes da hora oficial de check-in: há quem chegue mais
+  // cedo (deixar bagagem, por exemplo) e precise de indicar essa hora.
+  const from = Math.min(8, officialH);
   const times = Array.from({ length: 23 - from + 1 }, (_, i) => `${String(i + from).padStart(2, '0')}:00`);
-  container.innerHTML = times.map(t => `<button type="button" data-time="${t}">${t}</button>`).join('');
+  container.innerHTML = times.map(t => {
+    const official = parseInt(t, 10) === officialH;
+    return `<button type="button" data-time="${t}"${official ? ' title="Hora de check-in do alojamento"' : ''}>${t}</button>`;
+  }).join('');
   container.querySelectorAll('button').forEach(btn => {
     btn.addEventListener('click', () => {
       const input = document.getElementById('pc-arrival-time');
@@ -277,7 +374,10 @@ function render(data) {
   $('pc-guests').innerHTML = guests.slice(0, Number(r.num_guests || 1)).map((g, i) => guestForm(g, i, numAdults)).join('');
   document.querySelectorAll('.pc-country-input').forEach(setupCountryInput);
   document.querySelectorAll('.pc-birth-input').forEach(setupBirthInput);
-  document.querySelectorAll('.guest-card').forEach(updateForeignRequired);
+  document.querySelectorAll('.guest-card').forEach(card => {
+    updateForeignRequired(card);
+    setupCompanyToggle(card);
+  });
   renderTimePresets(r.checkin_time);
 
   if (r.precheckin_submitted_at) {
@@ -316,6 +416,7 @@ $('precheckin-form').addEventListener('submit', async event => {
       method: 'POST',
       body: JSON.stringify({
         arrival_time: $('pc-arrival-time').value,
+        rgpd_consent: $('pc-rgpd').checked,
         guest: guests[0],
         guests_data: guests.slice(1),
       }),

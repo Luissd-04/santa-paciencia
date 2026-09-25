@@ -125,13 +125,13 @@ async function main() {
     const guestsBefore = db.prepare("SELECT count(*) AS n FROM guests WHERE organization_id='org-a'").get().n;
     const read = await call(publicCtrl.getPreCheckin, request({}, { token: publicToken }));
     assert.notEqual(read.body.data.guest.phone, 'PRIVATE-PHONE');
-    const write = await call(publicCtrl.submitPreCheckin, request({ guest: {
+    const write = await call(publicCtrl.submitPreCheckin, request({ rgpd_consent: true, guest: {
       name: 'Changed By Public Link', email: 'changed@example.invalid', nationality: 'Portugal',
     } }, { token: publicToken }));
     assert.equal(write.statusCode, 200);
     assert.equal(db.prepare('SELECT name FROM guests WHERE id=?').get('guest-a').name, 'Existing Guest');
     assert.equal(db.prepare("SELECT count(*) AS n FROM guests WHERE organization_id='org-a'").get().n, guestsBefore);
-    const replay = await call(publicCtrl.submitPreCheckin, request({ guest: {
+    const replay = await call(publicCtrl.submitPreCheckin, request({ rgpd_consent: true, guest: {
       name: 'Replay', email: 'replay@example.invalid', nationality: 'Portugal',
     } }, { token: publicToken }));
     assert.equal(replay.statusCode, 409);

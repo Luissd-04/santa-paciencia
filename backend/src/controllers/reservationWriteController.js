@@ -49,15 +49,18 @@ async function create(req, res, next) {
       const guestId = uuidv4();
       db.prepare(`
         INSERT INTO guests (id, name, email, phone, document_type, document_number, document_issuer_country,
-          nationality, first_name, last_name, birth_date, birth_city, nif, country, address, postal_code, city, company, organization_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          nationality, first_name, last_name, birth_date, birth_city, birth_country, nif, country,
+          address, postal_code, city, residence_country, company, company_nif, organization_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(guestId, guestName, guestEmail, guest?.phone || null,
              guest?.document_type || null, guest?.document_number || null,
              guest?.document_issuer_country || null, guest?.nationality || null,
              guest?.first_name || null, guest?.last_name || null, guest?.birth_date || null,
-             guest?.birth_city || null, guest?.nif || null, guest?.country || null,
+             guest?.birth_city || null, guest?.birth_country || null,
+             guest?.nif || null, guest?.country || null,
              guest?.address || null, guest?.postal_code || null, guest?.city || null,
-             guest?.company || null, organizationId);
+             guest?.residence_country || null,
+             guest?.company || null, guest?.company_nif || null, organizationId);
       guestRecord = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(guestId, organizationId);
     } else {
       db.prepare(`UPDATE guests SET
@@ -66,20 +69,22 @@ async function create(req, res, next) {
         document_issuer_country = COALESCE(?, document_issuer_country),
         nationality = COALESCE(?, nationality), first_name = COALESCE(?, first_name),
         last_name = COALESCE(?, last_name), birth_date = COALESCE(?, birth_date),
-        birth_city = COALESCE(?, birth_city),
+        birth_city = COALESCE(?, birth_city), birth_country = COALESCE(?, birth_country),
         nif = COALESCE(?, nif), country = COALESCE(?, country),
         address = COALESCE(?, address), postal_code = COALESCE(?, postal_code), city = COALESCE(?, city),
-        company = COALESCE(?, company)
+        residence_country = COALESCE(?, residence_country),
+        company = COALESCE(?, company), company_nif = COALESCE(?, company_nif)
         WHERE id = ? AND organization_id = ?`).run(
         guest?.name || null, guest?.phone || null,
         guest?.document_type || null, guest?.document_number || null,
         guest?.document_issuer_country || null,
         guest?.nationality || null, guest?.first_name || null,
         guest?.last_name || null, guest?.birth_date || null,
-        guest?.birth_city || null,
+        guest?.birth_city || null, guest?.birth_country || null,
         guest?.nif || null, guest?.country || null,
         guest?.address || null, guest?.postal_code || null, guest?.city || null,
-        guest?.company || null,
+        guest?.residence_country || null,
+        guest?.company || null, guest?.company_nif || null,
         guestRecord.id,
         organizationId
       );
@@ -261,7 +266,7 @@ async function update(req, res, next) {
       check_in, check_out, num_guests, num_adults, num_children, breakfast_included,
       channel, payment_method, notes, status, payment_status, guests_data, guest,
       accommodation_id, amount_paid, payment_date, total_amount: manualTotal,
-      accommodations_data, nightly_prices: nightlyPricesUpdate
+      accommodations_data, nightly_prices: nightlyPricesUpdate, arrival_time
     } = req.body;
 
     const newAccommodationId = accommodation_id || existing.accommodation_id;
@@ -350,20 +355,22 @@ async function update(req, res, next) {
         document_issuer_country = COALESCE(?, document_issuer_country),
         nationality = COALESCE(?, nationality), first_name = COALESCE(?, first_name),
         last_name = COALESCE(?, last_name), birth_date = COALESCE(?, birth_date),
-        birth_city = COALESCE(?, birth_city),
+        birth_city = COALESCE(?, birth_city), birth_country = COALESCE(?, birth_country),
         nif = COALESCE(?, nif), country = COALESCE(?, country),
         address = COALESCE(?, address), postal_code = COALESCE(?, postal_code), city = COALESCE(?, city),
-        company = COALESCE(?, company)
+        residence_country = COALESCE(?, residence_country),
+        company = COALESCE(?, company), company_nif = COALESCE(?, company_nif)
         WHERE id = ? AND organization_id = ?`).run(
         guest.name || null, guest.email || null, guest.phone || null,
         guest.document_type || null, guest.document_number || null,
         guest.document_issuer_country || null,
         guest.nationality || null, guest.first_name || null,
         guest.last_name || null, guest.birth_date || null,
-        guest.birth_city || null,
+        guest.birth_city || null, guest.birth_country || null,
         guest.nif || null, guest.country || null,
         guest.address || null, guest.postal_code || null, guest.city || null,
-        guest.company || null,
+        guest.residence_country || null,
+        guest.company || null, guest.company_nif || null,
         existing.guest_id,
         organizationId
       );
@@ -428,6 +435,7 @@ async function update(req, res, next) {
         payment_status = ?, guests_data = ?, accommodations_data = ?,
         amount_paid = ?, payment_date = ?, nightly_prices = ?,
         cancelled_previous_status = ?, cancelled_previous_payment_status = ?,
+        arrival_time = ?,
         price_edited_at = ?, price_edited_by_user_id = ?, updated_at = datetime('now')
       WHERE id = ? AND organization_id = ?
     `).run(
@@ -447,6 +455,9 @@ async function update(req, res, next) {
       JSON.stringify(totals.nightlyPrices || []),
       cancelling ? existing.status : (existing.cancelled_previous_status || null),
       cancelling ? existing.payment_status : (existing.cancelled_previous_payment_status || null),
+      arrival_time !== undefined
+        ? (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(arrival_time).trim()) ? String(arrival_time).trim() : null)
+        : existing.arrival_time,
       priceEditedAt, priceEditedBy,
       req.params.id,
       organizationId

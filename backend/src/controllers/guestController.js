@@ -6,9 +6,9 @@ async function create(req, res, next) {
   try {
     const {
       name, first_name, last_name, email, email_personal,
-      phone, birth_date, birth_city, nif, nationality, country,
+      phone, birth_date, birth_city, birth_country, nif, nationality, country,
       document_type, document_number, document_issuer_country,
-      address, postal_code, city, company
+      address, postal_code, city, residence_country, company, company_nif
     } = req.body;
 
     if (!name && !first_name) {
@@ -27,16 +27,18 @@ async function create(req, res, next) {
     const id = uuidv4();
     db.prepare(`
       INSERT INTO guests (id, name, first_name, last_name, email, email_personal,
-        phone, birth_date, birth_city, nif, nationality, country, organization_id,
-        document_type, document_number, document_issuer_country, address, postal_code, city, company)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        phone, birth_date, birth_city, birth_country, nif, nationality, country, organization_id,
+        document_type, document_number, document_issuer_country,
+        address, postal_code, city, residence_country, company, company_nif)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id, fullName, first_name || null, last_name || null,
       effectiveEmail, email_personal || null,
-      phone || null, birth_date || null, birth_city || null, nif || null,
+      phone || null, birth_date || null, birth_city || null, birth_country || null, nif || null,
       nationality || null, country || null, organizationId,
       document_type || null, document_number || null, document_issuer_country || null,
-      address || null, postal_code || null, city || null, company || null
+      address || null, postal_code || null, city || null, residence_country || null,
+      company || null, company_nif || null
     );
 
     const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(id, organizationId);
@@ -82,9 +84,9 @@ async function update(req, res, next) {
 
     const {
       first_name, last_name, email, email_personal,
-      phone, birth_date, birth_city, nif, nationality, country,
+      phone, birth_date, birth_city, birth_country, nif, nationality, country,
       document_type, document_number, document_issuer_country,
-      address, postal_code, city, company,
+      address, postal_code, city, residence_country, company, company_nif,
       is_favorite, is_vip, is_unwanted
     } = req.body;
 
@@ -96,10 +98,11 @@ async function update(req, res, next) {
       UPDATE guests SET
         first_name = ?, last_name = ?, name = ?,
         email = ?, email_personal = ?,
-        phone = ?, birth_date = ?, birth_city = ?, nif = ?,
+        phone = ?, birth_date = ?, birth_city = ?, birth_country = ?, nif = ?,
         nationality = ?, country = ?,
         document_type = ?, document_number = ?, document_issuer_country = ?,
-        address = ?, postal_code = ?, city = ?, company = ?,
+        address = ?, postal_code = ?, city = ?, residence_country = ?,
+        company = ?, company_nif = ?,
         is_favorite = ?, is_vip = ?, is_unwanted = ?
       WHERE id = ? AND organization_id = ?
     `).run(
@@ -111,6 +114,7 @@ async function update(req, res, next) {
       phone          ?? existing.phone,
       birth_date     ?? existing.birth_date,
       birth_city     ?? existing.birth_city,
+      birth_country  ?? existing.birth_country,
       nif            ?? existing.nif,
       nationality    ?? existing.nationality,
       country        ?? existing.country,
@@ -120,7 +124,9 @@ async function update(req, res, next) {
       address        ?? existing.address,
       postal_code    ?? existing.postal_code,
       city           ?? existing.city,
+      residence_country ?? existing.residence_country,
       company        ?? existing.company,
+      company_nif    ?? existing.company_nif,
       is_favorite ? 1 : 0,
       is_vip      ? 1 : 0,
       is_unwanted ? 1 : 0,

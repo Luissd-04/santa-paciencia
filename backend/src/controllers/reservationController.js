@@ -257,5 +257,55 @@ async function sendPrecheckinLink(req, res, next) {
   }
 }
 
+// POST /api/reservations/:id/reopen-precheckin
+// Limpa `precheckin_submitted_at` — o único bloqueio que impede o hóspede de
+// voltar a abrir o formulário depois de submeter. O link continua o mesmo; a
+// validade é estendida se já tiver passado.
+async function reopenPrecheckinLink(req, res, next) {
+  try {
+    const organizationId = req.user.organization_id;
+    const reservation = db.prepare(`
+      SELECT r.*, g.name as guest_name, g.email as guest_email
+      FROM reservations r
+      JOIN guests g ON r.guest_id = g.id AND r.organization_id = g.organization_id
+      WHERE r.id = ? AND r.organization_id = ?
+    `).get(req.params.id, organizationId);
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+    if (reservation.status === 'cancelada') return res.status(400).json({ error: 'Reserva cancelada não pode reabrir o pré-checkin.' });
+
+    ensurePublicToken(reservation);
+    const precheckinToken = ensurePrecheckinToken(reservation);
+    const today = new Date().toISOString().slice(0, 10);
+    const expiresAt = !reservation.precheckin_token_expires_at || reservation.precheckin_token_expires_at < today
+      ? (reservation.check_out && reservation.check_out >= today ? reservation.check_out : today)
+      : reservation.precheckin_token_expires_at;
+
+    db.prepare(`UPDATE reservations
+      SET precheckin_submitted_at = NULL, precheckin_reopened_at = datetime('now'),
+          precheckin_token_expires_at = ?, updated_at = datetime('now')
+      WHERE id = ? AND organization_id = ?`)
+      .run(expiresAt, req.params.id, organizationId);
+
+    recordHistory({ organizationId, reservationId: req.params.id, userId: req.user.id, action: 'precheckin_reopened' });
+
+    const preCheckinUrl = `${publicUrl(req)}/pre-checkin/${precheckinToken}`;
+    let emailSent = false;
+    if (req.body?.send === true && reservation.guest_email) {
+      const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(reservation.accommodation_id, organizationId);
+      const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(reservation.guest_id, organizationId);
+      try {
+        await sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl);
+        emailSent = true;
+      } catch (err) {
+        console.warn('Email de pre-check-in não enviado:', err.message);
+      }
+    }
+
+    res.json({ success: true, data: { pre_checkin_url: preCheckinUrl, email_sent: emailSent } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /api/reservations/stats/dashboard
-module.exports = { getAll, getById, create, update, approve, sendPrecheckinLink, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, addPayment, deletePayment, saveInvoice, setTaskStatus, getHistory };
+module.exports = { getAll, getById, create, update, approve, sendPrecheckinLink, reopenPrecheckinLink, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, addPayment, deletePayment, saveInvoice, setTaskStatus, getHistory };
