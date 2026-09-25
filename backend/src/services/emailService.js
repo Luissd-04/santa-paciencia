@@ -2,6 +2,7 @@ const EMAIL_DISABLED = process.env.EMAIL_ENABLED === 'false';
 const crypto = require('crypto');
 
 const { isEmailAuthenticated, sendViaGmail, getEmailConnectionInfo } = require('../config/googleEmail');
+const composer = require('./emailComposer');
 
 async function sendMail(organizationId, { to, subject, html, bcc, threadId, inReplyTo, references }) {
   if (EMAIL_DISABLED) return null;
@@ -28,17 +29,13 @@ function isWithinSendWindow(template, now = new Date()) {
   return start <= end ? (cur >= start && cur <= end) : (cur >= start || cur <= end);
 }
 
-const BRAND_COLOR = '#843424';
-const ACCENT_COLOR = '#c9a84c';
+const BRAND_COLOR = composer.PALETTE.brand;
+const ACCENT_COLOR = composer.PALETTE.accent;
 
 // Escape de HTML para dados do hóspede/reserva interpolados nos templates (S10).
 // O nome/email vêm do formulário público — sem escape, permitem injetar
 // links de phishing ou partir a estrutura do email enviado ao owner.
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
+const escapeHtml = composer.escapeHtml;
 
 // Versão escapada das vars para uso em corpos HTML (o subject usa as raw,
 // porque é texto simples — entidades HTML apareceriam literalmente).
@@ -69,11 +66,23 @@ function resolveLogoUrl(value) {
   return `${base}${value.startsWith('/') ? '' : '/'}${value}`;
 }
 
+// Aceita string JSON crua (linha da base) ou já em array (chamadas em teste).
+function parseSocialLinksEnabled(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string' || !value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 function getEmailSettings(accommodation, organizationId) {
   try {
     const { db } = require('../config/database');
     const orgId = organizationId || accommodation?.organization_id;
-    const keys = ['checkin_time','checkout_time','social_facebook','social_instagram','social_website',
+    const keys = ['checkin_time','checkout_time','social_facebook','social_instagram','social_website','social_tripadvisor',
                   'property_name','property_address','license_number','email_contact'];
     const rows = orgId
       ? db.prepare(`SELECT key,value FROM organization_settings WHERE organization_id = ? AND key IN (${keys.map(() => '?').join(',')})`).all(orgId, ...keys)
@@ -93,6 +102,11 @@ function getEmailSettings(accommodation, organizationId) {
       facebook:         accommodation?.social_facebook  || s.social_facebook  || DEFAULT_FACEBOOK_URL,
       instagram:        accommodation?.social_instagram || s.social_instagram || '',
       website:          accommodation?.social_website   || s.social_website   || '',
+      tripadvisor:      accommodation?.social_tripadvisor || s.social_tripadvisor || '',
+      // null = mostrar todos os configurados (omisso, comportamento anterior
+      // a este campo); um array filtra o bloco "Acompanhe-nos" mesmo que o
+      // link esteja preenchido.
+      social_links_enabled: parseSocialLinksEnabled(accommodation?.email_social_links),
       property_name:    orgName || process.env.PROPERTY_NAME || 'Santa Paciência',
       property_address: s.property_address || process.env.PROPERTY_ADDRESS || '',
       license_number:   s.license_number   || process.env.LICENSE_NUMBER   || '',
@@ -102,7 +116,7 @@ function getEmailSettings(accommodation, organizationId) {
   } catch {
     return {
       checkin_time: '15:00', checkout_time: '11:00',
-      facebook: DEFAULT_FACEBOOK_URL, instagram: '', website: '',
+      facebook: DEFAULT_FACEBOOK_URL, instagram: '', website: '', tripadvisor: '',
       property_name:    process.env.PROPERTY_NAME    || 'Santa Paciência',
       property_address: process.env.PROPERTY_ADDRESS || '',
       license_number:   process.env.LICENSE_NUMBER   || '',
@@ -112,67 +126,82 @@ function getEmailSettings(accommodation, organizationId) {
   }
 }
 
-// Nem <svg> inline nem <img> de CDN externo servem aqui: a app do Gmail
-// (Android/iOS) remove <svg> do corpo do email por completo (fica um círculo
-// vazio, sem erro nenhum — foi o que se via nos ecrãs reais), e imagens
-// externas dependem do cliente ir buscá-las (e podem falhar de forma
-// intermitente para um ícone e não para outro). Emoji são texto simples —
-// carregam sempre, sem depender de nada — mesmo padrão já usado no resto dos
-// templates (🏨, ✅, etc.).
-function buildSocialButtons(settings) {
-  const btns = [];
-  if (settings.facebook)  btns.push(`<a href="${settings.facebook}"  style="display:inline-flex;align-items:center;gap:7px;margin:0 5px;padding:9px 18px;background:#1877f2;color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;font-family:sans-serif;">📘 Facebook</a>`);
-  if (settings.instagram) btns.push(`<a href="${settings.instagram}" style="display:inline-flex;align-items:center;gap:7px;margin:0 5px;padding:9px 18px;background:#e1306c;color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;font-family:sans-serif;">📷 Instagram</a>`);
-  if (settings.website)   btns.push(`<a href="${settings.website}"   style="display:inline-flex;align-items:center;gap:7px;margin:0 5px;padding:9px 18px;background:${BRAND_COLOR};color:#fff;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600;font-family:sans-serif;">🌐 Website</a>`);
-  if (!btns.length) return '';
-  return `<tr><td bgcolor="${BRAND_COLOR}" class="email-brand-bg" style="background:${BRAND_COLOR};padding:20px 40px;border-top:1px solid rgba(255,255,255,.1);text-align:center;">
-    <p style="color:rgba(255,255,255,.65);font-size:12px;margin:0 0 14px;letter-spacing:.5px;text-transform:uppercase;font-family:sans-serif;">Siga-nos nas redes sociais</p>
-    <div>${btns.join('')}</div>
-  </td></tr>`;
-}
-
+// O desenho vive todo em emailComposer.js — envio e pré-visualização usam a
+// mesma composição, por isso não podem divergir. baseTemplate() mantém-se como
+// ponto de entrada porque há mensagens avulsas (pagamento, pré check-in,
+// notificação ao owner) que compõem o conteúdo em código e não por template.
 function baseTemplate(content, settings) {
   const s = settings || getEmailSettings();
-  return `<!DOCTYPE html>
-<html lang="pt">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta name="color-scheme" content="light">
-<meta name="supported-color-schemes" content="light">
-<title>Santa Paciência</title>
-<style>
-  /* A app do Gmail (Android/iOS) reescreve cores de fundo quando o telemóvel
-     está em modo escuro, ignorando os metas color-scheme acima — o castanho
-     da marca fica rosa/salmão. [data-ogsc]/[data-ogsb] são os hooks que a
-     própria Gmail app injeta nesses elementos, e servem exatamente para os
-     conseguirmos repor com !important (única forma documentada de os travar). */
-  [data-ogsc] .email-brand-bg, [data-ogsb] .email-brand-bg { background-color: ${BRAND_COLOR} !important; }
-  [data-ogsc] .email-body-bg, [data-ogsb] .email-body-bg { background-color: #ffffff !important; }
-  [data-ogsc] .email-footer-bg, [data-ogsb] .email-footer-bg { background-color: #f8f8f8 !important; }
-</style>
-</head>
-<body style="margin:0;padding:0;background:#f4f4f4;font-family:Georgia,serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:30px 0;">
-  <tr><td align="center">
-    <table width="600" cellpadding="0" cellspacing="0" class="email-body-bg" style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);">
-      <tr><td bgcolor="${BRAND_COLOR}" class="email-brand-bg" style="background:${BRAND_COLOR};padding:30px;text-align:center;">
-        <img src="${s.logo_url || resolveLogoUrl(null)}"
-             alt="${s.property_name || 'Logótipo'}" style="max-width:180px;height:auto;margin-bottom:10px;" />
-        <p style="color:rgba(255,255,255,.6);margin:5px 0 0;font-size:13px;letter-spacing:1px;">ALOJAMENTO LOCAL</p>
-      </td></tr>
-      <tr><td class="email-body-bg" style="background:#fff;padding:35px 40px;">${content}</td></tr>
-      ${buildSocialButtons(s)}
-      <tr><td bgcolor="#f8f8f8" class="email-footer-bg" style="background:#f8f8f8;padding:20px 40px;border-top:1px solid #eee;text-align:center;">
-        <p style="color:#999;font-size:12px;margin:0;">
-          ${s.property_name} · ${s.property_address}<br>
-          Licença AL: ${s.license_number}<br>
-          ${s.email_contact ? `<a href="mailto:${s.email_contact}" style="color:${ACCENT_COLOR};">${s.email_contact}</a>` : ''}
-        </p>
-      </td></tr>
-    </table>
-  </td></tr>
-</table>
-</body></html>`;
+  return composer.composeEmail(composer.sanitizeBodyHtml(content, { placeholders: false }), s);
+}
+
+// Mantido para os testes e chamadas antigas; o bloco social passou a ser
+// inserido pelo próprio corpo do template, via {{acompanhe_nos}}, porque só o
+// email de boas-vindas o mostra (ver prints de referência).
+function buildSocialButtons(settings) {
+  return composer.buildSocialBlock(settings || getEmailSettings());
+}
+
+// Como cada estado de reserva se apresenta ao hóspede. O template chama-se
+// "confirmacao" mas dispara na criação da reserva, e a criação aceita estados
+// pendente/aguardar_pagamento — sem isto uma reserva por aprovar chegava ao
+// hóspede anunciada como confirmada.
+const STATUS_PRESENTATION = {
+  confirmada:         { title: 'Reserva confirmada',            glyph: '✓', message: 'A sua reserva foi confirmada. Aguardamos a sua visita!' },
+  check_in:           { title: 'Reserva confirmada',            glyph: '✓', message: 'A sua reserva foi confirmada. Aguardamos a sua visita!' },
+  checkin:            { title: 'Reserva confirmada',            glyph: '✓', message: 'A sua reserva foi confirmada. Aguardamos a sua visita!' },
+  checked_in:         { title: 'Reserva confirmada',            glyph: '✓', message: 'A sua reserva foi confirmada. Aguardamos a sua visita!' },
+  pendente:           { title: 'Pedido de reserva recebido',    glyph: '•', message: 'Recebemos o seu pedido de reserva. Confirmamos a disponibilidade e entramos em contacto em breve.' },
+  aguardar_pagamento: { title: 'Reserva por confirmar',         glyph: '•', message: 'A sua reserva fica confirmada assim que o pagamento for registado.' },
+  cancelada:          { title: 'Reserva cancelada',             glyph: '×', message: 'A sua reserva foi cancelada.' },
+};
+
+const STATUS_FALLBACK = { title: 'A sua reserva', glyph: '•', message: 'Aqui ficam os detalhes da sua reserva.' };
+
+function statusPresentation(reservation) {
+  return STATUS_PRESENTATION[String(reservation?.status || '').toLowerCase()] || STATUS_FALLBACK;
+}
+
+// Blocos gerados pelo servidor e inseridos no corpo por {{nome}}. Ao contrário
+// das variáveis de texto (que são escapadas), estes são HTML de confiança —
+// por isso são construídos aqui e nunca a partir do que o utilizador escreve.
+function buildBlocks(vars, settings, reservation) {
+  const pres = statusPresentation(reservation);
+  const s = settings || {};
+  const cardRows = [
+    { label: 'Alojamento', value: vars.alojamento },
+    { label: 'Check-in',   value: vars.data_checkin  ? `${vars.data_checkin} às ${vars.hora_checkin}` : '' },
+    { label: 'Check-out',  value: vars.data_checkout ? `${vars.data_checkout} até às ${vars.hora_checkout}` : '' },
+    { label: 'Noites',     value: vars.noites },
+    { label: 'Hóspedes',   value: vars.num_hospedes },
+    { label: 'Referência', value: vars.referencia },
+  ];
+  return {
+    titulo_reserva: composer.buildReservationTitle(pres.title, pres.glyph),
+    titulo_boas_vindas: composer.buildWelcomeTitle(`Bem-vindo à ${s.property_name || 'Santa Paciência'}`),
+    cartao_reserva: composer.buildReservationCard(cardRows, vars.total),
+    // Mesmo cartão sem a faixa do total — numa reserva cancelada, mostrar um
+    // total a pagar seria enganador.
+    cartao_reserva_sem_total: composer.buildReservationCard(cardRows, ''),
+    botao_alojamento: composer.buildCtaBlock(s.website, 'Conhecer o alojamento'),
+    botao_pre_checkin: composer.buildCtaBlock(vars.link_pre_checkin, 'Completar pré check-in'),
+    acompanhe_nos: composer.buildSocialBlock(s),
+  };
+}
+
+
+// Composição única: o corpo editável é sanitizado, as variáveis de texto são
+// escapadas e os blocos entram como HTML. Uma única passagem de substituição
+// impede que um valor interpolado seja re-analisado (um hóspede chamado
+// "{{acompanhe_nos}}" não injeta o bloco).
+function renderEmail({ subject, body, vars, blocks, settings }) {
+  const merged = { ...escapeVars(vars || {}), ...(blocks || {}) };
+  const renderedSubject = interpolate(String(subject || ''), vars || {});
+  const renderedBody = interpolate(composer.sanitizeBodyHtml(body || ''), merged);
+  return {
+    subject: renderedSubject,
+    html: composer.composeEmail(composer.sanitizeBodyHtml(renderedBody, { placeholders: false }), settings, { title: renderedSubject }),
+  };
 }
 
 function interpolate(body, vars) {
@@ -194,8 +223,17 @@ function buildVars(guest, reservation, accommodation, settings, extra) {
     hora_checkout: s.checkout_time || '11:00',
     noites: String(reservation.nights || ''),
     num_hospedes: String(reservation.num_guests || ''),
-    total: `€${Number(reservation.total_amount || 0).toFixed(2)}`,
+    // Formato português: 240,00 € — o símbolo vem do Intl, por isso os
+    // templates nunca devem acrescentar outro.
+    total: composer.formatCurrency(reservation.total_amount || 0),
     referencia: reservation.id || '',
+    // Localidade do alojamento (herdada do alojamento principal pelas suites).
+    // Cai no nome quando a cidade não está preenchida, para a frase de
+    // boas-vindas não ficar truncada.
+    localidade: accommodation.city || accommodation.name || accommodation.accommodation_name || '',
+    // Estado real da reserva, em texto — para o assunto, que não aceita blocos.
+    titulo_estado: statusPresentation(reservation).title,
+    mensagem_estado: statusPresentation(reservation).message,
     wifi_nome: accommodation.wifi_name || '—',
     wifi_password: accommodation.wifi_password || '—',
     codigo_porta: accommodation.door_code || '—',
@@ -203,10 +241,22 @@ function buildVars(guest, reservation, accommodation, settings, extra) {
   };
 }
 
+// Variáveis cujo valor acaba num href têm de passar pelo filtro de protocolos
+// antes de chegar ao template — o sanitizador do corpo deixa passar o
+// marcador {{...}} intacto, por isso a validação tem de ser feita no valor.
+const URL_VARS = ['link_pre_checkin'];
+function sanitizeUrlVars(vars) {
+  for (const key of URL_VARS) {
+    if (vars[key] !== undefined) vars[key] = composer.safeUrl(vars[key]);
+  }
+  return vars;
+}
+
 const INHERITABLE_ACCOMMODATION_FIELDS = [
   'address', 'postal_code', 'city', 'region', 'country',
   'wifi_name', 'wifi_password', 'door_code', 'checkin_time', 'checkout_time',
-  'social_facebook', 'social_instagram', 'social_website', 'logo_url',
+  'social_facebook', 'social_instagram', 'social_website', 'social_tripadvisor', 'logo_url',
+  'email_social_links',
 ];
 
 // Suites/quartos filhos de um alojamento principal não repetem Wi-Fi/redes
@@ -335,12 +385,10 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation, extra
   // Fora da janela de envio configurada para este template: adia para a
   // próxima passagem do scheduler em vez de enviar já (ver flushQueuedEmails).
   if (orgId && !isWithinSendWindow(template)) {
-    try {
-      db.prepare(`
-        INSERT OR IGNORE INTO organization_email_queue (id, organization_id, template_slug, reservation_id)
-        VALUES (?, ?, ?, ?)
-      `).run(crypto.randomUUID(), orgId, slug, reservation.id);
-    } catch {}
+    db.prepare(`
+      INSERT OR IGNORE INTO organization_email_queue (id, organization_id, template_slug, reservation_id)
+      VALUES (?, ?, ?, ?)
+    `).run(crypto.randomUUID(), orgId, slug, reservation.id);
     console.log(`📧 Email ${slug} → reserva ${reservation.id} adiado (fora da janela de envio)`);
     return { queued: true };
   }
@@ -352,17 +400,26 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation, extra
   }
 
   const settings = getEmailSettings(accommodation, orgId);
-  const vars = buildVars(guest, reservation, accommodation, settings, vars_extra);
+  const vars = sanitizeUrlVars(buildVars(guest, reservation, accommodation, settings, vars_extra));
+  const blocks = buildBlocks(vars, settings, reservation);
+  const rendered = renderEmail({ subject: template.subject, body: template.body, vars, blocks, settings });
   // A intenção de envio sobrevive a falhas de rede e reinícios.
   db.prepare(`INSERT OR IGNORE INTO organization_email_queue (id, organization_id, template_slug, reservation_id)
     VALUES (?, ?, ?, ?)`).run(crypto.randomUUID(), orgId, slug, reservation.id);
   const result = await sendMail(orgId, {
     to,
-    subject: interpolate(template.subject, vars),
-    html: baseTemplate(interpolate(template.body, escapeVars(vars)), settings),
+    subject: rendered.subject,
+    html: rendered.html,
     bcc: template.bcc || undefined,
   });
-  if (result) db.prepare('DELETE FROM organization_email_queue WHERE organization_id=? AND template_slug=? AND reservation_id=?').run(orgId, slug, reservation.id);
+  if (result) db.transaction(() => {
+    if (['checkin', 'checkout'].includes(template.timing_event)) {
+      db.prepare('INSERT OR IGNORE INTO organization_email_log (id,organization_id,template_slug,reservation_id) VALUES (?,?,?,?)')
+        .run(crypto.randomUUID(), orgId, slug, reservation.id);
+    }
+    db.prepare('DELETE FROM organization_email_queue WHERE organization_id=? AND template_slug=? AND reservation_id=?')
+      .run(orgId, slug, reservation.id);
+  })();
   return result;
 }
 
@@ -384,13 +441,16 @@ async function sendPaymentConfirmationEmail(guest, reservation, accommodation) {
   if (template) return sendTemplatedEmail('pagamento', guest, reservation, accommodation);
   accommodation = resolveAccommodationInheritance(accommodation, orgId);
   const settings = getEmailSettings(accommodation, orgId);
-  const content = `<h2 style="color:#27ae60;margin-top:0;">💶 Pagamento Confirmado</h2>
-    <p style="color:#555;">Olá <strong>${escapeHtml(guest.name)}</strong>,</p>
-    <p style="color:#555;">Confirmamos a receção do pagamento da sua reserva em <strong>${escapeHtml(accommodation.name || '')}</strong>.</p>
-    <p style="color:#27ae60;font-weight:bold;font-size:20px;">€${Number(reservation.total_amount || 0).toFixed(2)}</p>`;
+  const content = `${composer.buildReservationTitle('Pagamento confirmado', '✓')}
+    <p style="margin:0 0 14px;">Olá <strong>${escapeHtml(guest.first_name || (guest.name || '').split(' ')[0] || guest.name || '')}</strong>,</p>
+    <p style="margin:0 0 6px;">Confirmamos a receção do pagamento da sua reserva em <strong>${escapeHtml(accommodation.name || '')}</strong>.</p>
+    ${composer.buildReservationCard([
+      { label: 'Alojamento', value: accommodation.name || '' },
+      { label: 'Referência', value: reservation.id || '' },
+    ], composer.formatCurrency(reservation.total_amount || 0))}`;
   return sendMail(orgId, {
     to: guest.email,
-    subject: '💶 Pagamento Confirmado — Santa Paciência',
+    subject: `Pagamento confirmado — ${settings.property_name}`,
     html: baseTemplate(content, settings),
   });
 }
@@ -407,16 +467,14 @@ async function sendPreCheckinEmail(guest, reservation, accommodation, preCheckin
   }
   accommodation = resolveAccommodationInheritance(accommodation, orgId);
   const settings = getEmailSettings(accommodation, orgId);
-  const content = `<h2 style="color:${BRAND_COLOR};margin-top:0;">Pré check-in</h2>
-    <p style="color:#555;">Olá <strong>${escapeHtml(guest.name || '')}</strong>,</p>
-    <p style="color:#555;">A sua reserva em <strong>${escapeHtml(accommodation.name || '')}</strong> foi aprovada. Para prepararmos a chegada, pedimos que complete o pré check-in com a hora prevista de chegada e os dados legais dos hóspedes.</p>
-    <p style="text-align:center;margin:28px 0;">
-      <a href="${preCheckinUrl}" style="display:inline-block;background:${BRAND_COLOR};color:#fff;text-decoration:none;border-radius:8px;padding:13px 22px;font-family:sans-serif;font-weight:700;">Completar pré check-in</a>
-    </p>
-    <p style="color:#777;font-size:13px;">Referência da reserva: <strong>${reservation.id}</strong></p>`;
+  const content = `${composer.buildReservationTitle('Pré check-in', '•')}
+    <p style="margin:0 0 14px;">Olá <strong>${escapeHtml(guest.first_name || (guest.name || '').split(' ')[0] || guest.name || '')}</strong>,</p>
+    <p style="margin:0 0 6px;">A sua reserva em <strong>${escapeHtml(accommodation.name || '')}</strong> foi aprovada. Para prepararmos a chegada, pedimos que complete o pré check-in com a hora prevista de chegada e os dados legais dos hóspedes.</p>
+    ${composer.buildCtaBlock(preCheckinUrl, 'Completar pré check-in')}
+    <p style="font-size:13.5px;color:${composer.PALETTE.muted};margin:18px 0 0;">Referência da reserva: <strong>${escapeHtml(reservation.id)}</strong></p>`;
   return sendMail(orgId, {
     to: guest.email,
-    subject: 'Pré check-in da sua reserva — Santa Paciência',
+    subject: `Pré check-in da sua reserva — ${settings.property_name}`,
     html: baseTemplate(content, settings),
   });
 }
@@ -442,27 +500,18 @@ async function sendOwnerNewReservationEmail(organizationId, guest, reservation, 
   const settings = getEmailSettings(accommodation, organizationId);
   const reservationUrl = appUrl ? `${appUrl}/reservas?reserva=${encodeURIComponent(reservation.id)}` : '';
 
-  const row = (label, value) =>
-    `<tr><td style="padding:8px 0;border-bottom:1px solid #f0e8e0;color:#888;width:130px;">${label}</td>` +
-    `<td style="padding:8px 0;border-bottom:1px solid #f0e8e0;">${value}</td></tr>`;
-
   const content = `
-    <h2 style="color:${BRAND_COLOR};margin-top:0;">Nova reserva recebida</h2>
-    <table style="width:100%;border-collapse:collapse;font-size:15px;color:#444;">
-      ${row('Referência',  `<strong>${escapeHtml(reservation.id)}</strong>`)}
-      ${row('Hóspede',     `${escapeHtml(guest.name || '')} &lt;${escapeHtml(guest.email || '')}&gt;`)}
-      ${row('Alojamento',  escapeHtml(accommodation.name || ''))}
-      ${row('Check-in',    formatDate(reservation.check_in))}
-      ${row('Check-out',   formatDate(reservation.check_out))}
-      ${row('Hóspedes',    String(reservation.num_guests || 1))}
-      <tr><td style="padding:8px 0;color:#888;">Total</td>
-          <td style="padding:8px 0;font-weight:700;color:${BRAND_COLOR};">€${Number(reservation.total_amount || 0).toFixed(2)}</td></tr>
-    </table>
-    ${reservationUrl
-      ? `<p style="text-align:center;margin:28px 0;">
-           <a href="${reservationUrl}" style="display:inline-block;background:${BRAND_COLOR};color:#fff;text-decoration:none;border-radius:8px;padding:13px 22px;font-family:sans-serif;font-weight:700;">Ver reserva no backoffice</a>
-         </p>`
-      : ''}
+    ${composer.buildReservationTitle('Nova reserva recebida', '•')}
+    ${composer.buildReservationCard([
+      { label: 'Referência',  value: reservation.id || '' },
+      { label: 'Hóspede',     value: `${guest.name || ''} <${guest.email || ''}>` },
+      { label: 'Alojamento',  value: accommodation.name || '' },
+      { label: 'Check-in',    value: formatDate(reservation.check_in) },
+      { label: 'Check-out',   value: formatDate(reservation.check_out) },
+      { label: 'Hóspedes',    value: String(reservation.num_guests || 1) },
+      { label: 'Estado',      value: statusPresentation(reservation).title },
+    ], composer.formatCurrency(reservation.total_amount || 0))}
+    ${composer.buildCtaBlock(reservationUrl, 'Ver reserva no backoffice')}
   `;
 
   for (const owner of owners) {
@@ -488,8 +537,14 @@ module.exports = {
   sendOwnerNewReservationEmail,
   sendTemplatedEmail,
   baseTemplate,
+  buildSocialButtons,
   interpolate,
   buildVars,
+  buildBlocks,
+  renderEmail,
+  statusPresentation,
+  sanitizeUrlVars,
+  escapeVars,
   getEmailSettings,
   formatDate,
   resolveAccommodationInheritance,

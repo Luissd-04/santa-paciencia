@@ -1,0 +1,170 @@
+
+        <!-- Selector de alojamento -->
+        <div class="view-toolbar" style="gap:12px;flex-wrap:wrap;">
+          <select id="precos-aloj-sel" class="form-control" data-enhance-select style="min-width:200px;max-width:300px;" data-on-change="index-on-precos-aloj-change-d356643">
+            <option value="">— Selecionar alojamento —</option>
+          </select>
+          <div id="precos-base-price-badge" style="display:none;font-size:13px;color:var(--cinza);">
+            Preço base: <b id="precos-base-price-val" style="color:var(--texto);">€0</b>/noite
+          </div>
+        </div>
+
+        <!-- Sub-tabs -->
+        <div class="report-tabs" style="margin-bottom:18px;">
+          <button class="report-tab active" id="precos-tab-btn-calendario" data-on-click="index-show-precos-tab-c8142a3">
+            <i data-lucide="calendar-days" style="width:14px;height:14px;"></i> Calendário
+          </button>
+          <button class="report-tab" id="precos-tab-btn-config" data-on-click="index-show-precos-tab-b9cf4ac">
+            <i data-lucide="list-checks" style="width:14px;height:14px;"></i> Lista
+          </button>
+        </div>
+
+        <!-- Painel: Calendário -->
+        <!-- #precos-calendar-widget é um nó único (ids fixos) que também é montado
+             na tab "Preços" do detalhe do alojamento — é movido, nunca duplicado. -->
+        <div id="precos-panel-calendario">
+          <div class="precos-cal-layout" id="precos-calendar-widget" style="display:flex;gap:18px;align-items:flex-start;">
+
+            <!-- Calendário -->
+            <div class="card" style="flex:1;min-width:0;overflow:visible;">
+              <div id="precos-calendar-container" style="padding:4px 0;">
+                <div style="text-align:center;padding:40px;color:var(--cinza);font-size:14px;">Seleciona um alojamento para ver o calendário de preços.</div>
+              </div>
+              <div id="precos-selection-hint" style="padding:0 4px 8px;"></div>
+            </div>
+
+            <div class="precos-sheet-backdrop" id="precos-sheet-backdrop" data-on-click="index-cancel-precos-selection-93768a7"></div>
+
+            <!-- Painel lateral de edição -->
+            <div class="card" id="precos-side-panel" style="width:290px;flex-shrink:0;">
+              <div class="precos-sheet-header">
+                <span>Editar preços</span>
+                <button type="button" class="precos-sheet-close" data-on-click="index-cancel-precos-selection-93768a7"><i data-lucide="x"></i></button>
+              </div>
+              <div id="precos-side-panel-empty" style="padding:32px 16px;text-align:center;color:var(--cinza);font-size:13px;">
+                <i data-lucide="mouse-pointer-click" style="width:28px;height:28px;margin:0 auto 10px;display:block;opacity:.4;"></i>
+                Seleciona um alojamento para editar preços
+              </div>
+              <div id="precos-side-panel-form" style="display:none;padding:16px;flex-direction:column;gap:12px;">
+
+                <!-- Nome -->
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:12px;">Nome do período <span class="req-star">*</span></label>
+                  <input class="form-control" id="precos-bulk-name" placeholder="Ex: Alta Temporada" style="font-size:13px;" autocomplete="off">
+                </div>
+
+                <!-- Datas -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label" style="font-size:12px;">De <span class="req-star">*</span></label>
+                    <div class="birth-date-control">
+                      <input class="form-control" id="precos-bulk-start" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" style="font-size:12px;" data-on-click="index-open-precos-bulk-start-picker-f612726" readonly autocomplete="off">
+                      <button type="button" class="birth-date-picker-btn" data-on-click="index-open-precos-bulk-start-picker-f612726" aria-label="Abrir calendário"><i data-lucide="calendar-days"></i></button>
+                    </div>
+                  </div>
+                  <div class="form-group" style="margin:0;">
+                    <label class="form-label" style="font-size:12px;">Até <span class="req-star">*</span></label>
+                    <div class="birth-date-control">
+                      <input class="form-control" id="precos-bulk-end" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" style="font-size:12px;" data-on-click="index-open-precos-bulk-end-picker-25ee823" readonly autocomplete="off">
+                      <button type="button" class="birth-date-picker-btn" data-on-click="index-open-precos-bulk-end-picker-25ee823" aria-label="Abrir calendário"><i data-lucide="calendar-days"></i></button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Dias da semana -->
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:12px;">Dias da semana</label>
+                  <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;" id="precos-dow-btns">
+                    <button type="button" class="precos-dow-btn active" data-dow="all" data-on-click="index-toggle-precos-dow-e92fd4e" title="Todos">Todos</button>
+                    <button type="button" class="precos-dow-btn active" data-dow="1" data-on-click="index-toggle-precos-dow-283b0a3" title="Segunda">Seg</button>
+                    <button type="button" class="precos-dow-btn active" data-dow="2" data-on-click="index-toggle-precos-dow-658e991" title="Terça">Ter</button>
+                    <button type="button" class="precos-dow-btn active" data-dow="3" data-on-click="index-toggle-precos-dow-3541c35" title="Quarta">Qua</button>
+                    <button type="button" class="precos-dow-btn active" data-dow="4" data-on-click="index-toggle-precos-dow-5e856b8" title="Quinta">Qui</button>
+                    <button type="button" class="precos-dow-btn active" data-dow="5" data-on-click="index-toggle-precos-dow-a91ac75" title="Sexta">Sex</button>
+                    <button type="button" class="precos-dow-btn active" data-dow="6" data-on-click="index-toggle-precos-dow-58c20d0" title="Sábado">Sáb</button>
+                    <button type="button" class="precos-dow-btn active" data-dow="0" data-on-click="index-toggle-precos-dow-f54905e" title="Domingo">Dom</button>
+                  </div>
+                </div>
+
+                <!-- Preço -->
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:12px;">Preço por noite (€) <span class="req-star">*</span></label>
+                  <input class="form-control" id="precos-bulk-price" type="number" min="0" step="0.01" placeholder="0.00" style="font-size:13px;" autocomplete="off">
+                </div>
+
+                <!-- Estadia mínima -->
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label" style="font-size:12px;">Estadia mínima (noites)</label>
+                  <input class="form-control" id="precos-bulk-min-nights" type="number" min="1" value="2" style="font-size:13px;" autocomplete="off">
+                </div>
+
+                <!-- Botão guardar -->
+                <button class="btn btn-primary" id="precos-bulk-save-btn" data-on-click="index-save-precos-bulk-a2b5954" style="width:100%;margin-top:2px;">
+                  <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
+                </button>
+                <button class="btn btn-ghost btn-sm" data-on-click="index-clear-precos-bulk-form-6f21c23" style="width:100%;font-size:12px;color:var(--cinza);">Limpar</button>
+
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Painel: Lista -->
+        <div id="precos-panel-config" style="display:none;">
+          <div class="card">
+            <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+              <span class="card-title" style="font-size:14px;">
+                <i data-lucide="tag"></i> Períodos de Preço Especial
+              </span>
+              <button class="btn btn-primary btn-sm" data-on-click="index-open-precos-period-modal-8207d94">
+                <i data-lucide="plus"></i> Novo Período
+              </button>
+            </div>
+            <p style="font-size:13px;color:var(--cinza);margin:0 0 16px;">Define preços por noite para épocas especiais. O preço base aplica-se nas noites não cobertas por nenhum período.</p>
+            <div id="precos-periods-list"></div>
+          </div>
+        </div>
+
+        <!-- Modal: Editar Período (da lista) -->
+        <div id="precos-period-modal-bg" class="modal-bg" style="display:none;" data-on-click="index-if-2b3ceaf">
+          <div class="modal" style="max-width:460px;" data-on-click="index-stop-propagation-22499e1">
+            <div class="modal-header">
+              <h3 id="precos-period-modal-title" class="modal-title">Editar Período de Preço</h3>
+              <button class="modal-close" data-on-click="index-close-precos-period-modal-a5a19e3"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+              <input type="hidden" id="pp2-editing-id">
+              <div class="form-group" style="margin:0;">
+                <label class="form-label">Nome do período <span class="req-star">*</span></label>
+                <input class="form-control" id="pp2-name" placeholder="Ex: Alta Temporada, Natal, Páscoa" autocomplete="off">
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">Data Início <span class="req-star">*</span></label>
+                  <input class="form-control" id="pp2-start" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" autocomplete="off">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">Data Fim <span class="req-star">*</span></label>
+                  <input class="form-control" id="pp2-end" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" autocomplete="off">
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">Preço / noite (€) <span class="req-star">*</span></label>
+                  <input class="form-control" id="pp2-price" type="number" min="0" step="0.01" placeholder="0.00" autocomplete="off">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label class="form-label">Estadia mínima (noites)</label>
+                  <input class="form-control" id="pp2-min-nights" type="number" min="1" placeholder="1" autocomplete="off">
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-ghost" data-on-click="index-close-precos-period-modal-a5a19e3">Cancelar</button>
+              <button class="btn btn-primary" id="btn-save-precos-period" data-on-click="index-save-precos-period-f5f5935">
+                <i data-lucide="save"></i> Guardar
+              </button>
+            </div>
+          </div>
+        </div>

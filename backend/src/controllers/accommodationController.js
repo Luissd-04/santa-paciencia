@@ -5,9 +5,65 @@ const { recolorAccommodationCalendar, ensureAllAccommodationCalendars } = requir
 
 const INHERITED_FIELDS = ['address','postal_code','city','region','country',
   'wifi_name','wifi_password','door_code','checkin_time','checkout_time',
-  'social_facebook','social_instagram','social_website','logo_url'];
+  'social_facebook','social_instagram','social_website','social_tripadvisor','logo_url','email_social_links'];
+
+// Chaves reconhecidas do bloco "Acompanhe-nos" dos emails — lista fechada
+// para não guardar lixo arbitrário.
+const SOCIAL_LINK_KEYS = ['instagram', 'facebook', 'website', 'tripadvisor'];
+
+// undefined (campo ausente do pedido) preserva o valor guardado; um array
+// (mesmo vazio) substitui-o; qualquer outra coisa é ignorada.
+function normalizeEmailSocialLinks(value, existingValue) {
+  if (value === undefined) return existingValue;
+  if (!Array.isArray(value)) return existingValue;
+  const keys = value.filter(k => SOCIAL_LINK_KEYS.includes(k));
+  return JSON.stringify(keys);
+}
 const COMMON_AREAS_KEY = 'areas_comuns';
 const COMMON_AREAS_LABEL = 'Áreas Comuns';
+const ACCOMMODATION_TEXT_LIMITS = Object.freeze({
+  name: 160, type: 40, license_number: 120,
+  description: 10000, description_en: 10000, description_fr: 10000,
+  description_es: 10000, description_de: 10000, description_it: 10000,
+  description_nl: 10000, address: 300, postal_code: 32, city: 120,
+  region: 120, country: 120, wifi_name: 128, wifi_password: 256,
+  door_code: 128, checkin_time: 8, checkout_time: 8, color: 32,
+  social_facebook: 2048, social_instagram: 2048, social_website: 2048,
+  social_tripadvisor: 2048, google_calendar_id: 512, rgpd_text: 10000,
+  airbnb_ical_url: 4096, booking_ical_url: 4096,
+});
+const FORBIDDEN_TEXT_CONTROLS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+
+function validateTextPayload(body, limits = ACCOMMODATION_TEXT_LIMITS) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return 'Pedido inválido.';
+  for (const [field, max] of Object.entries(limits)) {
+    const value = body[field];
+    if (value === undefined || value === null) continue;
+    if (typeof value !== 'string') return `O campo ${field} tem de ser texto.`;
+    if (value.length > max) return `O campo ${field} excede o limite de ${max} caracteres.`;
+    if (FORBIDDEN_TEXT_CONTROLS.test(value)) return `O campo ${field} contém caracteres inválidos.`;
+  }
+  return null;
+}
+
+function validateServices(services) {
+  if (!Array.isArray(services)) return 'Formato inválido';
+  if (services.length > 100) return 'O limite é de 100 serviços.';
+  for (const service of services) {
+    if (!service || typeof service !== 'object' || Array.isArray(service)) return 'Serviço inválido.';
+    if (!['service', 'tax'].includes(service.type)) return 'Tipo de serviço inválido.';
+    if (typeof service.name !== 'string' || !service.name.trim() || service.name.length > 160 || FORBIDDEN_TEXT_CONTROLS.test(service.name)) {
+      return 'O nome do serviço é inválido.';
+    }
+    const value = Number(service.value);
+    if (!Number.isFinite(value) || value < 0 || value > 1000000) return 'O valor do serviço é inválido.';
+    if (service.id !== undefined && (typeof service.id !== 'string' || service.id.length > 128)) return 'Identificador de serviço inválido.';
+    if (service.unit !== undefined && (typeof service.unit !== 'string' || service.unit.length > 80 || FORBIDDEN_TEXT_CONTROLS.test(service.unit))) {
+      return 'Unidade de serviço inválida.';
+    }
+  }
+  return null;
+}
 
 function slugify(value) {
   return String(value || '')
@@ -78,7 +134,8 @@ function resolveAccommodation(raw, parent = null) {
   if (!parent) return resolved;
 
   INHERITED_FIELDS.forEach(field => {
-    resolved[field] = parent[field] ?? '';
+    // email_social_links é array-ou-null, não string — '' quebraria .includes().
+    resolved[field] = field === 'email_social_links' ? (parent[field] ?? null) : (parent[field] ?? '');
   });
 
   resolved.inherited_amenities = Array.isArray(parent.effective_amenities)
@@ -147,6 +204,14 @@ function getResolvedAccommodationById(orgId, id) {
 
 // ─── GET ALL ───────────────────────────────────────────────
 function getAll(req, res) {
+  if (req.user.role === 'staff') {
+    // O calendário precisa do catálogo, mas não das credenciais nem de _parent.
+    const data = db.prepare(`SELECT id, name, type, parent_id, color, max_guests,
+      price_per_night, cover_image, checkin_time, checkout_time
+      FROM accommodations WHERE organization_id = ? ORDER BY name`)
+      .all(req.user.organization_id);
+    return res.json({ success: true, data });
+  }
   const resolved = getResolvedAccommodationsForOrg(req.user.organization_id);
   res.json({ success: true, data: resolved });
 }
@@ -160,7 +225,10 @@ function getById(req, res) {
 
 // ─── CREATE ────────────────────────────────────────────────
 function create(req, res) {
-  const { name, type, price_per_night, max_guests, license_number, parent_id } = req.body;
+  const invalid = validateTextPayload(req.body);
+  if (invalid) return res.status(400).json({ error: invalid });
+  const { type, price_per_night, max_guests, license_number, parent_id } = req.body;
+  const name = String(req.body.name || '').trim();
   if (!name) return res.status(400).json({ error: 'Nome obrigatório' });
 
   if (parent_id) {
@@ -209,6 +277,9 @@ function update(req, res) {
   `).get(id, req.user.organization_id);
   if (!existing) return res.status(404).json({ error: 'Alojamento não encontrado' });
 
+  const invalid = validateTextPayload(req.body);
+  if (invalid) return res.status(400).json({ error: invalid });
+
   const {
     name, type, price_per_night, max_guests, license_number,
     description, description_en, description_fr, description_es,
@@ -216,12 +287,14 @@ function update(req, res) {
     address, postal_code, city, region, country,
     area, num_rooms, num_bathrooms, amenities, own_amenities, google_calendar_id, google_calendar_manual,
     wifi_name, wifi_password, door_code, checkin_time, checkout_time, color,
-    social_facebook, social_instagram, social_website, parent_id,
+    social_facebook, social_instagram, social_website, social_tripadvisor, email_social_links, parent_id,
     base_guests_included, extra_bed_enabled, extra_bed_type,
     extra_bed_capacity, extra_bed_price, extra_bed_charge_type,
     extra_occupancy_options, baby_age_limit, baby_price, child_age_limit, child_price,
     min_nights, rgpd_text
   } = req.body;
+  const normalizedName = name === undefined ? undefined : String(name || '').trim();
+  if (name !== undefined && !normalizedName) return res.status(400).json({ error: 'Nome obrigatório' });
   const airbnbIcalUrl = normalizeIcalUrl(req.body.airbnb_ical_url);
   const bookingIcalUrl = normalizeIcalUrl(req.body.booking_ical_url);
 
@@ -302,7 +375,7 @@ function update(req, res) {
     wifi_name = ?, wifi_password = ?, door_code = ?,
     checkin_time = ?, checkout_time = ?,
     color = COALESCE(?, color),
-    social_facebook = ?, social_instagram = ?, social_website = ?,
+    social_facebook = ?, social_instagram = ?, social_website = ?, social_tripadvisor = ?, email_social_links = ?,
     google_calendar_id = ?,
     google_calendar_manual = ?,
     parent_id = ?,
@@ -323,7 +396,7 @@ function update(req, res) {
     booking_ical_url = ?
     WHERE id = ? AND organization_id = ?`)
     .run(
-      name, type, price_per_night, max_guests, license_number,
+      normalizedName, type, price_per_night, max_guests, license_number,
       description, description_en || null, description_fr || null,
       description_es || null, description_de || null, description_it || null, description_nl || null,
       inh(address, existing.address),
@@ -342,6 +415,8 @@ function update(req, res) {
       inh(social_facebook !== undefined ? (social_facebook || null) : null, existing.social_facebook),
       inh(social_instagram !== undefined ? (social_instagram || null) : null, existing.social_instagram),
       inh(social_website !== undefined ? (social_website || null) : null, existing.social_website),
+      inh(social_tripadvisor !== undefined ? (social_tripadvisor || null) : null, existing.social_tripadvisor),
+      inh(normalizeEmailSocialLinks(email_social_links, existing.email_social_links), existing.email_social_links),
       nextGoogleCalendarId,
       nextGoogleCalendarManual,
       effectiveParentId,
@@ -385,13 +460,23 @@ function getSettings(req, res) {
 
 function saveSettings(req, res) {
   const { services } = req.body;
-  if (!Array.isArray(services)) return res.status(400).json({ error: 'Formato inválido' });
+  const invalid = validateServices(services);
+  if (invalid) return res.status(400).json({ error: invalid });
+
+  const normalized = services.map(service => ({
+    id: String(service.id || `sv-${uuidv4()}`).slice(0, 128),
+    name: service.name.trim(),
+    type: service.type,
+    value: Number(service.value),
+    unit: typeof service.unit === 'string' ? service.unit.trim() : '€/hóspede/noite',
+    active: service.active !== false,
+  }));
 
   db.prepare(`
     INSERT OR REPLACE INTO organization_settings (organization_id, key, value, updated_at)
     VALUES (?, 'services', ?, datetime('now'))
-  `).run(req.user.organization_id, JSON.stringify(services));
-  res.json({ success: true, data: services });
+  `).run(req.user.organization_id, JSON.stringify(normalized));
+  res.json({ success: true, data: normalized });
 }
 
 // ─── HELPER ───────────────────────────────────────────────
@@ -401,6 +486,8 @@ function parseJson(a) {
     amenities: safeJson(a.amenities, []),
     images: safeJson(a.images, {}),
     extra_occupancy_options: normalizeExtraOccupancyOptions(a.extra_occupancy_options, a),
+    // null = mostrar todos os links configurados (nenhuma preferência guardada).
+    email_social_links: safeJson(a.email_social_links, null),
   };
 }
 function safeJson(v, def) {

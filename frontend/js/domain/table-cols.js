@@ -1,3 +1,9 @@
+// Estado privado; interface partilhada em AppModules.core.
+(() => {
+AppModules.define('core', {
+  createColLayout: { get: () => createColLayout },
+});
+
 /* ═══════════════════════════════════════════════════════════════
    SANTA PACIÊNCIA — colunas de tabela redimensionáveis + reordenáveis
    Extraído do padrão de #reservas-table. data-col liga <col> ↔ <th> ↔ <td>.
@@ -51,14 +57,14 @@ function createColLayout(opts) {
         try { const v = localStorage.getItem('sp:' + k); return v == null ? d : JSON.parse(v); }
         catch { return d; }
       }
-      return SS.get(k, d);
+      return AppModules.core.SS.get(k, d);
     },
     set(k, v) {
       if (storage === 'local') {
         try { localStorage.setItem('sp:' + k, JSON.stringify(v)); } catch (_) {}
         return;
       }
-      SS.set(k, v);
+      AppModules.core.SS.set(k, v);
     },
   };
 
@@ -404,3 +410,5 @@ function createColLayout(opts) {
     reset() { store.set(KW, {}); applyWidths(); },
   };
 }
+
+})();

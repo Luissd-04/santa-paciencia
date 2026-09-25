@@ -1,6 +1,7 @@
 const { fetchWithTimeout } = require('../services/httpClient');
 const { OAuth2Client } = require('google-auth-library');
 const { db } = require('./database');
+const { encodeTokens, decodeTokens } = require('./tokenStorage');
 const { EVENT_TYPE_LABELS } = require('./eventTypes');
 
 const TASKS_SCOPES = ['https://www.googleapis.com/auth/tasks'];
@@ -15,11 +16,12 @@ const TASK_TYPE_LABELS = {
 };
 
 function getTasksOAuth2Client() {
-  return new OAuth2Client(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_TASKS_REDIRECT_URI
-  );
+  return new OAuth2Client({
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    redirectUri: process.env.GOOGLE_TASKS_REDIRECT_URI,
+    transporterOptions: { timeout: 30000 },
+  });
 }
 
 function getStoredTasksTokens(organizationId) {
@@ -27,7 +29,7 @@ function getStoredTasksTokens(organizationId) {
     'SELECT tokens FROM google_tasks_connections WHERE organization_id = ?'
   ).get(organizationId);
   if (!row?.tokens) return null;
-  try { return JSON.parse(row.tokens); } catch { return null; }
+  return decodeTokens(row.tokens, `tasks:${organizationId}`);
 }
 
 function saveTasksTokens(organizationId, tokens, email) {
@@ -36,7 +38,7 @@ function saveTasksTokens(organizationId, tokens, email) {
     VALUES (?, ?, ?, datetime('now'))
     ON CONFLICT(organization_id)
     DO UPDATE SET tokens = excluded.tokens, email = excluded.email, updated_at = datetime('now')
-  `).run(organizationId, email || null, JSON.stringify(tokens));
+  `).run(organizationId, email || null, encodeTokens(tokens, `tasks:${organizationId}`));
 }
 
 function deleteTasksTokens(organizationId) {
@@ -71,7 +73,7 @@ function getAuthenticatedTasksClient(organizationId) {
 
   oAuth2Client.on('tokens', (newTokens) => {
     const merged = { ...tokens, ...newTokens };
-    saveTasksTokens(organizationId, merged, null);
+    saveTasksTokens(organizationId, merged, getTasksConnectionInfo(organizationId).email);
   });
 
   return oAuth2Client;
@@ -147,6 +149,10 @@ async function syncOrganizationTasksToGoogleTasks(organizationId) {
     return { created: 0, updated: 0, errors: 0, total: 0 };
   }
 
+  // Dar prioridade a eliminações pendentes: evita voltar a sincronizar uma
+  // coleção grande enquanto tarefas de reservas já apagadas continuam no Google.
+  await processQueuedTaskDeletions(organizationId);
+
   const auth = getAuthenticatedTasksClient(organizationId);
   const listId = await getOrCreateTaskList(auth, organizationId);
 
@@ -212,16 +218,110 @@ async function syncOrganizationTasksToGoogleTasks(organizationId) {
   return { created, updated, errors, total: events.length };
 }
 
-// Apaga uma única tarefa do Google Tasks (usado quando um evento é removido na app).
+function queueSyncedTaskDeletion(organizationId, googleTaskId) {
+  if (!organizationId || !googleTaskId) return false;
+  db.prepare(`
+    INSERT OR IGNORE INTO google_task_cleanup_queue (organization_id, google_task_id)
+    VALUES (?, ?)
+  `).run(organizationId, googleTaskId);
+  return true;
+}
+
+function googleErrorStatus(error) {
+  return Number(error?.response?.status || error?.status || error?.code) || 0;
+}
+
+// Apaga uma única tarefa do Google Tasks. Erros são propagados para que o caller
+// possa conservar a referência e repetir; 404 é sucesso idempotente.
 async function deleteSyncedTask(organizationId, googleTaskId) {
   const info = getTasksConnectionInfo(organizationId);
-  if (!info.connected || !info.tasksListId || !googleTaskId) return;
+  if (!googleTaskId) return false;
+  if (!info.connected || !info.tasksListId) {
+    const error = new Error('Google Tasks não ligado ou lista da aplicação indisponível.');
+    error.status = 503;
+    throw error;
+  }
   try {
     const auth = getAuthenticatedTasksClient(organizationId);
     await auth.request({ url: `${TASKS_BASE}/lists/${info.tasksListId}/tasks/${googleTaskId}`, method: 'DELETE' });
+    return true;
   } catch (err) {
-    console.error('Erro ao apagar tarefa do Google Tasks:', err.message);
+    if (googleErrorStatus(err) === 404) return true;
+    throw err;
   }
+}
+
+const cleanupRuns = new Map();
+
+async function runQueuedTaskDeletions(organizationId) {
+  const result = { deleted: 0, errors: 0, pending: 0 };
+  // Ler por lotes permite incluir IDs acrescentados enquanto uma limpeza já está
+  // em curso (o fluxo apagar = cancelar e, logo depois, eliminar definitivamente).
+  for (let batch = 0; batch < 10; batch++) {
+    const rows = db.prepare(`
+      SELECT google_task_id
+      FROM google_task_cleanup_queue
+      WHERE organization_id = ?
+      ORDER BY created_at, google_task_id
+      LIMIT 100
+    `).all(organizationId);
+    if (!rows.length) break;
+
+    let madeProgress = false;
+    for (const row of rows) {
+      try {
+        await deleteSyncedTask(organizationId, row.google_task_id);
+        db.prepare(`
+          DELETE FROM google_task_cleanup_queue
+          WHERE organization_id = ? AND google_task_id = ?
+        `).run(organizationId, row.google_task_id);
+        result.deleted++;
+        madeProgress = true;
+      } catch (err) {
+        result.errors++;
+        db.prepare(`
+          UPDATE google_task_cleanup_queue
+          SET attempts = attempts + 1, last_error = ?, last_attempt_at = datetime('now')
+          WHERE organization_id = ? AND google_task_id = ?
+        `).run(String(err.message || 'Erro desconhecido').slice(0, 500), organizationId, row.google_task_id);
+        console.error('Erro ao apagar tarefa do Google Tasks; eliminação fica pendente:', err.message);
+        // Não consumir ainda mais quota quando o fornecedor já pediu para abrandar.
+        if (googleErrorStatus(err) === 429) break;
+      }
+    }
+    if (!madeProgress) break;
+  }
+  result.pending = db.prepare(`
+    SELECT COUNT(*) AS total FROM google_task_cleanup_queue WHERE organization_id = ?
+  `).get(organizationId).total;
+  return result;
+}
+
+function processQueuedTaskDeletions(organizationId) {
+  if (!organizationId) return Promise.resolve({ deleted: 0, errors: 0, pending: 0 });
+  // Se outra limpeza estiver quase a terminar, encadear uma nova passagem. Pode
+  // ter entrado um ID depois de a passagem anterior ter lido o último lote.
+  if (cleanupRuns.has(organizationId)) {
+    return cleanupRuns.get(organizationId).then(() => processQueuedTaskDeletions(organizationId));
+  }
+  const run = runQueuedTaskDeletions(organizationId)
+    .finally(() => cleanupRuns.delete(organizationId));
+  cleanupRuns.set(organizationId, run);
+  return run;
+}
+
+async function processAllQueuedTaskDeletions() {
+  const organizations = db.prepare(`
+    SELECT DISTINCT organization_id FROM google_task_cleanup_queue ORDER BY organization_id
+  `).all();
+  const totals = { deleted: 0, errors: 0, pending: 0 };
+  for (const row of organizations) {
+    const result = await processQueuedTaskDeletions(row.organization_id);
+    totals.deleted += result.deleted;
+    totals.errors += result.errors;
+    totals.pending += result.pending;
+  }
+  return totals;
 }
 
 module.exports = {
@@ -237,6 +337,9 @@ module.exports = {
   deleteAllSyncedTasks,
   syncOrganizationTasksToGoogleTasks,
   deleteSyncedTask,
+  queueSyncedTaskDeletion,
+  processQueuedTaskDeletions,
+  processAllQueuedTaskDeletions,
   TASKS_SCOPES,
   TASKS_BASE,
 };

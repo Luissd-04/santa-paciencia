@@ -1,3 +1,5 @@
+// Estado privado; interface partilhada em AppModules.core.
+(() => {
 (function () {
   function isValidDateParts(year, month, day, options = {}) {
     const y = Number(year);
@@ -79,4 +81,6 @@
     ageAtDate,
     isValidDateParts,
   };
+})();
+
 })();

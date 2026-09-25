@@ -5,7 +5,8 @@ function parseCookies(header = '') {
     const idx = entry.indexOf('=');
     if (idx === -1) return acc;
     const key = entry.slice(0, idx).trim();
-    const value = decodeURIComponent(entry.slice(idx + 1).trim());
+    let value;
+    try { value = decodeURIComponent(entry.slice(idx + 1).trim()); } catch { return acc; }
     if (key) acc[key] = value;
     return acc;
   }, {});

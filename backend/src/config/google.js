@@ -3,15 +3,17 @@ const { OAuth2Client } = require('google-auth-library');
 const path = require('path');
 const fs = require('fs');
 const { db } = require('./database');
+const { encodeTokens, decodeTokens } = require('./tokenStorage');
 
 const TOKEN_PATH = path.join(__dirname, '../../tokens/google_token.json');
 
 function getOAuth2Client() {
-  return new OAuth2Client(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
-  );
+  return new OAuth2Client({
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI,
+    transporterOptions: { timeout: 30000 },
+  });
 }
 
 function getAuthenticatedClient(userId, organizationId) {
@@ -28,7 +30,7 @@ function getAuthenticatedClient(userId, organizationId) {
     token.access_token = newTokens.access_token;
     token.expiry_date = newTokens.expiry_date;
     if (userId && organizationId) saveTokens(userId, organizationId, token);
-    else fs.writeFileSync(TOKEN_PATH, JSON.stringify(token));
+    else fs.writeFileSync(TOKEN_PATH, encodeTokens(token, 'calendar:legacy'), { mode: 0o600 });
   });
 
   return oAuth2Client;
@@ -41,13 +43,17 @@ function getStoredTokens(userId, organizationId) {
       WHERE user_id = ? AND organization_id = ?
     `).get(userId, organizationId);
     if (row?.tokens) {
-      try { return JSON.parse(row.tokens); } catch { return null; }
+      return decodeTokens(row.tokens, `calendar:${organizationId}:${userId}`);
     }
     return null;
   }
 
   if (!fs.existsSync(TOKEN_PATH)) return null;
-  return JSON.parse(fs.readFileSync(TOKEN_PATH));
+  const stored = fs.readFileSync(TOKEN_PATH, 'utf8');
+  if (JSON.parse(stored).protected === 1) return decodeTokens(stored, 'calendar:legacy');
+  const token = JSON.parse(stored);
+  fs.writeFileSync(TOKEN_PATH, encodeTokens(token, 'calendar:legacy'), { mode: 0o600 });
+  return token;
 }
 
 function saveTokens(userId, organizationId, tokens) {
@@ -56,7 +62,7 @@ function saveTokens(userId, organizationId, tokens) {
     VALUES (?, ?, ?, datetime('now'))
     ON CONFLICT(organization_id, user_id)
     DO UPDATE SET tokens = excluded.tokens, updated_at = datetime('now')
-  `).run(organizationId, userId, JSON.stringify(tokens));
+  `).run(organizationId, userId, encodeTokens(tokens, `calendar:${organizationId}:${userId}`));
 }
 
 function deleteTokens(userId, organizationId) {

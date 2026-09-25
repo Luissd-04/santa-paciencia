@@ -1,13 +1,30 @@
+// Estado privado; interface partilhada em AppModules.invoice.
+(() => {
+AppModules.define('invoice', {
+  _INVOICE_OPEN_THREAD_KEY: { get: () => _INVOICE_OPEN_THREAD_KEY },
+  _markInvoiceRead: { get: () => _markInvoiceRead },
+  _restoreLastOpenInvoiceThread: { get: () => _restoreLastOpenInvoiceThread },
+  _updateInvoiceBadge: { get: () => _updateInvoiceBadge },
+  esc: { get: () => esc },
+  filterInvoiceConversas: { get: () => filterInvoiceConversas },
+  fmtDate: { get: () => fmtDate },
+  fmtDateTime: { get: () => fmtDateTime },
+  formatMoney: { get: () => formatMoney },
+  initials: { get: () => initials },
+  labelStatus: { get: () => labelStatus },
+  renderEmailBodySandboxed: { get: () => renderEmailBodySandboxed },
+});
+
 'use strict';
 const _INVOICE_OPEN_THREAD_KEY = 'sp-invoice-open-thread';
 
 function _restoreLastOpenInvoiceThread() {
-  if (_invoiceActiveThread) return; // já há uma thread aberta nesta sessão (troca de separador, não reload)
+  if (AppModules.invoice._invoiceActiveThread) return; // já há uma thread aberta nesta sessão (troca de separador, não reload)
   let lastId;
   try { lastId = localStorage.getItem(_INVOICE_OPEN_THREAD_KEY); } catch { return; }
   if (!lastId) return;
-  const thread = _invoiceConversas.find(t => String(t.id) === lastId);
-  if (thread) openInvoiceThread(thread);
+  const thread = AppModules.invoice._invoiceConversas.find(t => String(t.id) === lastId);
+  if (thread) AppModules.invoice.openInvoiceThread(thread);
 }
 
 /* ── Badge de não lido no sidebar ── */
@@ -19,7 +36,7 @@ function _updateInvoiceBadge() {
   const lastCheck = localStorage.getItem(_INVOICE_LAST_CHECK_KEY);
   if (!lastCheck) { badge.style.display = 'none'; return; }
   const cutoff = new Date(lastCheck);
-  const newCount = _invoiceConversas.filter(t => t._lastDate && new Date(t._lastDate) > cutoff).length;
+  const newCount = AppModules.invoice._invoiceConversas.filter(t => t._lastDate && new Date(t._lastDate) > cutoff).length;
   if (newCount > 0) {
     badge.textContent = newCount > 9 ? '9+' : newCount;
     badge.style.display = '';
@@ -35,9 +52,13 @@ function _markInvoiceRead() {
 }
 
 /* ── Filtro ── */
+// A pesquisa e feita pelo servidor (abrange todas as paginas, nao so as
+// conversas ja carregadas). schedule() aplica o atraso curto e cancela o
+// pedido anterior, para respostas atrasadas nao se sobreporem a uma pesquisa
+// mais recente.
 function filterInvoiceConversas() {
-  if (_invoiceTab === 'arquivo') renderInvoiceArchive();
-  else renderInvoiceThreadList(_invoiceConversas);
+  if (AppModules.invoice._invoiceTab === 'arquivo') AppModules.invoice.invoiceArquivoPaged.schedule(AppModules.invoice.getInvoiceThreadQuery(true));
+  else AppModules.invoice.invoiceConversasPaged.schedule(AppModules.invoice.getInvoiceThreadQuery(false));
 }
 
 /* ── Helpers ── */
@@ -63,7 +84,7 @@ function renderEmailBodySandboxed(body) {
   // iframes empurra o conteúdo para baixo a seguir ao scroll já ter corrido.
   // _invoiceStickBottom reavalia se ainda estamos perto do fundo e reajusta.
   return `<iframe class="ib-body-frame" sandbox="allow-same-origin allow-popups" srcdoc="${esc(doc)}"
-    onload="var ar=this.closest('.invoice-messages-area');var wasNear=ar&&(ar.scrollHeight-ar.scrollTop-ar.clientHeight<150);try{this.style.height=Math.min(this.contentDocument.body.scrollHeight+20,900)+'px'}catch(e){this.style.height='120px'}if(wasNear&&ar)ar.scrollTop=ar.scrollHeight;"></iframe>`;
+    data-on-load="auxiliares-closest-fafa454"></iframe>`;
 }
 
 function fmtDate(d) {
@@ -85,3 +106,9 @@ function labelStatus(s) {
   const m = { confirmed:'Confirmada', pending:'Pendente', cancelled:'Cancelada', checked_in:'Check-in', checked_out:'Check-out' };
   return m[s] || s || '—';
 }
+
+AppActions.register({
+  "auxiliares-closest-fafa454": (el, event, args) => { var ar=el.closest('.invoice-messages-area');var wasNear=ar&&(ar.scrollHeight-ar.scrollTop-ar.clientHeight<150);try{el.style.height=Math.min(el.contentDocument.body.scrollHeight+20,900)+'px'}catch(e){el.style.height='120px'}if(wasNear&&ar)ar.scrollTop=ar.scrollHeight; },
+}, "load");
+
+})();

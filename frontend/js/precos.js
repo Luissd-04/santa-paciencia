@@ -1,3 +1,22 @@
+// Estado privado; interface partilhada em AppModules.precos.
+(() => {
+AppModules.define('precos', {
+  cancelPrecosSelection: { get: () => cancelPrecosSelection },
+  clearPrecosBulkForm: { get: () => clearPrecosBulkForm },
+  closePrecosPeriodModal: { get: () => closePrecosPeriodModal },
+  initPrecos: { get: () => initPrecos },
+  mountPrecosWidgetInAloj: { get: () => mountPrecosWidgetInAloj },
+  onPrecosAlojChange: { get: () => onPrecosAlojChange },
+  openPrecosBulkEndPicker: { get: () => openPrecosBulkEndPicker },
+  openPrecosBulkStartPicker: { get: () => openPrecosBulkStartPicker },
+  openPrecosPeriodModal: { get: () => openPrecosPeriodModal },
+  savePrecosBulk: { get: () => savePrecosBulk },
+  savePrecosPeriod: { get: () => savePrecosPeriod },
+  showPrecosTab: { get: () => showPrecosTab },
+  togglePrecosDow: { get: () => togglePrecosDow },
+  unmountPrecosWidget: { get: () => unmountPrecosWidget },
+});
+
 // ── PREÇOS DINÂMICOS ──
 const PRECOS_MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const PRECOS_DAY_NAMES   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -21,7 +40,7 @@ function initPrecos() {
   _rangeEnd   = null;
   _hoverDay   = null;
 
-  _precosAlojId = (typeof SS !== 'undefined' ? SS.get('precos:aloj') : '') || '';
+  _precosAlojId = (typeof AppModules.core.SS !== 'undefined' ? AppModules.core.SS.get('precos:aloj') : '') || '';
   populatePrecosAlojSelector();
 
   _updatePrecosBase();
@@ -64,7 +83,7 @@ async function mountPrecosWidgetInAloj(alojId) {
   if (!widget || !host || !alojId) return;
   host.appendChild(widget);
   _precosAlojId = alojId;
-  if (typeof SS !== 'undefined') SS.set('precos:aloj', alojId);
+  if (typeof AppModules.core.SS !== 'undefined') AppModules.core.SS.set('precos:aloj', alojId);
   _rangeStart = null;
   _rangeEnd   = null;
   _hoverDay   = null;
@@ -86,15 +105,15 @@ function unmountPrecosWidget() {
 
 function populatePrecosAlojSelector() {
   const sel = document.getElementById('precos-aloj-sel');
-  if (!sel || typeof accommodations === 'undefined') return;
+  if (!sel || typeof AppModules.core.accommodations === 'undefined') return;
   sel.innerHTML = '<option value="">— Selecionar alojamento —</option>' +
-    accommodations.map(a => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.name)}</option>`).join('');
+    AppModules.core.accommodations.map(a => `<option value="${AppModules.core.escapeHtml(a.id)}">${AppModules.core.escapeHtml(a.name)}</option>`).join('');
   if (_precosAlojId) sel.value = _precosAlojId;
   if (window.AppUI) AppUI.enhanceSelect(sel, { placeholder: '— Selecionar alojamento —' });
 }
 
 function _updatePrecosBase() {
-  const acc  = (typeof accommodations !== 'undefined') ? accommodations.find(a => a.id === _precosAlojId) : null;
+  const acc  = (typeof AppModules.core.accommodations !== 'undefined') ? AppModules.core.accommodations.find(a => a.id === _precosAlojId) : null;
   _precosBase = Number(acc?.price_per_night || 0);
   const badge = document.getElementById('precos-base-price-badge');
   const val   = document.getElementById('precos-base-price-val');
@@ -105,7 +124,7 @@ function _updatePrecosBase() {
 async function onPrecosAlojChange() {
   const sel = document.getElementById('precos-aloj-sel');
   _precosAlojId = sel?.value || '';
-  if (typeof SS !== 'undefined') SS.set('precos:aloj', _precosAlojId);
+  if (typeof AppModules.core.SS !== 'undefined') AppModules.core.SS.set('precos:aloj', _precosAlojId);
   _rangeStart = null;
   _rangeEnd   = null;
   _hoverDay   = null;
@@ -128,12 +147,12 @@ async function onPrecosAlojChange() {
 async function loadPrecosPeriods() {
   if (!_precosAlojId) return;
   try {
-    const res = await apiGet(`/api/accommodations/${_precosAlojId}/pricing-periods`);
+    const res = await AppModules.core.apiGet(`/api/accommodations/${_precosAlojId}/pricing-periods`);
     _precosPeriods = res.data || [];
     renderPrecosCalendar();
     renderPrecosPeriods();
   } catch (e) {
-    toast('❌ Erro ao carregar períodos de preço.', 'error');
+    AppModules.core.toast('❌ Erro ao carregar períodos de preço.', 'error');
   }
 }
 
@@ -198,9 +217,9 @@ function renderPrecosCalendar() {
 
   // Header with month nav
   let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding:0 2px;">
-    <button class="btn btn-ghost btn-sm" data-precos-nav onclick="_precosNavClick=true;precosNavMonth(-1)" style="gap:4px;">${lcIcon('chevron-left',16)} Anterior</button>
+    <button class="btn btn-ghost btn-sm" data-precos-nav data-on-click="precos-precos-nav-month-74389c1" style="gap:4px;">${AppModules.core.lcIcon('chevron-left',16)} Anterior</button>
     <div style="font-size:17px;font-weight:700;color:var(--texto);">${PRECOS_MONTH_NAMES[_precosMonth-1]} ${_precosYear}</div>
-    <button class="btn btn-ghost btn-sm" data-precos-nav onclick="_precosNavClick=true;precosNavMonth(1)" style="gap:4px;">Seguinte ${lcIcon('chevron-right',16)}</button>
+    <button class="btn btn-ghost btn-sm" data-precos-nav data-on-click="precos-precos-nav-month-bbb65ce" style="gap:4px;">Seguinte ${AppModules.core.lcIcon('chevron-right',16)}</button>
   </div>`;
 
   if (!_precosAlojId) {
@@ -281,9 +300,9 @@ function renderPrecosCalendar() {
 
     html += `<div class="precos-day-cell" data-date="${iso}"
       style="position:relative;min-height:64px;border-radius:8px;padding:7px 4px 6px;text-align:center;background:${bg};border:1px solid ${borderColor};cursor:pointer;transition:background .1s,border-color .1s;user-select:none;"
-      onclick="handlePrecosDayClick('${iso}')"
-      onmouseenter="handlePrecosDayHover('${iso}')"
-      onmouseleave="handlePrecosDayLeave()"
+      ${AppActions.attrs("click", "precos-handle-precos-day-click-09b32cf", [String((iso) ?? '')])}
+      ${AppActions.attrs("mouseenter", "precos-handle-precos-day-hover-00a78c6", [iso])}
+      data-on-mouseleave="precos-handle-precos-day-leave-9c64fda"
       ${tip}>
       ${todayDot}
       <div style="font-size:14px;font-weight:600;color:${dayColor};line-height:1;">${d}</div>
@@ -315,9 +334,9 @@ function renderPrecosCalendar() {
   if (hintEl) {
     if (_rangeStart && !_rangeEnd) {
       hintEl.innerHTML = `<div style="margin-top:10px;padding:9px 14px;background:rgba(74,127,165,.1);border-left:3px solid var(--azul);border-radius:6px;font-size:13px;color:var(--azul);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        ${lcIcon('info',14)}
+        ${AppModules.core.lcIcon('info',14)}
         <span><b>Início:</b> ${_fmtDisplay(_rangeStart)} — Clica noutro dia para definir o fim, ou no mesmo dia para editar só essa noite.</span>
-        <button class="btn btn-ghost btn-sm" style="margin-left:auto;font-size:12px;color:var(--cinza);" onclick="cancelPrecosSelection()">Cancelar</button>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto;font-size:12px;color:var(--cinza);" data-on-click="precos-cancel-precos-selection-93768a7">Cancelar</button>
       </div>`;
       if (window.lucide) lucide.createIcons();
     } else {
@@ -447,7 +466,7 @@ function renderPrecosPeriods() {
           <td style="padding:10px;">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <div style="width:9px;height:9px;border-radius:50%;background:${dot};flex-shrink:0;"></div>
-              <span style="font-weight:500;">${escapeHtml(p.name)}</span>
+              <span style="font-weight:500;">${AppModules.core.escapeHtml(p.name)}</span>
               ${_dowBadge(p.days_of_week)}
             </div>
           </td>
@@ -456,8 +475,8 @@ function renderPrecosPeriods() {
           <td style="padding:10px;text-align:right;font-weight:700;color:${dot};">€${price % 1 === 0 ? price : price.toFixed(2)}</td>
           <td style="padding:10px;text-align:right;color:var(--cinza);font-size:12px;">${p.min_nights ?? 1}n</td>
           <td style="padding:10px;text-align:right;white-space:nowrap;">
-            <button class="btn btn-ghost btn-sm" style="padding:4px 8px;" onclick="openPrecosPeriodModal('${p.id}')" title="Editar">${lcIcon('pencil',13)}</button>
-            <button class="btn btn-ghost btn-sm" style="padding:4px 8px;color:var(--vermelho);" onclick="deletePrecosPeriod('${p.id}')" title="Eliminar">${lcIcon('trash-2',13)}</button>
+            <button class="btn btn-ghost btn-sm" style="padding:4px 8px;" ${AppActions.attrs("click", "precos-open-precos-period-modal-9640b4e", [String((p.id) ?? '')])} title="Editar">${AppModules.core.lcIcon('pencil',13)}</button>
+            <button class="btn btn-ghost btn-sm" style="padding:4px 8px;color:var(--vermelho);" ${AppActions.attrs("click", "precos-delete-precos-period-ee51f70", [String((p.id) ?? '')])} title="Eliminar">${AppModules.core.lcIcon('trash-2',13)}</button>
           </td>
         </tr>`;
       }).join('')}
@@ -467,15 +486,15 @@ function renderPrecosPeriods() {
   const cards = `<div class="precos-periods-mobile-cards">${sorted.map(p => {
     const price = Number(p.price_per_night);
     const dot = price < _precosBase ? '#16a34a' : price > _precosBase ? '#dc2626' : 'var(--azul)';
-    return `<div class="m-period-card" style="border-left-color:${dot}" onclick="openPrecosPeriodModal('${p.id}')">
+    return `<div class="m-period-card" style="border-left-color:${dot}" ${AppActions.attrs("click", "precos-open-precos-period-modal-9640b4e", [String((p.id) ?? '')])}>
       <div class="mpc-top">
-        <span class="mpc-name">${escapeHtml(p.name)}${_dowBadge(p.days_of_week)}</span>
+        <span class="mpc-name">${AppModules.core.escapeHtml(p.name)}${_dowBadge(p.days_of_week)}</span>
         <span class="mpc-price" style="color:${dot}">€${price % 1 === 0 ? price : price.toFixed(2)}</span>
       </div>
       <div class="mpc-dates">${_fmtDisplay(p.start_date)} — ${_fmtDisplay(p.end_date)} · min. ${p.min_nights ?? 1}n</div>
-      <div class="mpc-actions" onclick="event.stopPropagation()">
-        <button class="m-card-btn" onclick="openPrecosPeriodModal('${p.id}')"><i data-lucide="pencil"></i></button>
-        <button class="m-card-btn" onclick="deletePrecosPeriod('${p.id}')"><i data-lucide="trash-2"></i></button>
+      <div class="mpc-actions" data-on-click="precos-stop-propagation-22499e1">
+        <button class="m-card-btn" ${AppActions.attrs("click", "precos-open-precos-period-modal-9640b4e", [String((p.id) ?? '')])}><i data-lucide="pencil"></i></button>
+        <button class="m-card-btn" ${AppActions.attrs("click", "precos-delete-precos-period-ee51f70", [String((p.id) ?? '')])}><i data-lucide="trash-2"></i></button>
       </div>
     </div>`;
   }).join('')}</div>`;
@@ -516,7 +535,7 @@ function updatePrecosSidePanel() {
   if (priceEl && !priceEl.value && _precosBase > 0) priceEl.value = _precosBase.toFixed(2);
 
   // Pre-fill min nights from accommodation default
-  const acc = (typeof accommodations !== 'undefined') ? accommodations.find(a => a.id === _precosAlojId) : null;
+  const acc = (typeof AppModules.core.accommodations !== 'undefined') ? AppModules.core.accommodations.find(a => a.id === _precosAlojId) : null;
   const minEl = document.getElementById('precos-bulk-min-nights');
   if (minEl && !minEl.value) minEl.value = acc?.min_nights ?? 2;
 
@@ -576,7 +595,7 @@ function clearPrecosBulkForm() {
   ['precos-bulk-name','precos-bulk-start','precos-bulk-end','precos-bulk-price'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
-  const acc = (typeof accommodations !== 'undefined') ? accommodations.find(a => a.id === _precosAlojId) : null;
+  const acc = (typeof AppModules.core.accommodations !== 'undefined') ? AppModules.core.accommodations.find(a => a.id === _precosAlojId) : null;
   const minEl = document.getElementById('precos-bulk-min-nights');
   if (minEl) minEl.value = acc?.min_nights ?? 2;
   _initPrecosDow();
@@ -630,19 +649,19 @@ async function savePrecosBulk() {
   const start = _rangeStart;
   const end   = _rangeEnd;
 
-  if (!name)  { toast('Introduz um nome para o período.', 'error'); return; }
-  if (!start) { toast('Seleciona a data de início.', 'error'); return; }
-  if (!end)   { toast('Seleciona a data de fim.', 'error'); return; }
-  if (start > end) { toast('A data de início não pode ser depois da data de fim.', 'error'); return; }
-  if (isNaN(price) || price < 0) { toast('Introduz um preço válido.', 'error'); return; }
-  if (_precosDowState.size === 0) { toast('Seleciona pelo menos um dia da semana.', 'error'); return; }
+  if (!name)  { AppModules.core.toast('Introduz um nome para o período.', 'error'); return; }
+  if (!start) { AppModules.core.toast('Seleciona a data de início.', 'error'); return; }
+  if (!end)   { AppModules.core.toast('Seleciona a data de fim.', 'error'); return; }
+  if (start > end) { AppModules.core.toast('A data de início não pode ser depois da data de fim.', 'error'); return; }
+  if (isNaN(price) || price < 0) { AppModules.core.toast('Introduz um preço válido.', 'error'); return; }
+  if (_precosDowState.size === 0) { AppModules.core.toast('Seleciona pelo menos um dia da semana.', 'error'); return; }
 
   const days_of_week = _precosDowState.size === 7 ? [] : [..._precosDowState];
 
   const btn = document.getElementById('precos-bulk-save-btn');
   if (btn) btn.disabled = true;
   try {
-    const res = await apiPost(`/api/accommodations/${_precosAlojId}/pricing-periods/bulk`, {
+    const res = await AppModules.core.apiPost(`/api/accommodations/${_precosAlojId}/pricing-periods/bulk`, {
       name,
       start_date: start,
       end_date: end,
@@ -652,15 +671,15 @@ async function savePrecosBulk() {
     });
     if (res.success) {
       const count = res.count || res.data?.length || 0;
-      toast(`✅ ${count === 1 ? 'Período criado' : `${count} períodos criados`}!`, 'success');
-      if (typeof invalidateWizPricingCache === 'function') invalidateWizPricingCache(_precosAlojId);
+      AppModules.core.toast(`✅ ${count === 1 ? 'Período criado' : `${count} períodos criados`}!`, 'success');
+      if (typeof AppModules.reservas.invalidateWizPricingCache === 'function') AppModules.reservas.invalidateWizPricingCache(_precosAlojId);
       clearPrecosBulkForm();
       await loadPrecosPeriods();
     } else {
-      toast('❌ ' + (res.error || 'Erro ao guardar.'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao guardar.'), 'error');
     }
   } catch (e) {
-    toast('❌ Erro de ligação ao servidor.', 'error');
+    AppModules.core.toast('❌ Erro de ligação ao servidor.', 'error');
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -693,7 +712,7 @@ function openPrecosPeriodModal(id, prefillStart, prefillEnd) {
     document.getElementById('pp2-price').value = _precosBase > 0 ? _precosBase.toFixed(2) : '';
     const mnEl = document.getElementById('pp2-min-nights');
     if (mnEl) {
-      const acc = (typeof accommodations !== 'undefined') ? accommodations.find(a => a.id === _precosAlojId) : null;
+      const acc = (typeof AppModules.core.accommodations !== 'undefined') ? AppModules.core.accommodations.find(a => a.id === _precosAlojId) : null;
       mnEl.value = acc?.min_nights ?? 2;
     }
   }
@@ -716,34 +735,34 @@ async function savePrecosPeriod() {
   const price     = parseFloat(document.getElementById('pp2-price').value);
   const minN      = parseInt(document.getElementById('pp2-min-nights')?.value) || 1;
 
-  if (!name)  { toast('Introduz um nome para o período.', 'error'); return; }
+  if (!name)  { AppModules.core.toast('Introduz um nome para o período.', 'error'); return; }
   const start = _ptToIso(startRaw);
   const end   = _ptToIso(endRaw);
-  if (!start) { toast('Data de início inválida. Usa o formato dd-mm-aaaa.', 'error'); return; }
-  if (!end)   { toast('Data de fim inválida. Usa o formato dd-mm-aaaa.', 'error'); return; }
-  if (start > end) { toast('A data de início não pode ser depois da data de fim.', 'error'); return; }
-  if (isNaN(price) || price < 0) { toast('Introduz um preço válido.', 'error'); return; }
+  if (!start) { AppModules.core.toast('Data de início inválida. Usa o formato dd-mm-aaaa.', 'error'); return; }
+  if (!end)   { AppModules.core.toast('Data de fim inválida. Usa o formato dd-mm-aaaa.', 'error'); return; }
+  if (start > end) { AppModules.core.toast('A data de início não pode ser depois da data de fim.', 'error'); return; }
+  if (isNaN(price) || price < 0) { AppModules.core.toast('Introduz um preço válido.', 'error'); return; }
 
   const btn = document.getElementById('btn-save-precos-period');
   if (btn) btn.disabled = true;
   try {
     const body = { name, start_date: start, end_date: end, price_per_night: price, min_nights: minN };
     const res  = editingId
-      ? await apiPut(`/api/accommodations/${_precosAlojId}/pricing-periods/${editingId}`, body)
-      : await apiPost(`/api/accommodations/${_precosAlojId}/pricing-periods`, body);
+      ? await AppModules.core.apiPut(`/api/accommodations/${_precosAlojId}/pricing-periods/${editingId}`, body)
+      : await AppModules.core.apiPost(`/api/accommodations/${_precosAlojId}/pricing-periods`, body);
 
     if (res.success) {
-      toast(editingId ? '✅ Período atualizado!' : '✅ Período criado!', 'success');
-      if (typeof invalidateWizPricingCache === 'function') invalidateWizPricingCache(_precosAlojId);
+      AppModules.core.toast(editingId ? '✅ Período atualizado!' : '✅ Período criado!', 'success');
+      if (typeof AppModules.reservas.invalidateWizPricingCache === 'function') AppModules.reservas.invalidateWizPricingCache(_precosAlojId);
       closePrecosPeriodModal();
       _rangeStart = null;
       _rangeEnd   = null;
       await loadPrecosPeriods();
     } else {
-      toast('❌ ' + (res.error || 'Erro ao guardar.'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao guardar.'), 'error');
     }
   } catch (e) {
-    toast('❌ Erro de ligação ao servidor.', 'error');
+    AppModules.core.toast('❌ Erro de ligação ao servidor.', 'error');
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -753,16 +772,16 @@ async function deletePrecosPeriod(id) {
   const p = _precosPeriods.find(x => x.id === id);
   if (!p || !confirm(`Eliminar o período "${p.name}"?`)) return;
   try {
-    const res = await apiDelete(`/api/accommodations/${_precosAlojId}/pricing-periods/${id}`);
+    const res = await AppModules.core.apiDelete(`/api/accommodations/${_precosAlojId}/pricing-periods/${id}`);
     if (res.success) {
-      toast('🗑 Período eliminado.', 'info');
-      if (typeof invalidateWizPricingCache === 'function') invalidateWizPricingCache(_precosAlojId);
+      AppModules.core.toast('🗑 Período eliminado.', 'info');
+      if (typeof AppModules.reservas.invalidateWizPricingCache === 'function') AppModules.reservas.invalidateWizPricingCache(_precosAlojId);
       await loadPrecosPeriods();
     } else {
-      toast('❌ ' + (res.error || 'Erro ao eliminar.'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao eliminar.'), 'error');
     }
   } catch (e) {
-    toast('❌ Erro de ligação ao servidor.', 'error');
+    AppModules.core.toast('❌ Erro de ligação ao servidor.', 'error');
   }
 }
 
@@ -778,3 +797,33 @@ function _ptToIso(value) {
   const m = s.match(/^(\d{2})[/.-](\d{2})[/.-](\d{4})$/);
   return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
 }
+
+AppActions.register({
+  "precos-open-precos-period-modal-9640b4e": (el, event, args) => { openPrecosPeriodModal(args[0]) },
+  "precos-stop-propagation-22499e1": (el, event, args) => { event.stopPropagation() },
+  "precos-delete-precos-period-ee51f70": (el, event, args) => { deletePrecosPeriod(args[0]) },
+  "precos-cancel-precos-selection-93768a7": (el, event, args) => { cancelPrecosSelection() },
+  "precos-handle-precos-day-click-09b32cf": (el, event, args) => { handlePrecosDayClick(args[0]) },
+  "precos-precos-nav-month-74389c1": (el, event, args) => { _precosNavClick=true;precosNavMonth(-1) },
+  "precos-precos-nav-month-bbb65ce": (el, event, args) => { _precosNavClick=true;precosNavMonth(1) },
+}, "click");
+
+AppActions.register({
+  "precos-handle-precos-day-hover-00a78c6": (el, event, args) => { handlePrecosDayHover((String(args[0]))) },
+}, "mouseenter");
+
+AppActions.register({
+  "precos-handle-precos-day-leave-9c64fda": (el, event, args) => { handlePrecosDayLeave() },
+}, "mouseleave");
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('precos.js', () => {
+  _precosPeriods = [];
+  _rangeStart = null;
+  _rangeEnd = null;
+  _hoverDay = null;
+  _hoverRafId = null;
+  _precosDowState = new Set([0,1,2,3,4,5,6]);
+});
+
+})();

@@ -1,3 +1,5 @@
+// Estado privado; interface partilhada em AppModules.core.
+(() => {
 (function () {
   const SCHEMAS = {
     guest: {
@@ -40,4 +42,6 @@
   }
 
   window.AppValidators = { SCHEMAS, validate, hasErrors };
+})();
+
 })();

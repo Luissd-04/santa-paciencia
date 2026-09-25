@@ -2,6 +2,7 @@
   "js/reserva-lista.js": {
     "scripts": [
       "js/reserva-lista.js",
+      "js/features/reserva-lista/lista-dados.js",
       "js/features/reserva-lista/lista-colunas.js",
       "js/features/reserva-lista/lista-render.js",
       "js/features/reserva-lista/detalhe.js",
@@ -39,6 +40,7 @@
   "js/calendario.js": {
     "scripts": [
       "js/calendario.js",
+      "js/features/calendario/dados.js",
       "js/features/calendario/mes-agenda.js",
       "js/features/calendario/paisagem.js",
       "js/features/calendario/timeline.js",
@@ -55,5 +57,36 @@
       "js/features/invoice/auxiliares.js"
     ],
     "original_sha256": "42a2e9dec6044f993922c7f32943f11a0cbba96a32ade7bad1648f7e865fdcd5"
+  },
+  "js/public-reservation.js": {
+    "page": "public-reservation.html",
+    "scripts": [
+      "js/public-reservation.js",
+      "js/features/public-reservation/helpers.js",
+      "js/features/public-reservation/landing.js",
+      "js/features/public-reservation/dados-hospedes.js",
+      "js/features/public-reservation/disponibilidade.js",
+      "js/features/public-reservation/precos.js",
+      "js/features/public-reservation/submissao.js"
+    ],
+    "original_sha256": "dd7d2c57081bc38337e84af713f077c6e333841939a63f50067b809dbf34e153"
+  },
+  "js/hospedes.js": {
+    "scripts": [
+      "js/hospedes.js",
+      "js/features/hospedes/paises.js",
+      "js/features/hospedes/lista.js",
+      "js/features/hospedes/detalhe.js",
+      "js/features/hospedes/exportacao.js"
+    ]
+  },
+  "js/emails.js": {
+    "scripts": [
+      "js/emails.js",
+      "js/features/emails/codes.js",
+      "js/features/emails/editor.js",
+      "js/features/emails/preview.js"
+    ],
+    "original_sha256": "50fe29d08e4ac5598ce5ec8b70a8f1a9894c277e08dfbd8c71cf3dcede974cc3"
   }
 }

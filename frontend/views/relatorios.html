@@ -1,0 +1,173 @@
+
+        <!-- Sub-tabs -->
+        <div class="report-tabs">
+          <button class="report-tab active" id="rtab-btn-faturamento" data-on-click="index-switch-report-tab-ac3b876">
+            <i data-lucide="trending-up" style="width:14px;height:14px;"></i> Faturamento
+          </button>
+          <button class="report-tab" id="rtab-btn-despesas" data-on-click="index-switch-report-tab-1e3e689">
+            <i data-lucide="receipt" style="width:14px;height:14px;"></i> Despesas
+          </button>
+          <button class="report-tab" id="rtab-btn-lucro" data-on-click="index-switch-report-tab-b53d754">
+            <i data-lucide="landmark" style="width:14px;height:14px;"></i> Lucro
+          </button>
+        </div>
+
+        <!-- ─── FATURAMENTO ─── -->
+        <div class="report-tab-panel" id="rtab-faturamento">
+          <div class="report-toolbar">
+            <div class="report-filters">
+              <select class="form-control" id="report-year-sel" data-enhance-select data-app-select-class="app-select--filter" data-on-change="index-set-report-year-d751a81"></select>
+              <select class="form-control" id="report-month-sel" data-enhance-select data-app-select-class="app-select--filter" data-on-change="index-set-report-month-8b615d3">
+                <option value="0">Ano inteiro</option>
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
+              <select class="form-control" id="report-acc-sel" data-enhance-select data-app-select-class="app-select--filter app-select--filter-wide" data-on-change="index-set-report-acc-id-5d25e0a"></select>
+            </div>
+          </div>
+          <div class="report-kpis" id="report-kpis">
+            <div class="report-loading"><i data-lucide="loader" style="width:18px;height:18px;"></i> A carregar...</div>
+          </div>
+          <div class="report-charts-row">
+            <div class="card report-chart-wrap report-chart-main">
+              <div class="card-header">
+                <span class="card-title"><i data-lucide="bar-chart-2"></i> Receita Mensal &amp; Ocupação</span>
+              </div>
+              <div style="position:relative;height:260px;">
+                <canvas id="chart-revenue"></canvas>
+              </div>
+            </div>
+            <div class="card report-chart-wrap report-chart-side">
+              <div class="card-header">
+                <span class="card-title"><i data-lucide="pie-chart"></i> Receita por Canal</span>
+              </div>
+              <div style="position:relative;height:260px;">
+                <canvas id="chart-channel"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="card report-chart-wrap">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="building-2"></i> Receita por Alojamento</span>
+            </div>
+            <div style="position:relative;height:180px;">
+              <canvas id="chart-accom"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="table-2"></i> Resumo Mensal</span>
+            </div>
+            <div class="table-wrap">
+              <table class="tabela report-table">
+                <thead>
+                  <tr>
+                    <th>Mês</th>
+                    <th style="text-align:right;">Reservas</th>
+                    <th style="text-align:right;">Noites</th>
+                    <th style="text-align:right;">Receita</th>
+                    <th style="text-align:right;">Ocupação</th>
+                  </tr>
+                </thead>
+                <tbody id="report-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── DESPESAS ─── -->
+        <div class="report-tab-panel" id="rtab-despesas" style="display:none;">
+          <div class="report-toolbar">
+            <div class="report-filters">
+              <select class="form-control" id="desp-year-sel" data-enhance-select data-app-select-class="app-select--filter" data-on-change="index-set-desp-year-4602415"></select>
+              <select class="form-control" id="desp-month-sel" data-enhance-select data-app-select-class="app-select--filter" data-on-change="index-set-desp-month-63b5da2">
+                <option value="0">Ano inteiro</option>
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
+            </div>
+          </div>
+          <div class="report-kpis" id="desp-kpis">
+            <div class="report-loading"><i data-lucide="loader" style="width:18px;height:18px;"></i> A carregar...</div>
+          </div>
+          <div class="report-charts-row">
+            <div class="card report-chart-wrap report-chart-main">
+              <div class="card-header">
+                <span class="card-title"><i data-lucide="bar-chart-2"></i> Despesas Mensais</span>
+              </div>
+              <div style="position:relative;height:260px;">
+                <canvas id="chart-desp-monthly"></canvas>
+              </div>
+            </div>
+            <div class="card report-chart-wrap report-chart-side">
+              <div class="card-header">
+                <span class="card-title"><i data-lucide="pie-chart"></i> Despesas por Categoria</span>
+              </div>
+              <div style="position:relative;height:260px;">
+                <canvas id="chart-desp-category"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="table-2"></i> Resumo Mensal de Despesas</span>
+            </div>
+            <div class="table-wrap">
+              <table class="tabela report-table">
+                <thead>
+                  <tr>
+                    <th>Mês</th>
+                    <th style="text-align:right;">Nº Despesas</th>
+                    <th style="text-align:right;">Total</th>
+                  </tr>
+                </thead>
+                <tbody id="desp-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── LUCRO ─── -->
+        <div class="report-tab-panel" id="rtab-lucro" style="display:none;">
+          <div class="report-toolbar">
+            <div class="report-filters">
+              <select class="form-control" id="lucro-year-sel" data-enhance-select data-app-select-class="app-select--filter" data-on-change="index-set-lucro-year-bb5bf08"></select>
+              <select class="form-control" id="lucro-acc-sel" data-enhance-select data-app-select-class="app-select--filter app-select--filter-wide" data-on-change="index-set-lucro-acc-id-ecf6900"></select>
+            </div>
+          </div>
+          <div class="report-kpis" id="lucro-kpis">
+            <div class="report-loading"><i data-lucide="loader" style="width:18px;height:18px;"></i> A carregar...</div>
+          </div>
+          <div class="card report-chart-wrap">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="bar-chart-2"></i> Receita vs Despesas</span>
+            </div>
+            <div style="position:relative;height:260px;">
+              <canvas id="chart-lucro"></canvas>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i data-lucide="table-2"></i> Resumo Mensal de Lucro</span>
+            </div>
+            <div class="table-wrap">
+              <table class="tabela report-table">
+                <thead>
+                  <tr>
+                    <th>Mês</th>
+                    <th style="text-align:right;">Receita</th>
+                    <th style="text-align:right;">Despesas</th>
+                    <th style="text-align:right;">Lucro</th>
+                    <th style="text-align:right;">Margem</th>
+                  </tr>
+                </thead>
+                <tbody id="lucro-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+

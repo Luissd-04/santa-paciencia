@@ -19,3 +19,32 @@ jobs:
         working-directory: backend/src
       - run: npm audit --omit=dev --audit-level=moderate
         working-directory: backend/src
+      # As bibliotecas do frontend vêm por CDN: o audit do backend não as vê.
+      # frontend/package.json declara as versões exatas só para isto.
+      - run: npm audit --omit=dev --audit-level=high
+        working-directory: frontend
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/src/package-lock.json
+      - run: npm ci
+        working-directory: backend/src
+      - run: npx playwright install --with-deps chromium
+        working-directory: backend/src
+      - run: npm run test:browser
+        working-directory: backend/src
+        env:
+          BROWSER_ARTIFACTS_DIR: ${{ github.workspace }}/browser-artifacts
+      - run: npm run measure:frontend
+        working-directory: backend/src
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-synthetic-data
+          path: browser-artifacts/
+          if-no-files-found: ignore

@@ -1,8 +1,22 @@
+// Estado privado; interface partilhada em AppModules.relatorios.
+(() => {
+AppModules.define('relatorios', {
+  loadRelatorios: { get: () => loadRelatorios },
+  setDespMonth: { get: () => setDespMonth },
+  setDespYear: { get: () => setDespYear },
+  setLucroAccId: { get: () => setLucroAccId },
+  setLucroYear: { get: () => setLucroYear },
+  setReportAccId: { get: () => setReportAccId },
+  setReportMonth: { get: () => setReportMonth },
+  setReportYear: { get: () => setReportYear },
+  switchReportTab: { get: () => switchReportTab },
+});
+
 // ── STATE ──
 let _reportYear  = new Date().getFullYear();
 let _reportMonth = 0; // 0 = ano inteiro; 1-12 = mês
 let _reportAccId = '';
-let _reportTab   = SS.get('report:tab', 'faturamento');
+let _reportTab   = AppModules.core.SS.get('report:tab', 'faturamento');
 let _despYear    = new Date().getFullYear();
 let _despMonth   = 0;
 let _lucroYear   = new Date().getFullYear();
@@ -19,8 +33,8 @@ const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julh
 const MONTH_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const CHANNEL_COLORS = { airbnb:'#FF5A5F', booking:'#003580', direto:'#843424', expedia:'#FFC72C', vrbo:'#195ABA', outro:'#8a8278' };
 // Derivados de EXPENSE_CATS (despesas.js, carregado antes) — fonte única de categorias.
-const CAT_COLORS = Object.fromEntries(Object.entries(EXPENSE_CATS).map(([k, v]) => [k, v.color]));
-const CAT_LABELS = Object.fromEntries(Object.entries(EXPENSE_CATS).map(([k, v]) => [k, v.label]));
+const CAT_COLORS = Object.fromEntries(Object.entries(AppModules.despesas.EXPENSE_CATS).map(([k, v]) => [k, v.color]));
+const CAT_LABELS = Object.fromEntries(Object.entries(AppModules.despesas.EXPENSE_CATS).map(([k, v]) => [k, v.label]));
 const MARCA = '#843424';
 
 const fmtEur = v => '€' + Number(v || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -28,7 +42,7 @@ const fmtEur = v => '€' + Number(v || 0).toLocaleString('pt-PT', { minimumFrac
 // ── TAB SWITCHING ──
 function switchReportTab(tab) {
   _reportTab = tab;
-  SS.set('report:tab', tab);
+  AppModules.core.SS.set('report:tab', tab);
   ['faturamento', 'despesas', 'lucro'].forEach(t => {
     const btn   = document.getElementById('rtab-btn-' + t);
     const panel = document.getElementById('rtab-' + t);
@@ -52,9 +66,10 @@ async function _loadFaturamento() {
   const kpiEl = document.getElementById('report-kpis');
   if (kpiEl) kpiEl.innerHTML = '<div class="report-loading"><i data-lucide="loader" style="width:20px;height:20px;"></i> A carregar...</div>';
   try {
+    await AppModules.core.loadLibrary('chart');
     const monthQs = _reportMonth ? `&month=${_reportMonth}` : '';
     const qs   = `?year=${_reportYear}${monthQs}${_reportAccId ? '&accommodation_id=' + _reportAccId : ''}`;
-    const data = await apiGet('/api/reports/financial' + qs);
+    const data = await AppModules.core.apiGet('/api/reports/financial' + qs);
     const d    = data.data;
     const series = d.granularity === 'day' ? d.days : d.months;
     _renderFatFilters(d.available_years);
@@ -95,7 +110,7 @@ function _renderFatFilters(availableYears) {
   const accSel = document.getElementById('report-acc-sel');
   if (accSel && !accSel.dataset.filled) {
     accSel.innerHTML = '<option value="">Todos os alojamentos</option>' +
-      accommodations.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+      AppModules.core.accommodations.map(a => `<option value="${AppModules.core.escapeHtml(a.id)}">${AppModules.core.escapeHtml(a.name)}</option>`).join('');
     accSel.value = _reportAccId;
     accSel.dataset.filled = '1';
     AppUI.refreshSelect(accSel);
@@ -286,8 +301,9 @@ async function _loadDespesas() {
   const kpiEl = document.getElementById('desp-kpis');
   if (kpiEl) kpiEl.innerHTML = '<div class="report-loading"><i data-lucide="loader" style="width:20px;height:20px;"></i> A carregar...</div>';
   try {
+    await AppModules.core.loadLibrary('chart');
     const monthQs = _despMonth ? `&month=${_despMonth}` : '';
-    const data = await apiGet(`/api/reports/expenses?year=${_despYear}${monthQs}`);
+    const data = await AppModules.core.apiGet(`/api/reports/expenses?year=${_despYear}${monthQs}`);
     const d    = data.data;
     const series = d.granularity === 'day' ? d.days : d.months;
     _renderDespFilters(d.available_years);
@@ -455,9 +471,10 @@ async function _loadLucro() {
   const kpiEl = document.getElementById('lucro-kpis');
   if (kpiEl) kpiEl.innerHTML = '<div class="report-loading"><i data-lucide="loader" style="width:20px;height:20px;"></i> A carregar...</div>';
   try {
+    await AppModules.core.loadLibrary('chart');
     const [fatData, despData] = await Promise.all([
-      apiGet(`/api/reports/financial?year=${_lucroYear}${_lucroAccId ? '&accommodation_id=' + _lucroAccId : ''}`),
-      apiGet(`/api/reports/expenses?year=${_lucroYear}`)
+      AppModules.core.apiGet(`/api/reports/financial?year=${_lucroYear}${_lucroAccId ? '&accommodation_id=' + _lucroAccId : ''}`),
+      AppModules.core.apiGet(`/api/reports/expenses?year=${_lucroYear}`)
     ]);
     const fat  = fatData.data;
     const desp = despData.data;
@@ -485,7 +502,7 @@ function _renderLucroFilters(availableYears) {
   const accSel = document.getElementById('lucro-acc-sel');
   if (accSel && !accSel.dataset.filled) {
     accSel.innerHTML = '<option value="">Todos os alojamentos</option>' +
-      accommodations.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+      AppModules.core.accommodations.map(a => `<option value="${AppModules.core.escapeHtml(a.id)}">${AppModules.core.escapeHtml(a.name)}</option>`).join('');
     accSel.value = _lucroAccId;
     accSel.dataset.filled = '1';
     AppUI.refreshSelect(accSel);
@@ -626,3 +643,21 @@ function _renderLucroTable(fatMonths, despMonths) {
     <td style="text-align:right;color:${profitColor};">${totalMargin}%</td>
   </tr>`;
 }
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('relatorios.js', () => {
+  _chartRevenue?.destroy();
+  _chartRevenue = null;
+  _chartChannel?.destroy();
+  _chartChannel = null;
+  _chartAccom?.destroy();
+  _chartAccom = null;
+  _chartDespMonthly?.destroy();
+  _chartDespMonthly = null;
+  _chartDespCategory?.destroy();
+  _chartDespCategory = null;
+  _chartLucro?.destroy();
+  _chartLucro = null;
+});
+
+})();

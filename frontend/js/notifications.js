@@ -1,3 +1,19 @@
+// Estado privado; interface partilhada em AppModules.core.
+(() => {
+AppModules.define('core', {
+  closeManualNotificationModal: { get: () => closeManualNotificationModal },
+  initExportReminderControls: { get: () => initExportReminderControls },
+  loadAutoTaskSettings: { get: () => loadAutoTaskSettings },
+  loadNotifications: { get: () => loadNotifications },
+  openManualNotificationModal: { get: () => openManualNotificationModal },
+  renderNotificationsPage: { get: () => renderNotificationsPage },
+  saveAutoTaskSettings: { get: () => saveAutoTaskSettings },
+  saveManualNotification: { get: () => saveManualNotification },
+  setExportReminder: { get: () => setExportReminder },
+  startNotifPolling: { get: () => startNotifPolling },
+  toggleNotif: { get: () => toggleNotif },
+});
+
 let _notifications = [];
 let _notifOpen = false;
 let _notifTimer = null;
@@ -15,7 +31,7 @@ const EXPORT_REMINDER_DEFS = {
 const AUTO_TASK_SETTING_FIELDS = ['breakfast', 'cleaning', 'checkin', 'checkout'];
 
 function exportReminderStorageKey() {
-  return `sp:export-reminders:${currentUser?.organization_id || 'default'}`;
+  return `sp:export-reminders:${AppModules.core.currentUser?.organization_id || 'default'}`;
 }
 
 function getExportReminders() {
@@ -42,14 +58,14 @@ function setExportReminder(key, value) {
 
   if (!days) {
     delete reminders[key];
-    toast('🔕 Lembrete de exportação desligado.', 'success');
+    AppModules.core.toast('🔕 Lembrete de exportação desligado.', 'success');
   } else {
     reminders[key] = {
       interval_days: days,
       next_due_at: nextExportReminderDate(days),
       updated_at: new Date().toISOString()
     };
-    toast(`🔔 Lembrete ativado a cada ${days === 30 ? '1 mês' : days + ' dias'}.`, 'success');
+    AppModules.core.toast(`🔔 Lembrete ativado a cada ${days === 30 ? '1 mês' : days + ' dias'}.`, 'success');
   }
 
   saveExportReminders(reminders);
@@ -92,14 +108,14 @@ function completeExportReminder(key, message) {
     last_answered_at: new Date().toISOString()
   };
   saveExportReminders(reminders);
-  if (message) toast(message, 'success');
+  if (message) AppModules.core.toast(message, 'success');
   loadNotifications();
 }
 
 function approveExportReminder(key) {
   const def = EXPORT_REMINDER_DEFS[key];
   if (!def || typeof window[def.action] !== 'function') {
-    toast('❌ Exportação indisponível.', 'error');
+    AppModules.core.toast('❌ Exportação indisponível.', 'error');
     return;
   }
   window[def.action]();
@@ -112,7 +128,7 @@ function refuseExportReminder(key) {
 
 async function loadNotifications() {
   try {
-    const data = await apiGet('/api/reservations/notifications');
+    const data = await AppModules.core.apiGet('/api/reservations/notifications');
     _notifications = [...(data?.data?.notifications || []), ...getExportReminderNotifications()].sort(
       (a, b) => NOTIF_PRIORITY_ORDER[a.priority] - NOTIF_PRIORITY_ORDER[b.priority]
     );
@@ -137,8 +153,8 @@ function renderNotifBadge() {
 }
 
 function notificationClickAttr(n) {
-  if (n.type === 'export_reminder') return `onclick="closeNotif();showView('notificacoes')"`;
-  return `onclick="notifGoTo('${n.reservation_id}')"`;
+  if (n.type === 'export_reminder') return "data-on-click=\"notifications-close-notif-0782c93\"";
+  return `${AppActions.attrs("click", "notifications-notif-go-to-0365e4e", [String((n.reservation_id) ?? '')])}`;
 }
 
 function toggleNotif(e) {
@@ -202,7 +218,7 @@ function renderNotifDropdown() {
       <span class="notif-count">${_notifications.length}</span>
     </div>
     <div class="notif-list">${items}</div>
-    <div class="notif-footer" onclick="loadNotifications()">
+    <div class="notif-footer" data-on-click="notifications-load-notifications-449f209">
       <i data-lucide="refresh-cw" style="width:13px;height:13px;"></i> Atualizar
     </div>`;
   if (window.lucide) lucide.createIcons();
@@ -244,15 +260,15 @@ function renderNotificationsPage() {
       </span>
       ${n.type === 'export_reminder' ? `
         <span class="notifications-page-actions">
-          <button class="btn btn-primary btn-sm" onclick="approveExportReminder('${n.export_key}')">
+          <button class="btn btn-primary btn-sm" ${AppActions.attrs("click", "notifications-approve-export-reminder-5611f49", [String((n.export_key) ?? '')])}>
             <i data-lucide="download"></i> Exportar agora
           </button>
-          <button class="btn btn-ghost btn-sm" onclick="refuseExportReminder('${n.export_key}')">
+          <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "notifications-refuse-export-reminder-e3d92d6", [String((n.export_key) ?? '')])}>
             <i data-lucide="x"></i> Recusar
           </button>
         </span>
       ` : `
-        <button class="btn btn-ghost btn-sm" onclick="notifGoTo('${n.reservation_id}')">
+        <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "notifications-notif-go-to-0365e4e", [String((n.reservation_id) ?? '')])}>
           <i data-lucide="chevron-right"></i> Ver
         </button>
       `}
@@ -261,26 +277,26 @@ function renderNotificationsPage() {
   if (window.lucide) lucide.createIcons();
 }
 
-function notifGoTo(reservationId) {
+async function notifGoTo(reservationId) {
   closeNotif();
-  showView('reservas');
+  await AppModules.core.showView('reservas');
   setTimeout(() => {
     const row = document.querySelector(`tr[data-id="${reservationId}"]`);
     if (row) { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.classList.add('row-highlight'); setTimeout(() => row.classList.remove('row-highlight'), 1500); }
-    else showDetail(reservationId);
+    else AppModules.reservas.showDetail(reservationId);
   }, 300);
 }
 
 async function loadAutoTaskSettings() {
   try {
-    const payload = await apiGet('/api/events/settings');
+    const payload = await AppModules.core.apiGet('/api/events/settings');
     const data = payload.data || {};
     AUTO_TASK_SETTING_FIELDS.forEach(key => {
       const el = document.getElementById(`auto-task-${key}`);
       if (el) el.checked = data[key] !== false;
     });
   } catch (err) {
-    toast('❌ Erro ao carregar tarefas automáticas.', 'error');
+    AppModules.core.toast('❌ Erro ao carregar tarefas automáticas.', 'error');
   }
 }
 
@@ -291,12 +307,12 @@ async function saveAutoTaskSettings() {
     if (el) body[key] = el.checked;
   });
   try {
-    await apiPost('/api/events/settings', body);
-    toast('✅ Definições de tarefas atualizadas.', 'success');
-    if (typeof loadEventos === 'function') loadEventos();
+    await AppModules.core.apiPost('/api/events/settings', body);
+    AppModules.core.toast('✅ Definições de tarefas atualizadas.', 'success');
+    if (typeof AppModules.eventos.loadEventos === 'function') AppModules.eventos.loadEventos();
     loadNotifications();
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || 'Erro ao guardar definições.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Erro ao guardar definições.'), 'error');
   }
 }
 
@@ -321,12 +337,12 @@ async function saveManualNotification() {
   const start = document.getElementById('manual-notification-time')?.value || null;
   const notes = document.getElementById('manual-notification-notes')?.value.trim();
   if (!title || !date) {
-    toast('⚠️ Título e data são obrigatórios.', 'error');
+    AppModules.core.toast('⚠️ Título e data são obrigatórios.', 'error');
     return;
   }
   AppUI.setButtonLoading(btn, true, 'A guardar...');
   try {
-    await apiPost('/api/events', {
+    await AppModules.core.apiPost('/api/events', {
       title,
       date,
       start_time: start,
@@ -336,11 +352,11 @@ async function saveManualNotification() {
       notes,
     });
     closeManualNotificationModal();
-    toast('✅ Notificação adicionada.', 'success');
+    AppModules.core.toast('✅ Notificação adicionada.', 'success');
     await loadNotifications();
-    if (typeof loadEventos === 'function') loadEventos();
+    if (typeof AppModules.eventos.loadEventos === 'function') AppModules.eventos.loadEventos();
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || 'Erro ao guardar notificação.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Erro ao guardar notificação.'), 'error');
   } finally {
     AppUI.setButtonLoading(btn, false);
   }
@@ -359,3 +375,22 @@ document.addEventListener('visibilitychange', () => {
 document.addEventListener('click', e => {
   if (_notifOpen && !document.getElementById('notif-wrap')?.contains(e.target)) closeNotif();
 });
+
+AppActions.register({
+  "notifications-load-notifications-449f209": (el, event, args) => { loadNotifications() },
+  "notifications-close-notif-0782c93": (el, event, args) => { closeNotif();AppModules.core.showView('notificacoes') },
+}, "click");
+
+AppActions.register({
+  "notifications-notif-go-to-0365e4e": (el, event, args) => { notifGoTo(args[0]) },
+  "notifications-approve-export-reminder-5611f49": (el, event, args) => { approveExportReminder(args[0]) },
+  "notifications-refuse-export-reminder-e3d92d6": (el, event, args) => { refuseExportReminder(args[0]) },
+}, "click");
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('notifications.js', () => {
+  _notifications = [];
+  clearTimeout(_notifTimer); clearInterval(_notifTimer); _notifTimer = null;
+});
+
+})();

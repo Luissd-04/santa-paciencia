@@ -27,6 +27,25 @@ const voucherLimiter = rateLimit({
   message: { success: false, error: 'Demasiadas tentativas. Tenta novamente mais tarde.' },
 });
 
+// O token de pré-check-in é uma credencial por posse. Limites separados
+// evitam enumeração no GET e spam/replays no POST sem penalizar reservas
+// públicas normais.
+const preCheckinLookupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Demasiadas tentativas. Tenta novamente mais tarde.' },
+});
+
+const preCheckinSubmitLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Demasiadas tentativas de envio. Tenta novamente mais tarde.' },
+});
+
 // Forgot password — máximo 5 por IP por hora
 const forgotPasswordLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -48,4 +67,7 @@ const oauthCallbackLimiter = rateLimit({
   message: { success: false, error: 'Demasiadas tentativas. Tenta novamente em 15 minutos.' },
 });
 
-module.exports = { loginLimiter, publicBookingLimiter, voucherLimiter, forgotPasswordLimiter, oauthCallbackLimiter };
+module.exports = {
+  loginLimiter, publicBookingLimiter, voucherLimiter, preCheckinLookupLimiter,
+  preCheckinSubmitLimiter, forgotPasswordLimiter, oauthCallbackLimiter,
+};

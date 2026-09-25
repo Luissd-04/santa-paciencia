@@ -1,83 +1,100 @@
-# Política de Segurança
+# Segurança
+
+Estado dos controlos e processo de reporte, revisto em 20 de setembro de 2026.
 
 ## Reportar uma vulnerabilidade
 
-Se descobriste uma vulnerabilidade de segurança no Santa Paciência, **não abras um issue público**. Em vez disso:
+Enviar uma descrição privada para `luisduartebernardo@gmail.com` com:
 
-1. Envia um email para **luisduartebernardo@gmail.com** com assunto `[SECURITY] <breve descrição>`
-2. Inclui:
-   - Descrição da vulnerabilidade e impacto potencial
-   - Passos para reproduzir (PoC se possível)
-   - Versão/commit afectado
-3. Aguarda confirmação em 72h. Resposta com plano de correcção em 7 dias.
+- componente e versão/commit afetado;
+- passos mínimos de reprodução;
+- impacto provável;
+- evidência sem dados pessoais reais.
 
-Não há programa de bug bounty, mas o teu nome será adicionado à lista de agradecimentos (se desejado) após a correcção.
+Não abrir publicamente detalhes exploráveis antes de existir correção. Será
+acusada a receção e combinado um prazo de análise conforme a gravidade.
 
-## Versões suportadas
+## Dados sensíveis
 
-Apenas a `main` recebe correcções de segurança. Forks não são suportados.
+A aplicação trata dados de hóspedes, reservas, pagamentos, documentos de
+despesas e credenciais de integrações. Nunca colocar em issues, logs, fixtures ou
+capturas públicas:
 
-## Modelo de ameaças
+- documentos de identificação e contactos reais;
+- cookies de sessão ou tokens de reserva/pré-check-in;
+- tokens OAuth, chaves Turnstile ou segredos Google;
+- base de dados, `.env`, backups ou chave de encriptação;
+- códigos de porta e palavras-passe Wi-Fi.
 
-O sistema é **multi-tenant** (organizações separadas com staff/manager/owner).
-Áreas críticas:
+Usar sempre dados sintéticos nos testes.
 
-- **Motor público de reservas** (`/api/public/*`): aceita input não autenticado. Protegido por rate limit + Cloudflare Turnstile.
-- **Pre-checkin** (`/pre-checkin/:token`): acessível apenas com token aleatório (32 bytes hex). TTL = data de check-out.
-- **OAuth Google** (Calendar/Gmail/Tasks): `state` parameter é HMAC-SHA256 do session ID.
-- **Backup** (`/api/backup/*`): apenas owner. Validação estrita de schemas/colunas no import.
-- **Isolamento de organizações**: todas as queries devem incluir `AND organization_id = ?` (defesa em profundidade).
+## Controlos implementados
 
-## Configuração de produção obrigatória
+- autenticação por sessão e separação por organização;
+- autorização por papel, incluindo operações exclusivas do proprietário;
+- validação de origem, CORS restrito e cookies seguros em produção;
+- Helmet/CSP com JavaScript inline bloqueado;
+- rate limiting em autenticação e fluxos públicos;
+- `Cache-Control: no-store` em respostas autenticadas e de API;
+- uploads de recibos privados, autenticados e filtrados pela organização;
+- tokens Google encriptados com AES-256-GCM;
+- validação Turnstile fail-closed em produção para reserva pública;
+- limites de tamanho distintos para JSON, uploads e importação de backups;
+- containers sem privilégios, filesystem read-only e porta ligada ao loopback;
+- testes automatizados de autenticação, isolamento, CSP, dependências e HTTP.
 
-Antes de deploy verifica:
+Os controlos reduzem risco; não substituem revisão, monitorização, backups e
+gestão de incidentes.
 
-- [ ] `NODE_ENV=production` no `.env`
-- [ ] `GOOGLE_CLIENT_SECRET` definido (usado também como chave HMAC para OAuth state)
-- [ ] `TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` definidos (sem isto, o motor público rejeita todas as reservas)
-- [ ] `EMAIL_PASS` definido (senha de aplicação Gmail, não a senha normal)
-- [ ] `data/santapaciencia.db` com permissões `600`
-- [ ] HTTPS configurado (Cloudflare Tunnel, Caddy, nginx, etc.)
-- [ ] Backups regulares da DB (descarregar via `/api/backup/export` ou copiar o ficheiro)
+## Segredos e chaves
 
-## Variáveis sensíveis
+Configurar segredos apenas por ambiente protegido. A chave de encriptação dos
+tokens pode ser fornecida por `TOKEN_ENCRYPTION_KEY` ou
+`TOKEN_ENCRYPTION_KEY_FILE`; se for gerada automaticamente, fica junto à base de
+dados com permissões restritas.
 
-Estas envs **NÃO** podem ser logged, ecoadas para o frontend, ou commitadas:
+Guardar essa chave numa cópia separada. O backup exportado pela organização não
+a inclui. Rodar ou perder a chave sem um procedimento de migração torna os tokens
+OAuth existentes inutilizáveis.
 
-- `GOOGLE_CLIENT_SECRET`
-- `EMAIL_PASS`
-- `TURNSTILE_SECRET_KEY`
-- Tokens OAuth (guardados em `data/santapaciencia.db` na tabela `user_tokens`)
-- Sessões (`auth_sessions.id`)
-- Tokens de reset password (`password_reset_tokens.token`)
-- Tokens públicos de reserva (`reservations.public_token`, `precheckin_token`)
+## Checklist de produção
 
-## Dependências
+- `PUBLIC_APP_URL` é HTTPS e corresponde ao domínio público;
+- `TRUST_PROXY` identifica apenas os proxies controlados;
+- `COOKIE_SECURE` está ativo por configuração ou por `NODE_ENV=production`;
+- Turnstile está configurado para o hostname correto;
+- redirect URIs Google coincidem exatamente com o ambiente;
+- `.env`, dados, tokens, uploads e backups não são servidos pelo frontend;
+- backups e restauro foram testados e a chave de tokens está recuperável;
+- dependências e imagem foram auditadas;
+- `/health`, login e isolamento entre organizações foram verificados;
+- logs não contêm dados pessoais, tokens ou códigos de acesso.
 
-Auditoria de dependências:
+## Dependências e testes
+
+A CI executa os testes em Node 22 e 24, auditoria de produção do backend com
+limiar `moderate`, auditoria das bibliotecas declaradas do frontend com limiar
+`high`, testes de browser e orçamento de desempenho. Antes de publicar:
 
 ```bash
 cd backend/src
-npm audit
+npm run check
+npm test
+npm run test:http
+npm run test:browser
+npm run measure:frontend
+npm audit --omit=dev --audit-level=moderate
 ```
 
-Aceita-se vulnerabilidades **moderate** em dependências transitivas (gaxios, uuid via google-auth-library) se não houver fix disponível. **High/Critical** devem ser corrigidas em < 30 dias.
+As bibliotecas de frontend declaradas em `frontend/package.json` também devem ser
+auditadas a partir dessa pasta.
 
-## Headers HTTP
+## Resposta a incidente
 
-O servidor envia (via Helmet):
-- `X-Frame-Options: SAMEORIGIN`
-- `X-Content-Type-Options: nosniff`
-- `Strict-Transport-Security` (apenas com HTTPS)
-- `Referrer-Policy: no-referrer`
-- ⚠️ **CSP desligada** — pendente migração dos `onclick` inline (~229 ocorrências)
+Preservar evidência, limitar o acesso afetado, revogar sessões/credenciais quando
+necessário e evitar alterações destrutivas antes de obter uma cópia dos dados. A
+recuperação e o rollback estão descritos em [Operações](docs/OPERACOES.md).
 
-## Rate Limits
-
-| Endpoint | Janela | Máx |
-|---|---|---|
-| `/auth/login` | 15 min | 10 |
-| `/auth/forgot-password` | 1h | 5 |
-| `/auth/google*/callback` | 15 min | 30 |
-| `/api/public/booking/:slug/reservations` | 1h | 20 |
-| `/api/public/booking/:slug/voucher` | 1h | 30 |
+Depois do incidente, registar a causa raiz, dados e organizações afetadas, janela
+temporal, medidas de contenção e ações preventivas. Cumprir as obrigações legais
+de notificação aplicáveis com aconselhamento adequado.

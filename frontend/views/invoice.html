@@ -1,0 +1,99 @@
+        <section class="invoice-shell">
+
+          <!-- Toolbar -->
+          <div class="view-toolbar invoice-toolbar">
+            <div class="invoice-tabs" id="invoice-tabs">
+              <button class="inv-tab active" data-tab="conversas" data-on-click="index-switch-invoice-tab-c5fa06a">
+                <i data-lucide="mail"></i> Conversas
+              </button>
+              <button class="inv-tab" data-tab="arquivo" data-on-click="index-switch-invoice-tab-f14ccbe">
+                <i data-lucide="archive"></i> Arquivo
+              </button>
+              <button class="inv-tab" data-tab="faturas" data-on-click="index-switch-invoice-tab-aebdbcc">
+                <i data-lucide="file-text"></i> Faturas
+              </button>
+            </div>
+            <div class="view-toolbar-actions">
+              <div class="search-box">
+                <i data-lucide="search"></i>
+                <input type="text" id="invoice-search" placeholder="Pesquisar mensagem ou hóspede..." data-on-input="index-filter-invoice-conversas-eb1249d" autocomplete="off">
+              </div>
+              <button class="btn btn-primary" data-on-click="index-open-nova-conversa-b924301" id="btn-nova-conversa">
+                <i data-lucide="mail-plus"></i> Nova mensagem
+              </button>
+            </div>
+          </div>
+
+          <!-- CONVERSAS tab -->
+          <div id="invoice-tab-conversas">
+            <div class="invoice-inbox-layout">
+
+              <!-- Lista de conversas -->
+              <div class="invoice-thread-list" id="invoice-thread-list">
+                <div class="invoice-thread-empty" id="invoice-thread-empty" style="display:none;">
+                  <div class="es-icon"><i data-lucide="inbox" style="width:40px;height:40px;opacity:.3;"></i></div>
+                  <h3>Sem conversas</h3>
+                  <p>As conversas por email com os hóspedes aparecem aqui.</p>
+                </div>
+                <div class="invoice-thread-error" id="invoice-thread-error" style="display:none;">
+                  <div class="es-icon"><i data-lucide="alert-triangle" style="width:40px;height:40px;opacity:.35;"></i></div>
+                  <h3>Nao foi possivel carregar</h3>
+                  <p id="invoice-thread-error-detail"></p>
+                </div>
+                <div class="invoice-thread-loading" id="invoice-thread-loading">
+                  <div class="spinner"></div> A carregar...
+                </div>
+                <div class="table-pagination" id="invoice-thread-pagination"></div>
+              </div>
+
+              <!-- Detalhe da conversa -->
+              <div class="invoice-thread-detail" id="invoice-thread-detail">
+                <div class="invoice-detail-empty">
+                  <i data-lucide="mail-open" style="width:48px;height:48px;opacity:.2;"></i>
+                  <p>Seleciona uma conversa</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ARQUIVO tab -->
+          <div id="invoice-tab-arquivo" style="display:none;">
+            <div class="invoice-inbox-layout">
+              <div class="invoice-thread-list" id="invoice-archive-list">
+                <div class="invoice-thread-empty" id="invoice-archive-empty" style="display:none;">
+                  <div class="es-icon"><i data-lucide="archive" style="width:40px;height:40px;opacity:.3;"></i></div>
+                  <h3>Arquivo vazio</h3>
+                  <p>As conversas que arquivares aparecem aqui.</p>
+                </div>
+                <div class="invoice-thread-error" id="invoice-archive-error" style="display:none;">
+                  <div class="es-icon"><i data-lucide="alert-triangle" style="width:40px;height:40px;opacity:.35;"></i></div>
+                  <h3>Nao foi possivel carregar</h3>
+                  <p id="invoice-archive-error-detail"></p>
+                </div>
+                <div class="invoice-thread-loading" id="invoice-archive-loading" style="display:none;">
+                  <div class="spinner"></div> A carregar...
+                </div>
+                <div class="table-pagination" id="invoice-archive-pagination"></div>
+              </div>
+              <div class="invoice-thread-detail" id="invoice-archive-detail">
+                <div class="invoice-detail-empty">
+                  <i data-lucide="archive" style="width:48px;height:48px;opacity:.2;"></i>
+                  <p>Seleciona uma conversa arquivada</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- FATURAS tab -->
+          <div id="invoice-tab-faturas" style="display:none;">
+            <div class="card section-card" style="margin-top:16px;">
+              <div class="empty-state" style="padding:64px 24px;">
+                <div class="es-icon"><i data-lucide="file-text" style="width:40px;height:40px;opacity:.3;"></i></div>
+                <h3>Faturas — Em breve</h3>
+                <p>A emissão de faturas e recibos será integrada aqui.</p>
+              </div>
+            </div>
+          </div>
+
+        </section>

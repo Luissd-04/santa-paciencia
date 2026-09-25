@@ -1,0 +1,294 @@
+/* ══════════════════════════════════════════════════════════════
+   CALENDÁRIO/EVENTOS — telemóvel em PAISAGEM (altura baixa): ao
+   contrário do telemóvel em pé (que mostra a agenda por dia), aqui
+   há largura de sobra e só falta altura — mostra-se a grelha real,
+   igual à de secretária, a ecrã inteiro, escondendo o "chrome" à
+   volta (topbar, menu inferior, filtros, toggle timeline) para lhe
+   dar o máximo de espaço. Scroll vertical interno cobre os meses em
+   que as 6 semanas não cabem na altura disponível.
+══════════════════════════════════════════════════════════════ */
+.cal-landscape { display: none; }
+
+@media (max-height: 500px) and (orientation: landscape) {
+  /* Elementos fora de #view-calendario/#view-eventos (topbar, menu
+     inferior, FAB) — :has() identifica qual vista está ativa sem
+     depender de nenhuma classe posta por JS em body. Repetido com
+     body.view-calendario-active/body.view-eventos-active só como
+     rede de segurança (ver toggle em app.js/showView). */
+  body:has(#view-calendario.active) .topbar,
+  body:has(#view-calendario.active) .bottom-nav-bar,
+  body:has(#view-calendario.active) #mobile-fab,
+  body:has(#view-eventos.active) .topbar,
+  body:has(#view-eventos.active) .bottom-nav-bar,
+  body:has(#view-eventos.active) #mobile-fab,
+  body.view-calendario-active .topbar,
+  body.view-calendario-active .bottom-nav-bar,
+  body.view-calendario-active #mobile-fab,
+  body.view-eventos-active .topbar,
+  body.view-eventos-active .bottom-nav-bar,
+  body.view-eventos-active #mobile-fab {
+    display: none !important;
+  }
+
+  .main:has(#view-calendario.active),
+  .main:has(#view-eventos.active),
+  body.view-calendario-active .main,
+  body.view-eventos-active .main {
+    padding-bottom: 0 !important;
+  }
+
+  /* Calendário: em vez de forçar a grelha de secretária (como Eventos,
+     mais abaixo), mostra a vista dedicada .cal-landscape — ver bloco
+     próprio logo a seguir a este. Esconde tudo o resto do "chrome". */
+  #view-calendario.active #cal-main-toggle,
+  #view-calendario.active #timeline-wrap,
+  #view-calendario.active #timeline-range-toggle,
+  #view-calendario.active .m-filters-trigger,
+  #view-calendario.active .calendario-filter-panel,
+  #view-calendario.active .calendar-legend,
+  #view-calendario.active #calendar-agenda-mobile,
+  #view-calendario.active .section-card-calendar .cal-wrap,
+  #view-calendario.active .section-card-head {
+    display: none !important;
+  }
+
+  /* Eventos: mesma ideia — força o painel de calendário com a grelha real */
+  #view-eventos.active #eventos-mode-toggle,
+  #view-eventos.active #eventos-range-toggle,
+  #view-eventos.active #eventos-timeline-wrap,
+  #view-eventos.active #eventos-cal-chips-row,
+  #view-eventos.active #eventos-panel-list,
+  #view-eventos.active .eventos-tabs .report-tab,
+  #view-eventos.active #eventos-agenda-mobile,
+  #view-eventos.active #eventos-mobile-fab,
+  #view-eventos.active .eventos-mobile-add-btn {
+    display: none !important;
+  }
+
+  #view-eventos.active #eventos-panel-calendar {
+    display: block !important;
+  }
+
+  #view-eventos.active #eventos-cal-wrap {
+    display: block !important;
+  }
+
+  /* Altura das 6 linhas do mês (grelha de secretária do Eventos) foi
+     pensada para ecrã de secretária — não cabe sempre nos ~380px de um
+     telemóvel deitado, daí o scroll. */
+  #view-eventos.active .section-card-calendar .cal-wrap {
+    max-height: calc(100dvh - 90px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Calendário: grelha mensal dedicada a ecrã inteiro (substitui a
+     grelha de secretária forçada — ver .cll-* abaixo). Topo com o
+     mínimo de folga possível, só respeitando o entalhe/notch quando
+     o dispositivo o reporta (env safe-area-inset-top). */
+  #view-calendario.active .cal-landscape {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    inset: 0;
+    z-index: 140;
+    background: var(--creme);
+    padding: max(8px, env(safe-area-inset-top, 8px)) max(18px, env(safe-area-inset-right, 18px)) 12px max(18px, env(safe-area-inset-left, 18px));
+    overflow: hidden;
+  }
+
+  .cll-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    margin-bottom: 10px;
+  }
+
+  .cll-pill {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 14px;
+    border-radius: 100px;
+    background: var(--branco);
+    border: 1px solid rgba(43, 24, 16, 0.1);
+    box-shadow: 0 2px 8px rgba(42, 24, 16, 0.05);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--azul);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .cll-pill i[data-lucide] { width: 13px; height: 13px; }
+  .cll-pill:active { transform: scale(0.96); }
+
+  .cll-title {
+    flex: 1;
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--azul);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .cll-week-days-head {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    flex-shrink: 0;
+    padding-bottom: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--cinza);
+    text-align: center;
+  }
+
+  .cll-grid {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid rgba(43, 24, 16, 0.1);
+    border-left: 1px solid rgba(43, 24, 16, 0.1);
+  }
+
+  /* Uma semana = linha de números do dia + faixa de eventos por baixo
+     (barras absolutas), tal como o grid de secretária — permite uma
+     barra contínua de dia para dia e a faixa cresce em altura consoante
+     o número de reservas sobrepostas nessa semana, sem cortar nada. */
+  .cll-week {
+    position: relative;
+  }
+
+  .cll-week:not(:first-child) {
+    border-top: 1px dashed rgba(43, 24, 16, 0.14);
+  }
+
+  .cll-col-sep {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      rgba(43, 24, 16, 0.14) 0, rgba(43, 24, 16, 0.14) 4px,
+      transparent 4px, transparent 8px
+    );
+    z-index: 1;
+  }
+
+  .cll-week-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+  }
+
+  .cll-day-cell {
+    min-height: 38px;
+    padding: 6px 8px 4px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .cll-day-cell.cll-other {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  .cll-day-cell.cll-locked {
+    background: rgba(139, 58, 36, 0.05);
+  }
+
+  .cll-day-num {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--azul);
+  }
+
+  .cll-today-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--marca);
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cll-lock-icon {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 12px;
+    height: 12px;
+    color: #9b8f86;
+  }
+
+  .cll-week-events {
+    position: relative;
+    min-height: 6px;
+    padding-bottom: 6px;
+  }
+
+  .cll-day-click-area {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    cursor: pointer;
+  }
+
+  .cll-overflow {
+    position: absolute; z-index: 3; height: 20px; border: 0; padding: 0 4px;
+    background: transparent; color: var(--marca); font-size: 10px; font-weight: 800;
+    text-align: left; cursor: pointer;
+  }
+  .cll-overflow:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
+
+  /* Barra contínua de dia para dia — mesma matemática de left/width do
+     grid de secretária (.cal-event-span); arredondada só onde a estadia
+     começa/acaba dentro desta semana. */
+  .cll-booking {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    border-left: 3px solid;
+    border-radius: 0;
+    padding: 0 6px;
+    font-size: 9.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    z-index: 2;
+  }
+
+  .cll-booking.cll-booking-checked-out { padding-right: 12px; }
+  .cll-booking.cll-booking-checked-out::after {
+    content: '';
+    position: absolute;
+    right: 3px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #c0392b;
+  }
+
+  .cll-span-round-left { border-radius: 4px 0 0 4px; }
+  .cll-span-round-right { border-radius: 0 4px 4px 0; }
+  .cll-span-round-left.cll-span-round-right { border-radius: 4px; }
+}

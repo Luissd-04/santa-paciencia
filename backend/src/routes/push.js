@@ -40,7 +40,8 @@ router.delete('/devices/:id', (req, res) => {
 router.post('/unsubscribe', (req, res) => {
   const endpoint = req.body?.endpoint;
   if (!endpoint) return res.status(400).json({ success: false, error: 'Endpoint em falta.' });
-  push.deleteSubscription(endpoint);
+  const ok = push.deleteSubscription(req.user.organization_id, req.user.id, endpoint);
+  if (!ok) return res.status(404).json({ success: false, error: 'Subscrição não encontrada.' });
   res.json({ success: true });
 });
 

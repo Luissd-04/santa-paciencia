@@ -1,3 +1,31 @@
+// Estado privado; interface partilhada em AppModules.core.
+(() => {
+AppModules.define('core', {
+  normalizeIsoDateValue: { get: () => normalizeIsoDateValue },
+  formatDateForStandardInput: { get: () => formatDateForStandardInput },
+  apiDelete: { get: () => apiDelete },
+  apiGet: { get: () => apiGet },
+  apiPost: { get: () => apiPost },
+  apiPut: { get: () => apiPut },
+  apiRequest: { get: () => apiRequest },
+  badgeEstado: { get: () => badgeEstado },
+  badgePagamento: { get: () => badgePagamento },
+  cancelApiRequests: { get: () => cancelApiRequests },
+  confirmPriceChange: { get: () => confirmPriceChange },
+  escapeHtml: { get: () => escapeHtml },
+  flagHtml: { get: () => flagHtml },
+  formatDate: { get: () => formatDate },
+  formatEUR: { get: () => formatEUR },
+  hideOperationProgress: { get: () => hideOperationProgress },
+  imageUrlToDataUrl: { get: () => imageUrlToDataUrl },
+  lcIcon: { get: () => lcIcon },
+  realEmail: { get: () => realEmail },
+  safeMediaUrl: { get: () => safeMediaUrl },
+  showOperationProgress: { get: () => showOperationProgress },
+  toast: { get: () => toast },
+  updateOperationProgress: { get: () => updateOperationProgress },
+});
+
 const activeApiRequests = new Set();
 function cancelApiRequests() {
   activeApiRequests.forEach(controller => controller.abort());
@@ -18,26 +46,30 @@ async function apiRequest(path, options = {}, config = {}) {
   if (options.signal?.aborted) controller.abort();
   options.signal?.addEventListener('abort', abort, { once: true });
   const timeout = setTimeout(abort, config.timeoutMs || 30000);
-  let res;
-  try { res = await fetch(API_BASE + path, { ...request, signal: controller.signal }); }
-  finally { clearTimeout(timeout); activeApiRequests.delete(controller); options.signal?.removeEventListener('abort', abort); }
-  let payload = null;
-  try { payload = await res.json(); } catch (_) {
-    if (res.ok) throw new Error('O servidor devolveu uma resposta inválida.');
-  }
+  try {
+    const res = await fetch(AppModules.core.API_BASE + path, { ...request, signal: controller.signal });
+    let payload = null;
+    try { payload = await res.json(); } catch (error) {
+      if (controller.signal.aborted) throw error;
+      if (res.ok) throw new Error('O servidor devolveu uma resposta inválida.');
+    }
+    controller.signal.throwIfAborted();
 
-  if (res.status === 401 && !config.skipAuthRedirect && typeof handleUnauthorized === 'function') {
-    handleUnauthorized();
+    if (res.status === 401 && !config.skipAuthRedirect && typeof AppModules.core.handleUnauthorized === 'function') {
+      AppModules.core.handleUnauthorized();
+    }
+    if (!res.ok) {
+      const err = new Error(payload?.error || `HTTP ${res.status}`);
+      err.status = res.status;
+      err.payload = payload;
+      throw err;
+    }
+    return payload;
+  } finally {
+    clearTimeout(timeout);
+    activeApiRequests.delete(controller);
+    options.signal?.removeEventListener('abort', abort);
   }
-
-  if (!res.ok) {
-    const err = new Error(payload?.error || `HTTP ${res.status}`);
-    err.status = res.status;
-    err.payload = payload;
-    throw err;
-  }
-
-  return payload;
 }
 
 async function apiGet(path, config) {
@@ -236,6 +268,30 @@ function escapeHtml(value) {
   }[ch]));
 }
 
+// URLs colocados em atributos ou estilos têm um contexto diferente de texto
+// HTML. Aceitamos apenas recursos HTTP(S) e caminhos da própria aplicação;
+// a função de escape continua a ser necessária ao inserir o resultado num
+// template literal.
+function safeMediaUrl(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  try {
+    const base = globalThis.location?.origin || 'http://localhost';
+    const parsed = new URL(raw, base);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+    if (raw.startsWith('/') && !raw.startsWith('//')) return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    return parsed.href;
+  } catch {
+    return '';
+  }
+}
+
+// Um argumento de evento HTML precisa de duas codificações: literal JavaScript
+// e atributo HTML. escapeHtml, por si só, não protege as aspas após o parsing.
+function inlineArg(value) {
+  return escapeHtml(JSON.stringify(String(value ?? '')));
+}
+
 // Montante em euros — formato uniforme "€1234.56". Uma só implementação em vez
 // do `€${Number(x).toFixed(2)}` repetido por várias views.
 function formatEUR(value) {
@@ -261,3 +317,13 @@ function flagHtml(code, opts = {}) {
   const label = opts.title || cc.toUpperCase();
   return `<span class="fi fi-${cc}${extra}" role="img" aria-label="${label}" title="${label}" style="width:${size}px;height:${h}px;"></span>`;
 }
+
+// type=date exige ISO; as máscaras de texto usam formatPtDate separadamente.
+function normalizeIsoDateValue(value) {
+  return window.ReservationDates?.normalizeIsoDate(value) || '';
+}
+function formatDateForStandardInput(value) {
+  return normalizeIsoDateValue(value);
+}
+
+})();

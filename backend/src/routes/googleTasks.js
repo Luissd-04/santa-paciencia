@@ -24,7 +24,14 @@ router.get('/status', (req, res) => {
     WHERE organization_id = ? AND date >= date('now') AND google_task_id IS NULL
   `).get(req.user.organization_id)?.c ?? 0;
 
-  res.json({ success: true, data: { connected: true, email: info.email, synced: total, pending } });
+  const cleanupPending = db.prepare(`
+    SELECT COUNT(*) as c FROM google_task_cleanup_queue WHERE organization_id = ?
+  `).get(req.user.organization_id)?.c ?? 0;
+
+  res.json({ success: true, data: {
+    connected: true, email: info.email, synced: total, pending,
+    cleanup_pending: cleanupPending,
+  } });
 });
 
 /* ── POST /api/tasks/sync ── */

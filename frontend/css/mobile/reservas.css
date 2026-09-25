@@ -1,0 +1,112 @@
+/* ══════════════════════════════════════════════════════════════
+   RESERVAS — mobile: sem toolbar de secretária, filtros em folha
+══════════════════════════════════════════════════════════════ */
+.m-filters-trigger { display: none; }
+
+@media (max-width: 600px) {
+  /* "Nova Reserva" do topo escondido — a ação vive só no FAB partilhado */
+  .view-toolbar-reservas {
+    display: none !important;
+  }
+
+  /* Neutraliza o transform preso de view-entering (ver comentário em
+     toggleReservasFiltersSheet, reserva-lista.js) para que a folha de
+     filtros fique position:fixed relativa ao viewport, não à vista. */
+  #view-reservas.m-sheet-ancestor-fix {
+    transform: none !important;
+  }
+
+  /* .reservas-filter-panel já é .m-sheet (ver components/sheet.css);
+     dentro da folha só estão suite/canal/pagamento/datas — a pesquisa,
+     o estado (chips) e o toggle Cartão/Lista vivem na barra de topo,
+     que fica oculta no mobile. */
+  .reservas-filter-panel .reservas-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  /* Cada filtro ocupa sempre a largura toda da folha — a variante
+     --filter/--filter-wide tem min-width/flex pensados para uma barra
+     horizontal de secretária e não deve limitar a largura aqui. */
+  .reservas-filter-panel .reservas-toolbar > .app-select {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    flex: 1 1 auto !important;
+  }
+
+  .reservas-filter-panel .reservas-toolbar .app-select-menu {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .reservas-filter-panel .reservas-toolbar .reservas-date-range {
+    width: 100%;
+  }
+
+  .reservas-filter-panel .reservas-toolbar .reservas-date-range input[type="date"] {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto !important;
+  }
+
+  .m-filters-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 14px;
+    min-height: 40px;
+    border-radius: 100px;
+    border: 1px solid rgba(139, 58, 36, 0.15);
+    background: var(--branco);
+    color: var(--marca);
+    font-size: 12.5px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .m-filters-trigger i[data-lucide] { width: 14px; height: 14px; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CALENDÁRIO — mobile: barra de filtros de secretária dá lugar a
+   um botão "Filtros" (mesmo mecanismo de .reservas-filter-panel)
+══════════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+  #view-calendario.m-sheet-ancestor-fix {
+    transform: none !important;
+  }
+
+  /* .calendario-filter-panel já é .m-sheet (ver components/sheet.css)
+     e em desktop é a 2ª linha inline do toolbar (ver operations.css);
+     aqui vira a folha propriamente dita. */
+  .calendario-filter-panel.m-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    margin-top: 0;
+    top: 12px;
+    bottom: 0;
+    height: auto;
+    max-height: none;
+  }
+  .calendario-filter-panel .m-sheet-header {
+    display: flex;
+    margin: -16px -16px 4px;
+    width: calc(100% + 32px);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--branco);
+  }
+}
+
+
+/* Pesquisa e estados continuam disponíveis quando a barra desktop está oculta. */
+@media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {
+  .reservas-mobile-search,
+  .reservas-mobile-chips { display: flex; }
+}

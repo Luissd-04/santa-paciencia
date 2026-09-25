@@ -66,6 +66,20 @@
   flex-direction: column;
 }
 
+/* A coluna tem só 320px: "Anterior" + contagem + "Seguinte" não cabem numa
+   linha (.list-pagination é partilhado com vistas bem mais largas) e o
+   wrap ficava a meio, com o Seguinte a cair sozinho por baixo do Anterior.
+   Aqui a contagem passa sempre para a sua própria linha, para os dois
+   botões ficarem sempre lado a lado. */
+.invoice-thread-list .list-pagination {
+  gap: 8px 14px;
+}
+.invoice-thread-list .list-pagination-label {
+  order: 1;
+  flex: 1 1 100%;
+  text-align: center;
+}
+
 .invoice-thread-loading,
 .invoice-thread-empty {
   display: flex;

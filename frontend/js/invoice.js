@@ -1,3 +1,27 @@
+// Estado privado; interface partilhada em AppModules.invoice.
+(() => {
+AppModules.define('invoice', {
+  _invoiceActiveEmail: { get: () => _invoiceActiveEmail, set: value => { _invoiceActiveEmail = value; } },
+  _invoiceActiveThread: { get: () => _invoiceActiveThread, set: value => { _invoiceActiveThread = value; } },
+  _invoiceArchivedKeys: { get: () => _invoiceArchivedKeys, set: value => { _invoiceArchivedKeys = value; } },
+  _invoiceConversas: { get: () => _invoiceConversas, set: value => { _invoiceConversas = value; } },
+  _invoiceCurrentMessages: { get: () => _invoiceCurrentMessages, set: value => { _invoiceCurrentMessages = value; } },
+  _invoicePaging: { get: () => _invoicePaging, set: value => { _invoicePaging = value; } },
+  _invoiceReplyTarget: { get: () => _invoiceReplyTarget, set: value => { _invoiceReplyTarget = value; } },
+  _invoiceTab: { get: () => _invoiceTab, set: value => { _invoiceTab = value; } },
+  _sendEmail: { get: () => _sendEmail },
+  _snippet: { get: () => _snippet },
+  _startInvoicePoll: { get: () => _startInvoicePoll },
+  _stopInvoicePoll: { get: () => _stopInvoicePoll },
+  getInvoiceThreadQuery: { get: () => getInvoiceThreadQuery },
+  invoiceArquivoPaged: { get: () => invoiceArquivoPaged },
+  invoiceConversasPaged: { get: () => invoiceConversasPaged },
+  loadInvoiceConversas: { get: () => loadInvoiceConversas },
+  loadInvoiceView: { get: () => loadInvoiceView },
+  renderInvoiceArchive: { get: () => renderInvoiceArchive },
+  switchInvoiceTab: { get: () => switchInvoiceTab },
+});
+
 /* ═══════════════════════════════════════════════════════════════
    Santa Paciência — Invoice & Conversas
 ═══════════════════════════════════════════════════════════════ */
@@ -34,7 +58,7 @@ async function _sendEmail(to, subject, html, to_name, reservation_id, replyTarge
 /* ── Entrada principal ── */
 function loadInvoiceView() {
   _stopInvoicePoll();
-  _markInvoiceRead();
+  AppModules.invoice._markInvoiceRead();
   switchInvoiceTab(_invoiceTab, false);
   if (_invoiceTab === 'conversas') loadInvoiceConversas();
 }
@@ -45,7 +69,7 @@ function _stopInvoicePoll() {
 
 function _startInvoicePoll(thread) {
   _stopInvoicePoll();
-  _invoicePollTimer = setInterval(() => loadThreadMessages(thread, { silent: true }), 30000);
+  _invoicePollTimer = setInterval(() => AppModules.invoice.loadThreadMessages(thread, { silent: true }), 30000);
 }
 
 /* ── Tabs ── */
@@ -69,120 +93,99 @@ function switchInvoiceTab(tab, load = true) {
   if (window.lucide) lucide.createIcons();
 }
 
-/* ── Carregar conversas (reservas + emails avulsos) ── */
-async function loadInvoiceConversas() {
-  const loading = document.getElementById('invoice-thread-loading');
-  const empty   = document.getElementById('invoice-thread-empty');
-  if (loading) loading.style.display = '';
-  if (empty)   empty.style.display   = 'none';
+/* ── Carregar conversas ──
+   As conversas vêm prontas do servidor (GET /api/email/threads), paginadas.
+   Antes, esta vista carregava TODAS as reservas e TODOS os hóspedes por
+   páginas e cruzava-os em memória — numa base grande isso eram centenas de
+   pedidos antes de a lista aparecer. O servidor faz agora esse cruzamento.  */
+const invoiceConversasPaged = AppModules.core.createPagedCollection('/auth/email/threads',
+  () => renderInvoiceThreadState('conversas'));
+const invoiceArquivoPaged = AppModules.core.createPagedCollection('/auth/email/threads',
+  () => renderInvoiceThreadState('arquivo'));
 
-  try {
-    const [resData, hosData, msgRes, archRes] = await Promise.all([
-      apiGet('/api/reservations?limit=200'),
-      apiGet('/api/guests?limit=200'),
-      fetch('/auth/email/messages?limit=200', { credentials: 'include' }).then(r => r.json()).catch(() => ({})),
-      fetch('/auth/email/archives', { credentials: 'include' }).then(r => r.json()).catch(() => ({})),
-    ]);
-    _invoiceArchivedKeys = new Set((archRes?.data || []).map(a => a.thread_key));
+function getInvoiceThreadQuery(archived) {
+  const query = { archived: archived ? '1' : '0' };
+  const search = (document.getElementById('invoice-search')?.value || '').trim();
+  if (search) query.search = search;
+  return query;
+}
 
-    const reservas  = resData?.data?.reservations || resData?.data || [];
-    const hospedes  = hosData?.data?.guests        || hosData?.data || [];
-    const allMsgs   = msgRes?.data?.messages || [];
+// O servidor devolve colunas da base; a vista usa os nomes que já tinha.
+function _threadFromRow(row) {
+  const activeStatuses = new Set(['confirmed', 'checked_in']);
+  const alojNome = row.alojamento || '';
+  return {
+    id: row.id,
+    guestName: row.guest_name || '—',
+    guestEmail: row.guest_email || '',
+    checkin: row.check_in,
+    checkout: row.check_out,
+    status: row.status,
+    alojamento: alojNome,
+    total: row.total_amount,
+    _standalone: !!row.standalone,
+    _alojInitials: activeStatuses.has(row.status) && alojNome
+      ? alojNome.split(' ').filter(w => w.length > 2).map(w => w[0].toUpperCase()).join('').slice(0, 3)
+      : null,
+    _lastDate: row.last_sent_at || null,
+    _lastSnippet: row.last_snippet || null,
+  };
+}
 
-    const hospedeMap = {};
-    hospedes.forEach(h => { hospedeMap[h.id] = h; });
+// Carregamento, erro e lista vazia são estados distintos: uma falha de rede
+// não pode aparecer como "sem conversas".
+function renderInvoiceThreadState(tab) {
+  const arquivo = tab === 'arquivo';
+  const paged = arquivo ? invoiceArquivoPaged : invoiceConversasPaged;
+  const state = paged.state;
+  const ids = arquivo
+    ? { list: 'invoice-archive-list', empty: 'invoice-archive-empty', loading: 'invoice-archive-loading',
+        error: 'invoice-archive-error', errorDetail: 'invoice-archive-error-detail',
+        pagination: 'invoice-archive-pagination', detail: 'invoice-archive-detail' }
+    : { list: 'invoice-thread-list', empty: 'invoice-thread-empty', loading: 'invoice-thread-loading',
+        error: 'invoice-thread-error', errorDetail: 'invoice-thread-error-detail',
+        pagination: 'invoice-thread-pagination', detail: 'invoice-thread-detail' };
 
-    /* Agrupar mensagens por email para preview */
-    const msgByEmail = {};
-    allMsgs.forEach(m => {
-      const key = m.to_email.toLowerCase();
-      if (!msgByEmail[key] || new Date(m.sent_at) > new Date(msgByEmail[key].sent_at)) {
-        msgByEmail[key] = m;
-      }
-    });
+  const show = (id, visible, text) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = visible ? '' : 'none';
+    if (text !== undefined) el.textContent = text;
+  };
 
-    /* Índice de hóspedes por email para lookup rápido */
-    const hospedeByEmail = {};
-    hospedes.forEach(h => {
-      if (realEmail(h.email))    hospedeByEmail[h.email.toLowerCase()]          = h;
-      if (h.email_personal)      hospedeByEmail[h.email_personal.toLowerCase()]  = h;
-    });
+  show(ids.loading, state.loading && !state.rows.length);
+  show(ids.error, !!state.error);
+  show(ids.errorDetail, !!state.error, state.error || '');
+  show(ids.empty, !state.loading && !state.error && !state.rows.length);
 
-    /* Threads de reservas */
-    const activeStatuses = new Set(['confirmed', 'checked_in']);
-    const threads = reservas
-      .filter(r => realEmail(r.guest_email) || hospedeMap[r.guest_id]?.email)
-      .map(r => {
-        const hospede  = hospedeMap[r.guest_id] || {};
-        const email    = (realEmail(r.guest_email) || hospede.email || '').toLowerCase();
-        const lastMsg  = msgByEmail[email];
-        const name     = hospede.name || r.guest_name || '—';
-        const alojNome = r.accommodation_name || '';
-        const alojInit = activeStatuses.has(r.status) && alojNome
-          ? alojNome.split(' ').filter(w => w.length > 2).map(w => w[0].toUpperCase()).join('').slice(0, 3)
-          : null;
-        return {
-          id:           r.id,
-          guestName:    name,
-          guestEmail:   r.guest_email || hospede.email || '',
-          checkin:      r.check_in,
-          checkout:     r.check_out,
-          status:       r.status,
-          alojamento:   alojNome,
-          total:        r.total_amount,
-          _alojInitials: alojInit,
-          _lastDate:    lastMsg?.sent_at || null,
-          _lastSnippet: lastMsg ? _snippet(lastMsg.subject, lastMsg.body_html) : null,
-        };
-      });
+  AppModules.core.renderPagination(ids.pagination, state, page => paged.load(getInvoiceThreadQuery(arquivo), { page }));
 
-    /* Threads avulsas — emails sem reserva, agrupados por to_email */
-    const reservaEmails = new Set(threads.map(t => t.guestEmail.toLowerCase()));
-    const standaloneMap = {};
-    allMsgs
-      .filter(m => !m.reservation_id)
-      .forEach(m => {
-        const key = m.to_email.toLowerCase();
-        const matchedGuest = hospedeByEmail[key];
-        if (!standaloneMap[key]) {
-          standaloneMap[key] = {
-            id:          'standalone-' + key,
-            guestName:   matchedGuest?.name || m.to_name || m.to_email,
-            guestEmail:  m.to_email,
-            checkin:     null,
-            checkout:    null,
-            status:      null,
-            alojamento:  '',
-            total:       null,
-            _standalone: true,
-            _lastDate:   m.sent_at,
-            _lastSnippet: _snippet(m.subject, m.body_html),
-          };
-        }
-      });
+  const list = document.getElementById(ids.list);
+  if (list) list.querySelectorAll('.invoice-thread-item').forEach(el => el.remove());
+  if (state.error) return;
 
-    /* Juntar avulsos que não estão já numa reserva */
-    const standaloneThreads = Object.values(standaloneMap)
-      .filter(t => !reservaEmails.has(t.guestEmail.toLowerCase()));
-
-    /* Ordenar por data do último email (mais recente primeiro) */
-    const allThreads = [...threads, ...standaloneThreads].sort((a, b) => {
-      if (!a._lastDate && !b._lastDate) return 0;
-      if (!a._lastDate) return 1;
-      if (!b._lastDate) return -1;
-      return new Date(b._lastDate) - new Date(a._lastDate);
-    });
-
-    _invoiceConversas = allThreads.filter(t => !_invoiceArchivedKeys.has(String(t.id)));
-    renderInvoiceThreadList(_invoiceConversas);
-    _updateInvoiceBadge();
-    _restoreLastOpenInvoiceThread();
-  } catch (err) {
-    console.error('Invoice: erro ao carregar conversas', err);
-    renderInvoiceThreadList([]);
-  } finally {
-    if (loading) loading.style.display = 'none';
+  const threads = state.rows.map(_threadFromRow);
+  if (!arquivo) _invoiceConversas = threads;
+  renderInvoiceThreadList(threads, { listId: ids.list, emptyId: ids.empty, detailId: ids.detail });
+  if (!arquivo) {
+    AppModules.invoice._updateInvoiceBadge();
+    AppModules.invoice._restoreLastOpenInvoiceThread();
   }
+}
+
+async function loadInvoiceConversas() {
+  // O servidor filtra o arquivo; as chaves arquivadas continuam a ser lidas
+  // porque o botao Arquivar/Restaurar do detalhe depende delas. E uma tabela
+  // pequena (so as chaves), nao a coleccao de reservas.
+  try {
+    const archives = await fetch('/auth/email/archives', { credentials: 'include' }).then(r => r.json());
+    _invoiceArchivedKeys = new Set((archives?.data || []).map(a => a.thread_key));
+  } catch { /* sem a lista, o botao mostra "Arquivar" por omissao */ }
+  await invoiceConversasPaged.load(getInvoiceThreadQuery(false), { force: true });
+}
+
+async function renderInvoiceArchive() {
+  await invoiceArquivoPaged.load(getInvoiceThreadQuery(true), { force: true });
 }
 
 function _snippet(subject, html) {
@@ -191,7 +194,7 @@ function _snippet(subject, html) {
   // tira o logótipo/redes sociais/rodapé quando presente, sem efeito nas
   // mensagens do hóspede); e sem remover o conteúdo de <style> antes das
   // tags, o resumo mostrava o CSS/comentários lá dentro em vez do texto real.
-  const cleaned = _stripEmailChrome(html)
+  const cleaned = AppModules.invoice._stripEmailChrome(html)
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<script[\s\S]*?<\/script>/gi, ' ');
   const text = cleaned.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -205,14 +208,9 @@ function renderInvoiceThreadList(threads, opts = {}) {
   const empty = document.getElementById(emptyId);
   if (!list) return;
 
-  const query = (document.getElementById('invoice-search')?.value || '').toLowerCase();
-  const filtered = query
-    ? threads.filter(t =>
-        t.guestName.toLowerCase().includes(query) ||
-        t.guestEmail.toLowerCase().includes(query) ||
-        (t.alojamento || '').toLowerCase().includes(query)
-      )
-    : threads;
+  // Sem filtro local: a pesquisa e feita pelo servidor e abrange todas as
+  // paginas, nao apenas as conversas desta.
+  const filtered = threads;
 
   list.querySelectorAll('.invoice-thread-item').forEach(el => el.remove());
 
@@ -229,25 +227,25 @@ function renderInvoiceThreadList(threads, opts = {}) {
     el.className = 'invoice-thread-item' + (isActive ? ' active' : '');
     el.dataset.id = t.id;
     el.innerHTML = `
-      <div class="itt-avatar">${initials(t.guestName)}</div>
+      <div class="itt-avatar">${AppModules.invoice.initials(t.guestName)}</div>
       <div class="itt-body">
         <div class="itt-top">
           <span class="itt-name">
-            ${esc(t.guestName)}${t._alojInitials ? ` <span class="itt-aloj-init">${esc(t._alojInitials)}</span>` : ''}
+            ${AppModules.invoice.esc(t.guestName)}${t._alojInitials ? ` <span class="itt-aloj-init">${AppModules.invoice.esc(t._alojInitials)}</span>` : ''}
           </span>
-          <span class="itt-date">${hasMsg ? fmtDateTime(t._lastDate) : fmtDate(t.checkin)}</span>
+          <span class="itt-date">${hasMsg ? AppModules.invoice.fmtDateTime(t._lastDate) : AppModules.invoice.fmtDate(t.checkin)}</span>
         </div>
         ${t._lastSnippet
-          ? `<div class="itt-snippet">${esc(t._lastSnippet)}</div>`
-          : `<div class="itt-sub">${esc(t.guestEmail)}</div>`}
+          ? `<div class="itt-snippet">${AppModules.invoice.esc(t._lastSnippet)}</div>`
+          : `<div class="itt-sub">${AppModules.invoice.esc(t.guestEmail)}</div>`}
         <div class="itt-meta">
-          ${t.alojamento ? `<span class="itt-aloj">${esc(t.alojamento)}</span>` : ''}
-          ${t.total ? `<span class="itt-total">${formatMoney(t.total)}</span>` : ''}
-          ${t.status ? `<span class="itt-status status-${t.status}">${labelStatus(t.status)}</span>` : ''}
+          ${t.alojamento ? `<span class="itt-aloj">${AppModules.invoice.esc(t.alojamento)}</span>` : ''}
+          ${t.total ? `<span class="itt-total">${AppModules.invoice.formatMoney(t.total)}</span>` : ''}
+          ${t.status ? `<span class="itt-status status-${t.status}">${AppModules.invoice.labelStatus(t.status)}</span>` : ''}
         </div>
       </div>
     `;
-    el.addEventListener('click', () => openInvoiceThread(t, detailId));
+    el.addEventListener('click', () => AppModules.invoice.openInvoiceThread(t, detailId));
     list.appendChild(el);
   });
 
@@ -255,3 +253,19 @@ function renderInvoiceThreadList(threads, opts = {}) {
 }
 
 /* ── Abrir detalhe de uma thread ── */
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('invoice.js', () => {
+  _invoiceConversas = [];
+  _invoiceActiveThread = null;
+  _invoiceActiveEmail = null;
+  clearTimeout(_invoicePollTimer); clearInterval(_invoicePollTimer); _invoicePollTimer = null;
+  _invoiceArchivedKeys = new Set();
+  _invoiceCurrentMessages = [];
+  _invoiceReplyTarget = null;
+  _invoicePaging = {};
+  invoiceConversasPaged.reset();
+  invoiceArquivoPaged.reset();
+});
+
+})();

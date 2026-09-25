@@ -389,4 +389,10 @@ body.auth-locked {
 .login-message-detail.visible {
   display: block;
 }
-
+/* Visível apenas quando recebe foco por teclado. */
+.skip-link {
+  position: fixed; top: 8px; left: 8px; z-index: 20000;
+  transform: translateY(-160%); padding: 10px 14px; border-radius: 8px;
+  background: var(--azul); color: #fff; font-weight: 700;
+}
+.skip-link:focus { transform: translateY(0); }

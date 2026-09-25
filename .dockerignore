@@ -6,6 +6,17 @@ backend/tokens
 *.sqlite
 .DS_Store
 .git
+.agents
+.codex
+data
+tokens
+**/node_modules
+**/.env
+**/.env.local
+**/*.db-wal
+**/*.db-shm
+**/token-encryption.key
+**/token-encryption.key.*.tmp
 
 backend/src/scripts/qa-*
 backend/src/test

@@ -1,0 +1,89 @@
+        <div class="aloj-hidden-controls" aria-hidden="true">
+          <div class="search-box aloj-search-box">
+            <i data-lucide="search"></i>
+            <input type="text" id="aloj-search" placeholder="Pesquisar nome, cidade, licença..." data-on-input="index-render-alojamentos-55a548a" autocomplete="off">
+          </div>
+          <select class="form-control" id="aloj-filter-type" style="width:auto;" data-on-change="index-render-alojamentos-eccef8d">
+            <option value="">Todos os tipos</option>
+            <option value="alojamento">Alojamentos principais</option>
+            <option value="suite">Suites</option>
+            <option value="apartamento">Apartamentos</option>
+            <option value="quarto">Quartos</option>
+            <option value="moradia">Moradias</option>
+            <option value="villa">Villas</option>
+          </select>
+          <select class="form-control" id="aloj-filter-link" style="width:auto;" data-on-change="index-render-alojamentos-eccef8d">
+            <option value="">Todas as relações</option>
+            <option value="main">Só principais</option>
+            <option value="linked">Só associadas</option>
+            <option value="standalone">Só independentes</option>
+          </select>
+          <span id="aloj-count-total">0</span>
+          <span id="aloj-count-main">0</span>
+          <span id="aloj-count-linked">0</span>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">
+              <i data-lucide="home"></i> Alojamentos
+            </span>
+            <span style="font-size:12px;color:var(--cinza);">Clique num alojamento para editar</span>
+          </div>
+          <div class="table-wrap">
+          <table id="aloj-table" style="table-layout:fixed;width:100%">
+            <thead>
+              <tr>
+                <th style="width:32px"></th>
+                <th style="width:52px"></th>
+                <th>Nome</th>
+                <th style="width:80px">Tipo</th>
+                <th style="width:120px">Capacidade</th>
+                <th style="width:90px">Quartos</th>
+                <th style="width:70px">Área</th>
+                <th style="width:110px">Preço/noite</th>
+                <th style="width:80px">Licença</th>
+                <th style="width:130px"></th>
+              </tr>
+            </thead>
+            <tbody id="aloj-body"></tbody>
+          </table>
+          </div>
+          <div id="aloj-mobile-cards" class="aloj-mobile-cards"></div>
+          <div id="aloj-loading" class="loading"><div class="spinner"></div> A carregar...</div>
+
+          <div style="padding:14px 16px;border-top:1px solid var(--cinza-claro);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <button class="btn btn-ghost btn-sm" data-on-click="index-add-alojamento-ff5f8f7">
+              <i data-lucide="plus"></i> Adicionar alojamento
+            </button>
+          </div>
+        </div>
+
+        <!-- Serviços e Taxas -->
+        <div class="card" style="margin-top:20px;">
+          <div class="card-header">
+            <span class="card-title">
+              <i data-lucide="receipt"></i> Serviços e Taxas
+            </span>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-ghost btn-sm" data-on-click="index-add-servico-e45a88c">
+                <i data-lucide="plus"></i> Adicionar
+              </button>
+            </div>
+          </div>
+          <div class="table-wrap">
+          <table style="table-layout:fixed;width:100%" id="servicos-table">
+            <thead>
+              <tr>
+                <th style="width:120px">Tipo</th>
+                <th>Nome</th>
+                <th style="width:110px">Valor (€)</th>
+                <th style="width:160px">Unidade</th>
+                <th style="width:60px">Ativo</th>
+                <th style="width:40px"></th>
+              </tr>
+            </thead>
+            <tbody id="servicos-body"></tbody>
+          </table>
+          </div>
+        </div>

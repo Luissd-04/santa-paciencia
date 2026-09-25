@@ -1,0 +1,102 @@
+        <section class="despesas-shell">
+          <div class="kpi-grid despesas-kpi-grid" id="despesas-kpi-grid"></div>
+          <div class="despesas-kpi-mobile" id="despesas-kpi-mobile"></div>
+
+          <div class="m-sheet-backdrop" id="despesas-filters-backdrop" data-on-click="close-despesas-filters"></div>
+          <div class="despesas-filter-panel m-sheet" id="despesas-filter-panel">
+            <div class="m-sheet-header">
+              <span>Filtros</span>
+              <button class="m-sheet-close" data-on-click="close-despesas-filters" aria-label="Fechar">
+                <i data-lucide="x"></i>
+              </button>
+            </div>
+            <div class="search-box despesas-search-box">
+              <i data-lucide="search"></i>
+              <input type="text" id="despesa-search" placeholder="Pesquisar descrição, fornecedor, nº de fatura..." data-on-input="despesas-query-changed" autocomplete="off">
+            </div>
+            <select class="form-control" id="despesa-filter-period" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" style="width:auto;" data-on-change="despesas-query-changed-reload">
+              <option value="ano">Por ano</option>
+              <option value="mes">Por mês</option>
+              <option value="tudo">Todo o histórico</option>
+            </select>
+            <select class="form-control" id="despesa-filter-year" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" style="width:auto;" data-on-change="despesas-query-changed-immediate" aria-label="Ano"></select>
+            <select class="form-control" id="despesa-filter-month" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" style="width:auto;" data-on-change="despesas-query-changed-immediate" aria-label="Mês"></select>
+            <select class="form-control" id="despesa-filter-category" data-enhance-select data-app-select-class="app-select--filter" style="width:auto;" data-on-change="despesas-query-changed-immediate">
+              <option value="">Todas as categorias</option>
+              <option value="limpeza">Limpeza</option>
+              <option value="produtos_limpeza">Produtos de limpeza</option>
+              <option value="pequenos_almocos">Pequenos-almoços</option>
+              <option value="roupas">Roupas</option>
+              <option value="manutencao">Manutenção</option>
+              <option value="marketing">Marketing</option>
+              <option value="impostos">Impostos</option>
+              <option value="servicos">Serviços</option>
+              <option value="consumiveis">Consumíveis</option>
+              <option value="outro">Outro</option>
+            </select>
+            <select class="form-control" id="despesa-filter-supplier" data-enhance-select data-app-select-class="app-select--filter" style="width:auto;" data-on-change="despesas-query-changed-immediate">
+              <option value="">Todos os fornecedores</option>
+            </select>
+            <div class="despesas-filter-panel-actions">
+              <button class="btn btn-ghost btn-sm" data-on-click="clear-despesas-filtros">
+                <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar filtros
+              </button>
+              <button class="btn btn-primary btn-sm despesas-filter-apply" data-on-click="close-despesas-filters">Aplicar</button>
+            </div>
+          </div>
+
+          <div class="despesas-mobile-toolbar">
+            <button class="m-filters-trigger despesas-filters-trigger" data-on-click="open-despesas-filters">
+              <i data-lucide="sliders-horizontal"></i> Filtros
+              <span class="despesas-filter-badge" id="despesas-filter-badge" data-stop="1" data-on-click="clear-despesas-filtros" title="Limpar filtros" style="display:none;">
+                <i data-lucide="x"></i>
+              </span>
+            </button>
+            <button class="despesas-icon-btn" data-on-click="export-despesas-xlsx" title="Exportar lista de despesas">
+              <i data-lucide="download"></i>
+            </button>
+            <button class="despesas-icon-btn" data-on-click="trigger-receipt-input" title="Ler talão por foto (IA)">
+              <i data-lucide="scan-line"></i>
+            </button>
+          </div>
+
+          <button class="mobile-fab despesas-mobile-fab" id="despesas-mobile-fab" data-on-click="open-despesa-modal">
+            <i data-lucide="plus"></i>
+          </button>
+
+          <div class="card card--flush despesas-table-card">
+            <div class="card-header despesas-card-header">
+              <span class="card-title"><i data-lucide="receipt"></i> Registo de Despesas</span>
+              <div class="view-toolbar-actions despesas-desktop-actions">
+                <button class="btn btn-ghost btn-sm" data-on-click="export-despesas-xlsx" title="Exportar lista de despesas">
+                  <i data-lucide="download" style="width:13px;height:13px;"></i> Exportar
+                </button>
+                <input type="file" id="receipt-file-input" accept="image/*" capture="environment" style="display:none;" data-on-change="receipt-file-selected">
+                <button class="btn btn-ghost btn-sm despesas-scan-btn" data-on-click="trigger-receipt-input" title="Ler talão por foto (IA)">
+                  <i data-lucide="scan-line" style="width:14px;height:14px;"></i> Ler talão
+                </button>
+                <button class="btn btn-primary btn-sm" data-on-click="open-despesa-modal">
+                  <i data-lucide="plus"></i> Nova Despesa
+                </button>
+              </div>
+            </div>
+            <div class="table-wrap despesas-table-wrap">
+              <table id="despesas-table" class="cols-managed">
+                <colgroup></colgroup>
+                <thead><tr></tr></thead>
+                <tbody id="despesas-body"></tbody>
+              </table>
+            </div>
+            <div id="despesas-mobile-cards" class="despesas-mobile-cards"></div>
+            <div id="despesas-empty" style="display:none;"></div>
+            <div id="despesas-error" class="empty-state" style="display:none;">
+              <div class="es-icon">⚠️</div>
+              <h3>Não foi possível carregar as despesas</h3>
+              <p id="despesas-error-detail"></p>
+            </div>
+            <div id="despesas-loading" class="loading">
+              <div class="spinner"></div> A carregar despesas...
+            </div>
+            <div class="table-pagination" id="despesas-pagination"></div>
+          </div>
+        </section>

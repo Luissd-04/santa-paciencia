@@ -1,3 +1,37 @@
+// Estado privado; interface partilhada em AppModules.reservas.
+(() => {
+AppModules.define('reservas', {
+  _cachedPricingPeriods: { get: () => _cachedPricingPeriods, set: value => { _cachedPricingPeriods = value; } },
+  _editingPriceInfo: { get: () => _editingPriceInfo, set: value => { _editingPriceInfo = value; } },
+  _lastExtrasTotal: { get: () => _lastExtrasTotal, set: value => { _lastExtrasTotal = value; } },
+  _manualDistribWarned: { get: () => _manualDistribWarned, set: value => { _manualDistribWarned = value; } },
+  _manualDistribWeights: { get: () => _manualDistribWeights, set: value => { _manualDistribWeights = value; } },
+  _manualTotalOverride: { get: () => _manualTotalOverride, set: value => { _manualTotalOverride = value; } },
+  _nightlyGridSig: { get: () => _nightlyGridSig, set: value => { _nightlyGridSig = value; } },
+  _nightlyOverrides: { get: () => _nightlyOverrides, set: value => { _nightlyOverrides = value; } },
+  _nightlyPrices: { get: () => _nightlyPrices, set: value => { _nightlyPrices = value; } },
+  _resetGuestFields: { get: () => _resetGuestFields },
+  _returnToDetailId: { get: () => _returnToDetailId, set: value => { _returnToDetailId = value; } },
+  _standardNightlyByDate: { get: () => _standardNightlyByDate, set: value => { _standardNightlyByDate = value; } },
+  _wizardPageMode: { get: () => _wizardPageMode, set: value => { _wizardPageMode = value; } },
+  _wizExtraRooms: { get: () => _wizExtraRooms, set: value => { _wizExtraRooms = value; } },
+  _wizHadMultiSuiteOnLoad: { get: () => _wizHadMultiSuiteOnLoad, set: value => { _wizHadMultiSuiteOnLoad = value; } },
+  _wizMultiSuite: { get: () => _wizMultiSuite, set: value => { _wizMultiSuite = value; } },
+  addDaysToIsoDate: { get: () => addDaysToIsoDate },
+  buildCountrySelects: { get: () => buildCountrySelects },
+  DIAL_COUNTRIES: { get: () => DIAL_COUNTRIES },
+  enhanceReservationSelects: { get: () => enhanceReservationSelects },
+  invalidateWizPricingCache: { get: () => invalidateWizPricingCache },
+  loadWizPricingPeriods: { get: () => loadWizPricingPeriods },
+  nightlyOverrideArray: { get: () => nightlyOverrideArray },
+  onAmountPaidChange: { get: () => onAmountPaidChange },
+  onPaymentStatusChange: { get: () => onPaymentStatusChange },
+  preloadAllPricingPeriods: { get: () => preloadAllPricingPeriods },
+  updateForeignRequirements: { get: () => updateForeignRequirements },
+  updateNumHospedes: { get: () => updateNumHospedes },
+  wizStep: { get: () => wizStep, set: value => { wizStep = value; } },
+});
+
 const DIAL_COUNTRIES = [
   { code:'PT', name:'Portugal',         dial:'+351', flag:'🇵🇹' },
   { code:'ES', name:'Espanha',          dial:'+34',  flag:'🇪🇸' },
@@ -176,7 +210,7 @@ async function loadWizPricingPeriods(alojId) {
   if (!alojId) return [];
   if (_cachedPricingPeriods[alojId]) return _cachedPricingPeriods[alojId];
   try {
-    const res = await apiGet(`/api/accommodations/${alojId}/pricing-periods`);
+    const res = await AppModules.core.apiGet(`/api/accommodations/${alojId}/pricing-periods`);
     _cachedPricingPeriods[alojId] = res.data || [];
     return _cachedPricingPeriods[alojId];
   } catch {
@@ -187,12 +221,12 @@ async function loadWizPricingPeriods(alojId) {
 // Pré-carrega os períodos de preço de todos os alojamentos, para os cartões
 // mostrarem o preço dinâmico correto. Re-renderiza os cartões quando termina.
 async function preloadAllPricingPeriods() {
-  const pending = accommodations
+  const pending = AppModules.core.accommodations
     .map(a => a.id)
     .filter(id => id && !_cachedPricingPeriods[id]);
   if (!pending.length) return;
   await Promise.all(pending.map(id => loadWizPricingPeriods(id)));
-  renderSuiteCards();
+  AppModules.reservas.renderSuiteCards();
 }
 
 function nightlyOverrideArray() {
@@ -215,6 +249,21 @@ function updateNumHospedes() {
   const children = parseInt(document.getElementById('f-num-criancas')?.value) || 0;
   const hidden = document.getElementById('f-num-hospedes');
   if (hidden) hidden.value = adults + children;
-  renderWizChildAges();
+  AppModules.reservas.renderWizChildAges();
 }
 
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('reserva-wizard.js', () => {
+  _cachedPricingPeriods = {};
+  _nightlyOverrides = {};
+  _nightlyPrices = [];
+  _manualTotalOverride = null;
+  _manualDistribWeights = null;
+  _wizExtraRooms = [];
+  _standardNightlyByDate = {};
+  _editingPriceInfo = null;
+  _returnToDetailId = null;
+});
+
+})();

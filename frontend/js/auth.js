@@ -1,3 +1,25 @@
+// Estado privado; interface partilhada em AppModules.core.
+(() => {
+AppModules.define('core', {
+  boot: { get: () => boot },
+  closeChangePasswordModal: { get: () => closeChangePasswordModal },
+  closeProfileModal: { get: () => closeProfileModal },
+  closeSessionsModal: { get: () => closeSessionsModal },
+  handleUnauthorized: { get: () => handleUnauthorized },
+  logout: { get: () => logout },
+  openChangePasswordModal: { get: () => openChangePasswordModal },
+  openProfileModal: { get: () => openProfileModal },
+  openSessionsModal: { get: () => openSessionsModal },
+  revokeOtherSessions: { get: () => revokeOtherSessions },
+  setAuthMode: { get: () => setAuthMode },
+  submitChangePassword: { get: () => submitChangePassword },
+  submitProfile: { get: () => submitProfile },
+  switchAccount: { get: () => switchAccount },
+  togglePw: { get: () => togglePw },
+  toggleUserMenu: { get: () => toggleUserMenu },
+  updateProfilePasswordVisibility: { get: () => updateProfilePasswordVisibility },
+});
+
 let appBootstrapped = false;
 let authMode = 'login';
 let inviteToken = null;
@@ -64,7 +86,7 @@ function clearFieldErrors() {
 
 function updateOwnerUiVisibility() {
   document.querySelectorAll('[data-owner-only="true"]').forEach(el => {
-    el.style.display = currentUser?.role === 'owner' ? '' : 'none';
+    el.style.display = AppModules.core.currentUser?.role === 'owner' ? '' : 'none';
   });
 }
 
@@ -117,18 +139,18 @@ function renderSavedAccounts() {
   const selected = (document.getElementById('login-email')?.value || '').trim().toLowerCase();
   wrap.style.display = '';
   wrap.innerHTML = accounts.map(a => {
-    const initial = escapeHtml((a.name || a.email).trim().charAt(0).toUpperCase());
-    const email = escapeHtml(a.email);
+    const initial = AppModules.core.escapeHtml((a.name || a.email).trim().charAt(0).toUpperCase());
+    const email = AppModules.core.escapeHtml(a.email);
     return `<div class="auth-saved-account${a.email === selected ? ' is-selected' : ''}">
-      <button type="button" class="auth-saved-account-pick" data-email="${email}" onclick="pickSavedAccount(this.dataset.email)">
+      <button type="button" class="auth-saved-account-pick" data-email="${email}" data-on-click="auth-pick-saved-account-a182baa">
         <span class="auth-saved-account-avatar">${initial}</span>
         <span class="auth-saved-account-copy">
-          ${a.name ? `<strong>${escapeHtml(a.name)}</strong>` : ''}
+          ${a.name ? `<strong>${AppModules.core.escapeHtml(a.name)}</strong>` : ''}
           <span>${email}</span>
         </span>
       </button>
-      <button type="button" class="auth-saved-account-forget" data-email="${email}" onclick="forgetSavedAccount(this.dataset.email)" title="Esquecer esta conta neste dispositivo" aria-label="Esquecer ${email}">
-        ${lcIcon('x', 13)}
+      <button type="button" class="auth-saved-account-forget" data-email="${email}" data-on-click="auth-forget-saved-account-1d31cae" title="Esquecer esta conta neste dispositivo" aria-label="Esquecer ${email}">
+        ${AppModules.core.lcIcon('x', 13)}
       </button>
     </div>`;
   }).join('');
@@ -152,14 +174,14 @@ function prefillLastAccount() {
 function updateUserBadge() {
   const menuName = document.getElementById('user-menu-name');
   const menuEmail = document.getElementById('user-menu-email');
-  if (menuName) menuName.textContent = currentUser?.name || '';
-  if (menuEmail) menuEmail.textContent = currentUser?.email || '';
+  if (menuName) menuName.textContent = AppModules.core.currentUser?.name || '';
+  if (menuEmail) menuEmail.textContent = AppModules.core.currentUser?.email || '';
   const nameEl = document.getElementById('auth-user-name');
   const roleEl = document.getElementById('auth-user-role');
-  if (nameEl) nameEl.textContent = currentUser?.name || 'Sessão';
+  if (nameEl) nameEl.textContent = AppModules.core.currentUser?.name || 'Sessão';
   if (roleEl) {
-    const org = currentUser?.organization_name || '';
-    const role = currentUser?.role || '';
+    const org = AppModules.core.currentUser?.organization_name || '';
+    const role = AppModules.core.currentUser?.role || '';
     roleEl.textContent = [org, role].filter(Boolean).join(' · ');
   }
 }
@@ -247,14 +269,14 @@ function setAuthMode(mode) {
         : 'Cada proprietário cria o seu próprio espaço. Gestores e funcionários entram por convite.';
   }
   if (submitBtn) submitBtn.innerHTML = isReset
-    ? `${lcIcon('key-round', 14)} Guardar nova palavra-passe`
+    ? `${AppModules.core.lcIcon('key-round', 14)} Guardar nova palavra-passe`
     : isForgot
-      ? `${lcIcon('mail', 14)} Enviar link de recuperação`
+      ? `${AppModules.core.lcIcon('mail', 14)} Enviar link de recuperação`
       : isInvite
-        ? `${lcIcon('user-check', 14)} Aceitar convite`
+        ? `${AppModules.core.lcIcon('user-check', 14)} Aceitar convite`
         : isRegister
-          ? `${lcIcon('building-2', 14)} Criar espaço`
-          : `${lcIcon('log-in', 14)} Entrar`;
+          ? `${AppModules.core.lcIcon('building-2', 14)} Criar espaço`
+          : `${AppModules.core.lcIcon('log-in', 14)} Entrar`;
 
   const hideTabs = isInvite || isForgot || isReset;
   if (tabLogin)    { tabLogin.classList.toggle('active', mode === 'login'); tabLogin.style.display = hideTabs ? 'none' : ''; }
@@ -296,14 +318,14 @@ function setAuthMode(mode) {
 }
 
 async function fetchCurrentUser() {
-  const res = await fetch(API_BASE + '/auth/me', { credentials: 'include' });
+  const res = await fetch(AppModules.core.API_BASE + '/auth/me', { credentials: 'include' });
   if (!res.ok) return null;
   const payload = await res.json();
   return payload?.data?.user || null;
 }
 
 async function fetchInviteDetails(token) {
-  return apiGet(`/auth/invitations/${token}`, { skipAuthRedirect: true });
+  return AppModules.core.apiGet(`/auth/invitations/${token}`, { skipAuthRedirect: true });
 }
 
 async function handleLoginSubmit(event) {
@@ -391,7 +413,7 @@ async function handleLoginSubmit(event) {
     const submitBtn = document.getElementById('login-submit');
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'A enviar…'; }
     try {
-      await apiPost('/auth/forgot-password', { email }, { skipAuthRedirect: true });
+      await AppModules.core.apiPost('/auth/forgot-password', { email }, { skipAuthRedirect: true });
       setAuthScreenMessage('Se o email existir, receberás um link de recuperação em breve. Verifica a caixa de entrada.', 'success');
     } catch {
       setAuthScreenMessage('Não foi possível processar o pedido. Tenta de novo.', 'error');
@@ -414,7 +436,7 @@ async function handleLoginSubmit(event) {
     const submitBtn = document.getElementById('login-submit');
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'A guardar…'; }
     try {
-      await apiPost('/auth/reset-password', { token: resetToken, password: newPw, confirm_password: cfmPw }, { skipAuthRedirect: true });
+      await AppModules.core.apiPost('/auth/reset-password', { token: resetToken, password: newPw, confirm_password: cfmPw }, { skipAuthRedirect: true });
       resetToken = null;
       history.replaceState({}, '', '/');
       setAuthScreenMessage('Palavra-passe alterada com sucesso! Podes entrar agora.', 'success');
@@ -435,12 +457,12 @@ async function handleLoginSubmit(event) {
 
   try {
     const payload = authMode === 'invite'
-      ? await apiPost('/auth/invitations/accept', { token: inviteToken, name, password, confirm_password: confirm }, { skipAuthRedirect: true })
+      ? await AppModules.core.apiPost('/auth/invitations/accept', { token: inviteToken, name, password, confirm_password: confirm }, { skipAuthRedirect: true })
       : authMode === 'register'
-        ? await apiPost('/auth/register', { name, organization_name: orgName, email, password, confirm_password: confirm }, { skipAuthRedirect: true })
-        : await apiPost('/auth/login', { email, password }, { skipAuthRedirect: true });
-    currentUser = payload?.data?.user || null;
-    rememberAccount(currentUser);
+        ? await AppModules.core.apiPost('/auth/register', { name, organization_name: orgName, email, password, confirm_password: confirm }, { skipAuthRedirect: true })
+        : await AppModules.core.apiPost('/auth/login', { email, password }, { skipAuthRedirect: true });
+    AppModules.core.currentUser = payload?.data?.user || null;
+    rememberAccount(AppModules.core.currentUser);
     // Tell the browser to offer to save/update credentials
     if (window.PasswordCredential && (authMode === 'login' || authMode === 'register' || authMode === 'invite')) {
       try {
@@ -458,7 +480,7 @@ async function handleLoginSubmit(event) {
     const raw = (err?.payload?.error || err?.message || '').toLowerCase();
     if (raw.includes('email')) setFieldError('login-email', true);
     else if (raw.includes('password') || raw.includes('credentials')) setFieldError('login-password', true);
-    currentUser = null;
+    AppModules.core.currentUser = null;
     setAuthenticatedLayout(false);
   } finally {
     if (submitBtn) {
@@ -469,22 +491,23 @@ async function handleLoginSubmit(event) {
 }
 
 async function logout() {
-  if (typeof cancelApiRequests === 'function') cancelApiRequests();
-  if (typeof _stopInvoicePoll === 'function') _stopInvoicePoll();
-  if (typeof clearReservaDraft === 'function') clearReservaDraft();
+  if (typeof AppModules.core.cancelApiRequests === 'function') AppModules.core.cancelApiRequests();
+  if (typeof AppModules.core.resetPrivateLists === 'function') AppModules.core.resetPrivateLists();
+  if (typeof AppModules.invoice._stopInvoicePoll === 'function') AppModules.invoice._stopInvoicePoll();
+  if (typeof AppModules.reservas.clearReservaDraft === 'function') AppModules.reservas.clearReservaDraft();
   try {
     localStorage.removeItem('sp_reserva_draft_v1');
     Object.keys(sessionStorage).filter(key => key.startsWith('sp_reserva_draft_')).forEach(key => sessionStorage.removeItem(key));
     if ('caches' in window) await Promise.all((await caches.keys()).filter(key => key.startsWith('sp-')).map(key => caches.delete(key)));
   } catch (_) {}
   try {
-    await fetch(API_BASE + '/auth/logout', {
+    await fetch(AppModules.core.API_BASE + '/auth/logout', {
       method: 'POST',
       credentials: 'include'
     });
   } catch (_) {}
 
-  currentUser = null;
+  AppModules.core.currentUser = null;
   setAuthenticatedLayout(false);
   setAuthMode(inviteToken ? 'invite' : 'login');
   prefillLastAccount();
@@ -504,7 +527,8 @@ async function switchAccount() {
 }
 
 async function handleUnauthorized() {
-  currentUser = null;
+  if (typeof AppModules.core.resetPrivateLists === 'function') AppModules.core.resetPrivateLists();
+  AppModules.core.currentUser = null;
   setAuthenticatedLayout(false);
   setAuthMode(inviteToken ? 'invite' : 'login');
   prefillLastAccount();
@@ -515,7 +539,7 @@ let _userMemberships = [];
 
 async function loadMemberships() {
   try {
-    const payload = await apiGet('/auth/memberships');
+    const payload = await AppModules.core.apiGet('/auth/memberships');
     _userMemberships = payload?.data?.memberships || [];
   } catch (_) {
     _userMemberships = [];
@@ -528,16 +552,16 @@ function renderOrgSwitcher() {
   const el = document.getElementById('user-menu-orgs');
   if (!el) return;
   if (_userMemberships.length <= 1) { el.innerHTML = ''; return; }
-  const currentOrgId = currentUser?.organization_id;
+  const currentOrgId = AppModules.core.currentUser?.organization_id;
   el.innerHTML = `
     <div class="user-menu-sep"></div>
     <div class="user-menu-label">Trocar de espaço</div>
     ${_userMemberships.map(m => {
       const active = m.organization_id === currentOrgId;
-      return `<button class="user-menu-item${active ? ' is-active' : ''}" data-org="${escapeHtml(m.organization_id)}" onclick="switchOrg(this.dataset.org)">
-        ${lcIcon(active ? 'check' : 'building-2', 14)}
-        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(m.organization_name)}</span>
-        <span class="user-menu-role">${escapeHtml(m.role)}</span>
+      return `<button class="user-menu-item${active ? ' is-active' : ''}" data-org="${AppModules.core.escapeHtml(m.organization_id)}" data-on-click="auth-switch-org-afb0d97">
+        ${AppModules.core.lcIcon(active ? 'check' : 'building-2', 14)}
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;">${AppModules.core.escapeHtml(m.organization_name)}</span>
+        <span class="user-menu-role">${AppModules.core.escapeHtml(m.role)}</span>
       </button>`;
     }).join('')}`;
   if (window.lucide) lucide.createIcons();
@@ -546,33 +570,35 @@ function renderOrgSwitcher() {
 async function switchOrg(organizationId) {
   const menu = document.getElementById('user-menu');
   if (menu) menu.style.display = 'none';
-  if (organizationId === currentUser?.organization_id) return;
+  if (organizationId === AppModules.core.currentUser?.organization_id) return;
   try {
-    if (typeof clearReservaDraft === 'function') clearReservaDraft();
-    if (typeof cancelApiRequests === 'function') cancelApiRequests();
-    if (typeof _stopInvoicePoll === 'function') _stopInvoicePoll();
-    const payload = await apiPost('/auth/switch-org', { organization_id: organizationId });
-    currentUser = payload?.data?.user || null;
+    if (typeof AppModules.reservas.clearReservaDraft === 'function') AppModules.reservas.clearReservaDraft();
+    if (typeof AppModules.core.cancelApiRequests === 'function') AppModules.core.cancelApiRequests();
+    if (typeof AppModules.core.resetPrivateLists === 'function') AppModules.core.resetPrivateLists();
+    if (typeof AppModules.invoice._stopInvoicePoll === 'function') AppModules.invoice._stopInvoicePoll();
+    const payload = await AppModules.core.apiPost('/auth/switch-org', { organization_id: organizationId });
+    AppModules.core.currentUser = payload?.data?.user || null;
     window.location.reload();
   } catch (err) {
-    toast(err?.payload?.error || 'Não foi possível mudar de espaço.', 'error');
+    AppModules.core.toast(err?.payload?.error || 'Não foi possível mudar de espaço.', 'error');
   }
 }
 
 async function bootstrapApp() {
   if (!appBootstrapped) {
     appBootstrapped = true;
-    await initApp();
+    await AppModules.core.initApp();
     await loadMemberships();
-    startNotifPolling();
+    AppModules.core.startNotifPolling();
     return;
   }
 
-  await loadAccommodations();
-  await renderDashboard();
-  if (currentUser?.role === 'owner') await loadTeamOverview();
+  await AppModules.core.loadAccommodations();
+  await AppModules.core.renderDashboard();
+  // A vista de Definições (onde vive a equipa) pode ainda não ter sido aberta.
+  if (AppModules.core.currentUser?.role === 'owner' && typeof AppModules.definicoes.loadTeamOverview === 'function') await AppModules.definicoes.loadTeamOverview();
   await loadMemberships();
-  startNotifPolling();
+  AppModules.core.startNotifPolling();
 }
 
 async function prepareInviteMode(token) {
@@ -615,7 +641,7 @@ function togglePw(inputId, btn) {
 
 async function prepareResetMode(token) {
   try {
-    const payload = await apiGet(`/auth/reset-password/${token}`, { skipAuthRedirect: true });
+    const payload = await AppModules.core.apiGet(`/auth/reset-password/${token}`, { skipAuthRedirect: true });
     resetToken = token;
     const emailInput = document.getElementById('login-email');
     if (emailInput) emailInput.value = payload?.data?.email || '';
@@ -671,9 +697,9 @@ async function submitChangePassword() {
   const btn = document.getElementById('cp-save-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'A guardar…'; }
   try {
-    await apiPost('/auth/change-password', { current_password: current, password: newPw, confirm_password: confirm });
+    await AppModules.core.apiPost('/auth/change-password', { current_password: current, password: newPw, confirm_password: confirm });
     showCpMsg('Palavra-passe alterada com sucesso!', true);
-    toast('Palavra-passe alterada.', 'success');
+    AppModules.core.toast('Palavra-passe alterada.', 'success');
     setTimeout(() => closeChangePasswordModal(), 1200);
   } catch (err) {
     showCpMsg(err?.payload?.error || 'Não foi possível alterar a palavra-passe.');
@@ -685,11 +711,11 @@ async function submitChangePassword() {
 // ── O meu perfil ──
 function openProfileModal() {
   document.getElementById('user-menu').style.display = 'none';
-  document.getElementById('pf-name').value = currentUser?.name || '';
-  document.getElementById('pf-email').value = currentUser?.email || '';
+  document.getElementById('pf-name').value = AppModules.core.currentUser?.name || '';
+  document.getElementById('pf-email').value = AppModules.core.currentUser?.email || '';
   document.getElementById('pf-password').value = '';
-  document.getElementById('pf-org').textContent = currentUser?.organization_name || '—';
-  document.getElementById('pf-role').textContent = currentUser?.role || '—';
+  document.getElementById('pf-org').textContent = AppModules.core.currentUser?.organization_name || '—';
+  document.getElementById('pf-role').textContent = AppModules.core.currentUser?.role || '—';
   const fb = document.getElementById('pf-feedback');
   fb.style.display = 'none'; fb.textContent = '';
   updateProfilePasswordVisibility();
@@ -704,7 +730,7 @@ function closeProfileModal() {
 // A palavra-passe só é pedida quando o email muda.
 function updateProfilePasswordVisibility() {
   const email = (document.getElementById('pf-email')?.value || '').trim().toLowerCase();
-  const changed = !!email && email !== (currentUser?.email || '').toLowerCase();
+  const changed = !!email && email !== (AppModules.core.currentUser?.email || '').toLowerCase();
   const group = document.getElementById('pf-password-group');
   if (group) group.style.display = changed ? '' : 'none';
 }
@@ -718,19 +744,19 @@ async function submitProfile() {
 
   if (!name) return showMsg('O nome é obrigatório.');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showMsg('O email não tem um formato válido.');
-  const emailChanged = email.toLowerCase() !== (currentUser?.email || '').toLowerCase();
+  const emailChanged = email.toLowerCase() !== (AppModules.core.currentUser?.email || '').toLowerCase();
   if (emailChanged && !password) return showMsg('Para mudar o email, confirma a palavra-passe atual.');
 
   const btn = document.getElementById('pf-save-btn');
   btn.disabled = true;
   try {
-    const oldEmail = (currentUser?.email || '').toLowerCase();
-    const payload = await apiPut('/auth/profile', { name, email, current_password: password });
-    currentUser = { ...currentUser, ...(payload?.data?.user || {}) };
+    const oldEmail = (AppModules.core.currentUser?.email || '').toLowerCase();
+    const payload = await AppModules.core.apiPut('/auth/profile', { name, email, current_password: password });
+    AppModules.core.currentUser = { ...AppModules.core.currentUser, ...(payload?.data?.user || {}) };
     if (emailChanged) setSavedAccounts(getSavedAccounts().filter(a => a.email !== oldEmail));
-    rememberAccount(currentUser);
+    rememberAccount(AppModules.core.currentUser);
     updateUserBadge();
-    toast(emailChanged ? 'Perfil guardado. Usa o novo email no próximo login.' : 'Perfil guardado.', 'success');
+    AppModules.core.toast(emailChanged ? 'Perfil guardado. Usa o novo email no próximo login.' : 'Perfil guardado.', 'success');
     closeProfileModal();
   } catch (err) {
     showMsg(err?.payload?.error || 'Não foi possível guardar o perfil.');
@@ -784,40 +810,40 @@ async function loadSessions() {
   const revokeBtn = document.getElementById('sessions-revoke-others-btn');
   list.innerHTML = `<p style="font-size:13px;color:var(--cinza);">A carregar…</p>`;
   try {
-    const sessions = (await apiGet('/auth/sessions')).data || [];
+    const sessions = (await AppModules.core.apiGet('/auth/sessions')).data || [];
     if (revokeBtn) revokeBtn.style.display = sessions.some(s => !s.current) ? '' : 'none';
     list.innerHTML = sessions.map(s => {
       const d = describeUserAgent(s.user_agent);
       const meta = [
         s.current ? 'Este dispositivo' : `Ativa ${sessionTimeAgo(s.last_seen_at)}`,
-        s.ip ? escapeHtml(s.ip) : '',
-        s.organization_name ? escapeHtml(s.organization_name) : '',
+        s.ip ? AppModules.core.escapeHtml(s.ip) : '',
+        s.organization_name ? AppModules.core.escapeHtml(s.organization_name) : '',
       ].filter(Boolean).join(' · ');
       return `<div class="session-row${s.current ? ' is-current' : ''}">
-        <span class="session-row-icon">${lcIcon(d.icon, 18)}</span>
+        <span class="session-row-icon">${AppModules.core.lcIcon(d.icon, 18)}</span>
         <div class="session-row-copy">
-          <strong>${escapeHtml(d.label)}${s.current ? ' <span class="session-row-badge">Atual</span>' : ''}</strong>
+          <strong>${AppModules.core.escapeHtml(d.label)}${s.current ? ' <span class="session-row-badge">Atual</span>' : ''}</strong>
           <span>${meta}</span>
           <span>Iniciada ${sessionTimeAgo(s.created_at)}</span>
         </div>
-        ${s.current ? '' : `<button type="button" class="btn btn-ghost btn-sm" data-id="${escapeHtml(s.id)}" onclick="revokeSession(this.dataset.id, this)">Terminar</button>`}
+        ${s.current ? '' : `<button type="button" class="btn btn-ghost btn-sm" data-id="${AppModules.core.escapeHtml(s.id)}" data-on-click="auth-revoke-session-c61d749">Terminar</button>`}
       </div>`;
     }).join('') || `<p style="font-size:13px;color:var(--cinza);">Sem sessões.</p>`;
     if (window.lucide) lucide.createIcons();
   } catch (err) {
-    list.innerHTML = `<p style="font-size:13px;color:var(--vermelho);">${escapeHtml(err?.payload?.error || 'Não foi possível carregar as sessões.')}</p>`;
+    list.innerHTML = `<p style="font-size:13px;color:var(--vermelho);">${AppModules.core.escapeHtml(err?.payload?.error || 'Não foi possível carregar as sessões.')}</p>`;
   }
 }
 
 async function revokeSession(id, btn) {
   if (btn) btn.disabled = true;
   try {
-    await apiDelete(`/auth/sessions/${encodeURIComponent(id)}`);
-    toast('Sessão terminada.', 'success');
+    await AppModules.core.apiDelete(`/auth/sessions/${encodeURIComponent(id)}`);
+    AppModules.core.toast('Sessão terminada.', 'success');
     loadSessions();
   } catch (err) {
     if (btn) btn.disabled = false;
-    toast(err?.payload?.error || 'Não foi possível terminar a sessão.', 'error');
+    AppModules.core.toast(err?.payload?.error || 'Não foi possível terminar a sessão.', 'error');
   }
 }
 
@@ -825,12 +851,12 @@ async function revokeOtherSessions() {
   const btn = document.getElementById('sessions-revoke-others-btn');
   btn.disabled = true;
   try {
-    const res = await apiPost('/auth/sessions/revoke-others', {});
+    const res = await AppModules.core.apiPost('/auth/sessions/revoke-others', {});
     const n = res?.data?.removed || 0;
-    toast(n === 1 ? '1 sessão terminada.' : `${n} sessões terminadas.`, 'success');
+    AppModules.core.toast(n === 1 ? '1 sessão terminada.' : `${n} sessões terminadas.`, 'success');
     loadSessions();
   } catch (err) {
-    toast(err?.payload?.error || 'Não foi possível terminar as sessões.', 'error');
+    AppModules.core.toast(err?.payload?.error || 'Não foi possível terminar as sessões.', 'error');
   } finally {
     btn.disabled = false;
   }
@@ -859,9 +885,9 @@ async function boot() {
     setAuthMode('login');
   }
 
-  currentUser = await fetchCurrentUser();
-  if (!currentUser && !inviteParam && !resetParam) prefillLastAccount();
-  if (currentUser) {
+  AppModules.core.currentUser = await fetchCurrentUser();
+  if (!AppModules.core.currentUser && !inviteParam && !resetParam) prefillLastAccount();
+  if (AppModules.core.currentUser) {
     setAuthenticatedLayout(true);
     await bootstrapApp();
   } else {
@@ -870,3 +896,20 @@ async function boot() {
 
   if (window.lucide) lucide.createIcons();
 }
+
+AppActions.register({
+  "auth-revoke-session-c61d749": (el, event, args) => { revokeSession(el.dataset.id, el) },
+  "auth-switch-org-afb0d97": (el, event, args) => { switchOrg(el.dataset.org) },
+  "auth-pick-saved-account-a182baa": (el, event, args) => { pickSavedAccount(el.dataset.email) },
+  "auth-forget-saved-account-1d31cae": (el, event, args) => { forgetSavedAccount(el.dataset.email) },
+}, "click");
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('auth.js', () => {
+  appBootstrapped = false;
+  inviteToken = null;
+  resetToken = null;
+  _userMemberships = [];
+});
+
+})();

@@ -15,6 +15,7 @@ const { getAccommodationScope } = require('../services/availabilityRules');
 const { findBlockConflict } = require('../services/accommodationBlockService');
 const turnstile = require('../services/turnstileService');
 const { recordHistory } = require('../services/reservationHistoryService');
+const { publicOrigin } = require('../services/publicOrigin');
 
 const { createReservationGuest, savePrecheckin } = require('../services/publicGuestService');
 
@@ -27,8 +28,7 @@ function parseJson(value, fallback) {
 }
 
 function publicUrl(req) {
-  const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
-  return `${proto}://${req.get('host')}`;
+  return publicOrigin(req);
 }
 
 function imageUrl(req, url) {
@@ -450,10 +450,49 @@ function lookupReservationByPrecheckinToken(token) {
   `).get(token, token);
 }
 
+function getReservationStatus(req, res) {
+  const token = String(req.params.token || '').trim();
+  // Tokens emitidos pela aplicação têm 256 bits em hexadecimal. Validar o
+  // formato antes da consulta reduz ruído e enumeração acidental.
+  if (!/^[a-f0-9]{64}$/i.test(token)) {
+    return res.status(404).json({ success: false, error: 'Reserva não encontrada.' });
+  }
+  const reservation = db.prepare(`
+    SELECT r.id, r.check_in, r.check_out, r.num_guests, r.status,
+           r.payment_status, r.total_amount, r.amount_paid, r.created_at,
+           a.name AS accommodation_name, a.cover_image, a.images
+    FROM reservations r
+    JOIN accommodations a ON a.id = r.accommodation_id AND a.organization_id = r.organization_id
+    WHERE r.public_token = ?
+  `).get(token);
+  if (!reservation) return res.status(404).json({ success: false, error: 'Reserva não encontrada.' });
+
+  res.json({
+    success: true,
+    data: {
+      id: reservation.id,
+      accommodation_name: reservation.accommodation_name,
+      check_in: reservation.check_in,
+      check_out: reservation.check_out,
+      num_guests: reservation.num_guests,
+      status: reservation.status,
+      payment_status: reservation.payment_status,
+      total_amount: Number(reservation.total_amount || 0),
+      amount_paid: Number(reservation.amount_paid || 0),
+      created_at: reservation.created_at,
+      cover_image: imageUrl(req, reservation.cover_image),
+      images: normalizeImages(req, reservation).map(img => img.url).filter(Boolean),
+    },
+  });
+}
+
 function getPreCheckin(req, res) {
   const token = String(req.params.token || '').trim();
   const reservation = lookupReservationByPrecheckinToken(token);
   if (!reservation) return res.status(404).json({ success: false, error: 'Link inválido ou expirado.' });
+  if (reservation.precheckin_submitted_at) {
+    return res.status(410).json({ success: false, error: 'Este pré check-in já foi submetido. Contacte o alojamento para corrigir os dados.' });
+  }
   if (reservation.status === 'cancelada') return res.status(400).json({ success: false, error: 'Esta reserva está cancelada.' });
   if (reservation.precheckin_token_expires_at &&
       new Date(reservation.precheckin_token_expires_at + 'T23:59:59') < new Date()) {
@@ -525,6 +564,9 @@ function submitPreCheckin(req, res) {
     WHERE precheckin_token = ? OR (precheckin_token IS NULL AND public_token = ?)
   `).get(token, token);
   if (!reservation) return res.status(404).json({ success: false, error: 'Link inválido ou expirado.' });
+  if (reservation.precheckin_submitted_at) {
+    return res.status(409).json({ success: false, error: 'Este pré check-in já foi submetido. Contacte o alojamento para corrigir os dados.' });
+  }
   if (reservation.status === 'cancelada') return res.status(400).json({ success: false, error: 'Esta reserva está cancelada.' });
   if (reservation.precheckin_token_expires_at &&
       new Date(reservation.precheckin_token_expires_at + 'T23:59:59') < new Date()) {
@@ -550,7 +592,21 @@ function submitPreCheckin(req, res) {
     return res.status(400).json({ success: false, error: 'Preencha os dados obrigatórios de todos os hóspedes.' });
   }
 
-  savePrecheckin(reservation, mainGuest, allGuests.slice(1), String(req.body?.arrival_time || '').trim().slice(0, 10) || null);
+  try {
+    savePrecheckin(reservation, mainGuest, allGuests.slice(1), String(req.body?.arrival_time || '').trim().slice(0, 10) || null);
+  } catch (error) {
+    if (error.code === 'PRECHECKIN_ALREADY_SUBMITTED') {
+      return res.status(409).json({ success: false, error: error.message });
+    }
+    throw error;
+  }
+
+  recordHistory({
+    organizationId: reservation.organization_id,
+    reservationId: reservation.id,
+    action: 'precheckin_submitted',
+    meta: { source: 'public_link', guest_count: allGuests.length },
+  });
 
   notifyOrganization(reservation.organization_id, 'precheckin', {
     title: '📝 Pré-check-in recebido',
@@ -566,6 +622,7 @@ module.exports = {
   getAvailability,
   validatePublicVoucher,
   createReservation,
+  getReservationStatus,
   getPreCheckin,
   submitPreCheckin,
 };

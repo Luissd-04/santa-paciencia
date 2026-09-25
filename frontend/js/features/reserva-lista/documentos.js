@@ -1,3 +1,13 @@
+// Estado privado; interface partilhada em AppModules.reservas.
+(() => {
+AppModules.define('reservas', {
+  openAccountStatement: { get: () => openAccountStatement },
+  openGuestCard: { get: () => openGuestCard },
+  openReservationSheet: { get: () => openReservationSheet },
+});
+
+let sheetData = null;
+let statementData = null;
 // ── FICHA DE RESERVA (documento read-only com PDF/XLS) ──
 // Estrutura dos dados do documento, partilhada entre o overlay e os exports.
 function buildReservationSheetData(r) {
@@ -9,15 +19,15 @@ function buildReservationSheetData(r) {
   const paid = Number(r.amount_paid || 0);
 
   const baseAmount = nightly.reduce((s, n) => s + Number(n.price || 0), 0);
-  const acc = accommodations.find(a => a.id === r.accommodation_id);
+  const acc = AppModules.core.accommodations.find(a => a.id === r.accommodation_id);
   const accsData = typeof r.accommodations_data === 'string' ? JSON.parse(r.accommodations_data || '[]') : (r.accommodations_data || []);
   const accRows = accsData.length > 0
     ? accsData
     : [{ accommodation_id: r.accommodation_id, name: r.accommodation_name || acc?.name || '—', price_per_night: Number(acc?.price_per_night || 0), nights: r.nights, subtotal: Number(acc?.price_per_night || 0) * r.nights }];
   const roomNames = accRows.map(row => row.name || row.accommodation_name || '—').join(', ');
   const guestsData = typeof r.guests_data === 'string' ? JSON.parse(r.guests_data || '[]') : (r.guests_data || []);
-  const extraOcc = getExtraOccupancyCharge(acc, r.num_guests || 1, r.nights || 0, guestsData.map(g => g.birth_date).filter(Boolean), r.check_in);
-  const bkfPrice = servicosData.find(s => s.id === 'breakfast')?.value ?? 19;
+  const extraOcc = AppModules.reservas.getExtraOccupancyCharge(acc, r.num_guests || 1, r.nights || 0, guestsData.map(g => g.birth_date).filter(Boolean), r.check_in);
+  const bkfPrice = AppModules.core.servicosData.find(s => s.id === 'breakfast')?.value ?? 19;
   const bkfTotal = r.breakfast_included ? (r.num_guests * r.nights * bkfPrice) : 0;
   const touristTax = Number(r.tourist_tax || 0);
 
@@ -39,10 +49,10 @@ function buildReservationSheetData(r) {
 async function openReservationSheet(resId) {
   let r;
   try {
-    const data = await apiGet(`/api/reservations/${resId}`);
+    const data = await AppModules.core.apiGet(`/api/reservations/${resId}`);
     r = data.data;
   } catch {
-    toast('❌ Erro ao carregar a ficha da reserva', 'error');
+    AppModules.core.toast('❌ Erro ao carregar a ficha da reserva', 'error');
     return;
   }
 
@@ -82,25 +92,25 @@ async function openReservationSheet(resId) {
     : `<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:12px;">Sem pagamentos registados</td></tr>`;
 
   const html = `
-    <div id="sheet-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1300;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">
+    <div id="sheet-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1300;display:flex;align-items:center;justify-content:center;padding:16px;" data-on-click="documentos-if-ba44ff2">
       <div class="stmt-modal" style="max-height:92vh;overflow:auto;">
         <div class="stmt-header">
           <div>
             <div class="stmt-title">Ficha de Reserva</div>
-            <div class="stmt-subtitle">${escapeHtml(r.id)} · ${escapeHtml(r.guest_name)}</div>
+            <div class="stmt-subtitle">${AppModules.core.escapeHtml(r.id)} · ${AppModules.core.escapeHtml(r.guest_name)}</div>
           </div>
-          <button onclick="document.getElementById('sheet-overlay').remove()" class="stmt-close">×</button>
+          <button data-on-click="documentos-get-element-by-id-5484869" class="stmt-close">×</button>
         </div>
 
         <div class="stmt-summary">
-          <div class="stmt-sum-row"><span>Hóspede</span><span>${escapeHtml(r.guest_name)}${r.guest_company ? ` · ${escapeHtml(r.guest_company)}` : ''}</span></div>
-          ${realEmail(r.guest_email) ? `<div class="stmt-sum-row"><span>Email</span><span>${escapeHtml(realEmail(r.guest_email))}</span></div>` : ''}
-          ${r.guest_phone ? `<div class="stmt-sum-row"><span>Telefone</span><span>${escapeHtml(r.guest_phone)}</span></div>` : ''}
-          ${r.guest_nif ? `<div class="stmt-sum-row"><span>NIF</span><span>${escapeHtml(r.guest_nif)}</span></div>` : ''}
-          <div class="stmt-sum-row"><span>${d.accRows.length > 1 ? 'Alojamentos' : 'Alojamento'}</span><span>${escapeHtml(d.roomNames || r.accommodation_name || '—')}</span></div>
+          <div class="stmt-sum-row"><span>Hóspede</span><span>${AppModules.core.escapeHtml(r.guest_name)}${r.guest_company ? ` · ${AppModules.core.escapeHtml(r.guest_company)}` : ''}</span></div>
+          ${AppModules.core.realEmail(r.guest_email) ? `<div class="stmt-sum-row"><span>Email</span><span>${AppModules.core.escapeHtml(AppModules.core.realEmail(r.guest_email))}</span></div>` : ''}
+          ${r.guest_phone ? `<div class="stmt-sum-row"><span>Telefone</span><span>${AppModules.core.escapeHtml(r.guest_phone)}</span></div>` : ''}
+          ${r.guest_nif ? `<div class="stmt-sum-row"><span>NIF</span><span>${AppModules.core.escapeHtml(r.guest_nif)}</span></div>` : ''}
+          <div class="stmt-sum-row"><span>${d.accRows.length > 1 ? 'Alojamentos' : 'Alojamento'}</span><span>${AppModules.core.escapeHtml(d.roomNames || r.accommodation_name || '—')}</span></div>
           <div class="stmt-sum-row"><span>Estadia</span><span>${sd(r.check_in)} → ${sd(r.check_out)} · ${r.nights} noite${r.nights !== 1 ? 's' : ''}</span></div>
           <div class="stmt-sum-row"><span>Ocupação</span><span>${r.num_adults || r.num_guests || 1} adulto${(r.num_adults || r.num_guests || 1) !== 1 ? 's' : ''}${r.num_children ? ` · ${r.num_children} criança${r.num_children !== 1 ? 's' : ''}` : ''}</span></div>
-          <div class="stmt-sum-row"><span>Canal · Estado</span><span>${escapeHtml(r.channel || '—')} · ${escapeHtml(r.status || '—')}</span></div>
+          <div class="stmt-sum-row"><span>Canal · Estado</span><span>${AppModules.core.escapeHtml(r.channel || '—')} · ${AppModules.core.escapeHtml(r.status || '—')}</span></div>
         </div>
 
         <table class="stmt-table">
@@ -130,9 +140,9 @@ async function openReservationSheet(resId) {
         </div>
 
         <div class="stmt-actions">
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('sheet-overlay').remove()">Fechar</button>
-          <button class="btn btn-outline btn-sm" onclick="downloadReservationSheetXls()">${lcIcon('file-spreadsheet', 13)} XLS</button>
-          <button class="btn btn-primary btn-sm" onclick="downloadReservationSheetPdf()">${lcIcon('file-down', 13)} PDF</button>
+          <button class="btn btn-ghost btn-sm" data-on-click="documentos-get-element-by-id-5484869">Fechar</button>
+          <button class="btn btn-outline btn-sm" data-on-click="documentos-download-reservation-sheet-xls-dd4a6e6">${AppModules.core.lcIcon('file-spreadsheet', 13)} XLS</button>
+          <button class="btn btn-primary btn-sm" data-on-click="documentos-download-reservation-sheet-pdf-abf137c">${AppModules.core.lcIcon('file-down', 13)} PDF</button>
         </div>
       </div>
     </div>`;
@@ -140,7 +150,7 @@ async function openReservationSheet(resId) {
   document.getElementById('sheet-overlay')?.remove();
   document.body.insertAdjacentHTML('beforeend', html);
   if (window.lucide) lucide.createIcons();
-  window._sheetData = d;
+  sheetData = d;
 }
 
 function reservationSheetRows(d) {
@@ -153,10 +163,10 @@ function reservationSheetRows(d) {
   return rows;
 }
 
-function downloadReservationSheetPdf() {
-  const d = window._sheetData;
+async function downloadReservationSheetPdf() {
+  const d = sheetData;
   if (!d) return;
-  if (typeof window.jspdf === 'undefined') { toast('❌ Biblioteca jsPDF não carregada.', 'error'); return; }
+  if (!await AppModules.core.ensureLibrary('pdf')) return;
   const { r, sd } = d;
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -170,7 +180,7 @@ function downloadReservationSheetPdf() {
 
   const info = [
     ['Hóspede', `${r.guest_name}${r.guest_company ? ` · ${r.guest_company}` : ''}`],
-    ...(realEmail(r.guest_email) ? [['Email', realEmail(r.guest_email)]] : []),
+    ...(AppModules.core.realEmail(r.guest_email) ? [['Email', AppModules.core.realEmail(r.guest_email)]] : []),
     ...(r.guest_phone ? [['Telefone', r.guest_phone]] : []),
     ...(r.guest_nif ? [['NIF', r.guest_nif]] : []),
     [d.accRows.length > 1 ? 'Alojamentos' : 'Alojamento', d.roomNames || r.accommodation_name || '—'],
@@ -215,18 +225,18 @@ function downloadReservationSheetPdf() {
   });
 
   doc.save(`ficha-reserva-${r.id}.pdf`);
-  toast('📄 PDF exportado!', 'success');
+  AppModules.core.toast('📄 PDF exportado!', 'success');
 }
 
-function downloadReservationSheetXls() {
-  const d = window._sheetData;
+async function downloadReservationSheetXls() {
+  const d = sheetData;
   if (!d) return;
-  if (typeof XLSX === 'undefined') { toast('❌ Biblioteca XLSX não carregada.', 'error'); return; }
+  if (!await AppModules.core.ensureLibrary('xlsx')) return;
   const { r, sd } = d;
   const aoa = [
     ['Ficha de Reserva', r.id],
     ['Hóspede', `${r.guest_name}${r.guest_company ? ` · ${r.guest_company}` : ''}`],
-    ['Email', realEmail(r.guest_email) || '—'],
+    ['Email', AppModules.core.realEmail(r.guest_email) || '—'],
     ['Telefone', r.guest_phone || '—'],
     ['NIF', r.guest_nif || '—'],
     [d.accRows.length > 1 ? 'Alojamentos' : 'Alojamento', d.roomNames || r.accommodation_name || '—'],
@@ -253,16 +263,16 @@ function downloadReservationSheetXls() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Ficha');
   XLSX.writeFile(wb, `ficha-reserva-${r.id}.xlsx`);
-  toast('📊 XLS exportado!', 'success');
+  AppModules.core.toast('📊 XLS exportado!', 'success');
 }
 
 async function openAccountStatement(resId) {
   let r;
   try {
-    const data = await apiGet(`/api/reservations/${resId}`);
+    const data = await AppModules.core.apiGet(`/api/reservations/${resId}`);
     r = data.data;
   } catch {
-    toast('❌ Erro ao carregar extrato', 'error');
+    AppModules.core.toast('❌ Erro ao carregar extrato', 'error');
     return;
   }
 
@@ -291,19 +301,19 @@ async function openAccountStatement(resId) {
     : `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:16px;">Sem pagamentos registados</td></tr>`;
 
   const html = `
-    <div id="stmt-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1300;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">
+    <div id="stmt-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1300;display:flex;align-items:center;justify-content:center;padding:16px;" data-on-click="documentos-if-ba44ff2">
       <div class="stmt-modal">
         <div class="stmt-header">
           <div>
             <div class="stmt-title">Conta Corrente</div>
-            <div class="stmt-subtitle">${escapeHtml(r.id)} · ${escapeHtml(r.guest_name)}</div>
+            <div class="stmt-subtitle">${AppModules.core.escapeHtml(r.id)} · ${AppModules.core.escapeHtml(r.guest_name)}</div>
           </div>
-          <button onclick="document.getElementById('stmt-overlay').remove()" class="stmt-close">×</button>
+          <button data-on-click="documentos-get-element-by-id-a761b2c" class="stmt-close">×</button>
         </div>
 
         <div class="stmt-summary">
           <div class="stmt-sum-row">
-            <span>Alojamento</span><span>${escapeHtml(r.accommodation_name || '—')}</span>
+            <span>Alojamento</span><span>${AppModules.core.escapeHtml(r.accommodation_name || '—')}</span>
           </div>
           <div class="stmt-sum-row">
             <span>Check-in</span><span>${sd(r.check_in)}</span>
@@ -340,10 +350,10 @@ async function openAccountStatement(resId) {
         </div>
 
         <div class="stmt-actions">
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('stmt-overlay').remove()">Fechar</button>
-          <button class="btn btn-outline btn-sm" onclick="downloadStatementCsv('${resId}')">CSV</button>
-          <button class="btn btn-outline btn-sm" onclick="downloadStatementXls()">${lcIcon('file-spreadsheet', 13)} XLS</button>
-          <button class="btn btn-primary btn-sm" onclick="downloadStatementPdf()">${lcIcon('file-down', 13)} PDF</button>
+          <button class="btn btn-ghost btn-sm" data-on-click="documentos-get-element-by-id-a761b2c">Fechar</button>
+          <button class="btn btn-outline btn-sm" ${AppActions.attrs("click", "documentos-download-statement-csv-b298717", [String((resId) ?? '')])}>CSV</button>
+          <button class="btn btn-outline btn-sm" data-on-click="documentos-download-statement-xls-6ad222b">${AppModules.core.lcIcon('file-spreadsheet', 13)} XLS</button>
+          <button class="btn btn-primary btn-sm" data-on-click="documentos-download-statement-pdf-c84c920">${AppModules.core.lcIcon('file-down', 13)} PDF</button>
         </div>
       </div>
     </div>`;
@@ -353,13 +363,13 @@ async function openAccountStatement(resId) {
   if (window.lucide) lucide.createIcons();
 
   // Store data for CSV/XLS/PDF download
-  window._stmtData = { r, payments };
+  statementData = { r, payments };
 }
 
-function downloadStatementPdf() {
-  const { r, payments } = window._stmtData || {};
+async function downloadStatementPdf() {
+  const { r, payments } = statementData || {};
   if (!r) return;
-  if (typeof window.jspdf === 'undefined') { toast('❌ Biblioteca jsPDF não carregada.', 'error'); return; }
+  if (!await AppModules.core.ensureLibrary('pdf')) return;
   const sd = d => d ? new Date(d.slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
   const total = Number(r.total_amount || 0);
   const paid = Number(r.amount_paid || 0);
@@ -406,13 +416,13 @@ function downloadStatementPdf() {
   });
 
   doc.save(`conta-corrente-${r.id}.pdf`);
-  toast('📄 PDF exportado!', 'success');
+  AppModules.core.toast('📄 PDF exportado!', 'success');
 }
 
-function downloadStatementXls() {
-  const { r, payments } = window._stmtData || {};
+async function downloadStatementXls() {
+  const { r, payments } = statementData || {};
   if (!r) return;
-  if (typeof XLSX === 'undefined') { toast('❌ Biblioteca XLSX não carregada.', 'error'); return; }
+  if (!await AppModules.core.ensureLibrary('xlsx')) return;
   const sd = d => d ? new Date(d.slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
   const total = Number(r.total_amount || 0);
   const paid = Number(r.amount_paid || 0);
@@ -439,11 +449,11 @@ function downloadStatementXls() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Conta Corrente');
   XLSX.writeFile(wb, `conta-corrente-${r.id}.xlsx`);
-  toast('📊 XLS exportado!', 'success');
+  AppModules.core.toast('📊 XLS exportado!', 'success');
 }
 
 function downloadStatementCsv(resId) {
-  const { r, payments } = window._stmtData || {};
+  const { r, payments } = statementData || {};
   if (!r) return;
   const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const lines = [
@@ -466,13 +476,29 @@ function downloadStatementCsv(resId) {
 
 async function openGuestCard(guestId, reservationId) {
   if (!guestId) {
-    toast('⚠️ Hóspede não encontrado na base de dados', 'info');
+    AppModules.core.toast('⚠️ Hóspede não encontrado na base de dados', 'info');
     return;
   }
-  showView('hospedes');
-  await new Promise(r => setTimeout(r, 150));
-  if (typeof showHospedeDetail === 'function') {
-    showHospedeDetail(guestId);
-  }
+  await AppModules.core.showView('hospedes');
+  if (typeof AppModules.hospedes.showHospedeDetail === 'function') AppModules.hospedes.showHospedeDetail(guestId);
 }
 
+
+AppActions.register({
+  "documentos-if-ba44ff2": (el, event, args) => { if(event.target===el)el.remove() },
+  "documentos-get-element-by-id-a761b2c": (el, event, args) => { document.getElementById('stmt-overlay').remove() },
+  "documentos-download-statement-csv-b298717": (el, event, args) => { downloadStatementCsv(args[0]) },
+  "documentos-download-statement-xls-6ad222b": (el, event, args) => { downloadStatementXls() },
+  "documentos-download-statement-pdf-c84c920": (el, event, args) => { downloadStatementPdf() },
+  "documentos-get-element-by-id-5484869": (el, event, args) => { document.getElementById('sheet-overlay').remove() },
+  "documentos-download-reservation-sheet-xls-dd4a6e6": (el, event, args) => { downloadReservationSheetXls() },
+  "documentos-download-reservation-sheet-pdf-abf137c": (el, event, args) => { downloadReservationSheetPdf() },
+}, "click");
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('features/reserva-lista/documentos.js', () => {
+  sheetData = null;
+  statementData = null;
+});
+
+})();

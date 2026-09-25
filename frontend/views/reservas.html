@@ -1,0 +1,157 @@
+        <section class="reservas-shell">
+          <div class="view-toolbar view-toolbar-reservas">
+            <div class="search-box reservas-search-box">
+              <i data-lucide="search"></i>
+              <input type="text" id="search-input" placeholder="Pesquisar hóspede, ID..." data-on-input="index-search-reservas-6596e25" autocomplete="off">
+            </div>
+            <select class="form-control" id="filter-estado" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" data-on-change="index-clear-res-exact-date-filter-097f687">
+              <option value="">Todos os estados</option>
+              <option value="pre_reserva">Pré-reserva</option>
+              <option value="confirmada">Confirmada</option>
+              <option value="pendente">Pendente</option>
+              <option value="pre_checkin">Pre Check-in</option>
+              <option value="aguardar_pagamento">Aguardar Pagamento</option>
+              <option value="cancelada">Cancelada</option>
+            </select>
+            <button type="button" class="btn btn-ghost btn-sm page-filters-toggle" id="reservas-filters-toggle" aria-expanded="false" aria-controls="reservas-filter-panel" data-on-click="index-toggle-page-filters-37b2c92">
+              <i data-lucide="sliders-horizontal" style="width:13px;height:13px;"></i> Filtros
+              <i data-lucide="chevron-down" class="page-filters-caret" style="width:13px;height:13px;"></i>
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm reservas-clear-btn" id="reservas-clear-filters" data-on-click="index-clear-reservas-filters-755ce3c" style="display:none;">
+              <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar filtros
+            </button>
+            <span class="page-toolbar-count"><strong id="reservas-results-total">0</strong> <span id="reservas-results-detail">resultados</span></span>
+            <div class="view-toolbar-actions">
+              <div class="cal-mode-toggle reservas-view-toggle" id="reservas-view-toggle">
+                <span class="cal-mode-pill" id="reservas-view-pill"></span>
+                <button class="cal-mode-btn" data-res-view="card" data-on-click="index-set-reservas-view-mode-8427567">
+                  <i data-lucide="layout-grid"></i> Cartão
+                </button>
+                <button class="cal-mode-btn active" data-res-view="list" data-on-click="index-set-reservas-view-mode-a007aa5">
+                  <i data-lucide="list"></i> Lista
+                </button>
+              </div>
+              <button class="btn btn-primary" data-on-click="index-open-modal-d33d2af">
+                <i data-lucide="plus"></i> Nova Reserva
+              </button>
+            </div>
+          </div>
+
+          <div class="m-sheet-backdrop" id="reservas-filters-backdrop" data-on-click="index-toggle-reservas-filters-sheet-fc1a7a8"></div>
+          <div class="reservas-filter-panel m-sheet page-filters" id="reservas-filter-panel">
+            <div class="m-sheet-header">
+              <span>Filtros</span>
+              <button class="m-sheet-close" data-on-click="index-toggle-reservas-filters-sheet-fc1a7a8" aria-label="Fechar">
+                <i data-lucide="x"></i>
+              </button>
+            </div>
+            <div class="toolbar reservas-toolbar page-filters-body">
+              <select class="form-control" id="filter-suite" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter app-select--filter-wide" data-on-change="index-render-tabela-3c1624a">
+                <option value="">Todas as suites</option>
+              </select>
+              <select class="form-control" id="filter-canal" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" data-on-change="index-render-tabela-3c1624a">
+                <option value="">Todos os canais</option>
+                <option value="airbnb">Airbnb</option>
+                <option value="booking">Booking.com</option>
+                <option value="direto">Direto</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="instagram">Instagram</option>
+                <option value="expedia">Expedia</option>
+                <option value="vrbo">VRBO</option>
+                <option value="outro">Outro</option>
+              </select>
+              <select class="form-control" id="filter-pagamento" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter app-select--filter-wide" data-on-change="index-render-tabela-3c1624a">
+                <option value="">Todos os pagamentos</option>
+                <option value="confirmado">Completo</option>
+                <option value="parcial">Parcial</option>
+                <option value="pendente">Não pago</option>
+              </select>
+              <div class="reservas-date-range" style="display:flex;align-items:center;gap:4px;">
+                <input type="date" class="form-control" id="filter-date-from" title="Check-in a partir de" data-dp-no-button data-on-change="index-clear-res-exact-date-filter-097f687" style="width:auto;" autocomplete="off">
+                <span style="color:var(--cinza);font-size:13px;">→</span>
+                <input type="date" class="form-control" id="filter-date-to" title="Check-out até" data-dp-range-end="filter-date-from" data-dp-no-button data-on-change="index-clear-res-exact-date-filter-097f687" style="width:auto;" autocomplete="off">
+              </div>
+              <button class="btn btn-ghost btn-sm drawer-clear-btn" data-on-click="index-clear-reservas-filters-755ce3c" title="Limpar filtros">
+                <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar
+              </button>
+            </div>
+          </div>
+
+          <div id="reservas-mobile" class="reservas-mobile-layout" style="display:none">
+            <div class="m-search-box reservas-mobile-search">
+              <i data-lucide="search"></i>
+              <input type="text" id="mobile-search-input" placeholder="Pesquisar hóspede, ID..." data-on-input="index-search-reservas-6596e25" autocomplete="off">
+            </div>
+            <div class="mobile-filter-chips reservas-mobile-chips">
+              <div class="chip active" data-filter="" data-on-click="index-set-mobile-chip-83728e5">Todas</div>
+              <div class="chip" data-filter="confirmada" data-on-click="index-set-mobile-chip-8c8b5fb">Confirmadas</div>
+              <div class="chip" data-filter="pendente" data-on-click="index-set-mobile-chip-fe178f2">Pendentes</div>
+              <div class="chip" data-filter="pre_checkin" data-on-click="index-set-mobile-chip-931b8c9">Pre Check-in</div>
+              <div class="chip" data-filter="cancelada" data-on-click="index-set-mobile-chip-d4ac248">Canceladas</div>
+            </div>
+            <button class="m-filters-trigger" data-on-click="index-toggle-reservas-filters-sheet-0b7aaa9">
+              <i data-lucide="sliders-horizontal"></i> Filtros
+            </button>
+            <div id="res-exact-filter-chip" style="display:none;"></div>
+            <div id="mobile-res-cards" class="reservas-mobile-cards"></div>
+          </div>
+
+          <div id="reservas-desktop" class="reservas-desktop-layout">
+            <div class="card reservas-table-card">
+              <div class="table-wrap reservas-table-wrap">
+                <table id="reservas-table">
+                  <colgroup>
+                    <col data-col="id" style="width:96px">
+                    <col data-col="created_at" style="width:96px">
+                    <col data-col="guest_name" style="width:190px">
+                    <col data-col="accommodation_name" style="width:160px">
+                    <col data-col="check_in" style="width:96px">
+                    <col data-col="check_out" style="width:96px">
+                    <col data-col="nights" style="width:62px">
+                    <col data-col="num_guests" style="width:84px">
+                    <col data-col="total_amount" style="width:88px">
+                    <col data-col="channel" style="width:92px">
+                    <col data-col="status" style="width:112px">
+                    <col data-col="payment_status" style="width:120px">
+                    <col data-col="actions" style="width:132px">
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th data-col="id" data-on-click="index-sort-tabela-5568488" class="th-sort">ID <span class="sort-icon" id="sort-id"></span></th>
+                      <th data-col="created_at" data-on-click="index-sort-tabela-c7b9063" class="th-sort">Reserva <span class="sort-icon" id="sort-created_at"></span></th>
+                      <th data-col="guest_name" data-on-click="index-sort-tabela-efd7eda" class="th-sort">Hóspede <span class="sort-icon" id="sort-guest_name"></span></th>
+                      <th data-col="accommodation_name" data-on-click="index-sort-tabela-d346f74" class="th-sort">Alojamento <span class="sort-icon" id="sort-accommodation_name"></span></th>
+                      <th data-col="check_in" data-on-click="index-sort-tabela-1edfdab" class="th-sort">Check-in <span class="sort-icon" id="sort-check_in">↑</span></th>
+                      <th data-col="check_out" data-on-click="index-sort-tabela-f3cf20f" class="th-sort">Check-out <span class="sort-icon" id="sort-check_out"></span></th>
+                      <th data-col="nights" data-on-click="index-sort-tabela-7d2728a" class="th-sort">Noites <span class="sort-icon" id="sort-nights"></span></th>
+                      <th data-col="num_guests" data-on-click="index-sort-tabela-e075f5e" class="th-sort">Hóspedes <span class="sort-icon" id="sort-num_guests"></span></th>
+                      <th data-col="total_amount" data-on-click="index-sort-tabela-098b373" class="th-sort">Total <span class="sort-icon" id="sort-total_amount"></span></th>
+                      <th data-col="channel" data-on-click="index-sort-tabela-565790c" class="th-sort">Canal <span class="sort-icon" id="sort-channel"></span></th>
+                      <th data-col="status" data-on-click="index-sort-tabela-95d66a5" class="th-sort">Estado <span class="sort-icon" id="sort-status"></span></th>
+                      <th data-col="payment_status" data-on-click="index-sort-tabela-c76331d" class="th-sort">Pagamento <span class="sort-icon" id="sort-payment_status"></span></th>
+                      <th data-col="actions">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tabela-body"></tbody>
+                </table>
+              </div>
+              <div id="tabela-empty" style="display:none;" class="empty-state">
+                <div class="es-icon">📭</div>
+                <h3>Sem reservas</h3>
+                <p>Não foram encontradas reservas com estes filtros.</p>
+              </div>
+              <div id="tabela-loading" class="loading">
+                <div class="spinner"></div> A carregar reservas...
+              </div>
+            </div>
+          </div>
+
+          <nav id="reservas-pagination" class="list-pagination" aria-label="Páginas de reservas"></nav>
+
+          <article id="reserva-detail-page" class="reserva-detail-page" style="display:none;">
+            <div class="reserva-detail-loading loading">
+              <div class="spinner"></div> A carregar reserva...
+            </div>
+            <div id="reserva-detail-content"></div>
+          </article>
+        </section>

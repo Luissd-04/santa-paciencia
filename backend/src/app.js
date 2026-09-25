@@ -1,10 +1,13 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const { initDatabase } = require('./config/database');
 const requireAuth = require('./middleware/requireAuth');
 const errorHandler = require('./middleware/errorHandler');
+const verifyRequestOrigin = require('./middleware/verifyRequestOrigin');
 const { clearExpiredSessions } = require('./services/authService');
+const { configuredOrigin } = require('./services/publicOrigin');
 
 // Rotas
 const reservationRoutes = require('./routes/reservations');
@@ -25,33 +28,25 @@ const googleTasksRoutes = require('./routes/googleTasks');
 const pushRoutes = require('./routes/push');
 
 const app = express();
-if (process.env.TRUST_PROXY) app.set('trust proxy', process.env.TRUST_PROXY.split(',').map(value => value.trim()));
+const IS_PROD = process.env.NODE_ENV === 'production';
+const trustProxy = String(process.env.TRUST_PROXY || (IS_PROD ? 'loopback' : '')).trim();
+if (/^(true|false)$/i.test(trustProxy)) throw new Error('TRUST_PROXY deve indicar proxies concretos; não use true/false.');
+if (trustProxy) app.set('trust proxy', trustProxy.split(',').map(value => value.trim()).filter(Boolean));
+if (IS_PROD) configuredOrigin();
 app.disable('x-powered-by');
 
-const IS_PROD = process.env.NODE_ENV === 'production';
-
-// Security headers
-// CSP pragmática (S4): mantemos `unsafe-inline` no script-src e style-src
-// porque o frontend ainda tem ~229 `onclick=` inline e centenas de `style=`.
-// Migrar tudo para event delegation + classes ficou para uma sprint dedicada.
-// Mesmo assim, restringimos:
-//   • origens de scripts/styles externos (Lucide, Chart.js, jsPDF, XLSX, Leaflet, Turnstile)
-//   • frames (apenas Turnstile)
-//   • imagens (self + data: para uploads + https: para CDN)
-//   • conexões (self + Turnstile)
-//   • form-action a self → previne form hijacking
-//   • base-uri 'self' → previne base tag injection
-//   • object-src 'none' → bloqueia plugins legacy
+// Eventos e scripts da aplicação são externos. CSS inline continua necessário
+// nos componentes e nos modelos; não dá permissão para executar JavaScript.
 const CSP_DIRECTIVES = {
   defaultSrc: ["'self'"],
   scriptSrc: [
     "'self'",
-    "'unsafe-inline'",                  // necessário enquanto houver onclick= inline
     'https://unpkg.com',
     'https://cdn.jsdelivr.net',
     'https://cdnjs.cloudflare.com',
     'https://challenges.cloudflare.com', // Cloudflare Turnstile
   ],
+  scriptSrcAttr: ["'none'"],
   styleSrc: [
     "'self'",
     "'unsafe-inline'",                  // CSS inline em widgets/templates
@@ -100,6 +95,7 @@ app.use(helmet({
   // COOP pode partir o popup OAuth (window.close em callback) — desligar.
   crossOriginOpenerPolicy: false,
 }));
+app.use(compression({ threshold: 1024 }));
 
 // CORS — em produção só aceita a origem do domínio; em dev aceita localhost e túneis
 const ALLOWED_ORIGINS_DEV = [
@@ -122,14 +118,18 @@ app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
     if (ALLOWED_ORIGINS.some(r => r.test(origin))) return callback(null, true);
-    callback(new Error('Origem não permitida pelo CORS: ' + origin));
+    callback(Object.assign(new Error('Origem não permitida pelo CORS: ' + origin), { status: 403, code: 'ORIGIN_NOT_ALLOWED' }));
   },
   credentials: true
 }));
 
 // Os parsers maiores só ficam acessíveis depois de autenticar e autorizar.
 app.use('/api/backup/import', requireAuth, require('./middleware/requireRole')('owner'), express.json({ limit: '100mb' }));
-app.use(['/api/accommodations', '/api/expenses'], requireAuth, require('./middleware/requireRole')('manager'), express.json({ limit: '15mb' }));
+const uploadParser = express.json({ limit: '15mb' });
+app.use(['/api/accommodations', '/api/expenses'], (req, res, next) => {
+  if (!['POST', 'PUT', 'PATCH'].includes(req.method)) return next();
+  requireAuth(req, res, () => require('./middleware/requireRole')('manager')(req, res, () => uploadParser(req, res, next)));
+});
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '256kb', parameterLimit: 200 }));
 
@@ -153,7 +153,18 @@ app.use(['/api', '/auth'], (_req, res, next) => { res.set('Cache-Control', 'no-s
 
 // Servir frontend estático (apenas em produção via Docker)
 if (process.env.FRONTEND_PATH) {
-  app.use(express.static(process.env.FRONTEND_PATH));
+  app.use(express.static(process.env.FRONTEND_PATH, {
+    setHeaders(res, filePath) {
+      const name = path.basename(filePath);
+      if (name === 'service-worker.js' || filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache');
+      } else if (/[/\\](?:vendor|img)[/\\]/.test(filePath) || /(?:^|[-.])v?\d+(?:\.\d+)+/.test(name)) {
+        res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+      } else {
+        res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+      }
+    },
+  }));
 }
 
 // Inicializar base de dados
@@ -161,6 +172,7 @@ initDatabase();
 clearExpiredSessions();
 
 // Rotas
+app.use(['/auth', '/api'], verifyRequestOrigin);
 app.use('/auth', authRoutes);
 app.use('/api/public', publicBookingRoutes);
 app.use('/api', requireAuth);
@@ -183,7 +195,7 @@ app.use('/api/push', pushRoutes);
 app.get('/health', (req, res) => {
   try {
     require('./config/database').db.prepare('SELECT 1').get();
-    res.json({ status: 'ok' });
+    res.json({ status: 'ok', apiVersion: 2 });
   } catch { res.status(503).json({ status: 'unavailable' }); }
 });
 
@@ -195,8 +207,11 @@ app.use('/api', (req, res) => {
 
 // SPA catch-all: serve index.html para todas as rotas de frontend
 if (process.env.FRONTEND_PATH) {
-  app.get(['/reservar/:slug', '/reserva/:token'], (req, res) => {
+  app.get('/reservar/:slug', (req, res) => {
     res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'public-reservation.html'));
+  });
+  app.get('/reserva/:token', (req, res) => {
+    res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'reservation-status.html'));
   });
   app.get('/pre-checkin/:token', (req, res) => {
     res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'pre-checkin.html'));

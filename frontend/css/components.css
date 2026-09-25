@@ -571,3 +571,10 @@ table td {
 }
 .export-col-item:hover { background: var(--cinza-claro); }
 .export-col-item input { width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; }
+
+/* Paginação partilhada por tabelas e cards, utilizável por teclado. */
+.list-pagination { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:14px; padding:16px 8px; margin-top:8px; font-size:13px; border-top:1px solid var(--border-soft); }
+.list-pagination button { min-height:44px; }
+.list-pagination button:disabled { opacity:.45; cursor:default; }
+.list-pagination button:focus-visible { outline:2px solid var(--marca); outline-offset:3px; }
+.list-pagination-label { color:var(--cinza); font-weight:500; white-space:nowrap; }

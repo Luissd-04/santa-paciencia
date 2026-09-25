@@ -67,8 +67,11 @@ function saveSubscription(organizationId, userId, subscription, deviceName = nul
   `).run(crypto.randomUUID(), organizationId, userId, subscription.endpoint, JSON.stringify(subscription.keys || {}), deviceName);
 }
 
-function deleteSubscription(endpoint) {
-  db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').run(endpoint);
+function deleteSubscription(organizationId, userId, endpoint) {
+  const info = db.prepare(`DELETE FROM push_subscriptions
+    WHERE endpoint = ? AND organization_id = ? AND user_id = ?`)
+    .run(endpoint, organizationId, userId);
+  return info.changes > 0;
 }
 
 // ── Gestão de dispositivos (lista nas Definições → Notificações) ──
@@ -137,7 +140,7 @@ function saveUserPushPrefs(organizationId, userId, prefs = {}) {
 async function sendToOrganization(organizationId, payload, options = {}) {
   getVapidKeys();
   const { excludeUserId = null, type = null } = options;
-  let rows = db.prepare('SELECT s.endpoint, s.keys_json, s.user_id FROM push_subscriptions s JOIN memberships m ON m.user_id=s.user_id AND m.organization_id=s.organization_id JOIN users u ON u.id=s.user_id WHERE s.organization_id = ? AND s.active = 1 AND m.active = 1 AND u.active = 1').all(organizationId);
+  let rows = db.prepare('SELECT s.endpoint, s.keys_json, s.user_id, s.organization_id FROM push_subscriptions s JOIN memberships m ON m.user_id=s.user_id AND m.organization_id=s.organization_id JOIN users u ON u.id=s.user_id WHERE s.organization_id = ? AND s.active = 1 AND m.active = 1 AND u.active = 1').all(organizationId);
   if (excludeUserId) rows = rows.filter(r => r.user_id !== excludeUserId);
   if (type) {
     const prefsCache = {};
@@ -157,7 +160,7 @@ async function sendToOrganization(organizationId, payload, options = {}) {
     } catch (err) {
       // 404/410 = subscrição morta (app removida do ecrã inicial, etc.)
       if (err.statusCode === 404 || err.statusCode === 410) {
-        deleteSubscription(row.endpoint);
+        deleteSubscription(row.organization_id, row.user_id, row.endpoint);
         removed++;
       } else {
         console.error('Erro ao enviar push:', err.statusCode || err.message);

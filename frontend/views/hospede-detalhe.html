@@ -1,0 +1,124 @@
+        <section class="card" style="max-width:940px;margin:0 auto;">
+          <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <span class="card-title" style="display:inline-flex;align-items:center;gap:10px;">
+              <button class="btn btn-ghost btn-sm" data-on-click="index-close-guest-modal-6f28c13"><i data-lucide="arrow-left"></i> Voltar</button>
+              <i data-lucide="contact"></i> <span id="gedit-page-title">Ficha de hóspede</span>
+            </span>
+            <button class="btn btn-primary btn-sm" id="btn-guardar-hospede" data-on-click="index-save-guest-edit-7605d58">
+              <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
+            </button>
+          </div>
+          <div style="padding:20px;">
+      <div class="form-grid">
+
+        <!-- ── Identificação ── -->
+        <div class="section-subtitle form-full" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);padding-bottom:4px;border-bottom:1px solid var(--cinza-claro);">
+          <i data-lucide="user"></i> Identificação
+        </div>
+        <div class="form-group">
+          <label class="form-label">Primeiro nome <span class="req-star">*</span></label>
+          <input class="form-control" id="gedit-first-name" placeholder="Primeiro nome" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Apelido <span class="req-star">*</span></label>
+          <input class="form-control" id="gedit-last-name" placeholder="Apelido" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Data de nascimento</label>
+          <input class="form-control" id="gedit-birth-date" type="date" data-dp-birthdate autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">País <span class="req-star">*</span></label>
+          <select class="form-control" id="gedit-country"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo de documento</label>
+          <select class="form-control" id="gedit-doc-type">
+            <option value="">— Selecionar —</option>
+            <option value="cc">Cartão de Cidadão</option>
+            <option value="bi">Bilhete de Identidade</option>
+            <option value="passaporte">Passaporte</option>
+            <option value="nie">NIE</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nº de documento</label>
+          <input class="form-control" id="gedit-doc-number" placeholder="XX000000" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">NIF</label>
+          <input class="form-control" id="gedit-nif" placeholder="000 000 000" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Empresa</label>
+          <input class="form-control" id="gedit-company" placeholder="Nome da empresa (opcional)" autocomplete="off">
+        </div>
+
+        <!-- ── Contacto ── -->
+        <div class="section-subtitle form-full" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);padding-bottom:4px;border-bottom:1px solid var(--cinza-claro);margin-top:8px;">
+          <i data-lucide="phone"></i> Contacto
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefone <span class="req-star">*</span></label>
+          <div class="phone-group">
+            <select class="form-control phone-prefix" id="gedit-tel-prefix"></select>
+            <input class="form-control phone-number" id="gedit-phone" type="tel" placeholder="912 345 678" autocomplete="off">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email (canal)</label>
+          <input class="form-control" id="gedit-email" type="email" placeholder="email@canal.com" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email (pessoal)</label>
+          <input class="form-control" id="gedit-email-personal" type="email" placeholder="email@pessoal.com" autocomplete="off">
+        </div>
+
+        <!-- ── Morada ── -->
+        <div class="section-subtitle form-full" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);padding-bottom:4px;border-bottom:1px solid var(--cinza-claro);margin-top:8px;">
+          <i data-lucide="map-pin"></i> Morada
+        </div>
+        <div class="form-group form-full">
+          <label class="form-label">Morada</label>
+          <input class="form-control" id="gedit-address" placeholder="Rua, número, andar..." autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Código postal</label>
+          <input class="form-control" id="gedit-postal-code" placeholder="0000-000" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Localidade</label>
+          <input class="form-control" id="gedit-city" placeholder="Lisboa" autocomplete="off">
+        </div>
+
+      </div>
+
+      <div class="guest-tags-row" style="margin-top:20px;">
+        <label class="guest-tag-toggle">
+          <input type="checkbox" id="gedit-favorito">
+          <span class="gtt-switch"></span>
+          <span class="gtt-label"><span class="gtt-icon">⭐</span> Favorito</span>
+        </label>
+        <label class="guest-tag-toggle">
+          <input type="checkbox" id="gedit-vip">
+          <span class="gtt-switch"></span>
+          <span class="gtt-label"><span class="gtt-icon">👑</span> VIP</span>
+        </label>
+        <label class="guest-tag-toggle">
+          <input type="checkbox" id="gedit-nao-desejado">
+          <span class="gtt-switch gtt-danger"></span>
+          <span class="gtt-label"><span class="gtt-icon">🚫</span> Não desejado</span>
+        </label>
+      </div>
+
+      <!-- Histórico de reservas do hóspede -->
+      <div id="gedit-reservas-historico" style="margin-top:24px;"></div>
+
+      <div style="display:flex;justify-content:flex-end;margin-top:24px;border-top:1px solid var(--borda);padding-top:16px;">
+        <button class="btn btn-danger btn-sm" id="gedit-delete-btn">
+          <i data-lucide="trash-2" style="width:13px;height:13px;"></i> Remover hóspede
+        </button>
+      </div>
+          </div>
+        </section>

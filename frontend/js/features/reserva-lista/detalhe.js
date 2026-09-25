@@ -1,3 +1,10 @@
+// Estado privado; interface partilhada em AppModules.reservas.
+(() => {
+AppModules.define('reservas', {
+  rdv2TaskBtnHtml: { get: () => rdv2TaskBtnHtml },
+  showDetail: { get: () => showDetail },
+});
+
 // ── Check-in/Check-out feitos na ficha (liga às tarefas operacionais) ──
 
 function rdv2TaskBtnHtml(resId, kind, done) {
@@ -5,16 +12,16 @@ function rdv2TaskBtnHtml(resId, kind, done) {
   const icon = kind === 'checkin' ? 'log-in' : 'log-out';
   return done
     ? `<button class="btn btn-ghost btn-sm" style="color:#0f9d58;border:1px solid #0f9d5844;background:#0f9d580f;"
-         onclick="toggleReservationTask('${resId}', '${kind}', false)" title="Clique para repor como por fazer">
-         ${lcIcon('check-circle', 13)} ${label} feito</button>`
+         ${AppActions.attrs("click", "detalhe-toggle-reservation-task-7c3386e", [String((resId) ?? ''), String((kind) ?? '')])} title="Clique para repor como por fazer">
+         ${AppModules.core.lcIcon('check-circle', 13)} ${label} feito</button>`
     : `<button class="btn btn-ghost btn-sm"
-         onclick="toggleReservationTask('${resId}', '${kind}', true)">
-         ${lcIcon(icon, 13)} Marcar ${label.toLowerCase()} feito</button>`;
+         ${AppActions.attrs("click", "detalhe-toggle-reservation-task-bf7e72a", [String((resId) ?? ''), String((kind) ?? '')])}>
+         ${AppModules.core.lcIcon(icon, 13)} Marcar ${label.toLowerCase()} feito</button>`;
 }
 
 async function toggleReservationTask(resId, kind, done) {
   try {
-    const res = await apiPost(`/api/reservations/${resId}/task-status`, { kind, done });
+    const res = await AppModules.core.apiPost(`/api/reservations/${resId}/task-status`, { kind, done });
     const ts = res.data || {};
     const wrap = document.getElementById('rdv2-task-bar');
     if (wrap) {
@@ -22,22 +29,21 @@ async function toggleReservationTask(resId, kind, done) {
         + rdv2TaskBtnHtml(resId, 'checkout', !!ts.checkout_done);
       if (window.lucide) lucide.createIcons();
     }
-    toast(done ? '✅ Marcado como feito.' : '↩️ Reposto como por fazer.', 'success');
-    if (typeof rdv2InvalidateTarefas === 'function') rdv2InvalidateTarefas();
-    if (typeof loadNotifications === 'function') loadNotifications();
+    AppModules.core.toast(done ? '✅ Marcado como feito.' : '↩️ Reposto como por fazer.', 'success');
+    if (typeof AppModules.reservas.rdv2InvalidateTarefas === 'function') AppModules.reservas.rdv2InvalidateTarefas();
+    if (typeof AppModules.core.loadNotifications === 'function') AppModules.core.loadNotifications();
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || 'Erro ao atualizar.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Erro ao atualizar.'), 'error');
   }
 }
 
 async function showDetail(id, opts = {}) {
   try {
     if (!document.getElementById('view-reservas')?.classList.contains('active')) {
-      window.__openingReservationDetail = true;
-      showView('reservas', false);
-      window.__openingReservationDetail = false;
+      AppModules.core.openingReservationDetail = true;
+      try { await AppModules.core.showView('reservas', false); } finally { AppModules.core.openingReservationDetail = false; }
     }
-    setReservasDetailMode(true);
+    AppModules.reservas.setReservasDetailMode(true);
     // Entrada no history para o back do browser/telemóvel fechar o detalhe.
     // Detalhe→detalhe substitui a entrada para não empilhar "backs mortos".
     if (!opts.fromHistory) {
@@ -51,12 +57,12 @@ async function showDetail(id, opts = {}) {
     if (detailContent) detailContent.innerHTML = '';
     if (detailLoading) detailLoading.style.display = 'flex';
 
-    const data = await apiGet(`/api/reservations/${id}`);
+    const data = await AppModules.core.apiGet(`/api/reservations/${id}`);
     const r = data.data;
-    _rdv2Current = r;
+    AppModules.reservas._rdv2Current = r;
     const guestsData = typeof r.guests_data === 'string' ? JSON.parse(r.guests_data || '[]') : (r.guests_data || []);
     const accsData = typeof r.accommodations_data === 'string' ? JSON.parse(r.accommodations_data || '[]') : (r.accommodations_data || []);
-    const acc = accommodations.find(a => a.id === r.accommodation_id);
+    const acc = AppModules.core.accommodations.find(a => a.id === r.accommodation_id);
     const paid = Number(r.amount_paid || 0);
     const total = Number(r.total_amount || 0);
     const remaining = total - paid;
@@ -66,8 +72,8 @@ async function showDetail(id, opts = {}) {
       ? accsData
       : [{ accommodation_id: r.accommodation_id, name: r.accommodation_name || acc?.name || '—', price_per_night: Number(acc?.price_per_night || 0), nights: r.nights, subtotal: Number(acc?.price_per_night || 0) * r.nights }];
 
-    const extraOcc = getExtraOccupancyCharge(acc, r.num_guests || 1, r.nights || 0, guestsData.map(g => g.birth_date).filter(Boolean), r.check_in);
-    const bkfPrice = servicosData.find(s => s.id === 'breakfast')?.value ?? 19;
+    const extraOcc = AppModules.reservas.getExtraOccupancyCharge(acc, r.num_guests || 1, r.nights || 0, guestsData.map(g => g.birth_date).filter(Boolean), r.check_in);
+    const bkfPrice = AppModules.core.servicosData.find(s => s.id === 'breakfast')?.value ?? 19;
     const bkfTotal = r.breakfast_included ? (r.num_guests * r.nights * bkfPrice) : 0;
     const touristTax = Number(r.tourist_tax || 0);
 
@@ -102,7 +108,7 @@ async function showDetail(id, opts = {}) {
     if (!isNaN(standardTotal) && standardTotal > 0) {
       const priceDiff = total - standardTotal;
       const editedNote = r.price_edited_at
-        ? ` · editada manualmente em ${sd(r.price_edited_at.slice(0, 10))}${r.price_edited_by_name ? ` por ${escapeHtml(r.price_edited_by_name)}` : ''}`
+        ? ` · editada manualmente em ${sd(r.price_edited_at.slice(0, 10))}${r.price_edited_by_name ? ` por ${AppModules.core.escapeHtml(r.price_edited_by_name)}` : ''}`
         : '';
       if (Math.abs(priceDiff) > 0.005) {
         priceCompareLine = `
@@ -141,15 +147,15 @@ async function showDetail(id, opts = {}) {
     detailContent.innerHTML = `
       <!-- Header -->
       <div class="rdv2-header">
-        <button class="btn btn-ghost btn-sm" onclick="showReservasList()">${lcIcon('arrow-left', 13)} Voltar</button>
+        <button class="btn btn-ghost btn-sm" data-on-click="detalhe-show-reservas-list-3f01da3">${AppModules.core.lcIcon('arrow-left', 13)} Voltar</button>
         <div class="rdv2-title-area">
           <span class="rdv2-subtitle">Editar reserva</span>
           <span class="rdv2-id-pill">${r.id}</span>
         </div>
         <div class="rdv2-tabs">
-          <button class="rdv2-tab rdv2-tab-active" id="rdv2-tab-btn-reserva" onclick="rdv2ShowTab('reserva')">${lcIcon('clipboard', 12)} Reserva</button>
-          <button class="rdv2-tab" id="rdv2-tab-btn-tarefas" onclick="rdv2ShowTab('tarefas')">${lcIcon('list-checks', 12)} Tarefas</button>
-          <button class="rdv2-tab" id="rdv2-tab-btn-timeline" onclick="rdv2ShowTab('timeline')">${lcIcon('git-branch', 12)} Timeline</button>
+          <button class="rdv2-tab rdv2-tab-active" id="rdv2-tab-btn-reserva" data-on-click="detalhe-rdv2-show-tab-b77b54f">${AppModules.core.lcIcon('clipboard', 12)} Reserva</button>
+          <button class="rdv2-tab" id="rdv2-tab-btn-tarefas" data-on-click="detalhe-rdv2-show-tab-c86cc3e">${AppModules.core.lcIcon('list-checks', 12)} Tarefas</button>
+          <button class="rdv2-tab" id="rdv2-tab-btn-timeline" data-on-click="detalhe-rdv2-show-tab-5aa1943">${AppModules.core.lcIcon('git-branch', 12)} Timeline</button>
         </div>
       </div>
 
@@ -163,28 +169,28 @@ async function showDetail(id, opts = {}) {
           <div class="rdv2-info-bar">
             <div class="rdv2-info-field">
               <span class="rdv2-if-label">Hóspede</span>
-              <span class="rdv2-if-val">${escapeHtml(r.guest_name)}</span>
+              <span class="rdv2-if-val">${AppModules.core.escapeHtml(r.guest_name)}</span>
             </div>
             <div class="rdv2-info-field">
               <span class="rdv2-if-label">Noites</span>
-              <span class="rdv2-if-val">${lcIcon('moon', 11)} ${r.nights}</span>
+              <span class="rdv2-if-val">${AppModules.core.lcIcon('moon', 11)} ${r.nights}</span>
             </div>
             <div class="rdv2-info-field">
               <span class="rdv2-if-label">Datas</span>
-              <span class="rdv2-if-val">${lcIcon('calendar', 11)} ${sd(r.check_in)} → ${sd(r.check_out)}</span>
+              <span class="rdv2-if-val">${AppModules.core.lcIcon('calendar', 11)} ${sd(r.check_in)} → ${sd(r.check_out)}</span>
             </div>
             <div class="rdv2-info-field">
               <span class="rdv2-if-label">Adultos</span>
-              <span class="rdv2-if-val">${r.num_adults || r.num_guests || 0} ${lcIcon('user', 11)}</span>
+              <span class="rdv2-if-val">${r.num_adults || r.num_guests || 0} ${AppModules.core.lcIcon('user', 11)}</span>
             </div>
             <div class="rdv2-info-field">
               <span class="rdv2-if-label">Crianças</span>
-              <span class="rdv2-if-val">${r.num_children || 0} ${lcIcon('baby', 11)}</span>
+              <span class="rdv2-if-val">${r.num_children || 0} ${AppModules.core.lcIcon('baby', 11)}</span>
               ${childAges.length ? `<span style="font-size:10.5px;color:var(--text-muted);">${childAges.join(' · ')}</span>` : ''}
             </div>
             ${r.arrival_time ? `<div class="rdv2-info-field">
               <span class="rdv2-if-label">Hora chegada</span>
-              <span class="rdv2-if-val">${lcIcon('clock', 11)} ${r.arrival_time}</span>
+              <span class="rdv2-if-val">${AppModules.core.lcIcon('clock', 11)} ${r.arrival_time}</span>
             </div>` : ''}
           </div>
 
@@ -199,25 +205,25 @@ async function showDetail(id, opts = {}) {
           <div class="rdv2-canal-bar">
             <div class="rdv2-info-field">
               <span class="rdv2-if-label">Canal</span>
-              <span class="rdv2-if-val">${escapeHtml(r.channel || '—')}</span>
+              <span class="rdv2-if-val">${AppModules.core.escapeHtml(r.channel || '—')}</span>
             </div>
             ${r.guest_email ? `<div class="rdv2-info-field">
               <span class="rdv2-if-label">Email</span>
-              <span class="rdv2-if-val">${escapeHtml(r.guest_email)}</span>
+              <span class="rdv2-if-val">${AppModules.core.escapeHtml(r.guest_email)}</span>
             </div>` : ''}
             ${r.guest_phone ? `<div class="rdv2-info-field">
               <span class="rdv2-if-label">Telefone</span>
-              <span class="rdv2-if-val">${escapeHtml(r.guest_phone)}</span>
+              <span class="rdv2-if-val">${AppModules.core.escapeHtml(r.guest_phone)}</span>
             </div>` : ''}
           </div>
 
           <!-- Divisor zona alojamento -->
-          <div class="rdv2-zone-divider">${lcIcon('home', 10)} Alojamento e Preços</div>
+          <div class="rdv2-zone-divider">${AppModules.core.lcIcon('home', 10)} Alojamento e Preços</div>
 
           <!-- Alojamentos -->
           <div class="rdv2-section">
             <div class="rdv2-section-head">
-              <span>${lcIcon('home', 12)} Alojamentos</span>
+              <span>${AppModules.core.lcIcon('home', 12)} Alojamentos</span>
               <span>Subtotal</span>
             </div>
             ${accRows.map(row => `
@@ -226,7 +232,7 @@ async function showDetail(id, opts = {}) {
               <span class="rdv2-amt">${fmt(row.subtotal || (Number(row.price_per_night || 0) * (row.nights || r.nights)))}</span>
             </div>`).join('')}
             <div class="rdv2-section-subtot">
-              <button class="rdv2-edit-btn" onclick="startInlinePriceEdit('${r.id}', ${total})" title="Editar preço total">${lcIcon('pencil', 11)}</button>
+              <button class="rdv2-edit-btn" ${AppActions.attrs("click", "detalhe-start-inline-price-edit-700b5d7", [String((r.id) ?? ''), total])} title="Editar preço total">${AppModules.core.lcIcon('pencil', 11)}</button>
               <span class="rdv2-amt" id="rdv2-acc-subtot">${fmt(accRows.reduce((s, row) => s + Number(row.subtotal || (Number(row.price_per_night || 0) * (row.nights || r.nights))), 0) + extraOcc)}</span>
             </div>
           </div>
@@ -235,11 +241,11 @@ async function showDetail(id, opts = {}) {
           <!-- Serviços -->
           <div class="rdv2-section">
             <div class="rdv2-section-head">
-              <span>${lcIcon('plus-square', 12)} Serviços</span>
+              <span>${AppModules.core.lcIcon('plus-square', 12)} Serviços</span>
               <span>Subtotal</span>
             </div>
             ${services.map(s => `<div class="rdv2-section-row">
-              <span>${s.name} <span class="rdv2-formula">${s.formula}</span></span>
+              <span>${AppModules.core.escapeHtml(s.name)} <span class="rdv2-formula">${AppModules.core.escapeHtml(s.formula)}</span></span>
               <span class="rdv2-amt">${fmt(s.total)}</span>
             </div>`).join('')}
             <div class="rdv2-section-subtot">
@@ -251,7 +257,7 @@ async function showDetail(id, opts = {}) {
           <!-- Taxas -->
           <div class="rdv2-section">
             <div class="rdv2-section-head">
-              <span>${lcIcon('landmark', 12)} Taxas</span>
+              <span>${AppModules.core.lcIcon('landmark', 12)} Taxas</span>
               <span>Subtotal</span>
             </div>
             ${taxes.map(t => `<div class="rdv2-section-row">
@@ -271,7 +277,7 @@ async function showDetail(id, opts = {}) {
           ${priceCompareLine}
 
           <!-- Divisor zona pagamentos -->
-          <div class="rdv2-zone-divider">${lcIcon('credit-card', 10)} Pagamentos</div>
+          <div class="rdv2-zone-divider">${AppModules.core.lcIcon('credit-card', 10)} Pagamentos</div>
 
           <!-- Pagamentos -->
           <div class="rdv2-pay-section" id="rdv2-pay-section">
@@ -285,7 +291,7 @@ async function showDetail(id, opts = {}) {
                     </div>
                     <div class="rdv2-pay-entry-right">
                       ${p.payment_date ? `<span class="rdv2-pay-entry-date">${sd(p.payment_date)}</span>` : '<span class="rdv2-pay-entry-date">—</span>'}
-                      <button class="rdv2-icon-btn rdv2-pay-del" onclick="deletePaymentEntry('${r.id}','${p.id}')" title="Remover pagamento">${lcIcon('trash-2', 11)}</button>
+                      <button class="rdv2-icon-btn rdv2-pay-del" ${AppActions.attrs("click", "detalhe-delete-payment-entry-6f2ae81", [String((r.id) ?? ''), String((p.id) ?? '')])} title="Remover pagamento">${AppModules.core.lcIcon('trash-2', 11)}</button>
                     </div>
                   </div>`).join('')}
               </div>
@@ -304,27 +310,27 @@ async function showDetail(id, opts = {}) {
           </div>
 
           ${r.invoice_number || r.invoice_date || r.invoice_sent_date ? `
-          <div class="rdv2-zone-divider">${lcIcon('file-text', 10)} Fatura</div>
+          <div class="rdv2-zone-divider">${AppModules.core.lcIcon('file-text', 10)} Fatura</div>
           <div style="background:var(--surface-muted);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;">
-            <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--text-muted);">Nº</span><b style="color:var(--text-main);">${escapeHtml(r.invoice_number || '—')}</b></div>
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--text-muted);">Nº</span><b style="color:var(--text-main);">${AppModules.core.escapeHtml(r.invoice_number || '—')}</b></div>
             <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--text-muted);">Data</span><b style="color:var(--text-main);">${r.invoice_date ? sd(r.invoice_date) : '—'}</b></div>
-            <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--text-muted);">Enviada</span><b style="color:var(--text-main);">${r.invoice_sent_date ? sd(r.invoice_sent_date) : '—'}${r.invoice_sent_method ? ' · ' + invoiceMethodLabel(r.invoice_sent_method) : ''}</b></div>
+            <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--text-muted);">Enviada</span><b style="color:var(--text-main);">${r.invoice_sent_date ? sd(r.invoice_sent_date) : '—'}${r.invoice_sent_method ? ' · ' + AppModules.reservas.invoiceMethodLabel(r.invoice_sent_method) : ''}</b></div>
           </div>` : ''}
 
-          ${r.notes ? `<div class="rdv2-notes">${lcIcon('file-text', 12)} ${escapeHtml(r.notes)}</div>` : ''}
+          ${r.notes ? `<div class="rdv2-notes">${AppModules.core.lcIcon('file-text', 12)} ${AppModules.core.escapeHtml(r.notes)}</div>` : ''}
 
           ${guestsData.length ? `<div class="rdv2-guests">
             <div class="rdv2-guests-title">Hóspedes adicionais</div>
             ${guestsData.map((g, i) => `<div class="rdv2-guest-row">
               <span class="rdv2-guest-num">Hóspede ${i + 2}</span>
               <span>${g.id
-                ? `<a class="rdv2-guest-link" onclick="showHospedeDetail('${g.id}')">${escapeHtml(g.name || '—')}</a>`
-                : escapeHtml(g.name || '—')}${g.email ? ` · ${escapeHtml(g.email)}` : ''}${g.phone ? ` · ${escapeHtml(g.phone)}` : ''}</span>
+                ? `<a class="rdv2-guest-link" ${AppActions.attrs("click", "detalhe-abrir-hospede-b15454b", [String((g.id) ?? '')])}>${AppModules.core.escapeHtml(g.name || '—')}</a>`
+                : AppModules.core.escapeHtml(g.name || '—')}${g.email ? ` · ${AppModules.core.escapeHtml(g.email)}` : ''}${g.phone ? ` · ${AppModules.core.escapeHtml(g.phone)}` : ''}</span>
             </div>`).join('')}
           </div>` : ''}
 
           <div class="rdv2-sync ${r.google_event_id ? 'rdv2-sync-ok' : ''}">
-            ${lcIcon('calendar', 11)} ${r.google_event_id ? 'Sincronizado com Google Calendar' : 'Não sincronizado com Google Calendar'}
+            ${AppModules.core.lcIcon('calendar', 11)} ${r.google_event_id ? 'Sincronizado com Google Calendar' : 'Não sincronizado com Google Calendar'}
           </div>
         </div>
 
@@ -336,13 +342,13 @@ async function showDetail(id, opts = {}) {
             <div class="rdv2-widget-title">Estado</div>
             <div class="rdv2-status-row">
               <span class="rdv2-status-label">Reserva</span>
-              <select class="rdv2-status-select" onchange="updateDetailStatus('${r.id}','status',this.value)">
+              <select class="rdv2-status-select" ${AppActions.attrs("change", "detalhe-update-detail-status-05d2970", [String((r.id) ?? '')])}>
                 ${statusOptions.map(o => `<option value="${o.v}"${r.status === o.v ? ' selected' : ''}>${o.l}</option>`).join('')}
               </select>
             </div>
             <div class="rdv2-status-row">
               <span class="rdv2-status-label">Pagamento</span>
-              <select class="rdv2-status-select" onchange="updateDetailStatus('${r.id}','payment_status',this.value)">
+              <select class="rdv2-status-select" ${AppActions.attrs("change", "detalhe-update-detail-status-280dcae", [String((r.id) ?? '')])}>
                 ${payOptions.map(o => `<option value="${o.v}"${r.payment_status === o.v ? ' selected' : ''}>${o.l}</option>`).join('')}
               </select>
             </div>
@@ -351,18 +357,18 @@ async function showDetail(id, opts = {}) {
           <!-- Ações -->
           <div class="rdv2-widget">
             <div class="rdv2-widget-title">Reserva</div>
-            ${r.status === 'pendente' ? `<button class="rdv2-action-link rdv2-action-success" onclick="aprovarReserva('${r.id}')">${lcIcon('check', 12)} Aprovar e enviar pre check-in</button>` : ''}
-            <button class="rdv2-action-link" data-accs="${(JSON.stringify(accsData)).replace(/"/g,'&quot;')}" data-res='{"id":"${r.id}","accId":"${r.accommodation_id}","ci":"${r.check_in}","co":"${r.check_out}","ng":${r.num_guests||1},"na":${r.num_adults||1},"nc":${r.num_children||0},"bkf":${r.breakfast_included?true:false},"nights":${r.nights||1}}' onclick="openAccommodationPanelFromBtn(this)">${lcIcon('home', 12)} Editar alojamento</button>
-            <button class="rdv2-action-link" onclick="openEditPage('${r.id}')">${lcIcon('pencil', 12)} Editar reserva</button>
-            <button class="rdv2-action-link" onclick="openAddGuestForm('${r.id}')">${lcIcon('user-plus', 12)} Adicionar hóspede</button>
-            <button class="rdv2-action-link" onclick="openPaymentForm('${r.id}', ${paid}, ${total})">${lcIcon('credit-card', 12)} Registar pagamento</button>
-            <button class="rdv2-action-link" data-inv='${JSON.stringify({ n: r.invoice_number || '', d: r.invoice_date || '', sd: r.invoice_sent_date || '', m: r.invoice_sent_method || '' }).replace(/'/g, "&#39;")}' onclick="openInvoiceFormFromBtn('${r.id}', this)">${lcIcon('file-text', 12)} Registar fatura</button>
-            ${r.guest_email ? `<button class="rdv2-action-link" onclick="openInvoiceForReservation('${r.id}',decodeURIComponent('${guestEmail}'),decodeURIComponent('${guestName}'))">${lcIcon('mail', 12)} Enviar email</button>` : ''}
+            ${r.status === 'pendente' ? `<button class="rdv2-action-link rdv2-action-success" ${AppActions.attrs("click", "detalhe-aprovar-reserva-0f31ccd", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('check', 12)} Aprovar e enviar pre check-in</button>` : ''}
+            <button class="rdv2-action-link" data-accs="${(JSON.stringify(accsData)).replace(/"/g,'&quot;')}" data-res='{"id":"${r.id}","accId":"${r.accommodation_id}","ci":"${r.check_in}","co":"${r.check_out}","ng":${r.num_guests||1},"na":${r.num_adults||1},"nc":${r.num_children||0},"bkf":${r.breakfast_included?true:false},"nights":${r.nights||1}}' data-on-click="detalhe-open-accommodation-panel-from-btn-4247f77">${AppModules.core.lcIcon('home', 12)} Editar alojamento</button>
+            <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-edit-page-8b67124", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('pencil', 12)} Editar reserva</button>
+            <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-add-guest-form-2a832ca", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('user-plus', 12)} Adicionar hóspede</button>
+            <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-payment-form-74a29ac", [String((r.id) ?? ''), paid, total])}>${AppModules.core.lcIcon('credit-card', 12)} Registar pagamento</button>
+            <button class="rdv2-action-link" data-inv='${JSON.stringify({ n: r.invoice_number || '', d: r.invoice_date || '', sd: r.invoice_sent_date || '', m: r.invoice_sent_method || '' }).replace(/'/g, "&#39;")}' ${AppActions.attrs("click", "detalhe-open-invoice-form-from-btn-ddace26", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('file-text', 12)} Registar fatura</button>
+            ${r.guest_email ? `<button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-abrir-mensagens-da-reserva-8cd7ba1", [String((r.id) ?? ''), String((guestEmail) ?? ''), String((guestName) ?? '')])}>${AppModules.core.lcIcon('mail', 12)} Enviar email</button>` : ''}
             ${r.status === 'cancelada'
-              ? `<button class="rdv2-action-link rdv2-action-success" onclick="reativarReserva('${r.id}')">${lcIcon('refresh-cw', 12)} Reativar reserva</button>
-                 ${hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" onclick="apagarReservaDefinitivo('${r.id}')">${lcIcon('trash-2', 12)} Apagar definitivamente</button>` : ''}`
-              : `<button class="rdv2-action-link rdv2-action-danger" onclick="cancelarReserva('${r.id}')">${lcIcon('x-circle', 12)} Cancelar reserva</button>
-                 ${hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" onclick="apagarReservaDefinitivo('${r.id}')">${lcIcon('trash-2', 12)} Apagar reserva</button>` : ''}`}
+              ? `<button class="rdv2-action-link rdv2-action-success" ${AppActions.attrs("click", "detalhe-reativar-reserva-9888cf4", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('refresh-cw', 12)} Reativar reserva</button>
+                 ${AppModules.reservas.hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" ${AppActions.attrs("click", "detalhe-apagar-reserva-definitivo-727881f", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('trash-2', 12)} Apagar definitivamente</button>` : ''}`
+              : `<button class="rdv2-action-link rdv2-action-danger" ${AppActions.attrs("click", "detalhe-cancelar-reserva-2d9df9b", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('x-circle', 12)} Cancelar reserva</button>
+                 ${AppModules.reservas.hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" ${AppActions.attrs("click", "detalhe-apagar-reserva-definitivo-727881f", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('trash-2', 12)} Apagar reserva</button>` : ''}`}
           </div>
 
           ${r.status !== 'pendente' && r.status !== 'cancelada' ? `
@@ -372,24 +378,24 @@ async function showDetail(id, opts = {}) {
             ${preCheckinUrl ? `
             <div class="rdv2-concierge-url">
               <span class="rdv2-url-text">${preCheckinUrl}</span>
-              <button class="rdv2-icon-btn" onclick="navigator.clipboard.writeText('${preCheckinUrl}');toast('🔗 Link copiado','success')" title="Copiar">${lcIcon('copy', 12)}</button>
+              <button class="rdv2-icon-btn" ${AppActions.attrs("click", "detalhe-write-text-8f51584", [String((preCheckinUrl) ?? '')])} title="Copiar">${AppModules.core.lcIcon('copy', 12)}</button>
             </div>
             <div class="rdv2-concierge-btns">
-              <button class="rdv2-cta-btn" onclick="window.open('${preCheckinUrl}','_blank')" title="Abrir pre check-in">${lcIcon('arrow-right', 13)} Abrir</button>
-              <button class="rdv2-cta-btn" onclick="enviarLinkPrecheckin('${r.id}')" title="Enviar link de pré-checkin">${lcIcon('send', 13)} Enviar pré-checkin</button>
-              ${r.guest_email ? `<button class="rdv2-cta-btn" onclick="openInvoiceForReservation('${r.id}',decodeURIComponent('${guestEmail}'),decodeURIComponent('${guestName}'))" title="Enviar email">${lcIcon('mail', 13)} Email</button>` : ''}
+              <button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-open-7fd73a2", [String((preCheckinUrl) ?? '')])} title="Abrir pre check-in">${AppModules.core.lcIcon('arrow-right', 13)} Abrir</button>
+              <button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-enviar-link-precheckin-ae74bc8", [String((r.id) ?? '')])} title="Enviar link de pré-checkin">${AppModules.core.lcIcon('send', 13)} Enviar pré-checkin</button>
+              ${r.guest_email ? `<button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-abrir-mensagens-da-reserva-8cd7ba1", [String((r.id) ?? ''), String((guestEmail) ?? ''), String((guestName) ?? '')])} title="Enviar email">${AppModules.core.lcIcon('mail', 13)} Email</button>` : ''}
             </div>` : `
             <div class="rdv2-concierge-btns">
-              <button class="rdv2-cta-btn" onclick="enviarLinkPrecheckin('${r.id}', false)" title="Gerar link de pré-checkin">${lcIcon('link', 13)} Gerar pré-checkin</button>
+              <button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-enviar-link-precheckin-1ddc760", [String((r.id) ?? '')])} title="Gerar link de pré-checkin">${AppModules.core.lcIcon('link', 13)} Gerar pré-checkin</button>
             </div>`}
           </div>` : ''}
 
           <!-- Documentos -->
           <div class="rdv2-widget rdv2-widget-docs">
             <div class="rdv2-widget-title">Documentos</div>
-            <button class="rdv2-doc-link" onclick="openReservationSheet('${r.id}')">${lcIcon('clipboard', 12)} Ficha de reserva</button>
-            <button class="rdv2-doc-link" onclick="openGuestCard('${r.guest_id}','${r.id}')">${lcIcon('user', 12)} Ficha de hóspede</button>
-            <button class="rdv2-doc-link" onclick="openAccountStatement('${r.id}')">${lcIcon('credit-card', 12)} Conta corrente</button>
+            <button class="rdv2-doc-link" ${AppActions.attrs("click", "detalhe-open-reservation-sheet-d1319da", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('clipboard', 12)} Ficha de reserva</button>
+            <button class="rdv2-doc-link" ${AppActions.attrs("click", "detalhe-open-guest-card-621ccbd", [String((r.guest_id) ?? ''), String((r.id) ?? '')])}>${AppModules.core.lcIcon('user', 12)} Ficha de hóspede</button>
+            <button class="rdv2-doc-link" ${AppActions.attrs("click", "detalhe-open-account-statement-dbfcf1c", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('credit-card', 12)} Conta corrente</button>
           </div>
 
         </div>
@@ -401,22 +407,61 @@ async function showDetail(id, opts = {}) {
     `;
     if (window.lucide) lucide.createIcons();
   } catch (e) {
-    toast('❌ Erro ao carregar detalhe.', 'error');
-    showReservasList();
+    AppModules.core.toast('❌ Erro ao carregar detalhe.', 'error');
+    AppModules.reservas.showReservasList();
   }
 }
 
 async function updateDetailStatus(id, field, value) {
   try {
-    const res = await apiPut(`/api/reservations/${id}`, { [field]: value });
+    const res = await AppModules.core.apiPut(`/api/reservations/${id}`, { [field]: value });
     if (res.success) {
-      toast('✅ Estado atualizado', 'success');
-      await loadReservas();
+      AppModules.core.toast('✅ Estado atualizado', 'success');
+      await AppModules.reservas.loadReservas();
     } else {
-      toast('❌ ' + (res.error || 'Erro ao atualizar'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao atualizar'), 'error');
     }
   } catch (e) {
-    toast('❌ Erro de ligação', 'error');
+    AppModules.core.toast('❌ Erro de ligação', 'error');
   }
 }
 
+
+AppActions.register({
+  "detalhe-show-reservas-list-3f01da3": (el, event, args) => { AppModules.reservas.showReservasList() },
+  "detalhe-rdv2-show-tab-b77b54f": (el, event, args) => { AppModules.reservas.rdv2ShowTab('reserva') },
+  "detalhe-rdv2-show-tab-c86cc3e": (el, event, args) => { AppModules.reservas.rdv2ShowTab('tarefas') },
+  "detalhe-rdv2-show-tab-5aa1943": (el, event, args) => { AppModules.reservas.rdv2ShowTab('timeline') },
+  "detalhe-start-inline-price-edit-700b5d7": (el, event, args) => { AppModules.reservas.startInlinePriceEdit(args[0], args[1]) },
+  "detalhe-open-accommodation-panel-from-btn-4247f77": (el, event, args) => { AppModules.reservas.openAccommodationPanelFromBtn(el) },
+  "detalhe-open-edit-page-8b67124": (el, event, args) => { AppModules.reservas.openEditPage(args[0]) },
+  "detalhe-open-add-guest-form-2a832ca": (el, event, args) => { AppModules.reservas.openAddGuestForm(args[0]) },
+  "detalhe-open-payment-form-74a29ac": (el, event, args) => { AppModules.reservas.openPaymentForm(args[0], args[1], args[2]) },
+  "detalhe-open-invoice-form-from-btn-ddace26": (el, event, args) => { AppModules.reservas.openInvoiceFormFromBtn(args[0], el) },
+  "detalhe-open-reservation-sheet-d1319da": (el, event, args) => { AppModules.reservas.openReservationSheet(args[0]) },
+  "detalhe-open-guest-card-621ccbd": (el, event, args) => { AppModules.reservas.openGuestCard(args[0],args[1]) },
+  "detalhe-open-account-statement-dbfcf1c": (el, event, args) => { AppModules.reservas.openAccountStatement(args[0]) },
+}, "click");
+
+AppActions.register({
+  "detalhe-update-detail-status-05d2970": (el, event, args) => { updateDetailStatus(args[0],'status',el.value) },
+  "detalhe-update-detail-status-280dcae": (el, event, args) => { updateDetailStatus(args[0],'payment_status',el.value) },
+}, "change");
+
+AppActions.register({
+  "detalhe-enviar-link-precheckin-1ddc760": (el, event, args) => { AppModules.reservas.enviarLinkPrecheckin(args[0], false) },
+  "detalhe-abrir-mensagens-da-reserva-8cd7ba1": (el, event, args) => { AppModules.core.abrirMensagensDaReserva(args[0],decodeURIComponent(args[1]),decodeURIComponent(args[2])) },
+  "detalhe-write-text-8f51584": (el, event, args) => { navigator.clipboard.writeText(args[0]);AppModules.core.toast('🔗 Link copiado','success') },
+  "detalhe-open-7fd73a2": (el, event, args) => { window.open(args[0],'_blank') },
+  "detalhe-enviar-link-precheckin-ae74bc8": (el, event, args) => { AppModules.reservas.enviarLinkPrecheckin(args[0]) },
+  "detalhe-apagar-reserva-definitivo-727881f": (el, event, args) => { AppModules.reservas.apagarReservaDefinitivo(args[0]) },
+  "detalhe-cancelar-reserva-2d9df9b": (el, event, args) => { AppModules.reservas.cancelarReserva(args[0]) },
+  "detalhe-reativar-reserva-9888cf4": (el, event, args) => { AppModules.reservas.reativarReserva(args[0]) },
+  "detalhe-aprovar-reserva-0f31ccd": (el, event, args) => { AppModules.reservas.aprovarReserva(args[0]) },
+  "detalhe-abrir-hospede-b15454b": (el, event, args) => { AppModules.core.abrirHospede(args[0]) },
+  "detalhe-delete-payment-entry-6f2ae81": (el, event, args) => { AppModules.reservas.deletePaymentEntry(args[0],args[1]) },
+  "detalhe-toggle-reservation-task-bf7e72a": (el, event, args) => { toggleReservationTask(args[0], args[1], true) },
+  "detalhe-toggle-reservation-task-7c3386e": (el, event, args) => { toggleReservationTask(args[0], args[1], false) },
+}, "click");
+
+})();

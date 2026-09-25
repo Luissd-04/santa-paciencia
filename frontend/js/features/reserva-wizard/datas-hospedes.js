@@ -1,3 +1,19 @@
+// Estado privado; interface partilhada em AppModules.reservas.
+(() => {
+AppModules.define('reservas', {
+  _availTimer: { get: () => _availTimer, set: value => { _availTimer = value; } },
+  _unavailableSuites: { get: () => _unavailableSuites, set: value => { _unavailableSuites = value; } },
+  formatDateForBirthInput: { get: () => formatDateForBirthInput },
+  getBirthDateValue: { get: () => getBirthDateValue },
+  getExtraOccupancyCharge: { get: () => getExtraOccupancyCharge },
+  handleBirthDateInput: { get: () => handleBirthDateInput },
+  normalizeBirthDateInput: { get: () => normalizeBirthDateInput },
+  renderExtraGuests: { get: () => renderExtraGuests },
+  renderWizChildAges: { get: () => renderWizChildAges },
+  updateSpecialRateHints: { get: () => updateSpecialRateHints },
+  wizEffectiveBirthDates: { get: () => wizEffectiveBirthDates },
+});
+
 function getExtraOccupancyCharge(suite, numGuests, nights, birthDates = [], checkIn = null) {
   return window.ReservationPricing?.getExtraOccupancyCharge(suite, numGuests, nights, birthDates, checkIn) || 0;
 }
@@ -26,7 +42,7 @@ function renderWizChildAges() {
   const count = parseInt(document.getElementById('f-num-criancas')?.value) || 0;
   if (count <= 0) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
 
-  const ci = normalizeIsoDateValue(document.getElementById('f-checkin')?.value) || new Date().toISOString().slice(0, 10);
+  const ci = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkin')?.value) || new Date().toISOString().slice(0, 10);
   const prev = Array.from(wrap.querySelectorAll('select')).map(s => s.value);
   const rowAges = wizChildRowBirthDates().map(d => (d ? getAgeAtDate(d, ci) : null));
 
@@ -37,7 +53,7 @@ function renderWizChildAges() {
     let opts = '<option value="">Idade</option>';
     for (let a = 0; a <= 17; a++) opts += `<option value="${a}"${String(a) === sel ? ' selected' : ''}>${a} ano${a !== 1 ? 's' : ''}</option>`;
     html += `<label style="flex:1;min-width:110px;display:flex;flex-direction:column;gap:3px;">
-      <select class="form-control" data-wiz-child-age="${i}" onchange="onWizChildAgeChange()">${opts}</select>
+      <select class="form-control" data-wiz-child-age="${i}" data-on-change="datas-hospedes-on-wiz-child-age-change-afbbccf">${opts}</select>
       <small class="wiz-child-age-hint" style="font-size:11px;color:var(--cinza);min-height:14px;"></small>
     </label>`;
   }
@@ -49,11 +65,11 @@ function renderWizChildAges() {
 
 function onWizChildAgeChange() {
   updateWizChildAgeHints();
-  calcTotal();
+  AppModules.reservas.calcTotal();
 }
 
 function updateWizChildAgeHints() {
-  const suite = accommodations.find(a => a.id === document.getElementById('f-aloj')?.value);
+  const suite = AppModules.core.accommodations.find(a => a.id === document.getElementById('f-aloj')?.value);
   const babyLimit = Number(suite?.baby_age_limit ?? 2);
   const childLimit = Number(suite?.child_age_limit ?? 12);
   const babyPrice = Number(suite?.baby_price ?? 0);
@@ -72,7 +88,7 @@ function updateWizChildAgeHints() {
 // Converte cada idade escolhida numa data de nascimento aproximada alinhada ao
 // check-in (idade-ao-check-in = idade escolhida), como no formulário público.
 function wizChildAgeBirthDates() {
-  const ci = normalizeIsoDateValue(document.getElementById('f-checkin')?.value) || new Date().toISOString().slice(0, 10);
+  const ci = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkin')?.value) || new Date().toISOString().slice(0, 10);
   const year = Number(ci.slice(0, 4));
   const monthDay = ci.slice(4); // "-MM-DD"
   return Array.from(document.querySelectorAll('#resf-child-ages [data-wiz-child-age]')).map(s =>
@@ -125,16 +141,8 @@ function normalizeBirthDateInput(input) {
   if (!input) return;
   const iso = normalizeBirthDateValue(input.value);
   if (iso) input.value = formatDateForBirthInput(iso);
-  calcTotal();
+  AppModules.reservas.calcTotal();
   updateSpecialRateHints();
-}
-
-function normalizeIsoDateValue(value) {
-  return window.ReservationDates?.normalizeIsoDate(value) || '';
-}
-
-function formatDateForStandardInput(value) {
-  return window.ReservationDates?.formatPtDate(value) || value || '';
 }
 
 function getAgeSpecialRates(suite, birthDates = [], checkIn = null) {
@@ -157,7 +165,7 @@ function getAgeSpecialRateInfo(suite, birthDate, checkIn = null) {
 }
 
 function updateSpecialRateHints() {
-  const suite = accommodations.find(a => a.id === document.getElementById('f-aloj')?.value);
+  const suite = AppModules.core.accommodations.find(a => a.id === document.getElementById('f-aloj')?.value);
   const checkIn = document.getElementById('f-checkin')?.value || new Date().toISOString().slice(0, 10);
   const included = Math.max(1, Math.min(
     Number(suite?.base_guests_included) || Math.min(Number(suite?.max_guests) || 2, 2),
@@ -215,11 +223,11 @@ function renderExtraGuests() {
     nif:             row.querySelector('[data-field="nif"]')?.value             || '',
   }));
 
-  const prefixOpts = DIAL_COUNTRIES.map(c =>
+  const prefixOpts = AppModules.reservas.DIAL_COUNTRIES.map(c =>
     `<option value="${c.dial}" data-flag="${c.code.toLowerCase()}">${c.dial}</option>`
   ).join('');
   const countryOpts = '<option value="">— País —</option>' +
-    DIAL_COUNTRIES.map(c => `<option value="${c.name}" data-flag="${c.code.toLowerCase()}">${c.name}</option>`).join('');
+    AppModules.reservas.DIAL_COUNTRIES.map(c => `<option value="${c.name}" data-flag="${c.code.toLowerCase()}">${c.name}</option>`).join('');
 
   const numAdultos = parseInt(document.getElementById('f-num-adultos')?.value) || 1;
   const parts = [];
@@ -235,7 +243,7 @@ function renderExtraGuests() {
           <label class="form-label">Pesquisa rápida (hóspede existente)</label>
           <div class="guest-search-wrap">
             <input class="form-control extra-guest-search-input" placeholder="Nome, email ou telefone…" autocomplete="off"
-              oninput="extraGuestSearch(this.value,${idx})">
+              ${AppActions.attrs("input", "datas-hospedes-extra-guest-search-dd52ef7", [idx])}>
             <div class="guest-drop" id="extra-guest-drop-${idx}"></div>
           </div>
         </div>` : ''}
@@ -258,13 +266,13 @@ function renderExtraGuests() {
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">País</label>
             <select class="form-control guest-country" data-field="country"
-              onchange="updateExtraForeignReqs(this.closest('.extra-guest-row'))">${countryOpts}</select>
+              data-on-change="datas-hospedes-update-extra-foreign-reqs-b3323d9">${countryOpts}</select>
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Data de Nascimento</label>
             <div class="birth-date-control">
-              <input class="form-control birth-date-input" data-field="birth_date" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" value="${formatDateForBirthInput(p.birth_date || '')}" oninput="handleBirthDateInput(this)" onblur="normalizeBirthDateInput(this);calcTotal();updateSpecialRateHints()" autocomplete="off">
-              <button class="birth-date-picker-btn" type="button" onclick="AppDatePicker.open(this.closest('.birth-date-control').querySelector('.birth-date-input'),{isBirthDate:true})" aria-label="Abrir calendário">
+              <input class="form-control birth-date-input" data-field="birth_date" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" value="${formatDateForBirthInput(p.birth_date || '')}" data-on-input="datas-hospedes-handle-birth-date-input-6742f58" data-on-blur="datas-hospedes-normalize-birth-date-input-19ea83e" autocomplete="off">
+              <button class="birth-date-picker-btn" type="button" data-on-click="datas-hospedes-open-52fb94f" aria-label="Abrir calendário">
                 <i data-lucide="calendar-days"></i>
               </button>
             </div>
@@ -323,7 +331,7 @@ function renderExtraGuests() {
     updateExtraForeignReqs(row);
   });
 
-  enhanceReservationSelects(container);
+  AppModules.reservas.enhanceReservationSelects(container);
   AppUI.refreshDropdowns(container);
   if (window.lucide) lucide.createIcons();
   updateSpecialRateHints();
@@ -353,7 +361,7 @@ async function extraGuestSearch(q, idx) {
   clearTimeout(_extraSearchTimers[idx]);
   _extraSearchTimers[idx] = setTimeout(async () => {
     try {
-      const data = await apiGet(`/api/guests?search=${encodeURIComponent(q)}`);
+      const data = await AppModules.core.apiGet(`/api/guests?search=${encodeURIComponent(q)}`);
       _extraSearchResultsMap[idx] = (data.data || []).slice(0, 8);
       if (!_extraSearchResultsMap[idx].length) {
         drop.innerHTML = '<div style="padding:10px 14px;font-size:12px;color:var(--cinza);">Sem resultados</div>';
@@ -363,7 +371,7 @@ async function extraGuestSearch(q, idx) {
       drop.innerHTML = _extraSearchResultsMap[idx].map((g, gIdx) => {
         const name = [g.first_name, g.last_name].filter(Boolean).join(' ') || g.name || '—';
         const meta = [g.email, g.phone].filter(Boolean).join(' · ');
-        return `<div class="guest-drop-item" onclick="extraGuestSelect(${idx},${gIdx})">
+        return `<div class="guest-drop-item" ${AppActions.attrs("click", "datas-hospedes-extra-guest-select-204e203", [idx, gIdx])}>
           <div class="gdi-name">${name.replace(/</g,'&lt;')}</div>
           <div class="gdi-meta">${meta.replace(/</g,'&lt;')}</div>
         </div>`;
@@ -382,7 +390,7 @@ function extraGuestSelect(idx, gIdx) {
   setVal('nome_completo', [g.first_name, g.last_name].filter(Boolean).join(' ') || g.name || '');
   setVal('email',       g.email);
   const rawPhone = g.phone || '';
-  const mc = DIAL_COUNTRIES.find(c => rawPhone.startsWith(c.dial));
+  const mc = AppModules.reservas.DIAL_COUNTRIES.find(c => rawPhone.startsWith(c.dial));
   setVal('tel_prefix',  mc ? mc.dial : '+351');
   setVal('tel_num',     mc ? rawPhone.slice(mc.dial.length).trim() : rawPhone);
   setVal('country',     g.country || g.nationality);
@@ -394,12 +402,12 @@ function extraGuestSelect(idx, gIdx) {
   setVal('nif',         g.nif);
   updateExtraForeignReqs(row);
   AppUI.refreshDropdowns(row);
-  calcTotal();
+  AppModules.reservas.calcTotal();
   const drop = document.getElementById(`extra-guest-drop-${idx}`);
   if (drop) { drop.innerHTML = ''; drop.classList.remove('open'); }
   const si = row.querySelector('.extra-guest-search-input');
   if (si) si.value = '';
-  toast('✅ Dados preenchidos.', 'success');
+  AppModules.core.toast('✅ Dados preenchidos.', 'success');
 }
 
 // ── WIZARD FUNCTIONS ──
@@ -407,3 +415,36 @@ function extraGuestSelect(idx, gIdx) {
 let _unavailableSuites = new Set();
 let _availTimer = null;
 
+
+AppActions.register({
+  "datas-hospedes-update-extra-foreign-reqs-b3323d9": (el, event, args) => { updateExtraForeignReqs(el.closest('.extra-guest-row')) },
+  "datas-hospedes-on-wiz-child-age-change-afbbccf": (el, event, args) => { onWizChildAgeChange() },
+}, "change");
+
+AppActions.register({
+  "datas-hospedes-handle-birth-date-input-6742f58": (el, event, args) => { handleBirthDateInput(el) },
+}, "input");
+
+AppActions.register({
+  "datas-hospedes-normalize-birth-date-input-19ea83e": (el, event, args) => { normalizeBirthDateInput(el);AppModules.reservas.calcTotal();updateSpecialRateHints() },
+}, "blur");
+
+AppActions.register({
+  "datas-hospedes-open-52fb94f": (el, event, args) => { AppDatePicker.open(el.closest('.birth-date-control').querySelector('.birth-date-input'),{isBirthDate:true}) },
+}, "click");
+
+AppActions.register({
+  "datas-hospedes-extra-guest-select-204e203": (el, event, args) => { extraGuestSelect(args[0],args[1]) },
+}, "click");
+
+AppActions.register({
+  "datas-hospedes-extra-guest-search-dd52ef7": (el, event, args) => { extraGuestSearch(el.value,args[0]) },
+}, "input");
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('features/reserva-wizard/datas-hospedes.js', () => {
+  _unavailableSuites = new Set();
+  clearTimeout(_availTimer); clearInterval(_availTimer); _availTimer = null;
+});
+
+})();

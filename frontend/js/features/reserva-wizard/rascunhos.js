@@ -1,6 +1,18 @@
+// Estado privado; interface partilhada em AppModules.reservas.
+(() => {
+AppModules.define('reservas', {
+  _suppressDraftSave: { get: () => _suppressDraftSave, set: value => { _suppressDraftSave = value; } },
+  applyReservaDraft: { get: () => applyReservaDraft },
+  clearReservaDraft: { get: () => clearReservaDraft },
+  discardReservaDraft: { get: () => discardReservaDraft },
+  loadReservaDraft: { get: () => loadReservaDraft },
+  requestCloseReservaModal: { get: () => requestCloseReservaModal },
+  reservaModalIsOpen: { get: () => reservaModalIsOpen },
+});
+
 const RESERVA_DRAFT_KEY = 'sp_reserva_draft_v2';
 try { localStorage.removeItem('sp_reserva_draft_v1'); } catch {}
-function reservaDraftKey() { return `${RESERVA_DRAFT_KEY}:${currentUser?.id || ''}:${currentUser?.organization_id || ''}`; }
+function reservaDraftKey() { return `${RESERVA_DRAFT_KEY}:${AppModules.core.currentUser?.id || ''}:${AppModules.core.currentUser?.organization_id || ''}`; }
 let _draftSaveTimer = null;
 let _suppressDraftSave = false;
 
@@ -26,13 +38,13 @@ function reservaFormHasData() {
       val('f-doc-num') || val('f-nif') || val('f-morada')) {
     return true;
   }
-  const extras = collectExtraGuests();
+  const extras = AppModules.reservas.collectExtraGuests();
   return extras.length > 0;
 }
 
 function requestCloseReservaModal() {
   // Em edição não guardamos rascunho; fechar diretamente.
-  if (editingId) { closeModal(); return; }
+  if (AppModules.core.editingId) { AppModules.reservas.closeModal(); return; }
   if (reservaFormHasData()) {
     saveReservaDraft(); // garante que o estado atual fica guardado
     const ok = window.confirm('Fechar e guardar como rascunho?\n\nOs dados ficam guardados e podes continuar da próxima vez que abrires "Nova Reserva".');
@@ -41,10 +53,10 @@ function requestCloseReservaModal() {
     // Formulário vazio: nada a preservar.
     clearReservaDraft();
   }
-  closeModal();
+  AppModules.reservas.closeModal();
 }
 // Hook global para o handler de Escape partilhado (ui.js).
-window.requestCloseReservaModal = requestCloseReservaModal;
+
 
 function serializeReservaForm() {
   const fields = {};
@@ -59,21 +71,21 @@ function serializeReservaForm() {
     fields,
     discountType: discTypeBtn?.dataset.type || 'pct',
     numHospedes: document.getElementById('f-num-hospedes')?.value || '',
-    extraGuests: collectExtraGuests(),
-    nightlyOverrides: _nightlyOverrides,
-    manualTotal: _manualTotalOverride,
+    extraGuests: AppModules.reservas.collectExtraGuests(),
+    nightlyOverrides: AppModules.reservas._nightlyOverrides,
+    manualTotal: AppModules.reservas._manualTotalOverride,
   };
 }
 
 function saveReservaDraft() {
-  if (_suppressDraftSave || editingId || !currentUser) return;
+  if (_suppressDraftSave || AppModules.core.editingId || !AppModules.core.currentUser) return;
   try {
     sessionStorage.setItem(reservaDraftKey(), JSON.stringify(serializeReservaForm()));
   } catch {}
 }
 
 function scheduleReservaDraftSave() {
-  if (_suppressDraftSave || editingId || !currentUser) return;
+  if (_suppressDraftSave || AppModules.core.editingId || !AppModules.core.currentUser) return;
   clearTimeout(_draftSaveTimer);
   _draftSaveTimer = setTimeout(saveReservaDraft, 400);
 }
@@ -102,8 +114,8 @@ function applyReservaDraft(draft) {
       const el = document.getElementById(id);
       if (el) el.value = value;
     });
-    updateNumHospedes();
-    if (draft.discountType) setFormDiscountType(draft.discountType);
+    AppModules.reservas.updateNumHospedes();
+    if (draft.discountType) AppModules.reservas.setFormDiscountType(draft.discountType);
     const discVal = document.getElementById('f-discount-val');
     if (discVal && draft.fields?.['f-discount-val']) {
       discVal.value = draft.fields['f-discount-val'];
@@ -112,11 +124,11 @@ function applyReservaDraft(draft) {
     }
 
     // Preço por noite / total manual guardados no rascunho.
-    _nightlyOverrides = draft.nightlyOverrides && typeof draft.nightlyOverrides === 'object' ? { ...draft.nightlyOverrides } : {};
-    _manualTotalOverride = (draft.manualTotal == null || isNaN(Number(draft.manualTotal))) ? null : Number(draft.manualTotal);
-    _nightlyGridSig = '';
+    AppModules.reservas._nightlyOverrides = draft.nightlyOverrides && typeof draft.nightlyOverrides === 'object' ? { ...draft.nightlyOverrides } : {};
+    AppModules.reservas._manualTotalOverride = (draft.manualTotal == null || isNaN(Number(draft.manualTotal))) ? null : Number(draft.manualTotal);
+    AppModules.reservas._nightlyGridSig = '';
 
-    renderExtraGuests();
+    AppModules.reservas.renderExtraGuests();
     (draft.extraGuests || []).forEach((g, idx) => {
       const rows = document.querySelectorAll('.extra-guest-row');
       const row = rows[idx];
@@ -125,11 +137,11 @@ function applyReservaDraft(draft) {
       setVal('nome_completo', [g.first_name, g.last_name].filter(Boolean).join(' ') || g.name || '');
       setVal('email', g.email);
       const rawP = g.phone || '';
-      const mc = DIAL_COUNTRIES.find(c => rawP.startsWith(c.dial));
+      const mc = AppModules.reservas.DIAL_COUNTRIES.find(c => rawP.startsWith(c.dial));
       setVal('tel_prefix', mc ? mc.dial : '+351');
       setVal('tel_num', mc ? rawP.slice(mc.dial.length).trim() : rawP);
       setVal('country', g.country || g.nationality);
-      setVal('birth_date', formatDateForBirthInput(g.birth_date));
+      setVal('birth_date', AppModules.reservas.formatDateForBirthInput(g.birth_date));
       setVal('birth_city', g.birth_city);
       setVal('doc_type', g.document_type);
       setVal('doc_number', g.document_number);
@@ -148,7 +160,7 @@ function discardReservaDraft() {
   clearReservaDraft();
   _suppressDraftSave = true;
   try {
-    openModal(); // reabre limpo (openModal repõe defaults e não encontra rascunho)
+    AppModules.reservas.openModal(); // reabre limpo (openModal repõe defaults e não encontra rascunho)
   } finally {
     _suppressDraftSave = false;
   }
@@ -169,3 +181,11 @@ if (document.readyState === 'loading') {
   _wireReservaDraftAutosave();
 }
 
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('features/reserva-wizard/rascunhos.js', () => {
+  clearReservaDraft();
+  clearTimeout(_draftSaveTimer); clearInterval(_draftSaveTimer); _draftSaveTimer = null;
+});
+
+})();

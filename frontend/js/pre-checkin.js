@@ -1,3 +1,5 @@
+// Estado privado; interface partilhada em AppModules.precheckin.
+(() => {
 const $ = id => document.getElementById(id);
 const token = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop() || '');
 let reservationData = null;
@@ -69,7 +71,7 @@ function guestForm(guest, index, numAdults) {
     <div class="guest-card" data-guest="${index}" data-is-child="${isChild}" style="border:1px solid rgba(132,52,36,.14);border-radius:14px;padding:16px;margin:14px 0;background:#fff;">
       <div class="step-heading" style="margin-bottom:14px;">
         <span>${label}</span>
-        <h2 style="font-size:22px;">${guest?.name || label}</h2>
+        <h2 style="font-size:22px;">${escapeAttr(guest?.name || label)}</h2>
       </div>
       <label>
         <span>Nome completo *</span>
@@ -128,6 +130,15 @@ function escapeAttr(value) {
     '"': '&quot;',
     "'": '&#39;',
   })[char]);
+}
+
+function safeMediaUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw, location.origin);
+    return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '';
+  } catch { return ''; }
 }
 
 function collectGuest(card) {
@@ -253,10 +264,10 @@ function render(data) {
   $('pc-checkin').textContent = fmtDate(r.check_in);
   $('pc-checkout').textContent = fmtDate(r.check_out);
   $('pc-guest-count').textContent = `${r.num_guests} hóspede${Number(r.num_guests) !== 1 ? 's' : ''}`;
-  const image = r.cover_image || r.images?.[0] || '';
+  const image = safeMediaUrl(r.cover_image || r.images?.[0] || '');
   if (image) {
-    $('pc-bg').style.backgroundImage = `url("${image}")`;
-    $('pc-summary-photo').style.backgroundImage = `url("${image}")`;
+    $('pc-bg').style.backgroundImage = `url(${JSON.stringify(image)})`;
+    $('pc-summary-photo').style.backgroundImage = `url(${JSON.stringify(image)})`;
   }
   $('pc-arrival-time').value = normalizeTimeInput(r.arrival_time || '');
 
@@ -271,7 +282,8 @@ function render(data) {
 
   if (r.precheckin_submitted_at) {
     $('pc-success').classList.add('show');
-    $('pc-success').innerHTML = '<strong>Pré check-in já submetido.</strong><br>Pode reenviar se precisar de corrigir algum dado.';
+    $('pc-success').innerHTML = '<strong>Pré check-in já submetido.</strong><br>Para corrigir algum dado, contacte diretamente o alojamento.';
+    $('pc-submit').disabled = true;
   }
 }
 
@@ -320,3 +332,5 @@ $('precheckin-form').addEventListener('submit', async event => {
 
 setupArrivalTime();
 load();
+
+})();

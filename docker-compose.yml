@@ -2,17 +2,26 @@ services:
   backend:
     build: .
     restart: unless-stopped
+    init: true
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
     env_file: ./backend/src/.env
     environment:
       - NODE_ENV=production
+      - TZ=${TZ:-Europe/Lisbon}
       - DB_PATH=/app/data/santapaciencia.db
       - FRONTEND_PATH=/app/frontend
+      - TRUST_PROXY=loopback
     volumes:
       - ./data:/app/data
       - ./tokens:/tokens
-      - ./frontend:/app/frontend
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     networks:
       - app-network
 
@@ -25,6 +34,8 @@ services:
       - CLOUDFLARE_TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       - backend
+    security_opt:
+      - no-new-privileges:true
 
 networks:
   app-network:

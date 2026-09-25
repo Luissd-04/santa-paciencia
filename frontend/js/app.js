@@ -1,3 +1,35 @@
+// Estado privado; interface partilhada em AppModules.core.
+(() => {
+AppModules.define('core', {
+  abrirHospede: { get: () => abrirHospede },
+  abrirMensagensDaReserva: { get: () => abrirMensagensDaReserva },
+  abrirReserva: { get: () => abrirReserva },
+  cleanGcalDuplicates: { get: () => cleanGcalDuplicates },
+  cleanGtasksDuplicates: { get: () => cleanGtasksDuplicates },
+  closeSideDrawer: { get: () => closeSideDrawer },
+  connectGcal: { get: () => connectGcal },
+  connectGmail: { get: () => connectGmail },
+  connectGoogleTasks: { get: () => connectGoogleTasks },
+  disconnectGcal: { get: () => disconnectGcal },
+  disconnectGmail: { get: () => disconnectGmail },
+  disconnectGoogleTasks: { get: () => disconnectGoogleTasks },
+  initApp: { get: () => initApp },
+  loadAccommodations: { get: () => loadAccommodations },
+  novaReserva: { get: () => novaReserva },
+  quickActionNovaNotificacao: { get: () => quickActionNovaNotificacao },
+  quickActionNovaReserva: { get: () => quickActionNovaReserva },
+  quickActionNovoEvento: { get: () => quickActionNovoEvento },
+  saveGcalSyncSettings: { get: () => saveGcalSyncSettings },
+  showView: { get: () => showView },
+  switchSettingsTab: { get: () => switchSettingsTab },
+  syncAllGcal: { get: () => syncAllGcal },
+  syncGoogleTasks: { get: () => syncGoogleTasks },
+  testGmail: { get: () => testGmail },
+  toggleQuickActionMenu: { get: () => toggleQuickActionMenu },
+  toggleSidebar: { get: () => toggleSidebar },
+  toggleSidebarCollapse: { get: () => toggleSidebarCollapse },
+});
+
 // ── NAVIGATION ──
 const VIEW_TITLES = {
   dashboard:  'Dashboard',
@@ -18,7 +50,10 @@ const VIEW_TITLES = {
 
 /* Dark mode removido — sempre light */
 
-function showView(v, pushState = true) {
+// Mostra a vista e, na primeira abertura, traz o código que a serve. A vista
+// fica visível primeiro (o esqueleto já está no HTML) e só depois corre a
+// inicialização, para que uma ligação lenta não deixe o ecrã parado.
+async function showView(v, pushState = true) {
   if (v === 'gcal') {
     switchSettingsTab('gcal', false);
     v = 'definicoes';
@@ -45,8 +80,21 @@ function showView(v, pushState = true) {
   nextView.addEventListener('animationend', () => {
     nextView.classList.remove('view-entering');
   }, { once: true });
+  // x.dataset.view === v é sempre um booleano real: getAttribute('onclick')
+  // já não existe desde a migração para data-on-click, e
+  // classList.toggle('active', undefined) não remove a classe — alterna-a a
+  // cada chamada, como se o segundo argumento não tivesse sido passado.
+  // Isso acumulava "active" em quase todos os itens ao longo da sessão.
   document.querySelectorAll('.nav-item').forEach(x => {
-    x.classList.toggle('active', x.getAttribute('onclick')?.includes("'" + v + "'"));
+    const active = x.dataset.view === v;
+    x.classList.toggle('active', active);
+    if (active) x.setAttribute('aria-current', 'page');
+    else x.removeAttribute('aria-current');
+  });
+  document.querySelectorAll('.side-drawer-item[data-view]').forEach(x => {
+    const active = x.dataset.view === v;
+    if (active) x.setAttribute('aria-current', 'page');
+    else x.removeAttribute('aria-current');
   });
   document.getElementById('topbar-title').textContent = VIEW_TITLES[v] || v;
   setActiveBN(v);
@@ -55,36 +103,62 @@ function showView(v, pushState = true) {
   document.body.classList.toggle('view-despesas-active', v === 'despesas');
   if (pushState) history.pushState({ view: v }, '', '/' + (v === 'dashboard' ? '' : v));
   if (window.lucide) lucide.createIcons();
-  if (v === 'dashboard') renderDashboard();
-  if (v === 'reservas') {
-    if (typeof clearResExactDateFilter === 'function') clearResExactDateFilter();
-    if (!window.__openingReservationDetail && typeof showReservasList === 'function') showReservasList();
-    loadReservas();
+
+  const feature = AppModules.core.VIEW_FEATURE[v];
+  if (feature) {
+    AppModules.core.clearFeatureLoadError(v);
+    // Código e marcação trazem-se em paralelo — nenhum depende do outro para
+    // ser pedido, só initView() precisa dos dois já prontos. A marcação é
+    // pedida para a funcionalidade inteira (todas as suas vistas), não só a
+    // que está a abrir: código desta funcionalidade pode mexer na marcação
+    // de uma vista irmã sem passar por aqui (ex.: separadores dentro de uma
+    // ficha de detalhe já aberta).
+    const [featureOk, markupOk] = await Promise.all([
+      AppModules.core.ensureFeature(feature),
+      AppModules.core.ensureViewMarkup(feature),
+    ]);
+    if (!featureOk || !markupOk) {
+      AppModules.core.showFeatureLoadError(v, feature || v, () => showView(v, false));
+      return;
+    }
+    // Entretanto o utilizador pode ter mudado de vista: não inicializar uma
+    // vista que já não está no ecrã.
+    if (!document.getElementById('view-' + v)?.classList.contains('active')) return;
   }
-  if (v === 'calendario') loadReservas().then(() => renderCalView());
-  if (v === 'eventos') loadEventos();
-  if (v === 'hospedes') loadHospedes();
-  if (v === 'notificacoes') { loadNotifications(); renderNotificationsPage(); }
-  if (v === 'alojamentos') { renderAlojamentos(); initAlojDrag(); loadServicos(); }
-  if (v === 'despesas')   loadDespesas();
-  if (v === 'relatorios') loadRelatorios();
-  if (v === 'invoice') loadInvoiceView();
-  else if (typeof _stopInvoicePoll === 'function') _stopInvoicePoll();
-  if (v === 'vouchers') loadVouchers();
-  if (v === 'precos') initPrecos();
+  await initView(v);
+}
+
+// Arranque da vista, já com o código dela carregado.
+async function initView(v) {
+  if (v === 'dashboard') AppModules.core.renderDashboard();
+  if (v === 'reservas') {
+    if (typeof AppModules.reservas.clearResExactDateFilter === 'function') AppModules.reservas.clearResExactDateFilter();
+    if (!AppModules.core.openingReservationDetail && typeof AppModules.reservas.showReservasList === 'function') AppModules.reservas.showReservasList();
+    AppModules.reservas.loadReservas();
+  }
+  if (v === 'calendario') { await AppModules.bloqueios.ensureBlocksLoaded(); AppModules.calendario.renderCalView(); }
+  if (v === 'eventos') AppModules.eventos.loadEventos();
+  if (v === 'hospedes') AppModules.hospedes.loadHospedes();
+  if (v === 'notificacoes') { AppModules.core.loadNotifications(); AppModules.core.renderNotificationsPage(); }
+  if (v === 'alojamentos') { await AppModules.bloqueios.ensureBlocksLoaded(); AppModules.alojamentos.renderAlojamentos(); AppModules.alojamentos.initAlojDrag(); AppModules.alojamentos.renderServicos(); }
+  if (v === 'despesas')   AppModules.despesas.loadDespesas();
+  if (v === 'relatorios') AppModules.relatorios.loadRelatorios();
+  if (v === 'invoice') AppModules.invoice.loadInvoiceView();
+  else if (typeof AppModules.invoice._stopInvoicePoll === 'function') AppModules.invoice._stopInvoicePoll();
+  if (v === 'vouchers') AppModules.vouchers.loadVouchers();
+  if (v === 'precos') AppModules.precos.initPrecos();
   if (v === 'definicoes') renderSettingsView();
 }
 
-window.addEventListener('popstate', (e) => {
+window.addEventListener('popstate', async (e) => {
   let v = e.state?.view || 'dashboard';
   if (v === 'gcal') { settingsTab = 'gcal'; v = 'definicoes'; }
   if (v === 'equipa') { settingsTab = 'equipa'; v = 'definicoes'; }
   if (v === 'emails') { settingsTab = 'emails'; v = 'definicoes'; }
-  if (e.state?.reservaDetail && v === 'reservas' && typeof showDetail === 'function') {
-    window.__openingReservationDetail = true;
-    showView('reservas', false);
-    window.__openingReservationDetail = false;
-    showDetail(e.state.reservaDetail, { fromHistory: true });
+  if (e.state?.reservaDetail && v === 'reservas') {
+    AppModules.core.openingReservationDetail = true;
+    try { await showView('reservas', false); } finally { AppModules.core.openingReservationDetail = false; }
+    if (typeof AppModules.reservas.showDetail === 'function') AppModules.reservas.showDetail(e.state.reservaDetail, { fromHistory: true });
     return;
   }
   if (VIEW_TITLES[v]) showView(v, false);
@@ -92,38 +166,91 @@ window.addEventListener('popstate', (e) => {
 
 // Deep-link: /reservas?reserva=<id> abre diretamente a ficha da reserva.
 // Usado no boot (links de email) e nos cliques em notificações push.
-function handleDeepLinkUrl(raw) {
+async function handleDeepLinkUrl(raw) {
   const u = new URL(raw, window.location.origin);
   const view = u.pathname.replace(/^\/+|\/+$/g, '') || 'dashboard';
   const reservaId = u.searchParams.get('reserva');
-  if (view === 'reservas' && reservaId && typeof showDetail === 'function') {
-    showDetail(reservaId);
-    return;
+  if (view === 'reservas' && reservaId) {
+    if (await AppModules.core.ensureFeature('reservas')) { AppModules.reservas.showDetail(reservaId); return; }
   }
   showView(VIEW_TITLES[view] ? view : 'dashboard');
 }
 
+// ── ATALHOS ENTRE VISTAS ──
+// Usados por vistas que não dependem do destino: o código de destino só chega
+// quando o utilizador carrega no atalho.
+// Abrir a ficha de uma reserva a partir do painel, de uma notificação ou de
+// outra vista: a showDetail trata da navegação, só falta ter o módulo.
+async function abrirReserva(reservationId) {
+  await AppModules.core.featureAction('showDetail', reservationId);
+}
+
+// O assistente de reservas é uma sobreposição: abre sobre a vista atual, tal
+// como fazia antes de haver carregamento por vista.
+async function novaReserva() {
+  await AppModules.core.featureAction('openModal');
+}
+
+async function abrirHospede(guestId) {
+  await AppModules.core.featureAction('showHospedeDetail', guestId);
+}
+
+async function abrirMensagensDaReserva(reservationId, guestEmail, guestName) {
+  await AppModules.core.featureAction('openInvoiceForReservation', reservationId, guestEmail, guestName);
+}
+
 // ── MOBILE BOTTOM NAV ──
 const BOTTOM_NAV_VIEWS = ['dashboard', 'reservas', 'calendario', 'eventos', 'despesas'];
+let sideDrawerPreviousFocus = null;
 
 function setActiveBN(v) {
   BOTTOM_NAV_VIEWS.forEach(name => {
     const el = document.getElementById('bn-' + name);
-    if (el) el.classList.toggle('active', name === v);
+    if (el) {
+      const active = name === v;
+      el.classList.toggle('active', active);
+      if (active) el.setAttribute('aria-current', 'page');
+      else el.removeAttribute('aria-current');
+    }
   });
 }
 
 function openSideDrawer() {
-  document.getElementById('side-drawer').classList.add('open');
+  const drawer = document.getElementById('side-drawer');
+  const trigger = document.getElementById('mobile-menu-trigger');
+  sideDrawerPreviousFocus = document.activeElement;
+  drawer.classList.add('open');
+  drawer.setAttribute('aria-hidden', 'false');
+  trigger?.setAttribute('aria-expanded', 'true');
   document.getElementById('side-drawer-overlay').classList.add('active');
+  document.getElementById('app-layout').inert = true;
   document.body.style.overflow = 'hidden';
+  requestAnimationFrame(() => (drawer.querySelector('button:not([disabled])') || drawer).focus({ preventScroll: true }));
 }
 
 function closeSideDrawer() {
-  document.getElementById('side-drawer').classList.remove('open');
+  const drawer = document.getElementById('side-drawer');
+  drawer.classList.remove('open');
+  drawer.setAttribute('aria-hidden', 'true');
+  document.getElementById('mobile-menu-trigger')?.setAttribute('aria-expanded', 'false');
   document.getElementById('side-drawer-overlay').classList.remove('active');
+  document.getElementById('app-layout').inert = false;
   document.body.style.overflow = '';
+  if (sideDrawerPreviousFocus?.isConnected) sideDrawerPreviousFocus.focus({ preventScroll: true });
+  sideDrawerPreviousFocus = null;
 }
+
+document.addEventListener('keydown', event => {
+  const drawer = document.getElementById('side-drawer');
+  if (!drawer?.classList.contains('open')) return;
+  if (event.key === 'Escape') { event.preventDefault(); closeSideDrawer(); return; }
+  if (event.key !== 'Tab') return;
+  const items = Array.from(drawer.querySelectorAll('button:not([disabled]), [tabindex]:not([tabindex="-1"])'));
+  if (!items.length) { event.preventDefault(); drawer.focus(); return; }
+  const first = items[0], last = items.at(-1);
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+});
 
 function toggleQuickActionMenu(event) {
   event.stopPropagation();
@@ -138,22 +265,22 @@ function closeQuickActionMenu() {
   if (menu) menu.style.display = 'none';
 }
 
-function quickActionNovaReserva() {
+async function quickActionNovaReserva() {
   closeQuickActionMenu();
-  showView('reservas');
-  setTimeout(() => openModal(), 100);
+  await showView('reservas');
+  if (typeof AppModules.reservas.openModal === 'function') AppModules.reservas.openModal();
 }
 
-function quickActionNovoEvento() {
+async function quickActionNovoEvento() {
   closeQuickActionMenu();
-  showView('eventos');
-  setTimeout(() => openEventoModal(), 100);
+  await showView('eventos');
+  if (typeof AppModules.eventos.openEventoModal === 'function') AppModules.eventos.openEventoModal();
 }
 
-function quickActionNovaNotificacao() {
+async function quickActionNovaNotificacao() {
   closeQuickActionMenu();
-  showView('notificacoes');
-  setTimeout(() => openManualNotificationModal(), 100);
+  await showView('notificacoes');
+  AppModules.core.openManualNotificationModal();
 }
 
 document.addEventListener('click', event => {
@@ -161,12 +288,12 @@ document.addEventListener('click', event => {
 });
 
 // ── SETTINGS ──
-let settingsTab = SS.get('settings:tab', 'gcal');
+let settingsTab = AppModules.core.SS.get('settings:tab', 'gcal');
 
 function switchSettingsTab(tab, render = true) {
-  if (tab === 'equipa' && currentUser?.role !== 'owner') tab = 'gcal';
+  if (tab === 'equipa' && AppModules.core.currentUser?.role !== 'owner') tab = 'gcal';
   settingsTab = ['gcal', 'database', 'operations', 'emails', 'fornecedores', 'push', 'equipa'].includes(tab) ? tab : 'gcal';
-  SS.set('settings:tab', settingsTab);
+  AppModules.core.SS.set('settings:tab', settingsTab);
 
   document.querySelectorAll('[data-settings-tab]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.settingsTab === settingsTab);
@@ -179,35 +306,44 @@ function switchSettingsTab(tab, render = true) {
 }
 
 function renderSettingsView() {
-  if (settingsTab === 'equipa' && currentUser?.role !== 'owner') settingsTab = 'gcal';
+  if (settingsTab === 'equipa' && AppModules.core.currentUser?.role !== 'owner') settingsTab = 'gcal';
   switchSettingsTab(settingsTab, false);
   AppUI.enhanceSelects(document.getElementById('view-definicoes'));
   AppUI.refreshDropdowns(document.getElementById('view-definicoes'));
   if (settingsTab === 'gcal') { loadCalendarStatus(); loadGmailStatus(); loadGoogleTasksStatus(); }
   if (settingsTab === 'database') {
-    if (!reservas?.length) loadReservas();
-    if (!hospedes?.length) loadHospedes();
-    if (typeof initExportReminderControls === 'function') initExportReminderControls();
+    if (typeof AppModules.core.initExportReminderControls === 'function') AppModules.core.initExportReminderControls();
   }
-  if (settingsTab === 'operations' && typeof loadAutoTaskSettings === 'function') loadAutoTaskSettings();
-  if (settingsTab === 'emails' && typeof loadEmailTemplates === 'function') loadEmailTemplates();
-  if (settingsTab === 'fornecedores' && typeof loadFornecedores === 'function') loadFornecedores();
-  if (settingsTab === 'push' && typeof initPushSettings === 'function') initPushSettings();
-  if (settingsTab === 'equipa' && currentUser?.role === 'owner') loadTeamOverview();
+  if (settingsTab === 'operations' && typeof AppModules.core.loadAutoTaskSettings === 'function') AppModules.core.loadAutoTaskSettings();
+  if (settingsTab === 'emails' && typeof AppModules.definicoes.loadEmailTemplates === 'function') AppModules.definicoes.loadEmailTemplates();
+  if (settingsTab === 'fornecedores' && typeof AppModules.definicoes.loadFornecedores === 'function') AppModules.definicoes.loadFornecedores();
+  if (settingsTab === 'push' && typeof AppModules.definicoes.initPushSettings === 'function') AppModules.definicoes.initPushSettings();
+  if (settingsTab === 'equipa' && AppModules.core.currentUser?.role === 'owner') AppModules.definicoes.loadTeamOverview();
   if (window.lucide) lucide.createIcons();
 }
 
 // ── ACCOMMODATIONS ──
+// Serviços e taxas (preço do pequeno-almoço, taxa turística) entram no cálculo
+// de qualquer reserva, por isso são lidos no arranque e não com a vista de
+// Alojamentos. O editor da tabela vive em features/alojamentos/.
+async function loadServicos() {
+  try {
+    const res = await AppModules.core.apiGet('/api/accommodations/settings');
+    AppModules.core.servicosData = res.data || AppModules.core.servicosData;
+  } catch (e) { /* mantém os valores por omissão */ }
+  if (typeof AppModules.alojamentos.renderServicos === 'function') AppModules.alojamentos.renderServicos();
+}
+
 async function loadAccommodations() {
   try {
-    const data = await apiGet('/api/accommodations');
-    accommodations = data.data || [];
+    const data = await AppModules.core.apiGet('/api/accommodations');
+    AppModules.core.accommodations = data.data || [];
     populateAccommodationSelects();
     AppUI.refreshDropdowns(document);
-    renderAlojamentos();
-    initAlojDrag();
+    // A vista de Alojamentos só é redesenhada se já tiver sido aberta.
+    if (typeof AppModules.alojamentos.renderAlojamentos === 'function') { AppModules.alojamentos.renderAlojamentos(); AppModules.alojamentos.initAlojDrag(); }
   } catch (e) {
-    toast('❌ Erro ao carregar alojamentos.', 'error');
+    AppModules.core.toast('❌ Erro ao carregar alojamentos.', 'error');
   }
 }
 
@@ -220,7 +356,7 @@ function populateAccommodationSelects() {
       ? `<option value="">${id === 'eventos-list-acc-filter' ? 'Todos os alojamentos' : 'Todas as suites'}</option>`
       : (id === 'evento-accommodation' ? '<option value="">Sem alojamento</option>' : '');
     const frag = document.createDocumentFragment();
-    accommodations.forEach(a => {
+    AppModules.core.accommodations.forEach(a => {
       const opt = document.createElement('option');
       opt.value = a.id;
       opt.textContent = a.name;
@@ -256,7 +392,7 @@ function toggleSidebarCollapse() {
 // ── GMAIL ──
 async function loadGmailStatus() {
   try {
-    const res = await apiGet('/auth/google-email/status');
+    const res = await AppModules.core.apiGet('/auth/google-email/status');
     const d = res?.data ?? res;
     const connected = d.connected ?? false;
     const email = d.email || '';
@@ -276,30 +412,30 @@ async function loadGmailStatus() {
 }
 
 function connectGmail() {
-  const popup = window.open(API_BASE + '/auth/google-email', '_blank', 'width=600,height=700');
-  toast('📧 Janela de autorização aberta...', 'info');
+  const popup = window.open(AppModules.core.API_BASE + '/auth/google-email', '_blank', 'width=600,height=700');
+  AppModules.core.toast('📧 Janela de autorização aberta...', 'info');
   const poll = setInterval(async () => {
     if (!popup || popup.closed) {
       clearInterval(poll);
       await new Promise(r => setTimeout(r, 1000));
       await loadGmailStatus();
-      toast('📧 Gmail ligado!', 'success');
+      AppModules.core.toast('📧 Gmail ligado!', 'success');
     }
   }, 500);
 }
 
 async function disconnectGmail() {
   try {
-    const res = await fetch(API_BASE + '/auth/google-email', { method: 'DELETE', credentials: 'include' });
+    const res = await fetch(AppModules.core.API_BASE + '/auth/google-email', { method: 'DELETE', credentials: 'include' });
     const data = await res.json();
     if (data.success) {
-      toast('📧 Gmail desligado.', 'info');
+      AppModules.core.toast('📧 Gmail desligado.', 'info');
       await loadGmailStatus();
     } else {
-      toast('❌ Erro ao desligar Gmail.', 'error');
+      AppModules.core.toast('❌ Erro ao desligar Gmail.', 'error');
     }
   } catch {
-    toast('❌ Erro de ligação.', 'error');
+    AppModules.core.toast('❌ Erro de ligação.', 'error');
   }
 }
 
@@ -307,16 +443,16 @@ async function testGmail() {
   const btn = document.getElementById('gmail-test-btn');
   AppUI.setButtonLoading(btn, true, 'A enviar...');
   try {
-    const res = await apiPost('/auth/google-email/test', {});
+    const res = await AppModules.core.apiPost('/auth/google-email/test', {});
     if (res.success) {
-      toast('✅ Email de teste enviado para a conta ligada.', 'success');
+      AppModules.core.toast('✅ Email de teste enviado para a conta ligada.', 'success');
     } else {
-      toast('❌ ' + (res.error || 'Erro ao enviar.'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao enviar.'), 'error');
       if (res.needs_reauth) await loadGmailStatus();
     }
   } catch (err) {
     const payload = err?.payload;
-    toast('❌ ' + (payload?.error || err?.message || 'Erro de ligação.'), 'error');
+    AppModules.core.toast('❌ ' + (payload?.error || err?.message || 'Erro de ligação.'), 'error');
     if (payload?.needs_reauth) await loadGmailStatus();
   } finally {
     AppUI.setButtonLoading(btn, false);
@@ -327,8 +463,8 @@ async function testGmail() {
 async function loadGoogleTasksStatus() {
   try {
     const [authRes, statsRes] = await Promise.all([
-      apiGet('/auth/google-tasks/status'),
-      apiGet('/api/tasks/status').catch(() => ({ data: {} })),
+      AppModules.core.apiGet('/auth/google-tasks/status'),
+      AppModules.core.apiGet('/api/tasks/status').catch(() => ({ data: {} })),
     ]);
     const info  = authRes?.data  ?? authRes;
     const stats = statsRes?.data ?? {};
@@ -357,28 +493,28 @@ async function loadGoogleTasksStatus() {
 }
 
 function connectGoogleTasks() {
-  const popup = window.open(API_BASE + '/auth/google-tasks', '_blank', 'width=600,height=700');
-  toast('✅ Janela de autorização aberta...', 'info');
+  const popup = window.open(AppModules.core.API_BASE + '/auth/google-tasks', '_blank', 'width=600,height=700');
+  AppModules.core.toast('✅ Janela de autorização aberta...', 'info');
   const poll = setInterval(async () => {
     if (!popup || popup.closed) {
       clearInterval(poll);
       await new Promise(r => setTimeout(r, 1000));
       await loadGoogleTasksStatus();
-      toast('✅ Google Tasks ligado!', 'success');
+      AppModules.core.toast('✅ Google Tasks ligado!', 'success');
     }
   }, 500);
 }
 
 async function disconnectGoogleTasks() {
   try {
-    const res = await fetch(API_BASE + '/auth/google-tasks', { method: 'DELETE', credentials: 'include' });
+    const res = await fetch(AppModules.core.API_BASE + '/auth/google-tasks', { method: 'DELETE', credentials: 'include' });
     const data = await res.json();
     if (data.success) {
-      toast('Google Tasks desligado.', 'info');
+      AppModules.core.toast('Google Tasks desligado.', 'info');
       await loadGoogleTasksStatus();
     }
   } catch {
-    toast('❌ Erro ao desligar.', 'error');
+    AppModules.core.toast('❌ Erro ao desligar.', 'error');
   }
 }
 
@@ -386,16 +522,16 @@ async function syncGoogleTasks() {
   const btn = document.getElementById('gtasks-sync-btn');
   AppUI.setButtonLoading(btn, true, 'A sincronizar...');
   try {
-    const res = await apiPost('/api/tasks/sync', {});
+    const res = await AppModules.core.apiPost('/api/tasks/sync', {});
     if (res.success) {
       const d = res.data;
-      toast(`✅ Tasks sincronizadas: ${d.created} criadas, ${d.updated} atualizadas${d.errors ? ', ' + d.errors + ' erros' : ''}.`, 'success');
+      AppModules.core.toast(`✅ Tasks sincronizadas: ${d.created} criadas, ${d.updated} atualizadas${d.errors ? ', ' + d.errors + ' erros' : ''}.`, 'success');
       await loadGoogleTasksStatus();
     } else {
-      toast('❌ ' + (res.error || 'Erro ao sincronizar.'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao sincronizar.'), 'error');
     }
   } catch (e) {
-    toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação.'), 'error');
+    AppModules.core.toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação.'), 'error');
   } finally {
     AppUI.setButtonLoading(btn, false);
   }
@@ -407,17 +543,17 @@ async function cleanGtasksDuplicates() {
   const btn = document.getElementById('gtasks-clean-btn');
   AppUI.setButtonLoading(btn, true, 'A limpar...');
   try {
-    const res = await apiPost('/api/tasks/clean-duplicates', {});
+    const res = await AppModules.core.apiPost('/api/tasks/clean-duplicates', {});
     if (res.success) {
-      toast(res.deleted > 0
+      AppModules.core.toast(res.deleted > 0
         ? `✅ ${res.deleted} tarefa(s) duplicada(s) removida(s).`
         : '✅ Não foram encontradas duplicadas.', 'success');
       await loadGoogleTasksStatus();
     } else {
-      toast('❌ ' + (res.error || 'Erro ao limpar duplicados.'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao limpar duplicados.'), 'error');
     }
   } catch (e) {
-    toast('❌ ' + (e?.payload?.error || 'Erro de ligação.'), 'error');
+    AppModules.core.toast('❌ ' + (e?.payload?.error || 'Erro de ligação.'), 'error');
   } finally {
     AppUI.setButtonLoading(btn, false);
   }
@@ -427,8 +563,8 @@ async function cleanGtasksDuplicates() {
 async function loadCalendarStatus() {
   try {
     const [statusPayload, settingsPayload] = await Promise.all([
-      apiGet('/api/calendar/status'),
-      apiGet('/api/calendar/settings').catch(() => ({ data: {} })),
+      AppModules.core.apiGet('/api/calendar/status'),
+      AppModules.core.apiGet('/api/calendar/settings').catch(() => ({ data: {} })),
     ]);
     const d = statusPayload?.data ?? statusPayload;
     const s = settingsPayload?.data ?? {};
@@ -475,7 +611,7 @@ async function saveGcalSyncSettings() {
   const tasksToggle = document.getElementById('gcal-sync-tasks-toggle');
   if (!calToggle && !tasksToggle) return;
   try {
-    await apiPost('/api/calendar/settings', {
+    await AppModules.core.apiPost('/api/calendar/settings', {
       syncCalendar: calToggle ? calToggle.checked : undefined,
       syncTasks: tasksToggle ? tasksToggle.checked : undefined,
     });
@@ -485,35 +621,35 @@ async function saveGcalSyncSettings() {
       await loadCalendarStatus();
     }
   } catch {
-    toast('❌ Erro ao guardar definição.', 'error');
+    AppModules.core.toast('❌ Erro ao guardar definição.', 'error');
   }
 }
 
 function connectGcal() {
-  const popup = window.open(API_BASE + '/auth/google', '_blank', 'width=600,height=700');
-  toast('🗓 Janela de autorização aberta...', 'info');
+  const popup = window.open(AppModules.core.API_BASE + '/auth/google', '_blank', 'width=600,height=700');
+  AppModules.core.toast('🗓 Janela de autorização aberta...', 'info');
   const poll = setInterval(async () => {
     if (!popup || popup.closed) {
       clearInterval(poll);
       await new Promise(r => setTimeout(r, 1000));
       await loadCalendarStatus();
-      toast('🗓 Google Calendar ligado!', 'success');
+      AppModules.core.toast('🗓 Google Calendar ligado!', 'success');
     }
   }, 500);
 }
 
 async function disconnectGcal() {
   try {
-    const res = await fetch(API_BASE + '/auth/google', { method: 'DELETE', credentials: 'include' });
+    const res = await fetch(AppModules.core.API_BASE + '/auth/google', { method: 'DELETE', credentials: 'include' });
     const data = await res.json();
     if (data.success) {
-      toast('🗓 Google Calendar desligado.', 'info');
+      AppModules.core.toast('🗓 Google Calendar desligado.', 'info');
       await loadCalendarStatus();
     } else {
-      toast('❌ Erro ao desligar.', 'error');
+      AppModules.core.toast('❌ Erro ao desligar.', 'error');
     }
   } catch (e) {
-    toast('❌ Erro de ligação.', 'error');
+    AppModules.core.toast('❌ Erro de ligação.', 'error');
   }
 }
 
@@ -521,18 +657,18 @@ async function syncAllGcal() {
   const btn = document.getElementById('gcal-sync-btn');
   AppUI.setButtonLoading(btn, true, 'A sincronizar...');
   try {
-    const res = await apiPost('/api/calendar/sync-all', {});
+    const res = await AppModules.core.apiPost('/api/calendar/sync-all', {});
     if (res.success) {
       const d = res.data;
       const taskInfo = d.syncTasks ? ` · Tarefas: ${d.taskCreated} criadas, ${d.taskUpdated} atualizadas${d.taskErrors ? ', ' + d.taskErrors + ' erros' : ''}` : '';
       const calInfo = d.calendarsCreated ? ` · ${d.calendarsCreated} calendário(s) de alojamento criado(s)` : '';
-      toast(`✅ Sincronização completa: ${d.created} criados, ${d.updated} atualizados${d.skipped ? ', ' + d.skipped + ' já ligados a outro membro' : ''}${d.errors ? ', ' + d.errors + ' erros' : ''}${calInfo}${taskInfo}.`, 'success');
+      AppModules.core.toast(`✅ Sincronização completa: ${d.created} criados, ${d.updated} atualizados${d.skipped ? ', ' + d.skipped + ' já ligados a outro membro' : ''}${d.errors ? ', ' + d.errors + ' erros' : ''}${calInfo}${taskInfo}.`, 'success');
       await loadCalendarStatus();
     } else {
-      toast('❌ ' + (res.error || 'Erro ao sincronizar.'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao sincronizar.'), 'error');
     }
   } catch (e) {
-    toast('❌ Erro de ligação.', 'error');
+    AppModules.core.toast('❌ Erro de ligação.', 'error');
   } finally {
     AppUI.setButtonLoading(btn, false);
   }
@@ -544,35 +680,40 @@ async function cleanGcalDuplicates() {
   const btn = document.getElementById('gcal-clean-btn');
   AppUI.setButtonLoading(btn, true, 'A limpar...');
   try {
-    const res = await apiPost('/api/calendar/clean-duplicates', {});
+    const res = await AppModules.core.apiPost('/api/calendar/clean-duplicates', {});
     if (res.success) {
-      toast(res.deleted > 0
+      AppModules.core.toast(res.deleted > 0
         ? `✅ ${res.deleted} evento(s) duplicado(s) removido(s).`
         : '✅ Não foram encontrados duplicados.', 'success');
     } else {
-      toast('❌ ' + (res.error || 'Erro ao limpar duplicados.'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao limpar duplicados.'), 'error');
     }
   } catch (e) {
-    toast('❌ ' + (e?.payload?.error || 'Erro de ligação.'), 'error');
+    AppModules.core.toast('❌ ' + (e?.payload?.error || 'Erro de ligação.'), 'error');
   } finally {
     AppUI.setButtonLoading(btn, false);
   }
 }
 
 // ── INIT ──
+let appEventsBound = false;
 async function initApp() {
+  if (!appEventsBound) {
+  appEventsBound = true;
   const coverInput = document.getElementById('cover-input');
   if (coverInput) coverInput.addEventListener('change', function () {
-    if (this.files[0]) uploadCoverImage(this.files[0]);
+    if (this.files[0]) AppModules.alojamentos.uploadCoverImage(this.files[0]);
     this.value = '';
   });
+  // Os dois inputs de ficheiro vivem na ficha do alojamento: as funções que os
+  // tratam só existem depois de a vista Alojamentos carregar, por isso são
+  // resolvidas no momento da escolha e não aqui.
   const imgInput = document.getElementById('img-input');
-  if (imgInput) imgInput.addEventListener('change', handleImgSelect);
+  if (imgInput) imgInput.addEventListener('change', event => AppModules.alojamentos.handleImgSelect(event));
 
+  }
   AppUI.enhanceSelects(document);
   await loadAccommodations();
-  if (typeof loadBlocks === 'function') loadBlocks();
-  await renderDashboard();
   loadCalendarStatus();
   loadServicos();
   if (window.lucide) lucide.createIcons();
@@ -590,8 +731,8 @@ async function initApp() {
   // faria history.back() indevido. A entrada base fica a lista.
   const deepId = new URLSearchParams(window.location.search).get('reserva');
   if (deepId && pathView === 'reservas') history.replaceState({ view: 'reservas' }, '', '/reservas');
-  showView(VIEW_TITLES[pathView] ? pathView : 'dashboard', false);
-  if (deepId && pathView === 'reservas' && typeof showDetail === 'function') showDetail(deepId);
+  await showView(VIEW_TITLES[pathView] ? pathView : 'dashboard', false);
+  if (deepId && pathView === 'reservas' && typeof AppModules.reservas.showDetail === 'function') AppModules.reservas.showDetail(deepId);
   if (window.AppDatePicker) {
     // Os campos type=date são ligados automaticamente (enhanceAll + observer no
     // date-picker.js); intervalos via data-dp-range-end e nascimentos via
@@ -602,14 +743,14 @@ async function initApp() {
 
   // Restore list filters that can't be recovered from URL alone.
   if (pathView === 'alojamentos' || pathView === 'reservas') {
-    const sv = (id, key) => { const el = document.getElementById(id); if (el && !el.value) el.value = SS.get(key, ''); };
+    const sv = (id, key) => { const el = document.getElementById(id); if (el && !el.value) el.value = AppModules.core.SS.get(key, ''); };
     sv('aloj-search', 'aloj:q'); sv('aloj-filter-type', 'aloj:type'); sv('aloj-filter-link', 'aloj:link');
   }
 }
 
 document.documentElement.setAttribute('data-theme', 'light');
 localStorage.removeItem('sp-theme');
-boot();
+AppModules.core.boot();
 
 /* ── PWA: Service Worker — obrigatório para notificações push ──
    O SW usa network-first para assets locais, portanto JS/CSS ficam
@@ -624,3 +765,5 @@ if ('serviceWorker' in navigator) {
     if (e.data?.type === 'sp-navigate' && e.data.url) handleDeepLinkUrl(e.data.url);
   });
 }
+
+})();

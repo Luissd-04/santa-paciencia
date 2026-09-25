@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
 const { scanReceipt: scanReceiptAI } = require('../services/receiptScanService');
+const { listExpenses } = require('../services/listQueries');
 
 const RECEIPTS_DIR = path.resolve('./data/uploads/receipts');
 if (!fs.existsSync(RECEIPTS_DIR)) fs.mkdirSync(RECEIPTS_DIR, { recursive: true });
@@ -28,14 +29,16 @@ function saveReceiptImage(dataUri) {
   return `/uploads/receipts/${filename}`;
 }
 
-function getAll(req, res) {
-  let query = 'SELECT * FROM expenses WHERE organization_id = ?';
-  const params = [req.user.organization_id];
-  if (req.query.month) { query += ' AND substr(date,1,7) = ?'; params.push(req.query.month); }
-  if (req.query.year)  { query += ' AND substr(date,1,4) = ?'; params.push(req.query.year); }
-  if (req.query.category) { query += ' AND category = ?'; params.push(req.query.category); }
-  query += ' ORDER BY date DESC, created_at DESC';
-  res.json({ success: true, data: db.prepare(query).all(...params) });
+// GET /api/expenses — filtros, pesquisa, ordenação e paginação no servidor.
+// `summary` traz o total do filtro ativo (todas as páginas), não só o da
+// página devolvida: a linha "Total do período" da vista depende disso.
+function getAll(req, res, next) {
+  try {
+    res.json({ success: true, ...listExpenses(req.user.organization_id, req.query) });
+  } catch (err) {
+    if (err.status === 400) return res.status(400).json({ error: err.message });
+    next(err);
+  }
 }
 
 function getSummary(req, res) {

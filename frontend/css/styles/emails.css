@@ -275,9 +275,11 @@
   overflow-y: auto;
 }
 .email-body-editor:focus { border-color: var(--azul); }
-.email-body-editor h2 { color: #843424; margin: 0 0 10px; }
-.email-body-editor h3 { color: #843424; margin: 0 0 8px; }
-.email-body-editor p  { color: #555; margin: 0 0 10px; }
+/* mesma paleta do email composto (emailComposer.js), para o que se escreve
+   no editor se parecer com o que sai */
+.email-body-editor h2 { color: #2f2a25; margin: 0 0 12px; font-size: 22px; }
+.email-body-editor h3 { color: #2f2a25; margin: 0 0 10px; font-size: 18px; }
+.email-body-editor p  { color: #5d554c; margin: 0 0 14px; }
 .email-body-editor table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .email-body-editor td  { padding: 6px 8px; }
 
@@ -312,7 +314,38 @@
   height: 460px;
   border: 1px solid var(--cinza-claro);
   border-radius: 8px;
-  background: #f4f4f4;
+  /* creme do próprio email, para o iframe não abrir com um fundo cinzento
+     antes de o HTML composto chegar do servidor */
+  background: #efe7da;
+}
+
+/* Contexto da pré-visualização: estado da reserva e alojamento. Mudam o que o
+   servidor compõe (título segundo o estado, logótipo/Wi-Fi/redes herdados). */
+.emed-preview-controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.emed-preview-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--cinza);
+  flex: 1 1 180px;
+}
+
+.emed-preview-notice {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #8a6d3b;
+  background: #fdf6e3;
+  border: 1px solid #f0e2c0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
 }
 
 .email-timing-fixed {

@@ -1,28 +1,37 @@
-function openAlojCalendar() {
+// Estado privado; interface partilhada em AppModules.alojamentos.
+(() => {
+AppModules.define('alojamentos', {
+  addExtraOccupancyOption: { get: () => addExtraOccupancyOption },
+  deleteAlojamento: { get: () => deleteAlojamento },
+  geocodeAndShowMap: { get: () => geocodeAndShowMap },
+  normalizeExtraOccupancyOptions: { get: () => normalizeExtraOccupancyOptions },
+  openAlojCalendar: { get: () => openAlojCalendar },
+  openAlojCalendarDirect: { get: () => openAlojCalendarDirect },
+  resetAlojMap: { get: () => resetAlojMap },
+  saveAlojamento: { get: () => saveAlojamento },
+  setExtraOccupancyFields: { get: () => setExtraOccupancyFields },
+  switchDescLang: { get: () => switchDescLang },
+  toggleWifiPass: { get: () => toggleWifiPass },
+});
+
+async function openAlojCalendar() {
   const gcalId = document.getElementById('aloj-gcal-id').value.trim();
   if (gcalId) {
     const url = 'https://calendar.google.com/calendar/r?cid=' + encodeURIComponent(gcalId);
     window.open(url, '_blank');
-  } else {
-    const id = document.getElementById('aloj-editing-id').value;
-    showView('calendario');
-    setTimeout(() => {
-      const sel = document.getElementById('cal-suite-filter');
-      if (sel) { sel.value = id; renderCal(); }
-    }, 100);
+    return;
   }
+  await openAlojCalendarDirect(document.getElementById('aloj-editing-id').value);
 }
 
-function openAlojCalendarDirect(id, gcalId, nome) {
+async function openAlojCalendarDirect(id, gcalId, nome) {
   if (gcalId) {
     window.open('https://calendar.google.com/calendar/r?cid=' + encodeURIComponent(gcalId), '_blank');
-  } else {
-    showView('calendario');
-    setTimeout(() => {
-      const sel = document.getElementById('cal-suite-filter');
-      if (sel) { sel.value = id; renderCal(); }
-    }, 150);
+    return;
   }
+  await AppModules.core.showView('calendario');
+  const sel = document.getElementById('cal-suite-filter');
+  if (sel && typeof AppModules.calendario.renderCal === 'function') { sel.value = id; AppModules.calendario.renderCal(); }
 }
 
 async function deleteAlojamento() {
@@ -31,18 +40,18 @@ async function deleteAlojamento() {
   if (!id) return;
   if (!confirm(`Apagar o alojamento "${name}"?\n\nEsta ação é irreversível. Todas as reservas canceladas associadas serão apagadas.`)) return;
   try {
-    const res = await apiDelete(`/api/accommodations/${id}`);
+    const res = await AppModules.core.apiDelete(`/api/accommodations/${id}`);
     if (res.success) {
-      toast('🗑 Alojamento apagado.', 'info');
-      currentAlojDetail = null;
-      SS.set('aloj:id', null);
-      showView('alojamentos');
-      await loadAccommodations();
+      AppModules.core.toast('🗑 Alojamento apagado.', 'info');
+      AppModules.alojamentos.currentAlojDetail = null;
+      AppModules.core.SS.set('aloj:id', null);
+      AppModules.core.showView('alojamentos');
+      await AppModules.core.loadAccommodations();
     } else {
-      toast('❌ ' + (res.error || 'Erro ao apagar alojamento.'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao apagar alojamento.'), 'error');
     }
   } catch (e) {
-    toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
+    AppModules.core.toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
   }
 }
 
@@ -113,7 +122,7 @@ function renderExtraOccupancyOptions(options = []) {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:end;">
         <div class="form-group" style="margin:0;">
           <label class="form-label">Tipo</label>
-          <select class="form-control" data-field="type" onchange="onExtraOccupancyTypeChange(this)">
+          <select class="form-control" data-field="type" data-on-change="configuracao-on-extra-occupancy-type-change-9647700">
             <option value="cama_extra" ${option.type === 'cama_extra' ? 'selected' : ''}>Cama extra</option>
             <option value="sofa_cama" ${option.type === 'sofa_cama' ? 'selected' : ''}>Sofá-cama</option>
             <option value="berco" ${option.type === 'berco' ? 'selected' : ''}>Berço</option>
@@ -139,8 +148,8 @@ function renderExtraOccupancyOptions(options = []) {
             <option value="per_bed_night" ${option.charge_type === 'per_bed_night' ? 'selected' : ''}>Por cama/noite</option>
           </select>
         </div>
-        <button type="button" onclick="removeExtraOccupancyOption(${index})" title="Remover extra" style="height:32px;width:32px;padding:0;border:0;background:transparent;color:var(--vermelho);cursor:pointer;display:flex;align-items:center;justify-content:center;justify-self:end;">
-          ${lcIcon('trash-2', 14)}
+        <button type="button" ${AppActions.attrs("click", "configuracao-remove-extra-occupancy-option-5eda19e", [index])} title="Remover extra" style="height:32px;width:32px;padding:0;border:0;background:transparent;color:var(--vermelho);cursor:pointer;display:flex;align-items:center;justify-content:center;justify-self:end;">
+          ${AppModules.core.lcIcon('trash-2', 14)}
         </button>
       </div>
       <div class="form-group" style="margin:10px 0 0;">
@@ -199,8 +208,22 @@ function getOptionalIcalUrl(inputId, label) {
     const url = new URL(value);
     if (url.protocol === 'http:' || url.protocol === 'https:') return value;
   } catch (_) {}
-  toast(`${label}: insere um URL http/https válido.`, 'error');
+  AppModules.core.toast(`${label}: insere um URL http/https válido.`, 'error');
   throw new Error('invalid_ical_url');
+}
+
+// Todos marcados (ou os três checkboxes ausentes) equivale a "sem
+// preferência guardada": null, para um link futuro (TripAdvisor) aparecer
+// por omissão em vez de ficar de fora por ter sido adicionado depois.
+function getEmailSocialLinksSelection() {
+  const fields = [
+    ['facebook',    document.getElementById('aloj-social-fb-email')],
+    ['instagram',   document.getElementById('aloj-social-ig-email')],
+    ['website',     document.getElementById('aloj-social-web-email')],
+    ['tripadvisor', document.getElementById('aloj-social-ta-email')],
+  ];
+  if (fields.every(([, el]) => !el || el.checked)) return null;
+  return fields.filter(([, el]) => el?.checked).map(([key]) => key);
 }
 
 // ── GUARDAR ALOJAMENTO ──
@@ -208,7 +231,7 @@ async function saveAlojamento() {
   const id = document.getElementById('aloj-editing-id').value;
   if (!id) return;
 
-  const checkedAmenities = getSelectedAmenitiesFromUi();
+  const checkedAmenities = AppModules.alojamentos.getSelectedAmenitiesFromUi();
 
   const parentId = document.getElementById('aloj-parent-id')?.value || null;
   const hasParent = !!parentId;
@@ -279,25 +302,31 @@ async function saveAlojamento() {
       door_code:     document.getElementById('aloj-door-code').value.trim()     || null,
       checkin_time:  document.getElementById('aloj-checkin-time').value  || null,
       checkout_time: document.getElementById('aloj-checkout-time').value || null,
-      social_facebook:  document.getElementById('aloj-social-fb')?.value.trim()  || null,
-      social_instagram: document.getElementById('aloj-social-ig')?.value.trim()  || null,
-      social_website:   document.getElementById('aloj-social-web')?.value.trim() || null,
+      social_facebook:    document.getElementById('aloj-social-fb')?.value.trim()  || null,
+      social_instagram:   document.getElementById('aloj-social-ig')?.value.trim()  || null,
+      social_website:     document.getElementById('aloj-social-web')?.value.trim() || null,
+      social_tripadvisor: document.getElementById('aloj-social-ta')?.value.trim()  || null,
+      // Com os quatro marcados guarda-se null ("mostrar todos os
+      // configurados"), não uma lista fixa — assim um link futuro aparece por
+      // omissão em vez de ficar de fora por ter sido adicionado depois desta
+      // gravação.
+      email_social_links: getEmailSocialLinksSelection(),
     });
   }
 
   try {
-    const res = await apiPut('/api/accommodations/' + id, body);
+    const res = await AppModules.core.apiPut('/api/accommodations/' + id, body);
     if (res.success) {
-      const activeTab = getActiveAlojTab();
-      toast('✅ Alojamento guardado!', 'success');
+      const activeTab = AppModules.alojamentos.getActiveAlojTab();
+      AppModules.core.toast('✅ Alojamento guardado!', 'success');
       document.getElementById('aloj-detalhe-nome').textContent = body.name;
-      await loadAccommodations();
-      await openAlojamento(id, activeTab);
+      await AppModules.core.loadAccommodations();
+      await AppModules.alojamentos.openAlojamento(id, activeTab);
     } else {
-      toast('❌ ' + (res.error || 'Erro ao guardar.'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao guardar.'), 'error');
     }
   } catch (e) {
-    toast('❌ Erro de ligação ao servidor.', 'error');
+    AppModules.core.toast('❌ Erro de ligação ao servidor.', 'error');
   }
 }
 
@@ -312,7 +341,7 @@ function resetAlojMap() {
   if (ph)  ph.style.display  = '';
   if (map) map.style.display = 'none';
   const btn = document.getElementById('aloj-map-btn');
-  if (btn) { btn.disabled = false; btn.innerHTML = `${lcIcon('search',13)} Verificar endereço`; }
+  if (btn) { btn.disabled = false; btn.innerHTML = `${AppModules.core.lcIcon('search',13)} Verificar endereço`; }
 }
 
 async function geocodeAndShowMap() {
@@ -321,7 +350,7 @@ async function geocodeAndShowMap() {
   const cidade  = (document.getElementById('aloj-cidade')?.value  || '').trim();
   const pais    = (document.getElementById('aloj-pais')?.value    || 'Portugal').trim();
   const q = [morada, cp, cidade, pais].filter(Boolean).join(', ');
-  if (!morada && !cidade) { toast('Preencha a morada antes de pesquisar.', 'error'); return; }
+  if (!morada && !cidade) { AppModules.core.toast('Preencha a morada antes de pesquisar.', 'error'); return; }
 
   const ph  = document.getElementById('aloj-map-placeholder');
   const mapEl = document.getElementById('aloj-map');
@@ -331,33 +360,34 @@ async function geocodeAndShowMap() {
   if (mapEl) mapEl.style.display = 'block';
   if (btn) { btn.disabled = true; btn.textContent = '⏳ A pesquisar...'; }
 
-  if (!_alojMap) {
-    _alojMap = L.map('aloj-map').setView([39.55, -8.0], 7);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19
-    }).addTo(_alojMap);
-  } else {
-    _alojMap.invalidateSize();
-  }
-
   try {
+    await AppModules.core.loadLibrary('map');
+    if (!_alojMap) {
+      _alojMap = L.map('aloj-map').setView([39.55, -8.0], 7);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19
+      }).addTo(_alojMap);
+    } else {
+      _alojMap.invalidateSize();
+    }
+
     const resp = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`,
       { headers: { 'Accept-Language': 'pt' } }
     );
     const results = await resp.json();
-    if (!results.length) { toast('Morada não encontrada. Verifique os dados.', 'error'); return; }
+    if (!results.length) { AppModules.core.toast('Morada não encontrada. Verifique os dados.', 'error'); return; }
     const latlng = [parseFloat(results[0].lat), parseFloat(results[0].lon)];
     _alojMap.setView(latlng, 16);
     if (_alojMarker) _alojMarker.remove();
     _alojMarker = L.marker(latlng).addTo(_alojMap);
-    _alojMarker.bindPopup(`<b>${results[0].display_name}</b>`).openPopup();
-    toast('✅ Localização encontrada!', 'success');
+    _alojMarker.bindPopup(`<b>${AppModules.core.escapeHtml(results[0].display_name)}</b>`).openPopup();
+    AppModules.core.toast('✅ Localização encontrada!', 'success');
   } catch (e) {
-    toast('❌ Erro ao pesquisar morada.', 'error');
+    AppModules.core.toast('❌ Erro ao pesquisar morada.', 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = `${lcIcon('search',13)} Verificar endereço`; if (window.lucide) lucide.createIcons(); }
+    if (btn) { btn.disabled = false; btn.innerHTML = `${AppModules.core.lcIcon('search',13)} Verificar endereço`; if (window.lucide) lucide.createIcons(); }
   }
 }
 
@@ -366,3 +396,20 @@ function switchDescLang(lang) {
   document.querySelectorAll('.desc-lang-tab').forEach(t => t.classList.toggle('active', t.dataset.lang === lang));
   document.querySelectorAll('.desc-lang-area').forEach(a => a.style.display = a.id === 'desc-' + lang ? 'block' : 'none');
 }
+
+AppActions.register({
+  "configuracao-on-extra-occupancy-type-change-9647700": (el, event, args) => { onExtraOccupancyTypeChange(el) },
+}, "change");
+
+AppActions.register({
+  "configuracao-remove-extra-occupancy-option-5eda19e": (el, event, args) => { removeExtraOccupancyOption(args[0]) },
+}, "click");
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('features/alojamentos/configuracao.js', () => {
+  _alojMap?.remove();
+  _alojMap = null;
+  _alojMarker = null;
+});
+
+})();

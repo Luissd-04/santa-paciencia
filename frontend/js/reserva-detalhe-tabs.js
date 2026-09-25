@@ -1,3 +1,10 @@
+// Estado privado; interface partilhada em AppModules.reservas.
+(() => {
+AppModules.define('reservas', {
+  rdv2InvalidateTarefas: { get: () => rdv2InvalidateTarefas },
+  rdv2ShowTab: { get: () => rdv2ShowTab },
+});
+
 // ── Tabs da ficha de reserva: Tarefas e Timeline ──
 // A tab "Reserva" é renderizada em showDetail (reserva-lista.js); estas duas
 // são carregadas sob demanda na primeira abertura de cada ficha.
@@ -11,7 +18,7 @@ function rdv2ShowTab(tab) {
     if (btn) btn.classList.toggle('rdv2-tab-active', t === tab);
     if (panel) panel.style.display = t === tab ? '' : 'none';
   });
-  const resId = _rdv2Current?.id;
+  const resId = AppModules.reservas._rdv2Current?.id;
   if (!resId) return;
   const panel = document.getElementById('rdv2-panel-' + tab);
   if (tab === 'tarefas' && panel && panel.dataset.loaded !== '1') rdv2LoadTarefas(resId);
@@ -33,7 +40,9 @@ async function rdv2LoadTarefas(resId) {
   panel.dataset.loaded = '1';
   panel.innerHTML = '<div class="rdv2-tab-empty">A carregar tarefas…</div>';
   try {
-    const res = await apiGet(`/api/events?reservation_id=${encodeURIComponent(resId)}`);
+    // Limite explícito: as tarefas de uma reserva cabem folgadamente numa
+    // página, mas sem o limite ficavam pelos 50 por omissão da listagem.
+    const res = await AppModules.core.apiGet(`/api/events?reservation_id=${encodeURIComponent(resId)}&limit=500`);
     _rdv2TarefasData = res.data || [];
     rdv2RenderTarefas(resId);
   } catch {
@@ -47,18 +56,18 @@ async function rdv2LoadTarefas(resId) {
 function rdv2InvalidateTarefas() {
   const panel = document.getElementById('rdv2-panel-tarefas');
   if (!panel || panel.dataset.loaded !== '1') return;
-  if (panel.style.display !== 'none') rdv2LoadTarefas(_rdv2Current?.id);
+  if (panel.style.display !== 'none') rdv2LoadTarefas(AppModules.reservas._rdv2Current?.id);
   else panel.dataset.loaded = '';
 }
 
 async function rdv2RefreshTaskBar(resId) {
   try {
-    const data = await apiGet(`/api/reservations/${resId}`);
+    const data = await AppModules.core.apiGet(`/api/reservations/${resId}`);
     const ts = data.data?.task_status || {};
     const wrap = document.getElementById('rdv2-task-bar');
     if (wrap) {
-      wrap.innerHTML = rdv2TaskBtnHtml(resId, 'checkin', !!ts.checkin_done)
-        + rdv2TaskBtnHtml(resId, 'checkout', !!ts.checkout_done);
+      wrap.innerHTML = AppModules.reservas.rdv2TaskBtnHtml(resId, 'checkin', !!ts.checkin_done)
+        + AppModules.reservas.rdv2TaskBtnHtml(resId, 'checkout', !!ts.checkout_done);
       if (window.lucide) lucide.createIcons();
     }
   } catch {}
@@ -67,7 +76,7 @@ async function rdv2RefreshTaskBar(resId) {
 function rdv2RenderTarefas(resId) {
   const panel = document.getElementById('rdv2-panel-tarefas');
   if (!panel) return;
-  const typeInfo = id => EVENT_TYPES.find(t => t.id === id) || EVENT_TYPES.find(t => t.id === 'outro');
+  const typeInfo = id => AppModules.core.EVENT_TYPES.find(t => t.id === id) || AppModules.core.EVENT_TYPES.find(t => t.id === 'outro');
 
   const rows = _rdv2TarefasData.map(ev => {
     const t = typeInfo(ev.type);
@@ -75,39 +84,39 @@ function rdv2RenderTarefas(resId) {
     const isAuto = Number(ev.auto_generated) === 1;
     return `
       <div class="rdv2-tarefa-row${done ? ' rdv2-tarefa-done' : ''}">
-        <button class="rdv2-tarefa-check" onclick="rdv2ToggleTarefa('${resId}','${ev.id}')"
+        <button class="rdv2-tarefa-check" ${AppActions.attrs("click", "reserva-detalhe-tabs-rdv2-toggle-tarefa-1af36e2", [String((resId) ?? ''), String((ev.id) ?? '')])}
           title="${done ? 'Repor como planeada' : 'Marcar como concluída'}">
-          ${lcIcon(done ? 'check-circle' : 'circle', 16)}
+          ${AppModules.core.lcIcon(done ? 'check-circle' : 'circle', 16)}
         </button>
         <div class="rdv2-tarefa-info">
-          <span class="rdv2-tarefa-title">${escapeHtml(ev.title || '—')}</span>
+          <span class="rdv2-tarefa-title">${AppModules.core.escapeHtml(ev.title || '—')}</span>
           <span class="rdv2-tarefa-meta">
-            <span class="rdv2-tarefa-type" style="color:${t.color};border-color:${t.color}44;background:${t.color}12;">${lcIcon(t.icon, 10)} ${t.singular}</span>
-            ${lcIcon('calendar', 10)} ${rdv2ShortDate(ev.date)}${ev.start_time ? ` · ${ev.start_time}${ev.end_time ? '–' + ev.end_time : ''}` : ''}
-            ${ev.responsible ? ` · ${lcIcon('user', 10)} ${escapeHtml(ev.responsible)}` : ''}
+            <span class="rdv2-tarefa-type" style="color:${t.color};border-color:${t.color}44;background:${t.color}12;">${AppModules.core.lcIcon(t.icon, 10)} ${t.singular}</span>
+            ${AppModules.core.lcIcon('calendar', 10)} ${rdv2ShortDate(ev.date)}${ev.start_time ? ` · ${ev.start_time}${ev.end_time ? '–' + ev.end_time : ''}` : ''}
+            ${ev.responsible ? ` · ${AppModules.core.lcIcon('user', 10)} ${AppModules.core.escapeHtml(ev.responsible)}` : ''}
             ${isAuto ? ' · <span class="rdv2-tarefa-auto">automática</span>' : ''}
           </span>
-          ${ev.notes ? `<span class="rdv2-tarefa-notes">${escapeHtml(ev.notes)}</span>` : ''}
+          ${ev.notes ? `<span class="rdv2-tarefa-notes">${AppModules.core.escapeHtml(ev.notes)}</span>` : ''}
         </div>
-        ${isAuto ? '' : `<button class="rdv2-icon-btn" onclick="rdv2DeleteTarefa('${resId}','${ev.id}')" title="Eliminar tarefa">${lcIcon('trash-2', 12)}</button>`}
+        ${isAuto ? '' : `<button class="rdv2-icon-btn" ${AppActions.attrs("click", "reserva-detalhe-tabs-rdv2-delete-tarefa-faf05c1", [String((resId) ?? ''), String((ev.id) ?? '')])} title="Eliminar tarefa">${AppModules.core.lcIcon('trash-2', 12)}</button>`}
       </div>`;
   }).join('');
 
   const today = new Date().toISOString().slice(0, 10);
-  const defaultDate = (_rdv2Current?.check_in && _rdv2Current.check_in >= today) ? _rdv2Current.check_in : today;
+  const defaultDate = (AppModules.reservas._rdv2Current?.check_in && AppModules.reservas._rdv2Current.check_in >= today) ? AppModules.reservas._rdv2Current.check_in : today;
 
   panel.innerHTML = `
     <div class="rdv2-main rdv2-tarefas-card">
       <div class="rdv2-tarefas-head">
-        <span class="rdv2-widget-title">${lcIcon('list-checks', 12)} Tarefas desta reserva</span>
+        <span class="rdv2-widget-title">${AppModules.core.lcIcon('list-checks', 12)} Tarefas desta reserva</span>
       </div>
       <div class="rdv2-tarefas-add">
         <input type="text" id="rdv2-nova-tarefa-titulo" class="form-control" placeholder="Nova tarefa…" maxlength="120">
         <input type="date" id="rdv2-nova-tarefa-data" class="form-control" value="${defaultDate}">
         <select id="rdv2-nova-tarefa-tipo" class="form-control">
-          ${EVENT_TYPES.map(t => `<option value="${t.id}"${t.id === 'outro' ? ' selected' : ''}>${t.singular}</option>`).join('')}
+          ${AppModules.core.EVENT_TYPES.map(t => `<option value="${t.id}"${t.id === 'outro' ? ' selected' : ''}>${t.singular}</option>`).join('')}
         </select>
-        <button class="btn btn-primary btn-sm" onclick="rdv2AddTarefa('${resId}')">${lcIcon('plus', 13)} Adicionar</button>
+        <button class="btn btn-primary btn-sm" ${AppActions.attrs("click", "reserva-detalhe-tabs-rdv2-add-tarefa-57578aa", [String((resId) ?? '')])}>${AppModules.core.lcIcon('plus', 13)} Adicionar</button>
       </div>
       <div class="rdv2-tarefas-list">
         ${rows || '<div class="rdv2-tab-empty">Sem tarefas associadas a esta reserva.</div>'}
@@ -120,19 +129,19 @@ async function rdv2AddTarefa(resId) {
   const title = document.getElementById('rdv2-nova-tarefa-titulo')?.value.trim();
   const date = document.getElementById('rdv2-nova-tarefa-data')?.value;
   const type = document.getElementById('rdv2-nova-tarefa-tipo')?.value || 'outro';
-  if (!title) { toast('⚠️ Indica o título da tarefa.', 'error'); return; }
-  if (!date) { toast('⚠️ Indica a data da tarefa.', 'error'); return; }
+  if (!title) { AppModules.core.toast('⚠️ Indica o título da tarefa.', 'error'); return; }
+  if (!date) { AppModules.core.toast('⚠️ Indica a data da tarefa.', 'error'); return; }
   try {
-    await apiPost('/api/events', {
+    await AppModules.core.apiPost('/api/events', {
       title, date, type,
       reservation_id: resId,
-      accommodation_id: _rdv2Current?.accommodation_id || null,
-      responsible: currentUser?.name || null,
+      accommodation_id: AppModules.reservas._rdv2Current?.accommodation_id || null,
+      responsible: AppModules.core.currentUser?.name || null,
     });
-    toast('✅ Tarefa criada.', 'success');
+    AppModules.core.toast('✅ Tarefa criada.', 'success');
     await rdv2LoadTarefas(resId);
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || 'Erro ao criar tarefa.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Erro ao criar tarefa.'), 'error');
   }
 }
 
@@ -140,24 +149,24 @@ async function rdv2ToggleTarefa(resId, id) {
   const ev = _rdv2TarefasData.find(e => e.id === id);
   if (!ev) return;
   try {
-    await apiPut(`/api/events/${id}`, { ...ev, status: ev.status === 'concluido' ? 'planeado' : 'concluido' });
+    await AppModules.core.apiPut(`/api/events/${id}`, { ...ev, status: ev.status === 'concluido' ? 'planeado' : 'concluido' });
     await rdv2LoadTarefas(resId);
     // Check-in/check-out automáticos refletem-se na barra da tab Reserva.
     if (ev.auto_kind === 'checkin' || ev.auto_kind === 'checkout') rdv2RefreshTaskBar(resId);
-    if (typeof loadNotifications === 'function') loadNotifications();
+    if (typeof AppModules.core.loadNotifications === 'function') AppModules.core.loadNotifications();
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || 'Não foi possível atualizar.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Não foi possível atualizar.'), 'error');
   }
 }
 
 async function rdv2DeleteTarefa(resId, id) {
   if (!confirm('Eliminar esta tarefa?')) return;
   try {
-    await apiDelete(`/api/events/${id}`);
-    toast('Tarefa eliminada.', 'info');
+    await AppModules.core.apiDelete(`/api/events/${id}`);
+    AppModules.core.toast('Tarefa eliminada.', 'info');
     await rdv2LoadTarefas(resId);
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || 'Não foi possível eliminar.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Não foi possível eliminar.'), 'error');
   }
 }
 
@@ -202,13 +211,13 @@ const RDV2_STATUS_LABELS = {
 function rdv2FormatFieldValue(field, value) {
   if (value === null || value === undefined || value === '') return '—';
   if (field === 'accommodation_id') {
-    return escapeHtml(accommodations.find(a => a.id === value)?.name || String(value));
+    return AppModules.core.escapeHtml(AppModules.core.accommodations.find(a => a.id === value)?.name || String(value));
   }
   if (field === 'check_in' || field === 'check_out' || field === 'payment_date') return rdv2ShortDate(String(value));
   if (field === 'total_amount' || field === 'amount_paid') return `€${Number(value).toFixed(2)}`;
   if (field === 'breakfast_included') return Number(value) ? 'Sim' : 'Não';
-  if (field === 'status' || field === 'payment_status') return RDV2_STATUS_LABELS[value] || escapeHtml(String(value));
-  return escapeHtml(String(value));
+  if (field === 'status' || field === 'payment_status') return RDV2_STATUS_LABELS[value] || AppModules.core.escapeHtml(String(value));
+  return AppModules.core.escapeHtml(String(value));
 }
 
 function rdv2TimelineMetaLine(action, meta) {
@@ -218,12 +227,12 @@ function rdv2TimelineMetaLine(action, meta) {
   const bits = [];
   if (action === 'payment_added' || action === 'payment_deleted') {
     if (meta.amount != null) bits.push(`€${Number(meta.amount).toFixed(2)}`);
-    if (meta.method) bits.push(escapeHtml(String(meta.method)));
+    if (meta.method) bits.push(AppModules.core.escapeHtml(String(meta.method)));
     if (meta.payment_date) bits.push(rdv2ShortDate(String(meta.payment_date)));
   } else if (action === 'invoice_saved') {
-    if (meta.invoice_number) bits.push(`Nº ${escapeHtml(String(meta.invoice_number))}`);
+    if (meta.invoice_number) bits.push(`Nº ${AppModules.core.escapeHtml(String(meta.invoice_number))}`);
   } else if (action === 'task_status') {
-    const kind = meta.kind === 'checkin' ? 'Check-in' : meta.kind === 'checkout' ? 'Check-out' : escapeHtml(String(meta.kind || ''));
+    const kind = meta.kind === 'checkin' ? 'Check-in' : meta.kind === 'checkout' ? 'Check-out' : AppModules.core.escapeHtml(String(meta.kind || ''));
     bits.push(`${kind} ${meta.done ? 'marcado como feito' : 'reposto como por fazer'}`);
   } else if (action === 'created') {
     if (meta.check_in && meta.check_out) bits.push(`${rdv2ShortDate(String(meta.check_in))} → ${rdv2ShortDate(String(meta.check_out))}`);
@@ -239,7 +248,7 @@ async function rdv2LoadTimeline(resId) {
   panel.dataset.loaded = '1';
   panel.innerHTML = '<div class="rdv2-tab-empty">A carregar histórico…</div>';
   try {
-    const res = await apiGet(`/api/reservations/${resId}/history`);
+    const res = await AppModules.core.apiGet(`/api/reservations/${resId}/history`);
     rdv2RenderTimeline(res.data || []);
   } catch {
     panel.dataset.loaded = '';
@@ -260,22 +269,22 @@ function rdv2RenderTimeline(entries) {
   };
 
   const items = entries.map(h => {
-    const meta = RDV2_ACTION_META[h.action] || { icon: 'circle-dot', label: escapeHtml(h.action || '—') };
+    const meta = RDV2_ACTION_META[h.action] || { icon: 'circle-dot', label: AppModules.core.escapeHtml(h.action || '—') };
     let changes = [];
     try { changes = typeof h.changes === 'string' ? JSON.parse(h.changes || '[]') : (h.changes || []); } catch {}
     const changesHtml = (changes || []).map(c => `
       <div class="rdv2-tl-change">
-        <span class="rdv2-tl-field">${RDV2_FIELD_LABELS[c.field] || escapeHtml(c.field)}</span>
+        <span class="rdv2-tl-field">${RDV2_FIELD_LABELS[c.field] || AppModules.core.escapeHtml(c.field)}</span>
         <span>${rdv2FormatFieldValue(c.field, c.from)} → <b>${rdv2FormatFieldValue(c.field, c.to)}</b></span>
       </div>`).join('');
-    const who = h.user_name ? escapeHtml(h.user_name) : 'Sistema';
+    const who = h.user_name ? AppModules.core.escapeHtml(h.user_name) : 'Sistema';
     return `
       <div class="rdv2-tl-entry">
-        <div class="rdv2-tl-dot">${lcIcon(meta.icon, 13)}</div>
+        <div class="rdv2-tl-dot">${AppModules.core.lcIcon(meta.icon, 13)}</div>
         <div class="rdv2-tl-body">
           <div class="rdv2-tl-head">
             <span class="rdv2-tl-action">${meta.label}</span>
-            <span class="rdv2-tl-when">${fmtWhen(h.created_at)} · ${lcIcon('user', 10)} ${who}</span>
+            <span class="rdv2-tl-when">${fmtWhen(h.created_at)} · ${AppModules.core.lcIcon('user', 10)} ${who}</span>
           </div>
           ${rdv2TimelineMetaLine(h.action, h.meta)}
           ${changesHtml}
@@ -286,7 +295,7 @@ function rdv2RenderTimeline(entries) {
   panel.innerHTML = `
     <div class="rdv2-main rdv2-timeline-card">
       <div class="rdv2-tarefas-head">
-        <span class="rdv2-widget-title">${lcIcon('git-branch', 12)} Histórico da reserva</span>
+        <span class="rdv2-widget-title">${AppModules.core.lcIcon('git-branch', 12)} Histórico da reserva</span>
       </div>
       <div class="rdv2-tl-list">
         ${items || '<div class="rdv2-tab-empty">Ainda sem registos para esta reserva.</div>'}
@@ -295,3 +304,16 @@ function rdv2RenderTimeline(entries) {
     </div>`;
   if (window.lucide) lucide.createIcons();
 }
+
+AppActions.register({
+  "reserva-detalhe-tabs-rdv2-add-tarefa-57578aa": (el, event, args) => { rdv2AddTarefa(args[0]) },
+  "reserva-detalhe-tabs-rdv2-delete-tarefa-faf05c1": (el, event, args) => { rdv2DeleteTarefa(args[0],args[1]) },
+  "reserva-detalhe-tabs-rdv2-toggle-tarefa-1af36e2": (el, event, args) => { rdv2ToggleTarefa(args[0],args[1]) },
+}, "click");
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('reserva-detalhe-tabs.js', () => {
+  _rdv2TarefasData = [];
+});
+
+})();

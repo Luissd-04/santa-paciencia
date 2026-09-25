@@ -1,0 +1,115 @@
+        <section class="calendar-shell">
+          <div class="view-toolbar calendar-toolbar">
+            <button class="btn btn-ghost btn-sm" data-on-click="index-cal-prev-928f754">
+              <i data-lucide="chevron-left"></i> Anterior
+            </button>
+            <button class="btn btn-ghost btn-sm" data-on-click="index-go-today-7e4aadc">
+              <i data-lucide="calendar-check"></i> Hoje
+            </button>
+            <button class="btn btn-ghost btn-sm" data-on-click="index-cal-next-f650b4e">
+              Próximo <i data-lucide="chevron-right"></i>
+            </button>
+            <button class="m-filters-trigger" data-on-click="index-toggle-calendario-filters-sheet-15e0524">
+              <i data-lucide="sliders-horizontal"></i> Filtros
+            </button>
+            <div class="calendario-filter-panel m-sheet" id="calendario-filter-panel">
+              <div class="m-sheet-header">
+                <span>Filtros</span>
+                <button class="m-sheet-close" data-on-click="index-toggle-calendario-filters-sheet-02c6f4a" aria-label="Fechar">
+                  <i data-lucide="x"></i>
+                </button>
+              </div>
+              <select class="form-control" id="cal-suite-filter" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter app-select--filter-wide" data-on-change="index-render-cal-view-68e81d3">
+                <option value="">Todas as Suites</option>
+              </select>
+              <select class="form-control" id="cal-status-filter" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" data-on-change="index-render-cal-view-68e81d3">
+                <option value="">Todos os estados</option>
+                <option value="pre_reserva">Pré-reserva</option>
+                <option value="confirmada">Confirmadas</option>
+                <option value="pendente">Pendentes</option>
+                <option value="pre_checkin">Pre Check-in</option>
+                <option value="aguardar_pagamento">Aguardar Pagamento</option>
+              </select>
+              <select class="form-control" id="cal-channel-filter" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" data-on-change="index-render-cal-view-68e81d3">
+                <option value="">Todos os canais</option>
+                <option value="airbnb">Airbnb</option>
+                <option value="booking">Booking.com</option>
+                <option value="direto">Direto</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="instagram">Instagram</option>
+                <option value="expedia">Expedia</option>
+                <option value="vrbo">VRBO</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+            <span class="page-toolbar-count">
+              <strong id="cal-results-total">0</strong>
+              <span id="cal-results-detail">reservas visíveis</span>
+            </span>
+            <div class="view-toolbar-actions">
+              <div class="cal-mode-toggle" id="cal-main-toggle">
+                <span class="cal-mode-pill" id="cal-mode-pill"></span>
+                <button class="cal-mode-btn active" data-mode="calendar" data-on-click="index-set-cal-mode-3871af2">
+                  <i data-lucide="calendar-days"></i> Calendário
+                </button>
+                <button class="cal-mode-btn" data-mode="timeline" data-on-click="index-set-cal-mode-3af7526">
+                  <i data-lucide="gantt-chart"></i> Timeline
+                </button>
+              </div>
+              <div class="cal-mode-toggle" id="timeline-range-toggle" style="display:none;">
+                <button class="cal-mode-btn" data-range="7" data-on-click="index-set-timeline-range-6b547a0">Grande</button>
+                <button class="cal-mode-btn active" data-range="14" data-on-click="index-set-timeline-range-425a0ca">Médio</button>
+                <button class="cal-mode-btn" data-range="30" data-on-click="index-set-timeline-range-23c3f3a">Pequeno</button>
+              </div>
+              <button class="btn btn-ghost btn-sm" data-on-click="index-open-block-modal-35e136a" title="Bloquear datas de um alojamento">
+                <i data-lucide="lock"></i> Bloquear datas
+              </button>
+            </div>
+          </div>
+
+          <div class="m-sheet-backdrop" id="calendario-filters-backdrop" data-on-click="index-toggle-calendario-filters-sheet-02c6f4a"></div>
+
+          <div class="section-card section-card-calendar">
+            <div class="section-card-head">
+              <h3 class="section-card-title calendar-month-title" id="cal-label"></h3>
+            </div>
+            <div class="calendar-legend">
+              <button class="legend-pill legend-confirmada" id="legend-confirmada" type="button" data-on-click="index-toggle-calendar-legend-filter-00e6bb2">Confirmada</button>
+              <button class="legend-pill legend-pendente" id="legend-pendente" type="button" data-on-click="index-toggle-calendar-legend-filter-a60a470">Pendente</button>
+            </div>
+            <div class="cal-wrap">
+              <div class="cal-header">
+                <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+              </div>
+              <div class="cal-grid" id="cal-grid"></div>
+              <div id="cal-grid-empty"></div>
+            </div>
+            <div class="calendar-agenda-mobile" id="calendar-agenda-mobile"></div>
+            <div id="timeline-wrap" style="display:none;"></div>
+          </div>
+
+          <!-- Telemóvel em paisagem: grelha mensal dedicada a ecrã inteiro -->
+          <div class="cal-landscape" id="cal-landscape">
+            <div class="cll-toolbar">
+              <button class="cll-pill" data-on-click="index-cal-prev-928f754">
+                <i data-lucide="chevron-left"></i> Anterior
+              </button>
+              <button class="cll-pill" data-on-click="index-go-today-7e4aadc">
+                <i data-lucide="calendar-check"></i> Hoje
+              </button>
+              <button class="cll-pill" data-on-click="index-cal-next-f650b4e">
+                Próximo <i data-lucide="chevron-right"></i>
+              </button>
+              <div class="cll-title" id="cll-title"></div>
+              <button class="cll-pill" data-on-click="index-cal-land-block-shortcut-4b8b5d3">
+                <i data-lucide="lock"></i> Bloquear datas
+              </button>
+            </div>
+            <div class="cll-week-days-head">
+              <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+            </div>
+            <div class="cll-grid" id="cll-grid"></div>
+            <div id="cll-empty"></div>
+          </div>
+
+        </section>

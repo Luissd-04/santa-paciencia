@@ -1,0 +1,533 @@
+        <div class="aloj-detail-header">
+          <button class="btn btn-ghost btn-sm" data-on-click="index-show-view-4899013">
+            <i data-lucide="arrow-left"></i> Voltar
+          </button>
+          <div class="aloj-detail-title-wrap">
+            <span id="aloj-detalhe-nome" class="aloj-detail-title"></span>
+            <span class="aloj-detail-subtitle">Configurações, descrição, imagens e integração por unidade.</span>
+          </div>
+          <button class="btn btn-danger btn-sm" data-on-click="index-delete-alojamento-3dd9b10" style="margin-left:auto;">
+            <i data-lucide="trash-2"></i> Apagar
+          </button>
+          <button class="btn btn-primary" data-on-click="index-save-alojamento-ffd34a4">
+            <i data-lucide="save"></i> Guardar
+          </button>
+        </div>
+
+        <!-- Tabs -->
+        <div style="display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--cinza-claro);">
+          <button class="aloj-tab active" data-on-click="index-show-aloj-tab-48e872d" id="tab-info">
+            <i data-lucide="info"></i> Informação
+          </button>
+          <button class="aloj-tab" data-on-click="index-show-aloj-tab-14dc2b0" id="tab-comodidades">
+            <i data-lucide="check-square"></i> Comodidades
+          </button>
+          <button class="aloj-tab" data-on-click="index-show-aloj-tab-af453af" id="tab-imagens">
+            <i data-lucide="image"></i> Imagens
+          </button>
+          <button class="aloj-tab" data-on-click="index-show-aloj-tab-4262e30" id="tab-rgpd">
+            <i data-lucide="shield"></i> RGPD
+          </button>
+          <button class="aloj-tab" data-on-click="index-show-aloj-tab-e1cc4db" id="tab-bloqueios">
+            <i data-lucide="lock"></i> Bloqueios
+          </button>
+          <button class="aloj-tab" data-on-click="index-show-aloj-tab-12b28da" id="tab-precos">
+            <i data-lucide="euro"></i> Preços
+          </button>
+        </div>
+
+        <!-- Tab: Informação -->
+        <div id="aloj-tab-info">
+
+          <!-- Banner de herança (visível quando tem parent) -->
+          <div id="aloj-inherited-banner" style="display:none;margin-bottom:18px;padding:10px 16px;background:rgba(201,168,76,.1);border-left:3px solid var(--dourado);border-radius:6px;font-size:13px;color:var(--texto);">
+            <span id="aloj-inherited-msg"></span>
+          </div>
+
+          <!-- Linha 1: Informação / Layout -->
+          <div style="display:grid;grid-template-columns:1fr;gap:24px;margin-bottom:24px;">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" style="font-size:14px;">
+                  <i data-lucide="map-pin"></i> Informação do alojamento
+                </span>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Nome</label>
+                  <input class="form-control" id="aloj-nome" placeholder="Nome do alojamento" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Cor no calendário</label>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <input type="color" id="aloj-color" value="#843424" style="width:48px;height:36px;padding:2px;border:1px solid var(--borda);border-radius:8px;cursor:pointer;background:none;">
+                    <span id="aloj-color-label" style="font-size:13px;color:var(--cinza);">#843424</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Número de licença</label>
+                  <div style="display:flex;gap:8px;align-items:center;">
+                    <input class="form-control" id="aloj-licenca" placeholder="12345" autocomplete="off">
+                    <span style="font-size:13px;color:var(--cinza);white-space:nowrap;">/ AL</span>
+                  </div>
+                </div>
+                <div class="form-group form-full">
+                  <label class="form-label">Morada</label>
+                  <input class="form-control" id="aloj-morada" placeholder="Rua, número" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Código Postal</label>
+                  <input class="form-control" id="aloj-cp" placeholder="0000-000" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Localidade</label>
+                  <input class="form-control" id="aloj-cidade" placeholder="Lisboa" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Região</label>
+                  <select class="form-control" id="aloj-regiao">
+                    <option>Continente</option>
+                    <option>Açores</option>
+                    <option>Madeira</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">País</label>
+                  <input class="form-control" id="aloj-pais" value="Portugal" autocomplete="off">
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" style="font-size:14px;">
+                  <i data-lucide="layout-panel-left"></i> Layout do alojamento
+                </span>
+              </div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">Tipologia</label>
+                  <select class="form-control" id="aloj-tipo" data-on-change="index-on-aloj-tipo-change-7469612">
+                    <option value="alojamento">Alojamento Principal</option>
+                    <option value="suite">Suite</option>
+                    <option value="apartamento">Apartamento</option>
+                    <option value="quarto">Quarto</option>
+                    <option value="moradia">Moradia</option>
+                    <option value="villa">Villa</option>
+                  </select>
+                </div>
+                <div class="form-group" id="aloj-parent-wrap" style="display:none;">
+                  <label class="form-label">Alojamento Principal</label>
+                  <select class="form-control" id="aloj-parent-id" data-on-change="index-on-aloj-parent-change-4ab93cd">
+                    <option value="">— Nenhum —</option>
+                  </select>
+                  <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;display:block;">Associa esta unidade a um alojamento principal</span>
+                </div>
+                <div class="form-group form-full" id="aloj-public-link-wrap" style="display:none;">
+                  <label class="form-label">Link público de reserva</label>
+                  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <input class="form-control" id="aloj-public-link" readonly placeholder="O link é gerado automaticamente" style="flex:1 1 320px;" autocomplete="off">
+                    <button class="btn btn-ghost btn-sm" type="button" data-on-click="index-copy-public-booking-link-34d2940">
+                      <i data-lucide="copy"></i> Copiar
+                    </button>
+                    <button class="btn btn-primary btn-sm" type="button" data-on-click="index-open-public-booking-preview-4afe448">
+                      <i data-lucide="external-link"></i> Pré-visualizar
+                    </button>
+                  </div>
+                  <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;display:block;">Abre a página que o cliente vê para fazer uma reserva neste alojamento.</span>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Área (m²)</label>
+                  <input class="form-control" id="aloj-area" type="number" min="1" placeholder="ex: 45" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Capacidade máx. hóspedes</label>
+                  <input class="form-control" id="aloj-capacidade" type="number" min="1" max="20" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Quartos</label>
+                  <input class="form-control" id="aloj-quartos" type="number" min="0" max="20" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Casas de banho</label>
+                  <input class="form-control" id="aloj-casasbanho" type="number" min="0" max="20" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Preço / noite (€)</label>
+                  <input class="form-control" id="aloj-preco" type="number" min="0" step="0.01" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Estadia mínima (noites)</label>
+                  <input class="form-control" id="aloj-min-nights" type="number" min="1" max="30" value="1" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Hóspedes incluídos no preço base</label>
+                  <input class="form-control" id="aloj-hospedes-incluidos" type="number" min="1" max="20" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Bebé até (anos, inclusive)</label>
+                  <input class="form-control" id="aloj-baby-age-limit" type="number" min="0" max="18" value="2" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Preço bebé / noite (€)</label>
+                  <input class="form-control" id="aloj-baby-price" type="number" min="0" step="0.01" value="0" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Crianças abaixo de (anos)</label>
+                  <input class="form-control" id="aloj-child-age-limit" type="number" min="0" max="18" value="12" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Preço criança / noite (€)</label>
+                  <input class="form-control" id="aloj-child-price" type="number" min="0" step="0.01" value="0" autocomplete="off">
+                </div>
+                <div class="form-group form-full">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
+                    <label class="form-label" style="margin:0;">Ocupação adicional</label>
+                    <button type="button" class="btn btn-ghost btn-sm" data-on-click="index-add-extra-occupancy-option-4cbfdb2">
+                      <i data-lucide="plus"></i> Adicionar extra
+                    </button>
+                  </div>
+                  <div id="aloj-extra-occupancy-list" style="display:grid;gap:12px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Linha 2: Descrição -->
+          <div class="card" style="margin-bottom:24px;">
+            <div class="card-header">
+              <span class="card-title" style="font-size:14px;">
+                <i data-lucide="file-text"></i> Descrição
+              </span>
+            </div>
+            <div style="display:flex;gap:0;border-bottom:1px solid var(--cinza-claro);overflow-x:auto;padding:0 16px;" id="desc-lang-tabs">
+              <button class="desc-lang-tab active" data-lang="pt" data-on-click="index-switch-desc-lang-cea452c"><span class="fi fi-pt"></span> Português</button>
+              <button class="desc-lang-tab" data-lang="en" data-on-click="index-switch-desc-lang-44c5447"><span class="fi fi-gb"></span> Inglês</button>
+              <button class="desc-lang-tab" data-lang="fr" data-on-click="index-switch-desc-lang-990b505"><span class="fi fi-fr"></span> Francês</button>
+              <button class="desc-lang-tab" data-lang="es" data-on-click="index-switch-desc-lang-5cf5238"><span class="fi fi-es"></span> Espanhol</button>
+              <button class="desc-lang-tab" data-lang="de" data-on-click="index-switch-desc-lang-e272d0a"><span class="fi fi-de"></span> Alemão</button>
+              <button class="desc-lang-tab" data-lang="it" data-on-click="index-switch-desc-lang-8de92cd"><span class="fi fi-it"></span> Italiano</button>
+              <button class="desc-lang-tab" data-lang="nl" data-on-click="index-switch-desc-lang-2d30faa"><span class="fi fi-nl"></span> Neerlandês</button>
+            </div>
+            <div style="padding:12px 16px 16px;">
+              <textarea class="form-control desc-lang-area" id="desc-pt" rows="6" placeholder="Descreva o alojamento em Português..." style="display:block;"></textarea>
+              <textarea class="form-control desc-lang-area" id="desc-en" rows="6" placeholder="Describe the accommodation in English..." style="display:none;"></textarea>
+              <textarea class="form-control desc-lang-area" id="desc-fr" rows="6" placeholder="Décrivez le logement en Français..." style="display:none;"></textarea>
+              <textarea class="form-control desc-lang-area" id="desc-es" rows="6" placeholder="Describa el alojamiento en Español..." style="display:none;"></textarea>
+              <textarea class="form-control desc-lang-area" id="desc-de" rows="6" placeholder="Beschreiben Sie die Unterkunft auf Deutsch..." style="display:none;"></textarea>
+              <textarea class="form-control desc-lang-area" id="desc-it" rows="6" placeholder="Descrivi l'alloggio in Italiano..." style="display:none;"></textarea>
+              <textarea class="form-control desc-lang-area" id="desc-nl" rows="6" placeholder="Beschrijf de accommodatie in het Nederlands..." style="display:none;"></textarea>
+            </div>
+          </div>
+
+          <!-- Mapa -->
+          <div class="card" style="margin-bottom:24px;">
+            <div class="card-header">
+              <span class="card-title" style="font-size:14px;">
+                <i data-lucide="map-pin"></i> Localização no mapa
+              </span>
+              <button class="btn btn-ghost btn-sm" id="aloj-map-btn" data-on-click="index-geocode-and-show-map-8af2978">
+                <i data-lucide="search"></i> Verificar endereço
+              </button>
+            </div>
+            <div id="aloj-map-placeholder" class="aloj-map-placeholder">
+              <i data-lucide="map" style="width:36px;height:36px;opacity:.3;"></i>
+              <span>Preencha a morada e clique em "Verificar endereço"</span>
+            </div>
+            <div id="aloj-map" style="display:none;"></div>
+          </div>
+
+          <!-- Linha 3: Horários + Wi-Fi + Redes Sociais + Google Calendar -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:24px;margin-bottom:0;">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" style="font-size:14px;">
+                  <i data-lucide="clock"></i> Horários
+                </span>
+              </div>
+              <div class="form-grid" style="grid-template-columns:1fr;">
+                <div class="form-group">
+                  <label class="form-label">Check-in</label>
+                  <input class="form-control" id="aloj-checkin-time" type="time" value="15:00" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Check-out</label>
+                  <input class="form-control" id="aloj-checkout-time" type="time" value="11:00" autocomplete="off">
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" style="font-size:14px;">
+                  <i data-lucide="wifi"></i> Wi-Fi
+                </span>
+              </div>
+              <div class="form-group" style="margin-bottom:12px;">
+                <label class="form-label">Nome da rede (SSID)</label>
+                <input class="form-control" id="aloj-wifi-nome" placeholder="Nome da rede Wi-Fi" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Senha</label>
+                <div class="password-field">
+                  <input class="form-control" id="aloj-wifi-password" type="password" placeholder="Senha do Wi-Fi" autocomplete="off">
+                  <button type="button" class="password-eye" data-on-click="index-toggle-wifi-pass-8b16cb6" tabindex="-1" title="Mostrar/ocultar senha">
+                    <i data-lucide="eye" style="width:16px;height:16px;"></i>
+                  </button>
+                </div>
+              </div>
+              <span style="font-size:11.5px;color:var(--cinza);">Enviados automaticamente no email de coordenadas</span>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" style="font-size:14px;">
+                  <i data-lucide="key-round"></i> Código de acesso
+                </span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Código de abertura de portas</label>
+                <input class="form-control" id="aloj-door-code" placeholder="Ex.: 1234#" autocomplete="off">
+              </div>
+              <span style="font-size:11.5px;color:var(--cinza);">Enviado automaticamente no email de código de acesso</span>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" style="font-size:14px;">
+                  <i data-lucide="share-2"></i> Redes Sociais
+                </span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Facebook</label>
+                <input class="form-control" id="aloj-social-fb" placeholder="https://facebook.com/..." autocomplete="off">
+                <label class="email-active-toggle" style="margin-top:6px;">
+                  <input type="checkbox" id="aloj-social-fb-email" checked>
+                  <span class="gtt-switch"></span>
+                  <span class="gtt-label">Mostrar nos emails</span>
+                </label>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Instagram</label>
+                <input class="form-control" id="aloj-social-ig" placeholder="https://instagram.com/..." autocomplete="off">
+                <label class="email-active-toggle" style="margin-top:6px;">
+                  <input type="checkbox" id="aloj-social-ig-email" checked>
+                  <span class="gtt-switch"></span>
+                  <span class="gtt-label">Mostrar nos emails</span>
+                </label>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Website</label>
+                <input class="form-control" id="aloj-social-web" placeholder="https://..." autocomplete="off">
+                <label class="email-active-toggle" style="margin-top:6px;">
+                  <input type="checkbox" id="aloj-social-web-email" checked>
+                  <span class="gtt-switch"></span>
+                  <span class="gtt-label">Mostrar nos emails</span>
+                </label>
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">TripAdvisor</label>
+                <input class="form-control" id="aloj-social-ta" placeholder="https://www.tripadvisor.com/..." autocomplete="off">
+                <label class="email-active-toggle" style="margin-top:6px;">
+                  <input type="checkbox" id="aloj-social-ta-email" checked>
+                  <span class="gtt-switch"></span>
+                  <span class="gtt-label">Mostrar nos emails</span>
+                </label>
+              </div>
+              <span style="font-size:11.5px;color:var(--cinza);display:block;margin-top:10px;">Só os links preenchidos e marcados aparecem no bloco "Acompanhe-nos" dos emails.</span>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" style="font-size:14px;">
+                  <i data-lucide="image"></i> Logótipo <span id="aloj-logo-inherited-badge" style="display:none;margin-left:6px;font-size:10px;color:var(--dourado);font-weight:600;text-transform:uppercase;letter-spacing:.3px;">↑ herdado</span>
+                </span>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div id="aloj-logo-preview-wrap" style="width:100px;height:44px;border-radius:6px;background:#843424;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">
+                  <img id="aloj-logo-preview" src="" style="display:none;max-width:90px;max-height:36px;object-fit:contain;">
+                  <span id="aloj-logo-placeholder" style="font-size:10px;color:rgba(255,255,255,.6);">Sem logótipo</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                  <label class="btn btn-ghost btn-sm" id="aloj-logo-upload-label" style="width:fit-content;cursor:pointer;">
+                    <i data-lucide="upload" style="width:13px;height:13px;"></i> Carregar
+                    <input type="file" accept="image/*" style="display:none;" id="aloj-logo-input" data-on-change="index-upload-aloj-logo-56d5027">
+                  </label>
+                  <button type="button" class="btn btn-ghost btn-sm" id="aloj-logo-remove-btn" style="display:none;width:fit-content;color:var(--vermelho,#b3261e);" data-on-click="index-remove-aloj-logo-1d70e78">
+                    <i data-lucide="trash-2" style="width:13px;height:13px;"></i> Remover
+                  </button>
+                </div>
+              </div>
+              <span style="font-size:11.5px;color:var(--cinza);">Usado nos emails automáticos e nos PDFs exportados deste alojamento e das suas suites.</span>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" style="font-size:14px;">
+                  <i data-lucide="calendar-sync"></i> Google Calendar
+                </span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">ID do Calendário</label>
+                <input class="form-control" id="aloj-gcal-id" placeholder="exemplo@group.calendar.google.com" autocomplete="off">
+                <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;">Deixe em branco para usar o calendário principal</span>
+              </div>
+              <label style="display:flex;align-items:flex-start;gap:8px;margin-top:4px;cursor:pointer;">
+                <input type="checkbox" id="aloj-gcal-manual" style="margin-top:2px;">
+                <span style="font-size:12px;color:var(--cinza);line-height:1.4;">Gerir a cor deste calendário manualmente no Google Calendar — a app deixa de aplicar aqui a cor do alojamento (útil mesmo quando o calendário foi criado automaticamente).</span>
+              </label>
+              <div style="margin-top:12px;">
+                <button class="btn btn-ghost btn-sm" data-on-click="index-open-aloj-calendar-c518ff2">
+                  <i data-lucide="external-link"></i> Abrir Calendário deste Alojamento
+                </button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title" style="font-size:14px;">
+                  <i data-lucide="calendar-plus"></i> Booking & Airbnb iCal
+                </span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Airbnb iCal</label>
+                <input class="form-control" id="aloj-airbnb-ical-url" type="url" placeholder="https://www.airbnb.com/calendar/ical/..." autocomplete="off">
+                <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;">Link de exportação iCal do anúncio no Airbnb</span>
+              </div>
+              <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Booking.com iCal</label>
+                <input class="form-control" id="aloj-booking-ical-url" type="url" placeholder="https://admin.booking.com/hotel/hoteladmin/ical.html?..." autocomplete="off">
+                <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;">Link de sincronização iCal do calendário da Booking.com</span>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /aloj-tab-info -->
+
+        <!-- Tab: Comodidades -->
+        <div id="aloj-tab-comodidades" style="display:none;">
+          <div class="card">
+            <div style="padding:18px 20px 0;">
+              <div class="search-box aloj-search-box" style="max-width:360px;">
+                <i data-lucide="search"></i>
+                <input type="text" id="amenities-search" placeholder="Pesquisar comodidades..." data-on-input="index-refresh-amenities-filter-8bb980a" autocomplete="off">
+              </div>
+            </div>
+            <div id="amenities-grid"></div>
+          </div>
+        </div>
+
+        <!-- Tab: Imagens -->
+        <div id="aloj-tab-imagens" style="display:none;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" style="font-size:14px;">
+                <i data-lucide="images"></i> Galeria de Imagens
+              </span>
+            </div>
+            <!-- Foto de capa -->
+            <div class="aloj-cover-panel">
+              <div id="aloj-cover-dropzone" class="aloj-cover-dropzone"
+                data-on-click="index-handle-cover-zone-click-01563ad"
+                data-on-dragover="index-prevent-default-e179d9b"
+                data-on-dragleave="index-remove-1227cde"
+                data-on-drop="index-handle-cover-drop-1d111ca">
+                <img id="aloj-cover-preview" src="" style="display:none;width:100%;height:100%;object-fit:cover;" draggable="true"
+                  data-on-dragstart="index-cover-drag-start-d371bdf" data-on-dragend="index-cover-drag-end-471451e">
+                <div id="aloj-cover-placeholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;color:var(--cinza);">
+                  <i data-lucide="camera" style="width:24px;height:24px;"></i>
+                  <span>Capa</span>
+                </div>
+                <div class="aloj-cover-actions">
+                  <button type="button" class="img-section-btn add" data-on-click="index-stop-propagation-79893be" title="Escolher foto">
+                    <i data-lucide="upload"></i>
+                  </button>
+                  <button type="button" class="img-section-btn" id="aloj-cover-delete-btn" style="display:none;" data-on-click="index-stop-propagation-50f0688" title="Remover capa">
+                    <i data-lucide="trash-2"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="aloj-cover-copy">
+                <div style="font-weight:600;color:var(--azul);margin-bottom:4px;">Foto de Capa</div>
+                <div style="font-size:12.5px;color:var(--cinza);">Esta imagem aparece na lista de alojamentos ao lado do nome.<br>Clique para abrir em grande, arraste da galeria para definir como capa.</div>
+                <button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:12px;" data-on-click="index-get-element-by-id-3f690f7">
+                  <i data-lucide="camera"></i> Escolher foto
+                </button>
+              </div>
+            </div>
+            <input type="file" id="cover-input" accept="image/*" style="display:none">
+            <input type="file" id="img-input" multiple accept="image/*" style="display:none">
+
+            <p style="font-size:13px;color:var(--cinza);margin-bottom:16px;">
+              Arraste imagens ou clique para selecionar. Guardadas no servidor.
+            </p>
+            <!-- Drop zone -->
+            <div id="img-dropzone" data-on-click="index-get-element-by-id-4f20399"
+              style="border:2px dashed var(--azul-claro);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:background .2s;margin-bottom:20px;"
+              data-on-dragover="index-prevent-default-b00197c"
+              data-on-dragleave="index-element-c6c7e81"
+              data-on-drop="index-handle-img-drop-dd5a216">
+              <i data-lucide="image-plus" style="width:36px;height:36px;color:var(--azul-claro);margin-bottom:8px;"></i>
+              <div style="font-size:14px;color:var(--azul);font-weight:500;">Arraste as imagens para aqui</div>
+              <div style="font-size:12px;color:var(--cinza);margin-top:4px;">ou clique para selecionar ficheiros (JPG, PNG, máx. 5MB)</div>
+            </div>
+
+            <!-- Secções de imagens (gerado dinamicamente por renderImagens()) -->
+            <div id="img-sections"></div>
+
+            <!-- Adicionar nova divisão -->
+            <div class="img-add-section-row">
+              <input class="form-control" id="new-section-name" placeholder="Nome da nova divisão (ex: Terraço)" style="max-width:260px;font-size:13px;padding:7px 12px;" autocomplete="off">
+              <button class="btn btn-ghost btn-sm" data-on-click="index-add-img-section-8bcd538">
+                <i data-lucide="plus"></i> Adicionar divisão
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: RGPD -->
+        <div id="aloj-tab-rgpd" style="display:none;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" style="font-size:14px;">
+                <i data-lucide="shield"></i> Texto de RGPD
+              </span>
+            </div>
+            <div style="padding:0 20px 20px;">
+              <p style="font-size:13px;color:var(--cinza);margin:0 0 12px;">
+                Este texto é apresentado ao hóspede no momento da reserva online, antes de aceitar os termos. Se deixar em branco, é usado um texto padrão.
+              </p>
+              <textarea id="aloj-rgpd-text" class="form-control" rows="12"
+                placeholder="Os seus dados pessoais são recolhidos e tratados com a finalidade de gerir a sua reserva..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: Bloqueios -->
+        <div id="aloj-tab-bloqueios" style="display:none;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" style="font-size:14px;">
+                <i data-lucide="lock"></i> Datas bloqueadas
+              </span>
+              <button class="btn btn-primary btn-sm" type="button" data-on-click="index-open-block-modal-1f10431">
+                <i data-lucide="plus"></i> Bloquear datas
+              </button>
+            </div>
+            <div style="padding:0 20px 20px;">
+              <p style="font-size:13px;color:var(--cinza);margin:0 0 12px;">
+                Datas em que este alojamento não aceita reservas (manutenção, uso pessoal, etc.).
+              </p>
+              <div id="aloj-blocks-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: Preços (recebe o #precos-calendar-widget da vista Preços) -->
+        <div id="aloj-tab-precos" style="display:none;">
+          <p style="font-size:13px;color:var(--cinza);margin:0 0 14px;">
+            Preços noite a noite deste alojamento (calendário dinâmico) — usados no cálculo do total das reservas. O "Valor por noite" da tab Informação é o preço base, aplicado apenas às noites sem período definido.
+          </p>
+        </div>
+
+        <input type="hidden" id="aloj-editing-id">

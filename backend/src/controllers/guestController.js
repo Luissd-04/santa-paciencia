@@ -49,39 +49,9 @@ async function create(req, res, next) {
 // GET /api/guests
 async function getAll(req, res, next) {
   try {
-    const { search } = req.query;
-    const organizationId = req.user.organization_id;
-    let guests;
-    if (search && search.trim()) {
-      const q = `%${search.trim().toLowerCase()}%`;
-      guests = db.prepare(`
-        SELECT g.*,
-          COUNT(CASE WHEN r.status != 'cancelada' THEN 1 END) as reservation_count,
-          MAX(CASE WHEN r.status != 'cancelada' THEN r.check_in END) as last_check_in
-        FROM guests g
-        LEFT JOIN reservations r ON r.guest_id = g.id AND r.organization_id = g.organization_id
-        WHERE g.organization_id = ?
-          AND (lower(g.name) LIKE ? OR lower(g.email) LIKE ? OR g.phone LIKE ?)
-        GROUP BY g.id
-        ORDER BY last_check_in DESC
-        LIMIT 20
-      `).all(organizationId, q, q, q);
-    } else {
-      guests = db.prepare(`
-        SELECT g.*,
-          COUNT(CASE WHEN r.status != 'cancelada' THEN 1 END) as reservation_count,
-          MAX(CASE WHEN r.status != 'cancelada' THEN r.check_in END) as last_check_in
-        FROM guests g
-        LEFT JOIN reservations r ON r.guest_id = g.id AND r.organization_id = g.organization_id
-        WHERE g.organization_id = ?
-        GROUP BY g.id
-        ORDER BY last_check_in DESC
-      `).all(organizationId);
-    }
-    res.json({ success: true, data: guests });
-  } catch (err) {
-    next(err);
-  }
+    const result = require('../services/listQueries').listGuests(req.user.organization_id, req.query);
+    res.json({ success: true, ...result });
+  } catch (error) { next(error); }
 }
 
 // GET /api/guests/:id

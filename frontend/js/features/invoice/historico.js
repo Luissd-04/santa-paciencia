@@ -1,7 +1,16 @@
+// Estado privado; interface partilhada em AppModules.invoice.
+(() => {
+AppModules.define('invoice', {
+  _stripEmailChrome: { get: () => _stripEmailChrome },
+  cancelInvoiceReply: { get: () => cancelInvoiceReply },
+  loadThreadMessages: { get: () => loadThreadMessages },
+  openInvoiceThread: { get: () => openInvoiceThread },
+});
+
 'use strict';
 function openInvoiceThread(thread, detailId = 'invoice-thread-detail') {
-  _invoiceActiveThread = thread.id;
-  _invoiceActiveEmail  = thread.guestEmail;
+  AppModules.invoice._invoiceActiveThread = thread.id;
+  AppModules.invoice._invoiceActiveEmail  = thread.guestEmail;
   document.querySelectorAll('.invoice-thread-item').forEach(el => {
     el.classList.toggle('active', el.dataset.id === String(thread.id));
   });
@@ -10,7 +19,7 @@ function openInvoiceThread(thread, detailId = 'invoice-thread-detail') {
   // automaticamente depois de um refresh da página — sem isto, um simples
   // F5 para ver se chegou resposta obrigava a reabrir a conversa à mão.
   if (detailId === 'invoice-thread-detail') {
-    try { localStorage.setItem(_INVOICE_OPEN_THREAD_KEY, String(thread.id)); } catch {}
+    try { localStorage.setItem(AppModules.invoice._INVOICE_OPEN_THREAD_KEY, String(thread.id)); } catch {}
   }
 
   const detail = document.getElementById(detailId);
@@ -18,29 +27,26 @@ function openInvoiceThread(thread, detailId = 'invoice-thread-detail') {
 
   detail.innerHTML = `
     <div class="invoice-detail-header">
-      <div class="idh-avatar">${initials(thread.guestName)}</div>
+      <div class="idh-avatar">${AppModules.invoice.initials(thread.guestName)}</div>
       <div class="idh-info">
-        <h2>${esc(thread.guestName)}</h2>
-        <a href="mailto:${esc(thread.guestEmail)}" class="idh-email">${esc(thread.guestEmail)}</a>
+        <h2>${AppModules.invoice.esc(thread.guestName)}</h2>
+        <a href="mailto:${AppModules.invoice.esc(thread.guestEmail)}" class="idh-email">${AppModules.invoice.esc(thread.guestEmail)}</a>
         <div class="idh-meta">
-          ${thread.alojamento ? `<span><i data-lucide="home" style="width:13px;height:13px;"></i> ${esc(thread.alojamento)}</span>` : ''}
-          ${thread.checkin ? `<span><i data-lucide="calendar" style="width:13px;height:13px;"></i> ${fmtDate(thread.checkin)} → ${fmtDate(thread.checkout)}</span>` : ''}
-          ${thread.total ? `<span><i data-lucide="euro" style="width:13px;height:13px;"></i> ${formatMoney(thread.total)}</span>` : ''}
+          ${thread.alojamento ? `<span><i data-lucide="home" style="width:13px;height:13px;"></i> ${AppModules.invoice.esc(thread.alojamento)}</span>` : ''}
+          ${thread.checkin ? `<span><i data-lucide="calendar" style="width:13px;height:13px;"></i> ${AppModules.invoice.fmtDate(thread.checkin)} → ${AppModules.invoice.fmtDate(thread.checkout)}</span>` : ''}
+          ${thread.total ? `<span><i data-lucide="euro" style="width:13px;height:13px;"></i> ${AppModules.invoice.formatMoney(thread.total)}</span>` : ''}
         </div>
       </div>
       <div class="idh-actions">
-        ${!thread._standalone ? `
-          <button class="btn btn-ghost btn-sm" onclick="showView('reservas')">
-            <i data-lucide="external-link"></i> Ver reserva
-          </button>` : ''}
-        ${_invoiceArchivedKeys.has(String(thread.id))
-          ? `<button class="btn btn-ghost btn-sm" onclick="restoreInvoiceThread('${thread.id}')">
+        ${!thread._standalone ? "\n          <button class=\"btn btn-ghost btn-sm\" data-on-click=\"historico-show-view-3d0e569\">\n            <i data-lucide=\"external-link\"></i> Ver reserva\n          </button>" : ''}
+        ${AppModules.invoice._invoiceArchivedKeys.has(String(thread.id))
+          ? `<button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "historico-restore-invoice-thread-adcb894", [String((thread.id) ?? '')])}>
                <i data-lucide="inbox"></i> Restaurar
              </button>
-             <button class="btn btn-ghost btn-sm btn-danger-ghost" onclick="deleteInvoiceThreadHistory('${thread.id}','${esc(thread.guestEmail)}',${thread._standalone ? 'null' : `'${thread.id}'`})">
+             <button class="btn btn-ghost btn-sm btn-danger-ghost" ${AppActions.attrs("click", "historico-delete-invoice-thread-history-917ed4c", [String((thread.id) ?? ''), String((thread.guestEmail) ?? ''), thread._standalone ? null : String(thread.id)])}>
                <i data-lucide="trash-2"></i> Eliminar histórico
              </button>`
-          : `<button class="btn btn-ghost btn-sm" onclick="archiveInvoiceThread('${thread.id}','${thread._standalone ? 'email' : 'reservation'}')">
+          : `<button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "historico-archive-invoice-thread-cdd75e1", [String((thread.id) ?? ''), String((thread._standalone ? 'email' : 'reservation') ?? '')])}>
                <i data-lucide="archive"></i> Arquivar
              </button>`}
       </div>
@@ -52,23 +58,23 @@ function openInvoiceThread(thread, detailId = 'invoice-thread-detail') {
     </div>
     <div class="invoice-compose-area">
       <div class="ica-header">
-        <span>Para: <strong>${esc(thread.guestEmail)}</strong></span>
+        <span>Para: <strong>${AppModules.invoice.esc(thread.guestEmail)}</strong></span>
         <span class="ica-tpl-reason" id="ica-tpl-reason"></span>
-        <button class="btn btn-ghost btn-xs ica-tpl-btn" id="ica-tpl-btn" onclick="openTemplatesPicker('ica-subject','ica-body','${esc(thread.guestEmail)}')">
+        <button class="btn btn-ghost btn-xs ica-tpl-btn" id="ica-tpl-btn" ${AppActions.attrs("click", "historico-open-templates-picker-854f770", [String((thread.guestEmail) ?? '')])}>
           <i data-lucide="layout-template"></i> Template
         </button>
       </div>
       <div class="ica-reply-context" id="ica-reply-context" style="display:none;">
         <i data-lucide="corner-up-left" style="width:13px;height:13px;"></i>
         <span id="ica-reply-snippet"></span>
-        <button type="button" title="Cancelar resposta" onclick="cancelInvoiceReply()"><i data-lucide="x" style="width:13px;height:13px;"></i></button>
+        <button type="button" title="Cancelar resposta" data-on-click="historico-cancel-invoice-reply-7bdb026"><i data-lucide="x" style="width:13px;height:13px;"></i></button>
       </div>
       <input class="form-control" type="text" id="ica-subject" placeholder="Assunto" style="margin-bottom:8px;" autocomplete="off">
-      ${buildComposeToolbar()}
+      ${AppModules.invoice.buildComposeToolbar()}
       <div class="email-body-editor compose-body-editor" id="ica-body" contenteditable="true" data-placeholder="Escreve a tua mensagem..."></div>
       <div class="ica-footer">
         <button class="btn btn-primary" id="ica-send-btn"
-          onclick="sendInvoiceEmail('${esc(thread.guestEmail)}','${esc(thread.guestName)}','${thread.id}',${!!thread._standalone})">
+          ${AppActions.attrs("click", "historico-send-invoice-email-a50410f", [String((thread.guestEmail) ?? ''), String((thread.guestName) ?? ''), String((thread.id) ?? ''), !!thread._standalone])}>
           <i data-lucide="send"></i> Enviar
         </button>
       </div>
@@ -78,17 +84,17 @@ function openInvoiceThread(thread, detailId = 'invoice-thread-detail') {
   if (window.lucide) lucide.createIcons();
 
   // Nunca herdar o alvo de resposta de uma thread aberta anteriormente.
-  _invoiceReplyTarget = null;
-  _invoicePaging[thread.id] = { dbCursor: null, dbDone: false, gmailPageToken: null, gmailDone: false, loading: false };
+  AppModules.invoice._invoiceReplyTarget = null;
+  AppModules.invoice._invoicePaging[thread.id] = { dbCursor: null, dbDone: false, gmailPageToken: null, gmailDone: false, loading: false };
 
-  _applyTemplateGating('ica-tpl-btn', thread.guestEmail);
+  AppModules.invoice._applyTemplateGating('ica-tpl-btn', thread.guestEmail);
   loadThreadMessages(thread);
-  _startInvoicePoll(thread);
+  AppModules.invoice._startInvoicePoll(thread);
 
   const area = document.getElementById('invoice-messages-' + thread.id);
   if (area) {
     area.addEventListener('scroll', () => {
-      const st = _invoicePaging[thread.id];
+      const st = AppModules.invoice._invoicePaging[thread.id];
       if (area.scrollTop < 80 && st && !st.loading && (!st.dbDone || !st.gmailDone)) {
         loadThreadMessages(thread, { loadMore: true });
       }
@@ -98,9 +104,9 @@ function openInvoiceThread(thread, detailId = 'invoice-thread-detail') {
 
 /* Junta mensagens novas ao estado da thread aberta, sem duplicar por id */
 function _mergeInvoiceMessages(newMsgs) {
-  const map = new Map(_invoiceCurrentMessages.map(m => [m.id, m]));
+  const map = new Map(AppModules.invoice._invoiceCurrentMessages.map(m => [m.id, m]));
   newMsgs.forEach(m => map.set(m.id, m));
-  _invoiceCurrentMessages = _dedupInvoiceMessages(
+  AppModules.invoice._invoiceCurrentMessages = _dedupInvoiceMessages(
     [...map.values()].sort((a, b) => new Date(a.date) - new Date(b.date))
   );
 }
@@ -137,7 +143,15 @@ function _dedupInvoiceMessages(msgs) {
 // (é a que aparece primeiro no HTML) e devolve o cartão completo em vez de só
 // o texto da mensagem.
 function _stripEmailChrome(html) {
-  if (!html || !html.includes('email-body-bg')) return html;
+  if (!html) return html;
+  // Marcadores explícitos postos pelo compositor (emailComposer.js): exatos e
+  // independentes da estrutura da tabela.
+  const start = html.indexOf('<!--sp:body-->');
+  const end = html.lastIndexOf('<!--/sp:body-->');
+  if (start !== -1 && end > start) return html.slice(start + '<!--sp:body-->'.length, end);
+  // Mensagens enviadas antes dos marcadores continuam a ser reconhecidas pela
+  // classe da célula de conteúdo.
+  if (!html.includes('email-body-bg')) return html;
   try {
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const contentCell = doc.querySelector('td.email-body-bg');
@@ -147,39 +161,35 @@ function _stripEmailChrome(html) {
 }
 
 function _renderInvoiceMessages(area, needsReauth) {
-  if (!_invoiceCurrentMessages.length) {
+  if (!AppModules.invoice._invoiceCurrentMessages.length) {
     area.innerHTML = `
       <div class="invoice-msgs-empty">
         <i data-lucide="mail-open" style="width:32px;height:32px;opacity:.25;"></i>
         <p>Sem mensagens ainda.</p>
-        ${needsReauth ? `<p class="imb-reauth">Para ver os emails recebidos, <a href="#" onclick="event.preventDefault();reconnectGmailForInbox()">re-autoriza o Gmail</a> com permissão de leitura.</p>` : ''}
+        ${needsReauth ? "<p class=\"imb-reauth\">Para ver os emails recebidos, <a href=\"#\" data-on-click=\"historico-prevent-default-e0d5cd5\">re-autoriza o Gmail</a> com permissão de leitura.</p>" : ''}
       </div>`;
     return;
   }
 
-  area.innerHTML = _invoiceCurrentMessages.map((m, i) => `
+  area.innerHTML = AppModules.invoice._invoiceCurrentMessages.map((m, i) => `
     <div class="invoice-bubble invoice-bubble--${m.direction}">
       <div class="ib-row">
         <div class="ib-content">
           <div class="ib-meta">
-            <span class="ib-author">${esc(m.author)}</span>
-            <span class="ib-date">${fmtDateTime(m.date)}</span>
+            <span class="ib-author">${AppModules.invoice.esc(m.author)}</span>
+            <span class="ib-date">${AppModules.invoice.fmtDateTime(m.date)}</span>
           </div>
-          <div class="ib-subject">${esc(m.subject)}</div>
-          <div class="ib-body">${renderEmailBodySandboxed(m.direction === 'sent' ? _stripEmailChrome(m.body) : m.body)}</div>
+          <div class="ib-subject">${AppModules.invoice.esc(m.subject)}</div>
+          <div class="ib-body">${AppModules.invoice.renderEmailBodySandboxed(m.direction === 'sent' ? _stripEmailChrome(m.body) : m.body)}</div>
           ${m.attachments?.length ? renderInvoiceAttachments(m.attachments, m.gmailMessageId) : ''}
         </div>
-        ${m.messageIdHeader ? `<button class="ib-reply-btn" type="button" title="Responder a esta mensagem" onclick="replyToInvoiceMessage(${i})"><i data-lucide="corner-up-left" style="width:13px;height:13px;"></i></button>` : ''}
+        ${m.messageIdHeader ? `<button class="ib-reply-btn" type="button" title="Responder a esta mensagem" ${AppActions.attrs("click", "historico-reply-to-invoice-message-171e160", [i])}><i data-lucide="corner-up-left" style="width:13px;height:13px;"></i></button>` : ''}
       </div>
     </div>
   `).join('');
 
   if (needsReauth) {
-    area.insertAdjacentHTML('afterbegin', `
-      <div class="imb-reauth-banner">
-        <i data-lucide="alert-circle" style="width:14px;height:14px;"></i>
-        Para ver os emails recebidos, <a href="#" onclick="event.preventDefault();reconnectGmailForInbox()">re-autoriza o Gmail</a> com permissão de leitura.
-      </div>`);
+    area.insertAdjacentHTML('afterbegin', "\n      <div class=\"imb-reauth-banner\">\n        <i data-lucide=\"alert-circle\" style=\"width:14px;height:14px;\"></i>\n        Para ver os emails recebidos, <a href=\"#\" data-on-click=\"historico-prevent-default-e0d5cd5\">re-autoriza o Gmail</a> com permissão de leitura.\n      </div>");
   }
 }
 
@@ -187,7 +197,7 @@ function renderInvoiceAttachments(atts, gmailMessageId) {
   if (!gmailMessageId) return '';
   return `<div class="ib-attachments">${atts.map(a => `
     <a class="ib-attachment" href="/auth/email/attachment?message_id=${encodeURIComponent(gmailMessageId)}&attachment_id=${encodeURIComponent(a.attachmentId)}&filename=${encodeURIComponent(a.filename)}" target="_blank" rel="noopener">
-      <i data-lucide="paperclip" style="width:12px;height:12px;"></i><span>${esc(a.filename)}</span><span class="ib-att-size">${_formatBytes(a.size)}</span>
+      <i data-lucide="paperclip" style="width:12px;height:12px;"></i><span>${AppModules.invoice.esc(a.filename)}</span><span class="ib-att-size">${_formatBytes(a.size)}</span>
     </a>`).join('')}</div>`;
 }
 
@@ -199,22 +209,22 @@ function _formatBytes(n) {
 
 /* ── Responder a uma mensagem específica (threading real) ── */
 function replyToInvoiceMessage(idx) {
-  const m = _invoiceCurrentMessages[idx];
+  const m = AppModules.invoice._invoiceCurrentMessages[idx];
   if (!m || !m.messageIdHeader) return;
-  _invoiceReplyTarget = { gmailThreadId: m.gmailThreadId, messageIdHeader: m.messageIdHeader, subject: m.subject };
+  AppModules.invoice._invoiceReplyTarget = { gmailThreadId: m.gmailThreadId, messageIdHeader: m.messageIdHeader, subject: m.subject };
 
   const subjInput = document.getElementById('ica-subject');
   if (subjInput && !/^re:/i.test(subjInput.value.trim())) subjInput.value = `Re: ${m.subject || ''}`;
 
   const ctx = document.getElementById('ica-reply-context');
   const snippetEl = document.getElementById('ica-reply-snippet');
-  if (snippetEl) snippetEl.textContent = `A responder a: ${_snippet('', m.body).slice(0, 60)}`;
+  if (snippetEl) snippetEl.textContent = `A responder a: ${AppModules.invoice._snippet('', m.body).slice(0, 60)}`;
   if (ctx) ctx.style.display = '';
   document.getElementById('ica-body')?.focus();
 }
 
 function cancelInvoiceReply() {
-  _invoiceReplyTarget = null;
+  AppModules.invoice._invoiceReplyTarget = null;
   const ctx = document.getElementById('ica-reply-context');
   if (ctx) ctx.style.display = 'none';
 }
@@ -225,8 +235,8 @@ async function loadThreadMessages(thread, opts = {}) {
   const area = document.getElementById('invoice-messages-' + thread.id);
   if (!area) return;
 
-  const paging = _invoicePaging[thread.id]
-    || (_invoicePaging[thread.id] = { dbCursor: null, dbDone: false, gmailPageToken: null, gmailDone: false, loading: false });
+  const paging = AppModules.invoice._invoicePaging[thread.id]
+    || (AppModules.invoice._invoicePaging[thread.id] = { dbCursor: null, dbDone: false, gmailPageToken: null, gmailDone: false, loading: false });
   if (paging.loading) return; // evita pedidos concorrentes (poll a meio de um "carregar mais", ou vice-versa)
   paging.loading = true;
 
@@ -279,7 +289,7 @@ async function loadThreadMessages(thread, opts = {}) {
       id:              'g-' + m.id,
       date:            m.date,
       subject:         m.subject,
-      body:            m.body || `<span style="opacity:.6">${esc(m.snippet)}</span>`,
+      body:            m.body || `<span style="opacity:.6">${AppModules.invoice.esc(m.snippet)}</span>`,
       direction:       m.direction,
       author:          m.direction === 'received' ? thread.guestName : 'Tu',
       gmailMessageId:  m.id,
@@ -289,7 +299,7 @@ async function loadThreadMessages(thread, opts = {}) {
     }));
     if (fetchGmail) { paging.gmailPageToken = inboxData.next_page_token || null; paging.gmailDone = !inboxData.next_page_token; }
 
-    if (!loadMore && !silent) _invoiceCurrentMessages = []; // (re)abertura da thread do zero
+    if (!loadMore && !silent) AppModules.invoice._invoiceCurrentMessages = []; // (re)abertura da thread do zero
     _mergeInvoiceMessages([...sentMsgs, ...gmailMsgs]);
     _renderInvoiceMessages(area, needsReauth);
 
@@ -305,7 +315,7 @@ async function loadThreadMessages(thread, opts = {}) {
       requestAnimationFrame(() => { area.scrollTop = prevScrollTop + (area.scrollHeight - prevScrollHeight); });
     }
   } catch {
-    if (!silent && !loadMore && !_invoiceCurrentMessages.length) {
+    if (!silent && !loadMore && !AppModules.invoice._invoiceCurrentMessages.length) {
       area.innerHTML = `<div class="invoice-msgs-empty"><p>Erro ao carregar mensagens.</p></div>`;
     }
   } finally {
@@ -314,9 +324,26 @@ async function loadThreadMessages(thread, opts = {}) {
   if (window.lucide) lucide.createIcons();
 }
 
-function reconnectGmailForInbox() {
-  showView('definicoes');
-  switchSettingsTab('gcal');
-  setTimeout(() => toast('Desliga e volta a ligar o Gmail para adicionar a permissão de leitura.', 'info'), 300);
+async function reconnectGmailForInbox() {
+  await AppModules.core.showView('definicoes');
+  AppModules.core.switchSettingsTab('gcal');
+  setTimeout(() => AppModules.core.toast('Desliga e volta a ligar o Gmail para adicionar a permissão de leitura.', 'info'), 300);
 }
 
+
+AppActions.register({
+  "historico-prevent-default-e0d5cd5": (el, event, args) => { event.preventDefault();reconnectGmailForInbox() },
+  "historico-show-view-3d0e569": (el, event, args) => { AppModules.core.showView('reservas') },
+  "historico-open-templates-picker-854f770": (el, event, args) => { AppModules.invoice.openTemplatesPicker('ica-subject','ica-body',args[0]) },
+  "historico-cancel-invoice-reply-7bdb026": (el, event, args) => { cancelInvoiceReply() },
+  "historico-send-invoice-email-a50410f": (el, event, args) => { AppModules.invoice.sendInvoiceEmail(args[0],args[1],args[2],args[3]) },
+}, "click");
+
+AppActions.register({
+  "historico-reply-to-invoice-message-171e160": (el, event, args) => { replyToInvoiceMessage(args[0]) },
+  "historico-archive-invoice-thread-cdd75e1": (el, event, args) => { AppModules.invoice.archiveInvoiceThread(args[0],args[1]) },
+  "historico-restore-invoice-thread-adcb894": (el, event, args) => { AppModules.invoice.restoreInvoiceThread(args[0]) },
+  "historico-delete-invoice-thread-history-917ed4c": (el, event, args) => { AppModules.invoice.deleteInvoiceThreadHistory(args[0],args[1],args[2]) },
+}, "click");
+
+})();

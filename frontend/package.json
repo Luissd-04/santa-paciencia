@@ -1,5 +1,30 @@
 {
-    "name": "santa-paciencia-frontend",
-    "version": "1.0.0",
-    "description": "Frontend Santa Paciência"
+  "name": "santa-paciencia-frontend",
+  "version": "1.0.0",
+  "description": "Frontend Santa Paciência",
+  "private": true,
+  "scripts": {
+    "audit": "npm audit --omit=dev --audit-level=high"
+  },
+  "comment": [
+    "As dependências abaixo não são instaladas: são as versões exatas que a app",
+    "carrega por CDN. Estão declaradas para o npm audit também cobrir o frontend —",
+    "o audit do backend não vê nada disto. O check-source.cjs confirma que as",
+    "versões dos URLs no código são estas.",
+    "Ficheiros servidos pela própria app, fora do registo npm, ficam em 'vendored':",
+    "o pacote 'xlsx' do npm parou na 0.18.5 e não corresponde ao SheetJS usado aqui,",
+    "por isso declará-lo daria alertas que não se aplicam a esta versão."
+  ],
+  "dependencies": {
+    "chart.js": "4.4.0",
+    "heic2any": "0.0.4",
+    "jspdf": "4.2.1",
+    "jspdf-autotable": "5.0.8",
+    "leaflet": "1.9.4",
+    "lucide": "1.17.0"
+  },
+  "vendored": {
+    "js/vendor/xlsx-0.20.3.min.js": "SheetJS Community Edition 0.20.3 (cdn.sheetjs.com)",
+    "css/vendor/flag-icons.min.css": "flag-icons 7.5.0 (cdnjs)"
   }
+}

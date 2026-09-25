@@ -1,3 +1,15 @@
+// Estado privado; interface partilhada em AppModules.core.
+(() => {
+AppModules.define('core', {
+  _exportColsSelectAll: { get: () => _exportColsSelectAll },
+  buildExportRowsXlsx: { get: () => buildExportRowsXlsx },
+  buildExportTablePdf: { get: () => buildExportTablePdf },
+  closeExportColumnPicker: { get: () => closeExportColumnPicker },
+  confirmExportColumnPicker: { get: () => confirmExportColumnPicker },
+  drawPdfBrandHeader: { get: () => drawPdfBrandHeader },
+  openExportColumnPicker: { get: () => openExportColumnPicker },
+});
+
 /* ═══════════════════════════════════════════════════════════════
    SANTA PACIÊNCIA — seleção de colunas para exports (XLS/PDF)
    Um único picker partilhado (modal #export-cols-modal-bg em index.html)
@@ -63,7 +75,7 @@ function confirmExportColumnPicker() {
   const { entityId, onConfirm } = _exportColsPickerState;
   const body = document.getElementById('export-cols-modal-body');
   const keys = Array.from(body.querySelectorAll('input[type="checkbox"]:checked')).map(el => el.value);
-  if (!keys.length) { toast('Seleciona pelo menos uma coluna.', 'error'); return; }
+  if (!keys.length) { AppModules.core.toast('Seleciona pelo menos uma coluna.', 'error'); return; }
   _saveExportColumnSelection(entityId, keys);
   closeExportColumnPicker();
   onConfirm(keys);
@@ -103,9 +115,9 @@ let _orgLogoDataUrlCache;
 async function getOrgLogoDataUrl() {
   if (_orgLogoDataUrlCache !== undefined) return _orgLogoDataUrlCache;
   try {
-    const res = await apiGet('/api/email-templates');
+    const res = await AppModules.core.apiGet('/api/email-templates');
     const url = res?.settings?.logo_url || null;
-    _orgLogoDataUrlCache = url ? await imageUrlToDataUrl(url) : null;
+    _orgLogoDataUrlCache = url ? await AppModules.core.imageUrlToDataUrl(url) : null;
   } catch (_) {
     _orgLogoDataUrlCache = null;
   }
@@ -136,3 +148,11 @@ async function drawPdfBrandHeader(doc, title) {
   doc.text(`Exportado em ${new Date().toLocaleDateString('pt-PT')}`, 14, 30);
   return 36;
 }
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('domain/export-columns.js', () => {
+  _exportColsPickerState = null;
+  _orgLogoDataUrlCache = undefined;
+});
+
+})();

@@ -1,3 +1,4 @@
+const { runFrontend } = require('../test-support/frontend.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -21,7 +22,12 @@ const rules = backendRequire('./services/reservationRules');
 const noopAsync = async () => null;
 const emailStub = new Proxy({}, { get: () => noopAsync });
 const calendarStub = new Proxy({}, { get: () => noopAsync });
-const taskStub = { syncReservationOperationalTasks() {}, syncOrganizationOperationalTasks() {} };
+const taskStub = {
+  syncReservationOperationalTasks() {},
+  syncOrganizationOperationalTasks() {},
+  queueReservationTaskCleanup() { return 0; },
+  async flushReservationTaskCleanup() { return { deleted: 0, errors: 0, pending: 0 }; },
+};
 const defaultStubs = {
   '../services/emailService': emailStub,
   '../services/calendarService': calendarStub,
@@ -35,7 +41,13 @@ function load(relative, extra = {}) {
   const stubs = { ...defaultStubs, ...extra };
   const module = { exports: {} };
   vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
-    require: id => Object.hasOwn(stubs, id) ? stubs[id] : localRequire(id),
+    require: id => {
+      if (Object.hasOwn(stubs, id)) return stubs[id];
+      if (['./reservationWriteController', '../services/reservationSupport'].includes(id)) {
+        return load(path.relative(backend, localRequire.resolve(id)), extra);
+      }
+      return localRequire(id);
+    },
     module, exports: module.exports, process, console, Buffer, URL, URLSearchParams,
     setTimeout, clearTimeout, setInterval, clearInterval, fetch: global.fetch,
     __filename: filename, __dirname: path.dirname(filename),
@@ -82,6 +94,7 @@ async function main() {
   const publicCtrl = load('controllers/publicBookingController.js');
   const reservationCtrl = load('controllers/reservationController.js');
   let publicToken;
+  let reservationStatusToken;
   await check('F10: rejeita negativos e grava estado e pagamento inicial', async () => {
     const body = { accommodation_id: 'unit-b', check_in: '2032-01-01', check_out: '2032-01-03', num_guests: 1,
       guest: { name: 'Synthetic Internal', email: 'internal@example.invalid' }, total_amount: -5, amount_paid: -10, status: 'pre_reserva' };
@@ -100,8 +113,16 @@ async function main() {
     assert.equal(res.statusCode, 201);
     assert.equal(res.body.data.total_amount, 200);
     publicToken = res.body.data.precheckin_url.split('/').pop();
+    reservationStatusToken = res.body.data.public_url.split('/').pop();
+    const status = await call(publicCtrl.getReservationStatus, request({}, { token: reservationStatusToken }));
+    assert.equal(status.statusCode, 200);
+    assert.equal(status.body.data.accommodation_name, 'Property A');
+    assert.equal(Object.hasOwn(status.body.data, 'guest_email'), false);
+    const missing = await call(publicCtrl.getReservationStatus, request({}, { token: 'invalid' }));
+    assert.equal(missing.statusCode, 404);
   });
   await check('S02: email público não permite alterar outra ficha', async () => {
+    const guestsBefore = db.prepare("SELECT count(*) AS n FROM guests WHERE organization_id='org-a'").get().n;
     const read = await call(publicCtrl.getPreCheckin, request({}, { token: publicToken }));
     assert.notEqual(read.body.data.guest.phone, 'PRIVATE-PHONE');
     const write = await call(publicCtrl.submitPreCheckin, request({ guest: {
@@ -109,6 +130,13 @@ async function main() {
     } }, { token: publicToken }));
     assert.equal(write.statusCode, 200);
     assert.equal(db.prepare('SELECT name FROM guests WHERE id=?').get('guest-a').name, 'Existing Guest');
+    assert.equal(db.prepare("SELECT count(*) AS n FROM guests WHERE organization_id='org-a'").get().n, guestsBefore);
+    const replay = await call(publicCtrl.submitPreCheckin, request({ guest: {
+      name: 'Replay', email: 'replay@example.invalid', nationality: 'Portugal',
+    } }, { token: publicToken }));
+    assert.equal(replay.statusCode, 409);
+    const replayRead = await call(publicCtrl.getPreCheckin, request({}, { token: publicToken }));
+    assert.equal(replayRead.statusCode, 410);
   });
   await check('S08: pré-check-in conserva aprovação e expiração', async () => {
     const row = db.prepare('SELECT * FROM reservations WHERE precheckin_token=?').get(publicToken);
@@ -163,6 +191,18 @@ async function main() {
     }, { id: 'unit-a' }));
     assert.equal(traversal.statusCode, 400);
     assert.equal(fs.readdirSync(temp).some(name => name.startsWith('audit-outside_')), false);
+  });
+  await check('S03b: alojamentos e serviços recusam payloads excessivos', async () => {
+    const ctrl = load('controllers/accommodationController.js');
+    const longName = 'x'.repeat(161);
+    const created = await call(ctrl.create, request({ name: longName, type: 'suite' }));
+    assert.equal(created.statusCode, 400);
+    const updated = await call(ctrl.update, request({ name: longName }, { id: 'unit-a' }));
+    assert.equal(updated.statusCode, 400);
+    const services = await call(ctrl.saveSettings, request({ services: [{
+      id: 'bad', name: 'x'.repeat(161), type: 'service', value: 1,
+    }] }));
+    assert.equal(services.statusCode, 400);
   });
   await check('F08: backup restaura bloqueios, logótipos e talões', async () => {
     const { routes, express } = routerDouble(); load('routes/backup.js', { express });
@@ -222,6 +262,9 @@ async function main() {
       sendNotification: async (subscription, payload) => sent.push({ subscription, payload }),
     } });
     push.saveSubscription('org-a', 'audit-user', { endpoint: 'https://example.invalid/push', keys: {} });
+    push.saveSubscription('org-b', 'audit-user', { endpoint: 'https://example.invalid/foreign-push', keys: {} });
+    assert.equal(push.deleteSubscription('org-a', 'audit-user', 'https://example.invalid/foreign-push'), false);
+    assert.equal(db.prepare("SELECT count(*) AS n FROM push_subscriptions WHERE endpoint='https://example.invalid/foreign-push'").get().n, 1);
     await call(team.removeMember, request({}, { id: 'member-a' }));
     await push.sendToOrganization('org-a', { body: 'Synthetic guest information' });
     assert.equal(sent.length, 0);
@@ -236,8 +279,8 @@ async function main() {
   });
   await check('F06: idade-limite coincide entre frontend e backend', () => {
     const context = vm.createContext({ window: {} });
-    vm.runInContext(fs.readFileSync(path.join(root, 'frontend/js/domain/dates.js'), 'utf8'), context);
-    vm.runInContext(fs.readFileSync(path.join(root, 'frontend/js/domain/pricing.js'), 'utf8'), context);
+    runFrontend(fs.readFileSync(path.join(root, 'frontend/js/domain/dates.js'), 'utf8'), context);
+    runFrontend(fs.readFileSync(path.join(root, 'frontend/js/domain/pricing.js'), 'utf8'), context);
     const acc = { baby_age_limit: 2, baby_price: 0, child_age_limit: 12, child_price: 25 };
     const front = context.window.ReservationPricing.getAgeSpecialRates(acc, ['2024-01-01'], '2026-01-01');
     const back = rules.getAgeSpecialRates(acc, ['2024-01-01'], '2026-01-01');
@@ -259,7 +302,7 @@ async function main() {
       sessionStorage: { setItem: (key, value) => storage.set(key, value), getItem: key => storage.get(key), removeItem: key => storage.delete(key) },
       currentUser: { id: 'user-a', organization_id: 'org-a' }, editingId: null,
     });
-    for (const file of JSON.parse(fs.readFileSync(path.join(root, 'frontend/js/features/manifest.json'), 'utf8'))['js/reserva-wizard.js'].scripts) vm.runInContext(fs.readFileSync(path.join(root, 'frontend', file), 'utf8'), context);
+    for (const file of JSON.parse(fs.readFileSync(path.join(root, 'frontend/js/features/manifest.json'), 'utf8'))['js/reserva-wizard.js'].scripts) runFrontend(fs.readFileSync(path.join(root, 'frontend', file), 'utf8'), context);
     vm.runInContext('saveReservaDraft()', context);
     context.currentUser = { id: 'user-b', organization_id: 'org-b' };
     const draft = vm.runInContext('loadReservaDraft()', context);
@@ -301,6 +344,27 @@ async function main() {
       await scheduler.runScheduler(); assert.equal(calls.length, 2); assert.equal(logCount(), 1);
     } finally { process.env.EMAIL_ENABLED = 'false'; }
   });
+  await check('Email agendado enviado pela fila fica registado e não se repete', async () => {
+    reservation('queued-scheduled', 'scheduler-unit', '[]', 200);
+    db.prepare('INSERT INTO organization_email_queue(id,organization_id,template_slug,reservation_id) VALUES(?,?,?,?)')
+      .run('queued-id', 'org-a', 'codigo_porta', 'queued-scheduled');
+    let sends = 0;
+    const scheduler = load('services/emailScheduler.js', { './emailService': {
+      getEmailSettings: () => ({}),
+      sendTemplatedEmail: async () => { sends++; return { id: 'synthetic-queued' }; },
+    } });
+    process.env.EMAIL_ENABLED = 'true';
+    try {
+      await scheduler.runScheduler();
+      assert.equal(sends, 1);
+      assert(db.prepare('SELECT 1 FROM organization_email_log WHERE reservation_id=?').get('queued-scheduled'));
+      assert.equal(db.prepare('SELECT 1 FROM organization_email_queue WHERE id=?').get('queued-id'), undefined);
+      const today = new Date().toISOString().slice(0, 10);
+      db.prepare('UPDATE reservations SET check_in=?,check_out=? WHERE id=?').run(today, today, 'queued-scheduled');
+      await scheduler.runScheduler();
+      assert.equal(sends, 1);
+    } finally { process.env.EMAIL_ENABLED = 'false'; }
+  });
   await check('S06: cache não guarda respostas privadas', async () => {
     const entries = new Map(); let online = true; const listeners = {};
     const cache = { put: async (req, res) => entries.set(req.url, res), match: async req => entries.get(req.url)?.clone() };
@@ -309,7 +373,7 @@ async function main() {
       caches: { open: async () => cache, match: cache.match },
       fetch: async () => { if (!online) throw new Error('offline'); return new Response(JSON.stringify({ organization: 'org-a', private: 'synthetic' })); },
     });
-    vm.runInContext(fs.readFileSync(path.join(root, 'frontend/service-worker.js'), 'utf8'), context);
+    runFrontend(fs.readFileSync(path.join(root, 'frontend/service-worker.js'), 'utf8'), context);
     const req = { url: 'https://audit.invalid/api/guests', method: 'GET' };
     let pending; const event = { request: req, respondWith: p => { pending = p; } };
     listeners.fetch(event); await pending;

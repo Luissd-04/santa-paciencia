@@ -1,0 +1,71 @@
+        <section class="hospedes-shell">
+          <div class="view-toolbar hospedes-toolbar">
+            <div class="view-chip-list">
+              <span class="view-stat-chip">
+                <strong id="hospedes-total">0</strong>
+                <span>hóspedes</span>
+              </span>
+              <span class="view-stat-chip">
+                <strong id="hospedes-vip">0</strong>
+                <span>VIP/Favoritos</span>
+              </span>
+              <span class="view-stat-chip">
+                <strong id="hospedes-repeat">0</strong>
+                <span>repetentes</span>
+              </span>
+            </div>
+            <div class="view-toolbar-actions">
+              <div class="search-box hospedes-search-box">
+                <i data-lucide="search"></i>
+                <input type="text" id="hospedes-search" placeholder="Pesquisar hóspede, email..." data-on-input="index-render-hospedes-2b72f03" autocomplete="off">
+              </div>
+              <div class="hospedes-view-toggle" id="hospedes-view-toggle">
+                <button class="hvt-btn active" id="hvt-cards" data-on-click="index-set-hospedes-view-a7ea03d">
+                  <i data-lucide="layout-grid"></i> Cartões
+                </button>
+                <button class="hvt-btn" id="hvt-lista" data-on-click="index-set-hospedes-view-f6da99d">
+                  <i data-lucide="list"></i> Lista
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card section-card hospedes-card-board">
+            <div id="hospedes-cards-view">
+              <div id="hospedes-cards-grid" class="hospedes-grid"></div>
+              <div id="hospedes-empty" style="display:none;" class="empty-state">
+                <div class="es-icon">👥</div>
+                <h3>Sem hóspedes</h3>
+                <p>Ainda não existem hóspedes registados.</p>
+              </div>
+              <div id="hospedes-loading" class="loading">
+                <div class="spinner"></div> A carregar hóspedes...
+              </div>
+            </div>
+
+            <div id="hospedes-lista-view" style="display:none;">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th data-on-click="index-sort-hospedes-69c4e0a" class="th-sort">Nome <span class="sort-icon" id="hsort-name">↑</span></th>
+                      <th data-on-click="index-sort-hospedes-efa5be0" class="th-sort">Email <span class="sort-icon" id="hsort-email"></span></th>
+                      <th data-on-click="index-sort-hospedes-958a44e" class="th-sort">Telefone <span class="sort-icon" id="hsort-phone"></span></th>
+                      <th data-on-click="index-sort-hospedes-f30b9d2" class="th-sort">País <span class="sort-icon" id="hsort-nationality"></span></th>
+                      <th data-on-click="index-sort-hospedes-b478e5f" class="th-sort">Reservas <span class="sort-icon" id="hsort-reservation_count"></span></th>
+                      <th data-on-click="index-sort-hospedes-fbd6916" class="th-sort">Última visita <span class="sort-icon" id="hsort-last_check_in"></span></th>
+                      <th style="width:80px;">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="hospedes-lista-body"></tbody>
+                </table>
+              </div>
+              <div id="hospedes-lista-empty" style="display:none;" class="empty-state">
+                <div class="es-icon">👥</div>
+                <h3>Sem hóspedes</h3>
+                <p>Ainda não existem hóspedes registados.</p>
+              </div>
+            </div>
+          </div>
+          <nav id="hospedes-pagination" class="list-pagination" aria-label="Páginas de hóspedes"></nav>
+        </section>

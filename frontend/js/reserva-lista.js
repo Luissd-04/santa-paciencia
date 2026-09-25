@@ -1,6 +1,24 @@
-let sortCol = SS.get('res:sort', 'check_in');
-let sortAsc = SS.get('res:asc', true);
-let reservasViewMode = SS.get('res:view', 'card');
+// Estado privado; interface partilhada em AppModules.reservas.
+(() => {
+AppModules.define('reservas', {
+  clearResExactDateFilter: { get: () => clearResExactDateFilter },
+  getFilteredReservas: { get: () => getFilteredReservas },
+  preCheckinUrl: { get: () => preCheckinUrl },
+  renderResCard: { get: () => renderResCard },
+  reservasDetailOpen: { get: () => reservasDetailOpen, set: value => { reservasDetailOpen = value; } },
+  reservasViewMode: { get: () => reservasViewMode, set: value => { reservasViewMode = value; } },
+  resExactDateFilter: { get: () => resExactDateFilter, set: value => { resExactDateFilter = value; } },
+  setMobileChip: { get: () => setMobileChip },
+  setResExactDateFilter: { get: () => setResExactDateFilter },
+  sortAsc: { get: () => sortAsc, set: value => { sortAsc = value; } },
+  sortCol: { get: () => sortCol, set: value => { sortCol = value; } },
+  syncMobileChips: { get: () => syncMobileChips },
+  updateReservasClearBtn: { get: () => updateReservasClearBtn },
+});
+
+let sortCol = AppModules.core.SS.get('res:sort', 'check_in');
+let sortAsc = AppModules.core.SS.get('res:asc', true);
+let reservasViewMode = AppModules.core.SS.get('res:view', 'card');
 let reservasDetailOpen = false;
 
 // Filtro de data exata (distinto do filtro de intervalo filter-date-from/to),
@@ -14,7 +32,7 @@ function setResExactDateFilter(field, date) {
     if (el) el.value = '';
   });
   renderResExactFilterChip();
-  renderTabela();
+  AppModules.reservas.renderTabela();
 }
 
 function clearResExactDateFilter() {
@@ -33,7 +51,7 @@ function renderResExactFilterChip() {
   }
   const label = resExactDateFilter.field === 'check_in' ? 'Chegadas de hoje' : 'Partidas de hoje';
   el.style.display = 'block';
-  el.innerHTML = `<div class="chip active" style="display:inline-flex;align-items:center;gap:6px;" onclick="clearResExactDateFilter();renderTabela();">${label} ✕</div>`;
+  el.innerHTML = `<div class="chip active" style="display:inline-flex;align-items:center;gap:6px;" data-on-click="reserva-lista-clear-res-exact-date-filter-a0fba32">${label} ✕</div>`;
 }
 
 // Os chips mobile são apenas UI sobre o dropdown filter-estado — fonte única
@@ -46,38 +64,20 @@ function setMobileChip(el, filter) {
   }
   clearResExactDateFilter();
   syncMobileChips(filter);
-  renderTabela();
+  AppModules.reservas.renderTabela();
 }
 
 function syncMobileChips(filterValue) {
+  // data-filter, não o onclick (inexistente desde a migração para
+  // data-on-click — o match nunca acontecia e nenhum chip ficava ativo).
   document.querySelectorAll('.mobile-filter-chips .chip').forEach(chip => {
-    const on = chip.getAttribute('onclick') || '';
-    const match = on.match(/setMobileChip\(this,'([^']*)'\)/);
-    chip.classList.toggle('active', !!match && match[1] === (filterValue || ''));
+    chip.classList.toggle('active', chip.dataset.filter === (filterValue || ''));
   });
 }
 
 // Filtro partilhado entre a tabela desktop e os cards mobile (fonte única).
 function getFilteredReservas() {
-  const searchEl = document.getElementById('search-input') || document.getElementById('mobile-search-input');
-  const q  = (searchEl?.value || '').toLowerCase();
-  const fe = document.getElementById('filter-estado')?.value || '';
-  const fs = document.getElementById('filter-suite')?.value || '';
-  const fc = document.getElementById('filter-canal')?.value || '';
-  const fp = document.getElementById('filter-pagamento')?.value || '';
-  const fd = normalizeIsoDateValue(document.getElementById('filter-date-from')?.value || '');
-  const ft = normalizeIsoDateValue(document.getElementById('filter-date-to')?.value || '');
-  return reservas.filter(r => {
-    const matchQ = !q || (r.guest_name + ' ' + r.id + ' ' + (r.guest_email || '') + ' ' + r.accommodation_name).toLowerCase().includes(q);
-    const matchE = !fe || r.status === fe;
-    const matchS = !fs || r.accommodation_id === fs;
-    const matchC = !fc || r.channel === fc;
-    const matchP = !fp || r.payment_status === fp;
-    const matchD = !fd || r.check_in >= fd;
-    const matchT = !ft || r.check_out <= ft;
-    const matchExact = !resExactDateFilter || r[resExactDateFilter.field] === resExactDateFilter.date;
-    return matchQ && matchE && matchS && matchC && matchP && matchD && matchT && matchExact;
-  });
+  return AppModules.core.reservas;
 }
 
 const STATUS_COLORS = {
@@ -96,16 +96,16 @@ function preCheckinUrl(token) {
 function renderResCardHeader(r) {
   return `<div class="mrc-top">
       <div>
-        <div class="mrc-name">${escapeHtml(r.guest_name)}</div>
-        <div class="mrc-id">${escapeHtml(r.id)} · ${escapeHtml(r.accommodation_name)}</div>
+        <div class="mrc-name">${AppModules.core.escapeHtml(r.guest_name)}</div>
+        <div class="mrc-id">${AppModules.core.escapeHtml(r.id)} · ${AppModules.core.escapeHtml(r.accommodation_name)}</div>
       </div>
-      ${badgeEstado(r.status)}
+      ${AppModules.core.badgeEstado(r.status)}
     </div>`;
 }
 
 function renderResCardMeta(r) {
   return `<div class="mrc-meta">
-      <div class="mrc-meta-item"><i data-lucide="calendar"></i> ${formatDate(r.check_in)}</div>
+      <div class="mrc-meta-item"><i data-lucide="calendar"></i> ${AppModules.core.formatDate(r.check_in)}</div>
       <div class="mrc-meta-item"><i data-lucide="moon"></i> ${r.nights} noite${r.nights !== 1 ? 's' : ''}</div>
     </div>`;
 }
@@ -118,7 +118,7 @@ function renderResCardTotal(r) {
     ? `<span style="font-size:11px;color:var(--vermelho);display:block;">falta €${rem.toFixed(2)}</span>`
     : '';
   return `<div class="mrc-total">
-      <span class="mrc-channel">${r.channel || '—'} · ${badgePagamento(r.payment_status)}</span>
+      <span class="mrc-channel">${AppModules.core.escapeHtml(r.channel || '—')} · ${AppModules.core.badgePagamento(r.payment_status)}</span>
       <span class="mrc-price">€${total.toFixed(2)}${remHtml}</span>
     </div>`;
 }
@@ -126,8 +126,8 @@ function renderResCardTotal(r) {
 // O cartão inteiro já abre o detalhe (onclick em .m-res-card) — daí não
 // haver botão "Ver". Fica só a ação secundária "Editar".
 function renderResCardActions(r) {
-  return `<div class="mrc-actions" onclick="event.stopPropagation()">
-      <button class="m-card-btn" onclick="openEditModal('${r.id}')">
+  return `<div class="mrc-actions" data-on-click="reserva-lista-stop-propagation-22499e1">
+      <button class="m-card-btn" ${AppActions.attrs("click", "reserva-lista-open-edit-modal-e85a518", [String((r.id) ?? '')])}>
         <i data-lucide="pencil"></i> Editar
       </button>
     </div>`;
@@ -135,7 +135,7 @@ function renderResCardActions(r) {
 
 function renderResCard(r) {
   const bc = STATUS_COLORS[r.status] || 'var(--marca)';
-  return `<div class="m-res-card m-card" style="border-left-color:${bc}" onclick="showDetail('${r.id}')">
+  return `<div class="m-res-card m-card" style="border-left-color:${bc}" ${AppActions.attrs("click", "reserva-lista-show-detail-3d67b14", [String((r.id) ?? '')])}>
     ${renderResCardHeader(r)}
     ${renderResCardMeta(r)}
     ${renderResCardTotal(r)}
@@ -143,13 +143,6 @@ function renderResCard(r) {
   </div>`;
 }
 
-let reservasPastExpanded = false;
-
-// Sem filtros ativos, um utilizador no telemóvel quer sobretudo ver o
-// que está para vir (chegadas/estadias) — as passadas ficam atrás de um
-// separador colapsável. Com um filtro explícito (pesquisa, estado,
-// suite, canal, pagamento, datas) mostramos a lista plana como antes,
-// porque o filtro já é uma pesquisa deliberada (pode incluir passadas).
 function hasActiveReservasFilter() {
   const q = document.getElementById('search-input')?.value || document.getElementById('mobile-search-input')?.value || '';
   return Boolean(
@@ -164,11 +157,6 @@ function hasActiveReservasFilter() {
   );
 }
 
-function toggleReservasPastSection() {
-  reservasPastExpanded = !reservasPastExpanded;
-  renderMobileCards();
-}
-
 // "Limpar filtros" na barra só aparece quando há mesmo algum filtro ativo
 // (pesquisa, estado, suite, canal, pagamento, datas ou atalho de data exata).
 function updateReservasClearBtn() {
@@ -176,3 +164,20 @@ function updateReservasClearBtn() {
   if (btn) btn.style.display = hasActiveReservasFilter() ? '' : 'none';
 }
 
+
+AppActions.register({
+  "reserva-lista-stop-propagation-22499e1": (el, event, args) => { event.stopPropagation() },
+  "reserva-lista-open-edit-modal-e85a518": (el, event, args) => { AppModules.reservas.openEditModal(args[0]) },
+  "reserva-lista-clear-res-exact-date-filter-a0fba32": (el, event, args) => { clearResExactDateFilter();AppModules.reservas.renderTabela(); },
+}, "click");
+
+AppActions.register({
+  "reserva-lista-show-detail-3d67b14": (el, event, args) => { AppModules.reservas.showDetail(args[0]) },
+}, "click");
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('reserva-lista.js', () => {
+  resExactDateFilter = null;
+});
+
+})();

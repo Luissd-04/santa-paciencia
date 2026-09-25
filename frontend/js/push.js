@@ -1,3 +1,13 @@
+// Estado privado; interface partilhada em AppModules.definicoes.
+(() => {
+AppModules.define('definicoes', {
+  disablePushNotifications: { get: () => disablePushNotifications },
+  enablePushNotifications: { get: () => enablePushNotifications },
+  initPushSettings: { get: () => initPushSettings },
+  savePushPrefs: { get: () => savePushPrefs },
+  sendTestPush: { get: () => sendTestPush },
+});
+
 // ── PUSH NOTIFICATIONS (Web Push) ──
 
 function urlBase64ToUint8Array(base64String) {
@@ -40,7 +50,7 @@ async function loadPushDevices() {
   if (!wrap) return;
   try {
     const [{ data: devices }, ownSub] = await Promise.all([
-      apiGet('/api/push/devices'),
+      AppModules.core.apiGet('/api/push/devices'),
       getPushSubscription().catch(() => null),
     ]);
     const ownTail = ownSub?.endpoint ? ownSub.endpoint.slice(-16) : null;
@@ -59,18 +69,18 @@ async function loadPushDevices() {
             <i data-lucide="${/iPhone|iPad|Android/.test(d.device_name) ? 'smartphone' : 'monitor'}" style="width:17px;height:17px;color:var(--cinza);flex-shrink:0;"></i>
             <div style="min-width:0;">
               <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                ${escapeHtml(d.device_name)}
+                ${AppModules.core.escapeHtml(d.device_name)}
                 ${isThis ? '<span style="font-size:10.5px;font-weight:700;color:var(--marca);background:rgba(132,52,36,.09);border-radius:10px;padding:1px 7px;margin-left:6px;">este dispositivo</span>' : ''}
               </div>
-              <div style="font-size:11.5px;color:var(--cinza);">${escapeHtml(d.user_name)}${since ? ` · desde ${since}` : ''}${d.active ? '' : ' · pausado'}</div>
+              <div style="font-size:11.5px;color:var(--cinza);">${AppModules.core.escapeHtml(d.user_name)}${since ? ` · desde ${since}` : ''}${d.active ? '' : ' · pausado'}</div>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
             <label class="toggle-switch" title="${d.active ? 'Pausar notificações neste dispositivo' : 'Reativar notificações neste dispositivo'}">
-              <input type="checkbox" ${d.active ? 'checked' : ''} onchange="togglePushDevice('${d.id}', this.checked)">
+              <input type="checkbox" ${d.active ? 'checked' : ''} ${AppActions.attrs("change", "push-toggle-push-device-c8177ec", [String((d.id) ?? '')])}>
               <span class="toggle-slider"></span>
             </label>
-            <button class="btn btn-ghost btn-sm" style="color:var(--vermelho);padding:4px 8px;" onclick="removePushDevice('${d.id}', ${isThis ? 'true' : 'false'})" title="Remover dispositivo">
+            <button class="btn btn-ghost btn-sm" style="color:var(--vermelho);padding:4px 8px;" ${AppActions.attrs("click", "push-remove-push-device-3c83dac", [String((d.id) ?? ''), isThis])} title="Remover dispositivo">
               <i data-lucide="trash-2" style="width:13px;height:13px;"></i>
             </button>
           </div>
@@ -84,10 +94,10 @@ async function loadPushDevices() {
 
 async function togglePushDevice(id, active) {
   try {
-    await apiPut(`/api/push/devices/${id}`, { active });
-    toast(active ? '🔔 Dispositivo reativado.' : '🔕 Dispositivo pausado.', 'success');
+    await AppModules.core.apiPut(`/api/push/devices/${id}`, { active });
+    AppModules.core.toast(active ? '🔔 Dispositivo reativado.' : '🔕 Dispositivo pausado.', 'success');
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || 'Erro ao atualizar dispositivo.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Erro ao atualizar dispositivo.'), 'error');
   } finally {
     loadPushDevices();
   }
@@ -96,15 +106,15 @@ async function togglePushDevice(id, active) {
 async function removePushDevice(id, isThisDevice) {
   if (!confirm('Remover este dispositivo? Para voltar a receber notificações nele será preciso ativá-las de novo nesse aparelho.')) return;
   try {
-    await apiDelete(`/api/push/devices/${id}`);
+    await AppModules.core.apiDelete(`/api/push/devices/${id}`);
     // Se for o próprio dispositivo, limpar também a subscrição local do browser
     if (isThisDevice) {
       const sub = await getPushSubscription().catch(() => null);
       if (sub) await sub.unsubscribe().catch(() => {});
     }
-    toast('🗑 Dispositivo removido.', 'info');
+    AppModules.core.toast('🗑 Dispositivo removido.', 'info');
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || 'Erro ao remover dispositivo.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Erro ao remover dispositivo.'), 'error');
   } finally {
     loadPushDevices();
     initPushSettings();
@@ -113,7 +123,7 @@ async function removePushDevice(id, isThisDevice) {
 
 async function loadPushPrefs() {
   try {
-    const { data } = await apiGet('/api/push/prefs');
+    const { data } = await AppModules.core.apiGet('/api/push/prefs');
     document.querySelectorAll('[data-push-pref]').forEach(input => {
       input.checked = data[input.dataset.pushPref] !== false;
     });
@@ -126,10 +136,10 @@ async function savePushPrefs() {
     prefs[input.dataset.pushPref] = input.checked;
   });
   try {
-    await apiPost('/api/push/prefs', prefs);
-    toast('✅ Preferências de notificações guardadas.', 'success');
+    await AppModules.core.apiPost('/api/push/prefs', prefs);
+    AppModules.core.toast('✅ Preferências de notificações guardadas.', 'success');
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || 'Erro ao guardar preferências.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Erro ao guardar preferências.'), 'error');
   }
 }
 
@@ -174,11 +184,11 @@ async function initPushSettings() {
 async function enablePushNotifications() {
   const btn = document.getElementById('push-enable-btn');
   if (!pushIsSupported()) {
-    toast('❌ Este browser não suporta notificações push.', 'error');
+    AppModules.core.toast('❌ Este browser não suporta notificações push.', 'error');
     return;
   }
   if (isIosWithoutInstall()) {
-    toast('⚠️ No iPhone, abra a app a partir do ecrã inicial para ativar notificações.', 'error');
+    AppModules.core.toast('⚠️ No iPhone, abra a app a partir do ecrã inicial para ativar notificações.', 'error');
     return;
   }
 
@@ -187,11 +197,11 @@ async function enablePushNotifications() {
     // O pedido de permissão tem de acontecer em resposta ao clique (obrigatório no iOS)
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
-      toast('⚠️ Permissão de notificações recusada.', 'error');
+      AppModules.core.toast('⚠️ Permissão de notificações recusada.', 'error');
       return;
     }
 
-    const { data } = await apiGet('/api/push/public-key');
+    const { data } = await AppModules.core.apiGet('/api/push/public-key');
     const reg = await getPushRegistration();
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
@@ -201,10 +211,10 @@ async function enablePushNotifications() {
       });
     }
 
-    await apiPost('/api/push/subscribe', { subscription: sub.toJSON() });
-    toast('✅ Notificações ativadas neste dispositivo.', 'success');
+    await AppModules.core.apiPost('/api/push/subscribe', { subscription: sub.toJSON() });
+    AppModules.core.toast('✅ Notificações ativadas neste dispositivo.', 'success');
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || err?.message || 'Erro ao ativar notificações.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || err?.message || 'Erro ao ativar notificações.'), 'error');
   } finally {
     AppUI.setButtonLoading(btn, false);
     initPushSettings();
@@ -217,12 +227,12 @@ async function disablePushNotifications() {
   try {
     const sub = await getPushSubscription();
     if (sub) {
-      await apiPost('/api/push/unsubscribe', { endpoint: sub.endpoint });
+      await AppModules.core.apiPost('/api/push/unsubscribe', { endpoint: sub.endpoint });
       await sub.unsubscribe();
     }
-    toast('🔕 Notificações desligadas neste dispositivo.', 'success');
+    AppModules.core.toast('🔕 Notificações desligadas neste dispositivo.', 'success');
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || 'Erro ao desligar notificações.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Erro ao desligar notificações.'), 'error');
   } finally {
     AppUI.setButtonLoading(btn, false);
     initPushSettings();
@@ -234,18 +244,28 @@ async function sendTestPush() {
   const input = document.getElementById('push-test-message');
   const message = input?.value.trim();
   if (!message) {
-    toast('⚠️ Escreva uma mensagem primeiro.', 'error');
+    AppModules.core.toast('⚠️ Escreva uma mensagem primeiro.', 'error');
     return;
   }
 
   AppUI.setButtonLoading(btn, true, 'A enviar...');
   try {
-    const { data } = await apiPost('/api/push/test', { message });
-    toast(`✅ Enviada para ${data.sent} dispositivo${data.sent === 1 ? '' : 's'}.`, 'success');
+    const { data } = await AppModules.core.apiPost('/api/push/test', { message });
+    AppModules.core.toast(`✅ Enviada para ${data.sent} dispositivo${data.sent === 1 ? '' : 's'}.`, 'success');
     input.value = '';
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || 'Erro ao enviar notificação.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Erro ao enviar notificação.'), 'error');
   } finally {
     AppUI.setButtonLoading(btn, false);
   }
 }
+
+AppActions.register({
+  "push-toggle-push-device-c8177ec": (el, event, args) => { togglePushDevice(args[0], el.checked) },
+}, "change");
+
+AppActions.register({
+  "push-remove-push-device-3c83dac": (el, event, args) => { removePushDevice(args[0], args[1]) },
+}, "click");
+
+})();

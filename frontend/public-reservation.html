@@ -72,7 +72,7 @@
               <div class="voucher-row" id="voucher-row">
                 <div style="display:flex;gap:8px;margin-top:16px;">
                   <input id="pb-voucher" type="text" placeholder="Código de voucher (opcional)" autocomplete="off" style="text-transform:uppercase;flex:1;font-size:13px;">
-                  <button type="button" id="pb-voucher-btn" onclick="applyVoucher()" style="white-space:nowrap;padding:0 16px;border:1px solid var(--brand);border-radius:12px;background:transparent;color:var(--brand);font-size:13px;font-weight:600;cursor:pointer;">Aplicar</button>
+                  <button type="button" id="pb-voucher-btn" data-on-click="public-reservation-apply-voucher-ed3c7bd" style="white-space:nowrap;padding:0 16px;border:1px solid var(--brand);border-radius:12px;background:transparent;color:var(--brand);font-size:13px;font-weight:600;cursor:pointer;">Aplicar</button>
                 </div>
                 <div id="pb-voucher-status" style="display:none;font-size:13px;margin-top:6px;padding:6px 10px;border-radius:8px;"></div>
               </div>
@@ -178,10 +178,19 @@
   </div>
 
   <script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js" integrity="sha384-bdZtphetAEBgkGZvhZXOFDWc55tHGLqaSo1f4qZtgvEiolEBqlJ9u6FTk+CoLfj0" crossorigin="anonymous"></script>
+  <script src="/js/domain/modules.js"></script>
+<script src="/js/domain/actions.js"></script>
   <script src="/js/domain/dates.js"></script>
   <script src="/js/domain/pricing.js"></script>
   <script src="/js/domain/date-picker.js"></script>
   <script src="/js/ui.js"></script>
   <script src="/js/public-reservation.js"></script>
+  <script src="/js/features/public-reservation/helpers.js"></script>
+  <script src="/js/features/public-reservation/landing.js"></script>
+  <script src="/js/features/public-reservation/dados-hospedes.js"></script>
+  <script src="/js/features/public-reservation/disponibilidade.js"></script>
+  <script src="/js/features/public-reservation/precos.js"></script>
+  <script src="/js/features/public-reservation/submissao.js"></script>
+<script src="js/public-reservation-actions.js"></script>
 </body>
 </html>

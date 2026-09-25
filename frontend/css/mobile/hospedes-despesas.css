@@ -1,0 +1,330 @@
+/* ══════════════════════════════════════════════════════════════
+   HÓSPEDES — mobile (a vista de cards já serve de layout mobile;
+   a vista de lista/tabela não cabe num ecrã de telemóvel)
+══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  .hospedes-view-toggle {
+    display: none;
+  }
+
+  #hospedes-lista-view {
+    display: none !important;
+  }
+
+  #hospedes-cards-view {
+    display: block !important;
+  }
+
+  .hospede-card {
+    padding: 16px;
+    border-radius: var(--mobile-radius-sm);
+    box-shadow: var(--mobile-shadow-card);
+    touch-action: manipulation;
+    transition: transform var(--mobile-transition), box-shadow var(--mobile-transition);
+  }
+
+  .hospede-card:active {
+    transform: scale(0.985);
+    box-shadow: var(--mobile-shadow-card-press);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DESPESAS — mobile
+══════════════════════════════════════════════════════════════ */
+
+.despesas-mobile-cards { display: none; }
+
+/* Esconder o FAB global (criar reserva) e mostrar o FAB próprio de Despesas
+   — mesmo padrão de #eventos-mobile-fab (ver bloco EVENTOS mais abaixo). */
+@media (max-width: 600px) {
+  body.view-despesas-active #mobile-fab {
+    display: none !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .despesas-table-wrap {
+    display: none !important;
+  }
+
+  .despesas-mobile-cards {
+    display: block;
+  }
+
+  .despesas-kpi-grid,
+  .despesas-card-header {
+    display: none !important;
+  }
+
+  .despesas-table-card {
+    box-shadow: none;
+    background: transparent;
+  }
+
+  #view-despesas.m-sheet-ancestor-fix {
+    transform: none !important;
+  }
+
+  /* Faixa única de 3 colunas (Este mês/Este ano/Acumulado), mesmo sistema
+     de cartão do Dashboard — substitui os 3 cartões soltos com contorno
+     de cor diferente. */
+  .despesas-kpi-mobile {
+    display: block;
+    margin-bottom: 10px;
+  }
+
+  .dkm-band {
+    background: var(--branco);
+    border: 1px solid rgba(43, 24, 16, 0.08);
+    border-radius: var(--mobile-radius);
+    box-shadow: var(--mobile-shadow-card);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: 10px;
+  }
+
+  .dkm-col {
+    padding: 14px 6px;
+    text-align: center;
+    border-right: 1px solid rgba(43, 24, 16, 0.06);
+  }
+
+  .dkm-col:last-child { border-right: none; }
+
+  .dkm-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--azul);
+  }
+
+  .dkm-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cinza);
+    margin-top: 4px;
+  }
+
+  .dkm-top-cat {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--branco);
+    border: 1px solid rgba(43, 24, 16, 0.08);
+    border-radius: var(--mobile-radius-sm);
+    box-shadow: var(--mobile-shadow-card);
+    padding: 12px 14px;
+  }
+
+  .dkm-top-cat-label {
+    font-size: 9.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cinza);
+  }
+
+  .dkm-top-cat-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--azul);
+    margin-top: 3px;
+  }
+
+  .dkm-top-cat-amount {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--marca);
+  }
+
+  /* .despesas-filter-panel já é .m-sheet (ver components/sheet.css) e em
+     desktop é a linha de filtros acima da tabela (ver views/despesas.css);
+     aqui vira a folha propriamente dita — mesmo padrão de
+     .calendario-filter-panel. */
+  .despesas-filter-panel.m-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    margin: 0;
+    top: 12px;
+    bottom: 0;
+    height: auto;
+    max-height: none;
+  }
+  .despesas-filter-panel .m-sheet-header {
+    display: flex;
+    margin: -16px -16px 4px;
+    width: calc(100% + 32px);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--branco);
+  }
+  .despesas-filter-panel select,
+  .despesas-filter-panel input[type="month"] {
+    width: 100% !important;
+  }
+  .despesas-filter-panel-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: auto;
+    padding-top: 12px;
+    position: sticky;
+    bottom: 0;
+    background: var(--branco);
+  }
+  .despesas-filter-panel-actions .btn { flex: 1; }
+  .despesas-filter-apply { display: flex !important; flex: 2 !important; }
+
+  .despesas-filters-trigger {
+    position: relative;
+  }
+  .despesas-filter-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--vermelho);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .despesas-filter-badge i[data-lucide] { width: 11px; height: 11px; }
+
+  .despesas-mobile-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .despesas-mobile-toolbar .m-filters-trigger {
+    flex: 1;
+    margin-bottom: 0;
+    justify-content: center;
+  }
+
+  .despesas-icon-btn {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    border: 1px solid rgba(43, 24, 16, 0.08);
+    background: var(--branco);
+    color: var(--marca);
+  }
+  .despesas-icon-btn i[data-lucide] { width: 16px; height: 16px; }
+  .despesas-icon-btn:active { transform: scale(0.96); }
+
+  .m-expense-card {
+    background: var(--branco);
+    border-radius: var(--mobile-radius-sm);
+    border: 1px solid rgba(43, 24, 16, 0.08);
+    box-shadow: var(--mobile-shadow-card);
+    padding: 14px;
+    margin-bottom: 8px;
+    touch-action: manipulation;
+    transition: transform var(--mobile-transition), box-shadow var(--mobile-transition);
+  }
+
+  .m-expense-card:active {
+    transform: scale(0.985);
+    box-shadow: var(--mobile-shadow-card-press);
+  }
+
+  .mec-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .mec-cat {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 100px;
+    border: 1px solid rgba(43, 24, 16, 0.14);
+    background: transparent;
+    color: var(--marca);
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+
+  .mec-cat i[data-lucide] { width: 11px; height: 11px; }
+
+  .mec-date {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .mec-desc {
+    font-size: 13.5px;
+    color: var(--text-main);
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .mec-supplier {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .mec-supplier i[data-lucide] { width: 12px; height: 12px; }
+
+  .mec-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-soft);
+  }
+
+  .mec-amount {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--vermelho);
+  }
+
+  .mec-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .mec-actions .m-card-btn {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
+    padding: 0;
+    border-radius: 9px;
+    color: var(--text-muted);
+  }
+
+  .mec-total-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-main);
+    background: var(--surface-muted);
+    border-radius: var(--mobile-radius-sm);
+  }
+}
+

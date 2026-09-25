@@ -1,7 +1,14 @@
-let despesasData = [];
+// Estado privado; interface partilhada em AppModules.despesas.
+(() => {
+AppModules.define('despesas', {
+  despesasPaged: { get: () => despesasPaged },
+  EXPENSE_CATS: { get: () => EXPENSE_CATS },
+  loadDespesas: { get: () => loadDespesas },
+});
+
 let despesaEditId = null;
-let despesaFilterYear  = SS.get('desp:year', String(new Date().getFullYear()));
-let despesaFilterMonth = SS.get('desp:month', new Date().toISOString().slice(0, 7));   // YYYY-MM
+let despesaFilterYear  = AppModules.core.SS.get('desp:year', String(new Date().getFullYear()));
+let despesaFilterMonth = AppModules.core.SS.get('desp:month', new Date().toISOString().slice(0, 7));   // YYYY-MM
 let despesaPeriods = [];   // meses (YYYY-MM) com despesas, mais recente primeiro
 
 const MESES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -27,15 +34,27 @@ let suppliersData = [];
 
 // ── Colunas da tabela: redimensionáveis + reordenáveis + ordenáveis ──
 // Mesmo padrão de #reservas-table — ver js/domain/table-cols.js.
-let despesasSortCol = SS.get('desp:sort', 'date');
-let despesasSortAsc = SS.get('desp:asc', false);   // por defeito: data desc (mais recente 1º)
+let despesasSortCol = AppModules.core.SS.get('desp:sort', 'date');
+let despesasSortAsc = AppModules.core.SS.get('desp:asc', false);   // por defeito: data desc (mais recente 1º)
+
+const DESPESAS_SERVER_SORTS = new Set(['date', 'amount', 'description', 'category', 'supplier', 'payment_method', 'invoice_ref', 'created_at']);
+if (!DESPESAS_SERVER_SORTS.has(despesasSortCol)) {
+  despesasSortCol = 'date';
+  despesasSortAsc = false;
+  AppModules.core.SS.set('desp:sort', despesasSortCol);
+  AppModules.core.SS.set('desp:asc', despesasSortAsc);
+}
 
 function sortDespesas(key) {
+  // Só as colunas que o servidor sabe ordenar: sem isto, um clique numa coluna
+  // não suportada devolvia HTTP 400 e a lista ficava em erro.
+  if (!DESPESAS_SERVER_SORTS.has(key)) return;
   if (despesasSortCol === key) despesasSortAsc = !despesasSortAsc;
   else { despesasSortCol = key; despesasSortAsc = key !== 'date'; }
-  SS.set('desp:sort', despesasSortCol);
-  SS.set('desp:asc', despesasSortAsc);
-  renderDespesas();
+  AppModules.core.SS.set('desp:sort', despesasSortCol);
+  AppModules.core.SS.set('desp:asc', despesasSortAsc);
+  // Ordenar abrange todos os registos do filtro, não só a página aberta.
+  despesasQueryChanged({ immediate: true });
 }
 
 function despSortValue(d, key) {
@@ -58,26 +77,26 @@ const DESP_COLUMNS = [
 ];
 
 const DESP_CELL = {
-  date: d => `<td data-col="date" style="font-size:13px;">${formatDate(d.date)}</td>`,
+  date: d => `<td data-col="date" style="font-size:13px;">${AppModules.core.formatDate(d.date)}</td>`,
   category: d => {
     const c = EXPENSE_CATS[d.category] || EXPENSE_CATS.outro;
     return `<td data-col="category"><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:600;background:${c.color}22;color:${c.color};">${c.icon ? `<i data-lucide="${c.icon}" style="width:11px;height:11px;"></i>` : ''}${c.label}</span></td>`;
   },
-  description: d => `<td data-col="description" title="${escapeHtml(d.description)}${d.notes ? ' — ' + escapeHtml(d.notes) : ''}">${escapeHtml(d.description)}${d.notes ? `<br><span style="font-size:11px;color:var(--cinza);">${escapeHtml(d.notes)}</span>` : ''}</td>`,
-  supplier: d => `<td data-col="supplier" style="font-size:12.5px;">${escapeHtml(d.supplier || '—')}</td>`,
-  invoice_ref: d => `<td data-col="invoice_ref" style="font-size:12px;color:var(--cinza);">${escapeHtml(d.invoice_ref || '—')}${d.receipt_image ? ` <a href="${escapeHtml(d.receipt_image)}" target="_blank" title="Ver talão" style="color:var(--marca);text-decoration:none;">${lcIcon('paperclip', 12)}</a>` : ''}</td>`,
+  description: d => `<td data-col="description" title="${AppModules.core.escapeHtml(d.description)}${d.notes ? ' — ' + AppModules.core.escapeHtml(d.notes) : ''}">${AppModules.core.escapeHtml(d.description)}${d.notes ? `<br><span style="font-size:11px;color:var(--cinza);">${AppModules.core.escapeHtml(d.notes)}</span>` : ''}</td>`,
+  supplier: d => `<td data-col="supplier" style="font-size:12.5px;">${AppModules.core.escapeHtml(d.supplier || '—')}</td>`,
+  invoice_ref: d => `<td data-col="invoice_ref" style="font-size:12px;color:var(--cinza);">${AppModules.core.escapeHtml(d.invoice_ref || '—')}${d.receipt_image ? ` <a href="${AppModules.core.escapeHtml(d.receipt_image)}" target="_blank" title="Ver talão" style="color:var(--marca);text-decoration:none;">${AppModules.core.lcIcon('paperclip', 12)}</a>` : ''}</td>`,
   has_nif: d => `<td data-col="has_nif" style="font-size:11.5px;">${d.has_nif
     ? '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:rgba(46,125,82,.12);color:#2e7d52;font-weight:600;">Com NIF</span>'
     : '<span style="color:var(--cinza);">Sem NIF</span>'}</td>`,
-  amount: d => `<td data-col="amount" style="font-weight:600;color:var(--vermelho);">${formatEUR(d.amount)}</td>`,
-  payment_method: d => `<td data-col="payment_method" style="font-size:12.5px;color:var(--cinza);">${escapeHtml(d.payment_method || '—')}</td>`,
-  actions: d => `<td data-col="actions" onclick="event.stopPropagation()" style="white-space:nowrap;">
-      <button class="btn btn-ghost btn-sm" onclick="openDespesaModal('${escapeHtml(d.id)}')" title="Editar">${lcIcon('pencil', 13)}</button>
-      <button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho);" onclick="deleteDespesa('${escapeHtml(d.id)}')" title="Remover">${lcIcon('trash-2', 13)}</button>
+  amount: d => `<td data-col="amount" style="font-weight:600;color:var(--vermelho);">${AppModules.core.formatEUR(d.amount)}</td>`,
+  payment_method: d => `<td data-col="payment_method" style="font-size:12.5px;color:var(--cinza);">${AppModules.core.escapeHtml(d.payment_method || '—')}</td>`,
+  actions: d => `<td data-col="actions" data-stop="1" style="white-space:nowrap;">
+      <button class="btn btn-ghost btn-sm" data-on-click="open-despesa-modal" data-id="${AppModules.core.escapeHtml(d.id)}" title="Editar">${AppModules.core.lcIcon('pencil', 13)}</button>
+      <button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho);" data-on-click="delete-despesa" data-id="${AppModules.core.escapeHtml(d.id)}" title="Remover">${AppModules.core.lcIcon('trash-2', 13)}</button>
     </td>`,
 };
 
-const despCols = createColLayout({
+const despCols = AppModules.core.createColLayout({
   tableId: 'despesas-table',
   storageKey: 'desp',
   storage: 'local',       // larguras/ordem sobrevivem ao fechar o browser
@@ -104,8 +123,9 @@ function despesasFiltersActive() {
   const period = document.getElementById('despesa-filter-period')?.value || 'ano';
   const cat    = document.getElementById('despesa-filter-category')?.value || '';
   const sup    = document.getElementById('despesa-filter-supplier')?.value || '';
+  const search = (document.getElementById('despesa-search')?.value || '').trim();
   const yearChanged = period === 'ano' && despesaFilterYear !== String(new Date().getFullYear());
-  return period !== 'ano' || yearChanged || cat !== '' || sup !== '';
+  return period !== 'ano' || yearChanged || cat !== '' || sup !== '' || search !== '';
 }
 
 function updateDespesasFilterBadge() {
@@ -127,6 +147,8 @@ function clearDespesasFiltros() {
   despesaFilterMonth = new Date().toISOString().slice(0, 7);
   if (cat) cat.value = '';
   if (sup) sup.value = '';
+  const search = document.getElementById('despesa-search');
+  if (search) search.value = '';
   AppUI.refreshDropdowns(document.getElementById('view-despesas'));
   loadDespesas();
 }
@@ -160,8 +182,8 @@ function syncDespesaPeriodSelects(period) {
   monthSel.innerHTML = months.map(m => `<option value="${m}">${MESES_PT[Number(m.slice(5, 7)) - 1]}</option>`).join('');
   monthSel.value = despesaFilterMonth;
 
-  SS.set('desp:year', despesaFilterYear);
-  SS.set('desp:month', despesaFilterMonth);
+  AppModules.core.SS.set('desp:year', despesaFilterYear);
+  AppModules.core.SS.set('desp:month', despesaFilterMonth);
 
   const view = document.getElementById('view-despesas');
   AppUI.enhanceSelects(view);
@@ -173,41 +195,75 @@ function syncDespesaPeriodSelects(period) {
 }
 
 // ── LOAD ──
-async function loadDespesas() {
-  document.getElementById('despesas-loading').style.display = 'flex';
-  document.getElementById('despesas-body').innerHTML = '';
-  document.getElementById('despesas-empty').style.display = 'none';
+// A lista pagina no servidor. `despesasData` deixou de existir: a vista mostra
+// a página atual (despesasPaged.state.rows) e os totais vêm do `summary`, que
+// cobre todas as páginas do filtro ativo.
+const despesasPaged = AppModules.core.createPagedCollection('/api/expenses', () => renderDespesas());
 
+function getDespesasQuery() {
+  const period = document.getElementById('despesa-filter-period')?.value || 'ano';
+  const query = {};
+  if (period === 'mes') query.month = despesaFilterMonth;
+  else if (period === 'ano') query.year = String(despesaFilterYear);
+  // 'tudo' => sem filtro de período
+
+  const search = (document.getElementById('despesa-search')?.value || '').trim();
+  if (search) query.search = search;
+  const category = document.getElementById('despesa-filter-category')?.value || '';
+  if (category) query.category = category;
+  const supplier = document.getElementById('despesa-filter-supplier')?.value || '';
+  if (supplier) query.supplier = supplier;
+
+  query.sort = despesasSortCol;
+  query.direction = despesasSortAsc ? 'asc' : 'desc';
+  return query;
+}
+
+// A escrita usa o atraso curto da coleção (que cancela o pedido anterior);
+// mudar um filtro pede logo.
+function despesasQueryChanged(options = {}) {
+  if (options.reloadPeriods) syncDespesaPeriodSelects(document.getElementById('despesa-filter-period')?.value || 'ano');
+  updateDespesasFilterBadge();
+  const query = getDespesasQuery();
+  if (options.immediate) despesasPaged.load(query, options.force ? { force: true } : {});
+  else despesasPaged.schedule(query);
+}
+
+async function loadDespesas() {
+  const session = AppModules.sessionVersion;
   const period = document.getElementById('despesa-filter-period')?.value || 'ano';
 
   try {
-    despesaPeriods = (await apiGet('/api/expenses/periods')).data || [];
+    despesaPeriods = (await AppModules.core.apiGet('/api/expenses/periods')).data || [];
   } catch { /* sem períodos: os dropdowns caem no ano/mês atual */ }
+  if (session !== AppModules.sessionVersion) return;
   syncDespesaPeriodSelects(period);
-
-  let listUrl = '/api/expenses';
-  if (period === 'mes')      listUrl += `?month=${despesaFilterMonth}`;
-  else if (period === 'ano') listUrl += `?year=${despesaFilterYear}`;
-  // 'tudo' => sem filtro
-
   updateDespesasFilterBadge();
 
+  // Os totais globais (mês/ano/maior categoria) são independentes da página e
+  // do filtro — continuam a vir do seu próprio endpoint.
   try {
-    const [data, summary, suppliers] = await Promise.all([
-      apiGet(listUrl),
-      apiGet('/api/expenses/summary'),
-      apiGet('/api/suppliers').catch(() => ({ data: [] }))
+    const [summary, suppliers] = await Promise.all([
+      AppModules.core.apiGet('/api/expenses/summary'),
+      AppModules.core.apiGet('/api/suppliers').catch(() => ({ data: [] })),
     ]);
-    despesasData = data.data || [];
+    if (session !== AppModules.sessionVersion) return;
     suppliersData = suppliers.data || [];
     populateSupplierFilter();
     renderDespesasKpi(summary.data || {});
     renderDespesasKpiMobile(summary.data || {});
-    renderDespesas();
   } catch (e) {
-    toast('❌ Erro ao carregar despesas.', 'error');
-    document.getElementById('despesas-loading').style.display = 'none';
+    if (session !== AppModules.sessionVersion) return;
+    AppModules.core.toast('❌ Erro ao carregar o resumo de despesas.', 'error');
   }
+
+  await despesasPaged.load(getDespesasQuery(), { force: true });
+}
+
+// Exportação: percorre todas as páginas do filtro ativo, não só a visível.
+async function getDespesasParaExportar() {
+  const { data } = await AppModules.core.apiGetAllPages('/api/expenses', getDespesasQuery());
+  return data;
 }
 
 function renderDespesasKpi(s) {
@@ -216,12 +272,12 @@ function renderDespesasKpi(s) {
   grid.innerHTML = `
     <div class="kpi-card" style="border-color:var(--vermelho);">
       <div class="kpi-label">Este mês</div>
-      <div class="kpi-value" style="color:var(--vermelho);">${formatEUR(s.monthTotal)}</div>
+      <div class="kpi-value" style="color:var(--vermelho);">${AppModules.core.formatEUR(s.monthTotal)}</div>
       <div class="kpi-sub">${despMonthLabel(new Date().toISOString().slice(0, 7))}</div>
     </div>
     <div class="kpi-card" style="border-color:var(--laranja);">
       <div class="kpi-label">Este ano</div>
-      <div class="kpi-value" style="color:var(--laranja);">${formatEUR(s.yearTotal)}</div>
+      <div class="kpi-value" style="color:var(--laranja);">${AppModules.core.formatEUR(s.yearTotal)}</div>
       <div class="kpi-sub">${new Date().getFullYear()}</div>
     </div>
     <div class="kpi-card" style="border-color:var(--roxo);">
@@ -229,7 +285,7 @@ function renderDespesasKpi(s) {
       <div class="kpi-value" style="font-size:18px;padding-top:4px;">
         ${s.byCategory && s.byCategory[0] ? (EXPENSE_CATS[s.byCategory[0].category]?.label || s.byCategory[0].category) : '—'}
       </div>
-      <div class="kpi-sub">${s.byCategory && s.byCategory[0] ? formatEUR(s.byCategory[0].total) : ''}</div>
+      <div class="kpi-sub">${s.byCategory && s.byCategory[0] ? AppModules.core.formatEUR(s.byCategory[0].total) : ''}</div>
     </div>`;
 }
 
@@ -242,15 +298,15 @@ function renderDespesasKpiMobile(s) {
   const top = s.byCategory && s.byCategory[0];
   wrap.innerHTML = `
     <div class="dkm-band">
-      <div class="dkm-col"><div class="dkm-value">${formatEUR(s.monthTotal)}</div><div class="dkm-label">Este mês</div></div>
-      <div class="dkm-col"><div class="dkm-value">${formatEUR(s.yearTotal)}</div><div class="dkm-label">Este ano</div></div>
+      <div class="dkm-col"><div class="dkm-value">${AppModules.core.formatEUR(s.monthTotal)}</div><div class="dkm-label">Este mês</div></div>
+      <div class="dkm-col"><div class="dkm-value">${AppModules.core.formatEUR(s.yearTotal)}</div><div class="dkm-label">Este ano</div></div>
     </div>
     <div class="dkm-top-cat">
       <div>
         <div class="dkm-top-cat-label">Maior categoria (ano)</div>
         <div class="dkm-top-cat-value">${top ? (EXPENSE_CATS[top.category]?.label || top.category) : '—'}</div>
       </div>
-      <div class="dkm-top-cat-amount">${top ? formatEUR(top.total) : ''}</div>
+      <div class="dkm-top-cat-amount">${top ? AppModules.core.formatEUR(top.total) : ''}</div>
     </div>`;
 }
 
@@ -260,63 +316,64 @@ function populateSupplierFilter() {
   if (!sel) return;
   const current = sel.value;
   sel.innerHTML = '<option value="">Todos os fornecedores</option>' +
-    suppliersData.map(s => `<option value="${escapeHtml(s.name)}">${escapeHtml(s.name)}</option>`).join('');
+    suppliersData.map(s => `<option value="${AppModules.core.escapeHtml(s.name)}">${AppModules.core.escapeHtml(s.name)}</option>`).join('');
   if ([...sel.options].some(o => o.value === current)) sel.value = current;
   AppUI.enhanceSelects(document.getElementById('view-despesas'));
   AppUI.refreshSelect(sel);
 }
 
+// Carregamento, erro e lista vazia são três estados distintos — uma falha de
+// rede não pode aparecer como "sem despesas".
 function renderDespesas() {
+  const state = despesasPaged.state;
   const loading = document.getElementById('despesas-loading');
   const tbody   = document.getElementById('despesas-body');
   const empty   = document.getElementById('despesas-empty');
+  const errorEl = document.getElementById('despesas-error');
   const tableWrap = document.querySelector('.despesas-table-wrap');
-  loading.style.display = 'none';
-  updateDespesasFilterBadge();
-
   const mobileWrap = document.getElementById('despesas-mobile-cards');
-  const showEmpty = () => { if (tableWrap) tableWrap.style.display = 'none'; empty.style.display = 'block'; };
+  if (!tbody) return;
 
-  if (despesasData.length === 0) {
-    tbody.innerHTML = '';
-    if (mobileWrap) mobileWrap.innerHTML = '';
+  updateDespesasFilterBadge();
+  loading.style.display = state.loading && !state.rows.length ? 'flex' : 'none';
+  AppModules.core.renderPagination('despesas-pagination', state, page => despesasPaged.load(getDespesasQuery(), { page }));
+
+  const hide = () => { if (tableWrap) tableWrap.style.display = 'none'; tbody.innerHTML = ''; if (mobileWrap) mobileWrap.innerHTML = ''; };
+
+  if (state.error) {
+    hide();
+    empty.style.display = 'none';
+    errorEl.style.display = 'block';
+    document.getElementById('despesas-error-detail').textContent = state.error;
+    return;
+  }
+  errorEl.style.display = 'none';
+
+  if (!state.rows.length) {
+    if (state.loading) { hide(); empty.style.display = 'none'; return; }
+    hide();
     const period = document.getElementById('despesa-filter-period')?.value || 'ano';
+    const hasFilters = !!(document.getElementById('despesa-search')?.value
+      || document.getElementById('despesa-filter-category')?.value
+      || document.getElementById('despesa-filter-supplier')?.value);
     const scope = period === 'mes' ? `em ${despMonthLabel(despesaFilterMonth)}` : period === 'ano' ? `em ${despesaFilterYear}` : 'registadas';
-    empty.innerHTML = emptyStateHtml('💸', `Sem despesas ${scope}`,
-      period === 'tudo'
-        ? 'Ainda não registaste nenhuma despesa.'
-        : 'Experimenta mudar o período (ex.: <b>Todo o histórico</b>) — as tuas despesas podem estar noutro mês/ano.');
-    showEmpty();
+    empty.innerHTML = hasFilters
+      ? AppModules.core.emptyStateHtml('🔍', 'Sem despesas para estes filtros',
+          'Nenhuma despesa corresponde à pesquisa, categoria ou fornecedor selecionados neste período.')
+      : AppModules.core.emptyStateHtml('💸', `Sem despesas ${scope}`,
+          period === 'tudo'
+            ? 'Ainda não registaste nenhuma despesa.'
+            : 'Experimenta mudar o período (ex.: <b>Todo o histórico</b>) — as tuas despesas podem estar noutro mês/ano.');
+    empty.style.display = 'block';
     return;
   }
-  // Filtros client-side por categoria e fornecedor
-  const fcat = document.getElementById('despesa-filter-category')?.value || '';
-  const fsup = document.getElementById('despesa-filter-supplier')?.value || '';
-  const filtered = despesasData.filter(d =>
-    (!fcat || d.category === fcat) &&
-    (!fsup || (d.supplier || '') === fsup)
-  );
 
-  if (filtered.length === 0) {
-    tbody.innerHTML = '';
-    if (mobileWrap) mobileWrap.innerHTML = '';
-    empty.innerHTML = emptyStateHtml('🔍', 'Sem despesas para estes filtros',
-      'Nenhuma despesa corresponde à categoria/fornecedor selecionados neste período.');
-    showEmpty();
-    return;
-  }
   empty.style.display = 'none';
   if (tableWrap) tableWrap.style.display = '';
 
-  const sorted = filtered.slice().sort((a, b) => {
-    const dir = despesasSortAsc ? 1 : -1;
-    const av = despSortValue(a, despesasSortCol);
-    const bv = despSortValue(b, despesasSortCol);
-    if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
-    return String(av).localeCompare(String(bv), 'pt') * dir;
-  });
-
-  const total = sorted.reduce((s, d) => s + Number(d.amount), 0);
+  const rows = state.rows;
+  // Total de TODAS as páginas do filtro ativo, não apenas das linhas visíveis.
+  const total = Number(state.summary?.total_amount || 0);
 
   despCols.renderHead();
 
@@ -324,13 +381,13 @@ function renderDespesas() {
   const amountIdx = order.indexOf('amount');
   const labelIdx = amountIdx > 0 ? amountIdx - 1 : 0;
   const totalRow = `<tr class="despesas-total-row">${order.map((k, i) => {
-    if (k === 'amount') return `<td data-col="amount" style="font-weight:700;font-size:15px;color:var(--vermelho);">${formatEUR(total)}</td>`;
+    if (k === 'amount') return `<td data-col="amount" style="font-weight:700;font-size:15px;color:var(--vermelho);">${AppModules.core.formatEUR(total)}</td>`;
     if (i === labelIdx) return `<td data-col="${k}" style="text-align:right;font-weight:600;color:var(--cinza);font-size:13px;">Total do período</td>`;
     return `<td data-col="${k}"></td>`;
   }).join('')}</tr>`;
 
-  tbody.innerHTML = sorted.map(d => `<tr>${order.map(k => DESP_CELL[k](d)).join('')}</tr>`).join('') + totalRow;
-  renderDespesasMobileCards(sorted, total);
+  tbody.innerHTML = rows.map(d => `<tr>${order.map(k => DESP_CELL[k](d)).join('')}</tr>`).join('') + totalRow;
+  renderDespesasMobileCards(rows, total);
   if (window.lucide) lucide.createIcons();
 }
 
@@ -342,19 +399,19 @@ function renderDespesasMobileCards(filtered, total) {
     return `<div class="m-expense-card">
       <div class="mec-top">
         <span class="mec-cat">${cat.icon ? `<i data-lucide="${cat.icon}" style="color:${cat.color};"></i>` : ''}${cat.label}</span>
-        <span class="mec-date">${formatDate(d.date)}</span>
+        <span class="mec-date">${AppModules.core.formatDate(d.date)}</span>
       </div>
-      <div class="mec-desc">${escapeHtml(d.description)}</div>
-      ${d.supplier ? `<div class="mec-supplier"><i data-lucide="truck"></i> ${escapeHtml(d.supplier)}</div>` : ''}
+      <div class="mec-desc">${AppModules.core.escapeHtml(d.description)}</div>
+      ${d.supplier ? `<div class="mec-supplier"><i data-lucide="truck"></i> ${AppModules.core.escapeHtml(d.supplier)}</div>` : ''}
       <div class="mec-bottom">
-        <span class="mec-amount">${formatEUR(d.amount)}</span>
-        <div class="mec-actions" onclick="event.stopPropagation()">
-          <button class="m-card-btn" onclick="openDespesaModal('${escapeHtml(d.id)}')"><i data-lucide="pencil"></i></button>
-          <button class="m-card-btn" onclick="deleteDespesa('${escapeHtml(d.id)}')"><i data-lucide="trash-2"></i></button>
+        <span class="mec-amount">${AppModules.core.formatEUR(d.amount)}</span>
+        <div class="mec-actions" data-stop="1">
+          <button class="m-card-btn" data-on-click="open-despesa-modal" data-id="${AppModules.core.escapeHtml(d.id)}"><i data-lucide="pencil"></i></button>
+          <button class="m-card-btn" data-on-click="delete-despesa" data-id="${AppModules.core.escapeHtml(d.id)}"><i data-lucide="trash-2"></i></button>
         </div>
       </div>
     </div>`;
-  }).join('') + `<div class="mec-total-row"><span>Total do período</span><span>${formatEUR(total)}</span></div>`;
+  }).join('') + `<div class="mec-total-row"><span>Total do período</span><span>${AppModules.core.formatEUR(total)}</span></div>`;
 }
 
 // Popula o dropdown de fornecedores no modal, garantindo que o valor atual
@@ -365,16 +422,16 @@ function populateSupplierDropdown(selected) {
   const names = suppliersData.map(s => s.name);
   if (selected && !names.includes(selected)) names.unshift(selected);
   sel.innerHTML = '<option value="">— Nenhum —</option>' +
-    names.map(n => `<option value="${escapeHtml(n)}"${n === selected ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
+    names.map(n => `<option value="${AppModules.core.escapeHtml(n)}"${n === selected ? ' selected' : ''}>${AppModules.core.escapeHtml(n)}</option>`).join('');
   sel.value = selected || '';
 }
 
 // ── MODAL ──
 function openDespesaModal(id) {
   despesaEditId = id || null;
-  const d = id ? despesasData.find(x => x.id === id) : null;
+  const d = id ? despesasPaged.state.rows.find(x => x.id === id) : null;
   document.getElementById('despesa-modal-title').textContent = d ? 'Editar Despesa' : 'Nova Despesa';
-  document.getElementById('despesa-date').value        = formatDateForStandardInput(d ? d.date : new Date().toISOString().slice(0, 10));
+  document.getElementById('despesa-date').value        = AppModules.core.formatDateForStandardInput(d ? d.date : new Date().toISOString().slice(0, 10));
   document.getElementById('despesa-category').value    = d ? d.category    : 'limpeza';
   document.getElementById('despesa-description').value = d ? d.description : '';
   document.getElementById('despesa-amount').value      = d ? d.amount      : '';
@@ -401,7 +458,7 @@ async function checkDespesaDuplicate() {
   if (!invoiceRef) { warn.style.display = 'none'; return; }
   try {
     const qs = `?invoice_ref=${encodeURIComponent(invoiceRef)}&supplier=${encodeURIComponent(supplier)}${despesaEditId ? `&exclude_id=${encodeURIComponent(despesaEditId)}` : ''}`;
-    const res = await apiGet(`/api/expenses/check-invoice${qs}`);
+    const res = await AppModules.core.apiGet(`/api/expenses/check-invoice${qs}`);
     const info = res?.data || res;
     if (info?.exists) {
       const n = info.count;
@@ -422,7 +479,7 @@ function closeDespesaModal() {
 }
 
 async function saveDespesa() {
-  const date        = normalizeIsoDateValue(document.getElementById('despesa-date').value);
+  const date        = AppModules.core.normalizeIsoDateValue(document.getElementById('despesa-date').value);
   const category    = document.getElementById('despesa-category').value;
   const description = document.getElementById('despesa-description').value.trim();
   const amount      = parseFloat(document.getElementById('despesa-amount').value);
@@ -433,36 +490,36 @@ async function saveDespesa() {
   const has_nif     = document.getElementById('despesa-has-nif')?.value === '1' ? 1 : 0;
 
   if (!date || !description || isNaN(amount)) {
-    toast('Preencha data, descrição e valor.', 'error'); return;
+    AppModules.core.toast('Preencha data, descrição e valor.', 'error'); return;
   }
 
   const body = { date, category, description, amount, payment_method, invoice_ref, notes, supplier, has_nif };
   try {
     const res = despesaEditId
-      ? await apiPut(`/api/expenses/${despesaEditId}`, body)
-      : await apiPost('/api/expenses', body);
+      ? await AppModules.core.apiPut(`/api/expenses/${despesaEditId}`, body)
+      : await AppModules.core.apiPost('/api/expenses', body);
     if (res.success) {
       if (res.propagated > 0) {
-        toast(`✅ Nº de fatura atualizado em mais ${res.propagated} despesa${res.propagated !== 1 ? 's' : ''} da mesma fatura.`, 'success');
+        AppModules.core.toast(`✅ Nº de fatura atualizado em mais ${res.propagated} despesa${res.propagated !== 1 ? 's' : ''} da mesma fatura.`, 'success');
       } else if (res.nif_propagated > 0) {
-        toast(`✅ Estado do NIF aplicado a mais ${res.nif_propagated} linha${res.nif_propagated !== 1 ? 's' : ''} da mesma fatura.`, 'success');
+        AppModules.core.toast(`✅ Estado do NIF aplicado a mais ${res.nif_propagated} linha${res.nif_propagated !== 1 ? 's' : ''} da mesma fatura.`, 'success');
       } else if (res.inherited_nif) {
-        toast('✅ Despesa adicionada — herdou o estado Com/Sem NIF da fatura existente.', 'success');
+        AppModules.core.toast('✅ Despesa adicionada — herdou o estado Com/Sem NIF da fatura existente.', 'success');
       } else {
-        toast(despesaEditId ? '✅ Despesa atualizada!' : '✅ Despesa adicionada!', 'success');
+        AppModules.core.toast(despesaEditId ? '✅ Despesa atualizada!' : '✅ Despesa adicionada!', 'success');
       }
       closeDespesaModal();
       await loadDespesas();
     } else {
-      toast('❌ ' + (res.error || 'Erro ao guardar.'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao guardar.'), 'error');
     }
   } catch (e) {
-    toast('❌ Erro de ligação ao servidor.', 'error');
+    AppModules.core.toast('❌ Erro de ligação ao servidor.', 'error');
   }
 }
 
 const DESPESAS_EXPORT_COLUMNS = [
-  { key: 'date',            label: 'Data',         default: true, get: d => formatDate(d.date) },
+  { key: 'date',            label: 'Data',         default: true, get: d => AppModules.core.formatDate(d.date) },
   { key: 'category',        label: 'Categoria',    default: true, get: d => EXPENSE_CATS[d.category]?.label || d.category },
   { key: 'description',     label: 'Descrição',    default: true, get: d => d.description },
   { key: 'supplier',        label: 'Fornecedor',   default: true, get: d => d.supplier || '' },
@@ -473,14 +530,23 @@ const DESPESAS_EXPORT_COLUMNS = [
   { key: 'notes',           label: 'Notas',        default: true, get: d => d.notes || '' },
 ];
 
-function exportDespesasXLSX() {
-  if (!despesasData.length) { toast('Sem despesas para exportar.', 'error'); return; }
-  if (typeof XLSX === 'undefined') { toast('Biblioteca XLSX não carregada.', 'error'); return; }
-  openExportColumnPicker('despesas', 'Despesas', DESPESAS_EXPORT_COLUMNS, selectedKeys => _doExportDespesasXLSX(selectedKeys));
+async function exportDespesasXLSX() {
+  if (!despesasPaged.state.total) { AppModules.core.toast('Sem despesas para exportar.', 'error'); return; }
+  if (!await AppModules.core.ensureLibrary('xlsx')) return;
+  AppModules.core.openExportColumnPicker('despesas', 'Despesas', DESPESAS_EXPORT_COLUMNS, selectedKeys => _doExportDespesasXLSX(selectedKeys));
 }
 
-function _doExportDespesasXLSX(selectedKeys) {
-  const rows = buildExportRowsXlsx(despesasData, DESPESAS_EXPORT_COLUMNS, selectedKeys);
+async function _doExportDespesasXLSX(selectedKeys) {
+  // Todas as páginas do filtro ativo. Uma falha a meio interrompe a operação
+  // em vez de gerar um ficheiro parcial (ver apiGetAllPages).
+  let despesas;
+  try {
+    despesas = await getDespesasParaExportar();
+  } catch (e) {
+    AppModules.core.toast('❌ ' + (e.message || 'Não foi possível exportar as despesas.'), 'error');
+    return;
+  }
+  const rows = AppModules.core.buildExportRowsXlsx(despesas, DESPESAS_EXPORT_COLUMNS, selectedKeys);
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Despesas');
@@ -488,14 +554,14 @@ function _doExportDespesasXLSX(selectedKeys) {
 }
 
 async function deleteDespesa(id) {
-  const d = despesasData.find(x => x.id === id);
+  const d = despesasPaged.state.rows.find(x => x.id === id);
   if (!confirm(`Remover despesa "${d?.description || id}"?`)) return;
   try {
-    const res = await apiDelete(`/api/expenses/${id}`);
-    if (res.success) { toast('🗑 Despesa removida.', 'info'); await loadDespesas(); }
-    else toast('❌ ' + (res.error || 'Erro ao remover.'), 'error');
+    const res = await AppModules.core.apiDelete(`/api/expenses/${id}`);
+    if (res.success) { AppModules.core.toast('🗑 Despesa removida.', 'info'); await loadDespesas(); }
+    else AppModules.core.toast('❌ ' + (res.error || 'Erro ao remover.'), 'error');
   } catch (e) {
-    toast('❌ Erro de ligação ao servidor.', 'error');
+    AppModules.core.toast('❌ Erro de ligação ao servidor.', 'error');
   }
 }
 
@@ -588,7 +654,7 @@ async function onReceiptSelected(input) {
   const file = input.files && input.files[0];
   input.value = ''; // permite reescolher a mesma foto
   if (!file) return;
-  if (!(file.type || '').startsWith('image/') && !_isHeic(file)) { toast('Escolhe uma imagem.', 'error'); return; }
+  if (!(file.type || '').startsWith('image/') && !_isHeic(file)) { AppModules.core.toast('Escolhe uma imagem.', 'error'); return; }
 
   _openReceiptModalLoading();
   let dataUri;
@@ -604,7 +670,7 @@ async function onReceiptSelected(input) {
   }
   _receiptImage = dataUri;
   try {
-    const res = await apiPost('/api/expenses/scan-receipt', { image: dataUri });
+    const res = await AppModules.core.apiPost('/api/expenses/scan-receipt', { image: dataUri });
     if (res.success) _renderReceiptReview(res.data);
     else _renderReceiptError(res.error || 'Erro ao ler o talão.');
   } catch (e) {
@@ -634,8 +700,8 @@ function _renderReceiptError(msg) {
   if (el) el.innerHTML = `<div style="text-align:center;padding:32px 20px;">
     <div style="font-size:34px;">📷</div>
     <h3 style="margin:8px 0;">Não deu para ler o talão</h3>
-    <p style="color:var(--cinza);font-size:13px;">${escapeHtml(msg)}</p>
-    <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="closeReceiptModal();setTimeout(()=>document.getElementById('receipt-file-input').click(),350)">Tentar outra foto</button>
+    <p style="color:var(--cinza);font-size:13px;">${AppModules.core.escapeHtml(msg)}</p>
+    <button class="btn btn-primary btn-sm" style="margin-top:12px;" data-on-click="retry-receipt-photo">Tentar outra foto</button>
   </div>`;
   const saveBtn = document.getElementById('receipt-save-btn');
   if (saveBtn) saveBtn.style.display = 'none';
@@ -648,11 +714,11 @@ function _renderReceiptReview(data) {
   const el = document.getElementById('receipt-review-content');
   el.innerHTML = `
     <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;">
-      <img src="${_receiptImage}" alt="talão" style="width:84px;height:108px;object-fit:cover;border-radius:8px;border:1px solid var(--cinza-claro);cursor:zoom-in;" onclick="window.open('${_receiptImage}','_blank')">
+      <img src="${_receiptImage}" alt="talão" style="width:84px;height:108px;object-fit:cover;border-radius:8px;border:1px solid var(--cinza-claro);cursor:zoom-in;" data-on-click="open-receipt-image">
       <div class="form-grid" style="flex:1;min-width:260px;">
         <div class="form-group"><label class="form-label">Data</label><input class="form-control" id="rl-date" type="date" value="${dateVal}"></div>
-        <div class="form-group"><label class="form-label">Fornecedor</label><input class="form-control" id="rl-supplier" list="rl-supplier-list" value="${escapeHtml(data.supplier || '')}" placeholder="Fornecedor" autocomplete="off"><datalist id="rl-supplier-list">${(suppliersData || []).map(s => `<option value="${escapeHtml(s.name)}"></option>`).join('')}</datalist></div>
-        <div class="form-group"><label class="form-label">Nº Fatura</label><input class="form-control" id="rl-invoice" value="${escapeHtml(data.invoice_ref || '')}" placeholder="Nº fatura" autocomplete="off" onblur="checkReceiptDuplicate()"></div>
+        <div class="form-group"><label class="form-label">Fornecedor</label><input class="form-control" id="rl-supplier" list="rl-supplier-list" value="${AppModules.core.escapeHtml(data.supplier || '')}" placeholder="Fornecedor" autocomplete="off"><datalist id="rl-supplier-list">${(suppliersData || []).map(s => `<option value="${AppModules.core.escapeHtml(s.name)}"></option>`).join('')}</datalist></div>
+        <div class="form-group"><label class="form-label">Nº Fatura</label><input class="form-control" id="rl-invoice" value="${AppModules.core.escapeHtml(data.invoice_ref || '')}" placeholder="Nº fatura" autocomplete="off" data-on-focusout="check-receipt-duplicate"></div>
         <div class="form-group"><label class="form-label">Pagamento</label><select class="form-control" id="rl-payment">
           <option value="numerário">Numerário</option><option value="transferencia">Transferência</option>
           <option value="mbway">MBWay</option><option value="cartao" selected>Cartão</option></select></div>
@@ -663,11 +729,11 @@ function _renderReceiptReview(data) {
     </div>
     <div id="rl-dup-warning" style="display:none;margin-bottom:10px;">
       <div style="background:#fff8e6;border:1px solid #f2d98a;color:#8a6d1f;border-radius:8px;padding:9px 12px;font-size:12.5px;display:flex;align-items:center;gap:8px;">
-        ${lcIcon('alert-triangle', 15)}<span id="rl-dup-text"></span>
+        ${AppModules.core.lcIcon('alert-triangle', 15)}<span id="rl-dup-text"></span>
       </div>
     </div>
     <div style="font-size:12.5px;color:var(--cinza);margin-bottom:8px;">
-      ${lcIcon('info', 13)} A IA lê o talão mas pode enganar-se — <b>confere os valores e categorias</b> antes de guardar.
+      ${AppModules.core.lcIcon('info', 13)} A IA lê o talão mas pode enganar-se — <b>confere os valores e categorias</b> antes de guardar.
     </div>
     <div class="table-wrap" style="max-height:320px;overflow:auto;">
       <table class="tabela" style="font-size:13px;">
@@ -676,7 +742,7 @@ function _renderReceiptReview(data) {
       </table>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
-      <button class="btn btn-ghost btn-sm" onclick="addReceiptLine()">${lcIcon('plus', 13)} Adicionar linha</button>
+      <button class="btn btn-ghost btn-sm" data-on-click="add-receipt-line">${AppModules.core.lcIcon('plus', 13)} Adicionar linha</button>
       <div style="font-weight:700;">Total: <span id="rl-total">€0.00</span></div>
     </div>`;
   const saveBtn = document.getElementById('receipt-save-btn');
@@ -696,7 +762,7 @@ async function checkReceiptDuplicate() {
   const supplier = (document.getElementById('rl-supplier')?.value || '').trim();
   if (!invoiceRef) { warn.style.display = 'none'; return; }
   try {
-    const res = await apiGet(`/api/expenses/check-invoice?invoice_ref=${encodeURIComponent(invoiceRef)}&supplier=${encodeURIComponent(supplier)}`);
+    const res = await AppModules.core.apiGet(`/api/expenses/check-invoice?invoice_ref=${encodeURIComponent(invoiceRef)}&supplier=${encodeURIComponent(supplier)}`);
     const info = res?.data || res;
     if (info?.exists) {
       const n = info.count;
@@ -712,10 +778,10 @@ async function checkReceiptDuplicate() {
 function _receiptLineRow(line, idx) {
   const opts = RECEIPT_CATS.map(([v, l]) => `<option value="${v}"${v === line.category ? ' selected' : ''}>${l}</option>`).join('');
   return `<tr>
-    <td><input class="form-control" data-rl="desc" value="${escapeHtml(line.description || '')}" placeholder="Artigo" autocomplete="off"></td>
+    <td><input class="form-control" data-rl="desc" value="${AppModules.core.escapeHtml(line.description || '')}" placeholder="Artigo" autocomplete="off"></td>
     <td><select class="form-control" data-rl="cat">${opts}</select></td>
     <td><input class="form-control no-number-spin" data-rl="amount" type="number" step="0.01" min="0" value="${line.amount}" style="text-align:right;"></td>
-    <td><button class="btn btn-sm" onclick="removeReceiptLine(${idx})" title="Remover linha" style="background:rgba(176,48,48,.1);color:var(--vermelho);">${lcIcon('trash-2', 13)}</button></td>
+    <td><button class="btn btn-sm" data-on-click="remove-receipt-line" data-idx="${idx}" title="Remover linha" style="background:rgba(176,48,48,.1);color:var(--vermelho);">${AppModules.core.lcIcon('trash-2', 13)}</button></td>
   </tr>`;
 }
 
@@ -734,7 +800,7 @@ function _updateReceiptTotal() {
   let total = 0;
   document.querySelectorAll('#receipt-lines-body [data-rl="amount"]').forEach(i => { total += parseFloat(i.value) || 0; });
   const el = document.getElementById('rl-total');
-  if (el) el.textContent = formatEUR(total);
+  if (el) el.textContent = AppModules.core.formatEUR(total);
 }
 
 function _syncReceiptLinesFromDom() {
@@ -777,9 +843,9 @@ async function saveReceiptExpenses() {
   const invoice  = (document.getElementById('rl-invoice')?.value || '').trim();
   const payment  = document.getElementById('rl-payment')?.value || 'numerário';
   const hasNif   = document.getElementById('rl-has-nif')?.value === '1' ? 1 : 0;
-  if (!date) { toast('Indica a data do talão.', 'error'); return; }
+  if (!date) { AppModules.core.toast('Indica a data do talão.', 'error'); return; }
   const valid = _receiptLines.filter(l => l.description && l.amount > 0);
-  if (!valid.length) { toast('Não há linhas válidas para guardar.', 'error'); return; }
+  if (!valid.length) { AppModules.core.toast('Não há linhas válidas para guardar.', 'error'); return; }
   const expenses = valid.map(l => ({
     date, description: l.description, category: l.category, amount: l.amount,
     supplier, invoice_ref: invoice, payment_method: payment, has_nif: hasNif,
@@ -787,17 +853,64 @@ async function saveReceiptExpenses() {
   const btn = document.getElementById('receipt-save-btn');
   AppUI.setButtonLoading(btn, true);
   try {
-    const res = await apiPost('/api/expenses/bulk', { image: _receiptImage, expenses, has_nif: hasNif });
+    const res = await AppModules.core.apiPost('/api/expenses/bulk', { image: _receiptImage, expenses, has_nif: hasNif });
     if (res.success) {
-      toast(`✅ ${res.count} despesa${res.count !== 1 ? 's' : ''} guardada${res.count !== 1 ? 's' : ''}.`, 'success');
+      AppModules.core.toast(`✅ ${res.count} despesa${res.count !== 1 ? 's' : ''} guardada${res.count !== 1 ? 's' : ''}.`, 'success');
       closeReceiptModal();
       await loadDespesas();
     } else {
-      toast('❌ ' + (res.error || 'Erro ao guardar.'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao guardar.'), 'error');
     }
   } catch (e) {
-    toast('❌ ' + (e?.payload?.error || 'Erro ao guardar as despesas.'), 'error');
+    AppModules.core.toast('❌ ' + (e?.payload?.error || 'Erro ao guardar as despesas.'), 'error');
   } finally {
     AppUI.setButtonLoading(btn, false);
   }
 }
+
+// ── AÇÕES (data-action) ──
+// Ver js/domain/actions.js. Cada handler aqui substitui um onclick/onchange/
+// oninput/onblur que estava antes espalhado pelo HTML desta vista.
+AppActions.register({
+  'open-despesa-modal': el => openDespesaModal(el.dataset.id),
+  'delete-despesa': el => deleteDespesa(el.dataset.id),
+  'despesa-modal-backdrop': (el, e) => { if (e.target === el) closeDespesaModal(); },
+  'close-despesa-modal': () => closeDespesaModal(),
+  'save-despesa': () => saveDespesa(),
+  'export-despesas-xlsx': () => exportDespesasXLSX(),
+  'open-despesas-filters': () => toggleDespesasFiltersSheet(true),
+  'close-despesas-filters': () => toggleDespesasFiltersSheet(false),
+  'clear-despesas-filtros': () => clearDespesasFiltros(),
+  'trigger-receipt-input': () => document.getElementById('receipt-file-input').click(),
+  'retry-receipt-photo': () => { closeReceiptModal(); setTimeout(() => document.getElementById('receipt-file-input').click(), 350); },
+  'open-receipt-image': () => { if (_receiptImage) window.open(_receiptImage, '_blank'); },
+  'receipt-modal-backdrop': (el, e) => { if (e.target === el) closeReceiptModal(); },
+  'close-receipt-modal': () => closeReceiptModal(),
+  'save-receipt-expenses': () => saveReceiptExpenses(),
+  'add-receipt-line': () => addReceiptLine(),
+  'remove-receipt-line': el => removeReceiptLine(Number(el.dataset.idx)),
+});
+AppActions.register({
+  'despesas-query-changed-reload': () => despesasQueryChanged({ immediate: true, reloadPeriods: true }),
+  'despesas-query-changed-immediate': () => despesasQueryChanged({ immediate: true }),
+  'receipt-file-selected': el => onReceiptSelected(el),
+}, 'change');
+AppActions.register({
+  'despesas-query-changed': () => despesasQueryChanged(),
+}, 'input');
+AppActions.register({
+  'check-despesa-duplicate': () => checkDespesaDuplicate(),
+  'check-receipt-duplicate': () => checkReceiptDuplicate(),
+}, 'focusout');
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('despesas.js', () => {
+  despesaEditId = null;
+  despesaPeriods = [];
+  suppliersData = [];
+  despesasPaged.reset();
+  _receiptImage = null;
+  _receiptLines = [];
+});
+
+})();

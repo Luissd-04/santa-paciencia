@@ -1,5 +1,6 @@
 const { OAuth2Client } = require('google-auth-library');
 const { db } = require('./database');
+const { encodeTokens, decodeTokens } = require('./tokenStorage');
 
 const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.send',
@@ -8,11 +9,12 @@ const GMAIL_SCOPES = [
 ];
 
 function getEmailOAuth2Client() {
-  return new OAuth2Client(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_EMAIL_REDIRECT_URI
-  );
+  return new OAuth2Client({
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    redirectUri: process.env.GOOGLE_EMAIL_REDIRECT_URI,
+    transporterOptions: { timeout: 30000 },
+  });
 }
 
 function getStoredEmailTokens(organizationId) {
@@ -20,7 +22,7 @@ function getStoredEmailTokens(organizationId) {
     'SELECT tokens FROM google_email_connections WHERE organization_id = ?'
   ).get(organizationId);
   if (!row?.tokens) return null;
-  try { return JSON.parse(row.tokens); } catch { return null; }
+  return decodeTokens(row.tokens, `email:${organizationId}`);
 }
 
 function saveEmailTokens(organizationId, tokens, email) {
@@ -29,7 +31,7 @@ function saveEmailTokens(organizationId, tokens, email) {
     VALUES (?, ?, ?, datetime('now'))
     ON CONFLICT(organization_id)
     DO UPDATE SET tokens = excluded.tokens, email = excluded.email, updated_at = datetime('now')
-  `).run(organizationId, email || null, JSON.stringify(tokens));
+  `).run(organizationId, email || null, encodeTokens(tokens, `email:${organizationId}`));
 }
 
 function deleteEmailTokens(organizationId) {

@@ -4,6 +4,7 @@ node_modules/
 .DS_Store
 dist/
 build/
+*.log
 
 # base de dados
 *.db
@@ -12,10 +13,15 @@ build/
 # tokens sensíveis
 tokens/
 google_token.json
+token-encryption.key
+token-encryption.key.*.tmp
 
 # sqlite temp files
 *.db-shm
 *.db-wal
 
 # uploads (opcional mas recomendado)
-backend/src/data/uploads/
+backend/src/data/
+
+# Capturas dos testes com dados sintéticos
+browser-artifacts/

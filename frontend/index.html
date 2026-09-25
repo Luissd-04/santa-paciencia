@@ -38,14 +38,9 @@
 <link rel="stylesheet" href="css/vendor/flag-icons.min.css">
 <link rel="stylesheet" href="css/mobile.css">
 <script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js" integrity="sha384-bdZtphetAEBgkGZvhZXOFDWc55tHGLqaSo1f4qZtgvEiolEBqlJ9u6FTk+CoLfj0" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous"></script>
-<script src="js/vendor/xlsx-0.20.3.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js" integrity="sha384-vuyrTV5nkscLp1knFvt+FIHfKKzmROBq5reruhMRslauj54mW+l2B8b6szMN6lCL" crossorigin="anonymous"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
 </head>
 <body>
+<a class="skip-link" href="#main-content">Saltar para o conteúdo principal</a>
 
 <div class="bg-pattern" id="auth-bg-pattern"></div>
 <div class="auth-container" id="auth-shell">
@@ -80,14 +75,14 @@
           <span>Password</span>
           <div class="pw-wrap">
             <input class="form-input" type="password" id="login-password" name="password" placeholder="A tua password" autocomplete="current-password" required>
-            <button type="button" class="pw-toggle" onclick="togglePw('login-password',this)" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button>
+            <button type="button" class="pw-toggle" data-on-click="index-toggle-pw-e64aa5e" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button>
           </div>
         </label>
         <label class="auth-field auth-register-only is-hidden" id="register-confirm-wrap">
           <span>Confirmar password</span>
           <div class="pw-wrap">
             <input class="form-input" type="password" id="register-confirm-password" name="confirm-password" placeholder="Repete a password" autocomplete="new-password">
-            <button type="button" class="pw-toggle" onclick="togglePw('register-confirm-password',this)" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button>
+            <button type="button" class="pw-toggle" data-on-click="index-toggle-pw-91c28cb" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button>
           </div>
         </label>
         <!-- Reset mode: new password fields -->
@@ -95,19 +90,19 @@
           <span>Nova palavra-passe</span>
           <div class="pw-wrap">
             <input class="form-input" type="password" id="reset-password" name="reset-password" placeholder="Mín. 8 char., 1 maiúscula, 1 número" autocomplete="new-password">
-            <button type="button" class="pw-toggle" onclick="togglePw('reset-password',this)" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button>
+            <button type="button" class="pw-toggle" data-on-click="index-toggle-pw-b15d284" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button>
           </div>
         </label>
         <label class="auth-field is-hidden" id="reset-confirm-wrap">
           <span>Confirmar nova palavra-passe</span>
           <div class="pw-wrap">
             <input class="form-input" type="password" id="reset-confirm-password" name="reset-confirm-password" placeholder="Repete a nova password" autocomplete="new-password">
-            <button type="button" class="pw-toggle" onclick="togglePw('reset-confirm-password',this)" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button>
+            <button type="button" class="pw-toggle" data-on-click="index-toggle-pw-60cd192" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button>
           </div>
         </label>
         <!-- Forgot mode: link -->
         <div id="forgot-link-wrap" style="text-align:right;margin-top:-4px;">
-          <button type="button" class="auth-link-btn" id="forgot-link" onclick="setAuthMode('forgot')">Esqueci a palavra-passe</button>
+          <button type="button" class="auth-link-btn" id="forgot-link" data-on-click="index-set-auth-mode-76dbe1b">Esqueci a palavra-passe</button>
         </div>
         <button class="btn btn-primary auth-submit" id="login-submit" type="submit">
           <i data-lucide="log-in"></i> Entrar
@@ -126,7 +121,7 @@
 
   <!-- SIDEBAR -->
   <aside class="sidebar" id="main-sidebar">
-    <button class="sb-collapse-btn" onclick="toggleSidebarCollapse()" title="Expandir/recolher menu">
+    <button class="sb-collapse-btn" data-on-click="index-toggle-sidebar-collapse-ad76e3e" title="Expandir/recolher menu">
       <i data-lucide="panel-left-close" style="width:18px;height:18px;"></i>
     </button>
     <div class="sidebar-brand">
@@ -135,61 +130,61 @@
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section sb-label">Principal</div>
-      <div class="nav-item active" onclick="showView('dashboard')">
+      <button type="button" class="nav-item active" data-view="dashboard" data-on-click="index-show-view-f5d0286" aria-current="page">
         <span class="icon"><i data-lucide="layout-dashboard"></i></span><span class="nav-label"> Dashboard</span>
-      </div>
-      <div class="nav-item" onclick="showView('reservas')">
+      </button>
+      <button type="button" class="nav-item" data-view="reservas" data-on-click="index-show-view-3d0e569">
         <span class="icon"><i data-lucide="clipboard-list"></i></span><span class="nav-label"> Reservas</span>
-      </div>
-      <div class="nav-item" onclick="showView('calendario')">
+      </button>
+      <button type="button" class="nav-item" data-view="calendario" data-on-click="index-show-view-6fd615e">
         <span class="icon"><i data-lucide="calendar-days"></i></span><span class="nav-label"> Calendário</span>
-      </div>
-      <div class="nav-item" onclick="showView('eventos')">
+      </button>
+      <button type="button" class="nav-item" data-view="eventos" data-on-click="index-show-view-68ce776">
         <span class="icon"><i data-lucide="calendar-range"></i></span><span class="nav-label"> Eventos</span>
-      </div>
-      <div class="nav-item" onclick="showView('notificacoes')">
+      </button>
+      <button type="button" class="nav-item" data-view="notificacoes" data-on-click="index-show-view-afe629f">
         <span class="icon"><i data-lucide="bell"></i></span><span class="nav-label"> Notificações</span>
-      </div>
-      <div class="nav-item" onclick="showView('invoice')">
+      </button>
+      <button type="button" class="nav-item" data-view="invoice" data-on-click="index-show-view-772edb1">
         <span class="icon"><i data-lucide="mail"></i></span><span class="nav-label"> Mensagens</span><span class="nav-badge" id="nav-badge-invoice" style="display:none;"></span>
-      </div>
+      </button>
       <div class="nav-section sb-label">Gestão</div>
-      <div class="nav-item" onclick="showView('hospedes')">
+      <button type="button" class="nav-item" data-view="hospedes" data-on-click="index-show-view-a1dad0e">
         <span class="icon"><i data-lucide="users"></i></span><span class="nav-label"> Hóspedes</span>
-      </div>
-      <div class="nav-item" onclick="showView('alojamentos')">
+      </button>
+      <button type="button" class="nav-item" data-view="alojamentos" data-on-click="index-show-view-4899013">
         <span class="icon"><i data-lucide="home"></i></span><span class="nav-label"> Alojamentos</span>
-      </div>
-      <div class="nav-item" onclick="showView('precos')">
+      </button>
+      <button type="button" class="nav-item" data-view="precos" data-on-click="index-show-view-aa6e09d">
         <span class="icon"><i data-lucide="tag"></i></span><span class="nav-label"> Preços</span>
-      </div>
-      <div class="nav-item" onclick="showView('despesas')">
+      </button>
+      <button type="button" class="nav-item" data-view="despesas" data-on-click="index-show-view-5da348e">
         <span class="icon"><i data-lucide="receipt"></i></span><span class="nav-label"> Despesas</span>
-      </div>
-      <div class="nav-item" onclick="showView('relatorios')">
+      </button>
+      <button type="button" class="nav-item" data-view="relatorios" data-on-click="index-show-view-7f3ea84">
         <span class="icon"><i data-lucide="bar-chart-3"></i></span><span class="nav-label"> Relatórios</span>
-      </div>
-      <div class="nav-item" onclick="showView('vouchers')">
+      </button>
+      <button type="button" class="nav-item" data-view="vouchers" data-on-click="index-show-view-447b5f9">
         <span class="icon"><i data-lucide="ticket"></i></span><span class="nav-label"> Vouchers</span>
-      </div>
+      </button>
     </nav>
     <div class="sidebar-settings-nav">
-      <div class="nav-item" onclick="showView('definicoes')">
+      <button type="button" class="nav-item" data-view="definicoes" data-on-click="index-show-view-56547aa">
         <span class="icon"><i data-lucide="settings"></i></span><span class="nav-label"> Definições</span>
-      </div>
+      </button>
     </div>
     <div class="sidebar-footer sb-label">
       v1.0 · Santa Paciência
     </div>
   </aside>
-  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+  <div class="sidebar-overlay" id="sidebar-overlay" data-on-click="index-toggle-sidebar-aab962a"></div>
 
   <!-- MAIN -->
-  <div class="main">
+  <div class="main" id="main-content" tabindex="-1">
 
     <!-- TOPBAR -->
     <header class="topbar">
-      <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="Menu">
+      <button class="hamburger-btn" id="mobile-menu-trigger" data-on-click="index-toggle-sidebar-aab962a" aria-label="Menu" aria-controls="side-drawer" aria-expanded="false">
         <i data-lucide="menu" style="width:20px;height:20px;"></i>
       </button>
       <img src="favicon.png" alt="Santa Paciência" class="topbar-logo">
@@ -199,56 +194,56 @@
       </div>
       <div class="topbar-actions">
         <div class="notif-wrap" id="notif-wrap">
-          <button class="notif-bell" onclick="toggleNotif(event)" aria-label="Notificações">
+          <button class="notif-bell" data-on-click="index-toggle-notif-76f1667" aria-label="Notificações">
             <i data-lucide="bell" style="width:18px;height:18px;"></i>
             <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
           </button>
           <div class="notif-dropdown" id="notif-dropdown" style="display:none;"></div>
         </div>
-        <div class="auth-user-chip" id="auth-user-chip" onclick="toggleUserMenu(event)" style="cursor:pointer;" title="Opções de conta">
+        <div class="auth-user-chip" id="auth-user-chip" data-on-click="index-toggle-user-menu-8773fdf" style="cursor:pointer;" title="Opções de conta">
           <div class="auth-user-copy">
             <strong id="auth-user-name">Sessão</strong>
             <span id="auth-user-role"></span>
           </div>
           <i data-lucide="chevron-down" style="width:13px;height:13px;opacity:.5;flex-shrink:0;"></i>
-          <div class="user-menu" id="user-menu" style="display:none;" onclick="event.stopPropagation()">
+          <div class="user-menu" id="user-menu" style="display:none;" data-on-click="index-stop-propagation-22499e1">
             <div class="user-menu-head">
               <strong id="user-menu-name"></strong>
               <span id="user-menu-email"></span>
             </div>
             <div class="user-menu-sep"></div>
-            <button class="user-menu-item" onclick="openProfileModal()">
+            <button class="user-menu-item" data-on-click="index-open-profile-modal-f09c11a">
               <i data-lucide="user-round" style="width:14px;height:14px;"></i> O meu perfil
             </button>
-            <button class="user-menu-item" onclick="openChangePasswordModal()">
+            <button class="user-menu-item" data-on-click="index-open-change-password-modal-8ca392f">
               <i data-lucide="key-round" style="width:14px;height:14px;"></i> Alterar palavra-passe
             </button>
-            <button class="user-menu-item" onclick="openSessionsModal()">
+            <button class="user-menu-item" data-on-click="index-open-sessions-modal-3435629">
               <i data-lucide="monitor-smartphone" style="width:14px;height:14px;"></i> Sessões ativas
             </button>
             <div id="user-menu-orgs"></div>
             <div class="user-menu-sep"></div>
-            <button class="user-menu-item" onclick="switchAccount()">
+            <button class="user-menu-item" data-on-click="index-switch-account-80fec7e">
               <i data-lucide="users-round" style="width:14px;height:14px;"></i> Trocar de conta
             </button>
-            <button class="user-menu-item" onclick="logout()">
+            <button class="user-menu-item" data-on-click="index-logout-34b5979">
               <i data-lucide="log-out" style="width:14px;height:14px;"></i> Sair
             </button>
           </div>
         </div>
         <div class="quick-action-wrap">
-          <button class="btn btn-primary" onclick="toggleQuickActionMenu(event)" style="background:var(--marca);">
+          <button class="btn btn-primary" data-on-click="index-toggle-quick-action-menu-0334bc8" style="background:var(--marca);">
             <i data-lucide="plus" style="width:14px;height:14px;"></i> Ação Rápida
             <i data-lucide="chevron-down" style="width:13px;height:13px;"></i>
           </button>
           <div class="quick-action-menu" id="quick-action-menu" style="display:none;">
-            <button type="button" onclick="quickActionNovaReserva()">
+            <button type="button" data-on-click="index-quick-action-nova-reserva-58ab5e7">
               <i data-lucide="clipboard-plus"></i> Nova reserva
             </button>
-            <button type="button" onclick="quickActionNovoEvento()">
+            <button type="button" data-on-click="index-quick-action-novo-evento-0c85031">
               <i data-lucide="calendar-plus"></i> Nova tarefa
             </button>
-            <button type="button" onclick="quickActionNovaNotificacao()">
+            <button type="button" data-on-click="index-quick-action-nova-notificacao-790a9b1">
               <i data-lucide="bell-plus"></i> Nova notificação
             </button>
           </div>
@@ -262,7 +257,7 @@
       <div class="view active" id="view-dashboard">
         <section class="dashboard-shell">
           <div id="dash-mobile" class="dashboard-mobile-layout" style="display:none">
-            <div class="dashboard-mobile-highlight m-card stagger-1" onclick="showView('reservas')">
+            <div class="dashboard-mobile-highlight m-card stagger-1" data-on-click="index-show-view-3d0e569">
               <div class="m-hero-icon"><i data-lucide="door-open"></i></div>
               <div class="dashboard-mobile-highlight-copy">
                 <div class="mac-label">Chegadas Hoje</div>
@@ -296,22 +291,22 @@
               <span>Atalhos para a operação diária</span>
             </div>
             <div class="mobile-quick-grid dashboard-mobile-actions stagger-4">
-              <div class="quick-item m-card" onclick="goToTodayCheckins()">
+              <div class="quick-item m-card" data-on-click="index-go-to-today-checkins-13ac1c9">
                 <div class="quick-icon"><i data-lucide="log-in"></i></div>
                 <div class="quick-label">Check-in Hoje</div>
                 <div class="quick-sub" id="qk-checkin">— hóspedes</div>
               </div>
-              <div class="quick-item m-card" onclick="goToTodayCheckouts()">
+              <div class="quick-item m-card" data-on-click="index-go-to-today-checkouts-ab5dad4">
                 <div class="quick-icon"><i data-lucide="log-out"></i></div>
                 <div class="quick-label">Check-out</div>
                 <div class="quick-sub" id="qk-checkout">— hóspedes</div>
               </div>
-              <div class="quick-item m-card" onclick="goToPendingPayments()">
+              <div class="quick-item m-card" data-on-click="index-go-to-pending-payments-c2f6a92">
                 <div class="quick-icon"><i data-lucide="receipt"></i></div>
                 <div class="quick-label">Pagamentos</div>
                 <div class="quick-sub" id="qk-payments">— pendentes</div>
               </div>
-              <div class="quick-item m-card" onclick="quickScanReceiptFromDashboard()">
+              <div class="quick-item m-card" data-on-click="index-quick-scan-receipt-from-dashboard-b9248c4">
                 <div class="quick-icon"><i data-lucide="scan-line"></i></div>
                 <div class="quick-label">Registar Despesa</div>
                 <div class="quick-sub">Foto do talão</div>
@@ -319,7 +314,7 @@
             </div>
             <div class="view-section-heading stagger-5">
               <h3>Próximas Chegadas</h3>
-              <span class="m-section-link" onclick="showView('reservas')">Ver todas</span>
+              <span class="m-section-link" data-on-click="index-show-view-3d0e569">Ver todas</span>
             </div>
             <div class="m-arrivals-list m-card stagger-5" id="m-proximas-list"></div>
           </div>
@@ -327,9 +322,9 @@
           <div id="dash-desktop" class="dashboard-desktop-layout">
             <div class="kpi-grid dashboard-kpi-grid">
               <div class="kpi-card dashboard-kpi-card">
-                <div class="kpi-label">Total Faturado</div>
+                <div class="kpi-label" title="Valor das reservas não canceladas">Total Reservado</div>
                 <div class="kpi-value" id="kpi-faturado">€—</div>
-                <div class="kpi-sub">reservas confirmadas</div>
+                <div class="kpi-sub" id="kpi-financial-details" title="Com fatura: reservas não canceladas com número de fatura. Recebido: pagamentos registados, incluindo reservas canceladas.">Com fatura: — · Recebido: —</div>
               </div>
               <div class="kpi-card dashboard-kpi-card dashboard-kpi-success">
                 <div class="kpi-label">Reservas Ativas</div>
@@ -354,7 +349,7 @@
                   <span class="card-title">
                     <i data-lucide="calendar-clock"></i> Próximas Chegadas
                   </span>
-                  <button class="btn btn-ghost btn-sm" onclick="showView('reservas')">Ver todas</button>
+                  <button class="btn btn-ghost btn-sm" data-on-click="index-show-view-3d0e569">Ver todas</button>
                 </div>
                 <div id="dash-proximas"><div class="loading"><div class="spinner"></div> A carregar...</div></div>
               </div>
@@ -373,413 +368,14 @@
 
       <!-- ══ RESERVAS ══ -->
       <div class="view" id="view-reservas">
-        <section class="reservas-shell">
-          <div class="view-toolbar view-toolbar-reservas">
-            <div class="search-box reservas-search-box">
-              <i data-lucide="search"></i>
-              <input type="text" id="search-input" placeholder="Pesquisar hóspede, ID..." oninput="renderTabela()" autocomplete="off">
-            </div>
-            <select class="form-control" id="filter-estado" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" onchange="clearResExactDateFilter();renderTabela()">
-              <option value="">Todos os estados</option>
-              <option value="pre_reserva">Pré-reserva</option>
-              <option value="confirmada">Confirmada</option>
-              <option value="pendente">Pendente</option>
-              <option value="pre_checkin">Pre Check-in</option>
-              <option value="aguardar_pagamento">Aguardar Pagamento</option>
-              <option value="cancelada">Cancelada</option>
-            </select>
-            <button type="button" class="btn btn-ghost btn-sm page-filters-toggle" id="reservas-filters-toggle" aria-expanded="false" aria-controls="reservas-filter-panel" onclick="togglePageFilters('reservas-filter-panel', this)">
-              <i data-lucide="sliders-horizontal" style="width:13px;height:13px;"></i> Filtros
-              <i data-lucide="chevron-down" class="page-filters-caret" style="width:13px;height:13px;"></i>
-            </button>
-            <button type="button" class="btn btn-ghost btn-sm reservas-clear-btn" id="reservas-clear-filters" onclick="clearReservasFilters()" style="display:none;">
-              <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar filtros
-            </button>
-            <span class="page-toolbar-count"><strong id="reservas-results-total">0</strong> <span id="reservas-results-detail">resultados</span></span>
-            <div class="view-toolbar-actions">
-              <div class="cal-mode-toggle reservas-view-toggle" id="reservas-view-toggle">
-                <span class="cal-mode-pill" id="reservas-view-pill"></span>
-                <button class="cal-mode-btn" data-res-view="card" onclick="setReservasViewMode('card')">
-                  <i data-lucide="layout-grid"></i> Cartão
-                </button>
-                <button class="cal-mode-btn active" data-res-view="list" onclick="setReservasViewMode('list')">
-                  <i data-lucide="list"></i> Lista
-                </button>
-              </div>
-              <button class="btn btn-primary" onclick="openModal()">
-                <i data-lucide="plus"></i> Nova Reserva
-              </button>
-            </div>
-          </div>
-
-          <div class="m-sheet-backdrop" id="reservas-filters-backdrop" onclick="toggleReservasFiltersSheet(false)"></div>
-          <div class="reservas-filter-panel m-sheet page-filters" id="reservas-filter-panel">
-            <div class="m-sheet-header">
-              <span>Filtros</span>
-              <button class="m-sheet-close" onclick="toggleReservasFiltersSheet(false)" aria-label="Fechar">
-                <i data-lucide="x"></i>
-              </button>
-            </div>
-            <div class="toolbar reservas-toolbar page-filters-body">
-              <select class="form-control" id="filter-suite" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter app-select--filter-wide" onchange="renderTabela()">
-                <option value="">Todas as suites</option>
-              </select>
-              <select class="form-control" id="filter-canal" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" onchange="renderTabela()">
-                <option value="">Todos os canais</option>
-                <option value="airbnb">Airbnb</option>
-                <option value="booking">Booking.com</option>
-                <option value="direto">Direto</option>
-                <option value="whatsapp">WhatsApp</option>
-                <option value="instagram">Instagram</option>
-                <option value="expedia">Expedia</option>
-                <option value="vrbo">VRBO</option>
-                <option value="outro">Outro</option>
-              </select>
-              <select class="form-control" id="filter-pagamento" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter app-select--filter-wide" onchange="renderTabela()">
-                <option value="">Todos os pagamentos</option>
-                <option value="confirmado">Completo</option>
-                <option value="parcial">Parcial</option>
-                <option value="pendente">Não pago</option>
-              </select>
-              <div class="reservas-date-range" style="display:flex;align-items:center;gap:4px;">
-                <input type="date" class="form-control" id="filter-date-from" title="Check-in a partir de" data-dp-no-button onchange="clearResExactDateFilter();renderTabela()" style="width:auto;" autocomplete="off">
-                <span style="color:var(--cinza);font-size:13px;">→</span>
-                <input type="date" class="form-control" id="filter-date-to" title="Check-out até" data-dp-range-end="filter-date-from" data-dp-no-button onchange="clearResExactDateFilter();renderTabela()" style="width:auto;" autocomplete="off">
-              </div>
-              <button class="btn btn-ghost btn-sm drawer-clear-btn" onclick="clearReservasFilters()" title="Limpar filtros">
-                <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar
-              </button>
-            </div>
-          </div>
-
-          <div id="reservas-mobile" class="reservas-mobile-layout" style="display:none">
-            <div class="m-search-box reservas-mobile-search">
-              <i data-lucide="search"></i>
-              <input type="text" id="mobile-search-input" placeholder="Pesquisar hóspede, ID..." oninput="renderMobileCards()" autocomplete="off">
-            </div>
-            <div class="mobile-filter-chips reservas-mobile-chips">
-              <div class="chip active" onclick="setMobileChip(this,'')">Todas</div>
-              <div class="chip" onclick="setMobileChip(this,'confirmada')">Confirmadas</div>
-              <div class="chip" onclick="setMobileChip(this,'pendente')">Pendentes</div>
-              <div class="chip" onclick="setMobileChip(this,'pre_checkin')">Pre Check-in</div>
-              <div class="chip" onclick="setMobileChip(this,'cancelada')">Canceladas</div>
-            </div>
-            <button class="m-filters-trigger" onclick="toggleReservasFiltersSheet(true)">
-              <i data-lucide="sliders-horizontal"></i> Filtros
-            </button>
-            <div id="res-exact-filter-chip" style="display:none;"></div>
-            <div id="mobile-res-cards" class="reservas-mobile-cards"></div>
-          </div>
-
-          <div id="reservas-desktop" class="reservas-desktop-layout">
-            <div class="card reservas-table-card">
-              <div class="table-wrap reservas-table-wrap">
-                <table id="reservas-table">
-                  <colgroup>
-                    <col data-col="id" style="width:96px">
-                    <col data-col="created_at" style="width:96px">
-                    <col data-col="guest_name" style="width:190px">
-                    <col data-col="accommodation_name" style="width:160px">
-                    <col data-col="check_in" style="width:96px">
-                    <col data-col="check_out" style="width:96px">
-                    <col data-col="nights" style="width:62px">
-                    <col data-col="num_guests" style="width:84px">
-                    <col data-col="total_amount" style="width:88px">
-                    <col data-col="channel" style="width:92px">
-                    <col data-col="status" style="width:112px">
-                    <col data-col="payment_status" style="width:120px">
-                    <col data-col="actions" style="width:132px">
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th data-col="id" onclick="sortTabela('id')" class="th-sort">ID <span class="sort-icon" id="sort-id"></span></th>
-                      <th data-col="created_at" onclick="sortTabela('created_at')" class="th-sort">Reserva <span class="sort-icon" id="sort-created_at"></span></th>
-                      <th data-col="guest_name" onclick="sortTabela('guest_name')" class="th-sort">Hóspede <span class="sort-icon" id="sort-guest_name"></span></th>
-                      <th data-col="accommodation_name" onclick="sortTabela('accommodation_name')" class="th-sort">Alojamento <span class="sort-icon" id="sort-accommodation_name"></span></th>
-                      <th data-col="check_in" onclick="sortTabela('check_in')" class="th-sort">Check-in <span class="sort-icon" id="sort-check_in">↑</span></th>
-                      <th data-col="check_out" onclick="sortTabela('check_out')" class="th-sort">Check-out <span class="sort-icon" id="sort-check_out"></span></th>
-                      <th data-col="nights" onclick="sortTabela('nights')" class="th-sort">Noites <span class="sort-icon" id="sort-nights"></span></th>
-                      <th data-col="num_guests" onclick="sortTabela('num_guests')" class="th-sort">Hóspedes <span class="sort-icon" id="sort-num_guests"></span></th>
-                      <th data-col="total_amount" onclick="sortTabela('total_amount')" class="th-sort">Total <span class="sort-icon" id="sort-total_amount"></span></th>
-                      <th data-col="channel" onclick="sortTabela('channel')" class="th-sort">Canal <span class="sort-icon" id="sort-channel"></span></th>
-                      <th data-col="status" onclick="sortTabela('status')" class="th-sort">Estado <span class="sort-icon" id="sort-status"></span></th>
-                      <th data-col="payment_status" onclick="sortTabela('payment_status')" class="th-sort">Pagamento <span class="sort-icon" id="sort-payment_status"></span></th>
-                      <th data-col="actions">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody id="tabela-body"></tbody>
-                </table>
-              </div>
-              <div id="tabela-empty" style="display:none;" class="empty-state">
-                <div class="es-icon">📭</div>
-                <h3>Sem reservas</h3>
-                <p>Não foram encontradas reservas com estes filtros.</p>
-              </div>
-              <div id="tabela-loading" class="loading">
-                <div class="spinner"></div> A carregar reservas...
-              </div>
-            </div>
-          </div>
-
-          <article id="reserva-detail-page" class="reserva-detail-page" style="display:none;">
-            <div class="reserva-detail-loading loading">
-              <div class="spinner"></div> A carregar reserva...
-            </div>
-            <div id="reserva-detail-content"></div>
-          </article>
-        </section>
       </div>
 
       <!-- ══ CALENDÁRIO ══ -->
       <div class="view" id="view-calendario">
-        <section class="calendar-shell">
-          <div class="view-toolbar calendar-toolbar">
-            <button class="btn btn-ghost btn-sm" onclick="calPrev()">
-              <i data-lucide="chevron-left"></i> Anterior
-            </button>
-            <button class="btn btn-ghost btn-sm" onclick="goToday()">
-              <i data-lucide="calendar-check"></i> Hoje
-            </button>
-            <button class="btn btn-ghost btn-sm" onclick="calNext()">
-              Próximo <i data-lucide="chevron-right"></i>
-            </button>
-            <button class="m-filters-trigger" onclick="toggleCalendarioFiltersSheet(true)">
-              <i data-lucide="sliders-horizontal"></i> Filtros
-            </button>
-            <div class="calendario-filter-panel m-sheet" id="calendario-filter-panel">
-              <div class="m-sheet-header">
-                <span>Filtros</span>
-                <button class="m-sheet-close" onclick="toggleCalendarioFiltersSheet(false)" aria-label="Fechar">
-                  <i data-lucide="x"></i>
-                </button>
-              </div>
-              <select class="form-control" id="cal-suite-filter" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter app-select--filter-wide" onchange="renderCalView()">
-                <option value="">Todas as Suites</option>
-              </select>
-              <select class="form-control" id="cal-status-filter" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" onchange="renderCalView()">
-                <option value="">Todos os estados</option>
-                <option value="pre_reserva">Pré-reserva</option>
-                <option value="confirmada">Confirmadas</option>
-                <option value="pendente">Pendentes</option>
-                <option value="pre_checkin">Pre Check-in</option>
-                <option value="aguardar_pagamento">Aguardar Pagamento</option>
-              </select>
-              <select class="form-control" id="cal-channel-filter" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" onchange="renderCalView()">
-                <option value="">Todos os canais</option>
-                <option value="airbnb">Airbnb</option>
-                <option value="booking">Booking.com</option>
-                <option value="direto">Direto</option>
-                <option value="whatsapp">WhatsApp</option>
-                <option value="instagram">Instagram</option>
-                <option value="expedia">Expedia</option>
-                <option value="vrbo">VRBO</option>
-                <option value="outro">Outro</option>
-              </select>
-            </div>
-            <span class="page-toolbar-count">
-              <strong id="cal-results-total">0</strong>
-              <span id="cal-results-detail">reservas visíveis</span>
-            </span>
-            <div class="view-toolbar-actions">
-              <div class="cal-mode-toggle" id="cal-main-toggle">
-                <span class="cal-mode-pill" id="cal-mode-pill"></span>
-                <button class="cal-mode-btn active" data-mode="calendar" onclick="setCalMode('calendar')">
-                  <i data-lucide="calendar-days"></i> Calendário
-                </button>
-                <button class="cal-mode-btn" data-mode="timeline" onclick="setCalMode('timeline')">
-                  <i data-lucide="gantt-chart"></i> Timeline
-                </button>
-              </div>
-              <div class="cal-mode-toggle" id="timeline-range-toggle" style="display:none;">
-                <button class="cal-mode-btn" data-range="7" onclick="setTimelineRange(7)">Grande</button>
-                <button class="cal-mode-btn active" data-range="14" onclick="setTimelineRange(14)">Médio</button>
-                <button class="cal-mode-btn" data-range="30" onclick="setTimelineRange(30)">Pequeno</button>
-              </div>
-              <button class="btn btn-ghost btn-sm" onclick="openBlockModal()" title="Bloquear datas de um alojamento">
-                <i data-lucide="lock"></i> Bloquear datas
-              </button>
-            </div>
-          </div>
-
-          <div class="m-sheet-backdrop" id="calendario-filters-backdrop" onclick="toggleCalendarioFiltersSheet(false)"></div>
-
-          <div class="section-card section-card-calendar">
-            <div class="section-card-head">
-              <h3 class="section-card-title calendar-month-title" id="cal-label"></h3>
-            </div>
-            <div class="calendar-legend">
-              <button class="legend-pill legend-confirmada" id="legend-confirmada" type="button" onclick="toggleCalendarLegendFilter('confirmada')">Confirmada</button>
-              <button class="legend-pill legend-pendente" id="legend-pendente" type="button" onclick="toggleCalendarLegendFilter('pendente')">Pendente</button>
-            </div>
-            <div class="cal-wrap">
-              <div class="cal-header">
-                <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
-              </div>
-              <div class="cal-grid" id="cal-grid"></div>
-              <div id="cal-grid-empty"></div>
-            </div>
-            <div class="calendar-agenda-mobile" id="calendar-agenda-mobile"></div>
-            <div id="timeline-wrap" style="display:none;"></div>
-          </div>
-
-          <!-- Telemóvel em paisagem: grelha mensal dedicada a ecrã inteiro -->
-          <div class="cal-landscape" id="cal-landscape">
-            <div class="cll-toolbar">
-              <button class="cll-pill" onclick="calPrev()">
-                <i data-lucide="chevron-left"></i> Anterior
-              </button>
-              <button class="cll-pill" onclick="goToday()">
-                <i data-lucide="calendar-check"></i> Hoje
-              </button>
-              <button class="cll-pill" onclick="calNext()">
-                Próximo <i data-lucide="chevron-right"></i>
-              </button>
-              <div class="cll-title" id="cll-title"></div>
-              <button class="cll-pill" onclick="calLandBlockShortcut()">
-                <i data-lucide="lock"></i> Bloquear datas
-              </button>
-            </div>
-            <div class="cll-week-days-head">
-              <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
-            </div>
-            <div class="cll-grid" id="cll-grid"></div>
-            <div id="cll-empty"></div>
-          </div>
-
-        </section>
       </div>
 
       <!-- ══ ALOJAMENTOS — LISTA ══ -->
       <div class="view" id="view-eventos">
-        <section class="calendar-shell eventos-shell">
-          <div class="report-tabs eventos-tabs">
-            <button class="report-tab active" data-eventos-view="calendar" onclick="setEventosView('calendar')">
-              <i data-lucide="calendar-days" style="width:14px;height:14px;"></i> Calendário
-            </button>
-            <button class="report-tab" data-eventos-view="list" onclick="setEventosView('list')">
-              <i data-lucide="list-checks" style="width:14px;height:14px;"></i> Lista
-            </button>
-            <button class="btn btn-primary btn-sm eventos-mobile-add-btn" onclick="openEventoModal()">
-              <i data-lucide="plus" style="width:14px;height:14px;"></i> Novo evento
-            </button>
-          </div>
-
-          <div class="eventos-panel active" id="eventos-panel-calendar">
-            <div class="view-toolbar calendar-toolbar eventos-cal-toolbar">
-              <button class="btn btn-ghost btn-sm" onclick="eventosPrev()">
-                <i data-lucide="chevron-left"></i> Anterior
-              </button>
-              <button class="btn btn-ghost btn-sm" onclick="eventosToday()">
-                <i data-lucide="calendar-check"></i> Hoje
-              </button>
-              <button class="btn btn-ghost btn-sm" onclick="eventosNext()">
-                Próximo <i data-lucide="chevron-right"></i>
-              </button>
-              <span class="page-toolbar-count">
-                <strong id="eventos-results-total">0</strong>
-                <span id="eventos-results-detail">eventos</span>
-              </span>
-              <div class="view-toolbar-actions">
-                <div class="cal-mode-toggle" id="eventos-mode-toggle">
-                  <span class="cal-mode-pill" id="eventos-mode-pill"></span>
-                  <button class="cal-mode-btn active" data-eventos-mode="calendar" onclick="setEventosMode('calendar')">
-                    <i data-lucide="calendar-days"></i> Calendário
-                  </button>
-                  <button class="cal-mode-btn" data-eventos-mode="timeline" onclick="setEventosMode('timeline')">
-                    <i data-lucide="gantt-chart"></i> Timeline
-                  </button>
-                </div>
-                <div class="cal-mode-toggle" id="eventos-range-toggle" style="display:none;">
-                  <button class="cal-mode-btn" data-eventos-range="7" onclick="setEventosTimelineRange(7)">Grande</button>
-                  <button class="cal-mode-btn active" data-eventos-range="14" onclick="setEventosTimelineRange(14)">Médio</button>
-                  <button class="cal-mode-btn" data-eventos-range="30" onclick="setEventosTimelineRange(30)">Pequeno</button>
-                </div>
-                <button class="btn btn-primary btn-sm eventos-add-btn" onclick="openEventoModal()">
-                  <i data-lucide="plus"></i> Adicionar Evento
-                </button>
-              </div>
-            </div>
-
-            <div class="eventos-type-chips-row" id="eventos-cal-chips-row"></div>
-
-            <div class="section-card section-card-calendar section-card-eventos">
-              <div class="section-card-head">
-                <h3 class="section-card-title calendar-month-title" id="eventos-label"></h3>
-              </div>
-              <div class="cal-wrap" id="eventos-cal-wrap">
-                <div class="cal-header">
-                  <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
-                </div>
-                <div class="cal-grid" id="eventos-cal-grid"></div>
-                <div id="eventos-cal-empty"></div>
-              </div>
-              <div id="eventos-timeline-wrap" style="display:none;"></div>
-              <div id="eventos-agenda-mobile" class="calendar-agenda-mobile"></div>
-            </div>
-          </div>
-
-          <button class="mobile-fab eventos-mobile-fab" id="eventos-mobile-fab" onclick="openEventoModal(null, new Date().toISOString().slice(0,10))">
-            <i data-lucide="plus"></i>
-          </button>
-
-          <div class="eventos-panel" id="eventos-panel-list">
-            <div class="view-toolbar eventos-list-toolbar">
-              <div class="search-box eventos-search-box">
-                <i data-lucide="search"></i>
-                <input type="text" id="eventos-search" placeholder="Pesquisar evento, responsável..." oninput="renderEventosList()" autocomplete="off">
-              </div>
-              <select class="form-control" id="eventos-list-acc-filter" data-enhance-select data-app-select-class="app-select--filter app-select--filter-wide" onchange="renderEventosList()">
-                <option value="">Todos os alojamentos</option>
-              </select>
-              <select class="form-control" id="eventos-list-status-filter" data-enhance-select data-app-select-class="app-select--filter" onchange="renderEventosList()">
-                <option value="">Todos os estados</option>
-                <option value="planeado">Planeado</option>
-                <option value="concluido">Concluído</option>
-              </select>
-              <select class="form-control" id="eventos-list-date-filter" data-enhance-select data-app-select-class="app-select--filter" onchange="renderEventosList()">
-                <option value="" selected>Todos</option>
-                <option value="upcoming">Próximos</option>
-                <option value="today">Hoje</option>
-                <option value="week">Esta semana</option>
-                <option value="month">Este mês</option>
-              </select>
-              <span class="page-toolbar-count">
-                <strong id="eventos-list-total">0</strong>
-                <span id="eventos-list-detail">eventos</span>
-              </span>
-              <div class="view-toolbar-actions">
-                <button class="btn btn-primary btn-sm eventos-add-btn" onclick="openEventoModal()">
-                  <i data-lucide="plus"></i> Adicionar Evento
-                </button>
-              </div>
-            </div>
-
-            <div class="eventos-type-chips-row" id="eventos-type-chips-row"></div>
-
-            <div class="card eventos-list-card">
-              <div class="table-wrap">
-                <table class="eventos-table">
-                  <thead>
-                    <tr>
-                      <th>Data</th>
-                      <th>Evento</th>
-                      <th>Alojamento</th>
-                      <th>Responsável</th>
-                      <th>Estado</th>
-                      <th>Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody id="eventos-list-body"></tbody>
-                </table>
-              </div>
-              <div id="eventos-list-empty" class="empty-state" style="display:none;">
-                <div class="es-icon">📅</div>
-                <h3>Sem eventos</h3>
-                <p>Adiciona uma limpeza, reunião ou outra tarefa operacional.</p>
-              </div>
-            </div>
-          </div>
-        </section>
       </div>
 
       <div class="view" id="view-notificacoes">
@@ -792,10 +388,10 @@
                 <span id="notifications-page-count-label">notificações</span>
               </span>
               <div class="view-toolbar-actions">
-                <button class="btn btn-ghost btn-sm" onclick="loadNotifications()">
+                <button class="btn btn-ghost btn-sm" data-on-click="index-load-notifications-449f209">
                   <i data-lucide="refresh-cw"></i> Atualizar
                 </button>
-                <button class="btn btn-primary btn-sm" onclick="openManualNotificationModal()">
+                <button class="btn btn-primary btn-sm" data-on-click="index-open-manual-notification-modal-01af437">
                   <i data-lucide="bell-plus"></i> Adicionar
                 </button>
               </div>
@@ -807,898 +403,36 @@
 
       <!-- ══ ALOJAMENTOS — LISTA ══ -->
       <div class="view" id="view-alojamentos">
-        <div class="aloj-hidden-controls" aria-hidden="true">
-          <div class="search-box aloj-search-box">
-            <i data-lucide="search"></i>
-            <input type="text" id="aloj-search" placeholder="Pesquisar nome, cidade, licença..." oninput="renderAlojamentos()" autocomplete="off">
-          </div>
-          <select class="form-control" id="aloj-filter-type" style="width:auto;" onchange="renderAlojamentos()">
-            <option value="">Todos os tipos</option>
-            <option value="alojamento">Alojamentos principais</option>
-            <option value="suite">Suites</option>
-            <option value="apartamento">Apartamentos</option>
-            <option value="quarto">Quartos</option>
-            <option value="moradia">Moradias</option>
-            <option value="villa">Villas</option>
-          </select>
-          <select class="form-control" id="aloj-filter-link" style="width:auto;" onchange="renderAlojamentos()">
-            <option value="">Todas as relações</option>
-            <option value="main">Só principais</option>
-            <option value="linked">Só associadas</option>
-            <option value="standalone">Só independentes</option>
-          </select>
-          <span id="aloj-count-total">0</span>
-          <span id="aloj-count-main">0</span>
-          <span id="aloj-count-linked">0</span>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">
-              <i data-lucide="home"></i> Alojamentos
-            </span>
-            <span style="font-size:12px;color:var(--cinza);">Clique num alojamento para editar</span>
-          </div>
-          <div class="table-wrap">
-          <table id="aloj-table" style="table-layout:fixed;width:100%">
-            <thead>
-              <tr>
-                <th style="width:32px"></th>
-                <th style="width:52px"></th>
-                <th>Nome</th>
-                <th style="width:80px">Tipo</th>
-                <th style="width:120px">Capacidade</th>
-                <th style="width:90px">Quartos</th>
-                <th style="width:70px">Área</th>
-                <th style="width:110px">Preço/noite</th>
-                <th style="width:80px">Licença</th>
-                <th style="width:130px"></th>
-              </tr>
-            </thead>
-            <tbody id="aloj-body"></tbody>
-          </table>
-          </div>
-          <div id="aloj-mobile-cards" class="aloj-mobile-cards"></div>
-          <div id="aloj-loading" class="loading"><div class="spinner"></div> A carregar...</div>
-
-          <div style="padding:14px 16px;border-top:1px solid var(--cinza-claro);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <button class="btn btn-ghost btn-sm" onclick="addAlojamento()">
-              <i data-lucide="plus"></i> Adicionar alojamento
-            </button>
-          </div>
-        </div>
-
-        <!-- Serviços e Taxas -->
-        <div class="card" style="margin-top:20px;">
-          <div class="card-header">
-            <span class="card-title">
-              <i data-lucide="receipt"></i> Serviços e Taxas
-            </span>
-            <div style="display:flex;gap:8px;">
-              <button class="btn btn-ghost btn-sm" onclick="addServico()">
-                <i data-lucide="plus"></i> Adicionar
-              </button>
-            </div>
-          </div>
-          <div class="table-wrap">
-          <table style="table-layout:fixed;width:100%" id="servicos-table">
-            <thead>
-              <tr>
-                <th style="width:120px">Tipo</th>
-                <th>Nome</th>
-                <th style="width:110px">Valor (€)</th>
-                <th style="width:160px">Unidade</th>
-                <th style="width:60px">Ativo</th>
-                <th style="width:40px"></th>
-              </tr>
-            </thead>
-            <tbody id="servicos-body"></tbody>
-          </table>
-          </div>
-        </div>
       </div>
 
       <!-- ══ ALOJAMENTO — DETALHE / EDIÇÃO ══ -->
       <div class="view" id="view-alojamento-detalhe">
-        <div class="aloj-detail-header">
-          <button class="btn btn-ghost btn-sm" onclick="showView('alojamentos')">
-            <i data-lucide="arrow-left"></i> Voltar
-          </button>
-          <div class="aloj-detail-title-wrap">
-            <span id="aloj-detalhe-nome" class="aloj-detail-title"></span>
-            <span class="aloj-detail-subtitle">Configurações, descrição, imagens e integração por unidade.</span>
-          </div>
-          <button class="btn btn-danger btn-sm" onclick="deleteAlojamento()" style="margin-left:auto;">
-            <i data-lucide="trash-2"></i> Apagar
-          </button>
-          <button class="btn btn-primary" onclick="saveAlojamento()">
-            <i data-lucide="save"></i> Guardar
-          </button>
-        </div>
-
-        <!-- Tabs -->
-        <div style="display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--cinza-claro);">
-          <button class="aloj-tab active" onclick="showAlojTab('info')" id="tab-info">
-            <i data-lucide="info"></i> Informação
-          </button>
-          <button class="aloj-tab" onclick="showAlojTab('comodidades')" id="tab-comodidades">
-            <i data-lucide="check-square"></i> Comodidades
-          </button>
-          <button class="aloj-tab" onclick="showAlojTab('imagens')" id="tab-imagens">
-            <i data-lucide="image"></i> Imagens
-          </button>
-          <button class="aloj-tab" onclick="showAlojTab('rgpd')" id="tab-rgpd">
-            <i data-lucide="shield"></i> RGPD
-          </button>
-          <button class="aloj-tab" onclick="showAlojTab('bloqueios')" id="tab-bloqueios">
-            <i data-lucide="lock"></i> Bloqueios
-          </button>
-          <button class="aloj-tab" onclick="showAlojTab('precos')" id="tab-precos">
-            <i data-lucide="euro"></i> Preços
-          </button>
-        </div>
-
-        <!-- Tab: Informação -->
-        <div id="aloj-tab-info">
-
-          <!-- Banner de herança (visível quando tem parent) -->
-          <div id="aloj-inherited-banner" style="display:none;margin-bottom:18px;padding:10px 16px;background:rgba(201,168,76,.1);border-left:3px solid var(--dourado);border-radius:6px;font-size:13px;color:var(--texto);">
-            <span id="aloj-inherited-msg"></span>
-          </div>
-
-          <!-- Linha 1: Informação / Layout -->
-          <div style="display:grid;grid-template-columns:1fr;gap:24px;margin-bottom:24px;">
-            <div class="card">
-              <div class="card-header">
-                <span class="card-title" style="font-size:14px;">
-                  <i data-lucide="map-pin"></i> Informação do alojamento
-                </span>
-              </div>
-              <div class="form-grid">
-                <div class="form-group">
-                  <label class="form-label">Nome</label>
-                  <input class="form-control" id="aloj-nome" placeholder="Nome do alojamento" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Cor no calendário</label>
-                  <div style="display:flex;align-items:center;gap:10px;">
-                    <input type="color" id="aloj-color" value="#843424" style="width:48px;height:36px;padding:2px;border:1px solid var(--borda);border-radius:8px;cursor:pointer;background:none;">
-                    <span id="aloj-color-label" style="font-size:13px;color:var(--cinza);">#843424</span>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Número de licença</label>
-                  <div style="display:flex;gap:8px;align-items:center;">
-                    <input class="form-control" id="aloj-licenca" placeholder="12345" autocomplete="off">
-                    <span style="font-size:13px;color:var(--cinza);white-space:nowrap;">/ AL</span>
-                  </div>
-                </div>
-                <div class="form-group form-full">
-                  <label class="form-label">Morada</label>
-                  <input class="form-control" id="aloj-morada" placeholder="Rua, número" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Código Postal</label>
-                  <input class="form-control" id="aloj-cp" placeholder="0000-000" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Localidade</label>
-                  <input class="form-control" id="aloj-cidade" placeholder="Lisboa" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Região</label>
-                  <select class="form-control" id="aloj-regiao">
-                    <option>Continente</option>
-                    <option>Açores</option>
-                    <option>Madeira</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">País</label>
-                  <input class="form-control" id="aloj-pais" value="Portugal" autocomplete="off">
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <span class="card-title" style="font-size:14px;">
-                  <i data-lucide="layout-panel-left"></i> Layout do alojamento
-                </span>
-              </div>
-              <div class="form-grid">
-                <div class="form-group">
-                  <label class="form-label">Tipologia</label>
-                  <select class="form-control" id="aloj-tipo" onchange="onAlojTipoChange()">
-                    <option value="alojamento">Alojamento Principal</option>
-                    <option value="suite">Suite</option>
-                    <option value="apartamento">Apartamento</option>
-                    <option value="quarto">Quarto</option>
-                    <option value="moradia">Moradia</option>
-                    <option value="villa">Villa</option>
-                  </select>
-                </div>
-                <div class="form-group" id="aloj-parent-wrap" style="display:none;">
-                  <label class="form-label">Alojamento Principal</label>
-                  <select class="form-control" id="aloj-parent-id" onchange="onAlojParentChange()">
-                    <option value="">— Nenhum —</option>
-                  </select>
-                  <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;display:block;">Associa esta unidade a um alojamento principal</span>
-                </div>
-                <div class="form-group form-full" id="aloj-public-link-wrap" style="display:none;">
-                  <label class="form-label">Link público de reserva</label>
-                  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                    <input class="form-control" id="aloj-public-link" readonly placeholder="O link é gerado automaticamente" style="flex:1 1 320px;" autocomplete="off">
-                    <button class="btn btn-ghost btn-sm" type="button" onclick="copyPublicBookingLink()">
-                      <i data-lucide="copy"></i> Copiar
-                    </button>
-                    <button class="btn btn-primary btn-sm" type="button" onclick="openPublicBookingPreview()">
-                      <i data-lucide="external-link"></i> Pré-visualizar
-                    </button>
-                  </div>
-                  <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;display:block;">Abre a página que o cliente vê para fazer uma reserva neste alojamento.</span>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Área (m²)</label>
-                  <input class="form-control" id="aloj-area" type="number" min="1" placeholder="ex: 45" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Capacidade máx. hóspedes</label>
-                  <input class="form-control" id="aloj-capacidade" type="number" min="1" max="20" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Quartos</label>
-                  <input class="form-control" id="aloj-quartos" type="number" min="0" max="20" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Casas de banho</label>
-                  <input class="form-control" id="aloj-casasbanho" type="number" min="0" max="20" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Preço / noite (€)</label>
-                  <input class="form-control" id="aloj-preco" type="number" min="0" step="0.01" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Estadia mínima (noites)</label>
-                  <input class="form-control" id="aloj-min-nights" type="number" min="1" max="30" value="1" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Hóspedes incluídos no preço base</label>
-                  <input class="form-control" id="aloj-hospedes-incluidos" type="number" min="1" max="20" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Bebé até (anos, inclusive)</label>
-                  <input class="form-control" id="aloj-baby-age-limit" type="number" min="0" max="18" value="2" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Preço bebé / noite (€)</label>
-                  <input class="form-control" id="aloj-baby-price" type="number" min="0" step="0.01" value="0" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Crianças abaixo de (anos)</label>
-                  <input class="form-control" id="aloj-child-age-limit" type="number" min="0" max="18" value="12" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Preço criança / noite (€)</label>
-                  <input class="form-control" id="aloj-child-price" type="number" min="0" step="0.01" value="0" autocomplete="off">
-                </div>
-                <div class="form-group form-full">
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
-                    <label class="form-label" style="margin:0;">Ocupação adicional</label>
-                    <button type="button" class="btn btn-ghost btn-sm" onclick="addExtraOccupancyOption()">
-                      <i data-lucide="plus"></i> Adicionar extra
-                    </button>
-                  </div>
-                  <div id="aloj-extra-occupancy-list" style="display:grid;gap:12px;"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Linha 2: Descrição -->
-          <div class="card" style="margin-bottom:24px;">
-            <div class="card-header">
-              <span class="card-title" style="font-size:14px;">
-                <i data-lucide="file-text"></i> Descrição
-              </span>
-            </div>
-            <div style="display:flex;gap:0;border-bottom:1px solid var(--cinza-claro);overflow-x:auto;padding:0 16px;" id="desc-lang-tabs">
-              <button class="desc-lang-tab active" data-lang="pt" onclick="switchDescLang('pt')"><span class="fi fi-pt"></span> Português</button>
-              <button class="desc-lang-tab" data-lang="en" onclick="switchDescLang('en')"><span class="fi fi-gb"></span> Inglês</button>
-              <button class="desc-lang-tab" data-lang="fr" onclick="switchDescLang('fr')"><span class="fi fi-fr"></span> Francês</button>
-              <button class="desc-lang-tab" data-lang="es" onclick="switchDescLang('es')"><span class="fi fi-es"></span> Espanhol</button>
-              <button class="desc-lang-tab" data-lang="de" onclick="switchDescLang('de')"><span class="fi fi-de"></span> Alemão</button>
-              <button class="desc-lang-tab" data-lang="it" onclick="switchDescLang('it')"><span class="fi fi-it"></span> Italiano</button>
-              <button class="desc-lang-tab" data-lang="nl" onclick="switchDescLang('nl')"><span class="fi fi-nl"></span> Neerlandês</button>
-            </div>
-            <div style="padding:12px 16px 16px;">
-              <textarea class="form-control desc-lang-area" id="desc-pt" rows="6" placeholder="Descreva o alojamento em Português..." style="display:block;"></textarea>
-              <textarea class="form-control desc-lang-area" id="desc-en" rows="6" placeholder="Describe the accommodation in English..." style="display:none;"></textarea>
-              <textarea class="form-control desc-lang-area" id="desc-fr" rows="6" placeholder="Décrivez le logement en Français..." style="display:none;"></textarea>
-              <textarea class="form-control desc-lang-area" id="desc-es" rows="6" placeholder="Describa el alojamiento en Español..." style="display:none;"></textarea>
-              <textarea class="form-control desc-lang-area" id="desc-de" rows="6" placeholder="Beschreiben Sie die Unterkunft auf Deutsch..." style="display:none;"></textarea>
-              <textarea class="form-control desc-lang-area" id="desc-it" rows="6" placeholder="Descrivi l'alloggio in Italiano..." style="display:none;"></textarea>
-              <textarea class="form-control desc-lang-area" id="desc-nl" rows="6" placeholder="Beschrijf de accommodatie in het Nederlands..." style="display:none;"></textarea>
-            </div>
-          </div>
-
-          <!-- Mapa -->
-          <div class="card" style="margin-bottom:24px;">
-            <div class="card-header">
-              <span class="card-title" style="font-size:14px;">
-                <i data-lucide="map-pin"></i> Localização no mapa
-              </span>
-              <button class="btn btn-ghost btn-sm" id="aloj-map-btn" onclick="geocodeAndShowMap()">
-                <i data-lucide="search"></i> Verificar endereço
-              </button>
-            </div>
-            <div id="aloj-map-placeholder" class="aloj-map-placeholder">
-              <i data-lucide="map" style="width:36px;height:36px;opacity:.3;"></i>
-              <span>Preencha a morada e clique em "Verificar endereço"</span>
-            </div>
-            <div id="aloj-map" style="display:none;"></div>
-          </div>
-
-          <!-- Linha 3: Horários + Wi-Fi + Redes Sociais + Google Calendar -->
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:24px;margin-bottom:0;">
-            <div class="card">
-              <div class="card-header">
-                <span class="card-title" style="font-size:14px;">
-                  <i data-lucide="clock"></i> Horários
-                </span>
-              </div>
-              <div class="form-grid" style="grid-template-columns:1fr;">
-                <div class="form-group">
-                  <label class="form-label">Check-in</label>
-                  <input class="form-control" id="aloj-checkin-time" type="time" value="15:00" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Check-out</label>
-                  <input class="form-control" id="aloj-checkout-time" type="time" value="11:00" autocomplete="off">
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <span class="card-title" style="font-size:14px;">
-                  <i data-lucide="wifi"></i> Wi-Fi
-                </span>
-              </div>
-              <div class="form-group" style="margin-bottom:12px;">
-                <label class="form-label">Nome da rede (SSID)</label>
-                <input class="form-control" id="aloj-wifi-nome" placeholder="Nome da rede Wi-Fi" autocomplete="off">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Senha</label>
-                <div class="password-field">
-                  <input class="form-control" id="aloj-wifi-password" type="password" placeholder="Senha do Wi-Fi" autocomplete="off">
-                  <button type="button" class="password-eye" onclick="toggleWifiPass(this)" tabindex="-1" title="Mostrar/ocultar senha">
-                    <i data-lucide="eye" style="width:16px;height:16px;"></i>
-                  </button>
-                </div>
-              </div>
-              <span style="font-size:11.5px;color:var(--cinza);">Enviados automaticamente no email de coordenadas</span>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <span class="card-title" style="font-size:14px;">
-                  <i data-lucide="key-round"></i> Código de acesso
-                </span>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Código de abertura de portas</label>
-                <input class="form-control" id="aloj-door-code" placeholder="Ex.: 1234#" autocomplete="off">
-              </div>
-              <span style="font-size:11.5px;color:var(--cinza);">Enviado automaticamente no email de código de acesso</span>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <span class="card-title" style="font-size:14px;">
-                  <i data-lucide="share-2"></i> Redes Sociais
-                </span>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Facebook</label>
-                <input class="form-control" id="aloj-social-fb" placeholder="https://facebook.com/..." autocomplete="off">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Instagram</label>
-                <input class="form-control" id="aloj-social-ig" placeholder="https://instagram.com/..." autocomplete="off">
-              </div>
-              <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">Website</label>
-                <input class="form-control" id="aloj-social-web" placeholder="https://..." autocomplete="off">
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <span class="card-title" style="font-size:14px;">
-                  <i data-lucide="image"></i> Logótipo <span id="aloj-logo-inherited-badge" style="display:none;margin-left:6px;font-size:10px;color:var(--dourado);font-weight:600;text-transform:uppercase;letter-spacing:.3px;">↑ herdado</span>
-                </span>
-              </div>
-              <div style="display:flex;align-items:center;gap:12px;">
-                <div id="aloj-logo-preview-wrap" style="width:100px;height:44px;border-radius:6px;background:#843424;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">
-                  <img id="aloj-logo-preview" src="" style="display:none;max-width:90px;max-height:36px;object-fit:contain;">
-                  <span id="aloj-logo-placeholder" style="font-size:10px;color:rgba(255,255,255,.6);">Sem logótipo</span>
-                </div>
-                <div style="display:flex;flex-direction:column;gap:6px;">
-                  <label class="btn btn-ghost btn-sm" id="aloj-logo-upload-label" style="width:fit-content;cursor:pointer;">
-                    <i data-lucide="upload" style="width:13px;height:13px;"></i> Carregar
-                    <input type="file" accept="image/*" style="display:none;" id="aloj-logo-input" onchange="uploadAlojLogo(this)">
-                  </label>
-                  <button type="button" class="btn btn-ghost btn-sm" id="aloj-logo-remove-btn" style="display:none;width:fit-content;color:var(--vermelho,#b3261e);" onclick="removeAlojLogo()">
-                    <i data-lucide="trash-2" style="width:13px;height:13px;"></i> Remover
-                  </button>
-                </div>
-              </div>
-              <span style="font-size:11.5px;color:var(--cinza);">Usado nos emails automáticos e nos PDFs exportados deste alojamento e das suas suites.</span>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <span class="card-title" style="font-size:14px;">
-                  <i data-lucide="calendar-sync"></i> Google Calendar
-                </span>
-              </div>
-              <div class="form-group">
-                <label class="form-label">ID do Calendário</label>
-                <input class="form-control" id="aloj-gcal-id" placeholder="exemplo@group.calendar.google.com" autocomplete="off">
-                <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;">Deixe em branco para usar o calendário principal</span>
-              </div>
-              <label style="display:flex;align-items:flex-start;gap:8px;margin-top:4px;cursor:pointer;">
-                <input type="checkbox" id="aloj-gcal-manual" style="margin-top:2px;">
-                <span style="font-size:12px;color:var(--cinza);line-height:1.4;">Gerir a cor deste calendário manualmente no Google Calendar — a app deixa de aplicar aqui a cor do alojamento (útil mesmo quando o calendário foi criado automaticamente).</span>
-              </label>
-              <div style="margin-top:12px;">
-                <button class="btn btn-ghost btn-sm" onclick="openAlojCalendar()">
-                  <i data-lucide="external-link"></i> Abrir Calendário deste Alojamento
-                </button>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <span class="card-title" style="font-size:14px;">
-                  <i data-lucide="calendar-plus"></i> Booking & Airbnb iCal
-                </span>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Airbnb iCal</label>
-                <input class="form-control" id="aloj-airbnb-ical-url" type="url" placeholder="https://www.airbnb.com/calendar/ical/..." autocomplete="off">
-                <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;">Link de exportação iCal do anúncio no Airbnb</span>
-              </div>
-              <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">Booking.com iCal</label>
-                <input class="form-control" id="aloj-booking-ical-url" type="url" placeholder="https://admin.booking.com/hotel/hoteladmin/ical.html?..." autocomplete="off">
-                <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;">Link de sincronização iCal do calendário da Booking.com</span>
-              </div>
-            </div>
-          </div>
-
-        </div><!-- /aloj-tab-info -->
-
-        <!-- Tab: Comodidades -->
-        <div id="aloj-tab-comodidades" style="display:none;">
-          <div class="card">
-            <div style="padding:18px 20px 0;">
-              <div class="search-box aloj-search-box" style="max-width:360px;">
-                <i data-lucide="search"></i>
-                <input type="text" id="amenities-search" placeholder="Pesquisar comodidades..." oninput="refreshAmenitiesFilter()" autocomplete="off">
-              </div>
-            </div>
-            <div id="amenities-grid"></div>
-          </div>
-        </div>
-
-        <!-- Tab: Imagens -->
-        <div id="aloj-tab-imagens" style="display:none;">
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title" style="font-size:14px;">
-                <i data-lucide="images"></i> Galeria de Imagens
-              </span>
-            </div>
-            <!-- Foto de capa -->
-            <div class="aloj-cover-panel">
-              <div id="aloj-cover-dropzone" class="aloj-cover-dropzone"
-                onclick="handleCoverZoneClick(event)"
-                ondragover="event.preventDefault();this.classList.add('drag-over')"
-                ondragleave="this.classList.remove('drag-over')"
-                ondrop="handleCoverDrop(event)">
-                <img id="aloj-cover-preview" src="" style="display:none;width:100%;height:100%;object-fit:cover;" draggable="true"
-                  ondragstart="coverDragStart(event)" ondragend="coverDragEnd(event)">
-                <div id="aloj-cover-placeholder" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;color:var(--cinza);">
-                  <i data-lucide="camera" style="width:24px;height:24px;"></i>
-                  <span>Capa</span>
-                </div>
-                <div class="aloj-cover-actions">
-                  <button type="button" class="img-section-btn add" onclick="event.stopPropagation();document.getElementById('cover-input').click()" title="Escolher foto">
-                    <i data-lucide="upload"></i>
-                  </button>
-                  <button type="button" class="img-section-btn" id="aloj-cover-delete-btn" style="display:none;" onclick="event.stopPropagation();removeCoverImage()" title="Remover capa">
-                    <i data-lucide="trash-2"></i>
-                  </button>
-                </div>
-              </div>
-              <div class="aloj-cover-copy">
-                <div style="font-weight:600;color:var(--azul);margin-bottom:4px;">Foto de Capa</div>
-                <div style="font-size:12.5px;color:var(--cinza);">Esta imagem aparece na lista de alojamentos ao lado do nome.<br>Clique para abrir em grande, arraste da galeria para definir como capa.</div>
-                <button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:12px;" onclick="document.getElementById('cover-input').click()">
-                  <i data-lucide="camera"></i> Escolher foto
-                </button>
-              </div>
-            </div>
-            <input type="file" id="cover-input" accept="image/*" style="display:none">
-            <input type="file" id="img-input" multiple accept="image/*" style="display:none">
-
-            <p style="font-size:13px;color:var(--cinza);margin-bottom:16px;">
-              Arraste imagens ou clique para selecionar. Guardadas no servidor.
-            </p>
-            <!-- Drop zone -->
-            <div id="img-dropzone" onclick="document.getElementById('img-input').click()"
-              style="border:2px dashed var(--azul-claro);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:background .2s;margin-bottom:20px;"
-              ondragover="event.preventDefault();this.style.background='rgba(74,127,165,.08)'"
-              ondragleave="this.style.background=''"
-              ondrop="handleImgDrop(event)">
-              <i data-lucide="image-plus" style="width:36px;height:36px;color:var(--azul-claro);margin-bottom:8px;"></i>
-              <div style="font-size:14px;color:var(--azul);font-weight:500;">Arraste as imagens para aqui</div>
-              <div style="font-size:12px;color:var(--cinza);margin-top:4px;">ou clique para selecionar ficheiros (JPG, PNG, máx. 5MB)</div>
-            </div>
-
-            <!-- Secções de imagens (gerado dinamicamente por renderImagens()) -->
-            <div id="img-sections"></div>
-
-            <!-- Adicionar nova divisão -->
-            <div class="img-add-section-row">
-              <input class="form-control" id="new-section-name" placeholder="Nome da nova divisão (ex: Terraço)" style="max-width:260px;font-size:13px;padding:7px 12px;" autocomplete="off">
-              <button class="btn btn-ghost btn-sm" onclick="addImgSection()">
-                <i data-lucide="plus"></i> Adicionar divisão
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tab: RGPD -->
-        <div id="aloj-tab-rgpd" style="display:none;">
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title" style="font-size:14px;">
-                <i data-lucide="shield"></i> Texto de RGPD
-              </span>
-            </div>
-            <div style="padding:0 20px 20px;">
-              <p style="font-size:13px;color:var(--cinza);margin:0 0 12px;">
-                Este texto é apresentado ao hóspede no momento da reserva online, antes de aceitar os termos. Se deixar em branco, é usado um texto padrão.
-              </p>
-              <textarea id="aloj-rgpd-text" class="form-control" rows="12"
-                placeholder="Os seus dados pessoais são recolhidos e tratados com a finalidade de gerir a sua reserva..."></textarea>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tab: Bloqueios -->
-        <div id="aloj-tab-bloqueios" style="display:none;">
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title" style="font-size:14px;">
-                <i data-lucide="lock"></i> Datas bloqueadas
-              </span>
-              <button class="btn btn-primary btn-sm" type="button" onclick="openBlockModal(document.getElementById('aloj-editing-id').value)">
-                <i data-lucide="plus"></i> Bloquear datas
-              </button>
-            </div>
-            <div style="padding:0 20px 20px;">
-              <p style="font-size:13px;color:var(--cinza);margin:0 0 12px;">
-                Datas em que este alojamento não aceita reservas (manutenção, uso pessoal, etc.).
-              </p>
-              <div id="aloj-blocks-list"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tab: Preços (recebe o #precos-calendar-widget da vista Preços) -->
-        <div id="aloj-tab-precos" style="display:none;">
-          <p style="font-size:13px;color:var(--cinza);margin:0 0 14px;">
-            Preços noite a noite deste alojamento (calendário dinâmico) — usados no cálculo do total das reservas. O "Valor por noite" da tab Informação é o preço base, aplicado apenas às noites sem período definido.
-          </p>
-        </div>
-
-        <input type="hidden" id="aloj-editing-id">
       </div>
 
       <!-- ══ HÓSPEDES ══ -->
       <div class="view" id="view-hospedes">
-        <section class="hospedes-shell">
-          <div class="view-toolbar hospedes-toolbar">
-            <div class="view-chip-list">
-              <span class="view-stat-chip">
-                <strong id="hospedes-total">0</strong>
-                <span>hóspedes</span>
-              </span>
-              <span class="view-stat-chip">
-                <strong id="hospedes-vip">0</strong>
-                <span>VIP/Favoritos</span>
-              </span>
-              <span class="view-stat-chip">
-                <strong id="hospedes-repeat">0</strong>
-                <span>repetentes</span>
-              </span>
-            </div>
-            <div class="view-toolbar-actions">
-              <div class="search-box hospedes-search-box">
-                <i data-lucide="search"></i>
-                <input type="text" id="hospedes-search" placeholder="Pesquisar hóspede, email..." oninput="renderHospedes()" autocomplete="off">
-              </div>
-              <div class="hospedes-view-toggle" id="hospedes-view-toggle">
-                <button class="hvt-btn active" id="hvt-cards" onclick="setHospedesView('cards')">
-                  <i data-lucide="layout-grid"></i> Cartões
-                </button>
-                <button class="hvt-btn" id="hvt-lista" onclick="setHospedesView('lista')">
-                  <i data-lucide="list"></i> Lista
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="card section-card hospedes-card-board">
-            <div id="hospedes-cards-view">
-              <div id="hospedes-cards-grid" class="hospedes-grid"></div>
-              <div id="hospedes-empty" style="display:none;" class="empty-state">
-                <div class="es-icon">👥</div>
-                <h3>Sem hóspedes</h3>
-                <p>Ainda não existem hóspedes registados.</p>
-              </div>
-              <div id="hospedes-loading" class="loading">
-                <div class="spinner"></div> A carregar hóspedes...
-              </div>
-            </div>
-
-            <div id="hospedes-lista-view" style="display:none;">
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th onclick="sortHospedes('name')" class="th-sort">Nome <span class="sort-icon" id="hsort-name">↑</span></th>
-                      <th onclick="sortHospedes('email')" class="th-sort">Email <span class="sort-icon" id="hsort-email"></span></th>
-                      <th onclick="sortHospedes('phone')" class="th-sort">Telefone <span class="sort-icon" id="hsort-phone"></span></th>
-                      <th onclick="sortHospedes('nationality')" class="th-sort">País <span class="sort-icon" id="hsort-nationality"></span></th>
-                      <th onclick="sortHospedes('reservation_count')" class="th-sort">Reservas <span class="sort-icon" id="hsort-reservation_count"></span></th>
-                      <th onclick="sortHospedes('last_check_in')" class="th-sort">Última visita <span class="sort-icon" id="hsort-last_check_in"></span></th>
-                      <th style="width:80px;">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody id="hospedes-lista-body"></tbody>
-                </table>
-              </div>
-              <div id="hospedes-lista-empty" style="display:none;" class="empty-state">
-                <div class="es-icon">👥</div>
-                <h3>Sem hóspedes</h3>
-                <p>Ainda não existem hóspedes registados.</p>
-              </div>
-            </div>
-          </div>
-        </section>
       </div>
 
       <!-- ══ INVOICE ══ -->
       <div class="view" id="view-invoice">
-        <section class="invoice-shell">
-
-          <!-- Toolbar -->
-          <div class="view-toolbar invoice-toolbar">
-            <div class="invoice-tabs" id="invoice-tabs">
-              <button class="inv-tab active" data-tab="conversas" onclick="switchInvoiceTab('conversas')">
-                <i data-lucide="mail"></i> Conversas
-              </button>
-              <button class="inv-tab" data-tab="arquivo" onclick="switchInvoiceTab('arquivo')">
-                <i data-lucide="archive"></i> Arquivo
-              </button>
-              <button class="inv-tab" data-tab="faturas" onclick="switchInvoiceTab('faturas')">
-                <i data-lucide="file-text"></i> Faturas
-              </button>
-            </div>
-            <div class="view-toolbar-actions">
-              <div class="search-box">
-                <i data-lucide="search"></i>
-                <input type="text" id="invoice-search" placeholder="Pesquisar mensagem ou hóspede..." oninput="filterInvoiceConversas()" autocomplete="off">
-              </div>
-              <button class="btn btn-primary" onclick="openNovaConversa()" id="btn-nova-conversa">
-                <i data-lucide="mail-plus"></i> Nova mensagem
-              </button>
-            </div>
-          </div>
-
-          <!-- CONVERSAS tab -->
-          <div id="invoice-tab-conversas">
-            <div class="invoice-inbox-layout">
-
-              <!-- Lista de conversas -->
-              <div class="invoice-thread-list" id="invoice-thread-list">
-                <div class="invoice-thread-empty" id="invoice-thread-empty" style="display:none;">
-                  <div class="es-icon"><i data-lucide="inbox" style="width:40px;height:40px;opacity:.3;"></i></div>
-                  <h3>Sem conversas</h3>
-                  <p>As conversas por email com os hóspedes aparecem aqui.</p>
-                </div>
-                <div class="invoice-thread-loading" id="invoice-thread-loading">
-                  <div class="spinner"></div> A carregar...
-                </div>
-              </div>
-
-              <!-- Detalhe da conversa -->
-              <div class="invoice-thread-detail" id="invoice-thread-detail">
-                <div class="invoice-detail-empty">
-                  <i data-lucide="mail-open" style="width:48px;height:48px;opacity:.2;"></i>
-                  <p>Seleciona uma conversa</p>
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          <!-- ARQUIVO tab -->
-          <div id="invoice-tab-arquivo" style="display:none;">
-            <div class="invoice-inbox-layout">
-              <div class="invoice-thread-list" id="invoice-archive-list">
-                <div class="invoice-thread-empty" id="invoice-archive-empty" style="display:none;">
-                  <div class="es-icon"><i data-lucide="archive" style="width:40px;height:40px;opacity:.3;"></i></div>
-                  <h3>Arquivo vazio</h3>
-                  <p>As conversas que arquivares aparecem aqui.</p>
-                </div>
-                <div class="invoice-thread-loading" id="invoice-archive-loading" style="display:none;">
-                  <div class="spinner"></div> A carregar...
-                </div>
-              </div>
-              <div class="invoice-thread-detail" id="invoice-archive-detail">
-                <div class="invoice-detail-empty">
-                  <i data-lucide="archive" style="width:48px;height:48px;opacity:.2;"></i>
-                  <p>Seleciona uma conversa arquivada</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- FATURAS tab -->
-          <div id="invoice-tab-faturas" style="display:none;">
-            <div class="card section-card" style="margin-top:16px;">
-              <div class="empty-state" style="padding:64px 24px;">
-                <div class="es-icon"><i data-lucide="file-text" style="width:40px;height:40px;opacity:.3;"></i></div>
-                <h3>Faturas — Em breve</h3>
-                <p>A emissão de faturas e recibos será integrada aqui.</p>
-              </div>
-            </div>
-          </div>
-
-        </section>
       </div>
 
       <!-- ══ DESPESAS ══ -->
       <div class="view" id="view-despesas">
-        <section class="despesas-shell">
-          <div class="kpi-grid despesas-kpi-grid" id="despesas-kpi-grid"></div>
-          <div class="despesas-kpi-mobile" id="despesas-kpi-mobile"></div>
-
-          <div class="m-sheet-backdrop" id="despesas-filters-backdrop" onclick="toggleDespesasFiltersSheet(false)"></div>
-          <div class="despesas-filter-panel m-sheet" id="despesas-filter-panel">
-            <div class="m-sheet-header">
-              <span>Filtros</span>
-              <button class="m-sheet-close" onclick="toggleDespesasFiltersSheet(false)" aria-label="Fechar">
-                <i data-lucide="x"></i>
-              </button>
-            </div>
-            <select class="form-control" id="despesa-filter-period" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" style="width:auto;" onchange="loadDespesas()">
-              <option value="ano">Por ano</option>
-              <option value="mes">Por mês</option>
-              <option value="tudo">Todo o histórico</option>
-            </select>
-            <select class="form-control" id="despesa-filter-year" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" style="width:auto;" onchange="loadDespesas()" aria-label="Ano"></select>
-            <select class="form-control" id="despesa-filter-month" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" style="width:auto;" onchange="loadDespesas()" aria-label="Mês"></select>
-            <select class="form-control" id="despesa-filter-category" data-enhance-select data-app-select-class="app-select--filter" style="width:auto;" onchange="renderDespesas()">
-              <option value="">Todas as categorias</option>
-              <option value="limpeza">Limpeza</option>
-              <option value="produtos_limpeza">Produtos de limpeza</option>
-              <option value="pequenos_almocos">Pequenos-almoços</option>
-              <option value="roupas">Roupas</option>
-              <option value="manutencao">Manutenção</option>
-              <option value="marketing">Marketing</option>
-              <option value="impostos">Impostos</option>
-              <option value="servicos">Serviços</option>
-              <option value="consumiveis">Consumíveis</option>
-              <option value="outro">Outro</option>
-            </select>
-            <select class="form-control" id="despesa-filter-supplier" data-enhance-select data-app-select-class="app-select--filter" style="width:auto;" onchange="renderDespesas()">
-              <option value="">Todos os fornecedores</option>
-            </select>
-            <div class="despesas-filter-panel-actions">
-              <button class="btn btn-ghost btn-sm" onclick="clearDespesasFiltros()">
-                <i data-lucide="filter-x" style="width:13px;height:13px;"></i> Limpar filtros
-              </button>
-              <button class="btn btn-primary btn-sm despesas-filter-apply" onclick="toggleDespesasFiltersSheet(false)">Aplicar</button>
-            </div>
-          </div>
-
-          <div class="despesas-mobile-toolbar">
-            <button class="m-filters-trigger despesas-filters-trigger" onclick="toggleDespesasFiltersSheet(true)">
-              <i data-lucide="sliders-horizontal"></i> Filtros
-              <span class="despesas-filter-badge" id="despesas-filter-badge" onclick="event.stopPropagation();clearDespesasFiltros()" title="Limpar filtros" style="display:none;">
-                <i data-lucide="x"></i>
-              </span>
-            </button>
-            <button class="despesas-icon-btn" onclick="exportDespesasXLSX()" title="Exportar lista de despesas">
-              <i data-lucide="download"></i>
-            </button>
-            <button class="despesas-icon-btn" onclick="document.getElementById('receipt-file-input').click()" title="Ler talão por foto (IA)">
-              <i data-lucide="scan-line"></i>
-            </button>
-          </div>
-
-          <button class="mobile-fab despesas-mobile-fab" id="despesas-mobile-fab" onclick="openDespesaModal()">
-            <i data-lucide="plus"></i>
-          </button>
-
-          <div class="card card--flush despesas-table-card">
-            <div class="card-header despesas-card-header">
-              <span class="card-title"><i data-lucide="receipt"></i> Registo de Despesas</span>
-              <div class="view-toolbar-actions despesas-desktop-actions">
-                <button class="btn btn-ghost btn-sm" onclick="exportDespesasXLSX()" title="Exportar lista de despesas">
-                  <i data-lucide="download" style="width:13px;height:13px;"></i> Exportar
-                </button>
-                <input type="file" id="receipt-file-input" accept="image/*" capture="environment" style="display:none;" onchange="onReceiptSelected(this)">
-                <button class="btn btn-ghost btn-sm despesas-scan-btn" onclick="document.getElementById('receipt-file-input').click()" title="Ler talão por foto (IA)">
-                  <i data-lucide="scan-line" style="width:14px;height:14px;"></i> Ler talão
-                </button>
-                <button class="btn btn-primary btn-sm" onclick="openDespesaModal()">
-                  <i data-lucide="plus"></i> Nova Despesa
-                </button>
-              </div>
-            </div>
-            <div class="table-wrap despesas-table-wrap">
-              <table id="despesas-table" class="cols-managed">
-                <colgroup></colgroup>
-                <thead><tr></tr></thead>
-                <tbody id="despesas-body"></tbody>
-              </table>
-            </div>
-            <div id="despesas-mobile-cards" class="despesas-mobile-cards"></div>
-            <div id="despesas-empty" style="display:none;"></div>
-            <div id="despesas-loading" class="loading">
-              <div class="spinner"></div> A carregar despesas...
-            </div>
-          </div>
-        </section>
       </div>
 
       <!-- ══ EMAILS ══ -->
       <!-- ══ VOUCHERS ══ -->
       <div class="view" id="view-vouchers">
-        <section class="vouchers-shell">
-          <div class="card card--flush vouchers-card">
-            <div class="card-header vouchers-card-header">
-              <span class="card-title"><i data-lucide="ticket"></i> Registo de Vouchers</span>
-              <span class="page-toolbar-count">
-                <strong id="vouchers-count">0</strong>
-                <span id="vouchers-count-label">vouchers</span>
-              </span>
-              <div class="view-toolbar-actions">
-                <button class="btn btn-primary btn-sm" onclick="openVoucherModal()">
-                  <i data-lucide="plus"></i> Novo Voucher
-                </button>
-              </div>
-            </div>
-            <div id="vouchers-list-wrap"></div>
-          </div>
-        </section>
       </div>
 
       <!-- Voucher Modal -->
-      <div class="modal-bg" id="voucher-modal-bg" onclick="if(event.target===this)closeVoucherModal()">
+      <!-- Fora de #view-vouchers: data-feature diz que só abre com o módulo. -->
+      <div class="modal-bg" id="voucher-modal-bg" data-feature="vouchers" data-on-click="index-if-a56dfb4">
         <div class="modal" style="max-width:520px;">
           <div class="modal-header">
             <h2 class="modal-title" id="voucher-modal-title">Novo Voucher</h2>
-            <button class="modal-close" onclick="closeVoucherModal()"><i data-lucide="x"></i></button>
+            <button class="modal-close" data-on-click="index-close-voucher-modal-6443b3b"><i data-lucide="x"></i></button>
           </div>
           <div class="modal-body">
             <div class="form-grid">
@@ -1709,7 +443,7 @@
               </div>
               <div class="form-group">
                 <label class="form-label">Tipo <span class="req-star">*</span></label>
-                <select class="form-control" id="v-type" onchange="updateVoucherValueLabel()">
+                <select class="form-control" id="v-type" data-on-change="index-update-voucher-value-label-5b6b115">
                   <option value="discount_pct">Desconto percentual (%)</option>
                   <option value="discount_fixed">Desconto fixo (€)</option>
                   <option value="credit_stay">Crédito de estadia (€)</option>
@@ -1748,8 +482,8 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="closeVoucherModal()">Cancelar</button>
-            <button class="btn btn-primary" id="v-save-btn" onclick="saveVoucher()">
+            <button class="btn btn-ghost" data-on-click="index-close-voucher-modal-6443b3b">Cancelar</button>
+            <button class="btn btn-primary" id="v-save-btn" data-on-click="index-save-voucher-fb5708f">
               <i data-lucide="save"></i> Guardar
             </button>
           </div>
@@ -1758,1002 +492,30 @@
 
       <!-- ══ PREÇOS DINÂMICOS ══ -->
       <div class="view" id="view-precos">
-
-        <!-- Selector de alojamento -->
-        <div class="view-toolbar" style="gap:12px;flex-wrap:wrap;">
-          <select id="precos-aloj-sel" class="form-control" data-enhance-select style="min-width:200px;max-width:300px;" onchange="onPrecosAlojChange()">
-            <option value="">— Selecionar alojamento —</option>
-          </select>
-          <div id="precos-base-price-badge" style="display:none;font-size:13px;color:var(--cinza);">
-            Preço base: <b id="precos-base-price-val" style="color:var(--texto);">€0</b>/noite
-          </div>
-        </div>
-
-        <!-- Sub-tabs -->
-        <div class="report-tabs" style="margin-bottom:18px;">
-          <button class="report-tab active" id="precos-tab-btn-calendario" onclick="showPrecosTab('calendario')">
-            <i data-lucide="calendar-days" style="width:14px;height:14px;"></i> Calendário
-          </button>
-          <button class="report-tab" id="precos-tab-btn-config" onclick="showPrecosTab('config')">
-            <i data-lucide="list-checks" style="width:14px;height:14px;"></i> Lista
-          </button>
-        </div>
-
-        <!-- Painel: Calendário -->
-        <!-- #precos-calendar-widget é um nó único (ids fixos) que também é montado
-             na tab "Preços" do detalhe do alojamento — é movido, nunca duplicado. -->
-        <div id="precos-panel-calendario">
-          <div class="precos-cal-layout" id="precos-calendar-widget" style="display:flex;gap:18px;align-items:flex-start;">
-
-            <!-- Calendário -->
-            <div class="card" style="flex:1;min-width:0;overflow:visible;">
-              <div id="precos-calendar-container" style="padding:4px 0;">
-                <div style="text-align:center;padding:40px;color:var(--cinza);font-size:14px;">Seleciona um alojamento para ver o calendário de preços.</div>
-              </div>
-              <div id="precos-selection-hint" style="padding:0 4px 8px;"></div>
-            </div>
-
-            <div class="precos-sheet-backdrop" id="precos-sheet-backdrop" onclick="cancelPrecosSelection()"></div>
-
-            <!-- Painel lateral de edição -->
-            <div class="card" id="precos-side-panel" style="width:290px;flex-shrink:0;">
-              <div class="precos-sheet-header">
-                <span>Editar preços</span>
-                <button type="button" class="precos-sheet-close" onclick="cancelPrecosSelection()"><i data-lucide="x"></i></button>
-              </div>
-              <div id="precos-side-panel-empty" style="padding:32px 16px;text-align:center;color:var(--cinza);font-size:13px;">
-                <i data-lucide="mouse-pointer-click" style="width:28px;height:28px;margin:0 auto 10px;display:block;opacity:.4;"></i>
-                Seleciona um alojamento para editar preços
-              </div>
-              <div id="precos-side-panel-form" style="display:none;padding:16px;flex-direction:column;gap:12px;">
-
-                <!-- Nome -->
-                <div class="form-group" style="margin:0;">
-                  <label class="form-label" style="font-size:12px;">Nome do período <span class="req-star">*</span></label>
-                  <input class="form-control" id="precos-bulk-name" placeholder="Ex: Alta Temporada" style="font-size:13px;" autocomplete="off">
-                </div>
-
-                <!-- Datas -->
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                  <div class="form-group" style="margin:0;">
-                    <label class="form-label" style="font-size:12px;">De <span class="req-star">*</span></label>
-                    <div class="birth-date-control">
-                      <input class="form-control" id="precos-bulk-start" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" style="font-size:12px;" onclick="openPrecosBulkStartPicker()" readonly autocomplete="off">
-                      <button type="button" class="birth-date-picker-btn" onclick="openPrecosBulkStartPicker()" aria-label="Abrir calendário"><i data-lucide="calendar-days"></i></button>
-                    </div>
-                  </div>
-                  <div class="form-group" style="margin:0;">
-                    <label class="form-label" style="font-size:12px;">Até <span class="req-star">*</span></label>
-                    <div class="birth-date-control">
-                      <input class="form-control" id="precos-bulk-end" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" style="font-size:12px;" onclick="openPrecosBulkEndPicker()" readonly autocomplete="off">
-                      <button type="button" class="birth-date-picker-btn" onclick="openPrecosBulkEndPicker()" aria-label="Abrir calendário"><i data-lucide="calendar-days"></i></button>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Dias da semana -->
-                <div class="form-group" style="margin:0;">
-                  <label class="form-label" style="font-size:12px;">Dias da semana</label>
-                  <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;" id="precos-dow-btns">
-                    <button type="button" class="precos-dow-btn active" data-dow="all" onclick="togglePrecosDow('all')" title="Todos">Todos</button>
-                    <button type="button" class="precos-dow-btn active" data-dow="1" onclick="togglePrecosDow(1)" title="Segunda">Seg</button>
-                    <button type="button" class="precos-dow-btn active" data-dow="2" onclick="togglePrecosDow(2)" title="Terça">Ter</button>
-                    <button type="button" class="precos-dow-btn active" data-dow="3" onclick="togglePrecosDow(3)" title="Quarta">Qua</button>
-                    <button type="button" class="precos-dow-btn active" data-dow="4" onclick="togglePrecosDow(4)" title="Quinta">Qui</button>
-                    <button type="button" class="precos-dow-btn active" data-dow="5" onclick="togglePrecosDow(5)" title="Sexta">Sex</button>
-                    <button type="button" class="precos-dow-btn active" data-dow="6" onclick="togglePrecosDow(6)" title="Sábado">Sáb</button>
-                    <button type="button" class="precos-dow-btn active" data-dow="0" onclick="togglePrecosDow(0)" title="Domingo">Dom</button>
-                  </div>
-                </div>
-
-                <!-- Preço -->
-                <div class="form-group" style="margin:0;">
-                  <label class="form-label" style="font-size:12px;">Preço por noite (€) <span class="req-star">*</span></label>
-                  <input class="form-control" id="precos-bulk-price" type="number" min="0" step="0.01" placeholder="0.00" style="font-size:13px;" autocomplete="off">
-                </div>
-
-                <!-- Estadia mínima -->
-                <div class="form-group" style="margin:0;">
-                  <label class="form-label" style="font-size:12px;">Estadia mínima (noites)</label>
-                  <input class="form-control" id="precos-bulk-min-nights" type="number" min="1" value="2" style="font-size:13px;" autocomplete="off">
-                </div>
-
-                <!-- Botão guardar -->
-                <button class="btn btn-primary" id="precos-bulk-save-btn" onclick="savePrecosBulk()" style="width:100%;margin-top:2px;">
-                  <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
-                </button>
-                <button class="btn btn-ghost btn-sm" onclick="clearPrecosBulkForm()" style="width:100%;font-size:12px;color:var(--cinza);">Limpar</button>
-
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- Painel: Lista -->
-        <div id="precos-panel-config" style="display:none;">
-          <div class="card">
-            <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
-              <span class="card-title" style="font-size:14px;">
-                <i data-lucide="tag"></i> Períodos de Preço Especial
-              </span>
-              <button class="btn btn-primary btn-sm" onclick="openPrecosPeriodModal(null)">
-                <i data-lucide="plus"></i> Novo Período
-              </button>
-            </div>
-            <p style="font-size:13px;color:var(--cinza);margin:0 0 16px;">Define preços por noite para épocas especiais. O preço base aplica-se nas noites não cobertas por nenhum período.</p>
-            <div id="precos-periods-list"></div>
-          </div>
-        </div>
-
-        <!-- Modal: Editar Período (da lista) -->
-        <div id="precos-period-modal-bg" class="modal-bg" style="display:none;" onclick="if(event.target===this)closePrecosPeriodModal()">
-          <div class="modal" style="max-width:460px;" onclick="event.stopPropagation()">
-            <div class="modal-header">
-              <h3 id="precos-period-modal-title" class="modal-title">Editar Período de Preço</h3>
-              <button class="modal-close" onclick="closePrecosPeriodModal()"><i data-lucide="x"></i></button>
-            </div>
-            <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
-              <input type="hidden" id="pp2-editing-id">
-              <div class="form-group" style="margin:0;">
-                <label class="form-label">Nome do período <span class="req-star">*</span></label>
-                <input class="form-control" id="pp2-name" placeholder="Ex: Alta Temporada, Natal, Páscoa" autocomplete="off">
-              </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                <div class="form-group" style="margin:0;">
-                  <label class="form-label">Data Início <span class="req-star">*</span></label>
-                  <input class="form-control" id="pp2-start" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" autocomplete="off">
-                </div>
-                <div class="form-group" style="margin:0;">
-                  <label class="form-label">Data Fim <span class="req-star">*</span></label>
-                  <input class="form-control" id="pp2-end" type="text" inputmode="numeric" placeholder="dd-mm-aaaa" maxlength="10" autocomplete="off">
-                </div>
-              </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                <div class="form-group" style="margin:0;">
-                  <label class="form-label">Preço / noite (€) <span class="req-star">*</span></label>
-                  <input class="form-control" id="pp2-price" type="number" min="0" step="0.01" placeholder="0.00" autocomplete="off">
-                </div>
-                <div class="form-group" style="margin:0;">
-                  <label class="form-label">Estadia mínima (noites)</label>
-                  <input class="form-control" id="pp2-min-nights" type="number" min="1" placeholder="1" autocomplete="off">
-                </div>
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button class="btn btn-ghost" onclick="closePrecosPeriodModal()">Cancelar</button>
-              <button class="btn btn-primary" id="btn-save-precos-period" onclick="savePrecosPeriod()">
-                <i data-lucide="save"></i> Guardar
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- ══ RELATÓRIOS ══ -->
       <div class="view" id="view-relatorios">
-
-        <!-- Sub-tabs -->
-        <div class="report-tabs">
-          <button class="report-tab active" id="rtab-btn-faturamento" onclick="switchReportTab('faturamento')">
-            <i data-lucide="trending-up" style="width:14px;height:14px;"></i> Faturamento
-          </button>
-          <button class="report-tab" id="rtab-btn-despesas" onclick="switchReportTab('despesas')">
-            <i data-lucide="receipt" style="width:14px;height:14px;"></i> Despesas
-          </button>
-          <button class="report-tab" id="rtab-btn-lucro" onclick="switchReportTab('lucro')">
-            <i data-lucide="landmark" style="width:14px;height:14px;"></i> Lucro
-          </button>
-        </div>
-
-        <!-- ─── FATURAMENTO ─── -->
-        <div class="report-tab-panel" id="rtab-faturamento">
-          <div class="report-toolbar">
-            <div class="report-filters">
-              <select class="form-control" id="report-year-sel" data-enhance-select data-app-select-class="app-select--filter" onchange="setReportYear(this.value)"></select>
-              <select class="form-control" id="report-month-sel" data-enhance-select data-app-select-class="app-select--filter" onchange="setReportMonth(this.value)">
-                <option value="0">Ano inteiro</option>
-                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
-                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
-                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
-                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
-              </select>
-              <select class="form-control" id="report-acc-sel" data-enhance-select data-app-select-class="app-select--filter app-select--filter-wide" onchange="setReportAccId(this.value)"></select>
-            </div>
-          </div>
-          <div class="report-kpis" id="report-kpis">
-            <div class="report-loading"><i data-lucide="loader" style="width:18px;height:18px;"></i> A carregar...</div>
-          </div>
-          <div class="report-charts-row">
-            <div class="card report-chart-wrap report-chart-main">
-              <div class="card-header">
-                <span class="card-title"><i data-lucide="bar-chart-2"></i> Receita Mensal &amp; Ocupação</span>
-              </div>
-              <div style="position:relative;height:260px;">
-                <canvas id="chart-revenue"></canvas>
-              </div>
-            </div>
-            <div class="card report-chart-wrap report-chart-side">
-              <div class="card-header">
-                <span class="card-title"><i data-lucide="pie-chart"></i> Receita por Canal</span>
-              </div>
-              <div style="position:relative;height:260px;">
-                <canvas id="chart-channel"></canvas>
-              </div>
-            </div>
-          </div>
-          <div class="card report-chart-wrap">
-            <div class="card-header">
-              <span class="card-title"><i data-lucide="building-2"></i> Receita por Alojamento</span>
-            </div>
-            <div style="position:relative;height:180px;">
-              <canvas id="chart-accom"></canvas>
-            </div>
-          </div>
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title"><i data-lucide="table-2"></i> Resumo Mensal</span>
-            </div>
-            <div class="table-wrap">
-              <table class="tabela report-table">
-                <thead>
-                  <tr>
-                    <th>Mês</th>
-                    <th style="text-align:right;">Reservas</th>
-                    <th style="text-align:right;">Noites</th>
-                    <th style="text-align:right;">Receita</th>
-                    <th style="text-align:right;">Ocupação</th>
-                  </tr>
-                </thead>
-                <tbody id="report-table-body"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- ─── DESPESAS ─── -->
-        <div class="report-tab-panel" id="rtab-despesas" style="display:none;">
-          <div class="report-toolbar">
-            <div class="report-filters">
-              <select class="form-control" id="desp-year-sel" data-enhance-select data-app-select-class="app-select--filter" onchange="setDespYear(this.value)"></select>
-              <select class="form-control" id="desp-month-sel" data-enhance-select data-app-select-class="app-select--filter" onchange="setDespMonth(this.value)">
-                <option value="0">Ano inteiro</option>
-                <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
-                <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
-                <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
-                <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
-              </select>
-            </div>
-          </div>
-          <div class="report-kpis" id="desp-kpis">
-            <div class="report-loading"><i data-lucide="loader" style="width:18px;height:18px;"></i> A carregar...</div>
-          </div>
-          <div class="report-charts-row">
-            <div class="card report-chart-wrap report-chart-main">
-              <div class="card-header">
-                <span class="card-title"><i data-lucide="bar-chart-2"></i> Despesas Mensais</span>
-              </div>
-              <div style="position:relative;height:260px;">
-                <canvas id="chart-desp-monthly"></canvas>
-              </div>
-            </div>
-            <div class="card report-chart-wrap report-chart-side">
-              <div class="card-header">
-                <span class="card-title"><i data-lucide="pie-chart"></i> Despesas por Categoria</span>
-              </div>
-              <div style="position:relative;height:260px;">
-                <canvas id="chart-desp-category"></canvas>
-              </div>
-            </div>
-          </div>
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title"><i data-lucide="table-2"></i> Resumo Mensal de Despesas</span>
-            </div>
-            <div class="table-wrap">
-              <table class="tabela report-table">
-                <thead>
-                  <tr>
-                    <th>Mês</th>
-                    <th style="text-align:right;">Nº Despesas</th>
-                    <th style="text-align:right;">Total</th>
-                  </tr>
-                </thead>
-                <tbody id="desp-table-body"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- ─── LUCRO ─── -->
-        <div class="report-tab-panel" id="rtab-lucro" style="display:none;">
-          <div class="report-toolbar">
-            <div class="report-filters">
-              <select class="form-control" id="lucro-year-sel" data-enhance-select data-app-select-class="app-select--filter" onchange="setLucroYear(this.value)"></select>
-              <select class="form-control" id="lucro-acc-sel" data-enhance-select data-app-select-class="app-select--filter app-select--filter-wide" onchange="setLucroAccId(this.value)"></select>
-            </div>
-          </div>
-          <div class="report-kpis" id="lucro-kpis">
-            <div class="report-loading"><i data-lucide="loader" style="width:18px;height:18px;"></i> A carregar...</div>
-          </div>
-          <div class="card report-chart-wrap">
-            <div class="card-header">
-              <span class="card-title"><i data-lucide="bar-chart-2"></i> Receita vs Despesas</span>
-            </div>
-            <div style="position:relative;height:260px;">
-              <canvas id="chart-lucro"></canvas>
-            </div>
-          </div>
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title"><i data-lucide="table-2"></i> Resumo Mensal de Lucro</span>
-            </div>
-            <div class="table-wrap">
-              <table class="tabela report-table">
-                <thead>
-                  <tr>
-                    <th>Mês</th>
-                    <th style="text-align:right;">Receita</th>
-                    <th style="text-align:right;">Despesas</th>
-                    <th style="text-align:right;">Lucro</th>
-                    <th style="text-align:right;">Margem</th>
-                  </tr>
-                </thead>
-                <tbody id="lucro-table-body"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
       </div>
 
       <!-- ══ DEFINIÇÕES ══ -->
       <div class="view" id="view-definicoes">
-        <section class="settings-shell">
-          <div class="settings-tabs">
-            <button class="settings-tab active" data-settings-tab="gcal" onclick="switchSettingsTab('gcal')">
-              <i data-lucide="blocks"></i> Google
-            </button>
-            <button class="settings-tab" data-settings-tab="database" onclick="switchSettingsTab('database')">
-              <i data-lucide="database"></i> Base de dados
-            </button>
-            <button class="settings-tab" data-settings-tab="operations" onclick="switchSettingsTab('operations')">
-              <i data-lucide="list-checks"></i> Tarefas
-            </button>
-            <button class="settings-tab" data-settings-tab="emails" onclick="switchSettingsTab('emails')">
-              <i data-lucide="mail"></i> Emails
-            </button>
-            <button class="settings-tab" data-settings-tab="fornecedores" onclick="switchSettingsTab('fornecedores')">
-              <i data-lucide="truck"></i> Fornecedores
-            </button>
-            <button class="settings-tab" data-settings-tab="push" onclick="switchSettingsTab('push')">
-              <i data-lucide="bell-ring"></i> Notificações
-            </button>
-            <button class="settings-tab" data-settings-tab="equipa" data-owner-only="true" style="display:none;" onclick="switchSettingsTab('equipa')">
-              <i data-lucide="users-round"></i> Equipa
-            </button>
-          </div>
-
-          <div class="settings-panel active" id="settings-gcal">
-
-            <!-- Gmail para envio de emails -->
-            <div class="card settings-integration-card" style="margin-bottom:16px;">
-              <div class="settings-integration-icon">
-                <i data-lucide="mail"></i>
-              </div>
-              <div class="settings-integration-info">
-                <h3>Email — Gmail</h3>
-                <p>Ligue uma conta Gmail para enviar emails de confirmação, cancelamento e pagamento directamente a partir dessa conta. Independente do Google Calendar.</p>
-                <span id="gmail-badge" class="gcal-status" style="margin-top:6px;display:inline-flex;"><span class="dot dot-red"></span> Desligado</span>
-              </div>
-              <div class="settings-integration-actions">
-                <button id="gmail-connect-btn" class="btn btn-ghost btn-sm" onclick="connectGmail()">
-                  <i data-lucide="link"></i> Ligar Gmail
-                </button>
-                <button id="gmail-disconnect-btn" class="btn btn-ghost btn-sm" style="display:none;" onclick="disconnectGmail()">
-                  <i data-lucide="unlink"></i> Desligar
-                </button>
-                <button id="gmail-test-btn" class="btn btn-ghost btn-sm" style="display:none;" onclick="testGmail()">
-                  <i data-lucide="send"></i> Testar envio
-                </button>
-              </div>
-            </div>
-
-            <div class="card settings-integration-card" style="margin-bottom:16px;">
-              <div class="settings-integration-icon">
-                <i data-lucide="calendar-sync"></i>
-              </div>
-              <div class="settings-integration-info">
-                <h3>Google Calendar</h3>
-                <p>Ligue o seu próprio Google Calendar. As reservas criadas por si são sincronizadas com o calendário da sua conta.</p>
-                <span id="gcal-badge" class="gcal-status" style="margin-top:6px;display:inline-flex;"><span class="dot dot-red"></span> Desligado</span>
-              </div>
-              <div class="settings-integration-actions">
-                <button id="gcal-connect-btn" class="btn btn-ghost btn-sm" onclick="connectGcal()">
-                  <i data-lucide="link"></i> Ligar Google Calendar
-                </button>
-                <button id="gcal-disconnect-btn" class="btn btn-ghost btn-sm" style="display:none;" onclick="disconnectGcal()">
-                  <i data-lucide="unlink"></i> Desligar
-                </button>
-                <button id="gcal-sync-btn" class="btn btn-primary btn-sm" style="display:none;" onclick="syncAllGcal()">
-                  <i data-lucide="refresh-cw"></i> Sincronizar tudo
-                </button>
-                <button id="gcal-clean-btn" class="btn btn-ghost btn-sm" style="display:none;color:var(--vermelho);" onclick="cleanGcalDuplicates()" title="Remover eventos duplicados no Google (órfãos antigos)">
-                  <i data-lucide="copy-x"></i> Limpar duplicados
-                </button>
-              </div>
-            </div>
-
-            <!-- Google Tasks -->
-            <div class="card settings-integration-card" style="margin-bottom:16px;">
-              <div class="settings-integration-icon">
-                <i data-lucide="check-square"></i>
-              </div>
-              <div class="settings-integration-info">
-                <h3>Google Tasks</h3>
-                <p>Sincroniza as tarefas operacionais (check-ins, limpezas, manutenções) com o Google Tasks da tua conta Google.</p>
-                <span id="gtasks-badge" class="gcal-status" style="margin-top:6px;display:inline-flex;"><span class="dot dot-red"></span> Desligado</span>
-              </div>
-              <div class="settings-integration-actions">
-                <button id="gtasks-connect-btn" class="btn btn-ghost btn-sm" onclick="connectGoogleTasks()">
-                  <i data-lucide="link"></i> Ligar Google Tasks
-                </button>
-                <button id="gtasks-disconnect-btn" class="btn btn-ghost btn-sm" style="display:none;" onclick="disconnectGoogleTasks()">
-                  <i data-lucide="unlink"></i> Desligar
-                </button>
-                <button id="gtasks-sync-btn" class="btn btn-primary btn-sm" style="display:none;" onclick="syncGoogleTasks()">
-                  <i data-lucide="refresh-cw"></i> Sincronizar tarefas
-                </button>
-                <button id="gtasks-clean-btn" class="btn btn-ghost btn-sm" style="display:none;color:var(--vermelho);" onclick="cleanGtasksDuplicates()" title="Remover tarefas duplicadas no Google Tasks (órfãos antigos)">
-                  <i data-lucide="copy-x"></i> Limpar duplicados
-                </button>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <span class="card-title">
-                  <i data-lucide="refresh-cw"></i> Estado da Sincronização
-                </span>
-              </div>
-              <div class="settings-sync-grid">
-                <div class="settings-stat">
-                  <strong id="sync-total">—</strong>
-                  <span>Total de Reservas Ativas</span>
-                </div>
-                <div class="settings-stat">
-                  <strong id="sync-ok">—</strong>
-                  <span>No Google Calendar</span>
-                </div>
-                <div class="settings-stat">
-                  <strong id="sync-removed">—</strong>
-                  <span>Canceladas (removidas)</span>
-                </div>
-              </div>
-              <div class="settings-sync-tasks-row" style="border-top:1px solid var(--borda);margin-top:16px;padding-top:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                <div>
-                  <div style="font-weight:600;font-size:13px;">Sincronizar eventos com o Google Calendar</div>
-                  <div style="font-size:12px;color:var(--cinza);margin-top:2px;">Envia automaticamente para o Google Calendar todos os eventos (check-ins, check-outs, limpezas, pequenos-almoços, compromissos, manutenção, agenda local e outros) assim que são criados ou editados. As reservas em si sincronizam sempre, independentemente desta opção.</div>
-                  <div id="gcal-tasks-stat" style="font-size:12px;color:var(--cinza);margin-top:4px;display:none;"></div>
-                </div>
-                <label class="toggle-switch" style="flex-shrink:0;">
-                  <input type="checkbox" id="gcal-sync-calendar-toggle" onchange="saveGcalSyncSettings()">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-              <div class="settings-sync-tasks-row" style="border-top:1px solid var(--borda);margin-top:16px;padding-top:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                <div>
-                  <div style="font-weight:600;font-size:13px;">Sincronizar eventos com o Google Tasks</div>
-                  <div style="font-size:12px;color:var(--cinza);margin-top:2px;">Envia automaticamente os mesmos eventos para o Google Tasks, à parte da opção acima — podes ligar só uma, a outra, ou as duas.</div>
-                </div>
-                <label class="toggle-switch" style="flex-shrink:0;">
-                  <input type="checkbox" id="gcal-sync-tasks-toggle" onchange="saveGcalSyncSettings()">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-
-              <!-- Google Tasks stats -->
-              <div id="gtasks-stats-row" style="border-top:1px solid var(--borda);margin-top:16px;padding-top:16px;display:none;">
-                <div style="font-weight:600;font-size:13px;margin-bottom:8px;"><i data-lucide="check-square" style="width:14px;height:14px;vertical-align:-2px;"></i> Google Tasks</div>
-                <div style="display:flex;gap:24px;">
-                  <div class="settings-stat">
-                    <strong id="gtasks-synced">—</strong>
-                    <span>Sincronizadas</span>
-                  </div>
-                  <div class="settings-stat">
-                    <strong id="gtasks-pending">—</strong>
-                    <span>Por sincronizar</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-panel" id="settings-database">
-            <div class="settings-db-grid">
-              <div class="card settings-db-card">
-                <div class="card-header">
-                  <span class="card-title"><i data-lucide="home"></i> Alojamentos</span>
-                </div>
-                <div class="settings-db-actions">
-                  <button class="btn btn-ghost btn-sm" onclick="exportAlojamentosXLS()"><i data-lucide="table-2"></i> XLS</button>
-                  <button class="btn btn-ghost btn-sm" onclick="exportAlojamentosPDF()"><i data-lucide="file-text"></i> PDF</button>
-                  <label class="btn btn-ghost btn-sm settings-file-btn">
-                    <i data-lucide="upload"></i> Importar XLS
-                    <input type="file" accept=".xlsx,.xls" onchange="importAlojamentosXLS(this)">
-                  </label>
-                </div>
-                <div class="settings-export-reminders">
-                  <label>
-                    <span>Lembrete XLS</span>
-                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="alojamentos_xls" onchange="setExportReminder('alojamentos_xls', this.value)">
-                      <option value="">Desligado</option>
-                      <option value="7">7 dias</option>
-                      <option value="15">15 dias</option>
-                      <option value="30">1 mês</option>
-                    </select>
-                  </label>
-                  <label>
-                    <span>Lembrete PDF</span>
-                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="alojamentos_pdf" onchange="setExportReminder('alojamentos_pdf', this.value)">
-                      <option value="">Desligado</option>
-                      <option value="7">7 dias</option>
-                      <option value="15">15 dias</option>
-                      <option value="30">1 mês</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
-
-              <div class="card settings-db-card">
-                <div class="card-header">
-                  <span class="card-title"><i data-lucide="clipboard-list"></i> Reservas</span>
-                </div>
-                <div class="settings-db-actions">
-                  <button class="btn btn-ghost btn-sm" onclick="exportReservasXLS()"><i data-lucide="table-2"></i> XLS</button>
-                  <button class="btn btn-ghost btn-sm" onclick="exportReservasPDF()"><i data-lucide="file-text"></i> PDF</button>
-                  <label class="btn btn-ghost btn-sm settings-file-btn">
-                    <i data-lucide="upload"></i> Importar XLS
-                    <input type="file" accept=".xlsx,.xls" onchange="importReservasXLS(this)">
-                  </label>
-                </div>
-                <div class="settings-export-reminders">
-                  <label>
-                    <span>Lembrete XLS</span>
-                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="reservas_xls" onchange="setExportReminder('reservas_xls', this.value)">
-                      <option value="">Desligado</option>
-                      <option value="7">7 dias</option>
-                      <option value="15">15 dias</option>
-                      <option value="30">1 mês</option>
-                    </select>
-                  </label>
-                  <label>
-                    <span>Lembrete PDF</span>
-                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="reservas_pdf" onchange="setExportReminder('reservas_pdf', this.value)">
-                      <option value="">Desligado</option>
-                      <option value="7">7 dias</option>
-                      <option value="15">15 dias</option>
-                      <option value="30">1 mês</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
-
-              <div class="card settings-db-card">
-                <div class="card-header">
-                  <span class="card-title"><i data-lucide="users"></i> Hóspedes</span>
-                </div>
-                <div class="settings-db-actions">
-                  <button class="btn btn-ghost btn-sm" onclick="exportHospedesXLS()"><i data-lucide="table-2"></i> XLS</button>
-                  <button class="btn btn-ghost btn-sm" onclick="exportHospedesPDF()"><i data-lucide="file-text"></i> PDF</button>
-                  <label class="btn btn-ghost btn-sm settings-file-btn">
-                    <i data-lucide="upload"></i> Importar XLS
-                    <input type="file" accept=".xlsx,.xls" onchange="importHospedesXLS(this)">
-                  </label>
-                </div>
-                <div class="settings-export-reminders">
-                  <label>
-                    <span>Lembrete XLS</span>
-                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="hospedes_xls" onchange="setExportReminder('hospedes_xls', this.value)">
-                      <option value="">Desligado</option>
-                      <option value="7">7 dias</option>
-                      <option value="15">15 dias</option>
-                      <option value="30">1 mês</option>
-                    </select>
-                  </label>
-                  <label>
-                    <span>Lembrete PDF</span>
-                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="hospedes_pdf" onchange="setExportReminder('hospedes_pdf', this.value)">
-                      <option value="">Desligado</option>
-                      <option value="7">7 dias</option>
-                      <option value="15">15 dias</option>
-                      <option value="30">1 mês</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
-
-              <div class="card settings-db-card settings-db-card-full" data-owner-only="true">
-                <div class="card-header">
-                  <span class="card-title"><i data-lucide="archive"></i> Dados do cliente</span>
-                </div>
-                <div class="settings-db-actions">
-                  <button class="btn btn-primary btn-sm" onclick="exportDB()" title="Exportar backup ZIP com reservas, alojamentos, hóspedes, despesas, eventos, definições do cliente e imagens">
-                    <i data-lucide="download"></i> Exportar BD
-                  </button>
-                  <label class="btn btn-ghost btn-sm settings-file-btn" title="Importar backup ZIP do cliente (não altera contas, equipa ou acessos)">
-                    <i data-lucide="upload"></i> Importar BD
-                    <input type="file" accept=".zip,application/zip" onchange="importDB(this)">
-                  </label>
-                </div>
-                <div class="settings-export-reminders settings-export-reminders-full">
-                  <label>
-                    <span>Lembrete backup ZIP</span>
-                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="cliente_zip" onchange="setExportReminder('cliente_zip', this.value)">
-                      <option value="">Desligado</option>
-                      <option value="7">7 dias</option>
-                      <option value="15">15 dias</option>
-                      <option value="30">1 mês</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-panel" id="settings-operations">
-            <div class="card settings-db-card settings-db-card-full">
-              <div class="card-header">
-                <span class="card-title"><i data-lucide="list-checks"></i> Tarefas automáticas</span>
-              </div>
-              <div class="settings-auto-tasks">
-                <label class="settings-toggle-row">
-                  <span><strong>Pequeno-almoço</strong><small>Tarefas nas manhãs da estadia quando a reserva inclui pequeno-almoço.</small></span>
-                  <input type="checkbox" id="auto-task-breakfast" onchange="saveAutoTaskSettings()">
-                </label>
-                <label class="settings-toggle-row">
-                  <span><strong>Limpezas</strong><small>Limpeza importante na tarde do check-out.</small></span>
-                  <input type="checkbox" id="auto-task-cleaning" onchange="saveAutoTaskSettings()">
-                </label>
-                <label class="settings-toggle-row">
-                  <span><strong>Check-ins</strong><small>Tarefa na manhã de chegada.</small></span>
-                  <input type="checkbox" id="auto-task-checkin" onchange="saveAutoTaskSettings()">
-                </label>
-                <label class="settings-toggle-row">
-                  <span><strong>Check-outs</strong><small>Tarefa na manhã de saída.</small></span>
-                  <input type="checkbox" id="auto-task-checkout" onchange="saveAutoTaskSettings()">
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-panel" id="settings-emails">
-            <div class="emails-layout">
-              <div class="emails-sidebar">
-                <div class="emails-sidebar-section-title">Templates de Email</div>
-                <div id="email-template-list"></div>
-                <div class="emails-sidebar-sep"></div>
-                <div class="emails-sidebar-section-title">Configurações</div>
-                <div id="email-settings-panel"></div>
-              </div>
-              <div class="emails-editor" id="email-editor-panel">
-                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--cinza);gap:10px;">
-                  <i data-lucide="mail" style="width:40px;height:40px;opacity:.3;"></i>
-                  <span style="font-size:14px;">Selecione um template para editar</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-panel" id="settings-fornecedores">
-            <div class="card" style="margin-bottom:24px;">
-              <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-                <span class="card-title"><i data-lucide="truck"></i> Fornecedores</span>
-                <button class="btn btn-ghost btn-sm" id="fornecedor-seed-btn" onclick="seedFornecedores()" title="Adicionar fornecedores sugeridos">
-                  <i data-lucide="sparkles" style="width:13px;height:13px;"></i> Adicionar sugestões
-                </button>
-              </div>
-              <div style="padding:16px;">
-                <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-                  <input class="form-control" id="fornecedor-novo-nome" placeholder="Nome do fornecedor (ex.: Continente)" style="flex:1;min-width:200px;" autocomplete="off" onkeydown="if(event.key==='Enter')addFornecedor()">
-                  <button class="btn btn-primary btn-sm" onclick="addFornecedor()"><i data-lucide="plus"></i> Adicionar</button>
-                </div>
-                <div id="fornecedores-list"></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-panel" id="settings-push">
-            <div class="card settings-integration-card" style="margin-bottom:16px;">
-              <div class="settings-integration-icon">
-                <i data-lucide="bell-ring"></i>
-              </div>
-              <div class="settings-integration-info">
-                <h3>Notificações Push</h3>
-                <p>Receba notificações neste dispositivo, mesmo com a app fechada. No iPhone é necessário adicionar a app ao ecrã inicial primeiro (Safari → Partilhar → Adicionar ao ecrã principal).</p>
-                <span id="push-badge" class="gcal-status" style="margin-top:6px;display:inline-flex;"><span class="dot dot-red"></span> Desligadas</span>
-                <div id="push-ios-hint" style="display:none;font-size:12.5px;color:var(--vermelho);margin-top:6px;">
-                  ⚠️ Está a usar o Safari diretamente. Abra a app a partir do ícone no ecrã inicial para poder ativar notificações.
-                </div>
-              </div>
-              <div class="settings-integration-actions">
-                <button id="push-enable-btn" class="btn btn-primary btn-sm" onclick="enablePushNotifications()">
-                  <i data-lucide="bell-plus"></i> Ativar neste dispositivo
-                </button>
-                <button id="push-disable-btn" class="btn btn-ghost btn-sm" style="display:none;" onclick="disablePushNotifications()">
-                  <i data-lucide="bell-off"></i> Desligar
-                </button>
-              </div>
-            </div>
-
-            <div class="card" style="margin-bottom:16px;">
-              <div class="card-header">
-                <span class="card-title">
-                  <i data-lucide="smartphone"></i> Dispositivos com notificações
-                </span>
-              </div>
-              <div style="padding:16px;">
-                <div style="font-size:12.5px;color:var(--cinza);margin-bottom:12px;">
-                  Todos os dispositivos da equipa subscritos. Desligar um dispositivo pausa as notificações sem o remover; remover obriga a ativar de novo nesse aparelho.
-                </div>
-                <div id="push-devices-list">
-                  <div style="font-size:13px;color:var(--cinza);">A carregar dispositivos...</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card" style="margin-bottom:16px;">
-              <div class="card-header">
-                <span class="card-title">
-                  <i data-lucide="sliders-horizontal"></i> Tipos de notificações
-                </span>
-              </div>
-              <div style="padding:16px;">
-                <div style="font-size:12.5px;color:var(--cinza);margin-bottom:14px;">
-                  Escolha o que quer receber. As preferências aplicam-se aos seus dispositivos.
-                </div>
-                <div id="push-prefs-list" style="display:flex;flex-direction:column;gap:14px;">
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                    <div>
-                      <div style="font-weight:600;font-size:13px;">🆕 Nova reserva</div>
-                      <div style="font-size:12px;color:var(--cinza);">Reservas novas do site público ou criadas pela equipa</div>
-                    </div>
-                    <label class="toggle-switch" style="flex-shrink:0;">
-                      <input type="checkbox" data-push-pref="new_reservation" onchange="savePushPrefs()">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                    <div>
-                      <div style="font-weight:600;font-size:13px;">❌ Cancelamentos</div>
-                      <div style="font-size:12px;color:var(--cinza);">Quando uma reserva é cancelada</div>
-                    </div>
-                    <label class="toggle-switch" style="flex-shrink:0;">
-                      <input type="checkbox" data-push-pref="cancellation" onchange="savePushPrefs()">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                    <div>
-                      <div style="font-weight:600;font-size:13px;">📝 Pré-check-in recebido</div>
-                      <div style="font-size:12px;color:var(--cinza);">Quando um hóspede submete o formulário de pré-check-in</div>
-                    </div>
-                    <label class="toggle-switch" style="flex-shrink:0;">
-                      <input type="checkbox" data-push-pref="precheckin" onchange="savePushPrefs()">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                    <div>
-                      <div style="font-weight:600;font-size:13px;">📅 Resumo do dia</div>
-                      <div style="font-size:12px;color:var(--cinza);">De manhã, com os check-ins e check-outs previstos para hoje</div>
-                    </div>
-                    <label class="toggle-switch" style="flex-shrink:0;">
-                      <input type="checkbox" data-push-pref="daily_summary" onchange="savePushPrefs()">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <span class="card-title">
-                  <i data-lucide="send"></i> Enviar notificação de teste
-                </span>
-              </div>
-              <div style="padding:16px;">
-                <div style="font-size:12.5px;color:var(--cinza);margin-bottom:12px;">
-                  A mensagem é enviada para todos os dispositivos da organização com notificações ativas.
-                </div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                  <input class="form-control" id="push-test-message" placeholder="Escreva a mensagem de teste..." maxlength="500" style="flex:1;min-width:220px;" autocomplete="off" onkeydown="if(event.key==='Enter')sendTestPush()">
-                  <button id="push-test-btn" class="btn btn-primary btn-sm" onclick="sendTestPush()">
-                    <i data-lucide="send"></i> Enviar
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-panel" id="settings-equipa" data-owner-only="true" style="display:none;">
-            <div class="card" style="margin-bottom:24px;">
-              <div class="card-header">
-                <span class="card-title"><i data-lucide="users-round"></i> Equipa</span>
-              </div>
-              <div class="form-grid settings-team-form">
-                <div class="form-group">
-                  <label class="form-label">Convidar por email</label>
-                  <input class="form-control" id="team-invite-email" type="email" placeholder="colaborador@empresa.com" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Papel</label>
-                  <select class="form-control" id="team-invite-role" data-enhance-select data-app-select-class="app-select--filter">
-                    <option value="staff">Funcionário</option>
-                    <option value="manager">Gestor</option>
-                  </select>
-                </div>
-                <button class="btn btn-primary" onclick="inviteTeamMember()">
-                  <i data-lucide="send"></i> Enviar convite
-                </button>
-              </div>
-              <div id="team-invite-feedback" style="margin-top:12px;font-size:13px;color:var(--cinza);"></div>
-            </div>
-
-            <div class="dashboard-grid">
-              <div class="card">
-                <div class="card-header">
-                  <span class="card-title"><i data-lucide="shield-check"></i> Membros</span>
-                </div>
-                <div id="team-members-list"><div class="loading"><div class="spinner"></div> A carregar equipa...</div></div>
-              </div>
-              <div class="card">
-                <div class="card-header">
-                  <span class="card-title"><i data-lucide="mail-plus"></i> Convites pendentes</span>
-                </div>
-                <div id="team-invitations-list"><div class="loading"><div class="spinner"></div> A carregar convites...</div></div>
-              </div>
-            </div>
-          </div>
-        </section>
       </div>
 
       <!-- ══ FICHA DE HÓSPEDE (página completa) ══ -->
       <div class="view" id="view-hospede-detalhe">
-        <section class="card" style="max-width:940px;margin:0 auto;">
-          <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-            <span class="card-title" style="display:inline-flex;align-items:center;gap:10px;">
-              <button class="btn btn-ghost btn-sm" onclick="closeGuestModal()"><i data-lucide="arrow-left"></i> Voltar</button>
-              <i data-lucide="contact"></i> <span id="gedit-page-title">Ficha de hóspede</span>
-            </span>
-            <button class="btn btn-primary btn-sm" id="btn-guardar-hospede" onclick="saveGuestEdit()">
-              <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
-            </button>
-          </div>
-          <div style="padding:20px;">
-      <div class="form-grid">
-
-        <!-- ── Identificação ── -->
-        <div class="section-subtitle form-full" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);padding-bottom:4px;border-bottom:1px solid var(--cinza-claro);">
-          <i data-lucide="user"></i> Identificação
-        </div>
-        <div class="form-group">
-          <label class="form-label">Primeiro nome <span class="req-star">*</span></label>
-          <input class="form-control" id="gedit-first-name" placeholder="Primeiro nome" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Apelido <span class="req-star">*</span></label>
-          <input class="form-control" id="gedit-last-name" placeholder="Apelido" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Data de nascimento</label>
-          <input class="form-control" id="gedit-birth-date" type="date" data-dp-birthdate autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label class="form-label">País <span class="req-star">*</span></label>
-          <select class="form-control" id="gedit-country"></select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Tipo de documento</label>
-          <select class="form-control" id="gedit-doc-type">
-            <option value="">— Selecionar —</option>
-            <option value="cc">Cartão de Cidadão</option>
-            <option value="bi">Bilhete de Identidade</option>
-            <option value="passaporte">Passaporte</option>
-            <option value="nie">NIE</option>
-            <option value="outro">Outro</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Nº de documento</label>
-          <input class="form-control" id="gedit-doc-number" placeholder="XX000000" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label class="form-label">NIF</label>
-          <input class="form-control" id="gedit-nif" placeholder="000 000 000" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Empresa</label>
-          <input class="form-control" id="gedit-company" placeholder="Nome da empresa (opcional)" autocomplete="off">
-        </div>
-
-        <!-- ── Contacto ── -->
-        <div class="section-subtitle form-full" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);padding-bottom:4px;border-bottom:1px solid var(--cinza-claro);margin-top:8px;">
-          <i data-lucide="phone"></i> Contacto
-        </div>
-        <div class="form-group">
-          <label class="form-label">Telefone <span class="req-star">*</span></label>
-          <div class="phone-group">
-            <select class="form-control phone-prefix" id="gedit-tel-prefix"></select>
-            <input class="form-control phone-number" id="gedit-phone" type="tel" placeholder="912 345 678" autocomplete="off">
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Email (canal)</label>
-          <input class="form-control" id="gedit-email" type="email" placeholder="email@canal.com" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Email (pessoal)</label>
-          <input class="form-control" id="gedit-email-personal" type="email" placeholder="email@pessoal.com" autocomplete="off">
-        </div>
-
-        <!-- ── Morada ── -->
-        <div class="section-subtitle form-full" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza);padding-bottom:4px;border-bottom:1px solid var(--cinza-claro);margin-top:8px;">
-          <i data-lucide="map-pin"></i> Morada
-        </div>
-        <div class="form-group form-full">
-          <label class="form-label">Morada</label>
-          <input class="form-control" id="gedit-address" placeholder="Rua, número, andar..." autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Código postal</label>
-          <input class="form-control" id="gedit-postal-code" placeholder="0000-000" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Localidade</label>
-          <input class="form-control" id="gedit-city" placeholder="Lisboa" autocomplete="off">
-        </div>
-
-      </div>
-
-      <div class="guest-tags-row" style="margin-top:20px;">
-        <label class="guest-tag-toggle">
-          <input type="checkbox" id="gedit-favorito">
-          <span class="gtt-switch"></span>
-          <span class="gtt-label"><span class="gtt-icon">⭐</span> Favorito</span>
-        </label>
-        <label class="guest-tag-toggle">
-          <input type="checkbox" id="gedit-vip">
-          <span class="gtt-switch"></span>
-          <span class="gtt-label"><span class="gtt-icon">👑</span> VIP</span>
-        </label>
-        <label class="guest-tag-toggle">
-          <input type="checkbox" id="gedit-nao-desejado">
-          <span class="gtt-switch gtt-danger"></span>
-          <span class="gtt-label"><span class="gtt-icon">🚫</span> Não desejado</span>
-        </label>
-      </div>
-
-      <!-- Histórico de reservas do hóspede -->
-      <div id="gedit-reservas-historico" style="margin-top:24px;"></div>
-
-      <div style="display:flex;justify-content:flex-end;margin-top:24px;border-top:1px solid var(--borda);padding-top:16px;">
-        <button class="btn btn-danger btn-sm" id="gedit-delete-btn">
-          <i data-lucide="trash-2" style="width:13px;height:13px;"></i> Remover hóspede
-        </button>
-      </div>
-          </div>
-        </section>
       </div>
 
     </div><!-- /content -->
   </div><!-- /main -->
 </div><!-- /layout -->
 
-<div class="modal-bg" id="image-lightbox-bg" onclick="closeImageLightbox()">
-  <div class="image-lightbox" onclick="event.stopPropagation()">
-    <button class="image-lightbox-close" type="button" onclick="closeImageLightbox()" aria-label="Fechar imagem">
+<!-- Modais partilhados. data-feature diz qual o módulo que os abre e que
+     define os handlers lá dentro: só ficam alcançáveis depois de esse módulo
+     carregar, e é isso que o check-source.cjs verifica. -->
+<div class="modal-bg" id="image-lightbox-bg" data-feature="alojamentos" data-on-click="index-close-image-lightbox-f9d85d4">
+  <div class="image-lightbox" data-on-click="index-stop-propagation-22499e1">
+    <button class="image-lightbox-close" type="button" data-on-click="index-close-image-lightbox-f9d85d4" aria-label="Fechar imagem">
       <i data-lucide="x"></i>
     </button>
     <img id="image-lightbox-img" src="" alt="Pré-visualização">
@@ -2761,11 +523,11 @@
 </div>
 
 <!-- MODAL EVENTO -->
-<div class="modal-bg" id="evento-modal-bg" onclick="if(event.target===this)closeEventoModal()">
+<div class="modal-bg" id="evento-modal-bg" data-feature="eventos" data-on-click="index-if-136ef98">
   <div class="modal" style="max-width:620px;">
     <div class="modal-header">
       <span class="modal-title" id="evento-modal-title">Novo Evento</span>
-      <button class="modal-close" onclick="closeEventoModal()">
+      <button class="modal-close" data-on-click="index-close-evento-modal-1ee2065">
         <i data-lucide="x" style="width:20px;height:20px;"></i>
       </button>
     </div>
@@ -2818,11 +580,11 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-sm" id="evento-delete-btn" onclick="deleteEventoFromModal()" style="display:none;background:rgba(176,48,48,.1);color:var(--vermelho);margin-right:auto;">
+      <button class="btn btn-sm" id="evento-delete-btn" data-on-click="index-delete-evento-from-modal-a397cde" style="display:none;background:rgba(176,48,48,.1);color:var(--vermelho);margin-right:auto;">
         <i data-lucide="trash-2" style="width:14px;height:14px;"></i> Apagar
       </button>
-      <button class="btn btn-ghost" onclick="closeEventoModal()">Cancelar</button>
-      <button class="btn btn-primary" id="evento-save-btn" onclick="saveEvento()">
+      <button class="btn btn-ghost" data-on-click="index-close-evento-modal-1ee2065">Cancelar</button>
+      <button class="btn btn-primary" id="evento-save-btn" data-on-click="index-save-evento-4f346cc">
         <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
       </button>
     </div>
@@ -2830,11 +592,11 @@
 </div>
 
 <!-- MODAL NOTIFICAÇÃO MANUAL -->
-<div class="modal-bg" id="manual-notification-modal-bg" onclick="if(event.target===this)closeManualNotificationModal()">
+<div class="modal-bg" id="manual-notification-modal-bg" data-on-click="index-if-1bd17c8">
   <div class="modal" style="max-width:520px;">
     <div class="modal-header">
       <span class="modal-title">Nova Notificação</span>
-      <button class="modal-close" onclick="closeManualNotificationModal()">
+      <button class="modal-close" data-on-click="index-close-manual-notification-modal-b2a8800">
         <i data-lucide="x" style="width:20px;height:20px;"></i>
       </button>
     </div>
@@ -2859,8 +621,8 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeManualNotificationModal()">Cancelar</button>
-      <button class="btn btn-primary" id="manual-notification-save-btn" onclick="saveManualNotification()">
+      <button class="btn btn-ghost" data-on-click="index-close-manual-notification-modal-b2a8800">Cancelar</button>
+      <button class="btn btn-primary" id="manual-notification-save-btn" data-on-click="index-save-manual-notification-603e7ab">
         <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
       </button>
     </div>
@@ -2868,11 +630,11 @@
 </div>
 
 <!-- MODAL DESPESA -->
-<div class="modal-bg" id="despesa-modal-bg" onclick="if(event.target===this)closeDespesaModal()">
+<div class="modal-bg" id="despesa-modal-bg" data-feature="despesas" data-on-click="despesa-modal-backdrop">
   <div class="modal" style="max-width:500px;">
     <div class="modal-header">
       <span class="modal-title" id="despesa-modal-title">Nova Despesa</span>
-      <button class="modal-close" onclick="closeDespesaModal()">
+      <button class="modal-close" data-on-click="close-despesa-modal">
         <i data-lucide="x" style="width:20px;height:20px;"></i>
       </button>
     </div>
@@ -2922,7 +684,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Nº Fatura</label>
-          <input class="form-control" id="despesa-invoice-ref" placeholder="ex: FT 2026/123" autocomplete="off" onblur="checkDespesaDuplicate()">
+          <input class="form-control" id="despesa-invoice-ref" placeholder="ex: FT 2026/123" autocomplete="off" data-on-focusout="check-despesa-duplicate">
         </div>
         <div class="form-group">
           <label class="form-label">Contribuinte (NIF na fatura)</label>
@@ -2944,8 +706,8 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeDespesaModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveDespesa()">
+      <button class="btn btn-ghost" data-on-click="close-despesa-modal">Cancelar</button>
+      <button class="btn btn-primary" data-on-click="save-despesa">
         <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
       </button>
     </div>
@@ -2953,18 +715,18 @@
 </div>
 
 <!-- MODAL REVER TALÃO (IA) -->
-<div class="modal-bg" id="receipt-modal-bg" onclick="if(event.target===this)closeReceiptModal()">
+<div class="modal-bg" id="receipt-modal-bg" data-feature="despesas" data-on-click="receipt-modal-backdrop">
   <div class="modal" style="max-width:760px;">
     <div class="modal-header">
       <span class="modal-title"><i data-lucide="scan-line" style="width:18px;height:18px;vertical-align:-3px;"></i> Rever talão</span>
-      <button class="modal-close" onclick="closeReceiptModal()">
+      <button class="modal-close" data-on-click="close-receipt-modal">
         <i data-lucide="x" style="width:20px;height:20px;"></i>
       </button>
     </div>
     <div class="modal-body" id="receipt-review-content"></div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeReceiptModal()">Cancelar</button>
-      <button class="btn btn-primary" id="receipt-save-btn" onclick="saveReceiptExpenses()">
+      <button class="btn btn-ghost" data-on-click="close-receipt-modal">Cancelar</button>
+      <button class="btn btn-primary" id="receipt-save-btn" data-on-click="save-receipt-expenses">
         <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar despesas
       </button>
     </div>
@@ -2972,24 +734,24 @@
 </div>
 
 <!-- MODAL SELEÇÃO DE COLUNAS (exports) -->
-<div class="modal-bg" id="export-cols-modal-bg" onclick="if(event.target===this)closeExportColumnPicker()">
+<div class="modal-bg" id="export-cols-modal-bg" data-on-click="index-if-fab44c2">
   <div class="modal" style="max-width:420px;">
     <div class="modal-header">
       <span class="modal-title" id="export-cols-modal-title">Colunas a exportar</span>
-      <button class="modal-close" onclick="closeExportColumnPicker()">
+      <button class="modal-close" data-on-click="index-close-export-column-picker-75159c8">
         <i data-lucide="x" style="width:20px;height:20px;"></i>
       </button>
     </div>
     <div class="modal-body">
       <div style="display:flex;gap:8px;margin-bottom:10px;">
-        <button class="btn btn-ghost btn-sm" onclick="_exportColsSelectAll(true)">Marcar todas</button>
-        <button class="btn btn-ghost btn-sm" onclick="_exportColsSelectAll(false)">Desmarcar todas</button>
+        <button class="btn btn-ghost btn-sm" data-on-click="index-export-cols-select-all-b1f5c7c">Marcar todas</button>
+        <button class="btn btn-ghost btn-sm" data-on-click="index-export-cols-select-all-eeeb75e">Desmarcar todas</button>
       </div>
       <div class="export-cols-list" id="export-cols-modal-body"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeExportColumnPicker()">Cancelar</button>
-      <button class="btn btn-primary" onclick="confirmExportColumnPicker()">
+      <button class="btn btn-ghost" data-on-click="index-close-export-column-picker-75159c8">Cancelar</button>
+      <button class="btn btn-primary" data-on-click="index-confirm-export-column-picker-6e5e7fe">
         <i data-lucide="download" style="width:14px;height:14px;"></i> Exportar
       </button>
     </div>
@@ -2997,15 +759,15 @@
 </div>
 
 <!-- MODAL NOVA / EDITAR RESERVA — WIZARD -->
-<div class="modal-bg" id="modal-bg">
+<div class="modal-bg" id="modal-bg" data-feature="reservas">
   <div class="modal resf-modal">
 
     <div class="modal-header">
-      <button class="btn btn-ghost btn-sm" id="resf-page-back" onclick="requestCloseReservaModal()" style="display:none;">
+      <button class="btn btn-ghost btn-sm" id="resf-page-back" data-on-click="index-request-close-reserva-modal-92eb2a6" style="display:none;">
         <i data-lucide="arrow-left" style="width:15px;height:15px;"></i> Voltar à reserva
       </button>
       <span class="modal-title" id="modal-title">Nova Reserva</span>
-      <button class="modal-close" onclick="requestCloseReservaModal()">
+      <button class="modal-close" data-on-click="index-request-close-reserva-modal-92eb2a6">
         <i data-lucide="x" style="width:20px;height:20px;"></i>
       </button>
     </div>
@@ -3016,7 +778,7 @@
       <div id="resf-draft-notice" class="resf-draft-notice" style="display:none;">
         <i data-lucide="history" style="width:16px;height:16px;flex-shrink:0;"></i>
         <span style="flex:1;">Rascunho recuperado — continua a reserva onde a deixaste.</span>
-        <button type="button" class="resf-draft-discard" onclick="discardReservaDraft()">Descartar</button>
+        <button type="button" class="resf-draft-discard" data-on-click="index-discard-reserva-draft-53f0676">Descartar</button>
       </div>
 
       <!-- hidden IDs kept for JS compatibility -->
@@ -3036,11 +798,11 @@
         <div class="form-grid">
           <div class="form-group">
             <label class="form-label">Check-in <span class="req-star">*</span></label>
-            <input class="form-control" id="f-checkin" type="date" onchange="calcTotal();updateWizSummary();_availTimer&&clearTimeout(_availTimer);_availTimer=setTimeout(fetchSuiteAvailability,400)" autocomplete="off">
+            <input class="form-control" id="f-checkin" type="date" data-on-change="index-calc-total-a1c3bab" autocomplete="off">
           </div>
           <div class="form-group">
             <label class="form-label">Check-out <span class="req-star">*</span></label>
-            <input class="form-control" id="f-checkout" type="date" data-dp-range-end="f-checkin" onchange="calcTotal();updateWizSummary();_availTimer&&clearTimeout(_availTimer);_availTimer=setTimeout(fetchSuiteAvailability,400)" autocomplete="off">
+            <input class="form-control" id="f-checkout" type="date" data-dp-range-end="f-checkin" data-on-change="index-calc-total-a1c3bab" autocomplete="off">
           </div>
           <div class="form-group form-full" id="wiz-nights-badge-wrap" style="display:none;">
             <div class="wiz-nights-badge">
@@ -3053,17 +815,17 @@
           </div>
           <div class="form-group">
             <label class="form-label">Adultos <span class="req-star">*</span></label>
-            <input class="form-control" id="f-num-adultos" type="number" min="1" max="20" value="2" onchange="updateNumHospedes();renderSuiteCards();calcTotal();renderExtraGuests()" autocomplete="off">
+            <input class="form-control" id="f-num-adultos" type="number" min="1" max="20" value="2" data-on-change="index-update-num-hospedes-ef410f4" autocomplete="off">
           </div>
           <div class="form-group">
             <label class="form-label">Crianças</label>
-            <input class="form-control" id="f-num-criancas" type="number" min="0" max="20" value="0" onchange="updateNumHospedes();renderSuiteCards();calcTotal();renderExtraGuests()" autocomplete="off">
+            <input class="form-control" id="f-num-criancas" type="number" min="0" max="20" value="0" data-on-change="index-update-num-hospedes-ef410f4" autocomplete="off">
           </div>
           <div class="form-group form-full" id="resf-child-ages" style="display:none;"></div>
           <input type="hidden" id="f-num-hospedes" value="2">
           <div class="form-group">
             <label class="form-label">Pequeno-almoço</label>
-            <select class="form-control" id="f-breakfast" onchange="calcTotal()">
+            <select class="form-control" id="f-breakfast" data-on-change="index-calc-total-a239bdf">
               <option value="false">Não incluído</option>
               <option value="true">Incluído</option>
             </select>
@@ -3084,13 +846,13 @@
         </div>
         <div style="margin-top:16px;">
           <label class="form-label">Alojamento <span class="req-star">*</span></label>
-          <select id="f-aloj" style="display:none;" onchange="calcTotal();updateWizSummary()"></select>
+          <select id="f-aloj" style="display:none;" data-on-change="index-calc-total-8bcd488"></select>
           <div class="suite-cards" id="suite-cards-grid"></div>
         </div>
 
         <!-- ── Adicionar quartos extra à mesma reserva (multi-suite) ── -->
         <div class="form-group form-full" id="wiz-extra-rooms-toggle-wrap" style="margin-top:10px;">
-          <button type="button" class="btn btn-ghost btn-sm" onclick="wizToggleExtraRooms()">
+          <button type="button" class="btn btn-ghost btn-sm" data-on-click="index-wiz-toggle-extra-rooms-ce30293">
             <i data-lucide="plus" style="width:14px;height:14px;"></i>
             <span id="wiz-extra-rooms-toggle-label">Adicionar outro quarto</span>
           </button>
@@ -3106,8 +868,8 @@
                 <span>€</span>
                 <input type="number" id="resf-nightly-all-val" min="0" step="0.01" placeholder="0.00" autocomplete="off">
               </div>
-              <button type="button" class="resf-nightly-btn" onclick="applyNightlyToAll()">Aplicar a todas</button>
-              <button type="button" class="resf-nightly-reset" onclick="resetNightlyOverrides()">Repor</button>
+              <button type="button" class="resf-nightly-btn" data-on-click="index-apply-nightly-to-all-f99c949">Aplicar a todas</button>
+              <button type="button" class="resf-nightly-reset" data-on-click="index-reset-nightly-overrides-1d673fa">Repor</button>
             </div>
           </div>
           <div id="resf-nightly-grid" class="resf-nightly-grid"></div>
@@ -3119,7 +881,7 @@
               <label>Total final</label>
               <div class="resf-nightly-input">
                 <span>€</span>
-                <input type="number" id="f-total-manual" min="0" step="0.01" placeholder="0.00" onfocus="snapshotManualDistribWeights()" oninput="onManualTotalInput(this.value)" autocomplete="off">
+                <input type="number" id="f-total-manual" min="0" step="0.01" placeholder="0.00" data-on-focus="index-snapshot-manual-distrib-weights-5b88f57" data-on-input="index-on-manual-total-input-9a5bf38" autocomplete="off">
               </div>
             </div>
           </div>
@@ -3129,10 +891,10 @@
           <label class="form-label" style="margin-bottom:6px;">Desconto <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label>
           <div class="resf-discount-row">
             <div class="resf-disc-toggle">
-              <button type="button" class="resf-disc-type active" data-type="pct" onclick="setFormDiscountType('pct')">%</button>
-              <button type="button" class="resf-disc-type" data-type="eur" onclick="setFormDiscountType('eur')">€</button>
+              <button type="button" class="resf-disc-type active" data-type="pct" data-on-click="index-set-form-discount-type-be84a88">%</button>
+              <button type="button" class="resf-disc-type" data-type="eur" data-on-click="index-set-form-discount-type-a4a7670">€</button>
             </div>
-            <input type="number" class="form-control" id="f-discount-val" min="0" step="0.01" placeholder="0" oninput="calcTotal()" style="max-width:110px;" autocomplete="off">
+            <input type="number" class="form-control" id="f-discount-val" min="0" step="0.01" placeholder="0" data-on-input="index-calc-total-ede923f" style="max-width:110px;" autocomplete="off">
             <input type="hidden" id="f-discount-type" value="pct">
             <span id="f-discount-preview" style="font-size:13px;color:var(--cinza);"></span>
           </div>
@@ -3146,7 +908,7 @@
         <div class="form-group form-full" style="margin-bottom:14px;">
           <label class="form-label">Pesquisa rápida (hóspede existente)</label>
           <div class="guest-search-wrap">
-            <input class="form-control" id="wiz-guest-search" placeholder="Nome, email ou telefone…" autocomplete="off" oninput="wizGuestSearch(this.value)">
+            <input class="form-control" id="wiz-guest-search" placeholder="Nome, email ou telefone…" autocomplete="off" data-on-input="index-wiz-guest-search-ba4bf00">
             <div class="guest-drop" id="wiz-guest-drop"></div>
           </div>
         </div>
@@ -3154,7 +916,7 @@
         <div class="form-grid">
           <div class="form-group form-full">
             <label class="form-label">Nome Completo <span class="req-star">*</span></label>
-            <input class="form-control" id="f-nome-completo" placeholder="Nome completo do hóspede" oninput="updateWizSummary()" autocomplete="off">
+            <input class="form-control" id="f-nome-completo" placeholder="Nome completo do hóspede" data-on-input="index-update-wiz-summary-35ca320" autocomplete="off">
           </div>
           <div class="form-group">
             <label class="form-label">Email</label>
@@ -3169,13 +931,13 @@
           </div>
           <div class="form-group">
             <label class="form-label">País</label>
-            <select class="form-control" id="f-pais" onchange="updateForeignRequirements()"></select>
+            <select class="form-control" id="f-pais" data-on-change="index-update-foreign-requirements-2ec6793"></select>
           </div>
           <div class="form-group">
             <label class="form-label">Data de Nascimento</label>
             <div class="birth-date-control">
-              <input class="form-control birth-date-input" id="f-nascimento" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" oninput="handleBirthDateInput(this)" onblur="normalizeBirthDateInput(this);calcTotal();updateSpecialRateHints()" autocomplete="off">
-              <button class="birth-date-picker-btn" type="button" onclick="AppDatePicker.open(document.getElementById('f-nascimento'),{isBirthDate:true})" aria-label="Abrir calendário">
+              <input class="form-control birth-date-input" id="f-nascimento" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" data-on-input="index-handle-birth-date-input-6742f58" data-on-blur="index-normalize-birth-date-input-19ea83e" autocomplete="off">
+              <button class="birth-date-picker-btn" type="button" data-on-click="index-open-05fd9c5" aria-label="Abrir calendário">
                 <i data-lucide="calendar-days"></i>
               </button>
             </div>
@@ -3252,7 +1014,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Estado de Pagamento</label>
-            <select class="form-control" id="f-payment-status" onchange="onPaymentStatusChange()">
+            <select class="form-control" id="f-payment-status" data-on-change="index-on-payment-status-change-93354d3">
               <option value="pendente">Não pago</option>
               <option value="confirmado">Completo</option>
               <option value="parcial">Parcial</option>
@@ -3260,7 +1022,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Valor Pago (€)</label>
-            <input type="number" class="form-control" id="f-amount-paid" min="0" step="0.01" placeholder="0.00" oninput="onAmountPaidChange()" autocomplete="off">
+            <input type="number" class="form-control" id="f-amount-paid" min="0" step="0.01" placeholder="0.00" data-on-input="index-on-amount-paid-change-104efde" autocomplete="off">
           </div>
           <div class="form-group">
             <label class="form-label">Data de Pagamento</label>
@@ -3288,8 +1050,8 @@
           <div class="form-group form-full" id="resf-voucher-wrap">
             <label class="form-label">Voucher (opcional)</label>
             <div style="display:flex;gap:8px;">
-              <input class="form-control" id="f-voucher-code" name="sp-voucher-code" type="text" placeholder="Código de voucher" style="text-transform:uppercase;flex:1;" oninput="this.value=this.value.toUpperCase()" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" data-lpignore="true" data-1p-ignore data-form-type="other" readonly onfocus="this.removeAttribute('readonly')">
-              <button type="button" class="btn btn-outline btn-sm" onclick="verifyBackofficeVoucher()">Verificar</button>
+              <input class="form-control" id="f-voucher-code" name="sp-voucher-code" type="text" placeholder="Código de voucher" style="text-transform:uppercase;flex:1;" data-on-input="index-to-upper-case-da41d26" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" data-lpignore="true" data-1p-ignore data-form-type="other" readonly data-on-focus="index-remove-attribute-3e4a1fd">
+              <button type="button" class="btn btn-outline btn-sm" data-on-click="index-verify-backoffice-voucher-163d348">Verificar</button>
             </div>
             <div id="f-voucher-status" style="display:none;font-size:12px;margin-top:4px;padding:4px 8px;border-radius:6px;"></div>
           </div>
@@ -3304,10 +1066,10 @@
     </div><!-- /modal-body -->
 
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="requestCloseReservaModal()">Cancelar</button>
+      <button class="btn btn-ghost" data-on-click="index-request-close-reserva-modal-92eb2a6">Cancelar</button>
       <div style="display:flex;align-items:center;gap:6px;">
         <span id="resf-total-badge" style="font-size:13px;font-weight:700;color:var(--azul);font-family:'Playfair Display',serif;"></span>
-        <button class="btn btn-primary" id="btn-guardar" onclick="saveReserva()">
+        <button class="btn btn-primary" id="btn-guardar" data-on-click="index-save-reserva-0326a52">
           <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar Reserva
         </button>
       </div>
@@ -3320,11 +1082,11 @@
 </div>
 
 <!-- MODAL DETALHE HÓSPEDE -->
-<div class="modal-bg" id="detail-bg" onclick="if(event.target===this)AppUI.closeModal(this)">
+<div class="modal-bg" id="detail-bg" data-feature="reservas" data-on-click="index-if-0109c33">
   <div class="modal">
     <div class="modal-header">
       <span class="modal-title" id="detail-title">Detalhe</span>
-      <button class="modal-close" onclick="AppUI.closeModal('detail-bg')">
+      <button class="modal-close" data-on-click="index-close-modal-89efa48">
         <i data-lucide="x" style="width:20px;height:20px;"></i>
       </button>
     </div>
@@ -3350,92 +1112,93 @@
 
 <!-- BOTTOM NAV (mobile only) -->
 <nav class="bottom-nav-bar" id="bottom-nav-bar">
-  <button class="bn-item active" id="bn-dashboard" onclick="showView('dashboard')">
+  <button class="bn-item active" id="bn-dashboard" data-on-click="index-show-view-f5d0286">
     <i data-lucide="layout-dashboard"></i><span>Início</span>
   </button>
-  <button class="bn-item" id="bn-reservas" onclick="showView('reservas')">
+  <button class="bn-item" id="bn-reservas" data-on-click="index-show-view-3d0e569">
     <i data-lucide="clipboard-list"></i><span>Reservas</span>
   </button>
-  <button class="bn-item" id="bn-calendario" onclick="showView('calendario')">
+  <button class="bn-item" id="bn-calendario" data-on-click="index-show-view-6fd615e">
     <i data-lucide="calendar-days"></i><span>Calendário</span>
   </button>
-  <button class="bn-item" id="bn-eventos" onclick="showView('eventos')">
+  <button class="bn-item" id="bn-eventos" data-on-click="index-show-view-68ce776">
     <i data-lucide="calendar-check"></i><span>Eventos</span>
   </button>
-  <button class="bn-item" id="bn-despesas" onclick="showView('despesas')">
+  <button class="bn-item" id="bn-despesas" data-on-click="index-show-view-5da348e">
     <i data-lucide="receipt"></i><span>Despesas</span>
   </button>
 </nav>
 
 <!-- FAB (mobile only) -->
-<button class="mobile-fab" id="mobile-fab" onclick="openModal()">
+<button class="mobile-fab" id="mobile-fab" data-on-click="index-nova-reserva-87b11c0">
   <i data-lucide="plus"></i>
 </button>
 
 <!-- SIDE DRAWER (mobile) -->
-<div class="side-drawer-overlay" id="side-drawer-overlay" onclick="closeSideDrawer()"></div>
-<div class="side-drawer" id="side-drawer">
+<div class="side-drawer-overlay" id="side-drawer-overlay" data-on-click="index-close-side-drawer-28b0ec9"></div>
+<aside class="side-drawer" id="side-drawer" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="side-drawer-title" tabindex="-1">
   <div class="side-drawer-brand">
-    <h2>Santa Paciência</h2>
+    <h2 id="side-drawer-title">Santa Paciência</h2>
     <p>Gestão de Alojamento</p>
   </div>
   <div class="side-drawer-section">Principal</div>
-  <div class="side-drawer-item" onclick="showView('dashboard');closeSideDrawer()">
+  <button type="button" class="side-drawer-item" data-view="dashboard" data-on-click="index-show-view-2517b76">
     <i data-lucide="layout-dashboard"></i> Dashboard
-  </div>
-  <div class="side-drawer-item" onclick="showView('reservas');closeSideDrawer()">
+  </button>
+  <button type="button" class="side-drawer-item" data-view="reservas" data-on-click="index-show-view-3896a1c">
     <i data-lucide="clipboard-list"></i> Reservas
-  </div>
-  <div class="side-drawer-item" onclick="showView('calendario');closeSideDrawer()">
+  </button>
+  <button type="button" class="side-drawer-item" data-view="calendario" data-on-click="index-show-view-ee36455">
     <i data-lucide="calendar-days"></i> Calendário
-  </div>
-  <div class="side-drawer-item" onclick="showView('eventos');closeSideDrawer()">
+  </button>
+  <button type="button" class="side-drawer-item" data-view="eventos" data-on-click="index-show-view-5e22dbf">
     <i data-lucide="calendar-range"></i> Eventos
-  </div>
-  <div class="side-drawer-item" onclick="showView('hospedes');closeSideDrawer()">
+  </button>
+  <button type="button" class="side-drawer-item" data-view="hospedes" data-on-click="index-show-view-5680375">
     <i data-lucide="users"></i> Hóspedes
-  </div>
-  <div class="side-drawer-item" onclick="showView('notificacoes');closeSideDrawer()">
+  </button>
+  <button type="button" class="side-drawer-item" data-view="notificacoes" data-on-click="index-show-view-78c396d">
     <i data-lucide="bell"></i> Notificações
-  </div>
+  </button>
   <div class="side-drawer-section">Gestão</div>
-  <div class="side-drawer-item" onclick="showView('alojamentos');closeSideDrawer()">
+  <button type="button" class="side-drawer-item" data-view="alojamentos" data-on-click="index-show-view-e180a25">
     <i data-lucide="home"></i> Alojamentos
-  </div>
-  <div class="side-drawer-item" onclick="showView('precos');closeSideDrawer()">
+  </button>
+  <button type="button" class="side-drawer-item" data-view="precos" data-on-click="index-show-view-9dc1e16">
     <i data-lucide="tag"></i> Preços
-  </div>
-  <div class="side-drawer-item" onclick="showView('despesas');closeSideDrawer()">
+  </button>
+  <button type="button" class="side-drawer-item" data-view="despesas" data-on-click="index-show-view-05eda4c">
     <i data-lucide="receipt"></i> Despesas
-  </div>
-  <div class="side-drawer-item" onclick="showView('relatorios');closeSideDrawer()">
+  </button>
+  <button type="button" class="side-drawer-item" data-view="relatorios" data-on-click="index-show-view-a532708">
     <i data-lucide="bar-chart-3"></i> Relatórios
-  </div>
-  <div class="side-drawer-item" onclick="showView('definicoes');switchSettingsTab('emails');closeSideDrawer()">
+  </button>
+  <button type="button" class="side-drawer-item" data-view="invoice" data-on-click="index-show-view-9eff395">
     <i data-lucide="mail"></i> Emails
-  </div>
+  </button>
   <div class="side-drawer-section">Sistema</div>
-  <div class="side-drawer-item" onclick="showView('definicoes');closeSideDrawer()">
+  <button type="button" class="side-drawer-item" data-view="definicoes" data-on-click="index-show-view-ef3e4be">
     <i data-lucide="settings"></i> Definições
-  </div>
+  </button>
   <div class="side-drawer-section">Conta</div>
-  <div class="side-drawer-item" onclick="closeSideDrawer();openProfileModal()">
+  <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-0395508">
     <i data-lucide="user-round"></i> O meu perfil
-  </div>
-  <div class="side-drawer-item" onclick="closeSideDrawer();openChangePasswordModal()">
+  </button>
+  <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-5e6ac44">
     <i data-lucide="key-round"></i> Alterar palavra-passe
-  </div>
-  <div class="side-drawer-item" onclick="closeSideDrawer();openSessionsModal()">
+  </button>
+  <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-f44ae7e">
     <i data-lucide="monitor-smartphone"></i> Sessões ativas
-  </div>
-  <div class="side-drawer-item" onclick="closeSideDrawer();switchAccount()">
+  </button>
+  <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-b4bebaf">
     <i data-lucide="users-round"></i> Trocar de conta
-  </div>
-  <div class="side-drawer-item" onclick="closeSideDrawer();logout()">
+  </button>
+  <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-4a3b8ba">
     <i data-lucide="log-out"></i> Sair
-  </div>
-</div>
+  </button>
+</aside>
 
+<script src="/js/domain/modules.js"></script>
 <script src="js/pubsub.js"></script>
 <script src="js/state.js"></script>
 <script src="js/domain/dates.js"></script>
@@ -3444,15 +1207,20 @@
 <script src="js/domain/table-cols.js"></script>
 <script src="js/domain/export-columns.js"></script>
 <script src="js/helpers.js"></script>
+<script src="js/domain/actions.js"></script>
+<script src="js/domain/libraries.js"></script>
+<script src="js/domain/pagination.js"></script>
+<script src="js/domain/event-types.js"></script>
+<script src="js/domain/features.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/ui-blocks.js"></script>
 <script src="js/validators.js"></script>
 <!-- Perfil -->
-<div id="profile-modal" class="modal-bg" onclick="if(event.target===this)closeProfileModal()">
-  <form class="modal" style="max-width:440px;" onsubmit="event.preventDefault();submitProfile()">
+<div id="profile-modal" class="modal-bg" data-on-click="index-if-3215315">
+  <form class="modal" style="max-width:440px;" data-on-submit="index-prevent-default-9940257">
     <div class="modal-header">
       <span class="modal-title">O meu perfil</span>
-      <button type="button" class="modal-close" onclick="closeProfileModal()" aria-label="Fechar">
+      <button type="button" class="modal-close" data-on-click="index-close-profile-modal-7a8122e" aria-label="Fechar">
         <i data-lucide="x" style="width:20px;height:20px;"></i>
       </button>
     </div>
@@ -3463,17 +1231,17 @@
       </div>
       <div class="form-group">
         <label class="form-label" for="pf-email">Email de login</label>
-        <input type="email" id="pf-email" class="form-control" autocomplete="email" autocapitalize="off" spellcheck="false" required oninput="updateProfilePasswordVisibility()">
+        <input type="email" id="pf-email" class="form-control" autocomplete="email" autocapitalize="off" spellcheck="false" required data-on-input="index-update-profile-password-visibility-293b4c8">
       </div>
       <div class="form-group" id="pf-password-group" style="display:none;">
         <label class="form-label" for="pf-password">Palavra-passe atual</label>
-        <div class="pw-wrap"><input type="password" id="pf-password" class="form-control" autocomplete="current-password" placeholder="Necessária para mudar o email"><button type="button" class="pw-toggle" onclick="togglePw('pf-password',this)" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
+        <div class="pw-wrap"><input type="password" id="pf-password" class="form-control" autocomplete="current-password" placeholder="Necessária para mudar o email"><button type="button" class="pw-toggle" data-on-click="index-toggle-pw-56ac005" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
       </div>
       <p style="font-size:12px;color:var(--cinza);margin:4px 0 0;">Espaço: <b id="pf-org"></b> · Papel: <b id="pf-role"></b></p>
       <div id="pf-feedback" role="alert" style="display:none;font-size:13px;margin-top:10px;"></div>
     </div>
     <div class="modal-footer">
-      <button type="button" class="btn btn-ghost" onclick="closeProfileModal()">Cancelar</button>
+      <button type="button" class="btn btn-ghost" data-on-click="index-close-profile-modal-7a8122e">Cancelar</button>
       <button type="submit" class="btn btn-primary" id="pf-save-btn">
         <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
       </button>
@@ -3482,11 +1250,11 @@
 </div>
 
 <!-- Sessões ativas -->
-<div id="sessions-modal" class="modal-bg" onclick="if(event.target===this)closeSessionsModal()">
+<div id="sessions-modal" class="modal-bg" data-on-click="index-if-370b5e1">
   <div class="modal" style="max-width:520px;">
     <div class="modal-header">
       <span class="modal-title">Sessões ativas</span>
-      <button type="button" class="modal-close" onclick="closeSessionsModal()" aria-label="Fechar">
+      <button type="button" class="modal-close" data-on-click="index-close-sessions-modal-7608ce6" aria-label="Fechar">
         <i data-lucide="x" style="width:20px;height:20px;"></i>
       </button>
     </div>
@@ -3495,8 +1263,8 @@
       <div id="sessions-list" class="sessions-list"></div>
     </div>
     <div class="modal-footer">
-      <button type="button" class="btn btn-ghost" onclick="closeSessionsModal()">Fechar</button>
-      <button type="button" class="btn btn-danger" id="sessions-revoke-others-btn" onclick="revokeOtherSessions()">
+      <button type="button" class="btn btn-ghost" data-on-click="index-close-sessions-modal-7608ce6">Fechar</button>
+      <button type="button" class="btn btn-danger" id="sessions-revoke-others-btn" data-on-click="index-revoke-other-sessions-d00709f">
         <i data-lucide="log-out" style="width:14px;height:14px;"></i> Terminar as outras
       </button>
     </div>
@@ -3504,32 +1272,32 @@
 </div>
 
 <!-- Change Password Modal -->
-<div id="change-password-modal" class="modal-bg" onclick="if(event.target===this)closeChangePasswordModal()">
-  <form class="modal" style="max-width:420px;" onsubmit="event.preventDefault();submitChangePassword()">
+<div id="change-password-modal" class="modal-bg" data-on-click="index-if-d444ee6">
+  <form class="modal" style="max-width:420px;" data-on-submit="index-prevent-default-8a19dfa">
     <div class="modal-header">
       <span class="modal-title">Alterar palavra-passe</span>
-      <button type="button" class="modal-close" onclick="closeChangePasswordModal()" aria-label="Fechar">
+      <button type="button" class="modal-close" data-on-click="index-close-change-password-modal-efbfd41" aria-label="Fechar">
         <i data-lucide="x" style="width:20px;height:20px;"></i>
       </button>
     </div>
     <div class="modal-body">
       <div class="form-group">
         <label class="form-label">Palavra-passe atual</label>
-        <div class="pw-wrap"><input type="password" id="cp-current" class="form-control" placeholder="Palavra-passe atual" autocomplete="current-password"><button type="button" class="pw-toggle" onclick="togglePw('cp-current',this)" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
+        <div class="pw-wrap"><input type="password" id="cp-current" class="form-control" placeholder="Palavra-passe atual" autocomplete="current-password"><button type="button" class="pw-toggle" data-on-click="index-toggle-pw-074b3fd" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
       </div>
       <div class="form-group">
         <label class="form-label">Nova palavra-passe</label>
-        <div class="pw-wrap"><input type="password" id="cp-new" class="form-control" placeholder="Mín. 8 char., 1 maiúscula, 1 número" autocomplete="new-password"><button type="button" class="pw-toggle" onclick="togglePw('cp-new',this)" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
+        <div class="pw-wrap"><input type="password" id="cp-new" class="form-control" placeholder="Mín. 8 char., 1 maiúscula, 1 número" autocomplete="new-password"><button type="button" class="pw-toggle" data-on-click="index-toggle-pw-1c49c0f" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
       </div>
       <div class="form-group">
         <label class="form-label">Confirmar nova palavra-passe</label>
-        <div class="pw-wrap"><input type="password" id="cp-confirm" class="form-control" placeholder="Repete a nova password" autocomplete="new-password"><button type="button" class="pw-toggle" onclick="togglePw('cp-confirm',this)" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
+        <div class="pw-wrap"><input type="password" id="cp-confirm" class="form-control" placeholder="Repete a nova password" autocomplete="new-password"><button type="button" class="pw-toggle" data-on-click="index-toggle-pw-1219ceb" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
       </div>
       <div id="cp-feedback" role="alert" style="display:none;font-size:13px;margin-top:4px;"></div>
       <p style="font-size:12px;color:var(--cinza);margin:10px 0 0;">Ao alterar, as sessões abertas noutros dispositivos são terminadas.</p>
     </div>
     <div class="modal-footer">
-      <button type="button" class="btn btn-ghost" onclick="closeChangePasswordModal()">Cancelar</button>
+      <button type="button" class="btn btn-ghost" data-on-click="index-close-change-password-modal-efbfd41">Cancelar</button>
       <button type="submit" class="btn btn-primary" id="cp-save-btn">
         <i data-lucide="key-round" style="width:14px;height:14px;"></i> Alterar
       </button>
@@ -3539,52 +1307,11 @@
 
 <script src="js/auth.js"></script>
 <script src="js/dashboard.js"></script>
-<script src="js/reserva-wizard.js"></script>
-<script src="js/features/reserva-wizard/editor.js"></script>
-<script src="js/features/reserva-wizard/rascunhos.js"></script>
-<script src="js/features/reserva-wizard/precos.js"></script>
-<script src="js/features/reserva-wizard/datas-hospedes.js"></script>
-<script src="js/features/reserva-wizard/disponibilidade.js"></script>
-<script src="js/features/reserva-wizard/passos.js"></script>
-<script src="js/features/reserva-wizard/guardar.js"></script>
-<script src="js/reserva-lista.js"></script>
-<script src="js/features/reserva-lista/lista-colunas.js"></script>
-<script src="js/features/reserva-lista/lista-render.js"></script>
-<script src="js/features/reserva-lista/detalhe.js"></script>
-<script src="js/features/reserva-lista/detalhe-formularios.js"></script>
-<script src="js/features/reserva-lista/documentos.js"></script>
-<script src="js/features/reserva-lista/alojamento-painel.js"></script>
-<script src="js/features/reserva-lista/acoes.js"></script>
-<script src="js/features/reserva-lista/exportacao.js"></script>
-<script src="js/reserva-detalhe-tabs.js"></script>
-<script src="js/calendario.js"></script>
-<script src="js/features/calendario/mes-agenda.js"></script>
-<script src="js/features/calendario/paisagem.js"></script>
-<script src="js/features/calendario/timeline.js"></script>
-<script src="js/features/calendario/interacoes.js"></script>
-<script src="js/blocks.js"></script>
-<script src="js/eventos.js"></script>
-<script src="js/alojamentos.js"></script>
-<script src="js/features/alojamentos/galeria.js"></script>
-<script src="js/features/alojamentos/servicos-heranca.js"></script>
-<script src="js/features/alojamentos/exportacao.js"></script>
-<script src="js/features/alojamentos/configuracao.js"></script>
-<script src="js/hospedes.js"></script>
-<script src="js/emails.js"></script>
-<script src="js/despesas.js"></script>
-<script src="js/fornecedores.js"></script>
-<script src="js/team.js"></script>
-<script src="js/relatorios.js"></script>
 <script src="js/notifications.js"></script>
-<script src="js/push.js"></script>
-<script src="js/vouchers.js"></script>
-<script src="js/precos.js"></script>
-<script src="js/invoice.js"></script>
-<script src="js/features/invoice/historico.js"></script>
-<script src="js/features/invoice/arquivo.js"></script>
-<script src="js/features/invoice/composicao.js"></script>
-<script src="js/features/invoice/auxiliares.js"></script>
+<!-- As restantes funcionalidades chegam com a vista que as usa.
+     O registo está em js/domain/features.js. -->
 <script src="js/app.js"></script>
 
+<script src="js/index-actions.js"></script>
 </body>
 </html>

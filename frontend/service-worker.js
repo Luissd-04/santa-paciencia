@@ -5,14 +5,16 @@
                offline). Cache-first apenas para CDNs (fontes, libs).
 ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'sp-v28';
-const CACHE_VERSION = 28;
+const CACHE_NAME = 'sp-v37';
+const CACHE_VERSION = 37;
+const CACHE_PREFIX = 'sp-';
 
-/* Assets estáticos que devem funcionar offline */
+/* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/pre-checkin.html',
+  '/reservation-status.html',
   '/css/styles.css',
   '/css/styles/base.css',
   '/css/styles/shell.css',
@@ -29,6 +31,20 @@ const STATIC_ASSETS = [
   '/css/components.css',
   '/css/themes.css',
   '/css/mobile.css',
+  '/css/mobile/base.css',
+  '/css/mobile/reservas.css',
+  '/css/mobile/vouchers-operacoes.css',
+  '/css/mobile/hospedes-despesas.css',
+  '/css/mobile/alojamentos-eventos.css',
+  '/css/mobile/paisagem.css',
+  '/css/mobile/ajustes.css',
+  '/js/public-reservation.js',
+  '/js/features/public-reservation/helpers.js',
+  '/js/features/public-reservation/landing.js',
+  '/js/features/public-reservation/dados-hospedes.js',
+  '/js/features/public-reservation/disponibilidade.js',
+  '/js/features/public-reservation/precos.js',
+  '/js/features/public-reservation/submissao.js',
   '/css/views/dashboard.css',
   '/css/views/reservas.css',
   '/css/views/despesas.css',
@@ -36,37 +52,50 @@ const STATIC_ASSETS = [
   '/css/views/calendar.css',
   '/css/vendor/flag-icons.min.css',
   '/css/public-reservation.css',
+  '/css/reservation-status.css',
   '/js/app.js',
   '/js/auth.js',
   '/js/state.js',
   '/js/helpers.js',
+  '/js/domain/modules.js',
+  '/js/domain/actions.js',
+  '/js/index-actions.js',
+  '/js/public-reservation-actions.js',
   '/js/ui.js',
   '/js/ui-blocks.js',
   '/js/pubsub.js',
   '/js/notifications.js',
-  '/js/push.js',
   '/js/dashboard.js',
-  '/js/reserva-lista.js',
-  '/js/reserva-wizard.js',
   '/js/pre-checkin.js',
-  '/js/calendario.js',
-  '/js/blocks.js',
-  '/js/hospedes.js',
-  '/js/alojamentos.js',
-  '/js/despesas.js',
-  '/js/fornecedores.js',
-  '/js/relatorios.js',
-  '/js/eventos.js',
-  '/js/vouchers.js',
-  '/js/precos.js',
-  '/js/emails.js',
-  '/js/invoice.js',
+  '/js/reservation-status.js',
   '/js/validators.js',
-  '/js/team.js',
+  '/js/domain/pagination.js',
+  '/js/domain/event-types.js',
+  '/js/domain/features.js',
+  '/js/domain/libraries.js',
   '/js/domain/dates.js',
   '/js/domain/pricing.js',
   '/js/domain/date-picker.js',
   '/js/domain/table-cols.js',
+  '/js/domain/export-columns.js',
+  '/favicon.png',
+];
+
+/* Módulos carregados pela vista que os usa (ver js/domain/features.js).
+   Não entram no pré-cache: são guardados em cache no primeiro pedido, pelo
+   network-first abaixo. A lista existe para o verificador de recursos poder
+   confirmar que o service worker e o registo dizem o mesmo. */
+const FEATURE_ASSETS = [
+  '/js/reserva-wizard.js',
+  '/js/features/reserva-wizard/editor.js',
+  '/js/features/reserva-wizard/rascunhos.js',
+  '/js/features/reserva-wizard/precos.js',
+  '/js/features/reserva-wizard/datas-hospedes.js',
+  '/js/features/reserva-wizard/disponibilidade.js',
+  '/js/features/reserva-wizard/passos.js',
+  '/js/features/reserva-wizard/guardar.js',
+  '/js/reserva-lista.js',
+  '/js/features/reserva-lista/lista-dados.js',
   '/js/features/reserva-lista/lista-colunas.js',
   '/js/features/reserva-lista/lista-render.js',
   '/js/features/reserva-lista/detalhe.js',
@@ -75,27 +104,60 @@ const STATIC_ASSETS = [
   '/js/features/reserva-lista/alojamento-painel.js',
   '/js/features/reserva-lista/acoes.js',
   '/js/features/reserva-lista/exportacao.js',
-  '/js/features/reserva-wizard/editor.js',
-  '/js/features/reserva-wizard/rascunhos.js',
-  '/js/features/reserva-wizard/precos.js',
-  '/js/features/reserva-wizard/datas-hospedes.js',
-  '/js/features/reserva-wizard/disponibilidade.js',
-  '/js/features/reserva-wizard/passos.js',
-  '/js/features/reserva-wizard/guardar.js',
-  '/js/features/alojamentos/galeria.js',
-  '/js/features/alojamentos/servicos-heranca.js',
-  '/js/features/alojamentos/exportacao.js',
-  '/js/features/alojamentos/configuracao.js',
+  '/js/reserva-detalhe-tabs.js',
+  '/js/blocks.js',
+  '/js/calendario.js',
+  '/js/features/calendario/dados.js',
   '/js/features/calendario/mes-agenda.js',
   '/js/features/calendario/paisagem.js',
   '/js/features/calendario/timeline.js',
   '/js/features/calendario/interacoes.js',
+  '/js/eventos.js',
+  '/js/hospedes.js',
+  '/js/features/hospedes/paises.js',
+  '/js/features/hospedes/lista.js',
+  '/js/features/hospedes/detalhe.js',
+  '/js/features/hospedes/exportacao.js',
+  '/js/alojamentos.js',
+  '/js/features/alojamentos/galeria.js',
+  '/js/features/alojamentos/servicos-heranca.js',
+  '/js/features/alojamentos/exportacao.js',
+  '/js/features/alojamentos/configuracao.js',
+  '/js/despesas.js',
+  '/js/relatorios.js',
+  '/js/vouchers.js',
+  '/js/precos.js',
+  '/js/invoice.js',
   '/js/features/invoice/historico.js',
   '/js/features/invoice/arquivo.js',
   '/js/features/invoice/composicao.js',
   '/js/features/invoice/auxiliares.js',
-  '/js/vendor/xlsx-0.20.3.min.js',
-  '/favicon.png',
+  '/js/emails.js',
+  '/js/features/emails/codes.js',
+  '/js/features/emails/editor.js',
+  '/js/features/emails/preview.js',
+  '/js/fornecedores.js',
+  '/js/team.js',
+  '/js/push.js',
+];
+
+/* Marcação por vista (frontend/views/*.html), pedida por ensureViewMarkup()
+   na primeira abertura — mesma estratégia network-first dos módulos acima,
+   nunca pré-cacheada no arranque. */
+const VIEW_ASSETS = [
+  '/views/reservas.html',
+  '/views/calendario.html',
+  '/views/eventos.html',
+  '/views/alojamentos.html',
+  '/views/alojamento-detalhe.html',
+  '/views/hospedes.html',
+  '/views/hospede-detalhe.html',
+  '/views/invoice.html',
+  '/views/despesas.html',
+  '/views/relatorios.html',
+  '/views/vouchers.html',
+  '/views/precos.html',
+  '/views/definicoes.html',
 ];
 
 /* ─── Install: pré-cachear assets estáticos ─── */
@@ -118,7 +180,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((key) => key !== CACHE_NAME)
+          .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
           .map((key) => caches.delete(key))
       )
     ).then(() => self.clients.claim())
@@ -136,7 +198,7 @@ self.addEventListener('fetch', (event) => {
 
   // Dados autenticados, documentos e URLs com tokens nunca vão para a Cache API.
   if (url.origin === self.location.origin && !STATIC_ASSETS.includes(url.pathname) &&
-      !/^\/(?:js|css)\//.test(url.pathname)) {
+      !/^\/(?:js|css|views)\//.test(url.pathname)) {
     event.respondWith(fetch(request, { cache: 'no-store' }));
     return;
   }

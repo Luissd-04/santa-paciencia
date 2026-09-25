@@ -5,8 +5,9 @@ const requireRole = require('../middleware/requireRole');
 
 const uploadParser = express.json({ limit: '15mb' });
 
+// O catálogo necessário ao calendário está disponível à equipa; a gestão exige manager.
+router.get('/', ctrl.getAll);
 router.use(requireRole('manager'));
-router.get('/',                     ctrl.getAll);
 router.get('/settings',             ctrl.getSettings);
 router.post('/settings',            ctrl.saveSettings);
 router.get('/blocks',               ctrl.listBlocks);

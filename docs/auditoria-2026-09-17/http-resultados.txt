@@ -1,7 +1,0 @@
-✅ Base de dados inicializada
-OK: API de reservas exige autenticação (401).
-OK: staff não consegue exportar backups (403).
-CONFIRMADO F09: endereço usado por Mensagens devolve HTML, não dados de reservas (200).
-CONFIRMADO S09: talão acessível sem sessão por URL (200).
-CONFIRMADO S10: staff desliga Gmail da organização (200).
-OK S11 resolvido: alteração de password termina a segunda sessão (401).

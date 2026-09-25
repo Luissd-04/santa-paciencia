@@ -1,10 +1,38 @@
-let calMode = SS.get('calMode', 'calendar');
+// Estado privado; interface partilhada em AppModules.calendario.
+(() => {
+AppModules.define('calendario', {
+  CAL: { get: () => CAL },
+  calAccColor: { get: () => calAccColor },
+  calAgendaHideCheckedOut: { get: () => calAgendaHideCheckedOut, set: value => { calAgendaHideCheckedOut = value; } },
+  calLandSelectedDate: { get: () => calLandSelectedDate, set: value => { calLandSelectedDate = value; } },
+  calMode: { get: () => calMode, set: value => { calMode = value; } },
+  calReservationSuiteInfo: { get: () => calReservationSuiteInfo },
+  calReservationSuites: { get: () => calReservationSuites },
+  getCalendarFilters: { get: () => getCalendarFilters },
+  getTimelineDayWidth: { get: () => getTimelineDayWidth },
+  MONTHS_PT: { get: () => MONTHS_PT },
+  renderCalView: { get: () => renderCalView },
+  reservationMatchesCalendarFilters: { get: () => reservationMatchesCalendarFilters },
+  scrollTimelineToToday: { get: () => scrollTimelineToToday },
+  setCalCount: { get: () => setCalCount },
+  setCalMode: { get: () => setCalMode },
+  setTimelineRange: { get: () => setTimelineRange },
+  shortDatePt: { get: () => shortDatePt },
+  timelineDays: { get: () => timelineDays, set: value => { timelineDays = value; } },
+  tlPanDrag: { get: () => tlPanDrag, set: value => { tlPanDrag = value; } },
+  tlPointerDrag: { get: () => tlPointerDrag, set: value => { tlPointerDrag = value; } },
+  toggleCalendarioFiltersSheet: { get: () => toggleCalendarioFiltersSheet },
+  toggleCalendarLegendFilter: { get: () => toggleCalendarLegendFilter },
+  updateCalendarLegendUi: { get: () => updateCalendarLegendUi },
+});
+
+let calMode = AppModules.core.SS.get('calMode', 'calendar');
 // Agenda vertical (telemóvel em pé): por padrão só mostra reservas cujo
 // check-out ainda não foi marcado — evita lista cheia de estadias já saídas.
-let calAgendaHideCheckedOut = SS.get('calAgendaHideCheckedOut', true);
+let calAgendaHideCheckedOut = AppModules.core.SS.get('calAgendaHideCheckedOut', true);
 let tlPointerDrag = null;
 let tlPanDrag = null;
-let timelineDays  = SS.get('tlDays', 14);
+let timelineDays  = AppModules.core.SS.get('tlDays', 14);
 
 // Constantes de layout do Calendário/Timeline — antes espalhadas como magic
 // numbers por renderCal / renderCalLandscape / renderTimeline.
@@ -16,6 +44,8 @@ const CAL = {
   laneGap: 2,                          // folga entre lanes — grelha mensal desktop
   laneGapLandscape: 3,                 // folga entre lanes — grelha landscape
   maxSuiteRows: 3,                     // linhas visíveis numa barra multi-suíte
+  maxDesktopLaneRows: 5,               // altura máxima da semana antes de mostrar "+ N"
+  maxLandscapeLanes: 4,                // evita semanas gigantes em telemóvel deitado
   tlBlockMinW: 18,                     // largura mínima de um bloco na timeline
   tlBlockInset: 4,                     // recorte à direita de um bloco na timeline
   weekdayNameMinDayW: 40,              // px/dia abaixo dos quais se esconde o nome do dia
@@ -24,7 +54,7 @@ const CAL = {
 };
 
 // Cor de um alojamento (com fallback único) — usado pelas 3 grelhas.
-const calAccColor = id => (accommodations.find(a => a.id === id)?.color) || CAL.fallbackColor;
+const calAccColor = id => (AppModules.core.accommodations.find(a => a.id === id)?.color) || CAL.fallbackColor;
 
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 let calLandSelectedDate = null;
@@ -69,9 +99,9 @@ function calReservationSuites(r) {
       : (r.accommodations_data || []);
   } catch { accs = []; }
   if (Array.isArray(accs) && accs.length > 1) {
-    return accs.map(a => a.name || accommodations.find(x => x.id === a.accommodation_id)?.name || '—');
+    return accs.map(a => a.name || AppModules.core.accommodations.find(x => x.id === a.accommodation_id)?.name || '—');
   }
-  return [r.accommodation_name || accommodations.find(a => a.id === r.accommodation_id)?.name || '—'];
+  return [r.accommodation_name || AppModules.core.accommodations.find(a => a.id === r.accommodation_id)?.name || '—'];
 }
 
 // Como calReservationSuites, mas devolve também a cor de cada alojamento
@@ -85,11 +115,11 @@ function calReservationSuiteInfo(r) {
   } catch { accs = []; }
   if (Array.isArray(accs) && accs.length > 1) {
     return accs.map(a => {
-      const found = accommodations.find(x => x.id === a.accommodation_id);
+      const found = AppModules.core.accommodations.find(x => x.id === a.accommodation_id);
       return { name: a.name || found?.name || '—', color: found?.color || CAL.fallbackColor };
     });
   }
-  const acc = accommodations.find(a => a.id === r.accommodation_id);
+  const acc = AppModules.core.accommodations.find(a => a.id === r.accommodation_id);
   return [{ name: r.accommodation_name || acc?.name || '—', color: acc?.color || CAL.fallbackColor }];
 }
 
@@ -120,19 +150,19 @@ function toggleCalendarLegendFilter(status) {
   renderCalView();
 }
 
-function setTimelineRange(days) {
+async function setTimelineRange(days) {
   const wrap = document.getElementById('timeline-wrap');
   const oldDayW = getTimelineDayWidth();
   const centerOffset = wrap ? wrap.scrollLeft + (wrap.clientWidth - CAL.tlLabelW) / 2 - CAL.tlLabelW : 0;
   const centerDayIdx = oldDayW > 0 ? centerOffset / oldDayW : 0;
 
   timelineDays = Number(days);
-  SS.set('tlDays', timelineDays);
+  AppModules.core.SS.set('tlDays', timelineDays);
   updateTimelineRangeUi();
 
   if (calMode === 'timeline') {
     const newDayW = getTimelineDayWidth();
-    renderTimeline(false);
+    await AppModules.calendario.renderTimeline(false);
     requestAnimationFrame(() => {
       if (wrap) wrap.scrollLeft = CAL.tlLabelW + centerDayIdx * newDayW - (wrap.clientWidth - CAL.tlLabelW) / 2;
     });
@@ -178,8 +208,8 @@ function renderCalView() {
 
   document.querySelector('.section-card-calendar')?.classList.toggle('is-timeline-mode', toTimeline);
   updateCalendarModeUi();
-  if (toTimeline) { updateTimelineRangeUi(); updateTimelineLabel(); renderTimeline(); }
-  else renderCal();
+  if (toTimeline) { updateTimelineRangeUi(); AppModules.calendario.updateTimelineLabel(); AppModules.calendario.renderTimeline(); }
+  else AppModules.calendario.renderCal();
   requestAnimationFrame(movePill);
 }
 
@@ -197,7 +227,7 @@ function movePill() {
 
 function setCalMode(m) {
   calMode = m;
-  SS.set('calMode', m);
+  AppModules.core.SS.set('calMode', m);
   updateCalendarModeUi();
   movePill();
   document.querySelector('.section-card-calendar')?.classList.toggle('is-timeline-mode', m === 'timeline');
@@ -233,12 +263,21 @@ function setCalMode(m) {
       rangeToggle.classList.add('tl-range-enter');
       setTimeout(() => rangeToggle.classList.remove('tl-range-enter'), 280);
       updateTimelineRangeUi();
-      updateTimelineLabel();
-      renderTimeline();
+      AppModules.calendario.updateTimelineLabel();
+      AppModules.calendario.renderTimeline();
     } else {
-      renderCal();
+      AppModules.calendario.renderCal();
     }
   }, 190);
 }
 
 // ── CALENDAR ──
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('calendario.js', () => {
+  tlPointerDrag = null;
+  tlPanDrag = null;
+  calLandSelectedDate = null;
+});
+
+})();

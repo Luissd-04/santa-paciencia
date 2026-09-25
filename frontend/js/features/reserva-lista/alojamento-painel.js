@@ -1,3 +1,10 @@
+// Estado privado; interface partilhada em AppModules.reservas.
+(() => {
+AppModules.define('reservas', {
+  openAccommodationPanelFromBtn: { get: () => openAccommodationPanelFromBtn },
+  startInlinePriceEdit: { get: () => startInlinePriceEdit },
+});
+
 /* ─── Accommodation panel ─── */
 
 function openAccommodationPanelFromBtn(btn) {
@@ -16,26 +23,26 @@ async function openAccommodationPanel(resId, currentAccId, checkIn, checkOut, nu
   panel.className = 'rdv2-acc-panel';
   panel.innerHTML = `
     <div class="rdv2-acc-panel-head">
-      <span>${lcIcon('home', 13)} Editar Alojamento</span>
-      <button class="rdv2-icon-btn" onclick="this.closest('.rdv2-acc-panel').remove()">${lcIcon('x', 13)}</button>
+      <span>${AppModules.core.lcIcon('home', 13)} Editar Alojamento</span>
+      <button class="rdv2-icon-btn" data-on-click="alojamento-painel-closest-b3e650f">${AppModules.core.lcIcon('x', 13)}</button>
     </div>
     <div class="rdv2-acc-panel-body" id="rdv2-acc-panel-body">
       <div class="rdv2-acc-loading">A calcular preços…</div>
     </div>
     <div class="rdv2-acc-discount" id="rdv2-acc-discount" style="display:none;">
-      <div class="rdv2-acc-discount-head">${lcIcon('tag', 11)} Desconto</div>
+      <div class="rdv2-acc-discount-head">${AppModules.core.lcIcon('tag', 11)} Desconto</div>
       <div class="rdv2-acc-discount-row">
         <div class="rdv2-disc-toggle">
-          <button type="button" class="rdv2-disc-type active" data-type="pct" onclick="setAccDiscountType('pct')">%</button>
-          <button type="button" class="rdv2-disc-type" data-type="eur" onclick="setAccDiscountType('eur')">€</button>
+          <button type="button" class="rdv2-disc-type active" data-type="pct" data-on-click="alojamento-painel-set-acc-discount-type-e80bd7e">%</button>
+          <button type="button" class="rdv2-disc-type" data-type="eur" data-on-click="alojamento-painel-set-acc-discount-type-71fc4ca">€</button>
         </div>
-        <input type="number" class="rdv2-disc-input" id="rdv2-disc-val" min="0" step="0.01" placeholder="0" oninput="updateAccPanelTotal()" autocomplete="off">
+        <input type="number" class="rdv2-disc-input" id="rdv2-disc-val" min="0" step="0.01" placeholder="0" data-on-input="alojamento-painel-update-acc-panel-total-6ba3e79" autocomplete="off">
         <div class="rdv2-acc-final-price">Total: <strong id="rdv2-acc-final-total">—</strong></div>
       </div>
     </div>
     <div class="rdv2-acc-panel-foot">
-      <button class="btn btn-ghost btn-sm" onclick="this.closest('.rdv2-acc-panel').remove()">Cancelar</button>
-      <button class="btn btn-primary btn-sm" id="rdv2-acc-save-btn" onclick="saveAccommodationChange('${resId}')">Guardar</button>
+      <button class="btn btn-ghost btn-sm" data-on-click="alojamento-painel-closest-b3e650f">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="rdv2-acc-save-btn" ${AppActions.attrs("click", "alojamento-painel-save-accommodation-change-f2702ab", [String((resId) ?? '')])}>Guardar</button>
     </div>
   `;
   mainCard.appendChild(panel);
@@ -49,17 +56,17 @@ async function openAccommodationPanel(resId, currentAccId, checkIn, checkOut, nu
   panel._initAccsData = Array.isArray(initAccsData) ? initAccsData : (typeof initAccsData === 'string' ? JSON.parse(initAccsData || '[]') : []);
 
   try {
-    const availData = await apiGet(`/api/reservations/availability?check_in=${checkIn}&check_out=${checkOut}&exclude_id=${encodeURIComponent(resId)}`);
+    const availData = await AppModules.core.apiGet(`/api/reservations/availability?check_in=${checkIn}&check_out=${checkOut}&exclude_id=${encodeURIComponent(resId)}`);
     const unavailable = new Set(availData.data?.unavailable || []);
     const numG = Number(numGuests) || 1;
     const bkf = breakfast === true || breakfast === 'true' || breakfast === 1;
 
-    const rows = await Promise.all(accommodations.map(async (a) => {
-      const periods = typeof loadWizPricingPeriods === 'function' ? await loadWizPricingPeriods(a.id) : [];
+    const rows = await Promise.all(AppModules.core.accommodations.map(async (a) => {
+      const periods = typeof AppModules.reservas.loadWizPricingPeriods === 'function' ? await AppModules.reservas.loadWizPricingPeriods(a.id) : [];
       let calc = null;
       try {
         if (window.ReservationPricing?.calculateReservationTotal) {
-          calc = window.ReservationPricing.calculateReservationTotal(a, servicosData, {
+          calc = window.ReservationPricing.calculateReservationTotal(a, AppModules.core.servicosData, {
             check_in: checkIn, check_out: checkOut,
             num_guests: numG, breakfast_included: bkf,
             birth_dates: [], pricing_periods: periods,
@@ -90,14 +97,14 @@ async function openAccommodationPanel(resId, currentAccId, checkIn, checkOut, nu
       return `
         <div class="rdv2-acc-option${unavail && !isChecked ? ' rdv2-acc-unavail' : ''}${isChecked ? ' rdv2-acc-selected' : ''}" data-id="${acc.id}">
           <label class="rdv2-acc-check-wrap">
-            <input type="checkbox" class="rdv2-acc-cb" value="${acc.id}" ${isChecked ? 'checked' : ''} ${unavail && !isChecked ? 'disabled' : ''} onchange="onAccCheckChange(this)">
+            <input type="checkbox" class="rdv2-acc-cb" value="${acc.id}" ${isChecked ? 'checked' : ''} ${unavail && !isChecked ? 'disabled' : ''} data-on-change="alojamento-painel-on-acc-check-change-bc41201">
           </label>
           <div class="rdv2-acc-opt-info">
             <div class="rdv2-acc-opt-name">${acc.name}${isCurrent ? ' <span class="rdv2-badge-current">atual</span>' : ''}${unavail ? ' <span class="rdv2-badge-unavail">ocupado</span>' : ''}</div>
             <div class="rdv2-acc-opt-meta">${acc.max_guests ? `max ${acc.max_guests} hósp. · ` : ''}Base: €${Number(acc.price_per_night||0).toFixed(0)}/noite</div>
           </div>
           <div class="rdv2-acc-price-edit">
-            <input type="number" class="rdv2-acc-priceinput" data-accid="${acc.id}" min="0" step="0.01" value="${customPrice.toFixed(2)}" oninput="updateAccPanelTotal()" autocomplete="off">
+            <input type="number" class="rdv2-acc-priceinput" data-accid="${acc.id}" min="0" step="0.01" value="${customPrice.toFixed(2)}" data-on-input="alojamento-painel-update-acc-panel-total-6ba3e79" autocomplete="off">
             <span class="rdv2-acc-priceinput-label">€/noite</span>
           </div>
         </div>`;
@@ -165,7 +172,7 @@ async function saveAccommodationChange(resId) {
   const checkedItems = [];
   panel.querySelectorAll('.rdv2-acc-cb:checked').forEach(cb => {
     const accId = cb.value;
-    const acc = accommodations.find(a => a.id === accId);
+    const acc = AppModules.core.accommodations.find(a => a.id === accId);
     const priceInput = panel.querySelector(`.rdv2-acc-priceinput[data-accid="${accId}"]`);
     const pricePerNight = parseFloat(priceInput?.value) || Number(acc?.price_per_night || 0);
     checkedItems.push({
@@ -177,7 +184,7 @@ async function saveAccommodationChange(resId) {
     });
   });
 
-  if (checkedItems.length === 0) { toast('⚠️ Seleciona pelo menos um alojamento', 'error'); return; }
+  if (checkedItems.length === 0) { AppModules.core.toast('⚠️ Seleciona pelo menos um alojamento', 'error'); return; }
 
   const finalTotal = panel._finalTotal !== undefined ? panel._finalTotal : panel._baseTotal;
   const primaryAccId = checkedItems[0].accommodation_id;
@@ -185,22 +192,22 @@ async function saveAccommodationChange(resId) {
   const saveBtn = document.getElementById('rdv2-acc-save-btn');
   if (saveBtn) saveBtn.disabled = true;
   try {
-    const res = await apiPut(`/api/reservations/${resId}`, {
+    const res = await AppModules.core.apiPut(`/api/reservations/${resId}`, {
       accommodation_id: primaryAccId,
       accommodations_data: checkedItems,
       total_amount: finalTotal,
     });
     if (res.success) {
-      toast('✅ Alojamento atualizado', 'success');
+      AppModules.core.toast('✅ Alojamento atualizado', 'success');
       panel.remove();
-      await loadReservas();
-      showDetail(resId);
+      await AppModules.reservas.loadReservas();
+      AppModules.reservas.showDetail(resId);
     } else {
-      toast('❌ ' + (res.error || 'Erro ao guardar'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao guardar'), 'error');
       if (saveBtn) saveBtn.disabled = false;
     }
   } catch {
-    toast('❌ Erro de ligação', 'error');
+    AppModules.core.toast('❌ Erro de ligação', 'error');
     if (saveBtn) saveBtn.disabled = false;
   }
 }
@@ -235,13 +242,13 @@ function startInlinePriceEdit(id, currentTotal) {
     const span = restore(newVal);
     // Confirmar alteração de valores contra o padrão do calendário dinâmico
     if (Math.abs(newVal - Number(currentTotal)) > 0.005
-        && typeof confirmPriceChange === 'function'
-        && _rdv2Current?.standard_total != null) {
-      const ok = await confirmPriceChange({
-        standardTotal: _rdv2Current.standard_total,
+        && typeof AppModules.core.confirmPriceChange === 'function'
+        && AppModules.reservas._rdv2Current?.standard_total != null) {
+      const ok = await AppModules.core.confirmPriceChange({
+        standardTotal: AppModules.reservas._rdv2Current.standard_total,
         newTotal: newVal,
-        editedAt: _rdv2Current.price_edited_at,
-        editedByName: _rdv2Current.price_edited_by_name,
+        editedAt: AppModules.reservas._rdv2Current.price_edited_at,
+        editedByName: AppModules.reservas._rdv2Current.price_edited_by_name,
       });
       if (!ok) {
         span.textContent = `€${Number(currentTotal).toFixed(2)}`;
@@ -250,18 +257,18 @@ function startInlinePriceEdit(id, currentTotal) {
       }
     }
     try {
-      const res = await apiPut(`/api/reservations/${id}`, { total_amount: newVal });
+      const res = await AppModules.core.apiPut(`/api/reservations/${id}`, { total_amount: newVal });
       if (res.success) {
         if (totalRowEl) totalRowEl.textContent = `€${newVal.toFixed(2)}`;
-        toast('✅ Preço atualizado', 'success');
-        await loadReservas();
+        AppModules.core.toast('✅ Preço atualizado', 'success');
+        await AppModules.reservas.loadReservas();
       } else {
         span.textContent = `€${Number(currentTotal).toFixed(2)}`;
-        toast('❌ ' + (res.error || 'Erro ao atualizar'), 'error');
+        AppModules.core.toast('❌ ' + (res.error || 'Erro ao atualizar'), 'error');
       }
     } catch (e) {
       span.textContent = `€${Number(currentTotal).toFixed(2)}`;
-      toast('❌ Erro de ligação', 'error');
+      AppModules.core.toast('❌ Erro de ligação', 'error');
     }
   };
 
@@ -275,3 +282,20 @@ function startInlinePriceEdit(id, currentTotal) {
   input.select();
 }
 
+
+AppActions.register({
+  "alojamento-painel-on-acc-check-change-bc41201": (el, event, args) => { onAccCheckChange(el) },
+}, "change");
+
+AppActions.register({
+  "alojamento-painel-update-acc-panel-total-6ba3e79": (el, event, args) => { updateAccPanelTotal() },
+}, "input");
+
+AppActions.register({
+  "alojamento-painel-closest-b3e650f": (el, event, args) => { el.closest('.rdv2-acc-panel').remove() },
+  "alojamento-painel-set-acc-discount-type-e80bd7e": (el, event, args) => { setAccDiscountType('pct') },
+  "alojamento-painel-set-acc-discount-type-71fc4ca": (el, event, args) => { setAccDiscountType('eur') },
+  "alojamento-painel-save-accommodation-change-f2702ab": (el, event, args) => { saveAccommodationChange(args[0]) },
+}, "click");
+
+})();

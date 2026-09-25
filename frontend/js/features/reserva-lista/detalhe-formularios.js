@@ -1,11 +1,21 @@
+// Estado privado; interface partilhada em AppModules.reservas.
+(() => {
+AppModules.define('reservas', {
+  deletePaymentEntry: { get: () => deletePaymentEntry },
+  invoiceMethodLabel: { get: () => invoiceMethodLabel },
+  openAddGuestForm: { get: () => openAddGuestForm },
+  openInvoiceFormFromBtn: { get: () => openInvoiceFormFromBtn },
+  openPaymentForm: { get: () => openPaymentForm },
+});
+
 function openPaymentForm(reservationId, currentPaid, total) {
   const remaining = Math.max(0, total - currentPaid).toFixed(2);
   const html = `
-    <div id="rdv2-pay-form" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.remove()">
+    <div id="rdv2-pay-form" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;display:flex;align-items:center;justify-content:center;" data-on-click="detalhe-formularios-if-ba44ff2">
       <div style="background:var(--surface-card);border-radius:16px;padding:24px;width:min(360px,92vw);box-shadow:0 8px 40px rgba(0,0,0,.22);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
           <span style="font-size:15px;font-weight:700;color:var(--text-main);">Registar Pagamento</span>
-          <button onclick="document.getElementById('rdv2-pay-form').remove()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;">×</button>
+          <button data-on-click="detalhe-formularios-get-element-by-id-15c078a" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;">×</button>
         </div>
         <div style="display:flex;flex-direction:column;gap:12px;">
           <div>
@@ -27,8 +37,8 @@ function openPaymentForm(reservationId, currentPaid, total) {
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
-          <button onclick="document.getElementById('rdv2-pay-form').remove()" style="padding:8px 16px;border:1px solid var(--border-soft);border-radius:8px;background:none;color:var(--text-muted);cursor:pointer;font-size:13px;">Cancelar</button>
-          <button id="pf-save-btn" onclick="savePaymentForm('${reservationId}')" style="padding:8px 18px;border:none;border-radius:8px;background:var(--brand-shell);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>
+          <button data-on-click="detalhe-formularios-get-element-by-id-15c078a" style="padding:8px 16px;border:1px solid var(--border-soft);border-radius:8px;background:none;color:var(--text-muted);cursor:pointer;font-size:13px;">Cancelar</button>
+          <button id="pf-save-btn" ${AppActions.attrs("click", "detalhe-formularios-save-payment-form-7b64f33", [String((reservationId) ?? '')])} style="padding:8px 18px;border:none;border-radius:8px;background:var(--brand-shell);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>
         </div>
       </div>
     </div>`;
@@ -40,35 +50,35 @@ async function savePaymentForm(reservationId) {
   const amount = parseFloat(document.getElementById('pf-amount')?.value);
   const method = document.getElementById('pf-method')?.value;
   const date = document.getElementById('pf-date')?.value;
-  if (isNaN(amount) || amount <= 0) { toast('⚠️ Valor inválido', 'error'); return; }
+  if (isNaN(amount) || amount <= 0) { AppModules.core.toast('⚠️ Valor inválido', 'error'); return; }
   const btn = document.getElementById('pf-save-btn');
   if (btn) btn.disabled = true;
   try {
-    const res = await apiPost(`/api/reservations/${reservationId}/payments`, {
+    const res = await AppModules.core.apiPost(`/api/reservations/${reservationId}/payments`, {
       amount, method, payment_date: date || null,
     });
     if (res.success) {
       document.getElementById('rdv2-pay-form')?.remove();
-      toast('✅ Pagamento registado', 'success');
-      await loadReservas();
-      showDetail(reservationId);
+      AppModules.core.toast('✅ Pagamento registado', 'success');
+      await AppModules.reservas.loadReservas();
+      AppModules.reservas.showDetail(reservationId);
     } else {
-      toast('❌ ' + (res.error || 'Erro'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro'), 'error');
       if (btn) btn.disabled = false;
     }
   } catch (e) {
-    toast('❌ Erro de ligação', 'error');
+    AppModules.core.toast('❌ Erro de ligação', 'error');
     if (btn) btn.disabled = false;
   }
 }
 
 function openAddGuestForm(reservationId) {
   const html = `
-    <div id="rdv2-addguest-form" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.remove()">
+    <div id="rdv2-addguest-form" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;display:flex;align-items:center;justify-content:center;" data-on-click="detalhe-formularios-if-ba44ff2">
       <div style="background:var(--surface-card);border-radius:16px;padding:24px;width:min(360px,92vw);box-shadow:0 8px 40px rgba(0,0,0,.22);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
           <span style="font-size:15px;font-weight:700;color:var(--text-main);">Adicionar Hóspede</span>
-          <button onclick="document.getElementById('rdv2-addguest-form').remove()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;">×</button>
+          <button data-on-click="detalhe-formularios-get-element-by-id-58a19ae" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;">×</button>
         </div>
         <div style="display:flex;flex-direction:column;gap:12px;">
           <div>
@@ -85,8 +95,8 @@ function openAddGuestForm(reservationId) {
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
-          <button onclick="document.getElementById('rdv2-addguest-form').remove()" style="padding:8px 16px;border:1px solid var(--border-soft);border-radius:8px;background:none;color:var(--text-muted);cursor:pointer;font-size:13px;">Cancelar</button>
-          <button id="ag-save-btn" onclick="saveAddGuestForm('${reservationId}')" style="padding:8px 18px;border:none;border-radius:8px;background:var(--brand-shell);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>
+          <button data-on-click="detalhe-formularios-get-element-by-id-58a19ae" style="padding:8px 16px;border:1px solid var(--border-soft);border-radius:8px;background:none;color:var(--text-muted);cursor:pointer;font-size:13px;">Cancelar</button>
+          <button id="ag-save-btn" ${AppActions.attrs("click", "detalhe-formularios-save-add-guest-form-daaa6ec", [String((reservationId) ?? '')])} style="padding:8px 18px;border:none;border-radius:8px;background:var(--brand-shell);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>
         </div>
       </div>
     </div>`;
@@ -98,31 +108,31 @@ async function saveAddGuestForm(reservationId) {
   const name = document.getElementById('ag-name')?.value.trim();
   const email = document.getElementById('ag-email')?.value.trim();
   const phone = document.getElementById('ag-phone')?.value.trim();
-  if (!name) { toast('⚠️ Indique o nome do hóspede', 'error'); return; }
+  if (!name) { AppModules.core.toast('⚠️ Indique o nome do hóspede', 'error'); return; }
   const btn = document.getElementById('ag-save-btn');
   if (btn) btn.disabled = true;
   try {
-    const current = await apiGet(`/api/reservations/${reservationId}`);
-    if (!current.success) { toast('❌ Erro ao carregar reserva', 'error'); if (btn) btn.disabled = false; return; }
+    const current = await AppModules.core.apiGet(`/api/reservations/${reservationId}`);
+    if (!current.success) { AppModules.core.toast('❌ Erro ao carregar reserva', 'error'); if (btn) btn.disabled = false; return; }
     const r = current.data;
     const guestsData = typeof r.guests_data === 'string' ? JSON.parse(r.guests_data || '[]') : (r.guests_data || []);
     guestsData.push({ name, email: email || undefined, phone: phone || undefined });
-    const res = await apiPut(`/api/reservations/${reservationId}`, {
+    const res = await AppModules.core.apiPut(`/api/reservations/${reservationId}`, {
       guests_data: guestsData,
       num_guests: (r.num_guests || 1) + 1,
       num_adults: (r.num_adults || 1) + 1,
     });
     if (res.success) {
       document.getElementById('rdv2-addguest-form')?.remove();
-      toast('✅ Hóspede adicionado', 'success');
-      await loadReservas();
-      showDetail(reservationId);
+      AppModules.core.toast('✅ Hóspede adicionado', 'success');
+      await AppModules.reservas.loadReservas();
+      AppModules.reservas.showDetail(reservationId);
     } else {
-      toast('❌ ' + (res.error || 'Erro'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro'), 'error');
       if (btn) btn.disabled = false;
     }
   } catch (e) {
-    toast('❌ Erro de ligação', 'error');
+    AppModules.core.toast('❌ Erro de ligação', 'error');
     if (btn) btn.disabled = false;
   }
 }
@@ -143,16 +153,16 @@ function openInvoiceForm(reservationId, inv = {}) {
   const methods = [['whatsapp', 'WhatsApp'], ['email', 'Email'], ['winmax', 'Winmax'], ['outro', 'Outro']];
   const opts = methods.map(([v, l]) => `<option value="${v}"${inv.m === v ? ' selected' : ''}>${l}</option>`).join('');
   const html = `
-    <div id="rdv2-inv-form" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.remove()">
+    <div id="rdv2-inv-form" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;display:flex;align-items:center;justify-content:center;" data-on-click="detalhe-formularios-if-ba44ff2">
       <div style="background:var(--surface-card);border-radius:16px;padding:24px;width:min(380px,92vw);box-shadow:0 8px 40px rgba(0,0,0,.22);">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
           <span style="font-size:15px;font-weight:700;color:var(--text-main);">Registar Fatura</span>
-          <button onclick="document.getElementById('rdv2-inv-form').remove()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;">×</button>
+          <button data-on-click="detalhe-formularios-get-element-by-id-588783e" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;">×</button>
         </div>
         <div style="display:flex;flex-direction:column;gap:12px;">
           <div>
             <label style="${lbl}">Nº Fatura</label>
-            <input id="if-number" type="text" value="${escapeHtml(inv.n || '')}" placeholder="Ex.: FT 2026/123" style="${inp}" autocomplete="off">
+            <input id="if-number" type="text" value="${AppModules.core.escapeHtml(inv.n || '')}" placeholder="Ex.: FT 2026/123" style="${inp}" autocomplete="off">
           </div>
           <div style="display:flex;gap:10px;">
             <div style="flex:1;">
@@ -170,8 +180,8 @@ function openInvoiceForm(reservationId, inv = {}) {
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
-          <button onclick="document.getElementById('rdv2-inv-form').remove()" style="padding:8px 16px;border:1px solid var(--border-soft);border-radius:8px;background:none;color:var(--text-muted);cursor:pointer;font-size:13px;">Cancelar</button>
-          <button id="if-save-btn" onclick="saveInvoiceForm('${reservationId}')" style="padding:8px 18px;border:none;border-radius:8px;background:var(--brand-shell);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>
+          <button data-on-click="detalhe-formularios-get-element-by-id-588783e" style="padding:8px 16px;border:1px solid var(--border-soft);border-radius:8px;background:none;color:var(--text-muted);cursor:pointer;font-size:13px;">Cancelar</button>
+          <button id="if-save-btn" ${AppActions.attrs("click", "detalhe-formularios-save-invoice-form-a8900b2", [String((reservationId) ?? '')])} style="padding:8px 18px;border:none;border-radius:8px;background:var(--brand-shell);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>
         </div>
       </div>
     </div>`;
@@ -187,20 +197,20 @@ async function saveInvoiceForm(reservationId) {
   const btn = document.getElementById('if-save-btn');
   if (btn) btn.disabled = true;
   try {
-    const res = await apiPut(`/api/reservations/${reservationId}/invoice`, {
+    const res = await AppModules.core.apiPut(`/api/reservations/${reservationId}/invoice`, {
       invoice_number, invoice_date, invoice_sent_date, invoice_sent_method,
     });
     if (res.success) {
       document.getElementById('rdv2-inv-form')?.remove();
-      toast('✅ Fatura registada', 'success');
-      await loadReservas();
-      showDetail(reservationId);
+      AppModules.core.toast('✅ Fatura registada', 'success');
+      await AppModules.reservas.loadReservas();
+      AppModules.reservas.showDetail(reservationId);
     } else {
-      toast('❌ ' + (res.error || 'Erro'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro'), 'error');
       if (btn) btn.disabled = false;
     }
   } catch (e) {
-    toast('❌ Erro de ligação', 'error');
+    AppModules.core.toast('❌ Erro de ligação', 'error');
     if (btn) btn.disabled = false;
   }
 }
@@ -208,16 +218,28 @@ async function saveInvoiceForm(reservationId) {
 async function deletePaymentEntry(reservationId, paymentId) {
   if (!confirm('Remover este pagamento?')) return;
   try {
-    const res = await apiDelete(`/api/reservations/${reservationId}/payments/${paymentId}`);
+    const res = await AppModules.core.apiDelete(`/api/reservations/${reservationId}/payments/${paymentId}`);
     if (res.success) {
-      toast('✅ Pagamento removido', 'success');
-      await loadReservas();
-      showDetail(reservationId);
+      AppModules.core.toast('✅ Pagamento removido', 'success');
+      await AppModules.reservas.loadReservas();
+      AppModules.reservas.showDetail(reservationId);
     } else {
-      toast('❌ ' + (res.error || 'Erro'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro'), 'error');
     }
   } catch {
-    toast('❌ Erro de ligação', 'error');
+    AppModules.core.toast('❌ Erro de ligação', 'error');
   }
 }
 
+
+AppActions.register({
+  "detalhe-formularios-if-ba44ff2": (el, event, args) => { if(event.target===el)el.remove() },
+  "detalhe-formularios-get-element-by-id-588783e": (el, event, args) => { document.getElementById('rdv2-inv-form').remove() },
+  "detalhe-formularios-save-invoice-form-a8900b2": (el, event, args) => { saveInvoiceForm(args[0]) },
+  "detalhe-formularios-get-element-by-id-58a19ae": (el, event, args) => { document.getElementById('rdv2-addguest-form').remove() },
+  "detalhe-formularios-save-add-guest-form-daaa6ec": (el, event, args) => { saveAddGuestForm(args[0]) },
+  "detalhe-formularios-get-element-by-id-15c078a": (el, event, args) => { document.getElementById('rdv2-pay-form').remove() },
+  "detalhe-formularios-save-payment-form-7b64f33": (el, event, args) => { savePaymentForm(args[0]) },
+}, "click");
+
+})();

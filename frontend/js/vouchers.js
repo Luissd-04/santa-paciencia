@@ -1,3 +1,13 @@
+// Estado privado; interface partilhada em AppModules.vouchers.
+(() => {
+AppModules.define('vouchers', {
+  closeVoucherModal: { get: () => closeVoucherModal },
+  loadVouchers: { get: () => loadVouchers },
+  openVoucherModal: { get: () => openVoucherModal },
+  saveVoucher: { get: () => saveVoucher },
+  updateVoucherValueLabel: { get: () => updateVoucherValueLabel },
+});
+
 let vouchersData = [];
 let voucherEditingId = null;
 
@@ -16,10 +26,10 @@ const VOUCHER_STATUS_LABELS = {
 
 async function loadVouchers() {
   try {
-    const payload = await apiGet('/api/vouchers');
+    const payload = await AppModules.core.apiGet('/api/vouchers');
     vouchersData = payload.data || [];
   } catch {
-    toast('❌ Erro ao carregar vouchers.', 'error');
+    AppModules.core.toast('❌ Erro ao carregar vouchers.', 'error');
     vouchersData = [];
   }
   renderVouchersList();
@@ -57,13 +67,7 @@ function renderVouchersList() {
   if (countLabel) countLabel.textContent = vouchersData.length === 1 ? 'voucher' : 'vouchers';
 
   if (vouchersData.length === 0) {
-    wrap.innerHTML = `
-      <div class="empty-state">
-        <div class="es-icon"><i data-lucide="ticket" style="width:40px;height:40px;opacity:.3;"></i></div>
-        <h3>Sem vouchers</h3>
-        <p>Cria o primeiro voucher para oferecer descontos ou créditos de estadia aos teus hóspedes.</p>
-        <button class="btn btn-primary btn-sm" onclick="openVoucherModal()"><i data-lucide="plus"></i> Criar voucher</button>
-      </div>`;
+    wrap.innerHTML = "\n      <div class=\"empty-state\">\n        <div class=\"es-icon\"><i data-lucide=\"ticket\" style=\"width:40px;height:40px;opacity:.3;\"></i></div>\n        <h3>Sem vouchers</h3>\n        <p>Cria o primeiro voucher para oferecer descontos ou créditos de estadia aos teus hóspedes.</p>\n        <button class=\"btn btn-primary btn-sm\" data-on-click=\"vouchers-open-voucher-modal-d7741bd\"><i data-lucide=\"plus\"></i> Criar voucher</button>\n      </div>";
     if (window.lucide) lucide.createIcons();
     return;
   }
@@ -80,12 +84,12 @@ function renderVouchersList() {
     return `<tr${expiringSoon ? ' style="background:rgba(230,126,34,.04);"' : ''}>
       <td>
         <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-family:monospace;font-weight:700;font-size:13px;letter-spacing:1px;background:var(--cinza-claro);padding:3px 8px;border-radius:6px;">${escapeHtml(v.code)}</span>
-          <button class="btn btn-ghost btn-xs" title="Copiar código" onclick="copyVoucherCode('${escapeHtml(v.code)}')">
+          <span style="font-family:monospace;font-weight:700;font-size:13px;letter-spacing:1px;background:var(--cinza-claro);padding:3px 8px;border-radius:6px;">${AppModules.core.escapeHtml(v.code)}</span>
+          <button class="btn btn-ghost btn-xs" title="Copiar código" ${AppActions.attrs("click", "vouchers-copy-voucher-code-37fe980", [String((v.code) ?? '')])}>
             <i data-lucide="copy" style="width:12px;height:12px;"></i>
           </button>
         </div>
-        ${v.description ? `<div style="font-size:11px;color:var(--cinza);margin-top:3px;">${escapeHtml(v.description)}</div>` : ''}
+        ${v.description ? `<div style="font-size:11px;color:var(--cinza);margin-top:3px;">${AppModules.core.escapeHtml(v.description)}</div>` : ''}
       </td>
       <td>
         <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:${typeInfo.color};">
@@ -95,11 +99,11 @@ function renderVouchersList() {
       <td style="font-weight:700;font-size:15px;">${formatVoucherValue(v)}</td>
       <td style="font-size:12px;color:var(--cinza);">${validRange}</td>
       <td><span class="badge ${statusInfo.class}">${statusInfo.label}</span>${expiryWarning}</td>
-      <td style="font-size:12px;">${v.used_in_reservation_id ? `<button class="btn btn-ghost btn-xs" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;" onclick="showDetail('${v.used_in_reservation_id}')"><i data-lucide="external-link" style="width:12px;height:12px;"></i> Ver reserva</button>` : '<span style="color:var(--cinza);">—</span>'}</td>
+      <td style="font-size:12px;">${v.used_in_reservation_id ? `<button class="btn btn-ghost btn-xs" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;" ${AppActions.attrs("click", "vouchers-show-detail-3d67b14", [String((v.used_in_reservation_id) ?? '')])}><i data-lucide="external-link" style="width:12px;height:12px;"></i> Ver reserva</button>` : '<span style="color:var(--cinza);">—</span>'}</td>
       <td>
         <div style="display:flex;gap:6px;">
-          ${status === 'active' ? `<button class="btn btn-ghost btn-xs" onclick="openVoucherModal('${v.id}')"><i data-lucide="pencil" style="width:13px;height:13px;"></i></button>` : ''}
-          <button class="btn btn-ghost btn-xs" onclick="deleteVoucher('${v.id}')"><i data-lucide="trash-2" style="width:13px;height:13px;"></i></button>
+          ${status === 'active' ? `<button class="btn btn-ghost btn-xs" ${AppActions.attrs("click", "vouchers-open-voucher-modal-36eda97", [String((v.id) ?? '')])}><i data-lucide="pencil" style="width:13px;height:13px;"></i></button>` : ''}
+          <button class="btn btn-ghost btn-xs" ${AppActions.attrs("click", "vouchers-delete-voucher-55d18ca", [String((v.id) ?? '')])}><i data-lucide="trash-2" style="width:13px;height:13px;"></i></button>
         </div>
       </td>
     </tr>`;
@@ -115,8 +119,8 @@ function renderVouchersList() {
       <div class="voucher-mobile-card"${expiringSoon ? ' style="border-color:#e67e22;"' : ''}>
         <div class="vmc-top">
           <div class="vmc-code-wrap">
-            <span class="vmc-code">${escapeHtml(v.code)}</span>
-            <button class="vmc-copy-btn" onclick="copyVoucherCode('${escapeHtml(v.code)}')" aria-label="Copiar código">
+            <span class="vmc-code">${AppModules.core.escapeHtml(v.code)}</span>
+            <button class="vmc-copy-btn" ${AppActions.attrs("click", "vouchers-copy-voucher-code-37fe980", [String((v.code) ?? '')])} aria-label="Copiar código">
               <i data-lucide="copy"></i>
             </button>
           </div>
@@ -131,12 +135,12 @@ function renderVouchersList() {
           </div>
           <div class="vmc-value">${formatVoucherValue(v)}</div>
         </div>
-        ${v.description ? `<div class="vmc-desc">${escapeHtml(v.description)}</div>` : ''}
+        ${v.description ? `<div class="vmc-desc">${AppModules.core.escapeHtml(v.description)}</div>` : ''}
         ${validRange ? `<div class="vmc-validity"><i data-lucide="calendar"></i> ${validRange}</div>` : ''}
-        ${v.used_in_reservation_id ? `<button class="vmc-res" style="background:none;border:0;padding:0;cursor:pointer;color:var(--marca);font:inherit;display:inline-flex;align-items:center;gap:4px;" onclick="showDetail('${v.used_in_reservation_id}')"><i data-lucide="external-link"></i> Ver reserva</button>` : ''}
+        ${v.used_in_reservation_id ? `<button class="vmc-res" style="background:none;border:0;padding:0;cursor:pointer;color:var(--marca);font:inherit;display:inline-flex;align-items:center;gap:4px;" ${AppActions.attrs("click", "vouchers-show-detail-3d67b14", [String((v.used_in_reservation_id) ?? '')])}><i data-lucide="external-link"></i> Ver reserva</button>` : ''}
         <div class="vmc-actions">
-          ${status === 'active' ? `<button class="vmc-btn" onclick="openVoucherModal('${v.id}')"><i data-lucide="pencil"></i> Editar</button>` : ''}
-          <button class="vmc-btn vmc-btn-danger" onclick="deleteVoucher('${v.id}')"><i data-lucide="trash-2"></i> Eliminar</button>
+          ${status === 'active' ? `<button class="vmc-btn" ${AppActions.attrs("click", "vouchers-open-voucher-modal-36eda97", [String((v.id) ?? '')])}><i data-lucide="pencil"></i> Editar</button>` : ''}
+          <button class="vmc-btn vmc-btn-danger" ${AppActions.attrs("click", "vouchers-delete-voucher-55d18ca", [String((v.id) ?? '')])}><i data-lucide="trash-2"></i> Eliminar</button>
         </div>
       </div>`;
   }).join('');
@@ -167,9 +171,9 @@ function renderVouchersList() {
 async function copyVoucherCode(code) {
   try {
     await navigator.clipboard.writeText(code);
-    toast('✅ Código copiado!', 'success');
+    AppModules.core.toast('✅ Código copiado!', 'success');
   } catch {
-    toast(code, 'info');
+    AppModules.core.toast(code, 'info');
   }
 }
 
@@ -191,8 +195,8 @@ function populateVoucherAccommodations() {
   const sel = document.getElementById('v-accommodation');
   if (!sel) return;
   const current = sel.value;
-  const opts = (accommodations || []).map(a =>
-    `<option value="${a.id}">${escapeHtml(a.name)}</option>`
+  const opts = (AppModules.core.accommodations || []).map(a =>
+    `<option value="${a.id}">${AppModules.core.escapeHtml(a.name)}</option>`
   ).join('');
   sel.innerHTML = `<option value="">Todos os alojamentos</option>${opts}`;
   sel.value = current;
@@ -229,7 +233,7 @@ async function saveVoucher() {
   const rawValue = document.getElementById('v-value').value;
   const value = type === 'credit_stay' ? parseInt(rawValue) : parseFloat(rawValue);
   if (!type || isNaN(value) || value <= 0) {
-    toast('⚠️ Tipo e valor são obrigatórios.', 'error');
+    AppModules.core.toast('⚠️ Tipo e valor são obrigatórios.', 'error');
     return;
   }
 
@@ -248,16 +252,16 @@ async function saveVoucher() {
   AppUI.setButtonLoading(btn, true, 'A guardar...');
   try {
     if (voucherEditingId) {
-      await apiPut(`/api/vouchers/${voucherEditingId}`, body);
-      toast('✅ Voucher atualizado.', 'success');
+      await AppModules.core.apiPut(`/api/vouchers/${voucherEditingId}`, body);
+      AppModules.core.toast('✅ Voucher atualizado.', 'success');
     } else {
-      await apiPost('/api/vouchers', body);
-      toast('✅ Voucher criado.', 'success');
+      await AppModules.core.apiPost('/api/vouchers', body);
+      AppModules.core.toast('✅ Voucher criado.', 'success');
     }
     closeVoucherModal();
     await loadVouchers();
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || 'Erro ao guardar voucher.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Erro ao guardar voucher.'), 'error');
   } finally {
     AppUI.setButtonLoading(btn, false);
   }
@@ -271,10 +275,29 @@ async function deleteVoucher(id) {
     : `Eliminar voucher "${v.code}"?`;
   if (!confirm(msg)) return;
   try {
-    await apiDelete(`/api/vouchers/${id}`);
-    toast('✅ Voucher eliminado.', 'success');
+    await AppModules.core.apiDelete(`/api/vouchers/${id}`);
+    AppModules.core.toast('✅ Voucher eliminado.', 'success');
     await loadVouchers();
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || 'Erro ao eliminar voucher.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Erro ao eliminar voucher.'), 'error');
   }
 }
+
+AppActions.register({
+  "vouchers-open-voucher-modal-d7741bd": (el, event, args) => { openVoucherModal() },
+}, "click");
+
+AppActions.register({
+  "vouchers-show-detail-3d67b14": (el, event, args) => { AppModules.reservas.showDetail(args[0]) },
+  "vouchers-open-voucher-modal-36eda97": (el, event, args) => { openVoucherModal(args[0]) },
+  "vouchers-copy-voucher-code-37fe980": (el, event, args) => { copyVoucherCode(args[0]) },
+  "vouchers-delete-voucher-55d18ca": (el, event, args) => { deleteVoucher(args[0]) },
+}, "click");
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('vouchers.js', () => {
+  vouchersData = [];
+  voucherEditingId = null;
+});
+
+})();

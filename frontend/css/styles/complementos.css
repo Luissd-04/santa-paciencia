@@ -44,6 +44,10 @@
   width: 220px;
   z-index: 2000;
   overflow-y: auto;
+  /* Sem isto, chegar ao fim da lista encadeava o scroll para o que está por
+     trás (documento/painel do editor) — esse scroll noutro elemento fechava
+     o menu a meio da leitura. */
+  overscroll-behavior: contain;
   max-height: min(70vh, 420px);
   padding: 4px 0;
 }

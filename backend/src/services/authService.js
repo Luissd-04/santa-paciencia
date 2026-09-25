@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const scryptAsync = require('node:util').promisify(crypto.scrypt);
 const { db } = require('../config/database');
 const { getMembershipByUserAndOrganization, getPrimaryMembership } = require('./orgService');
 
@@ -47,6 +48,25 @@ function verifyPassword(password, stored) {
   return crypto.timingSafeEqual(derived, original);
 }
 
+// O servidor HTTP calcula passwords no pool de workers, sem bloquear pedidos.
+async function hashPasswordAsync(password, salt = crypto.randomBytes(16).toString('hex')) {
+  const hash = await scryptAsync(password, salt, 64);
+  return `${salt}:${hash.toString('hex')}`;
+}
+
+async function verifyPasswordAsync(password, stored) {
+  if (!stored || !stored.includes(':')) return false;
+  const [salt, originalHash] = stored.split(':');
+  const derived = await scryptAsync(password, salt, 64);
+  const original = Buffer.from(originalHash, 'hex');
+  return derived.length === original.length && crypto.timingSafeEqual(derived, original);
+}
+
+async function createUserAsync(input) {
+  validatePassword(input.password);
+  return createUser(input, await hashPasswordAsync(input.password));
+}
+
 // meta = { userAgent, ip } do pedido — só para mostrar em "Sessões ativas".
 function createSession(userId, organizationId, oldSessionId = null, meta = {}) {
   const membership = organizationId
@@ -59,7 +79,7 @@ function createSession(userId, organizationId, oldSessionId = null, meta = {}) {
 
   // Invalidar sessão anterior para forçar rotação de ID
   if (oldSessionId) {
-    db.prepare('DELETE FROM auth_sessions WHERE id = ?').run(oldSessionId);
+    deleteSession(oldSessionId);
   }
 
   const sessionId = crypto.randomBytes(32).toString('hex');
@@ -68,14 +88,14 @@ function createSession(userId, organizationId, oldSessionId = null, meta = {}) {
   db.prepare(`
     INSERT INTO auth_sessions (id, user_id, organization_id, expires_at, created_at, last_seen_at, user_agent, ip)
     VALUES (?, ?, ?, ?, datetime('now'), datetime('now'), ?, ?)
-  `).run(sessionId, userId, membership.organization_id, expiresAt,
+  `).run(digestToken(sessionId), userId, membership.organization_id, expiresAt,
     meta.userAgent ? String(meta.userAgent).slice(0, 400) : null, meta.ip || null);
 
   return { sessionId, expiresAt };
 }
 
 function getSessionUser(sessionId) {
-  if (!sessionId) return null;
+  if (typeof sessionId !== 'string' || !/^[a-f0-9]{64}$/.test(sessionId)) return null;
 
   const row = db.prepare(`
     SELECT
@@ -88,7 +108,7 @@ function getSessionUser(sessionId) {
     LEFT JOIN memberships m ON m.user_id = u.id AND m.organization_id = s.organization_id
     LEFT JOIN organizations o ON o.id = s.organization_id
     WHERE s.id = ?
-  `).get(sessionId);
+  `).get(digestToken(sessionId));
 
   if (!row) return null;
   if (!row.active || !row.membership_active || new Date(row.expires_at).getTime() <= Date.now()) {
@@ -96,7 +116,7 @@ function getSessionUser(sessionId) {
     return null;
   }
 
-  db.prepare(`UPDATE auth_sessions SET last_seen_at = datetime('now') WHERE id = ? AND datetime(last_seen_at) < datetime('now', '-5 minutes')`).run(sessionId);
+  db.prepare(`UPDATE auth_sessions SET last_seen_at = datetime('now') WHERE id = ? AND datetime(last_seen_at) < datetime('now', '-5 minutes')`).run(digestToken(sessionId));
 
   return {
     id: row.user_id,
@@ -110,8 +130,8 @@ function getSessionUser(sessionId) {
 }
 
 function deleteSession(sessionId) {
-  if (!sessionId) return;
-  db.prepare('DELETE FROM auth_sessions WHERE id = ?').run(sessionId);
+  if (typeof sessionId !== 'string' || !/^[a-f0-9]{64}$/.test(sessionId)) return;
+  db.prepare('DELETE FROM auth_sessions WHERE id = ?').run(digestToken(sessionId));
 }
 
 function clearExpiredSessions() {
@@ -122,7 +142,7 @@ function getUserByEmail(email) {
   return db.prepare('SELECT * FROM users WHERE email = ?').get(normalizeEmail(email));
 }
 
-function createUser({ name, email, password, role = 'admin' }) {
+function createUser({ name, email, password, role = 'admin' }, preparedHash) {
   const trimmedName = String(name || '').trim();
   const normalizedEmail = normalizeEmail(email);
 
@@ -141,7 +161,7 @@ function createUser({ name, email, password, role = 'admin' }) {
   }
 
   const id = crypto.randomUUID();
-  const passwordHash = hashPassword(password);
+  const passwordHash = preparedHash || hashPassword(password);
 
   db.prepare(`
     INSERT INTO users (id, name, email, password_hash, role, active, created_at, updated_at)
@@ -162,36 +182,53 @@ function publicUser(user) {
 }
 
 function createPasswordResetToken(userId) {
-  db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ?').run(userId);
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + 3600000).toISOString();
-  db.prepare(`
-    INSERT INTO password_reset_tokens (id, user_id, token, expires_at)
-    VALUES (?, ?, ?, ?)
-  `).run(crypto.randomUUID(), userId, token, expiresAt);
+  db.transaction(() => {
+    db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ?').run(userId);
+    db.prepare(`INSERT INTO password_reset_tokens (id, user_id, token, expires_at)
+      VALUES (?, ?, ?, ?)`).run(crypto.randomUUID(), userId, digestToken(token), expiresAt);
+  })();
   return token;
 }
 
+function digestToken(token) {
+  return 'sha256:' + crypto.createHash('sha256').update(token).digest('hex');
+}
+
 function getResetToken(token) {
+  if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return null;
   return db.prepare(`
     SELECT rt.*, u.email, u.name
     FROM password_reset_tokens rt
     JOIN users u ON u.id = rt.user_id
-    WHERE rt.token = ? AND rt.used_at IS NULL AND datetime(rt.expires_at) > datetime('now')
-  `).get(token);
+    WHERE rt.token IN (?, ?) AND rt.used_at IS NULL AND datetime(rt.expires_at) > datetime('now')
+  `).get(digestToken(token), token); // Compatibilidade com links emitidos antes da atualização.
 }
 
 function consumeResetToken(token, newPassword) {
-  const row = getResetToken(token);
-  if (!row) throw new Error('Link inválido ou expirado. Pede um novo email de recuperação.');
   validatePassword(newPassword);
-  const hash = hashPassword(newPassword);
-  db.prepare(`UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?`).run(hash, row.user_id);
-  db.prepare(`UPDATE password_reset_tokens SET used_at = datetime('now') WHERE token = ?`).run(token);
-  db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').run(row.user_id);
+  applyResetToken(token, hashPassword(newPassword));
+}
+
+async function consumeResetTokenAsync(token, newPassword) {
+  validatePassword(newPassword);
+  if (!getResetToken(token)) throw new Error('Link inválido ou expirado. Pede um novo email de recuperação.');
+  applyResetToken(token, await hashPasswordAsync(newPassword));
+}
+
+function applyResetToken(token, hash) {
+  db.transaction(() => {
+    const row = getResetToken(token);
+    if (!row) throw new Error('Link inválido ou expirado. Pede um novo email de recuperação.');
+    db.prepare(`UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?`).run(hash, row.user_id);
+    db.prepare(`UPDATE password_reset_tokens SET used_at = datetime('now') WHERE id = ?`).run(row.id);
+    db.prepare('DELETE FROM auth_sessions WHERE user_id = ?').run(row.user_id);
+  }).immediate();
 }
 
 module.exports = {
+  hashPasswordAsync, verifyPasswordAsync, createUserAsync, consumeResetTokenAsync,
   SESSION_COOKIE,
   clearExpiredSessions,
   consumeResetToken,
@@ -199,6 +236,7 @@ module.exports = {
   createSession,
   createUser,
   deleteSession,
+  digestToken,
   getResetToken,
   getSessionUser,
   getUserByEmail,

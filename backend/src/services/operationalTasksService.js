@@ -1,7 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
 const { deleteTaskCalendarEvent } = require('./calendarService');
-const { deleteSyncedTask } = require('../config/googleTasks');
+const { queueSyncedTaskDeletion, processQueuedTaskDeletions } = require('../config/googleTasks');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const AUTO_TASK_SETTINGS_KEY = 'auto_task_settings';
@@ -185,6 +185,9 @@ const syncReservationTx = db.transaction((reservation, userId = null) => {
         });
       }
       if (row.google_task_id) {
+        // Guardar o ID antes de apagar a linha local. Se a API estiver sem quota
+        // ou indisponível, a eliminação pode ser repetida sem deixar um órfão.
+        queueSyncedTaskDeletion(orgId, row.google_task_id);
         orphanedTasks.push(row.google_task_id);
       }
     }
@@ -224,10 +227,25 @@ function deleteOrphanedCalendarEvents(rows) {
 }
 
 function deleteOrphanedTasks(organizationId, googleTaskIds) {
-  googleTaskIds.forEach(taskId => {
-    deleteSyncedTask(organizationId, taskId)
-      .catch(err => console.error('Erro ao remover tarefa do Google Tasks:', err.message));
-  });
+  if (!googleTaskIds.length) return;
+  processQueuedTaskDeletions(organizationId)
+    .catch(err => console.error('Erro ao processar eliminações do Google Tasks:', err.message));
+}
+
+// A eliminação definitiva inclui também tarefas concluídas e eventos manuais
+// associados à reserva, que o cancelamento preserva para histórico.
+function queueReservationTaskCleanup(organizationId, reservationId) {
+  const rows = db.prepare(`
+    SELECT google_task_id
+    FROM operational_events
+    WHERE organization_id = ? AND reservation_id = ? AND google_task_id IS NOT NULL
+  `).all(organizationId, reservationId);
+  for (const row of rows) queueSyncedTaskDeletion(organizationId, row.google_task_id);
+  return rows.length;
+}
+
+function flushReservationTaskCleanup(organizationId) {
+  return processQueuedTaskDeletions(organizationId);
 }
 
 function syncReservationOperationalTasks(reservation, userId = null) {
@@ -266,4 +284,6 @@ module.exports = {
   buildReservationTasks,
   getAutoTaskSettings,
   saveAutoTaskSettings,
+  queueReservationTaskCleanup,
+  flushReservationTaskCleanup,
 };

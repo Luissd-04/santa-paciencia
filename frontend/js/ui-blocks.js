@@ -1,3 +1,10 @@
+// Estado privado; interface partilhada em AppModules.core.
+(() => {
+AppModules.define('core', {
+  emptyStateHtml: { get: () => emptyStateHtml },
+  togglePageFilters: { get: () => togglePageFilters },
+});
+
 /* ═══════════════════════════════════════════════════════════════
    SANTA PACIÊNCIA — blocos de UI partilhados entre views
    Uma só implementação de cada peça de layout (drawer de filtros,
@@ -39,3 +46,5 @@ function emptyStateHtml(icon, title, text, opts) {
   const cls = 'empty-state' + (opts && opts.inline ? ' empty-state-inline' : '');
   return `<div class="${cls}"><div class="es-icon">${icon}</div><h3>${title}</h3>${text ? `<p>${text}</p>` : ''}</div>`;
 }
+
+})();

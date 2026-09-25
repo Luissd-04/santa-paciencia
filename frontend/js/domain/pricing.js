@@ -1,3 +1,5 @@
+// Estado privado; interface partilhada em AppModules.core.
+(() => {
 (function () {
   function normalizeExtraOccupancyOptions(accommodation = {}) {
     let options = [];
@@ -160,4 +162,6 @@
     buildNightlyPrices,
     calculateReservationTotal,
   };
+})();
+
 })();

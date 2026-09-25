@@ -63,6 +63,11 @@ i[data-lucide] { display:inline-flex; align-items:center; justify-content:center
 }
 
 .nav-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -75,6 +80,7 @@ i[data-lucide] { display:inline-flex; align-items:center; justify-content:center
   transition: all .2s;
   margin-bottom: 2px;
 }
+.nav-item:focus-visible { outline: 2px solid var(--dourado); outline-offset: 2px; }
 .nav-item:hover { background: rgba(0,0,0,.15); color:#fff; }
 .nav-item.active { background: rgba(0,0,0,.20); color: #fff; font-weight: 500; border-left: 3px solid var(--dourado); padding-left: 9px; animation: navBorderIn .3s ease; }
 .nav-item .icon { font-size: 16px; width: 20px; text-align:center; display:flex; align-items:center; justify-content:center; }
@@ -613,6 +619,26 @@ select.form-control { cursor:pointer; }
 }
 .cal-span-row { position:absolute; left:0; right:0; display:flex; align-items:center; padding:0 6px; overflow:hidden; box-sizing:border-box; }
 .cal-day-click-area { position:absolute; top:0; bottom:0; cursor:pointer; }
+.cal-overflow-btn {
+  position: absolute; z-index: 3; height: 20px; padding: 0 6px; border: 0;
+  background: transparent; color: var(--azul); font: 700 10.5px/20px inherit;
+  text-align: left; cursor: pointer; overflow: hidden; white-space: nowrap;
+}
+.cal-overflow-btn:hover { text-decoration: underline; }
+.cal-overflow-btn:focus-visible { outline: 2px solid var(--azul); outline-offset: -2px; }
+.calendar-overflow-dialog { width: min(520px, calc(100vw - 32px)); max-height: min(680px, calc(100dvh - 32px)); }
+.calendar-overflow-dialog .modal-header p { margin: 3px 0 0; color: var(--cinza); font-size: 12px; text-transform: capitalize; }
+.calendar-overflow-list { display: grid; gap: 8px; padding: 4px 0; max-height: 55dvh; overflow: auto; }
+.calendar-overflow-item {
+  width: 100%; min-height: 52px; display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border: 1px solid var(--cinza-claro); border-radius: 10px;
+  background: var(--branco); color: var(--azul); text-align: left; cursor: pointer;
+}
+.calendar-overflow-item:hover { background: var(--creme); }
+.calendar-overflow-item:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
+.calendar-overflow-item span:nth-child(2) { display: grid; gap: 3px; min-width: 0; }
+.calendar-overflow-item small { color: var(--cinza); }
+.calendar-overflow-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
 
 .avail-grid {
   display:grid;
@@ -758,6 +784,11 @@ select.form-control { cursor:pointer; }
 .empty-state h3 { font-family:'Playfair Display',serif; color:var(--azul-medio); margin-bottom:6px; }
 .empty-state p { font-size:13.5px; }
 
+/* Vista cujo módulo não chegou a carregar (ver js/domain/features.js): o
+   conteúdo fica escondido, não removido, para não perder ouvintes já ligados. */
+.view-module-failed > *:not(.feature-load-error) { display:none !important; }
+.feature-load-error .btn { margin-top:16px; }
+
 .chip-aloj {
   padding:3px 10px;
   border-radius:100px;
@@ -772,4 +803,3 @@ select.form-control { cursor:pointer; }
 .detail-row { display:flex; flex-direction:column; gap:4px; }
 .detail-label { font-size:10.5px; font-weight:600; text-transform:uppercase; color:var(--cinza); letter-spacing:.5px; }
 .detail-val { font-size:14px; color:var(--texto); }
-

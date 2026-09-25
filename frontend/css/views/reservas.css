@@ -1,5 +1,6 @@
 .reservas-shell {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
 }
 
@@ -56,6 +57,8 @@
 
 .reservas-mobile-layout {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
   gap: 16px;
 }
 

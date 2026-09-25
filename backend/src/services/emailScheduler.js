@@ -2,6 +2,7 @@ const { db } = require('../config/database');
 const { sendTemplatedEmail, getEmailSettings } = require('./emailService');
 const crypto = require('crypto');
 const { canSendTemplate } = require('./emailEligibility');
+const { withSchedulerLease } = require('./schedulerLease');
 
 function getSendTime(reservation, template, settings) {
   const { timing_offset, timing_unit, timing_direction, timing_event } = template;
@@ -26,6 +27,7 @@ async function runScheduler() {
   running = true;
   if (process.env.EMAIL_ENABLED === 'false') { running = false; return; }
   try {
+    await withSchedulerLease(db, 'email', async ensureLease => {
     const orgs = db.prepare('SELECT id FROM organizations').all();
     const from = new Date(Date.now() - 8 * 86400000).toISOString().slice(0, 10);
     const to   = new Date(Date.now() + 31 * 86400000).toISOString().slice(0, 10);
@@ -51,6 +53,7 @@ async function runScheduler() {
       for (const res of reservations) {
         if (!res.guest_email) continue;
         for (const tpl of templates) {
+          ensureLease();
           if (!canSendTemplate(tpl, res)) continue;
           const sendTime = getSendTime(res, tpl, settings);
           if (!sendTime || sendTime > now) continue;
@@ -75,7 +78,8 @@ async function runScheduler() {
       }
     }
 
-    await flushQueuedEmails();
+    await flushQueuedEmails(ensureLease);
+    });
   } catch (e) {
     console.warn('⚠️ Erro email scheduler:', e.message);
   } finally { running = false; }
@@ -83,9 +87,10 @@ async function runScheduler() {
 
 // Reenvia emails adiados por estarem fora da janela horária configurada,
 // assim que a janela do respetivo template voltar a estar aberta.
-async function flushQueuedEmails() {
+async function flushQueuedEmails(ensureLease) {
   const pending = db.prepare('SELECT * FROM organization_email_queue').all();
   for (const q of pending) {
+    ensureLease();
     try {
       const res = db.prepare(`
         SELECT r.*, g.name as guest_name, g.email as guest_email, g.first_name,
@@ -110,9 +115,19 @@ async function flushQueuedEmails() {
       };
       const tpl = db.prepare('SELECT * FROM organization_email_templates WHERE organization_id=? AND slug=? AND active=1').get(q.organization_id, q.template_slug);
       if (!tpl || !canSendTemplate(tpl, res)) continue;
+      const scheduled = ['checkin', 'checkout'].includes(tpl.timing_event);
+      if (scheduled && db.prepare('SELECT 1 FROM organization_email_log WHERE organization_id=? AND template_slug=? AND reservation_id=?')
+        .get(q.organization_id, q.template_slug, q.reservation_id)) {
+        db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id);
+        continue;
+      }
       const result = await sendTemplatedEmail(q.template_slug, guest, res, accom);
       if (result && !result.queued) {
-        db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id);
+        db.transaction(() => {
+          if (scheduled) db.prepare('INSERT OR IGNORE INTO organization_email_log (id,organization_id,template_slug,reservation_id) VALUES (?,?,?,?)')
+            .run(crypto.randomUUID(), q.organization_id, q.template_slug, q.reservation_id);
+          db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id);
+        })();
         if (result) console.log(`📧 Email ${q.template_slug} → reserva ${res.id} (fila, org ${q.organization_id})`);
       }
     } catch (e) {

@@ -7,6 +7,7 @@ const {
 } = require('../services/operationalTasksService');
 const { deleteTaskCalendarEvent, syncOperationalEventsToGoogle } = require('../services/calendarService');
 const { deleteSyncedTask } = require('../config/googleTasks');
+const { listEvents } = require('../services/listQueries');
 
 // Sincroniza um evento operacional com o Google Calendar e/ou o Google Tasks — ver
 // syncOperationalEventsToGoogle em services/calendarService.js (cada destino tem a
@@ -49,24 +50,16 @@ function normalizePayload(body = {}, existing = {}) {
   };
 }
 
-function getAll(req, res) {
-  const orgId = req.user.organization_id;
-  let query = `
-    SELECT e.*, a.name AS accommodation_name, u.name AS created_by_name
-    FROM operational_events e
-    LEFT JOIN accommodations a ON a.id = e.accommodation_id AND a.organization_id = e.organization_id
-    LEFT JOIN users u ON u.id = e.created_by_user_id
-    WHERE e.organization_id = ?
-  `;
-  const params = [orgId];
-  if (req.query.type) { query += ' AND e.type = ?'; params.push(req.query.type); }
-  if (req.query.status) { query += ' AND e.status = ?'; params.push(req.query.status); }
-  if (req.query.accommodation_id) { query += ' AND e.accommodation_id = ?'; params.push(req.query.accommodation_id); }
-  if (req.query.reservation_id) { query += ' AND e.reservation_id = ?'; params.push(req.query.reservation_id); }
-  if (req.query.from) { query += ' AND e.date >= ?'; params.push(req.query.from); }
-  if (req.query.to) { query += ' AND e.date <= ?'; params.push(req.query.to); }
-  query += " ORDER BY e.date ASC, COALESCE(e.start_time, '99:99') ASC, e.created_at ASC";
-  res.json({ success: true, data: db.prepare(query).all(...params) });
+// GET /api/events — filtros, pesquisa, ordenação e paginação no servidor.
+// Devolve { data, pagination, summary }; os consumidores que só querem os
+// eventos de uma reserva continuam a ler `data`.
+function getAll(req, res, next) {
+  try {
+    res.json({ success: true, ...listEvents(req.user.organization_id, req.query) });
+  } catch (err) {
+    if (err.status === 400) return res.status(400).json({ error: err.message });
+    next(err);
+  }
 }
 
 function create(req, res) {

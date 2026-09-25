@@ -1,4 +1,5 @@
 const Anthropic = require('@anthropic-ai/sdk');
+const { normalizeDateValue } = require('./reservationRules');
 
 // Categorias válidas (têm de bater certo com EXPENSE_CATS no frontend, sem o legado).
 const VALID_CATEGORIES = [
@@ -34,9 +35,9 @@ Regras:
 
 function normalizeDate(raw) {
   const s = String(raw || '').trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return normalizeDateValue(s);
   const pt = s.match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/); // DD/MM/AAAA
-  if (pt) return `${pt[3]}-${pt[2]}-${pt[1]}`;
+  if (pt) return normalizeDateValue(`${pt[3]}-${pt[2]}-${pt[1]}`);
   return '';
 }
 
@@ -63,7 +64,7 @@ async function scanReceipt({ base64, mediaType }) {
     throw err;
   }
 
-  const client = new Anthropic(); // lê ANTHROPIC_API_KEY do ambiente
+  const client = new Anthropic({ timeout: 30000, maxRetries: 1 }); // lê ANTHROPIC_API_KEY do ambiente
 
   let message;
   try {
@@ -80,7 +81,7 @@ async function scanReceipt({ base64, mediaType }) {
       }],
     });
   } catch (err) {
-    console.error('Erro na chamada Claude Vision:', err);
+    console.error('Erro na chamada Claude Vision:', { status: err.status, type: err.name });
     const wrapped = new Error('Não foi possível contactar o serviço de leitura de talões. Tenta novamente.');
     wrapped.statusCode = 502;
     throw wrapped;

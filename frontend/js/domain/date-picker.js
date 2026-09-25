@@ -1,3 +1,5 @@
+// Estado privado; interface partilhada em AppModules.core.
+(() => {
 (function () {
   const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -494,4 +496,6 @@
     _s: shiftMonth,
     _c: (d) => { if (cur.month) commit(isoOf(cur.month.getFullYear(), cur.month.getMonth(), d)); },
   };
+})();
+
 })();

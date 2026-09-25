@@ -1,10 +1,13 @@
 const { db } = require('../config/database');
-const { interpolate, baseTemplate, getEmailSettings } = require('../services/emailService');
+const {
+  getEmailSettings, buildVars, buildBlocks, renderEmail, sanitizeUrlVars,
+  resolveAccommodationInheritance,
+} = require('../services/emailService');
 
 // Ordem cronológica da jornada do hóspede, para a lista ficar percetível
 // nas definições (o cancelamento fica no fim, como percurso de exceção).
 const TEMPLATE_ORDER = [
-  'confirmacao', 'pre_checkin', 'coordenadas', 'codigo_porta',
+  'confirmacao', 'pre_checkin', 'coordenadas',
   'apos_checkin', 'antes_checkout', 'obrigado', 'cancelamento',
 ];
 
@@ -108,55 +111,148 @@ function saveSettings(req, res) {
   res.json({ success: true });
 }
 
-async function preview(req, res) {
-  const { slug } = req.params;
-  const template = db.prepare(`
+const LANGS = ['pt', 'en', 'fr', 'es', 'de', 'it', 'nl'];
+
+function langField(lang, field) {
+  return lang === 'pt' ? field : `${field}_${lang}`;
+}
+
+// Alojamento de contexto da pré-visualização. Só um alojamento da própria
+// organização é aceite — o id vem do cliente e não pode servir para ler
+// logótipo, Wi-Fi ou redes sociais de outra organização.
+function resolveAccommodationContext(req) {
+  const id = req.body?.accommodation_id;
+  if (!id) return null;
+  const accommodation = db.prepare(
+    'SELECT * FROM accommodations WHERE id = ? AND organization_id = ?'
+  ).get(String(id), req.user.organization_id);
+  if (!accommodation) return null;
+  return resolveAccommodationInheritance(accommodation, req.user.organization_id);
+}
+
+// Dados fictícios: a pré-visualização nunca lê uma reserva real. O estado é
+// escolhido pelo utilizador para poder ver como fica uma reserva pendente.
+const PREVIEW_STATUSES = ['confirmada', 'pendente', 'aguardar_pagamento', 'cancelada'];
+
+function buildPreviewContext(req) {
+  const orgId = req.user.organization_id;
+  const accommodation = resolveAccommodationContext(req);
+  const settings = getEmailSettings(accommodation, orgId);
+  const status = PREVIEW_STATUSES.includes(req.body?.status) ? req.body.status : 'confirmada';
+
+  const guest = { name: 'Rui Marques Silva', first_name: 'Rui', email: 'hospede.exemplo@example.org' };
+  const reservation = {
+    id: 'SP-1778013512761',
+    status,
+    check_in: '2026-05-29',
+    check_out: '2026-05-31',
+    nights: 2,
+    num_guests: 1,
+    total_amount: 240,
+    organization_id: orgId,
+  };
+  const accommodationForVars = accommodation || { name: 'Suite Mezzanine Deluxe', city: settings.property_name };
+
+  const vars = sanitizeUrlVars(buildVars(guest, reservation, accommodationForVars, settings, {
+    link_pre_checkin: `${req.protocol}://${req.get('host')}/pre-checkin/exemplo`,
+    wifi_password: accommodationForVars.wifi_password || '••••••••',
+    codigo_porta: accommodationForVars.door_code || '1234#',
+  }));
+
+  return { settings, vars, blocks: buildBlocks(vars, settings, reservation), reservation };
+}
+
+// Assunto/corpo a compor: o rascunho aberto no editor tem prioridade sobre o
+// que está guardado, para a pré-visualização e o envio de teste refletirem o
+// que o utilizador está a ver (antes, o envio usava sempre a versão gravada).
+function resolveDraft(req, template) {
+  const lang = LANGS.includes(req.body?.lang) ? req.body.lang : 'pt';
+  const storedSubject = template[langField(lang, 'subject')] || '';
+  const storedBody = template[langField(lang, 'body')] || '';
+
+  const hasDraft = typeof req.body?.body === 'string' || typeof req.body?.subject === 'string';
+  const subject = typeof req.body?.subject === 'string' ? req.body.subject : storedSubject;
+  const body = typeof req.body?.body === 'string' ? req.body.body : storedBody;
+
+  // Tradução em falta: não se inventa texto nem se envia um email vazio —
+  // recorre-se ao português e diz-se explicitamente que foi isso que aconteceu.
+  const missingTranslation = lang !== 'pt' && !String(body).trim();
+  if (missingTranslation) {
+    return {
+      lang,
+      fallback_lang: 'pt',
+      missing_translation: true,
+      subject: subject || template.subject || '',
+      body: template.body || '',
+      from_draft: hasDraft,
+    };
+  }
+  return { lang, fallback_lang: null, missing_translation: false, subject, body, from_draft: hasDraft };
+}
+
+function loadTemplate(req) {
+  return db.prepare(`
     SELECT * FROM organization_email_templates
     WHERE organization_id = ? AND slug = ?
-  `).get(req.user.organization_id, slug);
+  `).get(req.user.organization_id, req.params.slug);
+}
+
+// POST /api/email-templates/:slug/preview-html — compõe e devolve o HTML, sem
+// enviar nada. É a mesma composição do envio (emailService.renderEmail), por
+// isso a pré-visualização não pode voltar a divergir do que o hóspede recebe.
+function previewHtml(req, res) {
+  const template = loadTemplate(req);
+  if (!template) return res.status(404).json({ error: 'Template não encontrado' });
+
+  const draft = resolveDraft(req, template);
+  const { settings, vars, blocks } = buildPreviewContext(req);
+  const rendered = renderEmail({ subject: draft.subject, body: draft.body, vars, blocks, settings });
+
+  res.json({
+    success: true,
+    html: rendered.html,
+    subject: rendered.subject,
+    lang: draft.lang,
+    fallback_lang: draft.fallback_lang,
+    missing_translation: draft.missing_translation,
+  });
+}
+
+// POST /api/email-templates/:slug/preview — envio de teste para um endereço,
+// com o MESMO rascunho e a MESMA composição da pré-visualização.
+async function preview(req, res) {
+  const template = loadTemplate(req);
   if (!template) return res.status(404).json({ error: 'Template não encontrado' });
 
   if (process.env.EMAIL_ENABLED === 'false') {
     return res.status(400).json({ error: 'Email desativado (EMAIL_ENABLED=false)' });
   }
 
-  const settings = getEmailSettings(null, req.user.organization_id);
-  const fakeVars = {
-    nome_hospede: 'João Silva',
-    primeiro_nome: 'João',
-    alojamento: 'Suite Mezzanine Deluxe',
-    data_checkin: 'sábado, 15 de junho de 2025',
-    hora_checkin: settings.checkin_time || '15:00',
-    data_checkout: 'segunda-feira, 17 de junho de 2025',
-    hora_checkout: settings.checkout_time || '11:00',
-    noites: '2',
-    num_hospedes: '2',
-    total: '€250.00',
-    referencia: 'SP-PREVIEW-001',
-    wifi_nome: 'SantaPaciencia_WiFi',
-    wifi_password: '••••••••',
-    codigo_porta: '1234#',
-    link_pre_checkin: `${req.protocol}://${req.get('host')}/pre-checkin/preview`,
-  };
+  const draft = resolveDraft(req, template);
+  const { settings, vars, blocks } = buildPreviewContext(req);
+  const rendered = renderEmail({ subject: draft.subject, body: draft.body, vars, blocks, settings });
 
-  const subject = interpolate(template.subject, fakeVars);
-  const body = interpolate(template.body, fakeVars);
-  const html = baseTemplate(body, settings);
   const { isEmailAuthenticated, getEmailConnectionInfo, sendViaGmail } = require('../config/googleEmail');
   const orgId = req.user.organization_id;
   const gmailInfo = getEmailConnectionInfo(orgId);
-  const previewTo = req.body.to || gmailInfo.email;
+  // Só a caixa ligada da própria organização: um destinatário arbitrário no
+  // corpo do pedido tornaria este endpoint um relay para enviar a hóspedes.
+  const previewTo = gmailInfo.email;
   if (!previewTo) return res.status(400).json({ error: 'Sem endereço de destino configurado' });
   if (!isEmailAuthenticated(orgId)) {
     return res.status(400).json({ error: 'Gmail não ligado — liga a conta Google nas definições' });
   }
 
   try {
-    await sendViaGmail(orgId, { to: previewTo, subject: `[PREVIEW] ${subject}`, html });
-    res.json({ success: true, message: `Preview enviado para ${previewTo}` });
+    await sendViaGmail(orgId, { to: previewTo, subject: `[PREVIEW] ${rendered.subject}`, html: rendered.html });
+    res.json({
+      success: true,
+      message: `Preview enviado para ${previewTo}`,
+      missing_translation: draft.missing_translation,
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 }
 
-module.exports = { getAll, update, getSettings, saveSettings, preview };
+module.exports = { getAll, update, getSettings, saveSettings, preview, previewHtml };

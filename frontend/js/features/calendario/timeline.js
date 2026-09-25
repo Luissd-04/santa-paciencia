@@ -1,15 +1,21 @@
-function renderTimeline(autoScroll = true) {
-  SS.set('tlDays', timelineDays);
+// Estado privado; interface partilhada em AppModules.calendario.
+(() => {
+AppModules.define('calendario', {
+  drawTimeline: { get: () => drawTimeline },
+});
+
+function drawTimeline(autoScroll = true) {
+  AppModules.core.SS.set('tlDays', AppModules.calendario.timelineDays);
   const wrap = document.getElementById('timeline-wrap');
   if (!wrap) return;
 
-  const dayW    = getTimelineDayWidth();
-  const filters = getCalendarFilters();
-  updateCalendarLegendUi();
-  const filteredReservations = reservas.filter(r => reservationMatchesCalendarFilters(r, filters));
+  const dayW    = AppModules.calendario.getTimelineDayWidth();
+  const filters = AppModules.calendario.getCalendarFilters();
+  AppModules.calendario.updateCalendarLegendUi();
+  const filteredReservations = AppModules.calendario.calendarReservas.filter(r => AppModules.calendario.reservationMatchesCalendarFilters(r, filters));
   const alojList = filters.suite
-    ? accommodations.filter(a => a.id === filters.suite)
-    : accommodations;
+    ? AppModules.core.accommodations.filter(a => a.id === filters.suite)
+    : AppModules.core.accommodations;
 
   const now       = new Date();
   const year      = now.getFullYear();
@@ -26,10 +32,10 @@ function renderTimeline(autoScroll = true) {
   // em vez de width/min-width inline em centenas de células.
   wrap.style.setProperty('--tl-day-w', dayW + 'px');
   wrap.style.setProperty('--tl-days-total', String(totalDays));
-  wrap.style.setProperty('--tl-label-w', CAL.tlLabelW + 'px');
+  wrap.style.setProperty('--tl-label-w', AppModules.calendario.CAL.tlLabelW + 'px');
 
   const yearReservations = filteredReservations.filter(r => r.check_out > startStr && r.check_in < endStr);
-  setCalCount(yearReservations.length, yearReservations.length === 1 ? 'reserva este ano' : 'reservas este ano');
+  AppModules.calendario.setCalCount(yearReservations.length, yearReservations.length === 1 ? 'reserva este ano' : 'reservas este ano');
 
   const dayNames   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -53,7 +59,7 @@ function renderTimeline(autoScroll = true) {
     const isWeekend    = d.getDay() === 0 || d.getDay() === 6;
     const isMonthStart = d.getDate() === 1 && i > 0;
     dayCells += `<div class="tl-day-head${isToday ? ' tl-today' : ''}${isWeekend ? ' tl-weekend' : ''}${isMonthStart ? ' tl-month-start' : ''}">
-      ${dayW >= CAL.weekdayNameMinDayW ? `<div class="tl-day-name">${dayNames[d.getDay()]}</div>` : ''}
+      ${dayW >= AppModules.calendario.CAL.weekdayNameMinDayW ? `<div class="tl-day-name">${dayNames[d.getDay()]}</div>` : ''}
       <div class="tl-day-num">${d.getDate()}</div>
     </div>`;
   }
@@ -66,7 +72,7 @@ function renderTimeline(autoScroll = true) {
           const d  = new Date(year, 0, 1 + i);
           const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
           const isMonthStart = d.getDate() === 1 && i > 0;
-          cellHtml += `<div class="tl-cell${ds === todayStr ? ' tl-today-col' : ''}${isMonthStart ? ' tl-month-start' : ''}" onclick="openModalFromCalendar('${ds}','${a.id}')"></div>`;
+          cellHtml += `<div class="tl-cell${ds === todayStr ? ' tl-today-col' : ''}${isMonthStart ? ' tl-month-start' : ''}" ${AppActions.attrs("click", "timeline-open-modal-from-calendar-7ae6ef8", [String((ds) ?? ''), String((a.id) ?? '')])}></div>`;
         }
 
         const alojReservas = filteredReservations.filter(r =>
@@ -87,35 +93,35 @@ function renderTimeline(autoScroll = true) {
           const totalWidth = totalDays * dayW;
           const left  = Math.max(0, offset * dayW + dayW / 2);
           const right = Math.min(totalWidth, (offset + nights) * dayW + dayW / 2);
-          const width = Math.max(CAL.tlBlockMinW, right - left - CAL.tlBlockInset);
+          const width = Math.max(AppModules.calendario.CAL.tlBlockMinW, right - left - AppModules.calendario.CAL.tlBlockInset);
           if (right <= 0 || left >= totalWidth || width <= 0) return '';
-          const bg = calAccColor(r.accommodation_id);
+          const bg = AppModules.calendario.calAccColor(r.accommodation_id);
           const checkoutCls = r.task_status?.checkout_done ? ' tl-block-checked-out' : '';
-          return `<div class="tl-block tl-block-${r.status}${checkoutCls}" style="left:${left}px;width:${width}px;--tl-color:${bg};background:${bg}${CAL.alpha.tlFill};border-color:${bg}${CAL.alpha.tlBorder};"
+          return `<div class="tl-block tl-block-${r.status}${checkoutCls}" style="left:${left}px;width:${width}px;--tl-color:${bg};background:${bg}${AppModules.calendario.CAL.alpha.tlFill};border-color:${bg}${AppModules.calendario.CAL.alpha.tlBorder};"
                        data-res-id="${r.id}"
                        data-acc-id="${r.accommodation_id}"
-                       onpointerdown="tlPointerDown(event,'${r.id}','move')"
-                       title="${escapeHtml(r.guest_name)} · ${r.check_in} → ${r.check_out}">
-            <div class="tl-resize-handle tl-resize-left" onpointerdown="event.stopPropagation();tlPointerDown(event,'${r.id}','resize-left')"></div>
+                       ${AppActions.attrs("pointerdown", "timeline-tl-pointer-down-e17f561", [r.id])}
+                       title="${AppModules.core.escapeHtml(r.guest_name)} · ${r.check_in} → ${r.check_out}">
+            <div class="tl-resize-handle tl-resize-left" ${AppActions.attrs("pointerdown", "timeline-stop-propagation-3708716", [r.id])}></div>
             <div class="tl-block-main">
-              <span class="tl-block-name">${escapeHtml(r.guest_name.split(' ')[0])}</span>
+              <span class="tl-block-name">${AppModules.core.escapeHtml(r.guest_name.split(' ')[0])}</span>
               <span class="tl-block-status" style="color:${bg};">${r.status}</span>
             </div>
-            <span class="tl-block-meta">${shortDatePt(r.check_in)} → ${shortDatePt(r.check_out)} · ${nights} noite${nights !== 1 ? 's' : ''}</span>
-            <div class="tl-resize-handle tl-resize-right" onpointerdown="event.stopPropagation();tlPointerDown(event,'${r.id}','resize-right')"></div>
+            <span class="tl-block-meta">${AppModules.calendario.shortDatePt(r.check_in)} → ${AppModules.calendario.shortDatePt(r.check_out)} · ${nights} noite${nights !== 1 ? 's' : ''}</span>
+            <div class="tl-resize-handle tl-resize-right" ${AppActions.attrs("pointerdown", "timeline-stop-propagation-e7ac927", [r.id])}></div>
           </div>`;
         }).join('');
 
         return `<div class="tl-row"
-                     data-acc-id="${a.id}"
-                     data-acc-name="${a.name.replace(/"/g, '&quot;')}">
+                     data-acc-id="${AppModules.core.escapeHtml(a.id)}"
+                     data-acc-name="${AppModules.core.escapeHtml(a.name)}">
           <div class="tl-label">
-            <div class="tl-label-title">${a.name}</div>
-            <div class="tl-label-sub">${a.type || 'alojamento'} · ${monthCount} reserva${monthCount !== 1 ? 's' : ''} este mês</div>
+            <div class="tl-label-title">${AppModules.core.escapeHtml(a.name)}</div>
+            <div class="tl-label-sub">${AppModules.core.escapeHtml(a.type || 'alojamento')} · ${monthCount} reserva${monthCount !== 1 ? 's' : ''} este mês</div>
           </div>
           <div class="tl-days-area">
             <div class="tl-cells">${cellHtml}</div>
-            ${typeof blockBandsHtml === 'function' ? blockBandsHtml(a.id, yearStart, totalDays, dayW) : ''}
+            ${typeof AppModules.bloqueios.blockBandsHtml === 'function' ? AppModules.bloqueios.blockBandsHtml(a.id, yearStart, totalDays, dayW) : ''}
             ${blocks}
           </div>
         </div>`;
@@ -123,9 +129,9 @@ function renderTimeline(autoScroll = true) {
 
   const emptyBanner =
     alojList.length === 0
-      ? emptyStateHtml('🏠', 'Sem alojamentos', 'Não há alojamentos para mostrar.', { inline: true })
+      ? AppModules.core.emptyStateHtml('🏠', 'Sem alojamentos', 'Não há alojamentos para mostrar.', { inline: true })
       : (yearReservations.length === 0
-          ? emptyStateHtml('📅', 'Sem reservas', 'Nenhuma reserva no período com estes filtros.', { inline: true })
+          ? AppModules.core.emptyStateHtml('📅', 'Sem reservas', 'Nenhuma reserva no período com estes filtros.', { inline: true })
           : '');
 
   wrap.innerHTML = `
@@ -142,7 +148,19 @@ function renderTimeline(autoScroll = true) {
     ${emptyBanner}`;
 
   if (window.lucide) lucide.createIcons();
-  attachTimelinePan();
-  if (autoScroll) requestAnimationFrame(() => scrollTimelineToToday(dayW));
+  AppModules.calendario.attachTimelinePan();
+  if (autoScroll) requestAnimationFrame(() => AppModules.calendario.scrollTimelineToToday(dayW));
 }
 
+
+AppActions.register({
+  "timeline-tl-pointer-down-e17f561": (el, event, args) => { AppModules.calendario.tlPointerDown(event,(String(args[0])),'move') },
+  "timeline-stop-propagation-3708716": (el, event, args) => { event.stopPropagation();AppModules.calendario.tlPointerDown(event,(String(args[0])),'resize-left') },
+  "timeline-stop-propagation-e7ac927": (el, event, args) => { event.stopPropagation();AppModules.calendario.tlPointerDown(event,(String(args[0])),'resize-right') },
+}, "pointerdown");
+
+AppActions.register({
+  "timeline-open-modal-from-calendar-7ae6ef8": (el, event, args) => { AppModules.reservas.openModalFromCalendar(args[0],args[1]) },
+}, "click");
+
+})();

@@ -1,6 +1,7 @@
 const { db } = require('../config/database');
 const { syncReservationOperationalTasks } = require('./operationalTasksService');
 const { deleteCalendarEvent } = require('./calendarService');
+const { processAllQueuedTaskDeletions } = require('../config/googleTasks');
 
 // TTL em horas para reservas vindas do motor público (canal != 'direto') que
 // nunca pagaram. Configurável via env.
@@ -59,10 +60,23 @@ function expirePendingReservations() {
 
 let timer = null;
 
+function retryPendingGoogleTaskDeletions() {
+  processAllQueuedTaskDeletions()
+    .then(result => {
+      if (result.deleted) console.log(`🗑️  ${result.deleted} tarefa(s) pendente(s) removida(s) do Google Tasks`);
+    })
+    .catch(err => console.error('Erro ao repetir eliminações do Google Tasks:', err.message));
+}
+
+function runMaintenance() {
+  expirePendingReservations();
+  retryPendingGoogleTaskDeletions();
+}
+
 function startScheduler() {
   if (timer) return;
-  expirePendingReservations();
-  timer = setInterval(expirePendingReservations, SCHEDULER_INTERVAL_MS);
+  runMaintenance();
+  timer = setInterval(runMaintenance, SCHEDULER_INTERVAL_MS);
   if (typeof timer.unref === 'function') timer.unref();
   console.log(`⏰ Reservation scheduler ativo (TTL ${PENDING_TTL_HOURS}h, cada ${Math.round(SCHEDULER_INTERVAL_MS / 60000)}min)`);
 }
@@ -74,4 +88,10 @@ function stopScheduler() {
   }
 }
 
-module.exports = { expirePendingReservations, startScheduler, stopScheduler, PENDING_TTL_HOURS };
+module.exports = {
+  expirePendingReservations,
+  retryPendingGoogleTaskDeletions,
+  startScheduler,
+  stopScheduler,
+  PENDING_TTL_HOURS,
+};

@@ -1,12 +1,30 @@
-let eventosView = SS.get('evt:view', 'calendar');
-let eventosMode = SS.get('evt:mode', 'calendar');
-let eventosYear = Number(SS.get('evt:year', new Date().getFullYear()));
-let eventosMonth = Number(SS.get('evt:month', new Date().getMonth()));
-let eventosTimelineDays = Number(SS.get('evt:tlDays', 14));
+// Estado privado; interface partilhada em AppModules.eventos.
+(() => {
+AppModules.define('eventos', {
+  closeEventoModal: { get: () => closeEventoModal },
+  deleteEventoFromModal: { get: () => deleteEventoFromModal },
+  eventosListPaged: { get: () => eventosListPaged },
+  eventosListQueryChanged: { get: () => eventosListQueryChanged },
+  eventosNext: { get: () => eventosNext },
+  eventosPrev: { get: () => eventosPrev },
+  eventosToday: { get: () => eventosToday },
+  invalidateEventosRange: { get: () => invalidateEventosRange },
+  loadEventos: { get: () => loadEventos },
+  openEventoModal: { get: () => openEventoModal },
+  saveEvento: { get: () => saveEvento },
+  setEventosMode: { get: () => setEventosMode },
+  setEventosTimelineRange: { get: () => setEventosTimelineRange },
+  setEventosView: { get: () => setEventosView },
+});
+
+let eventosView = AppModules.core.SS.get('evt:view', 'calendar');
+let eventosMode = AppModules.core.SS.get('evt:mode', 'calendar');
+let eventosYear = Number(AppModules.core.SS.get('evt:year', new Date().getFullYear()));
+let eventosMonth = Number(AppModules.core.SS.get('evt:month', new Date().getMonth()));
+let eventosTimelineDays = Number(AppModules.core.SS.get('evt:tlDays', 14));
 const eventosTypeFilters = new Set();
 let eventosPanDrag = null;
 let eventosEditingId = null;
-let eventosData = [];
 let eventosTeamMembers = [];
 const EVENTOS_LABEL_W = 190;
 const EVENTOS_ZOOM = { 7: 80, 14: 48, 30: 24 };
@@ -31,54 +49,153 @@ function setEventosCount(n) {
   });
 }
 
-const EVENT_TYPES = [
-  { id: 'limpeza', label: 'Limpezas', singular: 'Limpeza', icon: 'brush-cleaning', color: '#8B3A24' },
-  { id: 'reuniao', label: 'Compromissos', singular: 'Compromisso', icon: 'calendar-check', color: '#4a7fa5' },
-  { id: 'pequeno_almoco', label: 'Pequenos-almoços', singular: 'Pequeno-almoço', icon: 'coffee', color: '#c9a84c' },
-  { id: 'checkin', label: 'Check-ins', singular: 'Check-in', icon: 'log-in', color: '#4f8f6b' },
-  { id: 'checkout', label: 'Check-outs', singular: 'Check-out', icon: 'log-out', color: '#6f6bb3' },
-  { id: 'manutencao', label: 'Manutenção', singular: 'Manutenção', icon: 'wrench', color: '#c46a2d' },
-  { id: 'agenda_local', label: 'Agenda Local', singular: 'Evento local', icon: 'party-popper', color: '#b0468a' },
-  { id: 'outro', label: 'Outros', singular: 'Outro', icon: 'circle-dot', color: '#8a8278' },
-];
+
+// A vista tem dois consumos distintos, como o calendário de reservas:
+//  - calendário/timeline/agenda desenham um intervalo de datas → carregam esse
+//    intervalo e só esse (eventosRange);
+//  - a lista pagina no servidor (eventosListPaged).
+// Antes, ambos partilhavam um único GET /api/events sem limites, que trazia a
+// coleção inteira para memória.
+const eventosCalendarRange = AppModules.core.createRangeCollection('/api/events');
+const eventosAgendaRange = AppModules.core.createRangeCollection('/api/events');
+let eventosRenderVersion = 0;
+
+// Horizonte desenhado por cada modo, com folga para os dias adjacentes que o
+// calendário mostra fora do mês.
+function eventosPeriod() {
+  const iso = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  if (eventosView !== 'list' && eventosMode === 'timeline') {
+    const start = new Date();
+    start.setDate(start.getDate() - 1);
+    const end = new Date(start);
+    end.setDate(end.getDate() + eventosTimelineDays + 2);
+    return { from: iso(start), to: iso(end) };
+  }
+  const monthStart = new Date(eventosYear, eventosMonth, 1);
+  monthStart.setDate(monthStart.getDate() - monthStart.getDay());
+  const monthEnd = new Date(eventosYear, eventosMonth + 1, 0);
+  monthEnd.setDate(monthEnd.getDate() + 6 - monthEnd.getDay());
+  return { from: iso(monthStart), to: iso(monthEnd) };
+}
+
+function eventosAgendaPeriod() {
+  const today = new Date();
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 20);
+  return { from: isoDate(today.getFullYear(), today.getMonth(), today.getDate()),
+    to: isoDate(end.getFullYear(), end.getMonth(), end.getDate()) };
+}
+
+function invalidateEventosRange() {
+  eventosCalendarRange.reset();
+  eventosAgendaRange.reset();
+}
+
+function eventosRangeMessage(ids, message, retry = null) {
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.textContent = message;
+    if (retry) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'btn btn-ghost btn-sm';
+      button.textContent = 'Tentar novamente';
+      button.addEventListener('click', retry);
+      el.appendChild(button);
+    }
+  }
+}
+
+async function ensureEventosRange(collection, query, ids, draw, isCurrent) {
+  const key = JSON.stringify(query);
+  if (collection.state.key !== key) eventosRangeMessage(ids, 'A carregar eventos…');
+  const loaded = await collection.load(query);
+  if (!isCurrent()) return;
+  if (loaded && collection.state.key === key) draw();
+  else if (collection.state.error) {
+    eventosRangeMessage(ids, collection.state.error, () => renderEventosView());
+    setEventosCount('—');
+  }
+}
+
+// Coleção paginada da lista. O estado distingue carregamento, erro e vazio.
+const eventosListPaged = AppModules.core.createPagedCollection('/api/events', () => renderEventosListState());
+
+function getEventosListQuery() {
+  const search = (document.getElementById('eventos-search')?.value || '').trim();
+  const accommodation = document.getElementById('eventos-list-acc-filter')?.value || '';
+  const status = document.getElementById('eventos-list-status-filter')?.value || '';
+  const range = document.getElementById('eventos-list-date-filter')?.value || '';
+  const iso = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const today = new Date();
+  const todayStr = iso(today);
+
+  const query = {};
+  if (search) query.search = search;
+  if (accommodation) query.accommodation_id = accommodation;
+  if (status) query.status = status;
+  if (eventosTypeFilters.size) query.types = [...eventosTypeFilters].join(',');
+  if (range === 'today') { query.from = todayStr; query.to = todayStr; }
+  else if (range === 'week') {
+    const end = new Date(today); end.setDate(today.getDate() + 7);
+    query.from = todayStr; query.to = iso(end);
+  } else if (range === 'month') {
+    query.from = iso(new Date(today.getFullYear(), today.getMonth(), 1));
+    query.to = iso(new Date(today.getFullYear(), today.getMonth() + 1, 0));
+  } else if (range === 'upcoming') {
+    query.from = todayStr;
+  }
+  return query;
+}
+
+// A escrita usa o atraso curto da coleção (que também cancela pedidos
+// anteriores); mudar um filtro pede logo.
+function eventosListQueryChanged(options = {}) {
+  const query = getEventosListQuery();
+  if (options.immediate) eventosListPaged.load(query);
+  else eventosListPaged.schedule(query);
+}
 
 async function loadEventos() {
-  try {
-    const [payload] = await Promise.all([
-      apiGet('/api/events'),
-      loadEventosTeamMembers(),
-    ]);
-    eventosData = payload.data || [];
-  } catch {
-    toast('❌ Erro ao carregar eventos.', 'error');
-    eventosData = [];
-  }
-  renderEventosView();
+  const session = AppModules.sessionVersion;
+  await loadEventosTeamMembers();
+  if (session !== AppModules.sessionVersion) return;
+  return renderEventosView();
 }
 
 async function loadEventosTeamMembers() {
   try {
-    const payload = await apiGet('/api/team/members');
+    const payload = await AppModules.core.apiGet('/api/team/members');
     eventosTeamMembers = payload?.data?.members || [];
   } catch {
-    eventosTeamMembers = currentUser ? [{ name: currentUser.name, role: currentUser.role }] : [];
+    eventosTeamMembers = AppModules.core.currentUser ? [{ name: AppModules.core.currentUser.name, role: AppModules.core.currentUser.role }] : [];
   }
 }
 
-function renderEventosView() {
-  SS.set('evt:view', eventosView);
-  SS.set('evt:mode', eventosMode);
-  SS.set('evt:year', eventosYear);
-  SS.set('evt:month', eventosMonth);
+async function renderEventosView() {
+  const version = ++eventosRenderVersion;
+  const isCurrent = () => version === eventosRenderVersion;
+  AppModules.core.SS.set('evt:view', eventosView);
+  AppModules.core.SS.set('evt:mode', eventosMode);
+  AppModules.core.SS.set('evt:year', eventosYear);
+  AppModules.core.SS.set('evt:month', eventosMonth);
   populateEventosAccommodationSelects();
   AppUI.enhanceSelects(document.getElementById('view-eventos'));
   AppUI.refreshDropdowns(document.getElementById('view-eventos'));
   updateEventosViewUi();
   updateEventosModeUi();
-  if (eventosView === 'list') renderEventosList();
-  else if (eventosMode === 'timeline') renderEventosTimeline();
-  else renderEventosCalendar();
-  renderEventosAgendaMobile();
+
+  if (eventosView === 'list') {
+    eventosListQueryChanged({ immediate: true });
+  } else {
+    // A agenda não estende o mês selecionado até hoje. Cada consumidor
+    // tem a sua coleção e pode recuperar de uma falha independentemente.
+    await Promise.all([
+      ensureEventosRange(eventosCalendarRange, eventosPeriod(), ['eventos-cal-grid', 'eventos-timeline-wrap'],
+        () => eventosMode === 'timeline' ? renderEventosTimeline() : renderEventosCalendar(), isCurrent),
+      ensureEventosRange(eventosAgendaRange, eventosAgendaPeriod(), ['eventos-agenda-mobile'], renderEventosAgendaMobile, isCurrent),
+    ]);
+  }
   if (window.lucide) lucide.createIcons();
 }
 
@@ -99,12 +216,12 @@ function renderEventosAgendaMobile() {
     const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
     dates.push(isoDate(d.getFullYear(), d.getMonth(), d.getDate()));
   }
-  const events = filteredEventos();
+  const events = filteredEventos(eventosAgendaRange.state.rows);
 
   const stripHtml = dates.map(dateStr => {
     const d = new Date(dateStr + 'T12:00:00');
     const isToday = dateStr === todayStr;
-    return `<button type="button" class="eds-day${isToday ? ' is-today active' : ''}" data-date="${dateStr}" onclick="scrollToEventosAgendaDay('${dateStr}', this)">
+    return `<button type="button" class="eds-day${isToday ? ' is-today active' : ''}" data-date="${dateStr}" ${AppActions.attrs("click", "eventos-scroll-to-eventos-agenda-day-a78e6ec", [String((dateStr) ?? '')])}>
       <span class="eds-day-name">${EVENTOS_AGENDA_DAY_NAMES[d.getDay()]}</span>
       <span class="eds-day-num">${d.getDate()}</span>
     </button>`;
@@ -140,11 +257,11 @@ function renderEventoTaskCard(evento) {
   const important = Number(evento.important) > 0;
   const priorityColor = important ? 'var(--vermelho)' : type.color;
   const time = formatEventoTime(evento);
-  return `<div class="agenda-item eventos-task-item${done ? ' eventos-pill-done' : ''}" style="--agenda-color:${priorityColor};" role="button" tabindex="0" onclick="openEventoModal('${evento.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openEventoModal('${evento.id}');}">
-    <input type="checkbox" class="eventos-task-check" ${done ? 'checked' : ''} onclick="event.stopPropagation();toggleEventoStatus('${evento.id}')" aria-label="Marcar concluído">
+  return `<div class="agenda-item eventos-task-item${done ? ' eventos-pill-done' : ''}" style="--agenda-color:${priorityColor};" role="button" tabindex="0" ${AppActions.attrs("click", "eventos-open-evento-modal-a2a7fbb", [String((evento.id) ?? '')])} ${AppActions.attrs("keydown", "eventos-if-6aef6e2", [String((evento.id) ?? '')])}>
+    <input type="checkbox" class="eventos-task-check" ${done ? 'checked' : ''} ${AppActions.attrs("click", "eventos-stop-propagation-185b92b", [String((evento.id) ?? '')])} aria-label="Marcar concluído">
     <span class="agenda-item-main">
-      <strong>${escapeHtml(evento.title)}</strong>
-      <small>${type.singular}${evento.accommodation_name ? ' · ' + escapeHtml(evento.accommodation_name) : ''}${time ? ' · ' + time : ''}</small>
+      <strong>${AppModules.core.escapeHtml(evento.title)}</strong>
+      <small>${type.singular}${evento.accommodation_name ? ' · ' + AppModules.core.escapeHtml(evento.accommodation_name) : ''}${time ? ' · ' + time : ''}</small>
     </span>
   </div>`;
 }
@@ -160,7 +277,7 @@ function scrollToEventosAgendaDay(dateStr, btn) {
 
 function setEventosView(view) {
   eventosView = view === 'list' ? 'list' : 'calendar';
-  renderEventosView();
+  return renderEventosView();
 }
 
 function setEventosMode(mode) {
@@ -186,7 +303,7 @@ function setEventosMode(mode) {
   if (outgoing) outgoing.classList.add(exitAnim);
   setTimeout(() => {
     eventosMode = nextMode;
-    SS.set('evt:mode', eventosMode);
+    AppModules.core.SS.set('evt:mode', eventosMode);
     if (outgoing) { outgoing.style.display = 'none'; outgoing.classList.remove(exitAnim); }
     if (incoming) {
       incoming.style.display = '';
@@ -225,7 +342,7 @@ function setEventosTimelineRange(days) {
   const centerOffset = wrap ? wrap.scrollLeft + (wrap.clientWidth - EVENTOS_LABEL_W) / 2 - EVENTOS_LABEL_W : 0;
   const centerDayIdx = oldDayW > 0 ? centerOffset / oldDayW : 0;
   eventosTimelineDays = Number(days);
-  SS.set('evt:tlDays', eventosTimelineDays);
+  AppModules.core.SS.set('evt:tlDays', eventosTimelineDays);
   updateEventosRangeUi();
   if (eventosMode === 'timeline') {
     const newDayW = getEventosDayWidth();
@@ -291,8 +408,8 @@ function moveEventosModePill() {
   pill.style.width = btnRect.width + 'px';
 }
 
-function filteredEventos() {
-  return eventosData.filter(evento => eventosTypeFilters.size === 0 || eventosTypeFilters.has(evento.type));
+function filteredEventos(rows = eventosCalendarRange.state.rows) {
+  return rows.filter(evento => eventosTypeFilters.size === 0 || eventosTypeFilters.has(evento.type));
 }
 
 function renderEventosCalendar() {
@@ -328,7 +445,7 @@ function renderEventosCalendar() {
   const events = filteredEventos();
   grid.innerHTML = visibleDays.map(day => {
     const dayEvents = events.filter(e => e.date === day.dateStr);
-    return `<div class="cal-day eventos-day${day.otherMonth ? ' other-month' : ''}${day.dateStr === todayStr ? ' today' : ''}" ondblclick="openEventoModal(null,'${day.dateStr}')">
+    return `<div class="cal-day eventos-day${day.otherMonth ? ' other-month' : ''}${day.dateStr === todayStr ? ' today' : ''}" ${AppActions.attrs("dblclick", "eventos-open-evento-modal-bc5ccca", [day.dateStr])}>
       <div class="day-num">${day.day}</div>
       <div class="eventos-day-list">
         ${dayEvents.map(renderEventoPillCompact).join('')}
@@ -340,7 +457,7 @@ function renderEventosCalendar() {
   setEventosCount(monthEvents.length);
   const emptyBox = document.getElementById('eventos-cal-empty');
   if (emptyBox) {
-    emptyBox.innerHTML = monthEvents.length ? '' : emptyStateHtml(
+    emptyBox.innerHTML = monthEvents.length ? '' : AppModules.core.emptyStateHtml(
       '📅', 'Sem eventos neste mês', 'Nenhum evento visível com estes filtros.', { inline: true }
     );
   }
@@ -366,7 +483,7 @@ function renderEventosTimeline(autoScroll = true) {
   const dayNames   = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-  const filteredEvents = eventosData.filter(e =>
+  const filteredEvents = eventosCalendarRange.state.rows.filter(e =>
     (eventosTypeFilters.size === 0 || eventosTypeFilters.has(e.type)) && e.date >= startStr && e.date < endStr
   );
 
@@ -380,8 +497,8 @@ function renderEventosTimeline(autoScroll = true) {
   const generalRow = { id: '', name: 'Sem alojamento', type: 'geral' };
   const hasGeneralEvents = filteredEvents.some(e => !e.accommodation_id);
   const alojList = eventosTypeFilters.size > 0
-    ? accommodations.filter(a => filteredEvents.some(e => e.accommodation_id === a.id))
-    : accommodations;
+    ? AppModules.core.accommodations.filter(a => filteredEvents.some(e => e.accommodation_id === a.id))
+    : AppModules.core.accommodations;
   const rowList = hasGeneralEvents ? [...alojList, generalRow] : alojList;
 
   // Month header cells
@@ -436,8 +553,8 @@ function renderEventosTimeline(autoScroll = true) {
           const doneCls = e.status === 'concluido' ? ' eventos-tl-done' : '';
           const tlInitials = accInitials(e.accommodation_name);
           return `<div class="tl-block eventos-tl-block${doneCls}" style="left:${left}px;width:${width}px;--tl-color:${color};background:${color}${EVT.alpha.fill};border-color:${color}${EVT.alpha.border};cursor:pointer;"
-                       onclick="openEventoModal('${e.id}')"
-                       title="${escapeHtml(type.singular)} · ${escapeHtml(e.title)}${e.accommodation_name ? ' · ' + escapeHtml(e.accommodation_name) : ''}">
+                       ${AppActions.attrs("click", "eventos-open-evento-modal-a2a7fbb", [String((e.id) ?? '')])}
+                       title="${AppModules.core.escapeHtml(type.singular)} · ${AppModules.core.escapeHtml(e.title)}${e.accommodation_name ? ' · ' + AppModules.core.escapeHtml(e.accommodation_name) : ''}">
             <div class="tl-block-header">
               <i data-lucide="${type.icon}"></i>${tlInitials ? `<span class="tl-block-initials">${tlInitials}</span>` : `<span class="tl-block-initials">${type.singular}</span>`}
             </div>
@@ -447,9 +564,9 @@ function renderEventosTimeline(autoScroll = true) {
 
         return `<div class="tl-row"
                      data-acc-id="${row.id}"
-                     data-acc-name="${escapeHtml(row.name)}">
+                     data-acc-name="${AppModules.core.escapeHtml(row.name)}">
           <div class="tl-label">
-            <div class="tl-label-title">${escapeHtml(row.name)}</div>
+            <div class="tl-label-title">${AppModules.core.escapeHtml(row.name)}</div>
             <div class="tl-label-sub">${row.type || 'alojamento'} · ${monthCount} evento${monthCount !== 1 ? 's' : ''} este mês</div>
           </div>
           <div class="tl-days-area">
@@ -461,9 +578,9 @@ function renderEventosTimeline(autoScroll = true) {
 
   const emptyBanner =
     rowList.length === 0
-      ? emptyStateHtml('🏠', 'Sem alojamentos', 'Não há alojamentos para mostrar.', { inline: true })
+      ? AppModules.core.emptyStateHtml('🏠', 'Sem alojamentos', 'Não há alojamentos para mostrar.', { inline: true })
       : (filteredEvents.length === 0
-          ? emptyStateHtml('📅', 'Sem eventos', 'Nenhum evento no período com estes filtros.', { inline: true })
+          ? AppModules.core.emptyStateHtml('📅', 'Sem eventos', 'Nenhum evento no período com estes filtros.', { inline: true })
           : '');
 
   wrap.innerHTML = `
@@ -485,9 +602,9 @@ function renderEventosTimeline(autoScroll = true) {
 }
 
 function renderEventosTypeChips() {
-  const html = EVENT_TYPES.map(t => {
+  const html = AppModules.core.EVENT_TYPES.map(t => {
     const active = eventosTypeFilters.has(t.id);
-    return `<button class="evt-type-chip${active ? ' active' : ''}" style="--chip-color:${t.color}" onclick="toggleEventoTypeChip('${t.id}')" title="${t.label}">
+    return `<button class="evt-type-chip${active ? ' active' : ''}" style="--chip-color:${t.color}" ${AppActions.attrs("click", "eventos-toggle-evento-type-chip-750c6ad", [String((t.id) ?? '')])} title="${t.label}">
       <i data-lucide="${t.icon}"></i><span>${t.label}</span>
     </button>`;
   }).join('');
@@ -501,33 +618,48 @@ function toggleEventoTypeChip(typeId) {
   } else {
     eventosTypeFilters.add(typeId);
   }
-  if (eventosView === 'list') renderEventosList();
+  if (eventosView === 'list') eventosListQueryChanged({ immediate: true });
   else if (eventosMode === 'timeline') renderEventosTimeline();
   else renderEventosCalendar();
   // No mobile o que está visível é a agenda, não o calendário/timeline
   renderEventosAgendaMobile();
 }
 
-function renderEventosList() {
+// Estado da lista: carregamento, erro e vazio são distintos — um erro de rede
+// não pode aparecer como "sem eventos".
+function renderEventosListState() {
   renderEventosTypeChips();
+  const state = eventosListPaged.state;
   const body = document.getElementById('eventos-list-body');
-  const empty = document.getElementById('eventos-list-empty');
   if (!body) return;
-  const rows = getEventosListFiltered();
-  setEventosCount(rows.length);
-  if (!rows.length) {
-    body.innerHTML = '';
-    if (empty) empty.style.display = 'block';
-    return;
-  }
-  if (empty) empty.style.display = 'none';
-  body.innerHTML = rows.map(evento => {
-    const type = getEventoType(evento.type);
-    const acc = evento.accommodation_name || accommodations.find(a => a.id === evento.accommodation_id)?.name || '—';
-    return `<tr>
+
+  const show = (id, visible, text) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = visible ? 'block' : 'none';
+    if (text !== undefined) el.textContent = text;
+  };
+
+  show('eventos-list-loading', state.loading && !state.rows.length);
+  show('eventos-list-error', !!state.error);
+  show('eventos-list-error-detail', !!state.error, state.error || '');
+  show('eventos-list-empty', !state.loading && !state.error && !state.rows.length);
+
+  setEventosCount(state.error ? '—' : state.total);
+  AppModules.core.renderPagination('eventos-list-pagination', state, page => eventosListPaged.load(getEventosListQuery(), { page }));
+
+  if (state.error) { body.innerHTML = ''; return; }
+  body.innerHTML = state.rows.map(renderEventoListRow).join('');
+  if (window.lucide) lucide.createIcons();
+}
+
+function renderEventoListRow(evento) {
+  const type = getEventoType(evento.type);
+  const acc = evento.accommodation_name || AppModules.core.accommodations.find(a => a.id === evento.accommodation_id)?.name || '—';
+  return `<tr>
       <td>
         <div class="eventos-date-cell">
-          <strong>${formatDate(evento.date)}</strong>
+          <strong>${AppModules.core.formatDate(evento.date)}</strong>
           <span>${formatEventoTime(evento) || 'Sem hora'}</span>
         </div>
       </td>
@@ -535,50 +667,40 @@ function renderEventosList() {
         <div class="eventos-title-cell">
           <span class="eventos-pill eventos-pill-${evento.type}"><i data-lucide="${type.icon}"></i>${type.singular}</span>
           ${Number(evento.important) ? `<span class="eventos-important"><i data-lucide="circle-alert"></i> Importante</span>` : ''}
-          <strong>${escapeHtml(evento.title)}</strong>
+          <strong>${AppModules.core.escapeHtml(evento.title)}</strong>
           ${Number(evento.auto_generated) ? `<small>Tarefa automática da reserva</small>` : ''}
-          ${evento.notes ? `<small>${escapeHtml(evento.notes)}</small>` : ''}
+          ${evento.notes ? `<small>${AppModules.core.escapeHtml(evento.notes)}</small>` : ''}
         </div>
       </td>
-      <td>${escapeHtml(acc)}</td>
-      <td>${escapeHtml(evento.responsible || '—')}</td>
+      <td>${AppModules.core.escapeHtml(acc)}</td>
+      <td>${AppModules.core.escapeHtml(evento.responsible || '—')}</td>
       <td>${badgeEventoStatus(evento.status)}</td>
       <td>
         <div class="eventos-row-actions">
-          <button class="btn btn-ghost btn-sm" onclick="toggleEventoStatus('${evento.id}')">
-            ${evento.status === 'concluido' ? lcIcon('rotate-ccw', 13) + ' Planeado' : lcIcon('check', 13) + ' Concluir'}
+          <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "eventos-toggle-evento-status-b4bebd4", [String((evento.id) ?? '')])}>
+            ${evento.status === 'concluido' ? AppModules.core.lcIcon('rotate-ccw', 13) + ' Planeado' : AppModules.core.lcIcon('check', 13) + ' Concluir'}
           </button>
-          <button class="btn btn-ghost btn-sm" onclick="openEventoModal('${evento.id}')">${lcIcon('pencil', 13)} Editar</button>
-          <button class="btn btn-ghost btn-sm" onclick="deleteEvento('${evento.id}')">${lcIcon('trash-2', 13)} Apagar</button>
+          <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "eventos-open-evento-modal-a2a7fbb", [String((evento.id) ?? '')])}>${AppModules.core.lcIcon('pencil', 13)} Editar</button>
+          <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "eventos-delete-evento-e910ecc", [String((evento.id) ?? '')])}>${AppModules.core.lcIcon('trash-2', 13)} Apagar</button>
         </div>
       </td>
     </tr>`;
-  }).join('');
-  if (window.lucide) lucide.createIcons();
 }
 
-function getEventosListFiltered() {
-  const q = (document.getElementById('eventos-search')?.value || '').toLowerCase();
-  const acc = document.getElementById('eventos-list-acc-filter')?.value || '';
-  const status = document.getElementById('eventos-list-status-filter')?.value || '';
-  const range = document.getElementById('eventos-list-date-filter')?.value || '';
-  const today = new Date();
-  const todayStr = today.toISOString().slice(0, 10);
-  const weekEnd = new Date(today); weekEnd.setDate(today.getDate() + 7);
-  const monthStr = todayStr.slice(0, 7);
+// Um evento aberto/alterado pode vir da lista paginada ou do intervalo
+// desenhado no calendário — procura-se nos dois.
+function findEvento(id) {
+  return eventosListPaged.state.rows.find(e => e.id === id)
+      || eventosCalendarRange.state.rows.find(e => e.id === id)
+      || eventosAgendaRange.state.rows.find(e => e.id === id)
+      || null;
+}
 
-  return eventosData.filter(e => {
-    const hay = `${e.title || ''} ${e.responsible || ''} ${e.notes || ''} ${e.accommodation_name || ''}`.toLowerCase();
-    if (q && !hay.includes(q)) return false;
-    if (eventosTypeFilters.size > 0 && !eventosTypeFilters.has(e.type)) return false;
-    if (acc && e.accommodation_id !== acc) return false;
-    if (status && e.status !== status) return false;
-    if (range === 'today' && e.date !== todayStr) return false;
-    if (range === 'week' && (e.date < todayStr || e.date > weekEnd.toISOString().slice(0, 10))) return false;
-    if (range === 'month' && e.date.slice(0, 7) !== monthStr) return false;
-    if (range === 'upcoming' && e.date < todayStr) return false;
-    return true;
-  }).sort((a, b) => (a.date + (a.start_time || '99:99')).localeCompare(b.date + (b.start_time || '99:99')));
+// Recarrega o que estiver visível, depois de criar/alterar/apagar.
+async function refreshEventos() {
+  invalidateEventosRange();
+  if (eventosView === 'list') await eventosListPaged.load(getEventosListQuery(), { force: true });
+  renderEventosView();
 }
 
 function attachEventosTimelinePan() {
@@ -692,8 +814,8 @@ const DONE_CHECK = '<span class="eventos-pill-check"><i data-lucide="check"></i>
 function renderEventoPill(evento) {
   const type = getEventoType(evento.type);
   const done = evento.status === 'concluido';
-  return `<button type="button" class="eventos-pill eventos-pill-${evento.type}${Number(evento.important) ? ' eventos-pill-important' : ''}${done ? ' eventos-pill-done' : ''}" onclick="event.stopPropagation();openEventoModal('${evento.id}')">
-    <i data-lucide="${type.icon}"></i>${Number(evento.important) ? lcIcon('circle-alert', 12) : ''}${escapeHtml(evento.title)}${done ? DONE_CHECK : ''}
+  return `<button type="button" class="eventos-pill eventos-pill-${evento.type}${Number(evento.important) ? ' eventos-pill-important' : ''}${done ? ' eventos-pill-done' : ''}" ${AppActions.attrs("click", "eventos-stop-propagation-42fa735", [String((evento.id) ?? '')])}>
+    <i data-lucide="${type.icon}"></i>${Number(evento.important) ? AppModules.core.lcIcon('circle-alert', 12) : ''}${AppModules.core.escapeHtml(evento.title)}${done ? DONE_CHECK : ''}
   </button>`;
 }
 
@@ -701,14 +823,14 @@ function renderEventoPillCompact(evento) {
   const type = getEventoType(evento.type);
   const done = evento.status === 'concluido';
   const timeLabel = evento.start_time ? ` ${evento.start_time}` : '';
-  const tooltip = escapeHtml(evento.title + (evento.accommodation_name ? ` · ${evento.accommodation_name}` : '') + timeLabel + (done ? ' · concluído' : ''));
+  const tooltip = AppModules.core.escapeHtml(evento.title + (evento.accommodation_name ? ` · ${evento.accommodation_name}` : '') + timeLabel + (done ? ' · concluído' : ''));
   const initials = accInitials(evento.accommodation_name);
   return `<button type="button"
     class="eventos-pill eventos-pill-${evento.type} eventos-pill-compact${Number(evento.important) ? ' eventos-pill-important' : ''}${done ? ' eventos-pill-done' : ''}"
     title="${tooltip}"
     aria-label="${tooltip}"
-    onclick="event.stopPropagation();openEventoModal('${evento.id}')">
-    <i data-lucide="${type.icon}"></i>${Number(evento.important) ? lcIcon('circle-alert', 10) : ''}<span class="pill-title">${escapeHtml(evento.title)}</span>${initials ? `<span class="pill-acc-name">${initials}</span>` : ''}${done ? DONE_CHECK : ''}
+    ${AppActions.attrs("click", "eventos-stop-propagation-42fa735", [String((evento.id) ?? '')])}>
+    <i data-lucide="${type.icon}"></i>${Number(evento.important) ? AppModules.core.lcIcon('circle-alert', 10) : ''}<span class="pill-title">${AppModules.core.escapeHtml(evento.title)}</span>${initials ? `<span class="pill-acc-name">${initials}</span>` : ''}${done ? DONE_CHECK : ''}
   </button>`;
 }
 
@@ -718,17 +840,17 @@ function populateEventoTypeSelect() {
   const el = document.getElementById('evento-type');
   if (!el || el.dataset.populated === '1') return;
   const current = el.value;
-  el.innerHTML = EVENT_TYPES.map(t => `<option value="${t.id}">${t.singular}</option>`).join('');
+  el.innerHTML = AppModules.core.EVENT_TYPES.map(t => `<option value="${t.id}">${t.singular}</option>`).join('');
   el.value = current || 'limpeza';
   el.dataset.populated = '1';
 }
 
 function openEventoModal(id = null, date = null, accId = null) {
   eventosEditingId = id;
-  const evento = id ? eventosData.find(e => e.id === id) : null;
+  const evento = id ? findEvento(id) : null;
   populateEventoTypeSelect();
   populateEventosAccommodationSelects();
-  populateEventosResponsibleSelect(evento?.responsible || currentUser?.name || '');
+  populateEventosResponsibleSelect(evento?.responsible || AppModules.core.currentUser?.name || '');
   document.getElementById('evento-modal-title').textContent = evento ? 'Editar Evento' : 'Novo Evento';
   document.getElementById('evento-title').value = evento?.title || '';
   document.getElementById('evento-type').value = evento?.type || 'limpeza';
@@ -737,7 +859,7 @@ function openEventoModal(id = null, date = null, accId = null) {
   document.getElementById('evento-start-time').value = evento?.start_time || '';
   document.getElementById('evento-end-time').value = evento?.end_time || '';
   document.getElementById('evento-accommodation').value = evento?.accommodation_id || accId || '';
-  document.getElementById('evento-responsible').value = evento?.responsible || currentUser?.name || '';
+  document.getElementById('evento-responsible').value = evento?.responsible || AppModules.core.currentUser?.name || '';
   document.getElementById('evento-notes').value = evento?.notes || '';
   const delBtn = document.getElementById('evento-delete-btn');
   if (delBtn) delBtn.style.display = evento ? '' : 'none';
@@ -767,7 +889,7 @@ async function saveEvento() {
   };
   // Mensagens específicas (ajuda a perceber qual campo está em falta) + salvaguarda na data.
   if (!body.title) {
-    toast('⚠️ Indica o título do evento.', 'error');
+    AppModules.core.toast('⚠️ Indica o título do evento.', 'error');
     return;
   }
   if (!body.date) {
@@ -778,41 +900,37 @@ async function saveEvento() {
   try {
     const isEdit = Boolean(eventosEditingId);
     const payload = isEdit
-      ? await apiPut(`/api/events/${eventosEditingId}`, body)
-      : await apiPost('/api/events', body);
-    const saved = payload.data;
-    const idx = eventosData.findIndex(e => e.id === saved.id);
-    if (idx >= 0) eventosData[idx] = { ...eventosData[idx], ...saved };
-    else eventosData.push(saved);
+      ? await AppModules.core.apiPut(`/api/events/${eventosEditingId}`, body)
+      : await AppModules.core.apiPost('/api/events', body);
     closeEventoModal();
-    toast(isEdit ? '✅ Evento atualizado.' : '✅ Evento criado.', 'success');
-    await loadEventos();
+    AppModules.core.toast(isEdit ? '✅ Evento atualizado.' : '✅ Evento criado.', 'success');
+    await refreshEventos();
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || err.message || 'Erro ao guardar evento.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || err.message || 'Erro ao guardar evento.'), 'error');
   } finally {
     AppUI.setButtonLoading(btn, false);
   }
 }
 
 async function toggleEventoStatus(id) {
-  const evento = eventosData.find(e => e.id === id);
+  const evento = findEvento(id);
   if (!evento) return;
   try {
-    await apiPut(`/api/events/${id}`, { ...evento, status: evento.status === 'concluido' ? 'planeado' : 'concluido' });
-    await loadEventos();
+    await AppModules.core.apiPut(`/api/events/${id}`, { ...evento, status: evento.status === 'concluido' ? 'planeado' : 'concluido' });
+    await refreshEventos();
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || 'Não foi possível atualizar.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Não foi possível atualizar.'), 'error');
   }
 }
 
 async function deleteEvento(id) {
   if (!confirm('Eliminar este evento?')) return;
   try {
-    await apiDelete(`/api/events/${id}`);
-    toast('Evento eliminado.', 'info');
-    await loadEventos();
+    await AppModules.core.apiDelete(`/api/events/${id}`);
+    AppModules.core.toast('Evento eliminado.', 'info');
+    await refreshEventos();
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || 'Não foi possível eliminar.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Não foi possível eliminar.'), 'error');
   }
 }
 
@@ -822,12 +940,12 @@ async function deleteEventoFromModal() {
   const id = eventosEditingId;
   if (!confirm('Eliminar este evento? Esta ação não pode ser desfeita.')) return;
   try {
-    await apiDelete(`/api/events/${id}`);
+    await AppModules.core.apiDelete(`/api/events/${id}`);
     closeEventoModal();
-    toast('Evento eliminado.', 'info');
-    await loadEventos();
+    AppModules.core.toast('Evento eliminado.', 'info');
+    await refreshEventos();
   } catch (err) {
-    toast('❌ ' + (err?.payload?.error || 'Não foi possível eliminar.'), 'error');
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Não foi possível eliminar.'), 'error');
   }
 }
 
@@ -839,7 +957,7 @@ function populateEventosAccommodationSelects() {
     el.innerHTML = id === 'evento-accommodation'
       ? '<option value="">Sem alojamento</option>'
       : '<option value="">Todos os alojamentos</option>';
-    accommodations.forEach(a => {
+    AppModules.core.accommodations.forEach(a => {
       const opt = document.createElement('option');
       opt.value = a.id;
       opt.textContent = a.name;
@@ -854,7 +972,7 @@ function populateEventosResponsibleSelect(selected = '') {
   if (!el) return;
   const names = Array.from(new Set([
     ...(eventosTeamMembers || []).map(member => member.name).filter(Boolean),
-    currentUser?.name,
+    AppModules.core.currentUser?.name,
     selected,
   ].filter(Boolean))).sort((a, b) => a.localeCompare(b, 'pt'));
   el.innerHTML = '<option value="">Sem responsável</option>';
@@ -864,7 +982,7 @@ function populateEventosResponsibleSelect(selected = '') {
     opt.textContent = name;
     el.appendChild(opt);
   });
-  el.value = selected || currentUser?.name || '';
+  el.value = selected || AppModules.core.currentUser?.name || '';
 }
 
 function eventosPrev() {
@@ -901,7 +1019,7 @@ function eventosToday() {
 }
 
 function getEventoType(type) {
-  return EVENT_TYPES.find(t => t.id === type) || EVENT_TYPES[EVENT_TYPES.length - 1];
+  return AppModules.core.EVENT_TYPES.find(t => t.id === type) || AppModules.core.EVENT_TYPES[AppModules.core.EVENT_TYPES.length - 1];
 }
 
 function formatEventoTime(evento) {
@@ -919,3 +1037,35 @@ function badgeEventoStatus(status) {
 function isoDate(year, monthIndex, day) {
   return `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
+
+AppActions.register({
+  "eventos-stop-propagation-42fa735": (el, event, args) => { event.stopPropagation();openEventoModal(args[0]) },
+  "eventos-toggle-evento-status-b4bebd4": (el, event, args) => { toggleEventoStatus(args[0]) },
+  "eventos-open-evento-modal-a2a7fbb": (el, event, args) => { openEventoModal(args[0]) },
+  "eventos-delete-evento-e910ecc": (el, event, args) => { deleteEvento(args[0]) },
+  "eventos-toggle-evento-type-chip-750c6ad": (el, event, args) => { toggleEventoTypeChip(args[0]) },
+  "eventos-stop-propagation-185b92b": (el, event, args) => { event.stopPropagation();toggleEventoStatus(args[0]) },
+  "eventos-scroll-to-eventos-agenda-day-a78e6ec": (el, event, args) => { scrollToEventosAgendaDay(args[0], el) },
+}, "click");
+
+AppActions.register({
+  "eventos-open-evento-modal-bc5ccca": (el, event, args) => { openEventoModal(null,(String(args[0]))) },
+}, "dblclick");
+
+AppActions.register({
+  "eventos-if-6aef6e2": (el, event, args) => { if(event.key==='Enter'||event.key===' '){event.preventDefault();openEventoModal(args[0]);} },
+}, "keydown");
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('eventos.js', () => {
+  eventosRenderVersion++;
+  eventosTypeFilters.clear();
+  eventosPanDrag = null;
+  eventosEditingId = null;
+  eventosTeamMembers = [];
+  eventosCalendarRange.reset();
+  eventosAgendaRange.reset();
+  eventosListPaged.reset();
+});
+
+})();

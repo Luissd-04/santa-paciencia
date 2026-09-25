@@ -1,0 +1,508 @@
+        <section class="settings-shell">
+          <div class="settings-tabs">
+            <button class="settings-tab active" data-settings-tab="gcal" data-on-click="index-switch-settings-tab-9fb9b21">
+              <i data-lucide="blocks"></i> Google
+            </button>
+            <button class="settings-tab" data-settings-tab="database" data-on-click="index-switch-settings-tab-7a90904">
+              <i data-lucide="database"></i> Base de dados
+            </button>
+            <button class="settings-tab" data-settings-tab="operations" data-on-click="index-switch-settings-tab-4789cef">
+              <i data-lucide="list-checks"></i> Tarefas
+            </button>
+            <button class="settings-tab" data-settings-tab="emails" data-on-click="index-switch-settings-tab-cb9fcd7">
+              <i data-lucide="mail"></i> Emails
+            </button>
+            <button class="settings-tab" data-settings-tab="fornecedores" data-on-click="index-switch-settings-tab-a97cb74">
+              <i data-lucide="truck"></i> Fornecedores
+            </button>
+            <button class="settings-tab" data-settings-tab="push" data-on-click="index-switch-settings-tab-9100a42">
+              <i data-lucide="bell-ring"></i> Notificações
+            </button>
+            <button class="settings-tab" data-settings-tab="equipa" data-owner-only="true" style="display:none;" data-on-click="index-switch-settings-tab-e9ee807">
+              <i data-lucide="users-round"></i> Equipa
+            </button>
+          </div>
+
+          <div class="settings-panel active" id="settings-gcal">
+
+            <!-- Gmail para envio de emails -->
+            <div class="card settings-integration-card" style="margin-bottom:16px;">
+              <div class="settings-integration-icon">
+                <i data-lucide="mail"></i>
+              </div>
+              <div class="settings-integration-info">
+                <h3>Email — Gmail</h3>
+                <p>Ligue uma conta Gmail para enviar emails de confirmação, cancelamento e pagamento directamente a partir dessa conta. Independente do Google Calendar.</p>
+                <span id="gmail-badge" class="gcal-status" style="margin-top:6px;display:inline-flex;"><span class="dot dot-red"></span> Desligado</span>
+              </div>
+              <div class="settings-integration-actions">
+                <button id="gmail-connect-btn" class="btn btn-ghost btn-sm" data-on-click="index-connect-gmail-726ad90">
+                  <i data-lucide="link"></i> Ligar Gmail
+                </button>
+                <button id="gmail-disconnect-btn" class="btn btn-ghost btn-sm" style="display:none;" data-on-click="index-disconnect-gmail-ed5ff65">
+                  <i data-lucide="unlink"></i> Desligar
+                </button>
+                <button id="gmail-test-btn" class="btn btn-ghost btn-sm" style="display:none;" data-on-click="index-test-gmail-ec29746">
+                  <i data-lucide="send"></i> Testar envio
+                </button>
+              </div>
+            </div>
+
+            <div class="card settings-integration-card" style="margin-bottom:16px;">
+              <div class="settings-integration-icon">
+                <i data-lucide="calendar-sync"></i>
+              </div>
+              <div class="settings-integration-info">
+                <h3>Google Calendar</h3>
+                <p>Ligue o seu próprio Google Calendar. As reservas criadas por si são sincronizadas com o calendário da sua conta.</p>
+                <span id="gcal-badge" class="gcal-status" style="margin-top:6px;display:inline-flex;"><span class="dot dot-red"></span> Desligado</span>
+              </div>
+              <div class="settings-integration-actions">
+                <button id="gcal-connect-btn" class="btn btn-ghost btn-sm" data-on-click="index-connect-gcal-1a60f6c">
+                  <i data-lucide="link"></i> Ligar Google Calendar
+                </button>
+                <button id="gcal-disconnect-btn" class="btn btn-ghost btn-sm" style="display:none;" data-on-click="index-disconnect-gcal-47b66d2">
+                  <i data-lucide="unlink"></i> Desligar
+                </button>
+                <button id="gcal-sync-btn" class="btn btn-primary btn-sm" style="display:none;" data-on-click="index-sync-all-gcal-dff39c4">
+                  <i data-lucide="refresh-cw"></i> Sincronizar tudo
+                </button>
+                <button id="gcal-clean-btn" class="btn btn-ghost btn-sm" style="display:none;color:var(--vermelho);" data-on-click="index-clean-gcal-duplicates-a94c676" title="Remover eventos duplicados no Google (órfãos antigos)">
+                  <i data-lucide="copy-x"></i> Limpar duplicados
+                </button>
+              </div>
+            </div>
+
+            <!-- Google Tasks -->
+            <div class="card settings-integration-card" style="margin-bottom:16px;">
+              <div class="settings-integration-icon">
+                <i data-lucide="check-square"></i>
+              </div>
+              <div class="settings-integration-info">
+                <h3>Google Tasks</h3>
+                <p>Sincroniza as tarefas operacionais (check-ins, limpezas, manutenções) com o Google Tasks da tua conta Google.</p>
+                <span id="gtasks-badge" class="gcal-status" style="margin-top:6px;display:inline-flex;"><span class="dot dot-red"></span> Desligado</span>
+              </div>
+              <div class="settings-integration-actions">
+                <button id="gtasks-connect-btn" class="btn btn-ghost btn-sm" data-on-click="index-connect-google-tasks-8d04ef9">
+                  <i data-lucide="link"></i> Ligar Google Tasks
+                </button>
+                <button id="gtasks-disconnect-btn" class="btn btn-ghost btn-sm" style="display:none;" data-on-click="index-disconnect-google-tasks-c24b80b">
+                  <i data-lucide="unlink"></i> Desligar
+                </button>
+                <button id="gtasks-sync-btn" class="btn btn-primary btn-sm" style="display:none;" data-on-click="index-sync-google-tasks-abdbefc">
+                  <i data-lucide="refresh-cw"></i> Sincronizar tarefas
+                </button>
+                <button id="gtasks-clean-btn" class="btn btn-ghost btn-sm" style="display:none;color:var(--vermelho);" data-on-click="index-clean-gtasks-duplicates-3987485" title="Remover tarefas duplicadas no Google Tasks (órfãos antigos)">
+                  <i data-lucide="copy-x"></i> Limpar duplicados
+                </button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">
+                  <i data-lucide="refresh-cw"></i> Estado da Sincronização
+                </span>
+              </div>
+              <div class="settings-sync-grid">
+                <div class="settings-stat">
+                  <strong id="sync-total">—</strong>
+                  <span>Total de Reservas Ativas</span>
+                </div>
+                <div class="settings-stat">
+                  <strong id="sync-ok">—</strong>
+                  <span>No Google Calendar</span>
+                </div>
+                <div class="settings-stat">
+                  <strong id="sync-removed">—</strong>
+                  <span>Canceladas (removidas)</span>
+                </div>
+              </div>
+              <div class="settings-sync-tasks-row" style="border-top:1px solid var(--borda);margin-top:16px;padding-top:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <div>
+                  <div style="font-weight:600;font-size:13px;">Sincronizar eventos com o Google Calendar</div>
+                  <div style="font-size:12px;color:var(--cinza);margin-top:2px;">Envia automaticamente para o Google Calendar todos os eventos (check-ins, check-outs, limpezas, pequenos-almoços, compromissos, manutenção, agenda local e outros) assim que são criados ou editados. As reservas em si sincronizam sempre, independentemente desta opção.</div>
+                  <div id="gcal-tasks-stat" style="font-size:12px;color:var(--cinza);margin-top:4px;display:none;"></div>
+                </div>
+                <label class="toggle-switch" style="flex-shrink:0;">
+                  <input type="checkbox" id="gcal-sync-calendar-toggle" data-on-change="index-save-gcal-sync-settings-661beb8">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="settings-sync-tasks-row" style="border-top:1px solid var(--borda);margin-top:16px;padding-top:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <div>
+                  <div style="font-weight:600;font-size:13px;">Sincronizar eventos com o Google Tasks</div>
+                  <div style="font-size:12px;color:var(--cinza);margin-top:2px;">Envia automaticamente os mesmos eventos para o Google Tasks, à parte da opção acima — podes ligar só uma, a outra, ou as duas.</div>
+                </div>
+                <label class="toggle-switch" style="flex-shrink:0;">
+                  <input type="checkbox" id="gcal-sync-tasks-toggle" data-on-change="index-save-gcal-sync-settings-661beb8">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <!-- Google Tasks stats -->
+              <div id="gtasks-stats-row" style="border-top:1px solid var(--borda);margin-top:16px;padding-top:16px;display:none;">
+                <div style="font-weight:600;font-size:13px;margin-bottom:8px;"><i data-lucide="check-square" style="width:14px;height:14px;vertical-align:-2px;"></i> Google Tasks</div>
+                <div style="display:flex;gap:24px;">
+                  <div class="settings-stat">
+                    <strong id="gtasks-synced">—</strong>
+                    <span>Sincronizadas</span>
+                  </div>
+                  <div class="settings-stat">
+                    <strong id="gtasks-pending">—</strong>
+                    <span>Por sincronizar</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-panel" id="settings-database">
+            <div class="settings-db-grid">
+              <div class="card settings-db-card">
+                <div class="card-header">
+                  <span class="card-title"><i data-lucide="home"></i> Alojamentos</span>
+                </div>
+                <div class="settings-db-actions">
+                  <button class="btn btn-ghost btn-sm" data-on-click="index-feature-action-9be548a"><i data-lucide="table-2"></i> XLS</button>
+                  <button class="btn btn-ghost btn-sm" data-on-click="index-feature-action-692e885"><i data-lucide="file-text"></i> PDF</button>
+                  <label class="btn btn-ghost btn-sm settings-file-btn">
+                    <i data-lucide="upload"></i> Importar XLS
+                    <input type="file" accept=".xlsx,.xls" data-on-change="index-feature-action-3893769">
+                  </label>
+                </div>
+                <div class="settings-export-reminders">
+                  <label>
+                    <span>Lembrete XLS</span>
+                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="alojamentos_xls" data-on-change="index-set-export-reminder-c0631ba">
+                      <option value="">Desligado</option>
+                      <option value="7">7 dias</option>
+                      <option value="15">15 dias</option>
+                      <option value="30">1 mês</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Lembrete PDF</span>
+                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="alojamentos_pdf" data-on-change="index-set-export-reminder-79573f2">
+                      <option value="">Desligado</option>
+                      <option value="7">7 dias</option>
+                      <option value="15">15 dias</option>
+                      <option value="30">1 mês</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div class="card settings-db-card">
+                <div class="card-header">
+                  <span class="card-title"><i data-lucide="clipboard-list"></i> Reservas</span>
+                </div>
+                <div class="settings-db-actions">
+                  <button class="btn btn-ghost btn-sm" data-on-click="index-feature-action-283c8c8"><i data-lucide="table-2"></i> XLS</button>
+                  <button class="btn btn-ghost btn-sm" data-on-click="index-feature-action-3afa930"><i data-lucide="file-text"></i> PDF</button>
+                  <label class="btn btn-ghost btn-sm settings-file-btn">
+                    <i data-lucide="upload"></i> Importar XLS
+                    <input type="file" accept=".xlsx,.xls" data-on-change="index-feature-action-71a5955">
+                  </label>
+                </div>
+                <div class="settings-export-reminders">
+                  <label>
+                    <span>Lembrete XLS</span>
+                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="reservas_xls" data-on-change="index-set-export-reminder-8c8d9db">
+                      <option value="">Desligado</option>
+                      <option value="7">7 dias</option>
+                      <option value="15">15 dias</option>
+                      <option value="30">1 mês</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Lembrete PDF</span>
+                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="reservas_pdf" data-on-change="index-set-export-reminder-de7f07d">
+                      <option value="">Desligado</option>
+                      <option value="7">7 dias</option>
+                      <option value="15">15 dias</option>
+                      <option value="30">1 mês</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div class="card settings-db-card">
+                <div class="card-header">
+                  <span class="card-title"><i data-lucide="users"></i> Hóspedes</span>
+                </div>
+                <div class="settings-db-actions">
+                  <button class="btn btn-ghost btn-sm" data-on-click="index-feature-action-2251788"><i data-lucide="table-2"></i> XLS</button>
+                  <button class="btn btn-ghost btn-sm" data-on-click="index-feature-action-b14c826"><i data-lucide="file-text"></i> PDF</button>
+                  <label class="btn btn-ghost btn-sm settings-file-btn">
+                    <i data-lucide="upload"></i> Importar XLS
+                    <input type="file" accept=".xlsx,.xls" data-on-change="index-feature-action-de7d6f8">
+                  </label>
+                </div>
+                <div class="settings-export-reminders">
+                  <label>
+                    <span>Lembrete XLS</span>
+                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="hospedes_xls" data-on-change="index-set-export-reminder-7f41ba7">
+                      <option value="">Desligado</option>
+                      <option value="7">7 dias</option>
+                      <option value="15">15 dias</option>
+                      <option value="30">1 mês</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Lembrete PDF</span>
+                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="hospedes_pdf" data-on-change="index-set-export-reminder-cbd028e">
+                      <option value="">Desligado</option>
+                      <option value="7">7 dias</option>
+                      <option value="15">15 dias</option>
+                      <option value="30">1 mês</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div class="card settings-db-card settings-db-card-full" data-owner-only="true">
+                <div class="card-header">
+                  <span class="card-title"><i data-lucide="archive"></i> Dados do cliente</span>
+                </div>
+                <div class="settings-db-actions">
+                  <button class="btn btn-primary btn-sm" data-on-click="index-export-d-b-3cb0ae1" title="Exportar backup ZIP com reservas, alojamentos, hóspedes, despesas, eventos, definições do cliente e imagens">
+                    <i data-lucide="download"></i> Exportar BD
+                  </button>
+                  <label class="btn btn-ghost btn-sm settings-file-btn" title="Importar backup ZIP do cliente (não altera contas, equipa ou acessos)">
+                    <i data-lucide="upload"></i> Importar BD
+                    <input type="file" accept=".zip,application/zip" data-on-change="index-import-d-b-d60a8a8">
+                  </label>
+                </div>
+                <div class="settings-export-reminders settings-export-reminders-full">
+                  <label>
+                    <span>Lembrete backup ZIP</span>
+                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="cliente_zip" data-on-change="index-set-export-reminder-69d5a9c">
+                      <option value="">Desligado</option>
+                      <option value="7">7 dias</option>
+                      <option value="15">15 dias</option>
+                      <option value="30">1 mês</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-panel" id="settings-operations">
+            <div class="card settings-db-card settings-db-card-full">
+              <div class="card-header">
+                <span class="card-title"><i data-lucide="list-checks"></i> Tarefas automáticas</span>
+              </div>
+              <div class="settings-auto-tasks">
+                <label class="settings-toggle-row">
+                  <span><strong>Pequeno-almoço</strong><small>Tarefas nas manhãs da estadia quando a reserva inclui pequeno-almoço.</small></span>
+                  <input type="checkbox" id="auto-task-breakfast" data-on-change="index-save-auto-task-settings-496a39c">
+                </label>
+                <label class="settings-toggle-row">
+                  <span><strong>Limpezas</strong><small>Limpeza importante na tarde do check-out.</small></span>
+                  <input type="checkbox" id="auto-task-cleaning" data-on-change="index-save-auto-task-settings-496a39c">
+                </label>
+                <label class="settings-toggle-row">
+                  <span><strong>Check-ins</strong><small>Tarefa na manhã de chegada.</small></span>
+                  <input type="checkbox" id="auto-task-checkin" data-on-change="index-save-auto-task-settings-496a39c">
+                </label>
+                <label class="settings-toggle-row">
+                  <span><strong>Check-outs</strong><small>Tarefa na manhã de saída.</small></span>
+                  <input type="checkbox" id="auto-task-checkout" data-on-change="index-save-auto-task-settings-496a39c">
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-panel" id="settings-emails">
+            <div class="emails-layout">
+              <div class="emails-sidebar">
+                <div class="emails-sidebar-section-title">Templates de Email</div>
+                <div id="email-template-list"></div>
+                <div class="emails-sidebar-sep"></div>
+                <div class="emails-sidebar-section-title">Configurações</div>
+                <div id="email-settings-panel"></div>
+              </div>
+              <div class="emails-editor" id="email-editor-panel">
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--cinza);gap:10px;">
+                  <i data-lucide="mail" style="width:40px;height:40px;opacity:.3;"></i>
+                  <span style="font-size:14px;">Selecione um template para editar</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-panel" id="settings-fornecedores">
+            <div class="card" style="margin-bottom:24px;">
+              <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <span class="card-title"><i data-lucide="truck"></i> Fornecedores</span>
+                <button class="btn btn-ghost btn-sm" id="fornecedor-seed-btn" data-on-click="index-seed-fornecedores-ac7b365" title="Adicionar fornecedores sugeridos">
+                  <i data-lucide="sparkles" style="width:13px;height:13px;"></i> Adicionar sugestões
+                </button>
+              </div>
+              <div style="padding:16px;">
+                <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+                  <input class="form-control" id="fornecedor-novo-nome" placeholder="Nome do fornecedor (ex.: Continente)" style="flex:1;min-width:200px;" autocomplete="off" data-on-keydown="index-if-8ac507c">
+                  <button class="btn btn-primary btn-sm" data-on-click="index-add-fornecedor-de1bbb0"><i data-lucide="plus"></i> Adicionar</button>
+                </div>
+                <div id="fornecedores-list"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-panel" id="settings-push">
+            <div class="card settings-integration-card" style="margin-bottom:16px;">
+              <div class="settings-integration-icon">
+                <i data-lucide="bell-ring"></i>
+              </div>
+              <div class="settings-integration-info">
+                <h3>Notificações Push</h3>
+                <p>Receba notificações neste dispositivo, mesmo com a app fechada. No iPhone é necessário adicionar a app ao ecrã inicial primeiro (Safari → Partilhar → Adicionar ao ecrã principal).</p>
+                <span id="push-badge" class="gcal-status" style="margin-top:6px;display:inline-flex;"><span class="dot dot-red"></span> Desligadas</span>
+                <div id="push-ios-hint" style="display:none;font-size:12.5px;color:var(--vermelho);margin-top:6px;">
+                  ⚠️ Está a usar o Safari diretamente. Abra a app a partir do ícone no ecrã inicial para poder ativar notificações.
+                </div>
+              </div>
+              <div class="settings-integration-actions">
+                <button id="push-enable-btn" class="btn btn-primary btn-sm" data-on-click="index-enable-push-notifications-bd65c9a">
+                  <i data-lucide="bell-plus"></i> Ativar neste dispositivo
+                </button>
+                <button id="push-disable-btn" class="btn btn-ghost btn-sm" style="display:none;" data-on-click="index-disable-push-notifications-c8908b8">
+                  <i data-lucide="bell-off"></i> Desligar
+                </button>
+              </div>
+            </div>
+
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-header">
+                <span class="card-title">
+                  <i data-lucide="smartphone"></i> Dispositivos com notificações
+                </span>
+              </div>
+              <div style="padding:16px;">
+                <div style="font-size:12.5px;color:var(--cinza);margin-bottom:12px;">
+                  Todos os dispositivos da equipa subscritos. Desligar um dispositivo pausa as notificações sem o remover; remover obriga a ativar de novo nesse aparelho.
+                </div>
+                <div id="push-devices-list">
+                  <div style="font-size:13px;color:var(--cinza);">A carregar dispositivos...</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-bottom:16px;">
+              <div class="card-header">
+                <span class="card-title">
+                  <i data-lucide="sliders-horizontal"></i> Tipos de notificações
+                </span>
+              </div>
+              <div style="padding:16px;">
+                <div style="font-size:12.5px;color:var(--cinza);margin-bottom:14px;">
+                  Escolha o que quer receber. As preferências aplicam-se aos seus dispositivos.
+                </div>
+                <div id="push-prefs-list" style="display:flex;flex-direction:column;gap:14px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                    <div>
+                      <div style="font-weight:600;font-size:13px;">🆕 Nova reserva</div>
+                      <div style="font-size:12px;color:var(--cinza);">Reservas novas do site público ou criadas pela equipa</div>
+                    </div>
+                    <label class="toggle-switch" style="flex-shrink:0;">
+                      <input type="checkbox" data-push-pref="new_reservation" data-on-change="index-save-push-prefs-0f45e7b">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                    <div>
+                      <div style="font-weight:600;font-size:13px;">❌ Cancelamentos</div>
+                      <div style="font-size:12px;color:var(--cinza);">Quando uma reserva é cancelada</div>
+                    </div>
+                    <label class="toggle-switch" style="flex-shrink:0;">
+                      <input type="checkbox" data-push-pref="cancellation" data-on-change="index-save-push-prefs-0f45e7b">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                    <div>
+                      <div style="font-weight:600;font-size:13px;">📝 Pré-check-in recebido</div>
+                      <div style="font-size:12px;color:var(--cinza);">Quando um hóspede submete o formulário de pré-check-in</div>
+                    </div>
+                    <label class="toggle-switch" style="flex-shrink:0;">
+                      <input type="checkbox" data-push-pref="precheckin" data-on-change="index-save-push-prefs-0f45e7b">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                    <div>
+                      <div style="font-weight:600;font-size:13px;">📅 Resumo do dia</div>
+                      <div style="font-size:12px;color:var(--cinza);">De manhã, com os check-ins e check-outs previstos para hoje</div>
+                    </div>
+                    <label class="toggle-switch" style="flex-shrink:0;">
+                      <input type="checkbox" data-push-pref="daily_summary" data-on-change="index-save-push-prefs-0f45e7b">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">
+                  <i data-lucide="send"></i> Enviar notificação de teste
+                </span>
+              </div>
+              <div style="padding:16px;">
+                <div style="font-size:12.5px;color:var(--cinza);margin-bottom:12px;">
+                  A mensagem é enviada para todos os dispositivos da organização com notificações ativas.
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <input class="form-control" id="push-test-message" placeholder="Escreva a mensagem de teste..." maxlength="500" style="flex:1;min-width:220px;" autocomplete="off" data-on-keydown="index-if-1bd98b0">
+                  <button id="push-test-btn" class="btn btn-primary btn-sm" data-on-click="index-send-test-push-b565ec2">
+                    <i data-lucide="send"></i> Enviar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-panel" id="settings-equipa" data-owner-only="true" style="display:none;">
+            <div class="card" style="margin-bottom:24px;">
+              <div class="card-header">
+                <span class="card-title"><i data-lucide="users-round"></i> Equipa</span>
+              </div>
+              <div class="form-grid settings-team-form">
+                <div class="form-group">
+                  <label class="form-label">Convidar por email</label>
+                  <input class="form-control" id="team-invite-email" type="email" placeholder="colaborador@empresa.com" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Papel</label>
+                  <select class="form-control" id="team-invite-role" data-enhance-select data-app-select-class="app-select--filter">
+                    <option value="staff">Funcionário</option>
+                    <option value="manager">Gestor</option>
+                  </select>
+                </div>
+                <button class="btn btn-primary" data-on-click="index-invite-team-member-1530cb9">
+                  <i data-lucide="send"></i> Enviar convite
+                </button>
+              </div>
+              <div id="team-invite-feedback" style="margin-top:12px;font-size:13px;color:var(--cinza);"></div>
+            </div>
+
+            <div class="dashboard-grid">
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title"><i data-lucide="shield-check"></i> Membros</span>
+                </div>
+                <div id="team-members-list"><div class="loading"><div class="spinner"></div> A carregar equipa...</div></div>
+              </div>
+              <div class="card">
+                <div class="card-header">
+                  <span class="card-title"><i data-lucide="mail-plus"></i> Convites pendentes</span>
+                </div>
+                <div id="team-invitations-list"><div class="loading"><div class="spinner"></div> A carregar convites...</div></div>
+              </div>
+            </div>
+          </div>
+        </section>

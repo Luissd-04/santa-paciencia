@@ -1,3 +1,26 @@
+// Estado privado; interface partilhada em AppModules.alojamentos.
+(() => {
+AppModules.define('alojamentos', {
+  _servicosTimer: { get: () => _servicosTimer, set: value => { _servicosTimer = value; } },
+  alojImagens: { get: () => alojImagens, set: value => { alojImagens = value; } },
+  buildImageSections: { get: () => buildImageSections },
+  COMMON_AREAS_SECTION: { get: () => COMMON_AREAS_SECTION },
+  copyPublicBookingLink: { get: () => copyPublicBookingLink },
+  coverDragUrl: { get: () => coverDragUrl, set: value => { coverDragUrl = value; } },
+  currentAlojDetail: { get: () => currentAlojDetail, set: value => { currentAlojDetail = value; } },
+  dragImgSrc: { get: () => dragImgSrc, set: value => { dragImgSrc = value; } },
+  getActiveAlojTab: { get: () => getActiveAlojTab },
+  getSelectedAmenitiesFromUi: { get: () => getSelectedAmenitiesFromUi },
+  initAlojDrag: { get: () => initAlojDrag },
+  openAlojamento: { get: () => openAlojamento },
+  openPublicBookingPreview: { get: () => openPublicBookingPreview },
+  refreshAmenitiesFilter: { get: () => refreshAmenitiesFilter },
+  renderAlojamentos: { get: () => renderAlojamentos },
+  renderAmenities: { get: () => renderAmenities },
+  showAlojTab: { get: () => showAlojTab },
+  updatePublicBookingLink: { get: () => updatePublicBookingLink },
+});
+
 const AMENITIES_CATALOG = {
   'Casa de banho': ['Produtos de higiene pessoal','Toalhas','Secador de cabelo','Duche','Banheira','Roupão','Banheira de hidromassagem','Bidé'],
   'Quarto': ['Roupa de cama','Closet','Almofadas','Cabides','Cobertores e almofadas extra','Roupeiro'],
@@ -92,7 +115,7 @@ function updatePublicBookingLink(accomData = currentAlojDetail) {
 function openPublicBookingPreview() {
   const url = document.getElementById('aloj-public-link')?.value;
   if (!url) {
-    toast('Guarda ou reabre o alojamento para gerar o link público.', 'error');
+    AppModules.core.toast('Guarda ou reabre o alojamento para gerar o link público.', 'error');
     return;
   }
   window.open(url, '_blank', 'noopener,noreferrer');
@@ -101,14 +124,14 @@ function openPublicBookingPreview() {
 async function copyPublicBookingLink() {
   const url = document.getElementById('aloj-public-link')?.value;
   if (!url) {
-    toast('Ainda não há link público para copiar.', 'error');
+    AppModules.core.toast('Ainda não há link público para copiar.', 'error');
     return;
   }
   try {
     await navigator.clipboard.writeText(url);
-    toast('Link público copiado!', 'success');
+    AppModules.core.toast('Link público copiado!', 'success');
   } catch (_) {
-    toast('Não consegui copiar automaticamente. Podes selecionar o campo e copiar.', 'error');
+    AppModules.core.toast('Não consegui copiar automaticamente. Podes selecionar o campo e copiar.', 'error');
   }
 }
 
@@ -126,7 +149,7 @@ function renderAlojamentos() {
   loading.style.display = 'none';
   updateAlojamentoSummary();
 
-  if (accommodations.length === 0) {
+  if (AppModules.core.accommodations.length === 0) {
     loading.style.display = 'flex';
     return;
   }
@@ -134,7 +157,7 @@ function renderAlojamentos() {
   const filtered = getFilteredAlojamentos();
   const parentMap = {};
   const childrenByParent = {};
-  accommodations.forEach(a => {
+  AppModules.core.accommodations.forEach(a => {
     if (a.type === 'alojamento') parentMap[a.id] = a.name;
     if (a.parent_id) {
       if (!childrenByParent[a.parent_id]) childrenByParent[a.parent_id] = [];
@@ -144,7 +167,7 @@ function renderAlojamentos() {
 
   const inFiltered = new Set(filtered.map(a => a.id));
   const ordered = [];
-  accommodations.forEach(a => {
+  AppModules.core.accommodations.forEach(a => {
     if (a.parent_id) return;
     const includeSelf = inFiltered.has(a.id);
     const visibleChildren = (childrenByParent[a.id] || []).filter(c => inFiltered.has(c.id));
@@ -163,31 +186,31 @@ function renderAlojamentos() {
     const childCount = (childrenByParent[a.id] || []).filter(c => inFiltered.has(c.id)).length;
     const typeLabel = isAlojamento
       ? `<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--marca);">Alojamento</span>`
-      : `<span style="font-size:12px;color:var(--cinza);">${escapeHtml(a.type || '—')}</span>`;
+      : `<span style="font-size:12px;color:var(--cinza);">${AppModules.core.escapeHtml(a.type || '—')}</span>`;
     const hasIcal = !!(a.airbnb_ical_url || a.booking_ical_url);
     const indent = parentName ? 'padding-left:24px;' : '';
     return `
-    <tr draggable="true" data-id="${a.id}" data-idx="${idx}" onclick="openAlojamento('${a.id}')" style="${isAlojamento ? 'background:rgba(139,58,36,.03);' : ''}" class="${parentName ? 'aloj-child-row' : 'aloj-parent-row'}">
-      <td><span class="drag-handle" onclick="event.stopPropagation()" title="Arrastar para reordenar">${lcIcon('grip-vertical', 16)}</span></td>
+    <tr draggable="true" data-id="${a.id}" data-idx="${idx}" ${AppActions.attrs("click", "alojamentos-open-alojamento-8027257", [String((a.id) ?? '')])} style="${isAlojamento ? 'background:rgba(139,58,36,.03);' : ''}" class="${parentName ? 'aloj-child-row' : 'aloj-parent-row'}">
+      <td><span class="drag-handle" data-on-click="alojamentos-stop-propagation-22499e1" title="Arrastar para reordenar">${AppModules.core.lcIcon('grip-vertical', 16)}</span></td>
       <td>
-        ${a.cover_image
-          ? `<img src="${a.cover_image.startsWith('http') ? a.cover_image : API_BASE + a.cover_image}" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid var(--cinza-claro);">`
-          : `<div style="width:40px;height:40px;border-radius:8px;background:var(--cinza-claro);display:flex;align-items:center;justify-content:center;color:var(--cinza);">${lcIcon(isAlojamento ? 'building-2' : 'home', 18)}</div>`}
+        ${a.cover_image && AppModules.core.safeMediaUrl(a.cover_image)
+          ? `<img src="${AppModules.core.escapeHtml(AppModules.core.safeMediaUrl(a.cover_image.startsWith('http') ? a.cover_image : AppModules.core.API_BASE + a.cover_image))}" alt="" loading="lazy" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid var(--cinza-claro);">`
+          : `<div style="width:40px;height:40px;border-radius:8px;background:var(--cinza-claro);display:flex;align-items:center;justify-content:center;color:var(--cinza);">${AppModules.core.lcIcon(isAlojamento ? 'building-2' : 'home', 18)}</div>`}
       </td>
       <td style="${indent}">
-        <b>${a.name}</b>
+        <b>${AppModules.core.escapeHtml(a.name)}</b>
         ${isAlojamento && childCount ? `<span class="aloj-child-count">${childCount} alojamento${childCount !== 1 ? 's' : ''}</span>` : ''}
-        ${parentName ? `<br><span style="font-size:11px;color:var(--cinza);">${lcIcon('corner-down-right',11)} ${parentName}</span>` : (a.city ? `<br><span style="font-size:11px;color:var(--cinza)">${a.city}</span>` : '')}
+        ${parentName ? `<br><span style="font-size:11px;color:var(--cinza);">${AppModules.core.lcIcon('corner-down-right',11)} ${AppModules.core.escapeHtml(parentName)}</span>` : (a.city ? `<br><span style="font-size:11px;color:var(--cinza)">${AppModules.core.escapeHtml(a.city)}</span>` : '')}
       </td>
       <td>${typeLabel}</td>
       <td style="font-size:12px">${a.max_guests} hósp.</td>
       <td style="font-size:12px">${a.num_rooms || 1}</td>
       <td style="font-size:12px">${a.area ? a.area + ' m²' : '—'}</td>
       <td><b style="color:var(--azul)">€${a.price_per_night}</b></td>
-      <td style="font-size:11.5px;color:var(--cinza)">${a.license_number || '—'}</td>
-      <td onclick="event.stopPropagation()">
-        <button class="btn btn-ghost btn-sm" style="font-size:11px;gap:4px;" onclick="openAlojCalendarDirect('${a.id}','${a.google_calendar_id || ''}','${a.name}')">
-          ${lcIcon('calendar', 13)} Calendário${a.google_calendar_id ? ' ✓' : ''}${hasIcal ? ' · iCal ✓' : ''}
+      <td style="font-size:11.5px;color:var(--cinza)">${AppModules.core.escapeHtml(a.license_number || '—')}</td>
+      <td data-on-click="alojamentos-stop-propagation-22499e1">
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;gap:4px;" ${AppActions.attrs("click", "alojamentos-open-aloj-calendar-direct-309a014", [String((a.id) ?? ''), String((a.google_calendar_id || '') ?? ''), String((a.name) ?? '')])}>
+          ${AppModules.core.lcIcon('calendar', 13)} Calendário${a.google_calendar_id ? ' ✓' : ''}${hasIcal ? ' · iCal ✓' : ''}
         </button>
       </td>
     </tr>`;
@@ -204,26 +227,26 @@ function renderAlojamentosMobileCards(ordered, parentMap, childrenByParent, inFi
     const parentName = a.parent_id ? parentMap[a.parent_id] : null;
     const childCount = (childrenByParent[a.id] || []).filter(c => inFiltered.has(c.id)).length;
     const hasIcal = !!(a.airbnb_ical_url || a.booking_ical_url);
-    return `<div class="m-accom-card" onclick="openAlojamento('${a.id}')">
+    return `<div class="m-accom-card" ${AppActions.attrs("click", "alojamentos-open-alojamento-8027257", [String((a.id) ?? '')])}>
       <div class="mac-top">
         ${a.cover_image
-          ? `<img src="${a.cover_image.startsWith('http') ? a.cover_image : API_BASE + a.cover_image}" class="mac-thumb">`
-          : `<div class="mac-thumb mac-thumb-empty">${lcIcon(isAlojamento ? 'building-2' : 'home', 18)}</div>`}
+          ? `<img src="${a.cover_image.startsWith('http') ? a.cover_image : AppModules.core.API_BASE + a.cover_image}" class="mac-thumb">`
+          : `<div class="mac-thumb mac-thumb-empty">${AppModules.core.lcIcon(isAlojamento ? 'building-2' : 'home', 18)}</div>`}
         <div class="mac-info">
-          <div class="mac-name">${escapeHtml(a.name)}${isAlojamento && childCount ? `<span class="aloj-child-count">${childCount} alojamento${childCount !== 1 ? 's' : ''}</span>` : ''}</div>
-          ${parentName ? `<div class="mac-sub">${lcIcon('corner-down-right', 11)} ${escapeHtml(parentName)}</div>` : (a.city ? `<div class="mac-sub">${escapeHtml(a.city)}</div>` : '')}
+          <div class="mac-name">${AppModules.core.escapeHtml(a.name)}${isAlojamento && childCount ? `<span class="aloj-child-count">${childCount} alojamento${childCount !== 1 ? 's' : ''}</span>` : ''}</div>
+          ${parentName ? `<div class="mac-sub">${AppModules.core.lcIcon('corner-down-right', 11)} ${AppModules.core.escapeHtml(parentName)}</div>` : (a.city ? `<div class="mac-sub">${AppModules.core.escapeHtml(a.city)}</div>` : '')}
         </div>
         <span class="mac-price">€${a.price_per_night}</span>
       </div>
       <div class="mac-meta">
-        <span>${lcIcon('users', 13)} ${a.max_guests} hósp.</span>
-        <span>${lcIcon('door-open', 13)} ${a.num_rooms || 1}</span>
-        ${a.area ? `<span>${lcIcon('ruler', 13)} ${a.area} m²</span>` : ''}
-        ${a.license_number ? `<span>${lcIcon('badge-check', 13)} ${escapeHtml(a.license_number)}</span>` : ''}
+        <span>${AppModules.core.lcIcon('users', 13)} ${a.max_guests} hósp.</span>
+        <span>${AppModules.core.lcIcon('door-open', 13)} ${a.num_rooms || 1}</span>
+        ${a.area ? `<span>${AppModules.core.lcIcon('ruler', 13)} ${a.area} m²</span>` : ''}
+        ${a.license_number ? `<span>${AppModules.core.lcIcon('badge-check', 13)} ${AppModules.core.escapeHtml(a.license_number)}</span>` : ''}
       </div>
-      <div class="mac-actions" onclick="event.stopPropagation()">
-        <button class="m-card-btn" onclick="openAlojCalendarDirect('${a.id}','${a.google_calendar_id || ''}','${escapeHtml(a.name)}')">
-          ${lcIcon('calendar', 13)} Calendário${a.google_calendar_id ? ' ✓' : ''}${hasIcal ? ' · iCal ✓' : ''}
+      <div class="mac-actions" data-on-click="alojamentos-stop-propagation-22499e1">
+        <button class="m-card-btn" ${AppActions.attrs("click", "alojamentos-open-aloj-calendar-direct-309a014", [String((a.id) ?? ''), String((a.google_calendar_id || '') ?? ''), String((a.name) ?? '')])}>
+          ${AppModules.core.lcIcon('calendar', 13)} Calendário${a.google_calendar_id ? ' ✓' : ''}${hasIcal ? ' · iCal ✓' : ''}
         </button>
       </div>
     </div>`;
@@ -234,12 +257,12 @@ function getFilteredAlojamentos() {
   const q = (document.getElementById('aloj-search')?.value || '').trim().toLowerCase();
   const type = document.getElementById('aloj-filter-type')?.value || '';
   const link = document.getElementById('aloj-filter-link')?.value || '';
-  SS.set('aloj:q', document.getElementById('aloj-search')?.value || '');
-  SS.set('aloj:type', type);
-  SS.set('aloj:link', link);
+  AppModules.core.SS.set('aloj:q', document.getElementById('aloj-search')?.value || '');
+  AppModules.core.SS.set('aloj:type', type);
+  AppModules.core.SS.set('aloj:link', link);
 
-  return accommodations.filter(a => {
-    const parentName = a.parent_id ? (accommodations.find(p => p.id === a.parent_id)?.name || '') : '';
+  return AppModules.core.accommodations.filter(a => {
+    const parentName = a.parent_id ? (AppModules.core.accommodations.find(p => p.id === a.parent_id)?.name || '') : '';
     const haystack = [
       a.name, a.city, a.license_number, a.type, parentName
     ].filter(Boolean).join(' ').toLowerCase();
@@ -295,29 +318,29 @@ function initAlojDrag() {
       const destId = row.dataset.id;
       if (!dragSrcId || dragSrcId === destId) return;
 
-      const srcIndex = accommodations.findIndex(a => a.id === dragSrcId);
-      const destIndex = accommodations.findIndex(a => a.id === destId);
+      const srcIndex = AppModules.core.accommodations.findIndex(a => a.id === dragSrcId);
+      const destIndex = AppModules.core.accommodations.findIndex(a => a.id === destId);
       if (srcIndex === -1 || destIndex === -1) {
         dragSrcId = null;
         return;
       }
 
-      const source = accommodations[srcIndex];
-      const target = accommodations[destIndex];
+      const source = AppModules.core.accommodations[srcIndex];
+      const target = AppModules.core.accommodations[destIndex];
       const sameParentGroup = (source.parent_id || null) === (target.parent_id || null);
       if (!sameParentGroup) {
         dragSrcId = null;
         tbody.querySelectorAll('tr').forEach(r => r.classList.remove('drag-over'));
-        toast('Só podes reordenar alojamentos dentro do mesmo grupo.', 'info');
+        AppModules.core.toast('Só podes reordenar alojamentos dentro do mesmo grupo.', 'info');
         return;
       }
 
-      const [moved] = accommodations.splice(srcIndex, 1);
-      let insertIndex = accommodations.findIndex(a => a.id === destId);
+      const [moved] = AppModules.core.accommodations.splice(srcIndex, 1);
+      let insertIndex = AppModules.core.accommodations.findIndex(a => a.id === destId);
       if (insertIndex < 0) {
-        accommodations.push(moved);
+        AppModules.core.accommodations.push(moved);
       } else {
-        accommodations.splice(insertIndex, 0, moved);
+        AppModules.core.accommodations.splice(insertIndex, 0, moved);
       }
 
       dragSrcId = null;
@@ -331,10 +354,10 @@ function initAlojDrag() {
 async function openAlojamento(id, preferredTab = 'info') {
   try {
     const previousImageState = alojImagens[id] || {};
-    const data = await apiGet('/api/accommodations/' + id);
+    const data = await AppModules.core.apiGet('/api/accommodations/' + id);
     const a = data.data;
     currentAlojDetail = a;
-    SS.set('aloj:id', a.id);
+    AppModules.core.SS.set('aloj:id', a.id);
 
     document.getElementById('aloj-detalhe-nome').textContent = a.name;
     document.getElementById('aloj-editing-id').value = a.id;
@@ -351,15 +374,15 @@ async function openAlojamento(id, preferredTab = 'info') {
     const parentSel = document.getElementById('aloj-parent-id');
     if (parentSel) {
       parentSel.innerHTML = '<option value="">— Nenhum —</option>' +
-        accommodations
+        AppModules.core.accommodations
           .filter(p => p.type === 'alojamento' && p.id !== a.id)
           .map(p => `<option value="${p.id}"${a.parent_id === p.id ? ' selected' : ''}>${p.name}</option>`)
           .join('');
       parentSel.value = a.parent_id || '';
     }
-    onAlojTipoChange(a);
+    AppModules.alojamentos.onAlojTipoChange(a);
     updatePublicBookingLink(a);
-    _applyInheritedFields(a);
+    AppModules.alojamentos._applyInheritedFields(a);
     document.getElementById('aloj-area').value = a.area || '';
     document.getElementById('aloj-capacidade').value = a.max_guests || 2;
     document.getElementById('aloj-quartos').value = a.num_rooms || 1;
@@ -371,7 +394,7 @@ async function openAlojamento(id, preferredTab = 'info') {
     document.getElementById('aloj-baby-price').value = a.baby_price ?? 0;
     document.getElementById('aloj-child-age-limit').value = a.child_age_limit ?? 12;
     document.getElementById('aloj-child-price').value = a.child_price ?? 0;
-    setExtraOccupancyFields(a);
+    AppModules.alojamentos.setExtraOccupancyFields(a);
     document.getElementById('aloj-gcal-id').value = a.google_calendar_id || '';
     document.getElementById('aloj-gcal-manual').checked = !!a.google_calendar_manual;
     document.getElementById('aloj-airbnb-ical-url').value = a.airbnb_ical_url || '';
@@ -384,9 +407,22 @@ async function openAlojamento(id, preferredTab = 'info') {
     const fbEl  = document.getElementById('aloj-social-fb');
     const igEl  = document.getElementById('aloj-social-ig');
     const webEl = document.getElementById('aloj-social-web');
-    if (fbEl)  fbEl.value  = a.social_facebook  || '';
-    if (igEl)  igEl.value  = a.social_instagram || '';
-    if (webEl) webEl.value = a.social_website   || '';
+    const taEl  = document.getElementById('aloj-social-ta');
+    if (fbEl)  fbEl.value  = a.social_facebook    || '';
+    if (igEl)  igEl.value  = a.social_instagram   || '';
+    if (webEl) webEl.value = a.social_website     || '';
+    if (taEl)  taEl.value  = a.social_tripadvisor || '';
+    // null (nenhuma preferência guardada) = todos ligados, igual ao
+    // comportamento anterior a este campo (mostrar tudo o que está preenchido).
+    const enabledLinks = Array.isArray(a.email_social_links) ? a.email_social_links : null;
+    const fbEmailEl  = document.getElementById('aloj-social-fb-email');
+    const igEmailEl  = document.getElementById('aloj-social-ig-email');
+    const webEmailEl = document.getElementById('aloj-social-web-email');
+    const taEmailEl  = document.getElementById('aloj-social-ta-email');
+    if (fbEmailEl)  fbEmailEl.checked  = !enabledLinks || enabledLinks.includes('facebook');
+    if (igEmailEl)  igEmailEl.checked  = !enabledLinks || enabledLinks.includes('instagram');
+    if (webEmailEl) webEmailEl.checked = !enabledLinks || enabledLinks.includes('website');
+    if (taEmailEl)  taEmailEl.checked  = !enabledLinks || enabledLinks.includes('tripadvisor');
     const colorVal = a.color || '#843424';
     const colorInput = document.getElementById('aloj-color');
     const colorLabel = document.getElementById('aloj-color-label');
@@ -399,14 +435,14 @@ async function openAlojamento(id, preferredTab = 'info') {
     document.getElementById('desc-de').value = a.description_de || '';
     document.getElementById('desc-it').value = a.description_it || '';
     document.getElementById('desc-nl').value = a.description_nl || '';
-    switchDescLang('pt');
+    AppModules.alojamentos.switchDescLang('pt');
 
     const coverPreview = document.getElementById('aloj-cover-preview');
     const coverPlaceholder = document.getElementById('aloj-cover-placeholder');
     const coverDeleteBtn = document.getElementById('aloj-cover-delete-btn');
     if (coverPreview) {
       if (a.cover_image) {
-        const url = a.cover_image.startsWith('http') ? a.cover_image : API_BASE + a.cover_image;
+        const url = a.cover_image.startsWith('http') ? a.cover_image : AppModules.core.API_BASE + a.cover_image;
         coverPreview.src = url + '?t=' + Date.now();
         coverPreview.style.display = 'block';
         if (coverPlaceholder) coverPlaceholder.style.display = 'none';
@@ -424,14 +460,14 @@ async function openAlojamento(id, preferredTab = 'info') {
     alojImagens[a.id] = fetchedImageState;
     renderAmenities(a.own_amenities || a.amenities || [], a.inherited_amenities || []);
     showAlojTab(preferredTab);
-    resetAlojMap();
+    AppModules.alojamentos.resetAlojMap();
 
     document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
     document.getElementById('view-alojamento-detalhe').classList.add('active');
     document.getElementById('topbar-title').textContent = a.name;
     if (window.lucide) lucide.createIcons();
   } catch (e) {
-    toast('❌ Erro ao carregar alojamento.', 'error');
+    AppModules.core.toast('❌ Erro ao carregar alojamento.', 'error');
   }
 }
 
@@ -453,7 +489,7 @@ function renderAmenities(selectedOwn, inherited = []) {
             const ownItem = ownSet.has(item);
             const checked = inheritedItem || ownItem;
             return `<label class="amenity-item${checked ? ' checked' : ''}${inheritedItem ? ' amenity-item-inherited' : ''}">
-              <input type="checkbox" value="${item}" ${checked ? 'checked' : ''} ${inheritedItem ? 'disabled data-inherited="1"' : ''} onchange="toggleAmenity(this)">
+              <input type="checkbox" value="${item}" ${checked ? 'checked' : ''} ${inheritedItem ? 'disabled data-inherited="1"' : ''} data-on-change="alojamentos-toggle-amenity-06dae99">
               <span>${item}</span>
               ${inheritedItem ? `<span class="amenity-badge-inherited">herdado</span>` : ''}
             </label>`;
@@ -479,7 +515,7 @@ function renderAmenities(selectedOwn, inherited = []) {
             const ownItem = ownSet.has(item);
             const checked = inheritedItem || ownItem;
             return `<label class="amenity-item${checked ? ' checked' : ''}${inheritedItem ? ' amenity-item-inherited' : ''}">
-              <input type="checkbox" value="${item}" ${checked ? 'checked' : ''} ${inheritedItem ? 'disabled data-inherited="1"' : ''} onchange="toggleAmenity(this)">
+              <input type="checkbox" value="${item}" ${checked ? 'checked' : ''} ${inheritedItem ? 'disabled data-inherited="1"' : ''} data-on-change="alojamentos-toggle-amenity-06dae99">
               <span>${item}</span>
               ${inheritedItem ? `<span class="amenity-badge-inherited">herdado</span>` : ''}
             </label>`;
@@ -507,7 +543,7 @@ function refreshAmenitiesFilter() {
 }
 
 async function showAlojTab(tab) {
-  SS.set('aloj:tab', tab);
+  AppModules.core.SS.set('aloj:tab', tab);
   ['info','comodidades','imagens','rgpd','bloqueios','precos'].forEach(t => {
     const el = document.getElementById('aloj-tab-' + t);
     if (el) el.style.display = t === tab ? '' : 'none';
@@ -516,20 +552,22 @@ async function showAlojTab(tab) {
   });
   if (tab === 'precos') {
     const id = document.getElementById('aloj-editing-id')?.value;
-    if (id && typeof mountPrecosWidgetInAloj === 'function') mountPrecosWidgetInAloj(id);
-  } else if (typeof unmountPrecosWidget === 'function') {
-    unmountPrecosWidget();
+    // O editor de preços é a vista Preços Dinâmicos embebida aqui: só chega
+    // quando este separador é aberto.
+    if (id && await AppModules.core.ensureFeature('precos')) AppModules.precos.mountPrecosWidgetInAloj(id);
+  } else if (typeof AppModules.precos.unmountPrecosWidget === 'function') {
+    AppModules.precos.unmountPrecosWidget();
   }
   if (tab === 'bloqueios') {
     const id = document.getElementById('aloj-editing-id')?.value;
-    if (id && typeof renderAccommodationBlocks === 'function') renderAccommodationBlocks(id);
+    if (id) { await AppModules.bloqueios.ensureBlocksLoaded(); AppModules.bloqueios.renderAccommodationBlocks(id); }
   }
   if (tab === 'imagens') {
     // Re-fetch to guarantee fresh images and up-to-date common_area_images from parent
     const id = document.getElementById('aloj-editing-id').value;
     if (id) {
       try {
-        const data = await apiGet('/api/accommodations/' + id);
+        const data = await AppModules.core.apiGet('/api/accommodations/' + id);
         const a = data.data;
         currentAlojDetail = a;
         const imgs = { ...(a.own_images || a.images || {}) };
@@ -537,7 +575,30 @@ async function showAlojTab(tab) {
         alojImagens[id] = imgs;
       } catch (_) { /* render with cached data if fetch fails */ }
     }
-    renderImagens();
+    AppModules.alojamentos.renderImagens();
   }
 }
 
+
+AppActions.register({
+  "alojamentos-toggle-amenity-06dae99": (el, event, args) => { toggleAmenity(el) },
+}, "change");
+
+AppActions.register({
+  "alojamentos-open-alojamento-8027257": (el, event, args) => { openAlojamento(args[0]) },
+  "alojamentos-stop-propagation-22499e1": (el, event, args) => { event.stopPropagation() },
+  "alojamentos-open-aloj-calendar-direct-309a014": (el, event, args) => { AppModules.alojamentos.openAlojCalendarDirect(args[0],args[1],args[2]) },
+}, "click");
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('alojamentos.js', () => {
+  dragSrcId = null;
+  dragImgSrc = null;
+  alojImagens = {};
+  coverDragUrl = null;
+  collapsedAlojParents = new Set();
+  currentAlojDetail = null;
+  clearTimeout(_servicosTimer); clearInterval(_servicosTimer); _servicosTimer = null;
+});
+
+})();

@@ -1,3 +1,12 @@
+// Estado privado; interface partilhada em AppModules.reservas.
+(() => {
+AppModules.define('reservas', {
+  applyReservasColWidths: { get: () => applyReservasColWidths },
+  renderReservasHead: { get: () => renderReservasHead },
+  RES_CELL: { get: () => RES_CELL },
+  resColOrder: { get: () => resColOrder, set: value => { resColOrder = value; } },
+});
+
 // ── Colunas da lista: redimensionáveis E reordenáveis pelo utilizador ──
 // data-col liga <col> ↔ <th> ↔ <td>. Estado guardado em SS:
 //   res:colw     → { key: larguraPx }  (larguras manuais; se vazio → auto-fit ao ecrã)
@@ -30,7 +39,7 @@ const RES_COL_MIN_W = 52;
 const RES_COL_MAX_W = 640;
 
 let resColOrder = (function () {
-  const saved = SS.get('res:colorder', null);
+  const saved = AppModules.core.SS.get('res:colorder', null);
   let order = Array.isArray(saved) ? saved.filter(k => RES_COL_META[k]) : [];
   RES_COL_KEYS.forEach(k => { if (!order.includes(k)) order.push(k); });
   order = order.filter(k => k !== 'actions');
@@ -39,7 +48,7 @@ let resColOrder = (function () {
 })();
 
 function reservasColsHaveManualWidths() {
-  const s = SS.get('res:colw', null);
+  const s = AppModules.core.SS.get('res:colw', null);
   return !!(s && typeof s === 'object' && Object.keys(s).length > 0);
 }
 
@@ -47,7 +56,7 @@ function reservasColsHaveManualWidths() {
 // distribui o espaço livre pelas colunas flex para a tabela encher o ecrã.
 function getReservasColWidths() {
   const out = { ...RES_COL_DEFAULT_W };
-  const saved = SS.get('res:colw', null);
+  const saved = AppModules.core.SS.get('res:colw', null);
   if (saved && typeof saved === 'object' && Object.keys(saved).length) {
     Object.keys(saved).forEach(k => {
       const n = Number(saved[k]);
@@ -76,9 +85,9 @@ function getReservasColWidths() {
 }
 
 function saveReservasColWidth(colKey, px) {
-  const saved = SS.get('res:colw', null) || {};
+  const saved = AppModules.core.SS.get('res:colw', null) || {};
   saved[colKey] = Math.round(px);
-  SS.set('res:colw', saved);
+  AppModules.core.SS.set('res:colw', saved);
 }
 
 // (Re)constrói <colgroup> + <thead> a partir de resColOrder e das larguras.
@@ -94,7 +103,7 @@ function renderReservasHead() {
   tr.innerHTML = resColOrder.map(k => {
     const c = RES_COL_META[k];
     const drag = k === 'actions' ? 'false' : 'true';
-    const sortBits = c.sort ? ` onclick="sortTabela('${c.sort}')"` : '';
+    const sortBits = c.sort ? ` ${AppActions.attrs("click", "lista-colunas-sort-tabela-bac31bc", [String((c.sort) ?? '')])}` : '';
     const icon = c.sort ? ` <span class="sort-icon" id="sort-${c.sort}"></span>` : '';
     return `<th data-col="${k}" draggable="${drag}" class="th-col${c.sort ? ' th-sort' : ''}"${sortBits}>${c.label}${icon}</th>`;
   }).join('');
@@ -110,8 +119,8 @@ function restoreReservasSortIcon() {
   document.querySelectorAll('#reservas-table .sort-icon').forEach(el => {
     el.textContent = '↕'; el.style.opacity = '0.25';
   });
-  const sIcon = document.getElementById('sort-' + sortCol);
-  if (sIcon) { sIcon.textContent = sortAsc ? '↑' : '↓'; sIcon.style.opacity = '1'; }
+  const sIcon = document.getElementById('sort-' + AppModules.reservas.sortCol);
+  if (sIcon) { sIcon.textContent = AppModules.reservas.sortAsc ? '↑' : '↓'; sIcon.style.opacity = '1'; }
 }
 
 function applyReservasColWidths() {
@@ -179,7 +188,7 @@ function initReservasResizableCols() {
         document.querySelectorAll('#reservas-table colgroup > col[data-col]').forEach(c => {
           snap[c.dataset.col] = Math.round(parseFloat(c.style.width) || RES_COL_DEFAULT_W[c.dataset.col]);
         });
-        SS.set('res:colw', snap);
+        AppModules.core.SS.set('res:colw', snap);
       }
       saveReservasColWidth(th.dataset.col, parseFloat(colEl.style.width) || startW);
       recomputeReservasTableMetrics();
@@ -248,9 +257,9 @@ function initReservasHeadDnD() {
       order = order.filter(k => k !== 'actions');
       order.push('actions');
       resColOrder = order;
-      SS.set('res:colorder', resColOrder);
+      AppModules.core.SS.set('res:colorder', resColOrder);
       renderReservasHead();
-      renderTabela();
+      AppModules.reservas.renderTabela();
     });
   });
 }
@@ -258,6 +267,7 @@ function initReservasHeadDnD() {
 // Auto-fit à largura do ecrã enquanto o utilizador não ajustar colunas à mão.
 let _resFitT = null;
 window.addEventListener('resize', () => {
+  AppModules.reservas.applyReservasViewMode();
   if (reservasColsHaveManualWidths()) return;
   const v = document.getElementById('view-reservas');
   if (!v || !v.classList.contains('active')) return;
@@ -268,30 +278,30 @@ window.addEventListener('resize', () => {
 // ── Templates de célula por coluna (a ordem vem de resColOrder) ──
 function resActionButtons(r) {
   const approve = r.status === 'pendente'
-    ? `<button class="btn btn-sm" style="background:rgba(46,125,82,.12);color:#2e7d52" onclick="aprovarReserva('${r.id}')" title="Aprovar e enviar pre check-in">${lcIcon('check', 13)}</button>`
+    ? `<button class="btn btn-sm" style="background:rgba(46,125,82,.12);color:#2e7d52" ${AppActions.attrs("click", "lista-colunas-aprovar-reserva-0f31ccd", [String((r.id) ?? '')])} title="Aprovar e enviar pre check-in">${AppModules.core.lcIcon('check', 13)}</button>`
     : '';
-  const edit = `<button class="btn btn-ghost btn-sm" onclick="openEditModal('${r.id}')" title="Editar">${lcIcon('pencil', 13)}</button>`;
+  const edit = `<button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "lista-colunas-open-edit-modal-e85a518", [String((r.id) ?? '')])} title="Editar">${AppModules.core.lcIcon('pencil', 13)}</button>`;
   const tail = r.status === 'cancelada'
-    ? `<button class="btn btn-sm" style="background:rgba(46,125,82,.12);color:#2e7d52" onclick="reativarReserva('${r.id}')" title="Reativar reserva">${lcIcon('refresh-cw', 13)}</button>` +
-      (hasRole('manager')
-        ? `<button class="btn btn-sm" style="background:rgba(176,48,48,.18);color:var(--vermelho)" onclick="apagarReservaDefinitivo('${r.id}')" title="Apagar definitivamente">${lcIcon('trash-2', 13)}</button>`
+    ? `<button class="btn btn-sm" style="background:rgba(46,125,82,.12);color:#2e7d52" ${AppActions.attrs("click", "lista-colunas-reativar-reserva-9888cf4", [String((r.id) ?? '')])} title="Reativar reserva">${AppModules.core.lcIcon('refresh-cw', 13)}</button>` +
+      (AppModules.reservas.hasRole('manager')
+        ? `<button class="btn btn-sm" style="background:rgba(176,48,48,.18);color:var(--vermelho)" ${AppActions.attrs("click", "lista-colunas-apagar-reserva-definitivo-727881f", [String((r.id) ?? '')])} title="Apagar definitivamente">${AppModules.core.lcIcon('trash-2', 13)}</button>`
         : '')
-    : `<button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho)" onclick="cancelarReserva('${r.id}')" title="Cancelar reserva">${lcIcon('x-circle', 13)}</button>`;
+    : `<button class="btn btn-sm" style="background:rgba(176,48,48,.1);color:var(--vermelho)" ${AppActions.attrs("click", "lista-colunas-cancelar-reserva-2d9df9b", [String((r.id) ?? '')])} title="Cancelar reserva">${AppModules.core.lcIcon('x-circle', 13)}</button>`;
   return approve + edit + tail;
 }
 
 const RES_CELL = {
   id: r => `<td data-col="id"><code style="font-size:11.5px;color:var(--azul-claro)">${r.id}</code></td>`,
-  created_at: r => `<td data-col="created_at"><span style="font-size:12px;color:var(--cinza)">${formatDate((r.created_at || '').slice(0, 10))}</span></td>`,
-  guest_name: r => `<td data-col="guest_name"><b>${escapeHtml(r.guest_name)}</b><br><span style="font-size:11.5px;color:var(--cinza)">${escapeHtml(r.guest_email || '')}</span></td>`,
-  accommodation_name: r => `<td data-col="accommodation_name">${accomChip(r)}</td>`,
-  check_in: r => `<td data-col="check_in">${formatDate(r.check_in)}</td>`,
-  check_out: r => `<td data-col="check_out">${formatDate(r.check_out)}</td>`,
+  created_at: r => `<td data-col="created_at"><span style="font-size:12px;color:var(--cinza)">${AppModules.core.formatDate((r.created_at || '').slice(0, 10))}</span></td>`,
+  guest_name: r => `<td data-col="guest_name"><b>${AppModules.core.escapeHtml(r.guest_name)}</b><br><span style="font-size:11.5px;color:var(--cinza)">${AppModules.core.escapeHtml(r.guest_email || '')}</span></td>`,
+  accommodation_name: r => `<td data-col="accommodation_name">${AppModules.core.accomChip(r)}</td>`,
+  check_in: r => `<td data-col="check_in">${AppModules.core.formatDate(r.check_in)}</td>`,
+  check_out: r => `<td data-col="check_out">${AppModules.core.formatDate(r.check_out)}</td>`,
   nights: r => `<td data-col="nights">${r.nights}</td>`,
-  num_guests: r => `<td data-col="num_guests">${renderGuestsCell(r)}</td>`,
+  num_guests: r => `<td data-col="num_guests">${AppModules.reservas.renderGuestsCell(r)}</td>`,
   total_amount: r => `<td data-col="total_amount"><b>€${Number(r.total_amount || 0).toFixed(2)}</b></td>`,
   channel: r => `<td data-col="channel"><span style="font-size:12px;color:var(--cinza)">${r.channel || ''}</span></td>`,
-  status: r => `<td data-col="status">${badgeEstado(r.status)}</td>`,
+  status: r => `<td data-col="status">${AppModules.core.badgeEstado(r.status)}</td>`,
   payment_status: r => {
     const paid = Number(r.amount_paid || 0);
     const total = Number(r.total_amount || 0);
@@ -302,8 +312,29 @@ const RES_CELL = {
         ? `<br><span style="font-size:11px;color:var(--vermelho);">€${paid.toFixed(2)} / falta €${rem.toFixed(2)}</span>`
         : `<br><span style="font-size:11px;color:var(--cinza);">€${paid.toFixed(2)}</span>`;
     }
-    return `<td data-col="payment_status">${badgePagamento(r.payment_status)}${extra}</td>`;
+    return `<td data-col="payment_status">${AppModules.core.badgePagamento(r.payment_status)}${extra}</td>`;
   },
-  actions: r => `<td data-col="actions" onclick="event.stopPropagation()" style="white-space:nowrap"><div class="res-actions">${resActionButtons(r)}</div></td>`,
+  actions: r => `<td data-col="actions" data-on-click="lista-colunas-stop-propagation-22499e1" style="white-space:nowrap"><div class="res-actions">${resActionButtons(r)}</div></td>`,
 };
 
+
+AppActions.register({
+  "lista-colunas-stop-propagation-22499e1": (el, event, args) => { event.stopPropagation() },
+}, "click");
+
+AppActions.register({
+  "lista-colunas-cancelar-reserva-2d9df9b": (el, event, args) => { AppModules.reservas.cancelarReserva(args[0]) },
+  "lista-colunas-apagar-reserva-definitivo-727881f": (el, event, args) => { AppModules.reservas.apagarReservaDefinitivo(args[0]) },
+  "lista-colunas-reativar-reserva-9888cf4": (el, event, args) => { AppModules.reservas.reativarReserva(args[0]) },
+  "lista-colunas-open-edit-modal-e85a518": (el, event, args) => { AppModules.reservas.openEditModal(args[0]) },
+  "lista-colunas-aprovar-reserva-0f31ccd": (el, event, args) => { AppModules.reservas.aprovarReserva(args[0]) },
+  "lista-colunas-sort-tabela-bac31bc": (el, event, args) => { AppModules.reservas.sortTabela(args[0]) },
+}, "click");
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('features/reserva-lista/lista-colunas.js', () => {
+  _resDragKey = null;
+  _resFitT = null;
+});
+
+})();

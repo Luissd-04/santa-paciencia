@@ -1,3 +1,10 @@
+// Estado privado; interface partilhada em AppModules.calendario.
+(() => {
+AppModules.define('calendario', {
+  attachTimelinePan: { get: () => attachTimelinePan },
+  tlPointerDown: { get: () => tlPointerDown },
+});
+
 function attachTimelinePan() {
   const wrap = document.getElementById('timeline-wrap');
   if (!wrap || wrap.dataset.panReady === '1') return;
@@ -7,12 +14,12 @@ function attachTimelinePan() {
 }
 
 function tlPanPointerDown(e) {
-  if (e.button !== 0 || tlPointerDrag) return;
+  if (e.button !== 0 || AppModules.calendario.tlPointerDrag) return;
   if (e.target.closest('.tl-block, .tl-block-blocked, .tl-resize-handle, button, a, input, select, textarea')) return;
   e.preventDefault();
 
   const wrap = e.currentTarget;
-  tlPanDrag = {
+  AppModules.calendario.tlPanDrag = {
     pointerId: e.pointerId,
     startX: e.clientX,
     startY: e.clientY,
@@ -32,7 +39,7 @@ function tlPanPointerDown(e) {
 }
 
 function tlPanPointerMove(e) {
-  const d = tlPanDrag;
+  const d = AppModules.calendario.tlPanDrag;
   if (!d) return;
   const dx = e.clientX - d.startX;
   const dy = e.clientY - d.startY;
@@ -47,7 +54,7 @@ function tlPanPointerMove(e) {
 }
 
 function tlPanPointerUp(e) {
-  const d = tlPanDrag;
+  const d = AppModules.calendario.tlPanDrag;
   if (!d) return;
   const wasDrag = d.moved;
   cleanupTimelinePan(e);
@@ -70,7 +77,7 @@ function tlPanPointerCancel(e) {
 }
 
 function cleanupTimelinePan(e) {
-  const d = tlPanDrag;
+  const d = AppModules.calendario.tlPanDrag;
   if (!d) return;
   d.wrap.releasePointerCapture?.(d.pointerId || e?.pointerId);
   d.wrap.classList.remove('tl-panning');
@@ -78,7 +85,7 @@ function cleanupTimelinePan(e) {
   d.wrap.removeEventListener('pointermove', tlPanPointerMove);
   d.wrap.removeEventListener('pointerup', tlPanPointerUp);
   d.wrap.removeEventListener('pointercancel', tlPanPointerCancel);
-  tlPanDrag = null;
+  AppModules.calendario.tlPanDrag = null;
 }
 
 function tlPanClickCapture(e) {
@@ -94,7 +101,7 @@ function tlPointerDown(e, resId, type) {
   e.preventDefault();
   e.stopPropagation();
 
-  const r = reservas.find(x => x.id === resId);
+  const r = AppModules.calendario.calendarReservas.find(x => x.id === resId);
   if (!r) return;
   const blockEl = type === 'move'
     ? e.currentTarget
@@ -114,7 +121,7 @@ function tlPointerDown(e, resId, type) {
     ghost.style.pointerEvents = 'none';
   }
 
-  tlPointerDrag = {
+  AppModules.calendario.tlPointerDrag = {
     type, resId,
     startX:        e.clientX,
     origCheckIn:   r.check_in,
@@ -123,7 +130,7 @@ function tlPointerDown(e, resId, type) {
     origLeft:      parseFloat(blockEl.style.left)  || 0,
     origWidth:     parseFloat(blockEl.style.width) || 100,
     blockEl, tooltip, ghost,
-    dayW:          getTimelineDayWidth(),
+    dayW:          AppModules.calendario.getTimelineDayWidth(),
     moved:         false,
     newCheckIn:    null,
     newCheckOut:   null,
@@ -138,7 +145,7 @@ function tlPointerDown(e, resId, type) {
 }
 
 function tlOnPointerMove(e) {
-  const d = tlPointerDrag;
+  const d = AppModules.calendario.tlPointerDrag;
   if (!d) return;
 
   const dx = e.clientX - d.startX;
@@ -206,17 +213,17 @@ function tlOnPointerMove(e) {
 
   // Detetar conflito para feedback visual imediato
   const checkAcc    = d.targetAccId || d.origAccId;
-  const directConflict = reservas.some(r2 =>
+  const directConflict = AppModules.calendario.calendarReservas.some(r2 =>
     r2.id !== d.resId &&
     r2.accommodation_id === checkAcc &&
     r2.status !== 'cancelada' &&
     r2.check_in < d.newCheckOut &&
     r2.check_out > d.newCheckIn
   );
-  const checkAccObj = accommodations.find(a => a.id === checkAcc);
+  const checkAccObj = AppModules.core.accommodations.find(a => a.id === checkAcc);
   const childConflict = checkAccObj?.type === 'alojamento' &&
-    accommodations.filter(a => a.parent_id === checkAcc).some(child =>
-      reservas.some(r2 =>
+    AppModules.core.accommodations.filter(a => a.parent_id === checkAcc).some(child =>
+      AppModules.calendario.calendarReservas.some(r2 =>
         r2.id !== d.resId &&
         r2.accommodation_id === child.id &&
         r2.status !== 'cancelada' &&
@@ -236,26 +243,26 @@ function tlOnPointerMove(e) {
 }
 
 function tlOnPointerUp() {
-  if (!tlPointerDrag) return;
+  if (!AppModules.calendario.tlPointerDrag) return;
   document.removeEventListener('pointermove',   tlOnPointerMove);
   document.removeEventListener('pointerup',     tlOnPointerUp);
   document.removeEventListener('pointercancel', tlCancelDrag);
   document.querySelectorAll('.tl-row.tl-drag-over').forEach(r => r.classList.remove('tl-drag-over'));
 
   const { resId, origCheckIn, origCheckOut, origAccId, newCheckIn, newCheckOut,
-          targetAccId, targetAccName, blockEl, tooltip, ghost, moved } = tlPointerDrag;
-  tlPointerDrag = null;
+          targetAccId, targetAccName, blockEl, tooltip, ghost, moved } = AppModules.calendario.tlPointerDrag;
+  AppModules.calendario.tlPointerDrag = null;
   blockEl.classList.remove('tl-dragging');
   tooltip.remove();
   ghost?.remove();
 
-  if (!moved) { showDetail(resId); return; }
+  if (!moved) { AppModules.reservas.showDetail(resId); return; }
 
   const datesChanged = newCheckIn && (newCheckIn !== origCheckIn || newCheckOut !== origCheckOut);
   const roomChanged  = !!targetAccId;
-  if (!datesChanged && !roomChanged) { renderTimeline(false); return; }
+  if (!datesChanged && !roomChanged) { AppModules.calendario.renderTimeline(false); return; }
 
-  const r      = reservas.find(x => x.id === resId);
+  const r      = AppModules.calendario.calendarReservas.find(x => x.id === resId);
   const fmtStr = s => s.split('-').reverse().slice(0, 2).join('/');
   const updates = {};
   if (datesChanged) { updates.check_in = newCheckIn; updates.check_out = newCheckOut; }
@@ -265,7 +272,7 @@ function tlOnPointerUp() {
   const checkAcc  = targetAccId || origAccId;
   const ciCheck   = newCheckOut || origCheckOut;
   const coCheck   = newCheckIn  || origCheckIn;
-  const conflicts = reservas.filter(r2 =>
+  const conflicts = AppModules.calendario.calendarReservas.filter(r2 =>
     r2.id !== resId &&
     r2.accommodation_id === checkAcc &&
     r2.status !== 'cancelada' &&
@@ -274,12 +281,12 @@ function tlOnPointerUp() {
   );
 
   // Se o alojamento destino é um "alojamento completo" (pai), verificar quartos filhos
-  const destAcc       = accommodations.find(a => a.id === checkAcc);
+  const destAcc       = AppModules.core.accommodations.find(a => a.id === checkAcc);
   const childUnits    = destAcc?.type === 'alojamento'
-    ? accommodations.filter(a => a.parent_id === checkAcc)
+    ? AppModules.core.accommodations.filter(a => a.parent_id === checkAcc)
     : [];
   const childConflicts = childUnits.flatMap(child =>
-    reservas
+    AppModules.calendario.calendarReservas
       .filter(r2 =>
         r2.id !== resId &&
         r2.accommodation_id === child.id &&
@@ -290,8 +297,8 @@ function tlOnPointerUp() {
       .map(r2 => ({ ...r2, _childName: child.name }))
   );
 
-  const fromAcc = accommodations.find(a => a.id === origAccId);
-  let msgBody = `<b>${escapeHtml(r?.guest_name || 'reserva')}</b>`;
+  const fromAcc = AppModules.core.accommodations.find(a => a.id === origAccId);
+  let msgBody = `<b>${AppModules.core.escapeHtml(r?.guest_name || 'reserva')}</b>`;
   msgBody += `<table style="margin-top:12px;width:100%;font-size:13px;border-collapse:collapse;">`;
   if (roomChanged) {
     msgBody += `<tr>
@@ -310,7 +317,7 @@ function tlOnPointerUp() {
   msgBody += `</table>`;
 
   if (conflicts.length > 0) {
-    const names = conflicts.map(c => `<b>${escapeHtml(c.guest_name)}</b>`).join(', ');
+    const names = conflicts.map(c => `<b>${AppModules.core.escapeHtml(c.guest_name)}</b>`).join(', ');
     msgBody += `<div style="margin-top:12px;padding:10px 12px;background:#fff3f3;border:1.5px solid #fbb;border-radius:8px;font-size:12.5px;color:#b91c1c;">
       ⚠️ Overbooking — ${names} já tem${conflicts.length > 1 ? 'm' : ''} reserva nestas datas neste quarto.
     </div>`;
@@ -328,15 +335,15 @@ function tlOnPointerUp() {
     msgBody,
     async () => {
       try {
-        const res = await apiPut(`/api/reservations/${resId}`, updates);
+        const res = await AppModules.core.apiPut(`/api/reservations/${resId}`, updates);
         if (res.success) {
-          toast('✅ Reserva atualizada!', 'success');
-          await loadReservas();
-          renderTimeline(false);
-        } else { toast('❌ ' + (res.error || 'Erro.'), 'error'); renderTimeline(false); }
-      } catch { toast('❌ Erro de ligação.', 'error'); renderTimeline(false); }
+          AppModules.core.toast('✅ Reserva atualizada!', 'success');
+          await AppModules.reservas.loadReservas();
+          AppModules.calendario.renderTimeline(false);
+        } else { AppModules.core.toast('❌ ' + (res.error || 'Erro.'), 'error'); AppModules.calendario.renderTimeline(false); }
+      } catch { AppModules.core.toast('❌ Erro de ligação.', 'error'); AppModules.calendario.renderTimeline(false); }
     },
-    () => renderTimeline(false),
+    () => AppModules.calendario.renderTimeline(false),
     hasBlocker
   );
 }
@@ -346,13 +353,13 @@ function tlCancelDrag() {
   document.removeEventListener('pointerup',     tlOnPointerUp);
   document.removeEventListener('pointercancel', tlCancelDrag);
   document.querySelectorAll('.tl-row.tl-drag-over').forEach(r => r.classList.remove('tl-drag-over'));
-  if (tlPointerDrag) {
-    tlPointerDrag.blockEl.classList.remove('tl-dragging');
-    tlPointerDrag.tooltip.remove();
-    tlPointerDrag.ghost?.remove();
-    tlPointerDrag = null;
+  if (AppModules.calendario.tlPointerDrag) {
+    AppModules.calendario.tlPointerDrag.blockEl.classList.remove('tl-dragging');
+    AppModules.calendario.tlPointerDrag.tooltip.remove();
+    AppModules.calendario.tlPointerDrag.ghost?.remove();
+    AppModules.calendario.tlPointerDrag = null;
   }
-  renderTimeline(false);
+  AppModules.calendario.renderTimeline(false);
 }
 
 // Recarrega o calendário quando as reservas mudam noutro sítio (loadReservas
@@ -363,8 +370,8 @@ function tlCancelDrag() {
 if (window.PubSub) {
   PubSub.on('reservas:updated', () => {
     if (document.getElementById('view-calendario')?.classList.contains('active')
-        && typeof renderCalView === 'function') {
-      renderCalView();
+        && typeof AppModules.calendario.renderCalView === 'function') {
+      AppModules.calendario.renderCalView();
     }
   });
 }
@@ -392,3 +399,5 @@ function tlShowConfirm(msgHtml, onConfirm, onCancel, isOverbooking = false) {
   overlay.querySelector('#_tl-confirm')?.addEventListener('click', () => { overlay.remove(); onConfirm(); });
   overlay.onclick = e => { if (e.target === overlay) dismiss(onCancel); };
 }
+
+})();

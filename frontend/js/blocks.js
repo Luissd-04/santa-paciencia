@@ -1,17 +1,38 @@
+// Estado privado; interface partilhada em AppModules.bloqueios.
+(() => {
+AppModules.define('bloqueios', {
+  blockBandsHtml: { get: () => blockBandsHtml },
+  ensureBlocksLoaded: { get: () => ensureBlocksLoaded },
+  isDateBlockedAnywhere: { get: () => isDateBlockedAnywhere },
+  isDateBlockedForAccommodation: { get: () => isDateBlockedForAccommodation },
+  openBlockFromCalendar: { get: () => openBlockFromCalendar },
+  openBlockModal: { get: () => openBlockModal },
+  renderAccommodationBlocks: { get: () => renderAccommodationBlocks },
+});
+
 // ── Bloqueios de datas dos alojamentos (manutenção, uso pessoal, etc.) ──
 // A API usa datas inclusivas (start_date..end_date, ambos bloqueados).
 // O backend impede reservas nessas datas; aqui tratamos da visualização/gestão.
 
 let accommodationBlocks = [];
+let blocksLoaded = false;
 
 async function loadBlocks() {
   try {
-    const res = await apiGet('/api/accommodations/blocks');
+    const res = await AppModules.core.apiGet('/api/accommodations/blocks');
     accommodationBlocks = res.data || [];
   } catch (e) {
     accommodationBlocks = [];
   }
+  blocksLoaded = true;
   return accommodationBlocks;
+}
+
+// Os bloqueios chegam com a primeira vista que os desenha (calendário ou ficha
+// do alojamento) e ficam em memória até ao fim da sessão.
+async function ensureBlocksLoaded() {
+  if (blocksLoaded) return accommodationBlocks;
+  return loadBlocks();
 }
 
 function blkAddDays(iso, n) {
@@ -35,7 +56,7 @@ function blocksForAccommodation(accId) {
 // Scope de um alojamento: ele próprio + pai (se for suite) ou + filhas (se for
 // 'alojamento'). Espelha getAccommodationScope do backend.
 function accommodationScope(accId) {
-  const list = typeof accommodations !== 'undefined' ? accommodations : [];
+  const list = typeof AppModules.core.accommodations !== 'undefined' ? AppModules.core.accommodations : [];
   const acc = list.find(a => a.id === accId);
   if (!acc) return [accId];
   const ids = new Set([accId]);
@@ -77,14 +98,14 @@ function blockBandsHtml(accId, yearStart, totalDays, dayW) {
     const width = right - left;
     if (right <= 0 || left >= totalWidth || width <= 0) return '';
     const label = b.inherited
-      ? escapeHtml(b.accommodation_name || 'Alojamento inteiro')
-      : (b.reason ? escapeHtml(b.reason) : 'Bloqueado');
+      ? AppModules.core.escapeHtml(b.accommodation_name || 'Alojamento inteiro')
+      : (b.reason ? AppModules.core.escapeHtml(b.reason) : 'Bloqueado');
     const title = b.inherited
-      ? `🔒 Bloqueado via ${escapeHtml(b.accommodation_name || 'alojamento')}: ${blkFmt(b.start_date)} → ${blkFmt(b.end_date)}${b.reason ? ' · ' + escapeHtml(b.reason) : ''}`
-      : `🔒 Bloqueado: ${blkFmt(b.start_date)} → ${blkFmt(b.end_date)}${b.reason ? ' · ' + escapeHtml(b.reason) : ''}`;
+      ? `🔒 Bloqueado via ${AppModules.core.escapeHtml(b.accommodation_name || 'alojamento')}: ${blkFmt(b.start_date)} → ${blkFmt(b.end_date)}${b.reason ? ' · ' + AppModules.core.escapeHtml(b.reason) : ''}`
+      : `🔒 Bloqueado: ${blkFmt(b.start_date)} → ${blkFmt(b.end_date)}${b.reason ? ' · ' + AppModules.core.escapeHtml(b.reason) : ''}`;
     return `<div class="tl-block-blocked${b.inherited ? ' tl-block-blocked--inherited' : ''}" style="left:${left}px;width:${width}px;"
                  title="${title}"
-                 onclick="event.stopPropagation();openBlockEditModal('${b.id}')">
+                 ${AppActions.attrs("click", "blocks-stop-propagation-85e9e28", [String((b.id) ?? '')])}>
       <span class="tl-block-blocked-label">🔒 ${label}</span>
     </div>`;
   }).join('');
@@ -100,8 +121,8 @@ function openBlockFromCalendar(iso, accId = '') {
 
 // ── Modal de criação de bloqueio (programático, self-contained) ──
 function openBlockModal(prefillAccId = '', prefillStart = '') {
-  const opts = (typeof accommodations !== 'undefined' ? accommodations : [])
-    .map(a => `<option value="${a.id}"${a.id === prefillAccId ? ' selected' : ''}>${escapeHtml(a.name)}</option>`)
+  const opts = (typeof AppModules.core.accommodations !== 'undefined' ? AppModules.core.accommodations : [])
+    .map(a => `<option value="${a.id}"${a.id === prefillAccId ? ' selected' : ''}>${AppModules.core.escapeHtml(a.name)}</option>`)
     .join('');
 
   const overlay = document.createElement('div');
@@ -141,22 +162,22 @@ function openBlockModal(prefillAccId = '', prefillStart = '') {
     const start = overlay.querySelector('#blk-start').value;
     const end = overlay.querySelector('#blk-end').value;
     const reason = overlay.querySelector('#blk-reason').value.trim();
-    if (!accId || !start || !end) { toast('Escolhe alojamento e datas.', 'error'); return; }
-    if (end < start) { toast('A data de fim não pode ser anterior à de início.', 'error'); return; }
+    if (!accId || !start || !end) { AppModules.core.toast('Escolhe alojamento e datas.', 'error'); return; }
+    if (end < start) { AppModules.core.toast('A data de fim não pode ser anterior à de início.', 'error'); return; }
     try {
-      const res = await apiPost(`/api/accommodations/${accId}/blocks`, { start_date: start, end_date: end, reason });
+      const res = await AppModules.core.apiPost(`/api/accommodations/${accId}/blocks`, { start_date: start, end_date: end, reason });
       if (res.success) {
-        toast('🔒 Datas bloqueadas.', 'success');
+        AppModules.core.toast('🔒 Datas bloqueadas.', 'success');
         close();
         await loadBlocks();
-        if (typeof renderCalView === 'function') renderCalView();
+        if (typeof AppModules.calendario.renderCalView === 'function') AppModules.calendario.renderCalView();
         const editingId = document.getElementById('aloj-editing-id')?.value;
         if (editingId) renderAccommodationBlocks(editingId);
       } else {
-        toast('❌ ' + (res.error || 'Erro ao bloquear.'), 'error');
+        AppModules.core.toast('❌ ' + (res.error || 'Erro ao bloquear.'), 'error');
       }
     } catch (e) {
-      toast('❌ ' + (e?.payload?.error || 'Erro de ligação.'), 'error');
+      AppModules.core.toast('❌ ' + (e?.payload?.error || 'Erro de ligação.'), 'error');
     }
   };
 }
@@ -166,7 +187,7 @@ function openBlockEditModal(blockId) {
   const b = accommodationBlocks.find(x => x.id === blockId);
   if (!b) return;
   const accName = b.accommodation_name
-    || (typeof accommodations !== 'undefined' ? accommodations.find(a => a.id === b.accommodation_id)?.name : '')
+    || (typeof AppModules.core.accommodations !== 'undefined' ? AppModules.core.accommodations.find(a => a.id === b.accommodation_id)?.name : '')
     || 'Alojamento';
 
   const overlay = document.createElement('div');
@@ -175,7 +196,7 @@ function openBlockEditModal(blockId) {
   overlay.innerHTML = `
     <div class="modal" style="background:#fff;border-radius:14px;padding:26px 28px;max-width:460px;width:94%;box-shadow:0 8px 32px rgba(0,0,0,.18);">
       <h3 style="margin:0 0 6px;font-size:18px;color:var(--azul);display:flex;align-items:center;gap:8px;"><i data-lucide="lock"></i> Editar bloqueio</h3>
-      <p style="margin:0 0 16px;font-size:13px;color:var(--cinza);">${escapeHtml(accName)}</p>
+      <p style="margin:0 0 16px;font-size:13px;color:var(--cinza);">${AppModules.core.escapeHtml(accName)}</p>
       <div style="display:flex;gap:12px;">
         <div style="flex:1;">
           <label class="form-label">De</label>
@@ -187,7 +208,7 @@ function openBlockEditModal(blockId) {
         </div>
       </div>
       <label class="form-label" style="margin-top:14px;">Motivo (opcional)</label>
-      <input type="text" class="form-control" id="blk-edit-reason" value="${escapeHtml(b.reason || '')}" placeholder="Ex.: manutenção, uso pessoal" autocomplete="off" maxlength="120">
+      <input type="text" class="form-control" id="blk-edit-reason" value="${AppModules.core.escapeHtml(b.reason || '')}" placeholder="Ex.: manutenção, uso pessoal" autocomplete="off" maxlength="120">
       <div style="display:flex;gap:10px;justify-content:space-between;align-items:center;margin-top:22px;">
         <button class="btn btn-ghost btn-sm" id="blk-edit-delete" style="color:var(--vermelho);"><i data-lucide="trash-2"></i> Eliminar</button>
         <div style="display:flex;gap:10px;">
@@ -207,22 +228,22 @@ function openBlockEditModal(blockId) {
     const start = overlay.querySelector('#blk-edit-start').value;
     const end = overlay.querySelector('#blk-edit-end').value;
     const reason = overlay.querySelector('#blk-edit-reason').value.trim();
-    if (!start || !end) { toast('Escolhe as datas.', 'error'); return; }
-    if (end < start) { toast('A data de fim não pode ser anterior à de início.', 'error'); return; }
+    if (!start || !end) { AppModules.core.toast('Escolhe as datas.', 'error'); return; }
+    if (end < start) { AppModules.core.toast('A data de fim não pode ser anterior à de início.', 'error'); return; }
     try {
-      const res = await apiPut(`/api/accommodations/blocks/${blockId}`, { start_date: start, end_date: end, reason });
+      const res = await AppModules.core.apiPut(`/api/accommodations/blocks/${blockId}`, { start_date: start, end_date: end, reason });
       if (res.success) {
-        toast('🔒 Bloqueio atualizado.', 'success');
+        AppModules.core.toast('🔒 Bloqueio atualizado.', 'success');
         close();
         await loadBlocks();
-        if (typeof renderCalView === 'function') renderCalView();
+        if (typeof AppModules.calendario.renderCalView === 'function') AppModules.calendario.renderCalView();
         const editingId = document.getElementById('aloj-editing-id')?.value;
         if (editingId) renderAccommodationBlocks(editingId);
       } else {
-        toast('❌ ' + (res.error || 'Erro ao guardar.'), 'error');
+        AppModules.core.toast('❌ ' + (res.error || 'Erro ao guardar.'), 'error');
       }
     } catch (e) {
-      toast('❌ ' + (e?.payload?.error || 'Erro de ligação.'), 'error');
+      AppModules.core.toast('❌ ' + (e?.payload?.error || 'Erro de ligação.'), 'error');
     }
   };
 }
@@ -232,18 +253,18 @@ async function confirmDeleteBlock(blockId) {
   if (!b) return;
   if (!confirm(`Remover o bloqueio de ${blkFmt(b.start_date)} a ${blkFmt(b.end_date)}?`)) return;
   try {
-    const res = await apiDelete(`/api/accommodations/blocks/${blockId}`);
+    const res = await AppModules.core.apiDelete(`/api/accommodations/blocks/${blockId}`);
     if (res.success) {
-      toast('🔓 Bloqueio removido.', 'info');
+      AppModules.core.toast('🔓 Bloqueio removido.', 'info');
       await loadBlocks();
-      if (typeof renderCalView === 'function') renderCalView();
+      if (typeof AppModules.calendario.renderCalView === 'function') AppModules.calendario.renderCalView();
       const editingId = document.getElementById('aloj-editing-id')?.value;
       if (editingId) renderAccommodationBlocks(editingId);
     } else {
-      toast('❌ ' + (res.error || 'Erro ao remover.'), 'error');
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao remover.'), 'error');
     }
   } catch (e) {
-    toast('❌ Erro de ligação.', 'error');
+    AppModules.core.toast('❌ Erro de ligação.', 'error');
   }
 }
 
@@ -255,11 +276,11 @@ function renderAccommodationBlocks(accId) {
   const rows = list.length
     ? list.map(b => `
         <div class="aloj-block-row">
-          <div style="cursor:pointer;" onclick="openBlockEditModal('${b.id}')" title="Editar bloqueio">
+          <div style="cursor:pointer;" ${AppActions.attrs("click", "blocks-open-block-edit-modal-f1c3b14", [String((b.id) ?? '')])} title="Editar bloqueio">
             <div class="aloj-block-dates">${blkFmt(b.start_date)} → ${blkFmt(b.end_date)}</div>
-            ${b.reason ? `<div class="aloj-block-reason">${escapeHtml(b.reason)}</div>` : ''}
+            ${b.reason ? `<div class="aloj-block-reason">${AppModules.core.escapeHtml(b.reason)}</div>` : ''}
           </div>
-          <button class="btn btn-ghost btn-sm" onclick="confirmDeleteBlock('${b.id}')" title="Remover">
+          <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "blocks-confirm-delete-block-5fabfb9", [String((b.id) ?? '')])} title="Remover">
             <i data-lucide="trash-2"></i>
           </button>
         </div>`).join('')
@@ -267,3 +288,17 @@ function renderAccommodationBlocks(accId) {
   wrap.innerHTML = rows;
   if (window.lucide) lucide.createIcons();
 }
+
+AppActions.register({
+  "blocks-open-block-edit-modal-f1c3b14": (el, event, args) => { openBlockEditModal(args[0]) },
+  "blocks-confirm-delete-block-5fabfb9": (el, event, args) => { confirmDeleteBlock(args[0]) },
+  "blocks-stop-propagation-85e9e28": (el, event, args) => { event.stopPropagation();openBlockEditModal(args[0]) },
+}, "click");
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('blocks.js', () => {
+  accommodationBlocks = [];
+  blocksLoaded = false;
+});
+
+})();

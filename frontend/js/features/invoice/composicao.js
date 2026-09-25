@@ -1,14 +1,25 @@
+// Estado privado; interface partilhada em AppModules.invoice.
+(() => {
+AppModules.define('invoice', {
+  _applyTemplateGating: { get: () => _applyTemplateGating },
+  buildComposeToolbar: { get: () => buildComposeToolbar },
+  openInvoiceForReservation: { get: () => openInvoiceForReservation },
+  openNovaConversa: { get: () => openNovaConversa },
+  openTemplatesPicker: { get: () => openTemplatesPicker },
+  sendInvoiceEmail: { get: () => sendInvoiceEmail },
+});
+
 'use strict';
 async function sendInvoiceEmail(toEmail, toName, reservationId, standalone) {
   const subject = document.getElementById('ica-subject')?.value?.trim();
   const bodyEl  = document.getElementById('ica-body');
   const body    = bodyEl?.innerHTML?.trim();
 
-  if (!subject || !bodyEl?.textContent?.trim()) { toast('Preenche o assunto e a mensagem.', 'warning'); return; }
+  if (!subject || !bodyEl?.textContent?.trim()) { AppModules.core.toast('Preenche o assunto e a mensagem.', 'warning'); return; }
 
   const missing = _unresolvedTemplateVars(subject, body);
   if (missing.length) {
-    toast(`Faltam dados por preencher antes de enviar: ${missing.join(', ')}`, 'error', 6000);
+    AppModules.core.toast(`Faltam dados por preencher antes de enviar: ${missing.join(', ')}`, 'error', 6000);
     return;
   }
 
@@ -16,30 +27,30 @@ async function sendInvoiceEmail(toEmail, toName, reservationId, standalone) {
   if (btn) { btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2" class="spin"></i> A enviar...'; if (window.lucide) lucide.createIcons(); }
 
   try {
-    await _sendEmail(toEmail, subject, body, toName, standalone ? null : reservationId, _invoiceReplyTarget);
-    toast(`Email enviado para ${toName}`, 'success');
+    await AppModules.invoice._sendEmail(toEmail, subject, body, toName, standalone ? null : reservationId, AppModules.invoice._invoiceReplyTarget);
+    AppModules.core.toast(`Email enviado para ${toName}`, 'success');
     document.getElementById('ica-subject').value    = '';
     document.getElementById('ica-body').innerHTML   = '';
-    cancelInvoiceReply();
+    AppModules.invoice.cancelInvoiceReply();
 
     // Se a thread estava arquivada, restaurar automaticamente
     const threadKey = String(reservationId);
-    if (_invoiceArchivedKeys.has(threadKey)) {
+    if (AppModules.invoice._invoiceArchivedKeys.has(threadKey)) {
       await fetch(`/auth/email/archives/${encodeURIComponent(threadKey)}`, { method: 'DELETE', credentials: 'include' }).catch(() => {});
-      _invoiceArchivedKeys.delete(threadKey);
-      await loadInvoiceConversas();
-      switchInvoiceTab('conversas', false);
+      AppModules.invoice._invoiceArchivedKeys.delete(threadKey);
+      await AppModules.invoice.loadInvoiceConversas();
+      AppModules.invoice.switchInvoiceTab('conversas', false);
       return;
     }
 
-    const thread = _invoiceConversas.find(t => t.id === reservationId)
+    const thread = AppModules.invoice._invoiceConversas.find(t => t.id === reservationId)
       || { id: reservationId, guestEmail: toEmail, guestName: toName, _standalone: standalone };
-    loadThreadMessages(thread);
+    AppModules.invoice.loadThreadMessages(thread);
   } catch (err) {
     if (err?.payload?.needs_reauth) {
-      toast('Gmail expirou — vai a Definições → Gmail e volta a ligar.', 'error', 6000);
+      AppModules.core.toast('Gmail expirou — vai a Definições → Gmail e volta a ligar.', 'error', 6000);
     } else {
-      toast('Erro ao enviar: ' + (err?.payload?.error || err?.message || err), 'error');
+      AppModules.core.toast('Erro ao enviar: ' + (err?.payload?.error || err?.message || err), 'error');
     }
   } finally {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="send"></i> Enviar'; if (window.lucide) lucide.createIcons(); }
@@ -67,7 +78,7 @@ function openNovaConversa(prefillEmail = '', prefillName = '', reservationId = n
     <div class="modal" style="max-width:480px;">
       <div class="modal-header">
         <h3>Nova mensagem${prefillName ? ` para ${prefillName.split(' ')[0]}` : ''}</h3>
-        <button class="modal-close" onclick="_closeInvoiceModal('modal-nova-conversa')">
+        <button class="modal-close" data-on-click="composicao-close-invoice-modal-8a17ccf">
           <i data-lucide="x"></i>
         </button>
       </div>
@@ -80,7 +91,7 @@ function openNovaConversa(prefillEmail = '', prefillName = '', reservationId = n
             <input class="form-control" type="text" id="nc-subject" placeholder="Assunto da mensagem" autocomplete="off">
           </label>
           <span class="ica-tpl-reason" id="nc-tpl-reason" style="margin-top:18px;"></span>
-          <button class="btn btn-ghost btn-xs" id="nc-tpl-btn" style="margin-top:18px;flex-shrink:0;" onclick="openTemplatesPicker('nc-subject','nc-body')">
+          <button class="btn btn-ghost btn-xs" id="nc-tpl-btn" style="margin-top:18px;flex-shrink:0;" data-on-click="composicao-open-templates-picker-90e5cbf">
             <i data-lucide="layout-template"></i> Template
           </button>
         </div>
@@ -89,8 +100,8 @@ function openNovaConversa(prefillEmail = '', prefillName = '', reservationId = n
         <div class="email-body-editor compose-body-editor" id="nc-body" contenteditable="true" data-placeholder="Escreve a tua mensagem..."></div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="_closeInvoiceModal('modal-nova-conversa')">Cancelar</button>
-        <button class="btn btn-primary" id="nc-send-btn" onclick="sendNovaConversa()">
+        <button class="btn btn-ghost" data-on-click="composicao-close-invoice-modal-8a17ccf">Cancelar</button>
+        <button class="btn btn-primary" id="nc-send-btn" data-on-click="composicao-send-nova-conversa-1a4eb0f">
           <i data-lucide="send"></i> Enviar
         </button>
       </div>
@@ -111,11 +122,11 @@ async function sendNovaConversa() {
   const bodyEl  = document.getElementById('nc-body');
   const body    = bodyEl?.innerHTML?.trim();
 
-  if (!to || !subject || !bodyEl?.textContent?.trim()) { toast('Preenche todos os campos.', 'warning'); return; }
+  if (!to || !subject || !bodyEl?.textContent?.trim()) { AppModules.core.toast('Preenche todos os campos.', 'warning'); return; }
 
   const missing = _unresolvedTemplateVars(subject, body);
   if (missing.length) {
-    toast(`Faltam dados por preencher antes de enviar: ${missing.join(', ')}`, 'error', 6000);
+    AppModules.core.toast(`Faltam dados por preencher antes de enviar: ${missing.join(', ')}`, 'error', 6000);
     return;
   }
 
@@ -123,46 +134,39 @@ async function sendNovaConversa() {
   if (btn) { btn.disabled = true; btn.innerHTML = '<i data-lucide="loader-2"></i> A enviar...'; if (window.lucide) lucide.createIcons(); }
 
   try {
-    await _sendEmail(to, subject, body, null, _novaConversaReservationId);
+    await AppModules.invoice._sendEmail(to, subject, body, null, _novaConversaReservationId);
     _closeInvoiceModal('modal-nova-conversa');
-    toast('Email enviado com sucesso.', 'success');
+    AppModules.core.toast('Email enviado com sucesso.', 'success');
   } catch (err) {
     if (err?.payload?.needs_reauth) {
-      toast('Gmail expirou — vai a Definições → Gmail e volta a ligar.', 'error', 6000);
+      AppModules.core.toast('Gmail expirou — vai a Definições → Gmail e volta a ligar.', 'error', 6000);
     } else {
-      toast('Erro ao enviar email: ' + (err?.payload?.error || err?.message || err), 'error');
+      AppModules.core.toast('Erro ao enviar email: ' + (err?.payload?.error || err?.message || err), 'error');
     }
     if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="send"></i> Enviar'; if (window.lucide) lucide.createIcons(); }
   }
 }
 
 /* ── Abrir invoice de uma reserva específica (chamado do detalhe de reserva) ── */
-function openInvoiceForReservation(reservationId, guestEmail, guestName) {
-  showView('invoice');
+async function openInvoiceForReservation(reservationId, guestEmail, guestName) {
+  await AppModules.core.showView('invoice');
   const open = () => {
-    const thread = _invoiceConversas.find(t => t.id === reservationId);
-    if (thread) { openInvoiceThread(thread); return; }
+    const thread = AppModules.invoice._invoiceConversas.find(t => t.id === reservationId);
+    if (thread) { AppModules.invoice.openInvoiceThread(thread); return; }
     setTimeout(() => {
-      const t2 = _invoiceConversas.find(t => t.id === reservationId);
-      if (t2) { openInvoiceThread(t2); return; }
+      const t2 = AppModules.invoice._invoiceConversas.find(t => t.id === reservationId);
+      if (t2) { AppModules.invoice.openInvoiceThread(t2); return; }
       /* sem conversa anterior — abrir modal de nova mensagem pré-preenchido */
       openNovaConversa(guestEmail, guestName, reservationId);
     }, 800);
   };
-  if (_invoiceConversas.length) open();
+  if (AppModules.invoice._invoiceConversas.length) open();
   else setTimeout(open, 600);
 }
 
 /* ── Formatação (compose rico, reply e nova mensagem) ── */
 function buildComposeToolbar() {
-  return `
-    <div class="email-fmt-toolbar compose-fmt-toolbar">
-      <button class="fmt-btn" type="button" onmousedown="event.preventDefault()" onclick="document.execCommand('bold')" title="Negrito"><b>B</b></button>
-      <button class="fmt-btn" type="button" onmousedown="event.preventDefault()" onclick="document.execCommand('italic')" title="Itálico"><i>I</i></button>
-      <button class="fmt-btn" type="button" onmousedown="event.preventDefault()" onclick="document.execCommand('underline')" title="Sublinhado"><u>U</u></button>
-      <div class="fmt-btn-sep"></div>
-      <button class="fmt-btn fmt-btn-wide" type="button" onmousedown="event.preventDefault()" onclick="document.execCommand('insertUnorderedList')" title="Lista">• Lista</button>
-    </div>`;
+  return "\n    <div class=\"email-fmt-toolbar compose-fmt-toolbar\">\n      <button class=\"fmt-btn\" type=\"button\" data-on-mousedown=\"composicao-prevent-default-b71b57c\" data-on-click=\"composicao-exec-command-c7ec81d\" title=\"Negrito\"><b>B</b></button>\n      <button class=\"fmt-btn\" type=\"button\" data-on-mousedown=\"composicao-prevent-default-b71b57c\" data-on-click=\"composicao-exec-command-5331e67\" title=\"Itálico\"><i>I</i></button>\n      <button class=\"fmt-btn\" type=\"button\" data-on-mousedown=\"composicao-prevent-default-b71b57c\" data-on-click=\"composicao-exec-command-2bf8db4\" title=\"Sublinhado\"><u>U</u></button>\n      <div class=\"fmt-btn-sep\"></div>\n      <button class=\"fmt-btn fmt-btn-wide\" type=\"button\" data-on-mousedown=\"composicao-prevent-default-b71b57c\" data-on-click=\"composicao-exec-command-52661d8\" title=\"Lista\">• Lista</button>\n    </div>";
 }
 
 /* ── Dados do destinatário para preencher templates ── */
@@ -234,7 +238,7 @@ async function openTemplatesPicker(subjectId, bodyId, forEmail) {
   if (forEmail) _lastKnownComposeEmail = forEmail;
   if (!_invoiceTemplatesCache) {
     try {
-      const data = await apiGet('/api/email-templates');
+      const data = await AppModules.core.apiGet('/api/email-templates');
       _invoiceTemplatesCache = (data?.data || []).filter(t => t.subject && t.body);
     } catch { _invoiceTemplatesCache = []; }
   }
@@ -242,7 +246,7 @@ async function openTemplatesPicker(subjectId, bodyId, forEmail) {
   document.getElementById('modal-tpl-picker')?.remove();
 
   if (!_invoiceTemplatesCache.length) {
-    toast('Sem templates configurados. Vai a Definições → Templates.', 'info');
+    AppModules.core.toast('Sem templates configurados. Vai a Definições → Templates.', 'info');
     return;
   }
 
@@ -257,18 +261,18 @@ async function openTemplatesPicker(subjectId, bodyId, forEmail) {
     <div class="modal" style="max-width:440px;">
       <div class="modal-header">
         <h3><i data-lucide="layout-template" style="width:16px;height:16px;vertical-align:-2px;margin-right:4px;"></i>Escolher template</h3>
-        <button class="modal-close" onclick="document.getElementById('modal-tpl-picker').remove()"><i data-lucide="x"></i></button>
+        <button class="modal-close" data-on-click="composicao-get-element-by-id-12671d3"><i data-lucide="x"></i></button>
       </div>
       ${!_tplPickerContext.guest
         ? `<div class="tpl-picker-warning">⚠️ Sem hóspede associado a este email — os campos da reserva vão ficar por preencher.</div>`
         : !_tplPickerContext.eligible
-          ? `<div class="tpl-picker-warning">⚠️ ${esc(_tplPickerContext.guest.name || '')} não tem estadia ativa, nem chegada nos próximos 7 dias, nem saída nos últimos 7 dias — os campos da reserva vão ficar por preencher.</div>`
+          ? `<div class="tpl-picker-warning">⚠️ ${AppModules.invoice.esc(_tplPickerContext.guest.name || '')} não tem estadia ativa, nem chegada nos próximos 7 dias, nem saída nos últimos 7 dias — os campos da reserva vão ficar por preencher.</div>`
           : ''}
       <div class="modal-body" style="padding:8px 0;">
         ${_invoiceTemplatesCache.map((t, i) => `
-          <button class="tpl-picker-item" onclick="_applyTemplate(${i},'${subjectId}','${bodyId}')">
-            <span class="tpl-picker-name">${esc(t.name || t.slug)}</span>
-            <span class="tpl-picker-sub">${esc(t.subject)}</span>
+          <button class="tpl-picker-item" ${AppActions.attrs("click", "composicao-apply-template-0af418a", [i, String((subjectId) ?? ''), String((bodyId) ?? '')])}>
+            <span class="tpl-picker-name">${AppModules.invoice.esc(t.name || t.slug)}</span>
+            <span class="tpl-picker-sub">${AppModules.invoice.esc(t.subject)}</span>
           </button>`).join('')}
       </div>
     </div>
@@ -290,3 +294,31 @@ function _applyTemplate(index, subjectId, bodyId) {
 }
 
 /* ── Manter a conversa aberta ao recarregar a página ── */
+
+AppActions.register({
+  "composicao-get-element-by-id-12671d3": (el, event, args) => { document.getElementById('modal-tpl-picker').remove() },
+  "composicao-exec-command-c7ec81d": (el, event, args) => { document.execCommand('bold') },
+  "composicao-exec-command-5331e67": (el, event, args) => { document.execCommand('italic') },
+  "composicao-exec-command-2bf8db4": (el, event, args) => { document.execCommand('underline') },
+  "composicao-exec-command-52661d8": (el, event, args) => { document.execCommand('insertUnorderedList') },
+  "composicao-close-invoice-modal-8a17ccf": (el, event, args) => { _closeInvoiceModal('modal-nova-conversa') },
+  "composicao-open-templates-picker-90e5cbf": (el, event, args) => { openTemplatesPicker('nc-subject','nc-body') },
+  "composicao-send-nova-conversa-1a4eb0f": (el, event, args) => { sendNovaConversa() },
+}, "click");
+
+AppActions.register({
+  "composicao-prevent-default-b71b57c": (el, event, args) => { event.preventDefault() },
+}, "mousedown");
+
+AppActions.register({
+  "composicao-apply-template-0af418a": (el, event, args) => { _applyTemplate(args[0],args[1],args[2]) },
+}, "click");
+
+// Limpeza da funcionalidade ao sair ou trocar de organização.
+AppModules.onReset('features/invoice/composicao.js', () => {
+  _novaConversaReservationId = null;
+  _invoiceTemplatesCache = null;
+  _tplPickerContext = { guest: null, reservation: null, active: false, vars: {} };
+});
+
+})();

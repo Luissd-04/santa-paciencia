@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estado da reserva — Santa Paciência</title>
+  <link rel="apple-touch-icon" href="/favicon.png?v=2">
+  <link rel="icon" type="image/png" href="/favicon.png?v=2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Playfair+Display:wght@600;700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/public-reservation.css">
+  <link rel="stylesheet" href="/css/reservation-status.css">
+</head>
+<body>
+  <div class="booking-page">
+    <div class="ambient-bg" id="rs-bg"></div>
+    <div class="ambient-overlay"></div>
+
+    <header class="booking-hero">
+      <div class="brand-pill" id="rs-reference">Reserva</div>
+      <h1 id="rs-title">A consultar a sua reserva</h1>
+      <p id="rs-subtitle">Aqui pode acompanhar o estado do pedido.</p>
+    </header>
+
+    <main class="booking-shell">
+      <section class="booking-card reservation-status-card" aria-live="polite">
+        <div class="rs-loading" id="rs-loading">A carregar…</div>
+        <div id="rs-content" hidden>
+          <div class="rs-status-line">
+            <span class="rs-status" id="rs-status"></span>
+            <span class="rs-payment" id="rs-payment"></span>
+          </div>
+          <h2 id="rs-accommodation">—</h2>
+          <dl class="rs-grid">
+            <div><dt>Check-in</dt><dd id="rs-checkin">—</dd></div>
+            <div><dt>Check-out</dt><dd id="rs-checkout">—</dd></div>
+            <div><dt>Hóspedes</dt><dd id="rs-guests">—</dd></div>
+            <div><dt>Total</dt><dd id="rs-total">—</dd></div>
+            <div><dt>Pago</dt><dd id="rs-paid">—</dd></div>
+          </dl>
+          <p class="rs-note">Guarde este link. Por segurança, não apresenta dados pessoais dos hóspedes.</p>
+        </div>
+        <div class="step-error rs-error" id="rs-error" role="alert" hidden></div>
+      </section>
+    </main>
+  </div>
+  <script src="/js/reservation-status.js"></script>
+</body>
+</html>
