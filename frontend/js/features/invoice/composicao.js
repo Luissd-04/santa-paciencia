@@ -227,10 +227,19 @@ function _interpolateTemplate(text, vars) {
   );
 }
 
-function _unresolvedTemplateVars(...texts) {
+// Estes marcadores não são campos em falta: são blocos HTML de confiança que
+// o servidor constrói no momento do envio, com os dados atuais da reserva.
+const SERVER_TEMPLATE_BLOCKS = new Set([
+  'titulo_reserva', 'titulo_boas_vindas', 'cartao_reserva',
+  'cartao_reserva_sem_total', 'botao_alojamento',
+  'botao_pre_checkin', 'acompanhe_nos',
+]);
+
+function _unresolvedTemplateVars(subject, body) {
   const found = new Set();
-  for (const text of texts) {
-    for (const m of String(text || '').matchAll(/\{\{\s*(\w+)\s*\}\}/g)) found.add(m[1]);
+  for (const m of String(subject || '').matchAll(/\{\{\s*(\w+)\s*\}\}/g)) found.add(m[1]);
+  for (const m of String(body || '').matchAll(/\{\{\s*(\w+)\s*\}\}/g)) {
+    if (!SERVER_TEMPLATE_BLOCKS.has(m[1])) found.add(m[1]);
   }
   return [...found];
 }

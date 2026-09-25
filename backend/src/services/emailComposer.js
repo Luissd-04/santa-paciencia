@@ -192,13 +192,20 @@ function buildHeader(settings) {
 
 function buildFooter(settings) {
   const name    = escapeHtml(settings.property_name || '');
-  const address = escapeHtml(settings.property_address || '');
+  const rawAddress = String(settings.property_address || '').trim();
+  const address = escapeHtml(rawAddress);
   const license = escapeHtml(settings.license_number || '');
   const contact = safeUrl(settings.email_contact ? `mailto:${settings.email_contact}` : '');
 
   // Campos opcionais vazios não deixam separadores nem rótulos soltos.
   const lines = [];
-  const identity = [name, address].filter(Boolean).join(' · ');
+  const mapUrl = rawAddress
+    ? safeUrl(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rawAddress)}`)
+    : '';
+  const addressHtml = mapUrl
+    ? `<a href="${attr(mapUrl)}" target="_blank" rel="noopener noreferrer" style="color:${PALETTE.muted};text-decoration:underline;">${address}</a>`
+    : address;
+  const identity = [name, addressHtml].filter(Boolean).join(' · ');
   if (identity) lines.push(identity);
   if (license)  lines.push(`Licença AL: ${license}`);
   if (contact)  lines.push(`<a href="${attr(contact)}" style="color:${PALETTE.brand};text-decoration:underline;">${escapeHtml(settings.email_contact)}</a>`);
@@ -234,11 +241,25 @@ function buildSocialBlock(settings) {
 
   const buttons = entries.map(([key, label, url]) => `<a href="${attr(safeUrl(url))}" style="display:inline-block;margin:5px 4px;padding:11px 17px;border:1px solid ${PALETTE.brandBorder};border-radius:6px;background:${PALETTE.surface};color:${PALETTE.brand};text-decoration:none;font-family:${SERIF};font-size:14px;line-height:1.2;white-space:nowrap;">${iconImg(key)}${escapeHtml(label)}</a>`).join('');
 
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:30px 0 0;">
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="sp-social-block" style="width:100%;margin:30px 0 0;">
     <tr><td>${divider()}</td></tr>
     <tr><td align="center" style="padding:22px 0 10px;font-family:${SERIF};font-size:12px;letter-spacing:3px;color:${PALETTE.brandSoft};">ACOMPANHE-NOS</td></tr>
     <tr><td align="center" style="padding:0 0 4px;">${buttons}</td></tr>
   </table>`;
+}
+
+// Moldura social comum a todos os emails. Se o template já colocou o mesmo
+// bloco no corpo (templates antigos ou uma posição personalizada), não volta
+// a inseri-lo no rodapé.
+function buildSocialFooter(settings, bodyHtml) {
+  if (/\bsp-social-block\b/.test(String(bodyHtml || ''))) return '';
+  const social = buildSocialBlock(settings);
+  if (!social) return '';
+  return `<tr>
+    <td class="sp-pad sp-surface-bg" style="background:${PALETTE.surface};padding:0 40px 0;">
+      ${social}
+    </td>
+  </tr>`;
 }
 
 // Botão terracota principal. Sem endereço configurado devolve vazio — mais
@@ -353,6 +374,7 @@ function composeEmail(bodyHtml, settings, options = {}) {
     <table role="presentation" width="${MAX_WIDTH}" cellpadding="0" cellspacing="0" border="0" class="sp-surface-bg" bgcolor="${PALETTE.surface}" style="width:100%;max-width:${MAX_WIDTH}px;background:${PALETTE.surface};border-radius:10px;border-collapse:separate;overflow:hidden;">
       ${buildHeader(s)}
       <tr><td class="sp-pad sp-surface-bg email-body-bg" style="background:${PALETTE.surface};padding:34px 40px 10px;font-family:${SERIF};font-size:16px;line-height:1.7;color:${PALETTE.textSoft};">${BODY_START}${bodyHtml}${BODY_END}</td></tr>
+      ${buildSocialFooter(s, bodyHtml)}
       ${buildFooter(s)}
     </table>
   </td></tr>
@@ -379,6 +401,7 @@ module.exports = {
   buildHeader,
   buildFooter,
   buildSocialBlock,
+  buildSocialFooter,
   buildCtaBlock,
   buildWelcomeTitle,
   buildReservationTitle,

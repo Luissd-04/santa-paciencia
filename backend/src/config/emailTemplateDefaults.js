@@ -66,7 +66,6 @@ const TEMPLATES = {
       '{{titulo_boas_vindas}}',
       p('Esperamos que desfrute de uma estadia tranquila em {{localidade}}.', 'text-align:center;'),
       '{{botao_alojamento}}',
-      '{{acompanhe_nos}}',
     ].join(''),
   },
 

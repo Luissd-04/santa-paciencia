@@ -78,3 +78,13 @@ test('seletor de templates liberta o estado global do modal antes de sair do DOM
 
   assert.deepEqual(calls, ['close', 'remove']);
 });
+
+test('validação do compositor deixa os blocos do servidor e recusa campos realmente em falta', () => {
+  const ctx = vm.createContext({ console, window: {}, document: { getElementById: () => null } });
+  runFrontend(fs.readFileSync(path.join(root, 'js/features/invoice/composicao.js'), 'utf8'), ctx);
+  const missing = vm.runInContext(`_unresolvedTemplateVars(
+    'Assunto {{primeiro_nome}}',
+    '{{titulo_reserva}}<p>{{cartao_reserva}}</p><p>{{campo_desconhecido}}</p>'
+  )`, ctx);
+  assert.deepEqual(Array.from(missing), ['primeiro_nome', 'campo_desconhecido']);
+});

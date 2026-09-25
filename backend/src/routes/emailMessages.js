@@ -33,32 +33,38 @@ router.post('/email/send', requireAuth, requireRole('manager'), async (req, res)
   if (!to || !subject || !html) {
     return res.status(400).json({ success: false, error: 'to, subject e html são obrigatórios.' });
   }
-  // Nunca deixar sair um {{campo}} por preencher para o hóspede.
-  if (/\{\{\s*\w+\s*\}\}/.test(subject) || /\{\{\s*\w+\s*\}\}/.test(html)) {
-    return res.status(400).json({ success: false, error: 'A mensagem tem campos por preencher (ex.: {{primeiro_nome}}) — confirma os dados antes de enviar.' });
-  }
   try {
-    const { sendMail, baseTemplate, getEmailSettings, resolveAccommodationInheritance, findGuestEmailContext } = require('../services/emailService');
+    const { sendMail, renderManualEmail, resolveAccommodationInheritance, findGuestEmailContext } = require('../services/emailService');
     const orgId = req.user.organization_id;
 
-    let accommodation = null;
+    let context = findGuestEmailContext(orgId, to);
     if (reservation_id) {
       const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservation_id, orgId);
       if (reservation) {
+        const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(reservation.guest_id, orgId);
         const accom = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(reservation.accommodation_id, orgId);
-        if (accom) accommodation = resolveAccommodationInheritance(accom, orgId);
+        if (guest && accom) {
+          context = {
+            guest,
+            reservation,
+            accommodation: resolveAccommodationInheritance(accom, orgId),
+            vars: {},
+          };
+        }
       }
     }
-    if (!accommodation) accommodation = findGuestEmailContext(orgId, to).accommodation;
-
-    const settings = getEmailSettings(accommodation, orgId);
-    const finalHtml = baseTemplate(html, settings);
+    const rendered = renderManualEmail({ organizationId: orgId, subject, body: html, context });
+    // Depois da composição, qualquer marcador restante é realmente um dado
+    // desconhecido/em falta e nunca pode seguir para o hóspede.
+    if (/\{\{\s*\w+\s*\}\}/.test(rendered.subject) || /\{\{\s*\w+\s*\}\}/.test(rendered.html)) {
+      return res.status(400).json({ success: false, error: 'A mensagem tem campos por preencher (ex.: {{primeiro_nome}}) — confirma os dados antes de enviar.' });
+    }
 
     // thread_id/in_reply_to_message_id só chegam quando o utilizador clicou
     // explicitamente em "responder" a uma mensagem específica — por defeito
     // (nenhum dos dois presente) é sempre uma mensagem nova e solta.
     const sendResult = await sendMail(orgId, {
-      to, subject, html: finalHtml,
+      to, subject: rendered.subject, html: rendered.html,
       threadId: thread_id || undefined,
       inReplyTo: in_reply_to_message_id || undefined,
       references: references || undefined,
@@ -75,8 +81,8 @@ router.post('/email/send', requireAuth, requireRole('manager'), async (req, res)
       orgId,
       to,
       to_name || null,
-      subject,
-      finalHtml,
+      rendered.subject,
+      rendered.html,
       reservation_id || null,
       req.user.id,
       sendResult?.id || null,

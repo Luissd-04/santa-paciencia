@@ -379,6 +379,7 @@ async function main() {
   const previewFrame = page.frameLocator('#et-preview-frame');
   await expect(previewFrame.locator('body')).toContainText('ALOJAMENTO LOCAL');
   await expect(previewFrame.locator('body')).toContainText('Reserva confirmada');
+  await expect(previewFrame.locator('body')).toContainText('ACOMPANHE-NOS');
 
   // Um rascunho por gravar tem de aparecer na pré-visualização.
   await page.evaluate(() => {
@@ -623,15 +624,24 @@ async function main() {
   await expect(page.locator('#modal-tpl-picker')).toBeVisible();
   await page.locator('#modal-tpl-picker .tpl-picker-item').first().click();
   await expect(page.locator('#modal-tpl-picker')).toHaveCount(0);
+  await expect(page.locator('#ica-body')).toContainText('{{titulo_reserva}}');
   assert.equal(await page.evaluate(() => document.body.classList.contains('modal-open')), false);
   assert.equal(await page.evaluate(() => document.querySelectorAll('[inert]').length), 0);
+  await page.locator('#ica-send-btn').click();
+  await expect(page.locator('#ica-body')).toHaveText('');
+  const manualTemplateMessage = db.prepare(`SELECT subject,body_html FROM invoice_messages
+    WHERE organization_id=? AND reservation_id='r011' ORDER BY rowid DESC LIMIT 1`).get(org.id);
+  assert(manualTemplateMessage.body_html.includes('r011'), 'o cartão não trouxe a referência da reserva');
+  assert(manualTemplateMessage.body_html.includes('ACOMPANHE-NOS'), 'o envio manual não trouxe os links sociais comuns');
+  assert(!/\{\{\s*\w+\s*\}\}/.test(manualTemplateMessage.subject + manualTemplateMessage.body_html),
+    'o envio manual deixou marcadores do template por preencher');
   await page.locator('#ica-tpl-btn').click();
   await expect(page.locator('#modal-tpl-picker')).toBeVisible();
   await page.locator('#modal-tpl-picker .modal-close').click();
   await expect(page.locator('#modal-tpl-picker')).toHaveCount(0);
   await page.locator('#invoice-search').fill('');
   await expect(page.locator('#invoice-thread-pagination')).toContainText('de 127');
-  console.log('OK: escolher e fechar um template devolve a interação à página.');
+  console.log('OK: escolher, enviar e fechar um template compõe os blocos e devolve a interação à página.');
 
   // Erro ≠ lista vazia.
   await page.route('**/auth/email/threads?*', route => route.fulfill({ status: 503, json: { error: 'Indisponível' } }));

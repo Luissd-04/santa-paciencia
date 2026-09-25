@@ -204,6 +204,31 @@ function renderEmail({ subject, body, vars, blocks, settings }) {
   };
 }
 
+// As mensagens escolhidas manualmente no separador Mensagens usam exatamente
+// a mesma composição dos envios automáticos. O cliente interpola texto para
+// feedback imediato, mas deixa blocos como {{cartao_reserva}} intactos; esses
+// blocos só podem ser gerados com segurança no servidor.
+function renderManualEmail({ organizationId, subject, body, context }) {
+  const guest = context?.guest || null;
+  const reservation = context?.reservation || null;
+  const accommodation = context?.accommodation || null;
+  const settings = getEmailSettings(accommodation, organizationId);
+  let vars = { ...(context?.vars || {}) };
+  let blocks = {};
+
+  if (guest && reservation && accommodation) {
+    const extra = {};
+    if (reservation.precheckin_token) {
+      const base = (process.env.PUBLIC_APP_URL || process.env.FRONTEND_PUBLIC_URL || 'http://localhost:3001').replace(/\/$/, '');
+      extra.link_pre_checkin = `${base}/pre-checkin/${encodeURIComponent(reservation.precheckin_token)}`;
+    }
+    vars = sanitizeUrlVars(buildVars(guest, reservation, accommodation, settings, extra));
+    blocks = buildBlocks(vars, settings, reservation);
+  }
+
+  return renderEmail({ subject, body, vars, blocks, settings });
+}
+
 function interpolate(body, vars) {
   return body.replace(/\{\{(\w+)\}\}/g, (match, key) =>
     vars[key] !== undefined && vars[key] !== null ? vars[key] : match
@@ -542,6 +567,7 @@ module.exports = {
   buildVars,
   buildBlocks,
   renderEmail,
+  renderManualEmail,
   statusPresentation,
   sanitizeUrlVars,
   escapeVars,

@@ -83,7 +83,7 @@ test('uma única passagem de substituição impede injeção de blocos por dados
   const guest = { name: '{{acompanhe_nos}}', first_name: '{{acompanhe_nos}}', email: 'x@y.invalid' };
   const { html } = render('confirmacao', { guest });
   assert.ok(html.includes('{{acompanhe_nos}}'), 'o texto fica literal');
-  assert.ok(!html.includes('ACOMPANHE-NOS'), 'o bloco social não foi injetado');
+  assert.equal((html.match(/ACOMPANHE-NOS/g) || []).length, 1, 'o nome não pode injetar um segundo bloco social');
 });
 
 test('marcador desconhecido fica literal em vez de desaparecer', () => {
@@ -213,6 +213,28 @@ test('só aparecem as redes sociais configuradas e com protocolo válido', () =>
   assert.equal(composer.buildSocialBlock({}), '', 'sem redes, o bloco não existe');
 });
 
+test('todos os emails recebem apenas as redes escolhidas no alojamento', () => {
+  const settings = {
+    ...SETTINGS,
+    social_links_enabled: ['instagram', 'website'],
+  };
+  for (const slug of ['confirmacao', 'apos_checkin', 'cancelamento']) {
+    const { html } = render(slug, { settings });
+    assert.ok(html.includes('ACOMPANHE-NOS'), `${slug} sem bloco social`);
+    assert.ok(html.includes('Instagram'), `${slug} sem Instagram`);
+    assert.ok(html.includes('Website'), `${slug} sem Website`);
+    assert.ok(!html.includes('>Facebook</a>'), `${slug} ignorou a seleção do alojamento`);
+    assert.equal((html.match(/ACOMPANHE-NOS/g) || []).length, 1, `${slug} duplicou o bloco social`);
+  }
+});
+
+test('a morada do rodapé abre uma pesquisa no mapa', () => {
+  const { html } = render('confirmacao');
+  assert.ok(html.includes('https://www.google.com/maps/search/?api=1&amp;query=Rua%20de%20%C3%89vora%2C%2014'));
+  assert.ok(html.includes('target="_blank"'));
+  assert.ok(html.includes('Rua de Évora, 14') || html.includes('Rua de &Eacute;vora, 14'));
+});
+
 test('sem endereço configurado não se desenha um botão que não leva a lado nenhum', () => {
   assert.equal(composer.buildCtaBlock('', 'Conhecer o alojamento'), '');
   assert.equal(composer.buildCtaBlock('javascript:alert(1)', 'Conhecer o alojamento'), '');
@@ -282,6 +304,29 @@ test('baseTemplate das mensagens avulsas usa a mesma moldura dos templates', () 
     assert.ok(avulso.includes(marca), `mensagem avulsa sem ${marca}`);
     assert.ok(template.includes(marca), `template sem ${marca}`);
   }
+});
+
+test('envio manual de um template transforma os blocos estruturais no servidor', () => {
+  const r = reservation('confirmada', { precheckin_token: 'token manual' });
+  const rendered = emailService.renderManualEmail({
+    organizationId: null,
+    subject: TEMPLATES.confirmacao.subject,
+    body: TEMPLATES.confirmacao.body,
+    context: { guest: GUEST, reservation: r, accommodation: ACCOMMODATION, vars: {} },
+  });
+  assert.equal(rendered.subject, 'Reserva confirmada — Suite Mezzanine Deluxe');
+  assert.ok(rendered.html.includes('Rui'));
+  assert.ok(rendered.html.includes('Suite Mezzanine Deluxe'));
+  assert.ok(rendered.html.includes('240,00'));
+  assert.ok(!/\{\{\s*\w+\s*\}\}/.test(rendered.html), 'nenhum bloco segue por preencher');
+
+  const unknown = emailService.renderManualEmail({
+    organizationId: null,
+    subject: 'Assunto',
+    body: '<p>{{campo_desconhecido}}</p>',
+    context: { guest: GUEST, reservation: r, accommodation: ACCOMMODATION, vars: {} },
+  });
+  assert.match(unknown.html, /\{\{campo_desconhecido\}\}/, 'campos desconhecidos continuam detetáveis e serão recusados pela rota');
 });
 
 // ── Isolamento entre organizações ──────────────────────────────────────────
