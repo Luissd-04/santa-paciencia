@@ -4,7 +4,10 @@ services:
     restart: unless-stopped
     init: true
     ports:
-      - "127.0.0.1:3001:3001"
+      # Por omissão, expõe apenas no próprio host. Em servidores onde o
+      # Cloudflare Tunnel aponta para o IP da LAN, definir APP_BIND_IP nesse
+      # servidor (por exemplo, APP_BIND_IP=192.168.1.81).
+      - "${APP_BIND_IP:-127.0.0.1}:3001:3001"
     env_file: ./backend/src/.env
     environment:
       - NODE_ENV=production

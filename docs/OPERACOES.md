@@ -9,6 +9,8 @@ O ficheiro de referência é `backend/src/.env.example`. As variáveis essenciai
 em produção são:
 
 - `NODE_ENV=production`, `PORT`, `TZ`;
+- `APP_BIND_IP`, no ficheiro `.env` da raiz, quando o Cloudflare Tunnel aponta
+  para um IP do servidor em vez de `127.0.0.1`;
 - `PUBLIC_APP_URL` com origem HTTPS canónica;
 - `TRUST_PROXY` limitado aos proxies realmente controlados;
 - `DB_PATH` e `FRONTEND_PATH`;
@@ -49,8 +51,10 @@ Fluxo recomendado:
 7. Verificar os logs dos schedulers e a fila de limpeza de Google Tasks.
 
 O Compose atual monta `./data` em `/app/data`, executa o container com filesystem
-read-only e expõe a aplicação apenas no loopback. O Cloudflare Tunnel é o ponto
-de entrada público.
+read-only e, por omissão, expõe a aplicação apenas no loopback. Se o serviço de
+origem configurado no Cloudflare Tunnel usar o IP LAN do servidor, definir esse
+IP em `APP_BIND_IP` no `.env` da raiz. O Cloudflare Tunnel é o ponto de entrada
+público.
 
 ## Migrações
 
