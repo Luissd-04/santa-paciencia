@@ -70,6 +70,10 @@ Object.assign(RESERVATION_SORTS, { guest_name: 'g.name COLLATE NOCASE', guest_em
 
 function listReservations(organizationId, query = {}) {
   const options = pageOptions(query, RESERVATION_SORTS, 'check_in');
+  const scope = textParam(query, 'scope', 20) || 'all';
+  if (!['operational', 'past', 'all'].includes(scope)) throw invalid('Período de reservas inválido.');
+  const today = dateParam(query, 'today');
+  if (scope !== 'all' && !today) throw invalid('Data de referência em falta.');
   const params = [organizationId];
   let where = ' WHERE r.organization_id = ?';
   for (const key of ['status', 'channel', 'payment_status']) {
@@ -96,7 +100,22 @@ function listReservations(organizationId, query = {}) {
   const joined = ` FROM reservations r
     JOIN guests g ON g.id=r.guest_id AND g.organization_id=r.organization_id
     JOIN accommodations a ON a.id=r.accommodation_id AND a.organization_id=r.organization_id`;
+  const summaryWhere = where;
+  const summaryParams = [...params];
+  if (scope === 'operational') {
+    where += " AND r.status != 'cancelada' AND r.check_out >= ?";
+    params.push(today);
+  } else if (scope === 'past') {
+    where += " AND r.status != 'cancelada' AND r.check_out < ?";
+    params.push(today);
+  }
   return db.transaction(() => {
+    const summaryRow = today
+      ? db.prepare(`SELECT COUNT(*) AS total,
+          COALESCE(SUM(CASE WHEN r.status!='cancelada' AND r.check_out>=? THEN 1 ELSE 0 END),0) AS operational,
+          COALESCE(SUM(CASE WHEN r.status!='cancelada' AND r.check_out<? THEN 1 ELSE 0 END),0) AS past`
+          + joined + summaryWhere).get(today, today, ...summaryParams)
+      : db.prepare('SELECT COUNT(*) AS total' + joined + summaryWhere).get(...summaryParams);
     const total = db.prepare('SELECT COUNT(*) AS total' + joined + where).get(...params).total;
     const data = db.prepare(`SELECT r.*, g.name AS guest_name, g.email AS guest_email, g.phone AS guest_phone, a.name AS accommodation_name,
       (SELECT oe.status FROM operational_events oe JOIN reservations current ON current.id=oe.reservation_id AND current.organization_id=oe.organization_id
@@ -112,7 +131,9 @@ function listReservations(organizationId, query = {}) {
       delete row.checkin_task_status;
       delete row.checkout_task_status;
     }
-    return { data, pagination: metadata(options, total) };
+    const summary = { all: summaryRow.total };
+    if (today) Object.assign(summary, { operational: summaryRow.operational, past: summaryRow.past });
+    return { data, pagination: metadata(options, total), summary };
   })();
 }
 

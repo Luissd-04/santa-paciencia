@@ -8,6 +8,7 @@ AppModules.define('reservas', {
   renderGuestsCell: { get: () => renderGuestsCell },
   renderMobileCards: { get: () => renderMobileCards },
   renderTabela: { get: () => renderTabela },
+  setReservasPeriodScope: { get: () => setReservasPeriodScope },
   setReservasDetailMode: { get: () => setReservasDetailMode },
   setReservasViewMode: { get: () => setReservasViewMode },
   showReservasList: { get: () => showReservasList },
@@ -114,9 +115,31 @@ function sortTabela(col) {
   }
   AppModules.core.SS.set('res:sort', AppModules.reservas.sortCol);
   AppModules.core.SS.set('res:asc', AppModules.reservas.sortAsc);
+  updateReservasSortIndicators();
+  renderTabela();
+}
+
+function updateReservasSortIndicators() {
   document.querySelectorAll('.sort-icon').forEach(el => { el.textContent = '↕'; el.style.opacity = '0.25'; });
-  const icon = document.getElementById('sort-' + col);
+  const icon = document.getElementById('sort-' + AppModules.reservas.sortCol);
   if (icon) { icon.textContent = AppModules.reservas.sortAsc ? '↑' : '↓'; icon.style.opacity = '1'; }
+}
+
+function setReservasPeriodScope(scope) {
+  if (!['operational', 'past'].includes(scope)) return;
+  AppModules.reservas.reservasPeriodScope = scope;
+  AppModules.core.SS.set('res:period', scope);
+  for (const id of ['filter-date-from', 'filter-date-to']) {
+    const input = document.getElementById(id);
+    if (input) input.value = '';
+  }
+  AppModules.reservas.clearResExactDateFilter();
+  AppModules.reservas.sortCol = scope === 'past' ? 'check_out' : 'check_in';
+  AppModules.reservas.sortAsc = scope !== 'past';
+  AppModules.core.SS.set('res:sort', AppModules.reservas.sortCol);
+  AppModules.core.SS.set('res:asc', AppModules.reservas.sortAsc);
+  updateReservasSortIndicators();
+  AppModules.reservas.updateReservasPeriodUI(AppModules.reservas.reservasPaged.state.summary);
   renderTabela();
 }
 
@@ -157,7 +180,7 @@ function updateReservasSummary(total, detailText) {
 
 function setReservasDetailMode(isDetail) {
   AppModules.reservas.reservasDetailOpen = isDetail;
-  document.querySelectorAll('.view-toolbar-reservas, .reservas-filter-panel, #reservas-mobile, #reservas-desktop, #reservas-pagination').forEach(el => {
+  document.querySelectorAll('.view-toolbar-reservas, .reservas-filter-panel, #reservas-period-bar, #reservas-mobile, #reservas-desktop, #reservas-pagination').forEach(el => {
     el.style.setProperty('display', isDetail ? 'none' : '', isDetail ? 'important' : '');
   });
   const detailPage = document.getElementById('reserva-detail-page');
@@ -185,6 +208,13 @@ function clearReservasFilters() {
   });
   ['res:q', 'res:fe', 'res:fs', 'res:fc', 'res:fp', 'res:fd', 'res:ft', 'res:chip'].forEach(key => AppModules.core.SS.set(key, ''));
   AppModules.reservas.clearResExactDateFilter();
+  AppModules.reservas.reservasPeriodScope = 'operational';
+  AppModules.core.SS.set('res:period', 'operational');
+  AppModules.reservas.sortCol = 'check_in';
+  AppModules.reservas.sortAsc = true;
+  AppModules.core.SS.set('res:sort', 'check_in');
+  AppModules.core.SS.set('res:asc', true);
+  updateReservasSortIndicators();
   AppUI.refreshDropdowns(document.getElementById('view-reservas'));
   renderTabela(); // renderTabela chama syncMobileChips com o valor limpo
 }

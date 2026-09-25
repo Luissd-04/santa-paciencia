@@ -41,6 +41,8 @@ AppActions.register({
   "index-quick-scan-receipt-from-dashboard-b9248c4": (el, event, args) => { AppModules.core.quickScanReceiptFromDashboard() },
   "index-toggle-page-filters-37b2c92": (el, event, args) => { AppModules.core.togglePageFilters('reservas-filter-panel', el) },
   "index-clear-reservas-filters-755ce3c": (el, event, args) => { AppModules.reservas.clearReservasFilters() },
+  "index-set-reservas-period-operational-7d8f1aa": (el, event, args) => { AppModules.reservas.setReservasPeriodScope('operational') },
+  "index-set-reservas-period-past-4a5c20e": (el, event, args) => { AppModules.reservas.setReservasPeriodScope('past') },
   "index-set-reservas-view-mode-8427567": (el, event, args) => { AppModules.reservas.setReservasViewMode('card') },
   "index-set-reservas-view-mode-a007aa5": (el, event, args) => { AppModules.reservas.setReservasViewMode('list') },
   "index-open-modal-d33d2af": (el, event, args) => { AppModules.reservas.openModal() },

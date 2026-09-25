@@ -89,65 +89,93 @@
   box-shadow: var(--shadow-soft);
 }
 
-/* Separador "futuras/ativas vs. passadas" — não são cartões de reserva,
-   por isso anulam o estilo de cartão herdado de "#mobile-res-cards > div". */
-#mobile-res-cards > .m-res-section-label,
-#mobile-res-cards > .m-res-past-list {
-  background: none;
-  border: none;
-  box-shadow: none;
-  border-radius: 0;
-}
-
-.m-res-section-label {
-  grid-column: 1 / -1;
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  color: var(--text-muted, var(--cinza));
-  padding: 0 2px 2px;
-}
-
-.m-res-past-list {
-  grid-column: 1 / -1;
-  display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
-  margin-top: 14px;
-}
-
-.m-res-past-toggle {
-  grid-column: 1 / -1;
+.reservas-period-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 16px;
   width: 100%;
-  margin-top: 6px;
-  padding: 12px 14px;
+  min-width: 0;
+  padding: 10px 12px;
   border: 1px solid var(--border-soft);
-  border-radius: 16px;
+  border-radius: 18px;
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-soft);
+}
+
+.reservas-period-switch {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, auto));
+  gap: 6px;
+  padding: 4px;
+  border-radius: 14px;
   background: var(--surface-card);
-  color: var(--text-main, var(--azul));
+  border: 1px solid var(--border-soft);
+}
+
+.reservas-period-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
 
-.m-res-past-count {
-  color: var(--text-muted, var(--cinza));
-  font-weight: 500;
+.reservas-period-btn:hover {
+  color: var(--text-main);
+  background: color-mix(in srgb, var(--marca) 7%, transparent);
 }
 
-.m-res-past-chevron {
-  margin-left: auto;
+.reservas-period-btn.active {
+  color: var(--marca);
+  border-color: color-mix(in srgb, var(--marca) 20%, transparent);
+  background: color-mix(in srgb, var(--marca) 10%, var(--surface-card));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--marca) 10%, transparent);
+}
+
+.reservas-period-btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--marca) 28%, transparent);
+  outline-offset: 2px;
+}
+
+.reservas-period-btn i[data-lucide] {
   width: 16px;
   height: 16px;
-  transition: transform 200ms ease;
 }
 
-.m-res-past-chevron.is-open {
-  transform: rotate(180deg);
+.reservas-period-count {
+  min-width: 24px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--text-muted) 10%, transparent);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  text-align: center;
+}
+
+.reservas-period-btn.active .reservas-period-count {
+  color: var(--marca);
+  background: color-mix(in srgb, var(--marca) 13%, transparent);
+}
+
+.reservas-period-context {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-align: right;
 }
 
 .reserva-detail-page {

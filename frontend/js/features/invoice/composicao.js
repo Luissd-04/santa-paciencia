@@ -60,7 +60,12 @@ async function sendInvoiceEmail(toEmail, toName, reservationId, standalone) {
 /* ── Modal helper ── */
 function _closeInvoiceModal(id) {
   const el = document.getElementById(id);
-  if (el) el.remove();
+  if (!el) return;
+  // Os modais dinâmicos também passam pelo gestor global, que aplica
+  // `inert` ao resto da página e guarda o foco anterior. Remover o elemento
+  // diretamente deixa esse estado preso e bloqueia todos os cliques seguintes.
+  AppUI.closeModal(el);
+  el.remove();
 }
 
 /* ── Nova conversa (email avulso) ── */
@@ -68,7 +73,7 @@ let _novaConversaReservationId = null;
 
 function openNovaConversa(prefillEmail = '', prefillName = '', reservationId = null) {
   _novaConversaReservationId = reservationId || null;
-  document.getElementById('modal-nova-conversa')?.remove();
+  _closeInvoiceModal('modal-nova-conversa');
 
   const wrap = document.createElement('div');
   wrap.className = 'modal-bg open';
@@ -243,7 +248,7 @@ async function openTemplatesPicker(subjectId, bodyId, forEmail) {
     } catch { _invoiceTemplatesCache = []; }
   }
 
-  document.getElementById('modal-tpl-picker')?.remove();
+  _closeInvoiceModal('modal-tpl-picker');
 
   if (!_invoiceTemplatesCache.length) {
     AppModules.core.toast('Sem templates configurados. Vai a Definições → Templates.', 'info');
@@ -256,7 +261,7 @@ async function openTemplatesPicker(subjectId, bodyId, forEmail) {
   const wrap = document.createElement('div');
   wrap.className = 'modal-bg open';
   wrap.id = 'modal-tpl-picker';
-  wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
+  wrap.addEventListener('click', e => { if (e.target === wrap) _closeInvoiceModal('modal-tpl-picker'); });
   wrap.innerHTML = `
     <div class="modal" style="max-width:440px;">
       <div class="modal-header">
@@ -290,13 +295,13 @@ function _applyTemplate(index, subjectId, bodyId) {
   const bodyEl = document.getElementById(bodyId);
   if (subEl)  subEl.value    = _interpolateTemplate(tpl.subject, vars);
   if (bodyEl) bodyEl.innerHTML = _interpolateTemplate(tpl.body, vars);
-  document.getElementById('modal-tpl-picker')?.remove();
+  _closeInvoiceModal('modal-tpl-picker');
 }
 
 /* ── Manter a conversa aberta ao recarregar a página ── */
 
 AppActions.register({
-  "composicao-get-element-by-id-12671d3": (el, event, args) => { document.getElementById('modal-tpl-picker').remove() },
+  "composicao-get-element-by-id-12671d3": (el, event, args) => { _closeInvoiceModal('modal-tpl-picker') },
   "composicao-exec-command-c7ec81d": (el, event, args) => { document.execCommand('bold') },
   "composicao-exec-command-5331e67": (el, event, args) => { document.execCommand('italic') },
   "composicao-exec-command-2bf8db4": (el, event, args) => { document.execCommand('underline') },

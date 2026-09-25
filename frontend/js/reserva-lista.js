@@ -6,6 +6,7 @@ AppModules.define('reservas', {
   preCheckinUrl: { get: () => preCheckinUrl },
   renderResCard: { get: () => renderResCard },
   reservasDetailOpen: { get: () => reservasDetailOpen, set: value => { reservasDetailOpen = value; } },
+  reservasPeriodScope: { get: () => reservasPeriodScope, set: value => { reservasPeriodScope = value; } },
   reservasViewMode: { get: () => reservasViewMode, set: value => { reservasViewMode = value; } },
   resExactDateFilter: { get: () => resExactDateFilter, set: value => { resExactDateFilter = value; } },
   setMobileChip: { get: () => setMobileChip },
@@ -20,6 +21,8 @@ let sortCol = AppModules.core.SS.get('res:sort', 'check_in');
 let sortAsc = AppModules.core.SS.get('res:asc', true);
 let reservasViewMode = AppModules.core.SS.get('res:view', 'card');
 let reservasDetailOpen = false;
+let reservasPeriodScope = AppModules.core.SS.get('res:period', 'operational');
+if (!['operational', 'past'].includes(reservasPeriodScope)) reservasPeriodScope = 'operational';
 
 // Filtro de data exata (distinto do filtro de intervalo filter-date-from/to),
 // usado pelos atalhos "Chegadas hoje"/"Partidas hoje" do dashboard.
@@ -153,7 +156,8 @@ function hasActiveReservasFilter() {
     document.getElementById('filter-pagamento')?.value ||
     document.getElementById('filter-date-from')?.value ||
     document.getElementById('filter-date-to')?.value ||
-    resExactDateFilter
+    resExactDateFilter ||
+    reservasPeriodScope !== 'operational'
   );
 }
 
@@ -178,6 +182,8 @@ AppActions.register({
 // Limpeza da funcionalidade ao sair ou trocar de organização.
 AppModules.onReset('reserva-lista.js', () => {
   resExactDateFilter = null;
+  reservasPeriodScope = 'operational';
+  AppModules.core.SS.set('res:period', 'operational');
 });
 
 })();

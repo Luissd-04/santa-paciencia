@@ -49,3 +49,32 @@ test('intervalos independentes descartam respostas antigas e limpam dados ao ter
   calendar.reset(); agenda.reset();
   assert.equal(calendar.state.rows.length + agenda.state.rows.length, 0);
 });
+
+test('seletor de templates liberta o estado global do modal antes de sair do DOM', () => {
+  const calls = [];
+  const modal = {
+    remove() {
+      calls.push('remove');
+    },
+  };
+  const ctx = vm.createContext({
+    console,
+    window: {},
+    document: {
+      getElementById(id) {
+        return id === 'modal-tpl-picker' ? modal : null;
+      },
+    },
+    AppUI: {
+      closeModal(element) {
+        assert.equal(element, modal);
+        calls.push('close');
+      },
+    },
+  });
+  runFrontend(fs.readFileSync(path.join(root, 'js/features/invoice/composicao.js'), 'utf8'), ctx);
+
+  vm.runInContext("_closeInvoiceModal('modal-tpl-picker')", ctx);
+
+  assert.deepEqual(calls, ['close', 'remove']);
+});

@@ -248,6 +248,34 @@ async function main() {
   await expect(page.locator('#reservas-pagination')).toContainText('51–100 de 123');
   await page.locator('#search-input').fill('Hóspede 120');
   await expect(page.locator('#reservas-pagination')).toContainText('1–1 de 1');
+
+  // O período operacional é decidido pelo check-out: as passadas ficam fora
+  // da lista principal, mas a pesquisa continua a abranger todo o histórico.
+  const pastCheckIn = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
+  const pastCheckOut = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  db.prepare('UPDATE reservations SET check_in=?, check_out=?, nights=2 WHERE id=? AND organization_id=?')
+    .run(pastCheckIn, pastCheckOut, 'r122', org.id);
+  await page.locator('#search-input').fill('');
+  await expect(page.locator('#reservas-pagination')).toContainText('de 122');
+  await expect(page.locator('#reservas-period-operational-count')).toHaveText('122');
+  await expect(page.locator('#reservas-period-past-count')).toHaveText('1');
+  await page.locator('[data-res-period="past"]').click();
+  await expect(page.locator('#reservas-pagination')).toContainText('1–1 de 1');
+  await expect(page.locator('#mobile-res-cards')).toContainText('Hóspede 122');
+  await page.locator('#search-input').fill('Hóspede 000');
+  await expect(page.locator('#reservas-pagination')).toContainText('1–1 de 1');
+  await expect(page.locator('#reservas-period-context')).toHaveText('A pesquisa abrange todo o histórico');
+  await expect(page.locator('#mobile-res-cards')).toContainText('Hóspede 000');
+  await page.locator('#search-input').fill('');
+  await expect(page.locator('#mobile-res-cards')).toContainText('Hóspede 122');
+  await page.locator('[data-res-period="operational"]').click();
+  await expect(page.locator('#reservas-pagination')).toContainText('de 122');
+  db.prepare('UPDATE reservations SET check_in=?, check_out=?, nights=2 WHERE id=? AND organization_id=?')
+    .run(today, departure, 'r122', org.id);
+  await page.evaluate(() => AppModules.reservas.loadReservas());
+  await expect(page.locator('#reservas-pagination')).toContainText('de 123');
+  console.log('OK: reservas passadas ficam separadas e a pesquisa consulta todo o histórico.');
+
   await page.locator('.sidebar .nav-item').filter({ hasText: 'Calendário' }).click();
   await expect(page.locator('#cal-results-total')).toHaveText('123');
   await expect(page.locator('#cal-grid .cal-event-span').first()).toBeVisible();
@@ -323,6 +351,9 @@ async function main() {
   await expect(page.locator('#reservas-pagination')).toContainText('51–100 de 123');
   const mobileBounds = await page.locator('#mobile-res-cards').boundingBox();
   assert(mobileBounds.x >= 0 && mobileBounds.x + mobileBounds.width <= 391, 'cartões fora da largura do ecrã');
+  const periodBounds = await page.locator('#reservas-period-bar').boundingBox();
+  assert(periodBounds.x >= 0 && periodBounds.x + periodBounds.width <= 391, 'seletor de período fora da largura do ecrã');
+  assert(await page.locator('[data-res-period="past"]').evaluate(element => element.getBoundingClientRect().height >= 44), 'botão de histórico demasiado pequeno para toque');
   const pagerBounds = await page.locator('#reservas-pagination').boundingBox();
   assert(pagerBounds.x >= 0 && pagerBounds.x + pagerBounds.width <= 391, 'paginação fora da largura do ecrã');
   const bottomNavBounds = await page.locator('#bottom-nav-bar').boundingBox();
@@ -580,6 +611,27 @@ async function main() {
   await expect(page.locator('#invoice-thread-pagination')).toContainText('1–1 de 1');
   await page.locator('#invoice-search').fill('');
   await expect(page.locator('#invoice-thread-pagination')).toContainText('de 127');
+
+  // Escolher um template tem de fechar o modal pelo gestor global. Se o
+  // elemento for apenas removido do DOM, o resto da aplicação fica `inert`
+  // e nenhum botão volta a aceitar cliques.
+  await page.locator('#invoice-search').fill('Hóspede 011');
+  await expect(page.locator('#invoice-thread-pagination')).toContainText('1–1 de 1');
+  await page.locator('#invoice-thread-list .invoice-thread-item').click();
+  await expect(page.locator('#ica-tpl-btn')).toBeEnabled();
+  await page.locator('#ica-tpl-btn').click();
+  await expect(page.locator('#modal-tpl-picker')).toBeVisible();
+  await page.locator('#modal-tpl-picker .tpl-picker-item').first().click();
+  await expect(page.locator('#modal-tpl-picker')).toHaveCount(0);
+  assert.equal(await page.evaluate(() => document.body.classList.contains('modal-open')), false);
+  assert.equal(await page.evaluate(() => document.querySelectorAll('[inert]').length), 0);
+  await page.locator('#ica-tpl-btn').click();
+  await expect(page.locator('#modal-tpl-picker')).toBeVisible();
+  await page.locator('#modal-tpl-picker .modal-close').click();
+  await expect(page.locator('#modal-tpl-picker')).toHaveCount(0);
+  await page.locator('#invoice-search').fill('');
+  await expect(page.locator('#invoice-thread-pagination')).toContainText('de 127');
+  console.log('OK: escolher e fechar um template devolve a interação à página.');
 
   // Erro ≠ lista vazia.
   await page.route('**/auth/email/threads?*', route => route.fulfill({ status: 503, json: { error: 'Indisponível' } }));

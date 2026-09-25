@@ -32,6 +32,27 @@ db.transaction(() => {
   db.prepare('UPDATE reservations SET accommodations_data=? WHERE id=?').run('[{"accommodation_id":"a2"}]', 'r120');
 })();
 
+db.exec(`INSERT INTO organizations(id,name,slug) VALUES('scope','Scope','scope');
+  INSERT INTO accommodations(id,organization_id,name,type) VALUES('scope-unit','scope','Scope Unit','alojamento');`);
+const scopeGuest = db.prepare("INSERT INTO guests(id,organization_id,name,email) VALUES(?,'scope',?,?)");
+const scopeReservation = db.prepare(`INSERT INTO reservations(id,organization_id,guest_id,accommodation_id,check_in,check_out,nights,num_guests,total_amount,status)
+  VALUES(?,'scope',?,'scope-unit',?,?,?,1,100,?)`);
+db.transaction(() => {
+  const rows = [
+    ['scope-ongoing', 'Ongoing', '2030-01-10', '2030-01-20', 'confirmada'],
+    ['scope-checkout-today', 'Checkout Today', '2030-01-14', '2030-01-15', 'confirmada'],
+    ['scope-future', 'Future', '2030-01-16', '2030-01-18', 'confirmada'],
+    ['scope-past-recent', 'Past Recent', '2030-01-12', '2030-01-14', 'confirmada'],
+    ['scope-past-older', 'Past Older', '2030-01-08', '2030-01-10', 'confirmada'],
+    ['scope-cancelled', 'Cancelled', '2030-01-16', '2030-01-18', 'cancelada'],
+  ];
+  for (const [id, name, checkIn, checkOut, status] of rows) {
+    scopeGuest.run(id, name, `${id}@example.invalid`);
+    const nights = Math.round((new Date(checkOut) - new Date(checkIn)) / 86400000);
+    scopeReservation.run(id, id, checkIn, checkOut, nights, status);
+  }
+})();
+
 test('reservas paginadas mantêm ordem estável e isolamento entre organizações', () => {
   const first = listReservations('a');
   assert.equal(first.data.length, 50); assert.equal(first.pagination.total, 124);
@@ -51,6 +72,21 @@ test('filtros pesquisam todas as páginas, respeitam datas e suítes adicionais'
   assert.equal(listReservations('a', { overlap_from: '2030-02-01', overlap_to: '2030-02-28' }).pagination.total, 124);
   assert.equal(listReservations('a', { overlap_from: '2030-03-01' }).pagination.total, 0);
   assert.equal(listReservations('a', { status: 'cancelada' }).pagination.total, 0);
+});
+test('reservas em curso e passadas usam o check-out e mantêm o histórico paginado no servidor', () => {
+  const current = listReservations('scope', { scope: 'operational', today: '2030-01-15' });
+  assert.deepEqual(current.data.map(row => row.id), ['scope-ongoing', 'scope-checkout-today', 'scope-future']);
+  assert.deepEqual(current.summary, { all: 6, operational: 3, past: 2 });
+  assert.equal(current.pagination.total, 3);
+
+  const past = listReservations('scope', { scope: 'past', today: '2030-01-15', sort: 'check_out', direction: 'desc' });
+  assert.deepEqual(past.data.map(row => row.id), ['scope-past-recent', 'scope-past-older']);
+  assert.equal(past.pagination.total, 2);
+
+  const cancelled = listReservations('scope', { scope: 'all', today: '2030-01-15', status: 'cancelada' });
+  assert.deepEqual(cancelled.data.map(row => row.id), ['scope-cancelled']);
+  assert.deepEqual(cancelled.summary, { all: 1, operational: 0, past: 0 });
+  assert.equal(listReservations('scope', { scope: 'all', today: '2030-01-15', search: 'Past Older' }).pagination.total, 1);
 });
 test('paginação conserva o estado das tarefas, preferindo a data atual da reserva', () => {
   const insert = db.prepare(`INSERT INTO operational_events(id,organization_id,title,date,reservation_id,auto_kind,status,created_at)
@@ -80,6 +116,9 @@ test('paginação rejeita parâmetros inválidos e tentativas de injeção SQL',
   }
   assert.throws(() => listReservations('a', { from: '2030-02-31' }), error => error.status === 400);
   assert.throws(() => listReservations('a', { from: '2030-03-01', to: '2030-01-01' }), error => error.status === 400);
+  assert.throws(() => listReservations('a', { scope: 'operational' }), error => error.status === 400);
+  assert.throws(() => listReservations('a', { scope: 'future', today: '2030-01-01' }), error => error.status === 400);
+  assert.throws(() => listReservations('a', { scope: 'past', today: '2030-02-31' }), error => error.status === 400);
 });
 
 const frontend = path.resolve(__dirname, '../../../frontend');

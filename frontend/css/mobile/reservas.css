@@ -68,6 +68,34 @@
     margin-bottom: 12px;
   }
   .m-filters-trigger i[data-lucide] { width: 14px; height: 14px; }
+
+  .reservas-period-bar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 16px;
+  }
+
+  .reservas-period-switch {
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .reservas-period-btn {
+    min-width: 0;
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  .reservas-period-btn > span:not(.reservas-period-count) {
+    min-width: 0;
+  }
+
+  .reservas-period-context {
+    padding: 0 5px 2px;
+    text-align: left;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════

@@ -77,6 +77,22 @@
             </div>
           </div>
 
+          <div class="reservas-period-bar" id="reservas-period-bar">
+            <div class="reservas-period-switch" role="group" aria-label="Período das reservas">
+              <button type="button" class="reservas-period-btn active" data-res-period="operational" aria-pressed="true" data-on-click="index-set-reservas-period-operational-7d8f1aa">
+                <i data-lucide="calendar-range"></i>
+                <span>Em curso e próximas</span>
+                <span class="reservas-period-count" id="reservas-period-operational-count">—</span>
+              </button>
+              <button type="button" class="reservas-period-btn" data-res-period="past" aria-pressed="false" data-on-click="index-set-reservas-period-past-4a5c20e">
+                <i data-lucide="archive"></i>
+                <span>Passadas</span>
+                <span class="reservas-period-count" id="reservas-period-past-count">—</span>
+              </button>
+            </div>
+            <p class="reservas-period-context" id="reservas-period-context" aria-live="polite">Inclui estadias em curso e reservas futuras</p>
+          </div>
+
           <div id="reservas-mobile" class="reservas-mobile-layout" style="display:none">
             <div class="m-search-box reservas-mobile-search">
               <i data-lucide="search"></i>
