@@ -372,8 +372,12 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') loadNotifications();
 });
 
+// composedPath e não contains(e.target): ao abrir, o lucide.createIcons() do
+// painel redesenha também o ícone do sino, e o <svg> clicado sai do DOM. Com
+// contains() o clique no sino parecia "fora" e o painel fechava logo.
 document.addEventListener('click', e => {
-  if (_notifOpen && !document.getElementById('notif-wrap')?.contains(e.target)) closeNotif();
+  const wrap = document.getElementById('notif-wrap');
+  if (_notifOpen && wrap && !e.composedPath().includes(wrap)) closeNotif();
 });
 
 AppActions.register({

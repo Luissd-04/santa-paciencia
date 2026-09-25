@@ -1,13 +1,17 @@
 #!/usr/bin/env node
-// Gera os PNG dos ícones usados nos botões sociais dos emails.
+// Gera os PNG dos ícones e das pequenas texturas de cor usadas nos emails.
 //
 // Porquê PNG e não SVG: a app do Gmail (Android/iOS) remove <svg> do corpo do
 // email por completo, e vários clientes não carregam SVG por <img>. PNG é o
 // único formato que todos desenham. Os ícones são gerados a partir do SVG que
 // está aqui para a origem do desenho ficar legível e reproduzível.
 //
+// As texturas sólidas impedem que Gmail/Outlook móveis substituam as cores de
+// fundo quando o telemóvel está em modo escuro. Ao contrário de background-
+// color, imagens de fundo não são normalmente invertidas pelo cliente.
+//
 // Os ficheiros resultantes são estáticos e ficam versionados; correr este
-// script só é preciso se o desenho mudar:
+// script só é preciso se o desenho ou a paleta mudar:
 //   node scripts/build-email-icons.cjs
 //
 // Nos emails as imagens aparecem sempre ao lado do rótulo de texto, por isso
@@ -43,6 +47,16 @@ const ICONS = {
     <circle cx="16.4" cy="13.2" r="1.3" fill="${COLOR}" stroke="none" />`,
 };
 
+const BACKGROUNDS = {
+  page:    '#efe7da',
+  surface: '#faf5ec',
+  card:    '#fcf9f3',
+  cardAlt: '#f4ede1',
+  brand:   '#843424',
+  divider: '#e0d5c4',
+  accent:  '#c9a84c',
+};
+
 function svg(body) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${SIZE}" height="${SIZE}"
     fill="none" stroke="${COLOR}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
@@ -63,6 +77,14 @@ async function main() {
     );
     const file = path.join(OUT_DIR, `${name}.png`);
     await page.locator('svg').screenshot({ path: file, omitBackground: true });
+    console.log(`${file} (${fs.statSync(file).size} bytes)`);
+  }
+
+  for (const [name, color] of Object.entries(BACKGROUNDS)) {
+    await page.setViewportSize({ width: 8, height: 8 });
+    await page.setContent(`<body style="margin:0;background:${color};width:8px;height:8px;"></body>`, { waitUntil: 'load' });
+    const file = path.join(OUT_DIR, `bg-${name}.png`);
+    await page.screenshot({ path: file });
     console.log(`${file} (${fs.statSync(file).size} bytes)`);
   }
 

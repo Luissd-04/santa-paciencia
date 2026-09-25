@@ -286,7 +286,7 @@ test('os ícones vêm de imagens HTTPS e o rótulo continua legível sem elas', 
   const social = composer.buildSocialBlock(SETTINGS);
   assert.ok(social.includes('https://exemplo.invalid/img/email/instagram.png'));
   assert.ok(social.includes('alt=""'), 'alt vazio: o rótulo ao lado é que nomeia o botão');
-  assert.ok(social.includes('>Instagram</a>') || social.includes('Instagram</a>'), 'o texto sobrevive sem imagens');
+  assert.ok(social.includes('>Instagram</span></a>'), 'o texto sobrevive sem imagens');
 });
 
 test('sem base pública HTTPS não se emitem imagens inacessíveis ao destinatário', () => {
@@ -470,4 +470,15 @@ test('o nome configurado da organização manda no título de boas-vindas', () =
   const { html } = render('apos_checkin', { settings });
   assert.ok(html.includes('Bem-vindo à Monte do Cano'));
   assert.ok(!html.includes('Bem-vindo à Santa Paciência'));
+});
+
+test('um botão terracota no corpo não perde o fundo no Gmail', () => {
+  const html = composer.sanitizeBodyHtml(
+    '<a href="https://x.pt" style="background:#843424;color:#fbf3ea">Reservar</a>',
+    { placeholders: false },
+  );
+  // A classe de texto pintaria a cor com background-clip:text e tapava o fundo.
+  assert.match(html, /class="sp-brand-bg"/);
+  assert.doesNotMatch(html, /sp-brand-on-text/);
+  assert.match(html, /-webkit-text-fill-color:#fbf3ea/);
 });

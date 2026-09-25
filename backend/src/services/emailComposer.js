@@ -40,12 +40,36 @@ const SERIF = "Georgia, 'Times New Roman', Times, serif";
 
 const MAX_WIDTH = 600;
 
+const BACKGROUND_ASSET_NAMES = new Map([
+  [PALETTE.pageBg,  'page'],
+  [PALETTE.surface, 'surface'],
+  [PALETTE.cardBg,  'card'],
+  [PALETTE.cardAlt, 'cardAlt'],
+  [PALETTE.brand,   'brand'],
+  [PALETTE.divider, 'divider'],
+  [PALETTE.accent,  'accent'],
+]);
+
+function lockedBackgroundImage(color) {
+  const name = BACKGROUND_ASSET_NAMES.get(String(color).toLowerCase());
+  const assetUrl = name ? emailAssetUrl(`/img/email/bg-${name}.png`) : '';
+  const solidGradient = `linear-gradient(${color},${color})`;
+  return assetUrl ? `url('${attr(assetUrl)}'),${solidGradient}` : solidGradient;
+}
+
 // Alguns clientes móveis (sobretudo o Gmail) ignoram `color-scheme: light` e
 // tentam inverter fundos sólidos. Uma imagem CSS com a mesma cor não é
 // invertida por esses clientes, por isso cada superfície da moldura leva as
 // duas declarações. Os clientes antigos continuam a usar background/bgcolor.
 function lockedBackgroundStyle(color) {
-  return `background:${color};background-color:${color};background-image:linear-gradient(${color},${color});`;
+  // Conservamos também o gradiente como fallback para previews/offline. Em
+  // produção, o primeiro layer é um PNG opaco de 8 px: Gmail e Outlook podem
+  // reescrever cores CSS, mas não alteram os píxeis de uma imagem remota.
+  return `background:${color};background-color:${color};background-image:linear-gradient(${color},${color});background-image:${lockedBackgroundImage(color)};background-repeat:repeat;`;
+}
+
+function lockedBackgroundRule(color) {
+  return `background-color:${color} !important;background-image:${lockedBackgroundImage(color)} !important;background-repeat:repeat !important;`;
 }
 
 function lockedTextStyle(color) {
@@ -81,23 +105,36 @@ function addClass(attribs, className) {
 // quando o código dos defaults muda. Ao sanitizar, marcamos as cores conhecidas
 // da paleta com papéis semânticos e acrescentamos a proteção de fundo. Assim a
 // correção também vale imediatamente para modelos existentes.
-function decorateThemeColors(attribs) {
+function decorateThemeColors(tagName, attribs) {
   const style = String(attribs.style || '');
   const compact = style.replace(/\s+/g, '').toLowerCase();
-
-  const textMatch = compact.match(/(?:^|;)color:(#[0-9a-f]{6})(?:;|$)/i);
-  const textClass = textMatch && TEXT_THEME_CLASSES.get(textMatch[1].toLowerCase());
-  if (textClass) {
-    addClass(attribs, textClass);
-    if (!/(?:^|;)-webkit-text-fill-color:/i.test(compact)) {
-      attribs.style = `${style}${style && !style.trim().endsWith(';') ? ';' : ''}-webkit-text-fill-color:${textMatch[1]};`;
-    }
-  }
 
   const backgroundMatch = compact.match(/(?:^|;)(?:background|background-color):(#[0-9a-f]{6})(?:;|$)/i);
   const bgcolor = String(attribs.bgcolor || '').toLowerCase();
   const backgroundColor = (backgroundMatch?.[1] || bgcolor).toLowerCase();
   const backgroundClass = BACKGROUND_THEME_CLASSES.get(backgroundColor);
+
+  // No Gmail, as classes de texto pintam a cor com um background-image
+  // recortado às letras, que substitui o fundo do próprio elemento. Num botão
+  // terracota o botão desaparecia; aí fica só a cor inline (o Gmail não
+  // escurece texto claro). Num cartão claro perde-se apenas o tom do cartão,
+  // e o texto escuro continua protegido.
+  const brandBackground = backgroundColor === PALETTE.brand;
+  const textMatch = compact.match(/(?:^|;)color:(#[0-9a-f]{6})(?:;|$)/i);
+  const textClass = textMatch && TEXT_THEME_CLASSES.get(textMatch[1].toLowerCase());
+  if (textClass && !brandBackground) {
+    addClass(attribs, textClass);
+    if (!/(?:^|;)-webkit-text-fill-color:/i.test(compact)) {
+      attribs.style = `${style}${style && !style.trim().endsWith(';') ? ';' : ''}-webkit-text-fill-color:${textMatch[1]};`;
+    }
+  } else if (!textMatch && !brandBackground && /^(?:p|h[1-6]|li|blockquote)$/.test(tagName)) {
+    // Texto sem cor própria herda o tom do corpo. Dar-lhe uma classe permite
+    // protegê-lo também no Gmail móvel, que ignora a preferência "light".
+    addClass(attribs, 'sp-text-soft');
+  } else if (textMatch && !/(?:^|;)-webkit-text-fill-color:/i.test(compact)) {
+    attribs.style = `${style}${style && !style.trim().endsWith(';') ? ';' : ''}-webkit-text-fill-color:${textMatch[1]};`;
+  }
+
   if (backgroundClass) {
     addClass(attribs, backgroundClass);
     const currentStyle = String(attribs.style || '');
@@ -204,7 +241,7 @@ function sanitizeBodyHtml(html, { placeholders = true } = {}) {
           if (!placeholder && (!safeUrl(value) || (name === 'src' && !/^https?:/i.test(value)))) delete attribs[name];
         }
         if (tagName === 'a' && attribs.target === '_blank') attribs.rel = 'noopener noreferrer';
-        decorateThemeColors(attribs);
+        decorateThemeColors(tagName, attribs);
         return { tagName, attribs };
       },
     },
@@ -307,7 +344,7 @@ function buildSocialBlock(settings) {
   ].filter(([key, , url]) => safeUrl(url) && (!enabled || enabled.includes(key)));
   if (!entries.length) return '';
 
-  const buttons = entries.map(([key, label, url]) => `<a href="${attr(safeUrl(url))}" class="sp-social-button sp-brand-text sp-surface-bg" style="display:inline-block;margin:5px 4px;padding:11px 17px;border:1px solid ${PALETTE.brandBorder};border-radius:6px;${lockedBackgroundStyle(PALETTE.surface)}${lockedTextStyle(PALETTE.brand)}text-decoration:none;font-family:${SERIF};font-size:14px;line-height:1.2;white-space:nowrap;">${iconImg(key)}${escapeHtml(label)}</a>`).join('');
+  const buttons = entries.map(([key, label, url]) => `<a href="${attr(safeUrl(url))}" class="sp-social-button sp-surface-bg" style="display:inline-block;margin:5px 4px;padding:11px 17px;border:1px solid ${PALETTE.brandBorder};border-radius:6px;${lockedBackgroundStyle(PALETTE.surface)}${lockedTextStyle(PALETTE.brand)}text-decoration:none;font-family:${SERIF};font-size:14px;line-height:1.2;white-space:nowrap;">${iconImg(key)}<span class="sp-brand-text" style="${lockedTextStyle(PALETTE.brand)}">${escapeHtml(label)}</span></a>`).join('');
 
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="sp-social-block" style="width:100%;margin:30px 0 0;">
     <tr><td>${divider()}</td></tr>
@@ -429,13 +466,13 @@ function composeEmail(bodyHtml, settings, options = {}) {
      regras normais cobrem Apple Mail e clientes que respeitam color-scheme;
      data-ogsc/data-ogsb cobrem Outlook móvel/web; os gradientes inline dão
      uma camada adicional contra a reescrita feita pelo Gmail móvel. */
-  .sp-page-bg { background-color:${PALETTE.pageBg} !important; background-image:linear-gradient(${PALETTE.pageBg},${PALETTE.pageBg}) !important; }
-  .sp-surface-bg { background-color:${PALETTE.surface} !important; background-image:linear-gradient(${PALETTE.surface},${PALETTE.surface}) !important; }
-  .sp-card-bg { background-color:${PALETTE.cardBg} !important; background-image:linear-gradient(${PALETTE.cardBg},${PALETTE.cardBg}) !important; }
-  .sp-card-alt-bg { background-color:${PALETTE.cardAlt} !important; background-image:linear-gradient(${PALETTE.cardAlt},${PALETTE.cardAlt}) !important; }
-  .sp-brand-bg { background-color:${PALETTE.brand} !important; background-image:linear-gradient(${PALETTE.brand},${PALETTE.brand}) !important; }
-  .sp-divider-bg { background-color:${PALETTE.divider} !important; background-image:linear-gradient(${PALETTE.divider},${PALETTE.divider}) !important; }
-  .sp-accent-bg { background-color:${PALETTE.accent} !important; background-image:linear-gradient(${PALETTE.accent},${PALETTE.accent}) !important; }
+  .sp-page-bg { ${lockedBackgroundRule(PALETTE.pageBg)} }
+  .sp-surface-bg { ${lockedBackgroundRule(PALETTE.surface)} }
+  .sp-card-bg { ${lockedBackgroundRule(PALETTE.cardBg)} }
+  .sp-card-alt-bg { ${lockedBackgroundRule(PALETTE.cardAlt)} }
+  .sp-brand-bg { ${lockedBackgroundRule(PALETTE.brand)} }
+  .sp-divider-bg { ${lockedBackgroundRule(PALETTE.divider)} }
+  .sp-accent-bg { ${lockedBackgroundRule(PALETTE.accent)} }
   .sp-text { color:${PALETTE.text} !important; -webkit-text-fill-color:${PALETTE.text} !important; }
   .sp-text-soft { color:${PALETTE.textSoft} !important; -webkit-text-fill-color:${PALETTE.textSoft} !important; }
   .sp-muted-text { color:${PALETTE.muted} !important; -webkit-text-fill-color:${PALETTE.muted} !important; }
@@ -459,6 +496,18 @@ function composeEmail(bodyHtml, settings, options = {}) {
   [data-ogsc] .sp-brand-text, [data-ogsb] .sp-brand-text { color:${PALETTE.brand} !important; }
   [data-ogsc] .sp-brand-on-text, [data-ogsb] .sp-brand-on-text { color:${PALETTE.brandText} !important; }
 
+  /* Gmail móvel faz a inversão depois de processar o CSS e ignora o esquema
+     light. O seletor u + .body só é ativado pelo markup que o Gmail injeta.
+     Nestes clientes, a cor passa a vir de um gradiente recortado às letras;
+     o Gmail suporta background-clip e não inverte imagens/gradientes. */
+  u + .body .sp-text { background-image:linear-gradient(${PALETTE.text},${PALETTE.text}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
+  u + .body .sp-text-soft { background-image:linear-gradient(${PALETTE.textSoft},${PALETTE.textSoft}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
+  u + .body .sp-muted-text { background-image:linear-gradient(${PALETTE.muted},${PALETTE.muted}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
+  u + .body .sp-brand-text { background-image:linear-gradient(${PALETTE.brand},${PALETTE.brand}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
+  u + .body .sp-brand-on-text { background-image:linear-gradient(${PALETTE.brandText},${PALETTE.brandText}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
+  u + .body .sp-brand-soft-text { background-image:linear-gradient(${PALETTE.brandSoft},${PALETTE.brandSoft}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
+  u + .body .sp-brand-subtext { background-image:linear-gradient(rgba(251,243,234,.82),rgba(251,243,234,.82)) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
+
   @media (prefers-color-scheme: dark) {
     .sp-page-bg { background-color:${PALETTE.pageBg} !important; color:${PALETTE.text} !important; }
     .sp-surface-bg { background-color:${PALETTE.surface} !important; }
@@ -479,12 +528,12 @@ function composeEmail(bodyHtml, settings, options = {}) {
   }
 </style>
 </head>
-<body class="sp-email sp-page-bg sp-text" bgcolor="${PALETTE.pageBg}" style="margin:0;padding:0;${lockedBackgroundStyle(PALETTE.pageBg)}font-family:${SERIF};${lockedTextStyle(PALETTE.text)}color-scheme:light only;supported-color-schemes:light;-webkit-text-size-adjust:100%;">
+<body class="body sp-email sp-page-bg sp-text" bgcolor="${PALETTE.pageBg}" style="margin:0;padding:0;${lockedBackgroundStyle(PALETTE.pageBg)}font-family:${SERIF};${lockedTextStyle(PALETTE.text)}color-scheme:light only;supported-color-schemes:light;-webkit-text-size-adjust:100%;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="sp-page-bg" bgcolor="${PALETTE.pageBg}" style="width:100%;${lockedBackgroundStyle(PALETTE.pageBg)}">
   <tr><td align="center" class="sp-outer" style="padding:24px 12px;">
     <table role="presentation" width="${MAX_WIDTH}" cellpadding="0" cellspacing="0" border="0" class="sp-surface-bg" bgcolor="${PALETTE.surface}" style="width:100%;max-width:${MAX_WIDTH}px;${lockedBackgroundStyle(PALETTE.surface)}border-radius:10px;border-collapse:separate;overflow:hidden;">
       ${buildHeader(s)}
-      <tr><td bgcolor="${PALETTE.surface}" class="sp-pad sp-surface-bg sp-text-soft sp-email-body email-body-bg" style="${lockedBackgroundStyle(PALETTE.surface)}padding:34px 40px 10px;font-family:${SERIF};font-size:16px;line-height:1.7;${lockedTextStyle(PALETTE.textSoft)}">${BODY_START}${bodyHtml}${BODY_END}</td></tr>
+      <tr><td bgcolor="${PALETTE.surface}" class="sp-pad sp-surface-bg sp-email-body email-body-bg" style="${lockedBackgroundStyle(PALETTE.surface)}padding:34px 40px 10px;font-family:${SERIF};font-size:16px;line-height:1.7;${lockedTextStyle(PALETTE.textSoft)}">${BODY_START}${bodyHtml}${BODY_END}</td></tr>
       ${buildSocialFooter(s, bodyHtml)}
       ${buildFooter(s)}
     </table>

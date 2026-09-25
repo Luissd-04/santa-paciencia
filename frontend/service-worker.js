@@ -5,7 +5,7 @@
                offline). Cache-first apenas para CDNs (fontes, libs).
 ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'sp-v37';
+const CACHE_NAME = 'sp-v38';
 const CACHE_VERSION = 37;
 const CACHE_PREFIX = 'sp-';
 
