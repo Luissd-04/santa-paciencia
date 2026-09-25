@@ -17,7 +17,6 @@ router.post('/', requireRole('manager'), ctrl.create);
 router.put('/:id', requireRole('manager'), ctrl.update);
 router.post('/:id/approve', requireRole('manager'), ctrl.approve);
 router.post('/:id/send-precheckin', requireRole('manager'), ctrl.sendPrecheckinLink);
-router.post('/:id/reopen-precheckin', requireRole('manager'), ctrl.reopenPrecheckinLink);
 
 // Marcar check-in/check-out como feito — qualquer membro da equipa
 router.post('/:id/task-status', ctrl.setTaskStatus);

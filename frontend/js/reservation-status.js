@@ -12,6 +12,20 @@
   };
   const paymentLabels = { pendente: 'Pagamento pendente', parcial: 'Pagamento parcial', pago: 'Pago', reembolsado: 'Reembolsado' };
 
+  // Pede ao servidor uma miniatura (`?w=`) em vez da foto original, que pode
+  // ter vários MB. Só para fotos carregadas na própria aplicação; URLs externos
+  // e de outras origens ficam como estão.
+  function mediaThumb(value, width) {
+    const safe = safeMediaUrl(value);
+    if (!safe) return '';
+    try {
+      const parsed = new URL(safe, location.origin);
+      if (parsed.origin !== location.origin || !/^\/uploads\/[^/]+$/.test(parsed.pathname)) return safe;
+      parsed.searchParams.set('w', String(width));
+      return safe.startsWith('/') ? `${parsed.pathname}${parsed.search}` : parsed.href;
+    } catch { return safe; }
+  }
+
   function safeMediaUrl(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
@@ -37,7 +51,7 @@
       $('rs-guests').textContent = String(reservation.num_guests || '—');
       $('rs-total').textContent = fmtMoney(reservation.total_amount);
       $('rs-paid').textContent = fmtMoney(reservation.amount_paid);
-      const image = safeMediaUrl(reservation.cover_image || reservation.images?.[0]);
+      const image = mediaThumb(reservation.cover_image || reservation.images?.[0], 1600);
       if (image) $('rs-bg').style.backgroundImage = `url(${JSON.stringify(image)})`;
       $('rs-loading').hidden = true;
       $('rs-content').hidden = false;

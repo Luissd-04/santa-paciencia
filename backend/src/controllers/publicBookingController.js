@@ -5,7 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
 const { recordConsent } = require('../services/rgpdService');
 const { syncReservationOperationalTasks } = require('../services/operationalTasksService');
-const { sendOwnerNewReservationEmail } = require('../services/emailService');
+const { sendOwnerNewReservationEmail, getEmailSettings, resolveAccommodationInheritance } = require('../services/emailService');
 const { notifyOrganization } = require('../services/pushService');
 const {
   calculateReservationTotals,
@@ -488,21 +488,37 @@ function getReservationStatus(req, res) {
   });
 }
 
+// O hóspede pode abrir e corrigir o pré check-in quantas vezes quiser até ao
+// fim do dia de chegada. Depois disso os dados já seguiram para o SIBA e
+// qualquer correção passa pelo alojamento.
+function precheckinClosed(reservation) {
+  if (reservation.status === 'cancelada') return { status: 400, error: 'Esta reserva está cancelada.' };
+  const now = new Date();
+  if (reservation.precheckin_token_expires_at &&
+      new Date(reservation.precheckin_token_expires_at + 'T23:59:59') < now) {
+    return { status: 410, error: 'Este link de pré check-in expirou.' };
+  }
+  if (reservation.check_in && new Date(reservation.check_in + 'T23:59:59') < now) {
+    return { status: 410, error: 'O prazo para alterar o pré check-in terminou. Contacte o alojamento.' };
+  }
+  return null;
+}
+
+// Hora de check-in efetiva: a da unidade, senão a do alojamento-pai, senão a
+// das definições da organização (15:00 por omissão).
+function effectiveCheckinTime(reservation) {
+  const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?')
+    .get(reservation.accommodation_id, reservation.organization_id);
+  const resolved = resolveAccommodationInheritance(accommodation, reservation.organization_id);
+  return getEmailSettings(resolved, reservation.organization_id).checkin_time || '15:00';
+}
+
 function getPreCheckin(req, res) {
   const token = String(req.params.token || '').trim();
   const reservation = lookupReservationByPrecheckinToken(token);
   if (!reservation) return res.status(404).json({ success: false, error: 'Link inválido ou expirado.' });
-  if (reservation.precheckin_submitted_at) {
-    return res.status(410).json({ success: false, error: 'Este pré check-in já foi submetido. Contacte o alojamento para corrigir os dados.' });
-  }
-  if (reservation.status === 'cancelada') return res.status(400).json({ success: false, error: 'Esta reserva está cancelada.' });
-  if (reservation.precheckin_token_expires_at &&
-      new Date(reservation.precheckin_token_expires_at + 'T23:59:59') < new Date()) {
-    return res.status(410).json({ success: false, error: 'Este link de pré check-in expirou.' });
-  }
-  if (reservation.check_out && new Date(reservation.check_out + 'T23:59:59') < new Date()) {
-    return res.status(410).json({ success: false, error: 'O pré check-in não está disponível após a data de saída.' });
-  }
+  const closed = precheckinClosed(reservation);
+  if (closed) return res.status(closed.status).json({ success: false, error: closed.error });
   // O formulário é pré-preenchido com a ficha atual do hóspede (não com o
   // `guest_snapshot`, que congela no momento da reserva) — assim uma correção
   // feita no backoffice aparece de imediato no link do hóspede.
@@ -527,9 +543,11 @@ function getPreCheckin(req, res) {
         cover_image: imageUrl(req, reservation.cover_image),
         images: normalizeImages(req, reservation).map(img => img.url).filter(Boolean),
         arrival_time: reservation.arrival_time || '',
-        checkin_time: reservation.checkin_time || '',
+        checkin_time: effectiveCheckinTime(reservation),
         status: reservation.status,
         precheckin_submitted_at: reservation.precheckin_submitted_at || null,
+        precheckin_updated_at: reservation.precheckin_updated_at || null,
+        editable_until: reservation.check_in,
       },
       guest: {
         name: (shared ? snapshot.name : reservation.guest_name) || '',
@@ -592,17 +610,8 @@ function submitPreCheckin(req, res) {
     WHERE precheckin_token = ? OR (precheckin_token IS NULL AND public_token = ?)
   `).get(token, token);
   if (!reservation) return res.status(404).json({ success: false, error: 'Link inválido ou expirado.' });
-  if (reservation.precheckin_submitted_at) {
-    return res.status(409).json({ success: false, error: 'Este pré check-in já foi submetido. Contacte o alojamento para corrigir os dados.' });
-  }
-  if (reservation.status === 'cancelada') return res.status(400).json({ success: false, error: 'Esta reserva está cancelada.' });
-  if (reservation.precheckin_token_expires_at &&
-      new Date(reservation.precheckin_token_expires_at + 'T23:59:59') < new Date()) {
-    return res.status(410).json({ success: false, error: 'Este link de pré check-in expirou.' });
-  }
-  if (reservation.check_out && new Date(reservation.check_out + 'T23:59:59') < new Date()) {
-    return res.status(410).json({ success: false, error: 'O pré check-in não está disponível após a data de saída.' });
-  }
+  const closed = precheckinClosed(reservation);
+  if (closed) return res.status(closed.status).json({ success: false, error: closed.error });
 
   const mainGuest = cleanGuestData(req.body?.guest || {});
   const expectedGuests = Math.max(1, Number(reservation.num_guests || 1));
@@ -610,18 +619,16 @@ function submitPreCheckin(req, res) {
   const allGuests = [mainGuest, ...extraGuests].slice(0, expectedGuests);
   const isPortuguese = g => (g.nationality || '').toLowerCase().trim() === 'portugal';
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  // As crianças não preenchem documento no formulário (ver guestForm em
-  // pre-checkin.js) — a mesma regra tem de valer aqui, senão uma criança
-  // estrangeira torna a submissão impossível.
-  const numAdults = Math.max(1, Number(reservation.num_adults || reservation.num_guests || expectedGuests));
+  // Campos do boletim do SIBA, exigidos a todos os estrangeiros, menores
+  // incluídos. A morada completa não faz parte do boletim (só a localidade e
+  // o país de residência), por isso é opcional.
   const missingIndex = allGuests.findIndex((g, idx) => {
     if (!g.name || !g.nationality) return true;
     if (idx === 0 && !emailRegex.test(g.email || '')) return true;
-    const isChild = idx > 0 && idx >= numAdults;
     if (!isPortuguese(g)) {
       if (!g.birth_date) return true;
-      if (!g.birth_city || !g.birth_country || !g.address || !g.city || !g.residence_country) return true;
-      if (!isChild && (!g.document_type || !g.document_number || !g.document_issuer_country)) return true;
+      if (!g.birth_city || !g.birth_country || !g.city || !g.residence_country) return true;
+      if (!g.document_type || !g.document_number || !g.document_issuer_country) return true;
     }
     return false;
   });
@@ -635,16 +642,8 @@ function submitPreCheckin(req, res) {
   const arrivalTimeRaw = String(req.body?.arrival_time || '').trim();
   const arrivalTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(arrivalTimeRaw) ? arrivalTimeRaw : null;
 
-  const isResubmission = Boolean(reservation.precheckin_reopened_at);
-  let savedGuest;
-  try {
-    savedGuest = savePrecheckin(reservation, mainGuest, allGuests.slice(1), arrivalTime);
-  } catch (error) {
-    if (error.code === 'PRECHECKIN_ALREADY_SUBMITTED') {
-      return res.status(409).json({ success: false, error: error.message });
-    }
-    throw error;
-  }
+  const isResubmission = Boolean(reservation.precheckin_submitted_at);
+  const savedGuest = savePrecheckin(reservation, mainGuest, allGuests.slice(1), arrivalTime);
 
   if (savedGuest?.id) recordConsent(savedGuest.id, req.ip, reservation.organization_id);
 
@@ -661,7 +660,7 @@ function submitPreCheckin(req, res) {
     url: `/reservas?reserva=${reservation.id}`,
   });
 
-  res.json({ success: true });
+  res.json({ success: true, data: { resubmission: isResubmission } });
 }
 
 module.exports = {

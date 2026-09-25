@@ -13,6 +13,7 @@ module.exports = function createMigrations(db) {
       ['arrival_time', 'TEXT'],
       ['precheckin_submitted_at', 'TEXT'],
       ['precheckin_reopened_at', 'TEXT'],
+      ['precheckin_updated_at', 'TEXT'],
       ['cancelled_previous_status', 'TEXT'],
       ['cancelled_previous_payment_status', 'TEXT'],
       ['num_adults',   'INTEGER'],

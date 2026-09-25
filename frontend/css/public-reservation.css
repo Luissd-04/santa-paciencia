@@ -838,3 +838,35 @@ textarea { resize: vertical; }
 .child-age-item { display: flex; flex-direction: column; gap: 2px; margin: 0; }
 .child-age-item select { padding: 8px 10px; border: 1px solid var(--line, #eadfd7); border-radius: 10px; background: #fff; font-size: 13px; min-width: 96px; }
 .child-age-hint { font-size: 11px; color: #2d6a4f; min-height: 13px; }
+
+/* Classes com display próprio (grid/flex) não podem ganhar ao atributo hidden. */
+[hidden] { display: none !important; }
+
+/* Pré check-in: link fechado (prazo, cancelada, inválido). Substitui o
+   resumo e o formulário em vez de os deixar em "A carregar...". */
+.pc-closed {
+  padding: 36px 28px;
+  text-align: center;
+  color: #3b2f28;
+}
+.pc-closed strong {
+  display: block;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+.pc-closed p { margin: 0; font-size: 15px; line-height: 1.6; color: #6b5d53; }
+
+/* Aviso de que o pré check-in já foi enviado e ainda pode ser corrigido. */
+.pc-edit-note {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(132, 52, 36, .07);
+  border: 1px solid rgba(132, 52, 36, .16);
+  color: #5a3a2e;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.pc-time-hint { margin: 8px 0 0; font-size: 13px; color: #8a6d5f; }

@@ -39,6 +39,8 @@ function removeUnreferencedImage(url) {
   if (accommodationUrls(db.prepare('SELECT cover_image, logo_url, images FROM accommodations').all()).has(url)) return;
   if (db.prepare('SELECT 1 FROM expenses WHERE receipt_image = ?').get(url)) return;
   if (fs.existsSync(file)) fs.unlinkSync(file);
+  // Carregado aqui para evitar a dependência circular com imageOptimizer.
+  require('./imageOptimizer').removeThumbnails(path.basename(file));
 }
 
 module.exports = { UPLOADS_DIR, uploadPath, accommodationUrls, isAllowedImageUrl, removeUnreferencedImage };

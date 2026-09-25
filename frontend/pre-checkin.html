@@ -26,7 +26,12 @@
 
     <main class="booking-shell">
       <section class="booking-card precheckin-card">
-        <div class="pc-summary-hero">
+        <div class="pc-closed" id="pc-closed" hidden>
+          <strong>Pré check-in indisponível</strong>
+          <p id="pc-closed-message"></p>
+        </div>
+
+        <div class="pc-summary-hero" id="pc-summary">
           <div class="pc-summary-photo" id="pc-summary-photo"></div>
           <div class="pc-summary-copy">
             <span class="summary-kicker">Reserva</span>
@@ -45,6 +50,8 @@
             <h2>Dados dos hóspedes</h2>
           </div>
 
+          <p class="pc-edit-note" id="pc-edit-note" hidden></p>
+
           <div id="pc-guests"></div>
 
           <div class="pc-arrival-panel">
@@ -56,6 +63,7 @@
               <span>Hora prevista *</span>
               <input id="pc-arrival-time" class="pc-time-input" type="text" inputmode="numeric" maxlength="5" placeholder="14:30" required autocomplete="off">
             </label>
+            <p class="pc-time-hint" id="pc-time-hint" hidden></p>
             <div class="pc-time-presets" id="pc-time-presets"></div>
           </div>
 

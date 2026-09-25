@@ -60,10 +60,10 @@ function recalc() {
 
   if (isPropertySelected) {
     AppModules.booking.$('summary-unit').textContent = AppModules.booking.state.property?.name || 'Alojamento completo';
-    AppModules.booking.$('summary-media').style.backgroundImage = `url(${JSON.stringify(AppModules.booking.safeMediaUrl(AppModules.booking.state.property?.images?.[0]?.url))})`;
+    AppModules.booking.$('summary-media').style.backgroundImage = `url(${JSON.stringify(AppModules.booking.mediaThumb(AppModules.booking.state.property?.images?.[0]?.url, 1024))})`;
   } else if (unit) {
     AppModules.booking.$('summary-unit').textContent = unit.name;
-    AppModules.booking.$('summary-media').style.backgroundImage = `url(${JSON.stringify(AppModules.booking.safeMediaUrl(unit.cover_image || unit.images?.[0]?.url))})`;
+    AppModules.booking.$('summary-media').style.backgroundImage = `url(${JSON.stringify(AppModules.booking.mediaThumb(unit.cover_image || unit.images?.[0]?.url, 1024))})`;
   } else {
     return;
   }

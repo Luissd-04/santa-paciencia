@@ -144,11 +144,29 @@ app.use('/uploads/receipts', requireAuth, require('./middleware/requireRole')('m
   if (!owned) return res.status(404).json({ success: false, error: 'Documento não encontrado.' });
   next();
 }, express.static(path.resolve('./data/uploads/receipts'), { fallthrough: false }));
+// Os nomes dos ficheiros carregados são UUID e nunca são reescritos, por isso
+// o browser pode guardá-los 30 dias sem voltar a perguntar ao servidor.
+const UPLOAD_CACHE = 'public, max-age=2592000';
 app.use('/uploads', (req, res, next) => {
   // Impede contornar a rota privada com nomes de pasta percent-encoded.
   if (!/^\/[A-Za-z0-9_.-]+$/.test(req.path)) return res.status(404).end();
   next();
-}, express.static(path.resolve('./data/uploads')));
+}, async (req, res, next) => {
+  // `?w=160|480|1024|1600`: miniatura WebP gerada uma vez e guardada em disco.
+  if (req.query.w === undefined) return next();
+  const { thumbnail, THUMB_WIDTHS } = require('./services/imageOptimizer');
+  const width = Number(req.query.w);
+  if (!THUMB_WIDTHS.has(width)) return res.status(400).end();
+  const file = await thumbnail('/uploads' + req.path, width);
+  if (!file) return res.status(404).end();
+  res.set('Cache-Control', UPLOAD_CACHE);
+  res.type('image/webp');
+  // A pasta `.thumbs` é escondida para o express.static não a servir
+  // diretamente; aqui o caminho já foi validado, por isso é permitido.
+  res.sendFile(file, { dotfiles: 'allow' });
+}, express.static(path.resolve('./data/uploads'), {
+  setHeaders(res) { res.setHeader('Cache-Control', UPLOAD_CACHE); },
+}));
 app.use(['/api', '/auth'], (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 
 // Servir frontend estático (apenas em produção via Docker)

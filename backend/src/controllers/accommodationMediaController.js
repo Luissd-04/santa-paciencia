@@ -2,6 +2,7 @@ const { db } = require('../config/database');
 const path = require('path');
 const fs = require('fs');
 const { isAllowedImageUrl, removeUnreferencedImage } = require('../services/mediaStorage');
+const { optimizeUpload } = require('../services/imageOptimizer');
 const COMMON_AREAS_KEY = 'areas_comuns';
 const UPLOADS_DIR = path.resolve('./data/uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -52,7 +53,7 @@ function parseImageDataUri(dataUri) {
   return { ext, data };
 }
 
-function uploadCover(req, res) {
+async function uploadCover(req, res) {
   const { id } = req.params;
   if (!req.body.image && !req.body.url) return res.status(400).json({ error: 'Imagem em falta' });
   const accommodation = db.prepare('SELECT id FROM accommodations WHERE id = ? AND organization_id = ?').get(id, req.user.organization_id);
@@ -69,9 +70,10 @@ function uploadCover(req, res) {
   const parsed = parseImageDataUri(req.body.image);
   if (!parsed) return res.status(400).json({ error: 'Formato de imagem inválido. Tipos aceites: JPEG, PNG, GIF, WebP, AVIF.' });
 
-  const filename = `cover_${require('crypto').randomUUID()}.${parsed.ext}`;
+  const optimized = await optimizeUpload(parsed.data, parsed.ext);
+  const filename = `cover_${require('crypto').randomUUID()}.${optimized.ext}`;
   const filepath = path.join(UPLOADS_DIR, filename);
-  fs.writeFileSync(filepath, parsed.data);
+  fs.writeFileSync(filepath, optimized.data);
 
   const url = `/uploads/${filename}`;
   db.prepare('UPDATE accommodations SET cover_image = ? WHERE id = ? AND organization_id = ?').run(url, id, req.user.organization_id);
@@ -98,7 +100,7 @@ function removeCover(req, res) {
 }
 
 // ─── LOGÓTIPO (herdado pelas suites — só editável no alojamento principal) ──
-function uploadLogo(req, res) {
+async function uploadLogo(req, res) {
   const { id } = req.params;
   if (!req.body.image) return res.status(400).json({ error: 'Imagem em falta' });
   const accommodation = db.prepare('SELECT id, parent_id, logo_url FROM accommodations WHERE id = ? AND organization_id = ?').get(id, req.user.organization_id);
@@ -110,8 +112,9 @@ function uploadLogo(req, res) {
   const parsed = parseImageDataUri(req.body.image);
   if (!parsed) return res.status(400).json({ error: 'Formato de imagem inválido. Tipos aceites: JPEG, PNG, GIF, WebP, AVIF.' });
 
-  const filename = `logo_${require('crypto').randomUUID()}.${parsed.ext}`;
-  fs.writeFileSync(path.join(UPLOADS_DIR, filename), parsed.data);
+  const optimized = await optimizeUpload(parsed.data, parsed.ext);
+  const filename = `logo_${require('crypto').randomUUID()}.${optimized.ext}`;
+  fs.writeFileSync(path.join(UPLOADS_DIR, filename), optimized.data);
   const url = `/uploads/${filename}`;
   db.prepare('UPDATE accommodations SET logo_url = ? WHERE id = ? AND organization_id = ?').run(url, id, req.user.organization_id);
 
@@ -138,7 +141,7 @@ function removeLogo(req, res) {
 }
 
 // ─── UPLOAD GALLERY IMAGES ────────────────────────────────
-function uploadImages(req, res) {
+async function uploadImages(req, res) {
   const { id } = req.params;
   const { section, image } = req.body;
   if (typeof section !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(section) || ['__proto__', 'constructor', 'prototype', '_sections'].includes(section)) return res.status(400).json({ error: 'Secção inválida.' });
@@ -152,9 +155,10 @@ function uploadImages(req, res) {
   const parsed = parseImageDataUri(image);
   if (!parsed) return res.status(400).json({ error: 'Formato inválido. Tipos aceites: JPEG, PNG, GIF, WebP, AVIF.' });
 
-  const filename = `gallery_${require('crypto').randomUUID()}.${parsed.ext}`;
+  const optimized = await optimizeUpload(parsed.data, parsed.ext);
+  const filename = `gallery_${require('crypto').randomUUID()}.${optimized.ext}`;
   const filepath = path.join(UPLOADS_DIR, filename);
-  fs.writeFileSync(filepath, parsed.data);
+  fs.writeFileSync(filepath, optimized.data);
 
   // Atualizar JSON de imagens
   const row = db.prepare('SELECT images FROM accommodations WHERE id = ? AND organization_id = ?').get(id, req.user.organization_id);

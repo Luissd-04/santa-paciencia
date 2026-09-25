@@ -194,7 +194,7 @@ function renderAlojamentos() {
       <td><span class="drag-handle" data-on-click="alojamentos-stop-propagation-22499e1" title="Arrastar para reordenar">${AppModules.core.lcIcon('grip-vertical', 16)}</span></td>
       <td>
         ${a.cover_image && AppModules.core.safeMediaUrl(a.cover_image)
-          ? `<img src="${AppModules.core.escapeHtml(AppModules.core.safeMediaUrl(a.cover_image.startsWith('http') ? a.cover_image : AppModules.core.API_BASE + a.cover_image))}" alt="" loading="lazy" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid var(--cinza-claro);">`
+          ? `<img src="${AppModules.core.escapeHtml(AppModules.core.mediaThumb(a.cover_image.startsWith('http') ? a.cover_image : AppModules.core.API_BASE + a.cover_image, 160))}" alt="" loading="lazy" decoding="async" style="width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid var(--cinza-claro);">`
           : `<div style="width:40px;height:40px;border-radius:8px;background:var(--cinza-claro);display:flex;align-items:center;justify-content:center;color:var(--cinza);">${AppModules.core.lcIcon(isAlojamento ? 'building-2' : 'home', 18)}</div>`}
       </td>
       <td style="${indent}">
@@ -230,7 +230,7 @@ function renderAlojamentosMobileCards(ordered, parentMap, childrenByParent, inFi
     return `<div class="m-accom-card" ${AppActions.attrs("click", "alojamentos-open-alojamento-8027257", [String((a.id) ?? '')])}>
       <div class="mac-top">
         ${a.cover_image
-          ? `<img src="${a.cover_image.startsWith('http') ? a.cover_image : AppModules.core.API_BASE + a.cover_image}" class="mac-thumb">`
+          ? `<img src="${AppModules.core.escapeHtml(AppModules.core.mediaThumb(a.cover_image.startsWith('http') ? a.cover_image : AppModules.core.API_BASE + a.cover_image, 160))}" class="mac-thumb" alt="" loading="lazy" decoding="async">`
           : `<div class="mac-thumb mac-thumb-empty">${AppModules.core.lcIcon(isAlojamento ? 'building-2' : 'home', 18)}</div>`}
         <div class="mac-info">
           <div class="mac-name">${AppModules.core.escapeHtml(a.name)}${isAlojamento && childCount ? `<span class="aloj-child-count">${childCount} alojamento${childCount !== 1 ? 's' : ''}</span>` : ''}</div>

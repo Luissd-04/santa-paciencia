@@ -114,8 +114,8 @@ function guestForm(guest, index, numAdults) {
         </label>
       </div>
       <label class="foreign-field">
-        <span data-base-label="Morada de residência">Morada de residência</span>
-        <input data-field="address" data-foreign-required value="${escapeAttr(guest?.address || '')}" placeholder="Rua, número, andar" autocomplete="off">
+        <span>Morada de residência</span>
+        <input data-field="address" value="${escapeAttr(guest?.address || '')}" placeholder="Rua, número, andar" autocomplete="off">
       </label>
       <div class="field-grid two">
         <label>
@@ -134,7 +134,6 @@ function guestForm(guest, index, numAdults) {
           <div class="country-dropdown" style="display:none;"></div>
         </div>
       </label>
-      ${isChild ? '' : `
       <div class="field-grid two">
         <label class="foreign-field">
           <span data-base-label="Tipo de documento">Tipo de documento</span>
@@ -156,7 +155,7 @@ function guestForm(guest, index, numAdults) {
           <input data-field="document_issuer_country" data-foreign-required class="country-input pc-country-input" value="${escapeAttr(guest?.document_issuer_country || guest?.nationality || guest?.country || '')}" placeholder="Portugal" autocomplete="off">
           <div class="country-dropdown" style="display:none;"></div>
         </div>
-      </label>`}
+      </label>
       ${index === 0 ? companyFields(guest) : ''}
     </div>
   `;
@@ -219,6 +218,20 @@ function safeMediaUrl(value) {
     const parsed = new URL(raw, location.origin);
     return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '';
   } catch { return ''; }
+}
+
+// Pede ao servidor uma miniatura (`?w=`) em vez da foto original, que pode
+// ter vários MB. Só para fotos carregadas na própria aplicação; URLs externos
+// e de outras origens ficam como estão.
+function mediaThumb(value, width) {
+  const safe = safeMediaUrl(value);
+  if (!safe) return '';
+  try {
+    const parsed = new URL(safe, location.origin);
+    if (parsed.origin !== location.origin || !/^\/uploads\/[^/]+$/.test(parsed.pathname)) return safe;
+    parsed.searchParams.set('w', String(width));
+    return safe.startsWith('/') ? `${parsed.pathname}${parsed.search}` : parsed.href;
+  } catch { return safe; }
 }
 
 function collectGuest(card) {
@@ -307,25 +320,41 @@ function setupCountryInput(input) {
   input.addEventListener('blur', () => setTimeout(() => { dropdown.style.display = 'none'; }, 90));
 }
 
+function parseTime(value) {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(value || ''));
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+}
+
+function formatMinutes(total) {
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
+// As sugestões começam na hora de check-in do alojamento: não faz sentido
+// propor horas em que o check-in ainda não é possível. Quem precisar de chegar
+// mais cedo pode escrever a hora à mão (ver updateTimeHint).
 function renderTimePresets(checkInTime) {
   const container = document.getElementById('pc-time-presets');
   if (!container) return;
-  const startH = parseInt(String(checkInTime || '').split(':')[0], 10);
-  const officialH = isNaN(startH) ? 15 : startH;
-  // As sugestões começam antes da hora oficial de check-in: há quem chegue mais
-  // cedo (deixar bagagem, por exemplo) e precise de indicar essa hora.
-  const from = Math.min(8, officialH);
-  const times = Array.from({ length: 23 - from + 1 }, (_, i) => `${String(i + from).padStart(2, '0')}:00`);
-  container.innerHTML = times.map(t => {
-    const official = parseInt(t, 10) === officialH;
-    return `<button type="button" data-time="${t}"${official ? ' title="Hora de check-in do alojamento"' : ''}>${t}</button>`;
-  }).join('');
+  const start = parseTime(checkInTime) ?? 15 * 60;
+  const times = [start];
+  for (let t = Math.floor(start / 60) * 60 + 60; t <= 23 * 60; t += 60) times.push(t);
+  container.innerHTML = times.map(formatMinutes).map(t => `<button type="button" data-time="${t}">${t}</button>`).join('');
   container.querySelectorAll('button').forEach(btn => {
     btn.addEventListener('click', () => {
       const input = document.getElementById('pc-arrival-time');
-      if (input) { input.value = btn.dataset.time; input.focus(); }
+      if (input) { input.value = btn.dataset.time; input.focus(); updateTimeHint(); }
     });
   });
+}
+
+function updateTimeHint() {
+  const hint = $('pc-time-hint');
+  const checkin = reservationData?.reservation?.checkin_time || '';
+  const chosen = parseTime($('pc-arrival-time').value);
+  const official = parseTime(checkin);
+  const early = chosen !== null && official !== null && chosen < official;
+  hint.hidden = !early;
+  hint.textContent = early ? `Check-in a partir das ${checkin}.` : '';
 }
 
 function setupBirthInput(input) {
@@ -342,14 +371,22 @@ function normalizeTimeInput(value) {
   return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
 }
 
+// Só formata enquanto se escreve: ao apagar (Backspace/Delete), o valor fica
+// como o utilizador o deixou — antes "14:3" voltava logo a "14:30" e não era
+// possível limpar o campo. O zero final só entra ao sair do campo.
 function setupArrivalTime() {
   const input = $('pc-arrival-time');
-  input.addEventListener('input', () => {
-    const raw = input.value;
-    const digits = raw.replace(/\D/g, '');
-    input.value = digits.length >= 3 ? normalizeTimeInput(raw) : digits;
+  input.addEventListener('input', event => {
+    if (String(event.inputType || '').startsWith('insert')) {
+      const digits = input.value.replace(/\D/g, '').slice(0, 4);
+      input.value = digits.length >= 3 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits;
+    }
+    updateTimeHint();
   });
-  input.addEventListener('blur', () => { input.value = normalizeTimeInput(input.value); });
+  input.addEventListener('blur', () => {
+    input.value = normalizeTimeInput(input.value);
+    updateTimeHint();
+  });
 }
 
 function render(data) {
@@ -361,10 +398,10 @@ function render(data) {
   $('pc-checkin').textContent = fmtDate(r.check_in);
   $('pc-checkout').textContent = fmtDate(r.check_out);
   $('pc-guest-count').textContent = `${r.num_guests} hóspede${Number(r.num_guests) !== 1 ? 's' : ''}`;
-  const image = safeMediaUrl(r.cover_image || r.images?.[0] || '');
-  if (image) {
-    $('pc-bg').style.backgroundImage = `url(${JSON.stringify(image)})`;
-    $('pc-summary-photo').style.backgroundImage = `url(${JSON.stringify(image)})`;
+  const image = r.cover_image || r.images?.[0] || '';
+  if (safeMediaUrl(image)) {
+    $('pc-bg').style.backgroundImage = `url(${JSON.stringify(mediaThumb(image, 1600))})`;
+    $('pc-summary-photo').style.backgroundImage = `url(${JSON.stringify(mediaThumb(image, 1024))})`;
   }
   $('pc-arrival-time').value = normalizeTimeInput(r.arrival_time || '');
 
@@ -379,12 +416,28 @@ function render(data) {
     setupCompanyToggle(card);
   });
   renderTimePresets(r.checkin_time);
+  updateTimeHint();
+  showSubmittedState(r.precheckin_submitted_at);
+}
 
-  if (r.precheckin_submitted_at) {
-    $('pc-success').classList.add('show');
-    $('pc-success').innerHTML = '<strong>Pré check-in já submetido.</strong><br>Para corrigir algum dado, contacte diretamente o alojamento.';
-    $('pc-submit').disabled = true;
-  }
+// Já enviado: o formulário continua editável até ao dia de chegada.
+function showSubmittedState(submittedAt) {
+  const note = $('pc-edit-note');
+  if (!submittedAt) { note.hidden = true; return; }
+  const until = reservationData?.reservation?.editable_until;
+  note.hidden = false;
+  note.textContent = `Já enviou o pré check-in a ${fmtDate(String(submittedAt).slice(0, 10))}. `
+    + `Pode corrigir os dados${until ? ` até ${fmtDate(until)}` : ''}: altere o que precisar e carregue em "Guardar alterações".`;
+  $('pc-submit').textContent = 'Guardar alterações';
+}
+
+// Link fechado (prazo, reserva cancelada, link inválido): mostra só a
+// mensagem, sem resumo vazio nem formulário.
+function showClosed(message) {
+  $('pc-summary').hidden = true;
+  $('precheckin-form').hidden = true;
+  $('pc-closed-message').textContent = message;
+  $('pc-closed').hidden = false;
 }
 
 function showError(message) {
@@ -398,8 +451,7 @@ async function load() {
     const payload = await api(`/api/public/pre-checkin/${token}`);
     render(payload.data);
   } catch (err) {
-    showError(err.message);
-    $('pc-submit').disabled = true;
+    showClosed(err.message);
   }
 }
 
@@ -412,7 +464,7 @@ $('precheckin-form').addEventListener('submit', async event => {
   try {
     const cards = Array.from(document.querySelectorAll('[data-guest]'));
     const guests = cards.map(collectGuest);
-    await api(`/api/public/pre-checkin/${token}`, {
+    const result = await api(`/api/public/pre-checkin/${token}`, {
       method: 'POST',
       body: JSON.stringify({
         arrival_time: $('pc-arrival-time').value,
@@ -422,8 +474,13 @@ $('precheckin-form').addEventListener('submit', async event => {
       }),
     });
     $('pc-success').classList.add('show');
-    $('pc-success').innerHTML = '<strong>Pré check-in enviado com sucesso!</strong><br>Obrigado. A reserva fica agora a aguardar pagamento.';
-    btn.textContent = 'Enviado';
+    $('pc-success').innerHTML = result.data?.resubmission
+      ? '<strong>Alterações guardadas.</strong><br>Obrigado. O alojamento foi avisado dos dados atualizados.'
+      : '<strong>Pré check-in enviado com sucesso!</strong><br>Obrigado. Se precisar de corrigir algum dado, pode voltar a este link até ao dia de chegada.';
+    const submittedAt = reservationData.reservation.precheckin_submitted_at || new Date().toISOString();
+    reservationData.reservation.precheckin_submitted_at = submittedAt;
+    showSubmittedState(submittedAt);
+    btn.disabled = false;
   } catch (err) {
     showError(err.message);
     btn.disabled = false;

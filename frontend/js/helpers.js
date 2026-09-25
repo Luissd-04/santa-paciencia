@@ -20,6 +20,7 @@ AppModules.define('core', {
   imageUrlToDataUrl: { get: () => imageUrlToDataUrl },
   lcIcon: { get: () => lcIcon },
   realEmail: { get: () => realEmail },
+  mediaThumb: { get: () => mediaThumb },
   safeMediaUrl: { get: () => safeMediaUrl },
   showOperationProgress: { get: () => showOperationProgress },
   toast: { get: () => toast },
@@ -283,6 +284,23 @@ function safeMediaUrl(value) {
     return parsed.href;
   } catch {
     return '';
+  }
+}
+
+// Pede ao servidor uma miniatura (`?w=`) em vez da foto original, que pode
+// ter vários MB. Só para fotos carregadas na própria aplicação; URLs externos
+// e de outras origens ficam como estão.
+function mediaThumb(value, width) {
+  const safe = safeMediaUrl(value);
+  if (!safe) return '';
+  try {
+    const origin = globalThis.location?.origin || 'http://localhost';
+    const parsed = new URL(safe, origin);
+    if (parsed.origin !== origin || !/^\/uploads\/[^/]+$/.test(parsed.pathname)) return safe;
+    parsed.searchParams.set('w', String(width));
+    return safe.startsWith('/') ? `${parsed.pathname}${parsed.search}` : parsed.href;
+  } catch {
+    return safe;
   }
 }
 

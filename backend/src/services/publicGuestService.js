@@ -17,17 +17,14 @@ function createReservationGuest(organizationId, guest) {
 
 function savePrecheckin(reservation, guest, extraGuests, arrivalTime) {
   return db.transaction(() => {
-    // Reserva atomicamente o primeiro envio. Uma segunda chamada concorrente
-    // falha sem alterar a ficha do hóspede.
-    const claimed = db.prepare(`UPDATE reservations
-      SET precheckin_submitted_at = datetime('now'), updated_at = datetime('now')
-      WHERE id = ? AND organization_id = ? AND precheckin_submitted_at IS NULL`)
+    // O hóspede pode reenviar até ao dia de check-in: a data do primeiro envio
+    // mantém-se e a da última alteração avança. A transação serializa envios
+    // concorrentes (fica o último).
+    db.prepare(`UPDATE reservations
+      SET precheckin_submitted_at = COALESCE(precheckin_submitted_at, datetime('now')),
+          precheckin_updated_at = datetime('now'), updated_at = datetime('now')
+      WHERE id = ? AND organization_id = ?`)
       .run(reservation.id, reservation.organization_id);
-    if (claimed.changes !== 1) {
-      const error = new Error('Este pré check-in já foi submetido. Contacte o alojamento para corrigir os dados.');
-      error.code = 'PRECHECKIN_ALREADY_SUBMITTED';
-      throw error;
-    }
 
     // As reservas atuais já têm uma ficha isolada. Links antigos podem apontar
     // para uma ficha partilhada; só nesse caso é criada uma cópia nova.

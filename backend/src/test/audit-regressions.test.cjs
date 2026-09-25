@@ -131,12 +131,54 @@ async function main() {
     assert.equal(write.statusCode, 200);
     assert.equal(db.prepare('SELECT name FROM guests WHERE id=?').get('guest-a').name, 'Existing Guest');
     assert.equal(db.prepare("SELECT count(*) AS n FROM guests WHERE organization_id='org-a'").get().n, guestsBefore);
+    const first = db.prepare('SELECT precheckin_submitted_at FROM reservations WHERE precheckin_token=?').get(publicToken);
+    // O hóspede pode corrigir os dados até ao dia de chegada: o reenvio grava,
+    // e a data do primeiro envio mantém-se.
     const replay = await call(publicCtrl.submitPreCheckin, request({ rgpd_consent: true, guest: {
       name: 'Replay', email: 'replay@example.invalid', nationality: 'Portugal',
     } }, { token: publicToken }));
-    assert.equal(replay.statusCode, 409);
+    assert.equal(replay.statusCode, 200, JSON.stringify(replay.body));
+    assert.equal(replay.body.data.resubmission, true);
+    const after = db.prepare('SELECT precheckin_submitted_at, precheckin_updated_at FROM reservations WHERE precheckin_token=?').get(publicToken);
+    assert.equal(after.precheckin_submitted_at, first.precheckin_submitted_at);
+    assert.ok(after.precheckin_updated_at);
     const replayRead = await call(publicCtrl.getPreCheckin, request({}, { token: publicToken }));
-    assert.equal(replayRead.statusCode, 410);
+    assert.equal(replayRead.statusCode, 200);
+    assert.equal(replayRead.body.data.guest.name, 'Replay');
+    assert.ok(replayRead.body.data.reservation.precheckin_submitted_at);
+  });
+  await check('S03: pré-check-in fecha depois do dia de chegada', async () => {
+    const row = db.prepare('SELECT id, check_in FROM reservations WHERE precheckin_token=?').get(publicToken);
+    db.prepare("UPDATE reservations SET check_in=date('now','-1 day') WHERE id=?").run(row.id);
+    try {
+      const read = await call(publicCtrl.getPreCheckin, request({}, { token: publicToken }));
+      assert.equal(read.statusCode, 410);
+      const write = await call(publicCtrl.submitPreCheckin, request({ rgpd_consent: true, guest: {
+        name: 'Late', email: 'late@example.invalid', nationality: 'Portugal',
+      } }, { token: publicToken }));
+      assert.equal(write.statusCode, 410);
+    } finally {
+      db.prepare('UPDATE reservations SET check_in=? WHERE id=?').run(row.check_in, row.id);
+    }
+  });
+  await check('S04: SIBA — documento para crianças estrangeiras, morada opcional', async () => {
+    const row = db.prepare('SELECT id, num_guests, num_adults FROM reservations WHERE precheckin_token=?').get(publicToken);
+    db.prepare('UPDATE reservations SET num_guests=2, num_adults=1 WHERE id=?').run(row.id);
+    const foreign = extra => ({ nationality: 'Espanha', birth_date: '1990-02-03', birth_city: 'Madrid',
+      birth_country: 'Espanha', city: 'Madrid', residence_country: 'Espanha',
+      document_type: 'passport', document_number: 'X1', document_issuer_country: 'Espanha', ...extra });
+    try {
+      const guest = foreign({ name: 'Adulto Estrangeiro', email: 'adulto@example.invalid' });
+      const child = foreign({ name: 'Criança Estrangeira', birth_date: '2020-02-03' });
+      const noChildDoc = await call(publicCtrl.submitPreCheckin, request({ rgpd_consent: true, guest,
+        guests_data: [{ ...child, document_type: '', document_number: '' }] }, { token: publicToken }));
+      assert.equal(noChildDoc.statusCode, 400);
+      const noAddress = await call(publicCtrl.submitPreCheckin, request({ rgpd_consent: true,
+        guest: { ...guest, address: '' }, guests_data: [child] }, { token: publicToken }));
+      assert.equal(noAddress.statusCode, 200, JSON.stringify(noAddress.body));
+    } finally {
+      db.prepare('UPDATE reservations SET num_guests=?, num_adults=? WHERE id=?').run(row.num_guests, row.num_adults, row.id);
+    }
   });
   await check('S08: pré-check-in conserva aprovação e expiração', async () => {
     const row = db.prepare('SELECT * FROM reservations WHERE precheckin_token=?').get(publicToken);

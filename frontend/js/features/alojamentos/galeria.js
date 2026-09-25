@@ -47,7 +47,7 @@ function renderImagens() {
         ${commonAreaImages.length
           ? commonAreaImages.map(url => `
             <div class="img-thumb-wrap">
-              <img class="img-thumb" src="${AppModules.core.API_BASE}${url}" alt="" ${AppActions.attrs("click", "galeria-open-image-lightbox-c42eaa8", [AppModules.core.API_BASE, url])}>
+              <img class="img-thumb" src="${AppModules.core.escapeHtml(AppModules.core.mediaThumb(AppModules.core.API_BASE + url, 480))}" alt="" loading="lazy" decoding="async" ${AppActions.attrs("click", "galeria-open-image-lightbox-c42eaa8", [AppModules.core.API_BASE, url])}>
             </div>`).join('')
           : `<div class="img-inherited-empty">Sem fotos de áreas comuns no alojamento principal.</div>`}
       </div>
@@ -65,7 +65,7 @@ function renderImagens() {
            data-section="${key}" data-url="${url}"
            ${AppActions.attrs("dragstart", "galeria-img-drag-start-db472bd", [key, url])}
            data-on-dragend="galeria-img-drag-end-f9de7ac">
-        <img class="img-thumb" src="${AppModules.core.API_BASE}${url}" alt="" ${AppActions.attrs("click", "galeria-open-image-lightbox-c42eaa8", [AppModules.core.API_BASE, url])}>
+        <img class="img-thumb" src="${AppModules.core.escapeHtml(AppModules.core.mediaThumb(AppModules.core.API_BASE + url, 480))}" alt="" loading="lazy" decoding="async" ${AppActions.attrs("click", "galeria-open-image-lightbox-c42eaa8", [AppModules.core.API_BASE, url])}>
         <button class="img-remove" ${AppActions.attrs("click", "galeria-remove-img-f163082", [String((key) ?? ''), String((url) ?? '')])}>✕</button>
       </div>`).join('');
 

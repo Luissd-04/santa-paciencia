@@ -138,7 +138,7 @@ function renderSuiteCards() {
     return `<div class="${cls}" ${click} title="${title}">
       <div class="suite-check"><i data-lucide="check" style="width:10px;height:10px;color:#fff;"></i></div>
       ${coverUrl
-        ? `<img src="${AppModules.core.escapeHtml(AppModules.core.safeMediaUrl(coverUrl))}" class="suite-card-cover" alt="${AppModules.core.escapeHtml(a.name)}" loading="lazy">`
+        ? `<img src="${AppModules.core.escapeHtml(AppModules.core.mediaThumb(coverUrl, 480))}" class="suite-card-cover" alt="${AppModules.core.escapeHtml(a.name)}" loading="lazy" decoding="async">`
         : blocked
           ? `<div style="font-size:16px;margin-bottom:6px;">🔒</div>`
           : `<div style="width:10px;height:10px;border-radius:50%;background:${cor};margin-bottom:8px;"></div>`}

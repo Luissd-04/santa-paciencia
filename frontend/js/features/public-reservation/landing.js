@@ -79,7 +79,7 @@ function renderLanding() {
   AppModules.booking.$('property-description').textContent = p.description || 'Escolha as datas e envie o pedido de reserva. Confirmaremos a disponibilidade o mais rapidamente possível.';
   const imgs = allImages();
   const fallback = 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=80';
-  AppModules.booking.$('ambient-bg').style.backgroundImage = `url(${JSON.stringify(imgs[0] || fallback)})`;
+  AppModules.booking.$('ambient-bg').style.backgroundImage = `url(${JSON.stringify(imgs[0] ? AppModules.booking.mediaThumb(imgs[0], 1600) : fallback)})`;
   renderRail('gallery-top', imgs.length ? imgs : [fallback]);
   renderRail('gallery-bottom', imgs.length ? imgs.slice().reverse() : [fallback]);
   rotateBackground();
@@ -98,7 +98,7 @@ function rotateBackground() {
   const pool = allImages();
   if (!pool.length) return;
   AppModules.booking.state.bgIndex = (AppModules.booking.state.bgIndex + 1) % pool.length;
-  AppModules.booking.$('ambient-bg').style.backgroundImage = `url(${JSON.stringify(pool[AppModules.booking.state.bgIndex])})`;
+  AppModules.booking.$('ambient-bg').style.backgroundImage = `url(${JSON.stringify(AppModules.booking.mediaThumb(pool[AppModules.booking.state.bgIndex], 1600))})`;
   AppModules.booking.state.lastBgChange = now;
   setTimeout(rotateBackground, 8000);
 }
@@ -107,7 +107,7 @@ function renderRail(id, imgs) {
   const rail = AppModules.booking.$(id);
   if (!imgs.length) return;
   const doubled = [...imgs, ...imgs, ...imgs, ...imgs].slice(0, Math.max(16, imgs.length * 3));
-  rail.innerHTML = doubled.map(url => `<img class="rail-img" src="${AppModules.booking.escapeHtml(url)}" alt="" loading="lazy">`).join('');
+  rail.innerHTML = doubled.map(url => `<img class="rail-img" src="${AppModules.booking.escapeHtml(AppModules.booking.mediaThumb(url, 480) || url)}" alt="" loading="lazy" decoding="async">`).join('');
   rail.classList.remove('paused');
   void rail.offsetHeight;
   rail.style.animation = 'none';
@@ -158,7 +158,7 @@ function renderUnits() {
 
   const propertyCard = `
     <div class="unit-card ${propertySelected ? 'selected' : ''} ${propertyBlocked ? 'blocked' : ''} property-card" data-unit="property">
-      <img src="${AppModules.booking.escapeHtml(AppModules.booking.safeMediaUrl(AppModules.booking.state.property?.images?.[0]?.url))}" alt="" loading="lazy">
+      <img src="${AppModules.booking.escapeHtml(AppModules.booking.mediaThumb(AppModules.booking.state.property?.images?.[0]?.url, 1024))}" alt="" loading="lazy" decoding="async">
       <div>
         <h4>${AppModules.booking.escapeHtml(AppModules.booking.state.property?.name || 'Alojamento completo')}</h4>
         <p>${AppModules.booking.escapeHtml(propertyReason)}</p>
@@ -190,7 +190,7 @@ function renderUnits() {
 
     return `
       <div class="unit-card ${selected ? 'selected' : ''} ${blocked ? 'blocked' : ''}" data-unit="${AppModules.booking.escapeHtml(unit.id)}">
-        <img src="${AppModules.booking.escapeHtml(AppModules.booking.safeMediaUrl(unit.cover_image || unit.images?.[0]?.url))}" alt="" loading="lazy">
+        <img src="${AppModules.booking.escapeHtml(AppModules.booking.mediaThumb(unit.cover_image || unit.images?.[0]?.url, 1024))}" alt="" loading="lazy" decoding="async">
         <div>
           <h4>${AppModules.booking.escapeHtml(unit.name)}</h4>
           ${descHtml}

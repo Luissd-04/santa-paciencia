@@ -6,6 +6,7 @@ AppModules.define('booking', {
   COUNTRIES: { get: () => COUNTRIES },
   DOC_TYPES: { get: () => DOC_TYPES },
   escapeHtml: { get: () => escapeHtml },
+  mediaThumb: { get: () => mediaThumb },
   safeMediaUrl: { get: () => safeMediaUrl },
   PHONE_CODES: { get: () => PHONE_CODES },
   state: { get: () => state },
@@ -35,6 +36,20 @@ function safeMediaUrl(value) {
   } catch {
     return '';
   }
+}
+
+// Pede ao servidor uma miniatura (`?w=`) em vez da foto original, que pode
+// ter vários MB. Só para fotos carregadas na própria aplicação; URLs externos
+// e de outras origens ficam como estão.
+function mediaThumb(value, width) {
+  const safe = safeMediaUrl(value);
+  if (!safe) return '';
+  try {
+    const parsed = new URL(safe, location.origin);
+    if (parsed.origin !== location.origin || !/^\/uploads\/[^/]+$/.test(parsed.pathname)) return safe;
+    parsed.searchParams.set('w', String(width));
+    return safe.startsWith('/') ? `${parsed.pathname}${parsed.search}` : parsed.href;
+  } catch { return safe; }
 }
 
 const searchParams = new URLSearchParams(location.search);

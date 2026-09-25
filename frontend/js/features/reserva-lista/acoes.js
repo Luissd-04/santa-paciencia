@@ -7,7 +7,6 @@ AppModules.define('reservas', {
   editarHoraChegada: { get: () => editarHoraChegada },
   enviarLinkPrecheckin: { get: () => enviarLinkPrecheckin },
   hasRole: { get: () => hasRole },
-  reabrirPrecheckin: { get: () => reabrirPrecheckin },
   reativarReserva: { get: () => reativarReserva },
 });
 
@@ -42,25 +41,6 @@ async function enviarLinkPrecheckin(id, send = true) {
       AppModules.reservas.showDetail(id);
     } else {
       AppModules.core.toast('❌ ' + (res.error || 'Erro ao enviar link de pré-checkin.'), 'error');
-    }
-  } catch (e) {
-    AppModules.core.toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
-  }
-}
-
-async function reabrirPrecheckin(id) {
-  if (!confirm('Reabrir o pré-checkin? O hóspede volta a poder editar os dados no mesmo link (já pré-preenchido) e a equipa recebe notificação quando ele reenviar.')) return;
-  const send = confirm('Enviar também o email com o link ao hóspede?');
-  try {
-    const res = await AppModules.core.apiPost(`/api/reservations/${id}/reopen-precheckin`, { send });
-    if (res.success) {
-      AppModules.core.toast(res.data?.email_sent
-        ? '🔓 Pré-checkin reaberto e link reenviado por email.'
-        : '🔓 Pré-checkin reaberto — o hóspede já pode editar no link.', 'success');
-      await AppModules.reservas.loadReservas();
-      AppModules.reservas.showDetail(id);
-    } else {
-      AppModules.core.toast('❌ ' + (res.error || 'Erro ao reabrir o pré-checkin.'), 'error');
     }
   } catch (e) {
     AppModules.core.toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
