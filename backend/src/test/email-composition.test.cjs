@@ -263,7 +263,7 @@ test('a composição usa tabelas e estilos inline, sem script, flex ou svg', () 
   assert.ok(html.includes('max-width:600px'), 'contentor limitado a 600px');
 });
 
-test('a composição mantém a paleta clara quando o telemóvel está em modo escuro', () => {
+test('a composição inclui os recursos de cor; o resultado no Gmail exige teste real', () => {
   const { html } = render('confirmacao');
   assert.ok(html.includes('<meta name="color-scheme" content="light"'), 'declara apenas o esquema claro');
   assert.ok(html.includes('color-scheme:light only'), 'bloqueio do esquema também fica inline');
@@ -277,9 +277,52 @@ test('a composição mantém a paleta clara quando o telemóvel está em modo es
     '<p style="color:#5d554c">Texto</p><table><tr><td bgcolor="#fcf9f3" style="background:#fcf9f3">Linha</td></tr></table>',
     { placeholders: false },
   );
-  assert.match(legacy, /class="sp-text-soft"/);
+  assert.match(legacy, /class="sp-text-soft sp-ink"/);
   assert.match(legacy, /class="sp-card-bg"/);
   assert.match(legacy, /background-image:linear-gradient\(#fcf9f3,#fcf9f3\)/);
+});
+
+test('fundos da moldura e dos modelos não dependem de url() no CSS', () => {
+  const examples = [emailService.baseTemplate('<p>teste</p>', SETTINGS),
+    ...Object.keys(TEMPLATES).map(slug => render(slug).html)];
+  for (const html of examples) {
+    for (const css of html.matchAll(/<style>([\s\S]*?)<\/style>|\bstyle="([^"]*)"/g)) {
+      assert.doesNotMatch(css[1] || css[2], /url\s*\(/i,
+        'uma imagem não deve fazer o Gmail descartar os estilos essenciais');
+    }
+    for (const name of ['page', 'surface', 'brand']) {
+      assert.ok(html.includes(`background="https://exemplo.invalid/img/email/bg-${name}.png"`));
+    }
+    const styledTags = [...html.matchAll(/<(?:body|table|td|th|a|p|div|span)\b[^>]*>/g)].map(m => m[0]);
+    for (const tag of styledTags.filter(t => /class="[^"]*sp-(?:page|surface|card|card-alt|brand)-bg/.test(t))) {
+      assert.match(tag, /background-color:#[0-9a-f]{6}/, 'cor de recurso mesmo sem imagens/CSS do head');
+      assert.match(tag, /background-image:linear-gradient\(/, 'gradiente inline também no corpo sanitizado');
+      assert.doesNotMatch(tag, /class="[^"]*\bsp-ink\b/, 'pintar o texto não pode apagar o fundo');
+    }
+  }
+});
+
+test('modelos guardados conservam fundo creme e cor de recurso após sanitização repetida', () => {
+  let html = '<table><tr><td bgcolor="#faf5ec" class="sp-text-soft sp-ink" style="background:#faf5ec;color:#5d554c">'
+    + '<p>Teste</p></td></tr></table>';
+  for (let i = 0; i < 2; i++) {
+    html = composer.sanitizeBodyHtml(html, { placeholders: false });
+    const cell = html.match(/<td\b[^>]*>/)[0];
+    assert.match(cell, /background-color:#faf5ec/);
+    assert.match(cell, /background-image:linear-gradient\(#faf5ec,#faf5ec\)/);
+    assert.match(cell, /background="https:\/\/exemplo.invalid\/img\/email\/bg-surface.png"/);
+    assert.doesNotMatch(cell, /\bsp-ink\b/);
+  }
+  const classOnly = composer.sanitizeBodyHtml('<p class="sp-surface-bg sp-text-soft sp-ink">Teste</p>');
+  assert.match(classOnly, /background-color:#faf5ec/);
+  assert.doesNotMatch(classOnly, /\bsp-ink\b/, 'classes de fundo também excluem recorte de texto');
+});
+
+test('texturas HTML só podem ser escolhidas pelo compositor', () => {
+  const html = composer.sanitizeBodyHtml('<table background="https://untrusted.invalid/image"><tr>'
+    + '<td bgcolor="#faf5ec" background="javascript:alert(1)">Teste</td></tr></table>');
+  assert.doesNotMatch(html, /untrusted|javascript:/);
+  assert.match(html, /background="https:\/\/exemplo.invalid\/img\/email\/bg-surface.png"/);
 });
 
 test('os ícones vêm de imagens HTTPS e o rótulo continua legível sem elas', () => {
@@ -472,7 +515,7 @@ test('o nome configurado da organização manda no título de boas-vindas', () =
   assert.ok(!html.includes('Bem-vindo à Santa Paciência'));
 });
 
-test('um botão terracota no corpo não perde o fundo no Gmail', () => {
+test('um botão terracota no corpo não recebe o recorte de texto que apaga o fundo', () => {
   const html = composer.sanitizeBodyHtml(
     '<a href="https://x.pt" style="background:#843424;color:#fbf3ea">Reservar</a>',
     { placeholders: false },

@@ -50,26 +50,24 @@ const BACKGROUND_ASSET_NAMES = new Map([
   [PALETTE.accent,  'accent'],
 ]);
 
-function lockedBackgroundImage(color) {
+function backgroundAttribute(color) {
   const name = BACKGROUND_ASSET_NAMES.get(String(color).toLowerCase());
   const assetUrl = name ? emailAssetUrl(`/img/email/bg-${name}.png`) : '';
-  const solidGradient = `linear-gradient(${color},${color})`;
-  return assetUrl ? `url('${attr(assetUrl)}'),${solidGradient}` : solidGradient;
+  return assetUrl ? ` background="${attr(assetUrl)}"` : '';
 }
 
-// Alguns clientes móveis (sobretudo o Gmail) ignoram `color-scheme: light` e
-// tentam inverter fundos sólidos. Uma imagem CSS com a mesma cor não é
-// invertida por esses clientes, por isso cada superfície da moldura leva as
-// duas declarações. Os clientes antigos continuam a usar background/bgcolor.
+// Alguns clientes móveis ignoram `color-scheme: light` e alteram fundos
+// sólidos. O gradiente é uma defesa adicional; o resultado continua a exigir
+// validação no cliente real. Mantemos também a cor para clientes antigos.
 function lockedBackgroundStyle(color) {
-  // Conservamos também o gradiente como fallback para previews/offline. Em
-  // produção, o primeiro layer é um PNG opaco de 8 px: Gmail e Outlook podem
-  // reescrever cores CSS, mas não alteram os píxeis de uma imagem remota.
-  return `background:${color};background-color:${color};background-image:linear-gradient(${color},${color});background-image:${lockedBackgroundImage(color)};background-repeat:repeat;`;
+  // Não misturar url() com o CSS essencial: há versões do Gmail que removem
+  // todo o atributo/bloco de estilos que o contém. O PNG fica no atributo HTML
+  // background; o gradiente inline funciona mesmo sem carregar imagens.
+  return `background-color:${color};background-image:linear-gradient(${color},${color});background-repeat:repeat;`;
 }
 
 function lockedBackgroundRule(color) {
-  return `background-color:${color} !important;background-image:${lockedBackgroundImage(color)} !important;background-repeat:repeat !important;`;
+  return `background-color:${color} !important;background-image:linear-gradient(${color},${color}) !important;background-repeat:repeat !important;`;
 }
 
 function lockedTextStyle(color) {
@@ -111,26 +109,31 @@ function decorateThemeColors(tagName, attribs) {
 
   const backgroundMatch = compact.match(/(?:^|;)(?:background|background-color):(#[0-9a-f]{6})(?:;|$)/i);
   const bgcolor = String(attribs.bgcolor || '').toLowerCase();
-  const backgroundColor = (backgroundMatch?.[1] || bgcolor).toLowerCase();
+  const classes = new Set(String(attribs.class || '').split(/\s+/));
+  const classColor = [...BACKGROUND_THEME_CLASSES].find(([, name]) => classes.has(name))?.[0];
+  const backgroundColor = (backgroundMatch?.[1] || bgcolor || classColor || '').toLowerCase();
   const backgroundClass = BACKGROUND_THEME_CLASSES.get(backgroundColor);
 
-  // No Gmail, as classes de texto pintam a cor com um background-image
-  // recortado às letras, que substitui o fundo do próprio elemento. Num botão
-  // terracota o botão desaparecia; aí fica só a cor inline (o Gmail não
-  // escurece texto claro). Num cartão claro perde-se apenas o tom do cartão,
-  // e o texto escuro continua protegido.
-  const brandBackground = backgroundColor === PALETTE.brand;
+  // O recorte de texto nunca pode substituir uma superfície (incluindo
+  // creme). Só elementos sem fundo próprio recebem a classe sp-ink.
+  const hasBackground = Boolean(bgcolor || classColor) || /(?:^|;)(?:background|background-color|background-image):/.test(compact);
+  if (hasBackground) {
+    attribs.class = String(attribs.class || '').split(/\s+/).filter(c => c && c !== 'sp-ink').join(' ');
+    if (!attribs.class) delete attribs.class;
+  }
   const textMatch = compact.match(/(?:^|;)color:(#[0-9a-f]{6})(?:;|$)/i);
   const textClass = textMatch && TEXT_THEME_CLASSES.get(textMatch[1].toLowerCase());
-  if (textClass && !brandBackground) {
+  if (textClass && !hasBackground) {
     addClass(attribs, textClass);
+    addClass(attribs, 'sp-ink');
     if (!/(?:^|;)-webkit-text-fill-color:/i.test(compact)) {
       attribs.style = `${style}${style && !style.trim().endsWith(';') ? ';' : ''}-webkit-text-fill-color:${textMatch[1]};`;
     }
-  } else if (!textMatch && !brandBackground && /^(?:p|h[1-6]|li|blockquote)$/.test(tagName)) {
+  } else if (!textMatch && !hasBackground && /^(?:p|h[1-6]|li|blockquote)$/.test(tagName)) {
     // Texto sem cor própria herda o tom do corpo. Dar-lhe uma classe permite
     // protegê-lo também no Gmail móvel, que ignora a preferência "light".
     addClass(attribs, 'sp-text-soft');
+    addClass(attribs, 'sp-ink');
   } else if (textMatch && !/(?:^|;)-webkit-text-fill-color:/i.test(compact)) {
     attribs.style = `${style}${style && !style.trim().endsWith(';') ? ';' : ''}-webkit-text-fill-color:${textMatch[1]};`;
   }
@@ -138,8 +141,16 @@ function decorateThemeColors(tagName, attribs) {
   if (backgroundClass) {
     addClass(attribs, backgroundClass);
     const currentStyle = String(attribs.style || '');
+    // O atalho CSS background não passa pelo sanitizador. Conservar a cor
+    // de recurso explicitamente, também nos modelos antigos.
+    attribs.style = `${currentStyle}${currentStyle && !currentStyle.trim().endsWith(';') ? ';' : ''}background-color:${backgroundColor};`;
     if (!/(?:^|;)\s*background-image:/i.test(currentStyle)) {
-      attribs.style = `${currentStyle}${currentStyle && !currentStyle.trim().endsWith(';') ? ';' : ''}background-image:linear-gradient(${backgroundColor},${backgroundColor});`;
+      attribs.style += `background-image:linear-gradient(${backgroundColor},${backgroundColor});`;
+    }
+    if (/^(?:table|td|th)$/.test(tagName)) {
+      const name = BACKGROUND_ASSET_NAMES.get(backgroundColor);
+      const url = name && emailAssetUrl(`/img/email/bg-${name}.png`);
+      if (url) attribs.background = url;
     }
   }
 }
@@ -219,12 +230,12 @@ function sanitizeBodyHtml(html, { placeholders = true } = {}) {
     'word-break', 'overflow-wrap', 'white-space', 'vertical-align', 'display', 'width', 'max-width',
     'min-width', 'height', 'max-height', 'border', 'border-top', 'border-bottom', 'border-left',
     'border-right', 'border-color', 'border-width', 'border-style', 'border-radius', 'border-collapse',
-    'border-spacing', 'padding', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right',
+    'border-spacing', 'background-repeat', 'padding', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right',
     'margin', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right', 'list-style-type'];
   return sanitizeHtml(String(html ?? ''), {
     allowedTags: [...sanitizeHtml.defaults.allowedTags, 'img', 'font', 'center'],
     allowedAttributes: {
-      '*': ['class', 'style', 'title', 'lang', 'dir', 'align', 'valign', 'width', 'height', 'bgcolor', 'role'],
+      '*': ['class', 'style', 'title', 'lang', 'dir', 'align', 'valign', 'width', 'height', 'bgcolor', 'role', 'background'],
       a: ['href', 'target', 'rel'], img: ['src', 'alt'], font: ['color', 'face', 'size'],
       table: ['cellpadding', 'cellspacing', 'border'], td: ['colspan', 'rowspan'], th: ['colspan', 'rowspan', 'scope'],
     },
@@ -234,6 +245,8 @@ function sanitizeBodyHtml(html, { placeholders = true } = {}) {
     allowProtocolRelative: false,
     transformTags: {
       '*': (tagName, attribs) => {
+        // Só o compositor pode escolher as texturas, nunca o HTML editável.
+        delete attribs.background;
         for (const name of ['href', 'src']) {
           if (!(name in attribs)) continue;
           const value = attribs[name].trim();
@@ -286,11 +299,11 @@ function buildHeader(settings) {
   const name = settings.property_name || 'Alojamento';
   const logoHtml = logo
     ? `<img src="${attr(logo)}" alt="${attr(name)}" style="display:block;margin:0 auto;width:auto;max-width:260px;height:auto;border:0;" />`
-    : `<div class="sp-brand-on-text" style="font-family:${SERIF};font-size:30px;${lockedTextStyle(PALETTE.brandText)}">${escapeHtml(name)}</div>`;
+    : `<div class="sp-brand-on-text sp-ink" style="font-family:${SERIF};font-size:30px;${lockedTextStyle(PALETTE.brandText)}">${escapeHtml(name)}</div>`;
   return `<tr>
-    <td align="center" bgcolor="${PALETTE.brand}" class="sp-brand-bg" style="${lockedBackgroundStyle(PALETTE.brand)}padding:34px 24px 26px;text-align:center;">
+    <td align="center" bgcolor="${PALETTE.brand}"${backgroundAttribute(PALETTE.brand)} class="sp-brand-bg" style="${lockedBackgroundStyle(PALETTE.brand)}padding:34px 24px 26px;text-align:center;">
       ${logoHtml}
-      <div class="sp-brand-subtext" style="font-family:${SERIF};font-size:13px;letter-spacing:4px;color:rgba(251,243,234,.82);-webkit-text-fill-color:rgba(251,243,234,.82);margin:14px 0 0;">ALOJAMENTO LOCAL</div>
+      <div class="sp-brand-subtext sp-ink" style="font-family:${SERIF};font-size:13px;letter-spacing:4px;color:rgba(251,243,234,.82);-webkit-text-fill-color:rgba(251,243,234,.82);margin:14px 0 0;">ALOJAMENTO LOCAL</div>
     </td>
   </tr>`;
 }
@@ -308,18 +321,18 @@ function buildFooter(settings) {
     ? safeUrl(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rawAddress)}`)
     : '';
   const addressHtml = mapUrl
-    ? `<a href="${attr(mapUrl)}" target="_blank" rel="noopener noreferrer" class="sp-muted-text" style="${lockedTextStyle(PALETTE.muted)}text-decoration:underline;">${address}</a>`
+    ? `<a href="${attr(mapUrl)}" target="_blank" rel="noopener noreferrer" class="sp-muted-text sp-ink" style="${lockedTextStyle(PALETTE.muted)}text-decoration:underline;">${address}</a>`
     : address;
   const identity = [name, addressHtml].filter(Boolean).join(' · ');
   if (identity) lines.push(identity);
   if (license)  lines.push(`Licença AL: ${license}`);
-  if (contact)  lines.push(`<a href="${attr(contact)}" class="sp-brand-text" style="${lockedTextStyle(PALETTE.brand)}text-decoration:underline;">${escapeHtml(settings.email_contact)}</a>`);
+  if (contact)  lines.push(`<a href="${attr(contact)}" class="sp-brand-text sp-ink" style="${lockedTextStyle(PALETTE.brand)}text-decoration:underline;">${escapeHtml(settings.email_contact)}</a>`);
   if (!lines.length) return '';
 
   return `<tr>
-    <td bgcolor="${PALETTE.surface}" class="sp-pad sp-surface-bg" style="${lockedBackgroundStyle(PALETTE.surface)}padding:0 40px 34px;">
+    <td bgcolor="${PALETTE.surface}"${backgroundAttribute(PALETTE.surface)} class="sp-pad sp-surface-bg" style="${lockedBackgroundStyle(PALETTE.surface)}padding:0 40px 34px;">
       ${divider()}
-      <p class="sp-muted-text" style="font-family:${SERIF};font-size:13px;line-height:1.75;${lockedTextStyle(PALETTE.muted)}text-align:center;margin:20px 0 0;">
+      <p class="sp-muted-text sp-ink" style="font-family:${SERIF};font-size:13px;line-height:1.75;${lockedTextStyle(PALETTE.muted)}text-align:center;margin:20px 0 0;">
         ${lines.join('<br />')}
       </p>
     </td>
@@ -328,7 +341,7 @@ function buildFooter(settings) {
 
 function divider(marginTop = 0) {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;${marginTop ? `margin-top:${marginTop}px;` : ''}">
-    <tr><td height="1" bgcolor="${PALETTE.divider}" class="sp-divider-bg" style="height:1px;line-height:1px;font-size:0;${lockedBackgroundStyle(PALETTE.divider)}">&nbsp;</td></tr>
+    <tr><td height="1" bgcolor="${PALETTE.divider}"${backgroundAttribute(PALETTE.divider)} class="sp-divider-bg" style="height:1px;line-height:1px;font-size:0;${lockedBackgroundStyle(PALETTE.divider)}">&nbsp;</td></tr>
   </table>`;
 }
 
@@ -344,11 +357,11 @@ function buildSocialBlock(settings) {
   ].filter(([key, , url]) => safeUrl(url) && (!enabled || enabled.includes(key)));
   if (!entries.length) return '';
 
-  const buttons = entries.map(([key, label, url]) => `<a href="${attr(safeUrl(url))}" class="sp-social-button sp-surface-bg" style="display:inline-block;margin:5px 4px;padding:11px 17px;border:1px solid ${PALETTE.brandBorder};border-radius:6px;${lockedBackgroundStyle(PALETTE.surface)}${lockedTextStyle(PALETTE.brand)}text-decoration:none;font-family:${SERIF};font-size:14px;line-height:1.2;white-space:nowrap;">${iconImg(key)}<span class="sp-brand-text" style="${lockedTextStyle(PALETTE.brand)}">${escapeHtml(label)}</span></a>`).join('');
+  const buttons = entries.map(([key, label, url]) => `<a href="${attr(safeUrl(url))}" class="sp-social-button sp-surface-bg" style="display:inline-block;margin:5px 4px;padding:11px 17px;border:1px solid ${PALETTE.brandBorder};border-radius:6px;${lockedBackgroundStyle(PALETTE.surface)}${lockedTextStyle(PALETTE.brand)}text-decoration:none;font-family:${SERIF};font-size:14px;line-height:1.2;white-space:nowrap;">${iconImg(key)}<span class="sp-brand-text sp-ink" style="${lockedTextStyle(PALETTE.brand)}">${escapeHtml(label)}</span></a>`).join('');
 
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="sp-social-block" style="width:100%;margin:30px 0 0;">
     <tr><td>${divider()}</td></tr>
-    <tr><td align="center" class="sp-brand-soft-text" style="padding:22px 0 10px;font-family:${SERIF};font-size:12px;letter-spacing:3px;${lockedTextStyle(PALETTE.brandSoft)}">ACOMPANHE-NOS</td></tr>
+    <tr><td align="center" class="sp-brand-soft-text sp-ink" style="padding:22px 0 10px;font-family:${SERIF};font-size:12px;letter-spacing:3px;${lockedTextStyle(PALETTE.brandSoft)}">ACOMPANHE-NOS</td></tr>
     <tr><td align="center" style="padding:0 0 4px;">${buttons}</td></tr>
   </table>`;
 }
@@ -361,7 +374,7 @@ function buildSocialFooter(settings, bodyHtml) {
   const social = buildSocialBlock(settings);
   if (!social) return '';
   return `<tr>
-    <td bgcolor="${PALETTE.surface}" class="sp-pad sp-surface-bg" style="${lockedBackgroundStyle(PALETTE.surface)}padding:0 40px 0;">
+    <td bgcolor="${PALETTE.surface}"${backgroundAttribute(PALETTE.surface)} class="sp-pad sp-surface-bg" style="${lockedBackgroundStyle(PALETTE.surface)}padding:0 40px 0;">
       ${social}
     </td>
   </tr>`;
@@ -375,8 +388,8 @@ function buildCtaBlock(url, label) {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:28px 0 6px;">
     <tr><td align="center">
       <table role="presentation" width="88%" cellpadding="0" cellspacing="0" border="0" style="width:88%;">
-        <tr><td align="center" bgcolor="${PALETTE.brand}" class="sp-brand-bg" style="${lockedBackgroundStyle(PALETTE.brand)}border-radius:4px;">
-          <a href="${attr(href)}" class="sp-brand-on-text" style="display:block;padding:17px 20px;font-family:${SERIF};font-size:14px;letter-spacing:2.5px;${lockedTextStyle(PALETTE.brandText)}text-decoration:none;text-align:center;">${escapeHtml(label).toUpperCase()}</a>
+        <tr><td align="center" bgcolor="${PALETTE.brand}"${backgroundAttribute(PALETTE.brand)} class="sp-brand-bg" style="${lockedBackgroundStyle(PALETTE.brand)}border-radius:4px;">
+          <a href="${attr(href)}" class="sp-brand-on-text sp-ink" style="display:block;padding:17px 20px;font-family:${SERIF};font-size:14px;letter-spacing:2.5px;${lockedTextStyle(PALETTE.brandText)}text-decoration:none;text-align:center;">${escapeHtml(label).toUpperCase()}</a>
         </td></tr>
       </table>
     </td></tr>
@@ -386,10 +399,10 @@ function buildCtaBlock(url, label) {
 // Título de boas-vindas: centrado, com filete dourado curto por baixo.
 function buildWelcomeTitle(title) {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;">
-    <tr><td align="center" class="sp-text" style="font-family:${SERIF};font-size:34px;line-height:1.25;${lockedTextStyle(PALETTE.text)}padding:4px 0 0;">${escapeHtml(title)}</td></tr>
+    <tr><td align="center" class="sp-text sp-ink" style="font-family:${SERIF};font-size:34px;line-height:1.25;${lockedTextStyle(PALETTE.text)}padding:4px 0 0;">${escapeHtml(title)}</td></tr>
     <tr><td align="center" style="padding:20px 0 4px;">
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="64" style="width:64px;">
-        <tr><td height="1" bgcolor="${PALETTE.accent}" class="sp-accent-bg" style="height:1px;line-height:1px;font-size:0;${lockedBackgroundStyle(PALETTE.accent)}">&nbsp;</td></tr>
+        <tr><td height="1" bgcolor="${PALETTE.accent}"${backgroundAttribute(PALETTE.accent)} class="sp-accent-bg" style="height:1px;line-height:1px;font-size:0;${lockedBackgroundStyle(PALETTE.accent)}">&nbsp;</td></tr>
       </table>
     </td></tr>
   </table>`;
@@ -403,10 +416,10 @@ function buildReservationTitle(title, glyph = '✓') {
     <tr>
       <td width="42" valign="middle" style="width:42px;padding-right:14px;">
         <table role="presentation" width="40" cellpadding="0" cellspacing="0" border="0" style="width:40px;">
-          <tr><td align="center" height="40" class="sp-brand-outline sp-brand-text" style="width:40px;height:40px;border:2px solid ${PALETTE.brand};border-radius:20px;font-family:${SERIF};font-size:20px;line-height:36px;${lockedTextStyle(PALETTE.brand)}text-align:center;">${escapeHtml(glyph)}</td></tr>
+          <tr><td align="center" height="40" class="sp-brand-outline sp-brand-text sp-ink" style="width:40px;height:40px;border:2px solid ${PALETTE.brand};border-radius:20px;font-family:${SERIF};font-size:20px;line-height:36px;${lockedTextStyle(PALETTE.brand)}text-align:center;">${escapeHtml(glyph)}</td></tr>
         </table>
       </td>
-      <td valign="middle" class="sp-text" style="font-family:${SERIF};font-size:28px;font-weight:bold;line-height:1.2;${lockedTextStyle(PALETTE.text)}">${escapeHtml(title)}</td>
+      <td valign="middle" class="sp-text sp-ink" style="font-family:${SERIF};font-size:28px;font-weight:bold;line-height:1.2;${lockedTextStyle(PALETTE.text)}">${escapeHtml(title)}</td>
     </tr>
   </table>`;
 }
@@ -421,18 +434,18 @@ function buildReservationCard(rows, total) {
     .map((row, index) => {
       const bg = index % 2 === 0 ? PALETTE.cardBg : PALETTE.cardAlt;
       const backgroundClass = index % 2 === 0 ? 'sp-card-bg' : 'sp-card-alt-bg';
-      return `<tr><td bgcolor="${bg}" class="${backgroundClass} sp-row-border" style="${lockedBackgroundStyle(bg)}padding:13px 18px;border-bottom:1px solid ${PALETTE.rowBorder};">
-        <div class="sp-muted-text" style="font-family:${SERIF};font-size:12.5px;line-height:1.4;${lockedTextStyle(PALETTE.muted)}margin:0 0 3px;">${escapeHtml(row.label)}</div>
-        <div class="sp-text" style="font-family:${SERIF};font-size:16px;line-height:1.45;${lockedTextStyle(PALETTE.text)}">${escapeHtml(row.value)}</div>
+      return `<tr><td bgcolor="${bg}"${backgroundAttribute(bg)} class="${backgroundClass} sp-row-border" style="${lockedBackgroundStyle(bg)}padding:13px 18px;border-bottom:1px solid ${PALETTE.rowBorder};">
+        <div class="sp-muted-text sp-ink" style="font-family:${SERIF};font-size:12.5px;line-height:1.4;${lockedTextStyle(PALETTE.muted)}margin:0 0 3px;">${escapeHtml(row.label)}</div>
+        <div class="sp-text sp-ink" style="font-family:${SERIF};font-size:16px;line-height:1.45;${lockedTextStyle(PALETTE.text)}">${escapeHtml(row.value)}</div>
       </td></tr>`;
     }).join('');
 
   const totalRow = total === '' || total === null || total === undefined ? '' : `<tr>
-    <td bgcolor="${PALETTE.brand}" class="sp-brand-bg" style="${lockedBackgroundStyle(PALETTE.brand)}padding:15px 18px;">
+    <td bgcolor="${PALETTE.brand}"${backgroundAttribute(PALETTE.brand)} class="sp-brand-bg" style="${lockedBackgroundStyle(PALETTE.brand)}padding:15px 18px;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;">
         <tr>
-          <td align="left" class="sp-brand-on-text" style="font-family:${SERIF};font-size:18px;font-weight:bold;${lockedTextStyle(PALETTE.brandText)}">Total</td>
-          <td align="right" class="sp-brand-on-text" style="font-family:${SERIF};font-size:18px;font-weight:bold;${lockedTextStyle(PALETTE.brandText)}">${escapeHtml(total)}</td>
+          <td align="left" class="sp-brand-on-text sp-ink" style="font-family:${SERIF};font-size:18px;font-weight:bold;${lockedTextStyle(PALETTE.brandText)}">Total</td>
+          <td align="right" class="sp-brand-on-text sp-ink" style="font-family:${SERIF};font-size:18px;font-weight:bold;${lockedTextStyle(PALETTE.brandText)}">${escapeHtml(total)}</td>
         </tr>
       </table>
     </td>
@@ -499,14 +512,15 @@ function composeEmail(bodyHtml, settings, options = {}) {
   /* Gmail móvel faz a inversão depois de processar o CSS e ignora o esquema
      light. O seletor u + .body só é ativado pelo markup que o Gmail injeta.
      Nestes clientes, a cor passa a vir de um gradiente recortado às letras;
-     o Gmail suporta background-clip e não inverte imagens/gradientes. */
-  u + .body .sp-text { background-image:linear-gradient(${PALETTE.text},${PALETTE.text}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
-  u + .body .sp-text-soft { background-image:linear-gradient(${PALETTE.textSoft},${PALETTE.textSoft}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
-  u + .body .sp-muted-text { background-image:linear-gradient(${PALETTE.muted},${PALETTE.muted}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
-  u + .body .sp-brand-text { background-image:linear-gradient(${PALETTE.brand},${PALETTE.brand}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
-  u + .body .sp-brand-on-text { background-image:linear-gradient(${PALETTE.brandText},${PALETTE.brandText}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
-  u + .body .sp-brand-soft-text { background-image:linear-gradient(${PALETTE.brandSoft},${PALETTE.brandSoft}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
-  u + .body .sp-brand-subtext { background-image:linear-gradient(rgba(251,243,234,.82),rgba(251,243,234,.82)) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
+     sp-ink limita este recurso aos elementos sem fundo próprio. Requer
+     validação no Gmail real; não é uma garantia universal de cor. */
+  u + .body .sp-ink.sp-text { background-image:linear-gradient(${PALETTE.text},${PALETTE.text}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
+  u + .body .sp-ink.sp-text-soft { background-image:linear-gradient(${PALETTE.textSoft},${PALETTE.textSoft}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
+  u + .body .sp-ink.sp-muted-text { background-image:linear-gradient(${PALETTE.muted},${PALETTE.muted}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
+  u + .body .sp-ink.sp-brand-text { background-image:linear-gradient(${PALETTE.brand},${PALETTE.brand}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
+  u + .body .sp-ink.sp-brand-on-text { background-image:linear-gradient(${PALETTE.brandText},${PALETTE.brandText}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
+  u + .body .sp-ink.sp-brand-soft-text { background-image:linear-gradient(${PALETTE.brandSoft},${PALETTE.brandSoft}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
+  u + .body .sp-ink.sp-brand-subtext { background-image:linear-gradient(rgba(251,243,234,.82),rgba(251,243,234,.82)) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
 
   @media (prefers-color-scheme: dark) {
     .sp-page-bg { background-color:${PALETTE.pageBg} !important; color:${PALETTE.text} !important; }
@@ -528,12 +542,12 @@ function composeEmail(bodyHtml, settings, options = {}) {
   }
 </style>
 </head>
-<body class="body sp-email sp-page-bg sp-text" bgcolor="${PALETTE.pageBg}" style="margin:0;padding:0;${lockedBackgroundStyle(PALETTE.pageBg)}font-family:${SERIF};${lockedTextStyle(PALETTE.text)}color-scheme:light only;supported-color-schemes:light;-webkit-text-size-adjust:100%;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="sp-page-bg" bgcolor="${PALETTE.pageBg}" style="width:100%;${lockedBackgroundStyle(PALETTE.pageBg)}">
+<body class="body sp-email sp-page-bg sp-text" bgcolor="${PALETTE.pageBg}"${backgroundAttribute(PALETTE.pageBg)} style="margin:0;padding:0;${lockedBackgroundStyle(PALETTE.pageBg)}font-family:${SERIF};${lockedTextStyle(PALETTE.text)}color-scheme:light only;supported-color-schemes:light;-webkit-text-size-adjust:100%;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="sp-page-bg" bgcolor="${PALETTE.pageBg}"${backgroundAttribute(PALETTE.pageBg)} style="width:100%;${lockedBackgroundStyle(PALETTE.pageBg)}">
   <tr><td align="center" class="sp-outer" style="padding:24px 12px;">
-    <table role="presentation" width="${MAX_WIDTH}" cellpadding="0" cellspacing="0" border="0" class="sp-surface-bg" bgcolor="${PALETTE.surface}" style="width:100%;max-width:${MAX_WIDTH}px;${lockedBackgroundStyle(PALETTE.surface)}border-radius:10px;border-collapse:separate;overflow:hidden;">
+    <table role="presentation" width="${MAX_WIDTH}" cellpadding="0" cellspacing="0" border="0" class="sp-surface-bg" bgcolor="${PALETTE.surface}"${backgroundAttribute(PALETTE.surface)} style="width:100%;max-width:${MAX_WIDTH}px;${lockedBackgroundStyle(PALETTE.surface)}border-radius:10px;border-collapse:separate;overflow:hidden;">
       ${buildHeader(s)}
-      <tr><td bgcolor="${PALETTE.surface}" class="sp-pad sp-surface-bg sp-email-body email-body-bg" style="${lockedBackgroundStyle(PALETTE.surface)}padding:34px 40px 10px;font-family:${SERIF};font-size:16px;line-height:1.7;${lockedTextStyle(PALETTE.textSoft)}">${BODY_START}${bodyHtml}${BODY_END}</td></tr>
+      <tr><td bgcolor="${PALETTE.surface}"${backgroundAttribute(PALETTE.surface)} class="sp-pad sp-surface-bg sp-email-body email-body-bg" style="${lockedBackgroundStyle(PALETTE.surface)}padding:34px 40px 10px;font-family:${SERIF};font-size:16px;line-height:1.7;${lockedTextStyle(PALETTE.textSoft)}">${BODY_START}${bodyHtml}${BODY_END}</td></tr>
       ${buildSocialFooter(s, bodyHtml)}
       ${buildFooter(s)}
     </table>

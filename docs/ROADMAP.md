@@ -1,6 +1,7 @@
 # Roadmap de produto
 
-Roadmap vivo, atualizado em 20 de setembro de 2026. As datas serão atribuídas
+Roadmap vivo, revisto no repositório em 26 de setembro de 2026. A revisão local
+não confirma o estado da publicação nem das validações em produção. As datas serão atribuídas
 quando houver capacidade e acesso confirmado às plataformas externas.
 
 ## Critérios de prioridade
@@ -16,7 +17,13 @@ com limites, estado visível e reconciliação. Uma chamada externa bem-sucedida
 
 ## Agora — estabilizar a base
 
-- Publicar a correção de remoção de Google Tasks e confirmar que a migração
+- Validar a correção das cores dos emails no Gmail para iPhone, numa conta
+  Google, em modo claro e escuro. O problema observado altera o creme para
+  castanho-escuro e o terracota para salmão. Há uma correção local preparada;
+  só fechar após publicação e teste de uma mensagem nova no dispositivo.
+  Ver [diagnóstico e critérios de validação](EMAIL-GMAIL.md).
+- Confirmar a publicação da correção de remoção de Google Tasks, que já existe
+  no código com testes, e confirmar que a migração
   `google_task_cleanup_queue` foi aplicada.
 - Verificar em produção o ciclo: criar reserva, gerar tarefas, eliminar reserva,
   remover tarefas remotas e esvaziar a fila de limpeza.

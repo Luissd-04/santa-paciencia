@@ -6,6 +6,15 @@ trabalho de engenharia; funcionalidades e integrações pertencem ao
 
 ## P0 — antes da próxima publicação
 
+### Cores dos emails no Gmail para iPhone
+
+Regressão reportada em 26 de setembro: fundo creme escurecido e cabeçalho
+terracota convertido em salmão, numa conta Google. Correção local preparada,
+pendente de publicação e validação no Gmail real. Testes de HTML e capturas de
+browser não certificam o modo escuro deste cliente.
+
+Critérios e limitações em [Email / Gmail](EMAIL-GMAIL.md).
+
 ### Validar a correção de Google Tasks em produção
 
 Critérios de conclusão:
