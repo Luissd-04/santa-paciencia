@@ -18,9 +18,10 @@ com limites, estado visível e reconciliação. Uma chamada externa bem-sucedida
 ## Agora — estabilizar a base
 
 - Validar a correção das cores dos emails no Gmail para iPhone, numa conta
-  Google, em modo claro e escuro. O problema observado altera o creme para
-  castanho-escuro e o terracota para salmão. Há uma correção local preparada;
-  só fechar após publicação e teste de uma mensagem nova no dispositivo.
+  Google, em modo claro e escuro. As novas capturas do utilizador confirmam
+  melhoria do creme e do terracota. O refinamento sem moldura exterior, com
+  cabeçalho compacto e tabela sem contornos está preparado localmente;
+  confirmar numa mensagem nova no dispositivo antes de fechar.
   Ver [diagnóstico e critérios de validação](EMAIL-GMAIL.md).
 - Confirmar a publicação da correção de remoção de Google Tasks, que já existe
   no código com testes, e confirmar que a migração

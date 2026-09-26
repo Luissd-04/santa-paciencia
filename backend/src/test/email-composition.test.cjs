@@ -290,9 +290,12 @@ test('fundos da moldura e dos modelos não dependem de url() no CSS', () => {
       assert.doesNotMatch(css[1] || css[2], /url\s*\(/i,
         'uma imagem não deve fazer o Gmail descartar os estilos essenciais');
     }
-    for (const name of ['page', 'surface', 'brand']) {
+    for (const name of ['surface', 'brand']) {
       assert.ok(html.includes(`background="https://exemplo.invalid/img/email/bg-${name}.png"`));
     }
+    const shell = html.match(/<body\b[^>]*>/)[0];
+    assert.doesNotMatch(shell, /bgcolor=|background=|sp-page-bg/);
+    assert.match(shell, /background-color:transparent/);
     const styledTags = [...html.matchAll(/<(?:body|table|td|th|a|p|div|span)\b[^>]*>/g)].map(m => m[0]);
     for (const tag of styledTags.filter(t => /class="[^"]*sp-(?:page|surface|card|card-alt|brand)-bg/.test(t))) {
       assert.match(tag, /background-color:#[0-9a-f]{6}/, 'cor de recurso mesmo sem imagens/CSS do head');

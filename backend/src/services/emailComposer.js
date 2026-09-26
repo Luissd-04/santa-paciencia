@@ -18,18 +18,16 @@ const sanitizeHtml = require('sanitize-html');
 const PALETTE = {
   brand:       '#843424', // terracota da marca
   brandText:   '#fbf3ea', // creme sobre terracota
-  brandSoft:   '#9c6b53', // terracota dessaturado (rótulos discretos)
+  brandSoft:   '#865944', // rótulos discretos, com contraste sobre creme
   brandBorder: '#c08a6e', // contorno dos botões sociais
-  pageBg:      '#efe7da', // creme por trás do contentor
+  pageBg:      '#efe7da', // compatibilidade com fundos de modelos antigos
   surface:     '#faf5ec', // creme do contentor
   cardBg:      '#fcf9f3', // linhas ímpares do cartão
   cardAlt:     '#f4ede1', // linhas pares do cartão (alternância suave)
-  cardBorder:  '#e8decf',
-  rowBorder:   '#f0e8da',
   divider:     '#e0d5c4',
   text:        '#2f2a25',
   textSoft:    '#5d554c',
-  muted:       '#9a8f84',
+  muted:       '#71665b',
   accent:      '#c9a84c', // filete dourado sob o título de boas-vindas
 };
 
@@ -81,6 +79,8 @@ const TEXT_THEME_CLASSES = new Map([
   [PALETTE.brand,     'sp-brand-text'],
   [PALETTE.brandText, 'sp-brand-on-text'],
   [PALETTE.brandSoft, 'sp-brand-soft-text'],
+  ['#9a8f84',         'sp-muted-text'], // modelos guardados antes do ajuste de contraste
+  ['#9c6b53',         'sp-brand-soft-text'],
 ]);
 
 const BACKGROUND_THEME_CLASSES = new Map([
@@ -298,12 +298,12 @@ function buildHeader(settings) {
   const logo = safeUrl(settings.logo_url);
   const name = settings.property_name || 'Alojamento';
   const logoHtml = logo
-    ? `<img src="${attr(logo)}" alt="${attr(name)}" style="display:block;margin:0 auto;width:auto;max-width:260px;height:auto;border:0;" />`
+    ? `<img src="${attr(logo)}" width="220" alt="${attr(name)}" style="display:block;margin:0 auto;width:220px;max-width:100%;height:auto;border:0;" />`
     : `<div class="sp-brand-on-text sp-ink" style="font-family:${SERIF};font-size:30px;${lockedTextStyle(PALETTE.brandText)}">${escapeHtml(name)}</div>`;
   return `<tr>
-    <td align="center" bgcolor="${PALETTE.brand}"${backgroundAttribute(PALETTE.brand)} class="sp-brand-bg" style="${lockedBackgroundStyle(PALETTE.brand)}padding:34px 24px 26px;text-align:center;">
+    <td align="center" bgcolor="${PALETTE.brand}"${backgroundAttribute(PALETTE.brand)} class="sp-brand-bg" style="${lockedBackgroundStyle(PALETTE.brand)}padding:24px 24px 20px;border-radius:10px 10px 0 0;text-align:center;">
       ${logoHtml}
-      <div class="sp-brand-subtext sp-ink" style="font-family:${SERIF};font-size:13px;letter-spacing:4px;color:rgba(251,243,234,.82);-webkit-text-fill-color:rgba(251,243,234,.82);margin:14px 0 0;">ALOJAMENTO LOCAL</div>
+      <div class="sp-brand-subtext sp-ink" style="font-family:${SERIF};font-size:12px;letter-spacing:3px;color:rgba(251,243,234,.82);-webkit-text-fill-color:rgba(251,243,234,.82);margin:12px 0 0;">ALOJAMENTO LOCAL</div>
     </td>
   </tr>`;
 }
@@ -332,7 +332,7 @@ function buildFooter(settings) {
   return `<tr>
     <td bgcolor="${PALETTE.surface}"${backgroundAttribute(PALETTE.surface)} class="sp-pad sp-surface-bg" style="${lockedBackgroundStyle(PALETTE.surface)}padding:0 40px 34px;">
       ${divider()}
-      <p class="sp-muted-text sp-ink" style="font-family:${SERIF};font-size:13px;line-height:1.75;${lockedTextStyle(PALETTE.muted)}text-align:center;margin:20px 0 0;">
+      <p class="sp-muted-text sp-ink" style="font-family:${SERIF};font-size:13px;line-height:1.65;${lockedTextStyle(PALETTE.muted)}text-align:center;margin:18px 0 0;">
         ${lines.join('<br />')}
       </p>
     </td>
@@ -408,17 +408,13 @@ function buildWelcomeTitle(title) {
   </table>`;
 }
 
-// Cabeçalho do email de reserva: círculo com ícone + título. O título vem do
+// Cabeçalho do email de reserva: símbolo discreto + título. O título vem do
 // estado real da reserva (ver statusPresentation em emailService), para uma
 // reserva pendente nunca aparecer como confirmada.
 function buildReservationTitle(title, glyph = '✓') {
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px;">
     <tr>
-      <td width="42" valign="middle" style="width:42px;padding-right:14px;">
-        <table role="presentation" width="40" cellpadding="0" cellspacing="0" border="0" style="width:40px;">
-          <tr><td align="center" height="40" class="sp-brand-outline sp-brand-text sp-ink" style="width:40px;height:40px;border:2px solid ${PALETTE.brand};border-radius:20px;font-family:${SERIF};font-size:20px;line-height:36px;${lockedTextStyle(PALETTE.brand)}text-align:center;">${escapeHtml(glyph)}</td></tr>
-        </table>
-      </td>
+      <td width="24" valign="middle" class="sp-brand-text sp-ink" style="width:24px;padding-right:12px;font-family:${SERIF};font-size:26px;line-height:1;${lockedTextStyle(PALETTE.brand)}text-align:center;">${escapeHtml(glyph)}</td>
       <td valign="middle" class="sp-text sp-ink" style="font-family:${SERIF};font-size:28px;font-weight:bold;line-height:1.2;${lockedTextStyle(PALETTE.text)}">${escapeHtml(title)}</td>
     </tr>
   </table>`;
@@ -434,7 +430,7 @@ function buildReservationCard(rows, total) {
     .map((row, index) => {
       const bg = index % 2 === 0 ? PALETTE.cardBg : PALETTE.cardAlt;
       const backgroundClass = index % 2 === 0 ? 'sp-card-bg' : 'sp-card-alt-bg';
-      return `<tr><td bgcolor="${bg}"${backgroundAttribute(bg)} class="${backgroundClass} sp-row-border" style="${lockedBackgroundStyle(bg)}padding:13px 18px;border-bottom:1px solid ${PALETTE.rowBorder};">
+      return `<tr><td bgcolor="${bg}"${backgroundAttribute(bg)} class="${backgroundClass}" style="${lockedBackgroundStyle(bg)}padding:12px 18px;">
         <div class="sp-muted-text sp-ink" style="font-family:${SERIF};font-size:12.5px;line-height:1.4;${lockedTextStyle(PALETTE.muted)}margin:0 0 3px;">${escapeHtml(row.label)}</div>
         <div class="sp-text sp-ink" style="font-family:${SERIF};font-size:16px;line-height:1.45;${lockedTextStyle(PALETTE.text)}">${escapeHtml(row.value)}</div>
       </td></tr>`;
@@ -453,7 +449,7 @@ function buildReservationCard(rows, total) {
 
   if (!cells && !totalRow) return '';
 
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="sp-card-border" style="width:100%;margin:24px 0;border:1px solid ${PALETTE.cardBorder};border-radius:8px;border-collapse:separate;overflow:hidden;">
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:24px 0;border:0;border-collapse:separate;border-spacing:0;">
     ${cells}${totalRow}
   </table>`;
 }
@@ -493,10 +489,7 @@ function composeEmail(bodyHtml, settings, options = {}) {
   .sp-brand-on-text { color:${PALETTE.brandText} !important; -webkit-text-fill-color:${PALETTE.brandText} !important; }
   .sp-brand-soft-text { color:${PALETTE.brandSoft} !important; -webkit-text-fill-color:${PALETTE.brandSoft} !important; }
   .sp-brand-subtext { color:rgba(251,243,234,.82) !important; -webkit-text-fill-color:rgba(251,243,234,.82) !important; }
-  .sp-brand-outline { border-color:${PALETTE.brand} !important; }
   .sp-social-button { border-color:${PALETTE.brandBorder} !important; }
-  .sp-card-border { border-color:${PALETTE.cardBorder} !important; }
-  .sp-row-border { border-bottom-color:${PALETTE.rowBorder} !important; }
 
   [data-ogsc] .sp-page-bg, [data-ogsb] .sp-page-bg { background-color:${PALETTE.pageBg} !important; color-scheme:light only !important; }
   [data-ogsc] .sp-surface-bg, [data-ogsb] .sp-surface-bg { background-color:${PALETTE.surface} !important; }
@@ -538,16 +531,16 @@ function composeEmail(bodyHtml, settings, options = {}) {
      aqui só se recupera largura útil reduzindo o avanço lateral. */
   @media only screen and (max-width: 480px) {
     .sp-pad { padding-left: 22px !important; padding-right: 22px !important; }
-    .sp-outer { padding-left: 8px !important; padding-right: 8px !important; }
+    .sp-outer { padding:8px 0 !important; }
   }
 </style>
 </head>
-<body class="body sp-email sp-page-bg sp-text" bgcolor="${PALETTE.pageBg}"${backgroundAttribute(PALETTE.pageBg)} style="margin:0;padding:0;${lockedBackgroundStyle(PALETTE.pageBg)}font-family:${SERIF};${lockedTextStyle(PALETTE.text)}color-scheme:light only;supported-color-schemes:light;-webkit-text-size-adjust:100%;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="sp-page-bg" bgcolor="${PALETTE.pageBg}"${backgroundAttribute(PALETTE.pageBg)} style="width:100%;${lockedBackgroundStyle(PALETTE.pageBg)}">
-  <tr><td align="center" class="sp-outer" style="padding:24px 12px;">
+<body class="body sp-email sp-text" style="margin:0;padding:0;background-color:transparent;font-family:${SERIF};${lockedTextStyle(PALETTE.text)}color-scheme:light only;supported-color-schemes:light;-webkit-text-size-adjust:100%;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="sp-email-shell" style="width:100%;background-color:transparent;">
+  <tr><td align="center" class="sp-outer" style="padding:16px 12px;">
     <table role="presentation" width="${MAX_WIDTH}" cellpadding="0" cellspacing="0" border="0" class="sp-surface-bg" bgcolor="${PALETTE.surface}"${backgroundAttribute(PALETTE.surface)} style="width:100%;max-width:${MAX_WIDTH}px;${lockedBackgroundStyle(PALETTE.surface)}border-radius:10px;border-collapse:separate;overflow:hidden;">
       ${buildHeader(s)}
-      <tr><td bgcolor="${PALETTE.surface}"${backgroundAttribute(PALETTE.surface)} class="sp-pad sp-surface-bg sp-email-body email-body-bg" style="${lockedBackgroundStyle(PALETTE.surface)}padding:34px 40px 10px;font-family:${SERIF};font-size:16px;line-height:1.7;${lockedTextStyle(PALETTE.textSoft)}">${BODY_START}${bodyHtml}${BODY_END}</td></tr>
+      <tr><td bgcolor="${PALETTE.surface}"${backgroundAttribute(PALETTE.surface)} class="sp-pad sp-surface-bg sp-email-body email-body-bg" style="${lockedBackgroundStyle(PALETTE.surface)}padding:28px 40px 10px;font-family:${SERIF};font-size:16px;line-height:1.7;${lockedTextStyle(PALETTE.textSoft)}">${BODY_START}${bodyHtml}${BODY_END}</td></tr>
       ${buildSocialFooter(s, bodyHtml)}
       ${buildFooter(s)}
     </table>

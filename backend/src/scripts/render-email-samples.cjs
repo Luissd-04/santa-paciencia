@@ -23,7 +23,7 @@ const fs = require('fs');
 const ASSET_ORIGIN = 'https://exemplo.santapaciencia.test';
 process.env.PUBLIC_APP_URL = ASSET_ORIGIN;
 
-const { renderEmail, buildVars, buildBlocks, sanitizeUrlVars } = require('../services/emailService');
+const { renderEmail, baseTemplate, buildVars, buildBlocks, sanitizeUrlVars } = require('../services/emailService');
 const { TEMPLATES } = require('../config/emailTemplateDefaults');
 
 const OUT_DIR = path.resolve(process.argv[2] || path.join(__dirname, '../../../browser-artifacts/emails'));
@@ -66,6 +66,7 @@ function reservationWith(status) {
 // Casos guardados: os dois dos prints, mais o estado pendente (que era a falha
 // de fundo do modelo "confirmacao") e um caso de dados longos/acentuados.
 const CASES = [
+  { id: 'mensagem-manual', body: '<p>teste</p>' },
   { id: 'boas-vindas',            slug: 'apos_checkin', status: 'confirmada' },
   { id: 'confirmacao',            slug: 'confirmacao',  status: 'confirmada' },
   { id: 'confirmacao-pendente',   slug: 'confirmacao',  status: 'pendente' },
@@ -81,6 +82,7 @@ const CASES = [
 
 function renderCase(c) {
   const settings = { ...SETTINGS };
+  if (c.body) return { subject: 'Teste de aparência', html: baseTemplate(c.body, settings) };
   const guest = c.guest || GUEST;
   const accommodation = c.accommodation || ACCOMMODATION;
   const reservation = { ...reservationWith(c.status), ...(c.total ? { total_amount: c.total } : {}) };
@@ -98,7 +100,10 @@ async function main() {
   const rendered = CASES.map(c => ({ ...c, ...renderCase(c) }));
 
   for (const r of rendered) {
-    fs.writeFileSync(path.join(OUT_DIR, `${r.id}.html`), r.html);
+    // O HTML exportado abre também por file://, sem domínio fictício para
+    // as imagens. As capturas abaixo continuam a usar o HTML real composto.
+    const assetPath = path.relative(OUT_DIR, FRONTEND_DIR).split(path.sep).join('/');
+    fs.writeFileSync(path.join(OUT_DIR, `${r.id}.html`), r.html.replaceAll(`${ASSET_ORIGIN}/img/`, `${assetPath}/img/`));
     console.log(`${r.id}.html — assunto: ${r.subject}`);
   }
 
@@ -111,6 +116,9 @@ async function main() {
     // Extremo inferior pedido: confirma que não há corte nem deslocamento
     // horizontal no ecrã mais estreito em uso.
     { name: 'mobile-320', width: 320, height: 720 },
+    // Envolvente escura para avaliar a moldura transparente. Isto NÃO emula
+    // a transformação de cores do Gmail: apenas o contexto visual exterior.
+    { name: 'mobile-dark-surround', width: 390, height: 844, surround: '#121212' },
   ];
 
   for (const vp of viewports) {
@@ -125,6 +133,7 @@ async function main() {
 
     for (const r of rendered) {
       await page.setContent(r.html, { waitUntil: 'networkidle' });
+      if (vp.surround) await page.addStyleTag({ content: `html { background-color:${vp.surround} !important; }` });
       const scroll = await page.evaluate(() => ({
         overflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth,
         scrollWidth: document.documentElement.scrollWidth,
