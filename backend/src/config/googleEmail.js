@@ -106,9 +106,7 @@ async function sendViaGmail(organizationId, { to, subject, html, from, bcc, thre
     ...(inReplyTo ? [`In-Reply-To: ${inReplyTo}`] : []),
     ...(inReplyTo ? [`References: ${references || inReplyTo}`] : []),
     'MIME-Version: 1.0',
-    'Content-Type: text/html; charset=UTF-8',
-    '',
-    html,
+    await require('../services/emailMime').buildEmailMimeBody(organizationId, html),
   ];
   const raw = Buffer.from(messageParts.join('\r\n')).toString('base64url');
 

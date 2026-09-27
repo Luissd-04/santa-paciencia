@@ -43,7 +43,7 @@ async function runScheduler() {
       const reservations = db.prepare(`
         SELECT r.*, g.name as guest_name, g.email as guest_email, g.first_name,
                a.name as accommodation_name, a.wifi_name, a.wifi_password, a.door_code, a.parent_id as accommodation_parent_id,
-               a.social_facebook, a.social_instagram, a.social_website
+               a.social_facebook, a.social_instagram, a.social_website, a.logo_url
         FROM reservations r
         JOIN guests g ON r.guest_id = g.id
         JOIN accommodations a ON r.accommodation_id = a.id
@@ -63,7 +63,7 @@ async function runScheduler() {
             const guest = { name: res.guest_name, email: res.guest_email, first_name: res.first_name };
             const accom = {
               name: res.accommodation_name, wifi_name: res.wifi_name, wifi_password: res.wifi_password, door_code: res.door_code,
-              social_facebook: res.social_facebook, social_instagram: res.social_instagram, social_website: res.social_website,
+              social_facebook: res.social_facebook, social_instagram: res.social_instagram, social_website: res.social_website, logo_url: res.logo_url,
               parent_id: res.accommodation_parent_id, organization_id: org.id,
             };
             const result = await sendTemplatedEmail(tpl.slug, guest, res, accom);
@@ -95,7 +95,7 @@ async function flushQueuedEmails(ensureLease) {
       const res = db.prepare(`
         SELECT r.*, g.name as guest_name, g.email as guest_email, g.first_name,
                a.name as accommodation_name, a.wifi_name, a.wifi_password, a.door_code, a.parent_id as accommodation_parent_id,
-               a.social_facebook, a.social_instagram, a.social_website
+               a.social_facebook, a.social_instagram, a.social_website, a.logo_url
         FROM reservations r
         JOIN guests g ON r.guest_id = g.id
         JOIN accommodations a ON r.accommodation_id = a.id
@@ -110,7 +110,7 @@ async function flushQueuedEmails(ensureLease) {
       const guest = { name: res.guest_name, email: res.guest_email, first_name: res.first_name };
       const accom = {
         name: res.accommodation_name, wifi_name: res.wifi_name, wifi_password: res.wifi_password, door_code: res.door_code,
-        social_facebook: res.social_facebook, social_instagram: res.social_instagram, social_website: res.social_website,
+        social_facebook: res.social_facebook, social_instagram: res.social_instagram, social_website: res.social_website, logo_url: res.logo_url,
         parent_id: res.accommodation_parent_id, organization_id: q.organization_id,
       };
       const tpl = db.prepare('SELECT * FROM organization_email_templates WHERE organization_id=? AND slug=? AND active=1').get(q.organization_id, q.template_slug);

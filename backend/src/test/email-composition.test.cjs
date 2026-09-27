@@ -305,6 +305,32 @@ test('fundos da moldura e dos modelos não dependem de url() no CSS', () => {
   }
 });
 
+test('pré-checkin protege título, texto, negritos e botão sem recortar os fundos', () => {
+  const { html } = render('pre_checkin', { status: 'aguardar_pagamento' });
+  const dark = '<span class="sp-gmail-exclusion"><span class="sp-gmail-difference">';
+  const light = '<span class="sp-gmail-screen"><span class="sp-gmail-difference">';
+  assert.ok(html.includes(`${dark}Reserva por confirmar</span></span>`));
+  assert.ok(html.includes(`<strong>${dark}Rui</span></span></strong>`));
+  assert.ok(html.includes(`${light}COMPLETAR PRÉ CHECK-IN</span></span></a>`));
+  assert.ok(html.includes(`${light}ALOJAMENTO LOCAL</span></span>`));
+  assert.doesNotMatch(html, /background-clip:|(?:[;{]|\s)color:transparent/);
+  assert.match(html, /href="https:\/\/exemplo.invalid\/pre-checkin\/abc"/);
+  assert.doesNotMatch(html, /sp-gmail-difference">\s*<(?:img|table|td)/);
+});
+
+test('proteção conserva texto selecionável, entidades, resumo e modelos antigos', () => {
+  const body = 'Texto solto &amp; acentos: Olá <strong>Luis</strong>.'
+    + '<p style="color:#5d554c">Detalhes <a href="https://exemplo.invalid">aqui</a>.</p>'
+    + '<a style="background:#843424;color:#fbf3ea" href="https://exemplo.invalid">Continuar</a>';
+  const html = emailService.baseTemplate(body, SETTINGS);
+  const extracted = composer.extractBody(html);
+  const plain = backendRequire('sanitize-html')(extracted, { allowedTags: [], allowedAttributes: {} });
+  assert.equal(plain, 'Texto solto &amp; acentos: Olá Luis.Detalhes aqui.Continuar');
+  assert.doesNotMatch(extracted, /ALOJAMENTO LOCAL|ACOMPANHE-NOS/);
+  assert.match(extracted, /sp-gmail-screen"><span class="sp-gmail-difference">Continuar/);
+  assert.doesNotMatch(html, /<sp-body-(?:start|end)/);
+});
+
 test('modelos guardados conservam fundo creme e cor de recurso após sanitização repetida', () => {
   let html = '<table><tr><td bgcolor="#faf5ec" class="sp-text-soft sp-ink" style="background:#faf5ec;color:#5d554c">'
     + '<p>Teste</p></td></tr></table>';
@@ -395,6 +421,50 @@ test('envio manual de um template transforma os blocos estruturais no servidor',
 });
 
 // ── Isolamento entre organizações ──────────────────────────────────────────
+
+test('preview e email de teste usam o upload atual do único alojamento principal', async () => {
+  db.exec(`INSERT INTO organizations (id,name,slug) VALUES ('logo-org','Logo','logo-org');
+    INSERT INTO accommodations (id,organization_id,name,type,price_per_night,max_guests,logo_url)
+      VALUES ('logo-root','logo-org','Casa','alojamento',100,2,'/uploads/logo_original.png');
+    INSERT INTO accommodations (id,organization_id,name,type,price_per_night,max_guests,parent_id)
+      VALUES ('logo-suite','logo-org','Suite','suite',100,2,'logo-root');
+    INSERT INTO organization_email_templates (organization_id,slug,name,subject,body)
+      VALUES ('logo-org','confirmacao','Confirmação','Teste','<p>Olá</p>');`);
+  const ctrl = backendRequire('./controllers/emailTemplateController');
+  const gmail = backendRequire('./config/googleEmail');
+  const original = { isEmailAuthenticated: gmail.isEmailAuthenticated, getEmailConnectionInfo: gmail.getEmailConnectionInfo, sendViaGmail: gmail.sendViaGmail };
+  const enabled = process.env.EMAIL_ENABLED;
+  let sent;
+  Object.assign(gmail, { isEmailAuthenticated: () => true, getEmailConnectionInfo: () => ({ email: 'teste@example.invalid' }),
+    sendViaGmail: async (orgId, message) => { assert.equal(orgId, 'logo-org'); sent = message; } });
+  process.env.EMAIL_ENABLED = 'true';
+  const response = () => ({ statusCode: 200, status(n) { this.statusCode = n; return this; }, json(d) { this.body = d; return this; } });
+  try {
+    for (const filename of ['logo_original.png', 'logo_novo.png']) {
+      db.prepare('UPDATE accommodations SET logo_url = ? WHERE id = ?').run(`/uploads/${filename}`, 'logo-root');
+      for (const body of [{}, { accommodation_id: 'logo-suite' }]) {
+        const req = { params: { slug: 'confirmacao' }, body, user: { organization_id: 'logo-org' }, protocol: 'https', get: () => 'exemplo.invalid' };
+        const preview = response();
+        ctrl.previewHtml(req, preview);
+        assert.equal(preview.statusCode, 200);
+        assert.ok(preview.body.html.includes(`src="https://exemplo.invalid/uploads/${filename}"`));
+        assert.doesNotMatch(preview.body.html, /cropped-Logo-Transparente/);
+        const email = response();
+        await ctrl.preview(req, email);
+        assert.equal(email.statusCode, 200);
+        assert.equal(sent.html, preview.body.html);
+      }
+    }
+    assert.doesNotMatch(emailService.getEmailSettings(null, 'outra-org').logo_url, /logo_novo/);
+    db.exec(`INSERT INTO accommodations (id,organization_id,name,type,price_per_night,max_guests,logo_url)
+      VALUES ('logo-root-2','logo-org','Outra casa','alojamento',100,2,'/uploads/outra-marca.png')`);
+    assert.doesNotMatch(emailService.getEmailSettings(null, 'logo-org').logo_url, /logo_novo|outra-marca/,
+      'com dois alojamentos principais não se escolhe uma marca arbitrária');
+  } finally {
+    Object.assign(gmail, original);
+    process.env.EMAIL_ENABLED = enabled;
+  }
+});
 
 test('a pré-visualização não usa alojamentos de outra organização', () => {
   db.exec(`
@@ -505,7 +575,7 @@ test('o modelo de boas-vindas tem título, botão e redes, como o print', () => 
 test('o modelo de confirmação tem o cartão com todas as linhas e o total', () => {
   const { html } = render('confirmacao');
   for (const label of ['Alojamento', 'Check-in', 'Check-out', 'Noites', 'Hóspedes', 'Referência', 'Total']) {
-    assert.ok(html.includes(`>${label}</div>`) || html.includes(`>${label}</td>`), `falta a linha ${label}`);
+    assert.ok(html.includes(`>${label}</span></span></div>`) || html.includes(`>${label}</span></span></td>`), `falta a linha ${label}`);
   }
   assert.ok(html.includes('SP-1'), 'referência dinâmica');
   assert.ok(html.includes('Suite Mezzanine Deluxe'), 'alojamento dinâmico');

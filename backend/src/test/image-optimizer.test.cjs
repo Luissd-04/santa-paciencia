@@ -29,6 +29,25 @@ test('PNG com transparência mantém-se PNG (logótipos dos emails)', async () =
   assert.equal((await sharp(out.data).metadata()).hasAlpha, true);
 });
 
+test('upload de logótipo PNG opaco conserva bytes e resolução acima de 2000 px', async () => {
+  const logo = await sharp({ create: { width: 2161, height: 728, channels: 3, background: '#843424' } }).png().toBuffer();
+  const out = await images.optimizeLogoUpload(logo, 'png');
+  assert.equal(out.ext, 'png');
+  assert.deepEqual(out.data, logo);
+  assert.equal((await sharp(out.data).metadata()).width, 2161);
+});
+
+test('logótipos WebP passam a PNG sem perdas adicionais e conservam alpha', async () => {
+  const logo = await sharp({ create: { width: 660, height: 220, channels: 4, background: { r: 132, g: 52, b: 36, alpha: 0.5 } } })
+    .webp({ lossless: true }).toBuffer();
+  const out = await images.optimizeLogoUpload(logo, 'webp');
+  const meta = await sharp(out.data).metadata();
+  assert.equal(out.ext, 'png');
+  assert.equal(meta.hasAlpha, true);
+  assert.equal(meta.width, 660);
+  assert.deepEqual(await sharp(out.data).raw().toBuffer(), await sharp(logo).raw().toBuffer());
+});
+
 test('miniaturas só nas larguras permitidas, geradas uma vez', async () => {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
   fs.writeFileSync(path.join(UPLOADS_DIR, 'gallery_teste.jpg'), await photo(1800, 1200));

@@ -2,7 +2,7 @@ const { db } = require('../config/database');
 const path = require('path');
 const fs = require('fs');
 const { isAllowedImageUrl, removeUnreferencedImage } = require('../services/mediaStorage');
-const { optimizeUpload } = require('../services/imageOptimizer');
+const { optimizeUpload, optimizeLogoUpload } = require('../services/imageOptimizer');
 const COMMON_AREAS_KEY = 'areas_comuns';
 const UPLOADS_DIR = path.resolve('./data/uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -112,7 +112,7 @@ async function uploadLogo(req, res) {
   const parsed = parseImageDataUri(req.body.image);
   if (!parsed) return res.status(400).json({ error: 'Formato de imagem inválido. Tipos aceites: JPEG, PNG, GIF, WebP, AVIF.' });
 
-  const optimized = await optimizeUpload(parsed.data, parsed.ext);
+  const optimized = await optimizeLogoUpload(parsed.data, parsed.ext);
   const filename = `logo_${require('crypto').randomUUID()}.${optimized.ext}`;
   fs.writeFileSync(path.join(UPLOADS_DIR, filename), optimized.data);
   const url = `/uploads/${filename}`;

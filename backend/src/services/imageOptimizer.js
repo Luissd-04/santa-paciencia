@@ -14,6 +14,14 @@ const MAX_SIDE = 2000;
 const THUMB_WIDTHS = new Set([160, 480, 1024, 1600]);
 const THUMBS_DIR = path.join(UPLOADS_DIR, '.thumbs');
 
+// Marcas não são fotografias: conservar os bytes e a resolução de PNG/JPEG/
+// GIF, sem nova compressão com perdas. Converter WebP/AVIF para PNG porque
+// o mesmo ficheiro é usado pelos clientes de email.
+async function optimizeLogoUpload(buffer, ext) {
+  if (ext !== 'webp' && ext !== 'avif') return { data: buffer, ext };
+  return { data: await sharp(buffer, { failOn: 'error' }).rotate().png().toBuffer(), ext: 'png' };
+}
+
 // Fotografias → JPEG. PNG com transparência (logótipos, usados também nos
 // emails, onde o Outlook não aceita WebP) mantém-se PNG. GIF fica intacto
 // para não perder animação.
@@ -77,4 +85,4 @@ function removeThumbnails(filename) {
   }
 }
 
-module.exports = { MAX_SIDE, THUMB_WIDTHS, optimizeUpload, thumbnail, removeThumbnails };
+module.exports = { MAX_SIDE, THUMB_WIDTHS, optimizeUpload, optimizeLogoUpload, thumbnail, removeThumbnails };

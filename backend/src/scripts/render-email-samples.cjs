@@ -67,6 +67,7 @@ function reservationWith(status) {
 // de fundo do modelo "confirmacao") e um caso de dados longos/acentuados.
 const CASES = [
   { id: 'mensagem-manual', body: '<p>teste</p>' },
+  { id: 'pre-checkin', slug: 'pre_checkin', status: 'aguardar_pagamento' },
   { id: 'boas-vindas',            slug: 'apos_checkin', status: 'confirmada' },
   { id: 'confirmacao',            slug: 'confirmacao',  status: 'confirmada' },
   { id: 'confirmacao-pendente',   slug: 'confirmacao',  status: 'pendente' },
@@ -119,6 +120,10 @@ async function main() {
     // Envolvente escura para avaliar a moldura transparente. Isto NÃO emula
     // a transformação de cores do Gmail: apenas o contexto visual exterior.
     { name: 'mobile-dark-surround', width: 390, height: 844, surround: '#121212' },
+    // Exercita as camadas de mistura com preto/branco antes e depois da
+    // inversão. É uma simulação controlada, não o motor real do Gmail.
+    { name: 'gmail-blend-light-simulation', width: 390, height: 844, gmailBlend: 'light' },
+    { name: 'gmail-blend-dark-simulation', width: 390, height: 844, gmailBlend: 'dark', surround: '#121212' },
   ];
 
   for (const vp of viewports) {
@@ -132,7 +137,16 @@ async function main() {
     });
 
     for (const r of rendered) {
-      await page.setContent(r.html, { waitUntil: 'networkidle' });
+      let html = r.html;
+      if (vp.gmailBlend) {
+        html = html.replace(/<body\b([^>]*)>/, '<body><u></u><div$1>').replace('</body>', '</div></body>');
+        if (vp.gmailBlend === 'dark') {
+          html = html.replace(/(u \+ \.body \.sp-gmail-[^{]+\{)([^}]+)/g, (_, selector, css) => selector + css
+            .replace('background:#000', 'background:#fff')
+            .replaceAll('color:#fff', 'color:#000'));
+        }
+      }
+      await page.setContent(html, { waitUntil: 'networkidle' });
       if (vp.surround) await page.addStyleTag({ content: `html { background-color:${vp.surround} !important; }` });
       const scroll = await page.evaluate(() => ({
         overflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth,

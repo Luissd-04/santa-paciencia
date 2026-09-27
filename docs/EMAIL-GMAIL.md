@@ -1,8 +1,71 @@
 # Emails no Gmail para iPhone
 
-Diagnóstico de 26 de setembro de 2026. Estado: o utilizador enviou novas capturas
-do Gmail iPhone nas quais o creme e o terracota se mantêm. Refinamento visual
-subsequente preparado localmente, ainda pendente de teste no dispositivo.
+Atualização de 27 de setembro de 2026. O utilizador confirmou que os fundos
+estão corretos, mas a captura de pré-check-in mostra texto claro sobre creme
+e letras escuras no botão terracota. Correção de legibilidade preparada
+localmente; ainda falta validar uma mensagem nova no Gmail do iPhone.
+
+## Logótipo carregado e preview
+
+### Imagem ausente no email recebido
+
+Depois de corrigida a seleção, o preview mostrava o upload mas o email recebido
+mostrava uma imagem partida. A instalação local não tem `PUBLIC_APP_URL` nem
+`FRONTEND_PUBLIC_URL`: o HTML referenciava `http://localhost:3001/uploads/...`,
+acessível ao browser local mas não ao destinatário.
+
+O transporte Gmail agora incorpora os logótipos carregados da própria
+organização em MIME `multipart/related`, com `Content-ID` e `src="cid:..."`.
+O preview mantém o URL normal. Os bytes da imagem seguem em base64 sem nova
+compressão, independentemente de a aplicação estar publicamente acessível.
+Só se leem ficheiros referenciados como logótipo pela organização remetente;
+imagens externas e caminhos arbitrários não são descarregados/incorporados.
+
+Validação: 167 testes passaram, incluindo o pedido Gmail simulado com o MIME
+completo, isolamento entre organizações e preservação dos bytes. Uma mensagem
+local com o upload real foi analisada por um parser MIME independente. Nenhum
+email de teste foi enviado por esta validação; falta confirmar o próximo
+preview recebido no cliente do utilizador.
+
+Em 27 de setembro, após upload de um PNG maior, o utilizador confirmou que a
+pré-visualização e um novo email de teste continuavam desfocados. O contexto
+«Definições da organização» usava sempre o PNG antigo de 240 × 80 px do site;
+o logótipo carregado só era escolhido com um alojamento explícito.
+
+- Sem alojamento selecionado, usa-se agora o logótipo do único alojamento
+  principal da própria organização. Se houver vários, continua a ser preciso
+  selecionar o alojamento; não se escolhe uma marca arbitrária.
+- O scheduler e os reenvios da fila passam também o logótipo do alojamento.
+- Uploads de logótipos PNG, JPEG e GIF conservam os bytes e a resolução;
+  WebP/AVIF são convertidos para PNG. Fotografias mantêm o otimizador anterior.
+- O upload existente estava em JPEG de 2000 × 674 px. Continua disponível;
+  a preservação sem recompressão aplica-se aos próximos uploads.
+
+Validação: 163 testes passaram e análise estática concluída. A regressão
+compara o HTML do preview com um envio simulado, antes e depois da mudança
+do upload, tanto sem seleção como com uma suite. O servidor local foi
+reiniciado e respondeu HTTP 200 em `/health`. Confirmado, com os dados locais,
+que o preview da organização agora resolve para o upload em vez do PNG antigo.
+
+## Correção de legibilidade
+
+- Retirado o recorte de gradiente nas letras, que não resolveu a captura.
+- O HTML final recebe dois spans por nó de texto, sem envolver imagens ou
+  superfícies. A composição abrange também modelos guardados, texto solto,
+  negritos, links, cabeçalho e rodapé.
+- Só no Gmail, `difference` e `screen` mantêm letras claras sobre terracota;
+  `difference` e `exclusion` produzem letras escuras sobre creme. Neste cliente
+  privilegia-se contraste: os tons de texto secundários ficam próximos de
+  preto e os rótulos sobre terracota ficam brancos. Fundos mantêm a paleta.
+- Nos outros clientes os spans herdam as cores existentes. O texto continua
+  selecionável e as ligações, sanitização e marcadores do corpo mantêm-se.
+- O script de amostras inclui pré-check-in e simulações das camadas antes e
+  depois de inverter preto/branco. Estas simulações verificam a mistura de
+  cores; não reproduzem o processamento real do Gmail.
+
+Validação: 43 testes de composição e análise estática; 36 capturas de seis
+casos, sem overflow a 320, 390 e 1440 px. Inspecionados pré-check-in a 320 px
+e simulação escura a 390 px. Nenhum email foi enviado nem a versão publicada.
 
 ## Observação
 
@@ -35,7 +98,8 @@ O utilizador aprovou testar uma composição mais leve.
 - CSS de fundo com gradiente sólido, sem `url()` nem múltiplas imagens.
 - PNG da paleta no atributo HTML `background` das tabelas/células e moldura;
   gradiente e cor inline continuam disponíveis sem imagens remotas.
-- Classe `sp-ink` limita o recorte das letras a elementos sem fundo próprio.
+- Na versão anterior, `sp-ink` limitava o recorte das letras a elementos sem
+  fundo próprio; a correção atual substitui esse CSS pelas camadas de mistura.
 - Cor de recurso preservada também nos modelos antigos, sem migrar a base.
 - O atributo `background` recebido do editor é descartado; só são geradas
   URLs das texturas conhecidas pelo compositor.
@@ -106,3 +170,5 @@ As capturas com envolvente escura não simulam a inversão de cores do Gmail.
 - [Rémi Parmentier: Gmail dark mode e blend modes](https://www.hteumeuleu.com/2021/fixing-gmail-dark-mode-css-blend-modes/)
   — comportamento do Gmail iOS; a solução demonstrada limita-se a texto branco
   e não resolve por si só a paleta creme com texto escuro.
+- [Variante para texto escuro, Colton Eakins](https://github.com/matthieuSolente/email-darkmode#force-black-text-on-dark-mode-in-gmail-colton-eakins)
+  — `exclusion` sobre uma superfície clara, combinado com `difference`.

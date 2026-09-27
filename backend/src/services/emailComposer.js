@@ -72,6 +72,41 @@ function lockedTextStyle(color) {
   return `color:${color};-webkit-text-fill-color:${color};`;
 }
 
+// Aplicado apenas ao HTML final, já sanitizado. Cada nó de texto recebe o
+// tratamento do seu fundo, incluindo texto solto, negritos e links de modelos
+// antigos. Nunca envolver tabelas/imagens: a mistura alteraria as superfícies.
+// No Gmail, difference repõe branco; screen conserva-o sobre terracota e
+// exclusion produz tinta escura sobre creme. Nos outros clientes os spans
+// são transparentes e herdam a cor original. Não depende de background-clip.
+function protectEmailText(html) {
+  const frames = [];
+  return sanitizeHtml(html.replace(BODY_START, '<sp-body-start></sp-body-start>').replace(BODY_END, '<sp-body-end></sp-body-end>'), {
+    allowedTags: false,
+    allowedAttributes: false,
+    allowVulnerableTags: true,
+    onOpenTag(tag, attribs) {
+      const parent = frames.at(-1) || { light: false, protected: false };
+      const classes = String(attribs.class || '').split(/\s+/);
+      let light = parent.light;
+      if (classes.includes('sp-brand-bg')) light = true;
+      if (classes.some(c => /^sp-(?:surface|card|card-alt|page)-bg$/.test(c))) light = false;
+      if (classes.some(c => /^sp-(?:text|text-soft|muted-text|brand-text|brand-soft-text)$/.test(c))) light = false;
+      if (classes.some(c => /^(?:sp-brand-on-text|sp-brand-subtext)$/.test(c))) light = true;
+      frames.push({ light, protected: parent.protected || classes.includes('sp-gmail-difference') });
+    },
+    onCloseTag() { frames.pop(); },
+    textFilter(text) {
+      const frame = frames.at(-1);
+      if (!frame || frame.protected || !text.replace(/&(?:nbsp|#160);/g, '').trim()) return text;
+      return `<span class="sp-gmail-${frame.light ? 'screen' : 'exclusion'}"><span class="sp-gmail-difference">${text}</span></span>`;
+    },
+  })
+    // O parser pode separar entidades do resto do mesmo nó de texto.
+    .replace(/<\/span><\/span><span class="sp-gmail-(?:screen|exclusion)"><span class="sp-gmail-difference">/g, '')
+    .replace('<sp-body-start></sp-body-start>', BODY_START)
+    .replace('<sp-body-end></sp-body-end>', BODY_END);
+}
+
 const TEXT_THEME_CLASSES = new Map([
   [PALETTE.text,      'sp-text'],
   [PALETTE.textSoft,  'sp-text-soft'],
@@ -459,7 +494,7 @@ function buildReservationCard(rows, total) {
 function composeEmail(bodyHtml, settings, options = {}) {
   const s = settings || {};
   const title = escapeHtml(options.title || s.property_name || 'Santa Paciência');
-  return `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="pt" class="sp-email-root" style="color-scheme:light only;supported-color-schemes:light;">
 <head>
 <meta charset="UTF-8" />
@@ -502,18 +537,13 @@ function composeEmail(bodyHtml, settings, options = {}) {
   [data-ogsc] .sp-brand-text, [data-ogsb] .sp-brand-text { color:${PALETTE.brand} !important; }
   [data-ogsc] .sp-brand-on-text, [data-ogsb] .sp-brand-on-text { color:${PALETTE.brandText} !important; }
 
-  /* Gmail móvel faz a inversão depois de processar o CSS e ignora o esquema
-     light. O seletor u + .body só é ativado pelo markup que o Gmail injeta.
-     Nestes clientes, a cor passa a vir de um gradiente recortado às letras;
-     sp-ink limita este recurso aos elementos sem fundo próprio. Requer
-     validação no Gmail real; não é uma garantia universal de cor. */
-  u + .body .sp-ink.sp-text { background-image:linear-gradient(${PALETTE.text},${PALETTE.text}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
-  u + .body .sp-ink.sp-text-soft { background-image:linear-gradient(${PALETTE.textSoft},${PALETTE.textSoft}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
-  u + .body .sp-ink.sp-muted-text { background-image:linear-gradient(${PALETTE.muted},${PALETTE.muted}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
-  u + .body .sp-ink.sp-brand-text { background-image:linear-gradient(${PALETTE.brand},${PALETTE.brand}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
-  u + .body .sp-ink.sp-brand-on-text { background-image:linear-gradient(${PALETTE.brandText},${PALETTE.brandText}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
-  u + .body .sp-ink.sp-brand-soft-text { background-image:linear-gradient(${PALETTE.brandSoft},${PALETTE.brandSoft}) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
-  u + .body .sp-ink.sp-brand-subtext { background-image:linear-gradient(rgba(251,243,234,.82),rgba(251,243,234,.82)) !important;background-clip:text !important;-webkit-background-clip:text !important;color:transparent !important;-webkit-text-fill-color:transparent !important; }
+  /* Só o Gmail ativa estas camadas. Os fundos pretos têm de poder inverter
+     com o texto branco: não lhes aplicar os gradientes das superfícies.
+     Fonte: hteumeuleu.com/2021/fixing-gmail-dark-mode-css-blend-modes/
+     Variante escura: github.com/matthieuSolente/email-darkmode */
+  u + .body .sp-gmail-screen { background:#000;mix-blend-mode:screen; }
+  u + .body .sp-gmail-exclusion { background:#000;mix-blend-mode:exclusion; }
+  u + .body .sp-gmail-difference { background:#000;mix-blend-mode:difference;color:#fff;-webkit-text-fill-color:#fff; }
 
   @media (prefers-color-scheme: dark) {
     .sp-page-bg { background-color:${PALETTE.pageBg} !important; color:${PALETTE.text} !important; }
@@ -548,6 +578,9 @@ function composeEmail(bodyHtml, settings, options = {}) {
 </table>
 </body>
 </html>`;
+  // O head não passa pelo parser de fragmentos: preservar CSS e metadados.
+  return html.replace(/(<body\b[^>]*>)([\s\S]*?)(<\/body>)/,
+    (_, start, content, end) => start + protectEmailText(content) + end);
 }
 
 module.exports = {

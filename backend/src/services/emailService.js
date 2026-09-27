@@ -58,7 +58,9 @@ const DEFAULT_FACEBOOK_URL = 'https://www.facebook.com/al.santapaciencia/';
 // (/uploads/...) — resolve para absoluto porque os clientes de email
 // carregam a imagem a partir da internet, não do servidor local. Sem
 // alojamento associado (preview do editor, exports em PDF de todos os
-// alojamentos), cai no logótipo por omissão.
+// alojamentos), usa o logótipo do único alojamento principal da organização.
+// Se houver vários, é necessário selecionar um contexto para evitar escolher
+// a marca de outro alojamento; nesse caso mantém-se o recurso por omissão.
 function resolveLogoUrl(value) {
   if (!value) return DEFAULT_LOGO_URL;
   if (/^https?:\/\//i.test(value)) return value;
@@ -96,6 +98,13 @@ function getEmailSettings(accommodation, organizationId) {
       orgName = org?.name;
     }
 
+    let logo = accommodation?.logo_url;
+    if (!accommodation && orgId) {
+      const roots = db.prepare(`SELECT logo_url FROM accommodations
+        WHERE organization_id = ? AND (parent_id IS NULL OR parent_id = '') LIMIT 2`).all(orgId);
+      if (roots.length === 1) logo = roots[0].logo_url;
+    }
+
     return {
       checkin_time:     accommodation?.checkin_time  || s.checkin_time  || '15:00',
       checkout_time:    accommodation?.checkout_time || s.checkout_time || '11:00',
@@ -111,7 +120,7 @@ function getEmailSettings(accommodation, organizationId) {
       property_address: s.property_address || process.env.PROPERTY_ADDRESS || '',
       license_number:   s.license_number   || process.env.LICENSE_NUMBER   || '',
       email_contact:    s.email_contact    || '',
-      logo_url:         resolveLogoUrl(accommodation?.logo_url),
+      logo_url:         resolveLogoUrl(logo),
     };
   } catch {
     return {
