@@ -9,9 +9,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/public-reservation.css">
-  <link rel="stylesheet" href="/css/components/date-picker.css">
-  <link rel="stylesheet" href="/css/vendor/flag-icons.min.css">
+  <link rel="stylesheet" href="/css/public-reservation.css?v=public-flow-20261001-2">
+  <link rel="stylesheet" href="/css/components/date-picker.css?v=public-flow-20261001-2">
+  <link rel="stylesheet" href="/css/vendor/flag-icons.min.css?v=public-flow-20261001-2">
   <!-- Cloudflare Turnstile (CAPTCHA leve, sem cookies) -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileReady" async defer></script>
 </head>
@@ -40,9 +40,18 @@
           <span class="step-dot" data-step-dot="3">3</span>
         </div>
 
-        <div class="flow-mobile-slot" data-flow-mobile></div>
+        <div class="flow-mobile-slot" data-flow-mobile>
+          <div data-flow-controls>
+            <div id="step-error" role="alert" style="display:none;background:#fef0f0;border:1px solid #f5c6cb;color:#c0392b;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:14px;line-height:1.4;"></div>
+            <div class="form-actions">
+              <button type="button" class="ghost-btn" id="prev-btn">Anterior</button>
+              <button type="button" class="primary-btn" id="next-btn">Seguinte</button>
+            </div>
+          </div>
+        </div>
         <div class="booking-grid">
-          <form class="booking-form" id="public-booking-form">
+          <form class="booking-form" id="public-booking-form" novalidate>
+            <button type="submit" hidden tabindex="-1">Seguinte</button>
             <section class="form-step active" data-step="1">
               <div class="step-heading">
                 <span>Datas</span>
@@ -161,13 +170,7 @@
               <div class="summary-row muted" id="summary-discount-row" style="display:none;color:#4f8f6b;"><span>Voucher</span><strong id="summary-discount">-</strong></div>
               <div class="summary-total"><span>Total estimado</span><strong id="summary-total">-</strong></div>
               <p id="summary-dates-note" style="display:none;margin:4px 0 12px;font-size:12px;color:var(--muted);text-align:right;">para as datas selecionadas</p>
-              <div data-flow-controls>
-                <div id="step-error" role="alert" style="display:none;background:#fef0f0;border:1px solid #f5c6cb;color:#c0392b;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:14px;line-height:1.4;"></div>
-                <div class="form-actions">
-                  <button type="button" class="ghost-btn" id="prev-btn">Anterior</button>
-                  <button type="button" class="primary-btn" id="next-btn">Seguinte</button>
-                </div>
-              </div>
+              <div data-flow-desktop></div>
               <p class="microcopy">A reserva fica pendente até confirmação do alojamento.</p>
             </div>
           </aside>
@@ -181,20 +184,20 @@
   </div>
 
   <script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js" integrity="sha384-bdZtphetAEBgkGZvhZXOFDWc55tHGLqaSo1f4qZtgvEiolEBqlJ9u6FTk+CoLfj0" crossorigin="anonymous"></script>
-  <script src="/js/domain/modules.js"></script>
-<script src="/js/domain/actions.js"></script>
-  <script src="/js/domain/dates.js"></script>
-  <script src="/js/domain/pricing.js"></script>
-  <script src="/js/domain/date-picker.js"></script>
-  <script src="/js/ui.js"></script>
-  <script src="/js/public-flow.js"></script>
-  <script src="/js/public-reservation.js"></script>
-  <script src="/js/features/public-reservation/helpers.js"></script>
-  <script src="/js/features/public-reservation/landing.js"></script>
-  <script src="/js/features/public-reservation/dados-hospedes.js"></script>
-  <script src="/js/features/public-reservation/disponibilidade.js"></script>
-  <script src="/js/features/public-reservation/precos.js"></script>
-  <script src="/js/features/public-reservation/submissao.js"></script>
-  <script src="/js/public-reservation-actions.js"></script>
+  <script src="/js/domain/modules.js?v=public-flow-20261001-2"></script>
+<script src="/js/domain/actions.js?v=public-flow-20261001-2"></script>
+  <script src="/js/domain/dates.js?v=public-flow-20261001-2"></script>
+  <script src="/js/domain/pricing.js?v=public-flow-20261001-2"></script>
+  <script src="/js/domain/date-picker.js?v=public-flow-20261001-2"></script>
+  <script src="/js/ui.js?v=public-flow-20261001-2"></script>
+  <script src="/js/public-flow.js?v=public-flow-20261001-2"></script>
+  <script src="/js/public-reservation.js?v=public-flow-20261001-2"></script>
+  <script src="/js/features/public-reservation/helpers.js?v=public-flow-20261001-2"></script>
+  <script src="/js/features/public-reservation/landing.js?v=public-flow-20261001-2"></script>
+  <script src="/js/features/public-reservation/dados-hospedes.js?v=public-flow-20261001-2"></script>
+  <script src="/js/features/public-reservation/disponibilidade.js?v=public-flow-20261001-2"></script>
+  <script src="/js/features/public-reservation/precos.js?v=public-flow-20261001-2"></script>
+  <script src="/js/features/public-reservation/submissao.js?v=public-flow-20261001-2"></script>
+  <script src="/js/public-reservation-actions.js?v=public-flow-20261001-2"></script>
 </body>
 </html>

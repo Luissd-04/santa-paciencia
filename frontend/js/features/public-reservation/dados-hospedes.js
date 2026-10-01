@@ -206,11 +206,13 @@ function setupGuestDocTypeSearch(btn, input, dropdown) {
 }
 
 function setupGuestPhoneCodeSearch(guestIndex) {
-  const guestSection = document.querySelector(`[data-guest-index="${guestIndex}"]`);
+  const guestSection = document.querySelector(`.extra-guest-box[data-guest-index="${guestIndex}"]`);
   if (!guestSection) return;
   const btn = guestSection.querySelector('.guest-phone-code-btn');
   const codeInput = guestSection.querySelector('input[data-field="phone_code"]');
   if (!btn || !codeInput) return;
+  const phoneCountry = AppModules.booking.PHONE_CODES.find(country => country.code === codeInput.value);
+  btn.innerHTML = `${AppModules.booking.flagHtml(phoneCountry?.flag || '🇵🇹')} ${AppModules.booking.escapeHtml(codeInput.value)}`;
   let finalDropdown = btn.parentElement.querySelector('.country-dropdown');
   if (!finalDropdown) {
     finalDropdown = document.createElement('div');

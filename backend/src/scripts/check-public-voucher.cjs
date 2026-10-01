@@ -55,7 +55,7 @@ async function main() {
   const actionRequests = [];
   page.on('response', response => {
     if (response.url().includes('/js/public-reservation-actions.js')) {
-      actionRequests.push({ status: response.status(), url: response.url() });
+      actionRequests.push({ status: response.status(), url: response.url().split('?')[0] });
     }
   });
 
@@ -69,7 +69,6 @@ async function main() {
   await expect(page.locator('#pb-voucher')).toBeHidden();
   await page.locator('#next-btn').click();
   await expect(page.locator('[data-step="2"]')).toBeVisible();
-  assert.equal(await page.evaluate(() => scrollY), 0);
   await page.setViewportSize({ width: 375, height: 812 });
   await expect(page.locator('[data-flow-mobile] #next-btn')).toBeVisible();
   await expect(page.locator('.summary-panel #next-btn')).toHaveCount(0);

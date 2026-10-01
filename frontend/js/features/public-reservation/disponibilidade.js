@@ -60,9 +60,7 @@ function clearStepError() {
 }
 
 function bindEvents() {
-  AppModules.booking.setupCountrySearch('pb-country', 'pb-country-dropdown', () => {
-    renderExtraGuests();
-  });
+  AppModules.booking.setupCountrySearch('pb-country', 'pb-country-dropdown', AppModules.booking.recalc);
   AppModules.booking.setupPhoneCodeSearch();
 
   const checkinEl = AppModules.booking.$('pb-checkin');
@@ -98,7 +96,7 @@ function bindEvents() {
   ['pb-checkin','pb-checkout','pb-adults','pb-children','pb-birth'].forEach(id => AppModules.booking.$(id).addEventListener('change', () => {
     scheduleAvailabilityFetch();
     AppModules.booking.renderChildAges();
-    renderExtraGuests();
+    if (id === 'pb-adults' || id === 'pb-children') renderExtraGuests();
     AppModules.booking.recalc();
   }));
   AppModules.booking.$('unit-list').addEventListener('click', (e) => {
@@ -120,6 +118,11 @@ function bindEvents() {
   voucherInput?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyVoucher(); } });
   AppModules.booking.$('next-btn').addEventListener('click', AppModules.booking.nextStep);
   AppModules.booking.$('prev-btn').addEventListener('click', AppModules.booking.prevStep);
+  AppModules.booking.$('public-booking-form').addEventListener('submit', event => {
+    event.preventDefault();
+    AppModules.booking.nextStep();
+  });
+  renderExtraGuests();
 }
 
 async function fetchAvailability() {
@@ -139,29 +142,30 @@ async function fetchAvailability() {
   AppModules.booking.renderUnits();
 }
 
+const guestDrafts = new Map();
 function renderExtraGuests() {
   const count = Math.max(1, AppModules.booking.totalGuests());
   const wrap = AppModules.booking.$('extra-guests');
-  const existing = Array.from(wrap.querySelectorAll('[data-guest-index]')).map((section, idx) => {
+  wrap.querySelectorAll('.extra-guest-box').forEach(section => {
     const index = Number(section.dataset.guestIndex);
-    return {
+    guestDrafts.set(index, {
       index,
       name: section.querySelector('[data-field="name"]')?.value || '',
       email: section.querySelector('[data-field="email"]')?.value || '',
-      phone_code: section.querySelector('[data-field="phone_code"]')?.value || '+351',
+      phone_code: section.querySelector('input[data-field="phone_code"]')?.value || '+351',
       phone: section.querySelector('[data-field="phone"]')?.value || '',
       country: section.querySelector('[data-field="country"]')?.value || '',
       birth_date: section.querySelector('[data-field="birth_date"]')?.value || ''
-    };
+    });
   });
 
   const parts = [];
   for (let i = 2; i <= count; i++) {
-    const prev = existing.find(g => g.index === i) || {};
+    const prev = guestDrafts.get(i) || {};
     const country = prev.country || '';
 
     parts.push(`
-      <div data-guest-index="${i}" style="border-top: 1px solid var(--line); padding-top: 18px; margin-top: 18px;">
+      <div class="extra-guest-box" data-guest-index="${i}" style="border-top: 1px solid var(--line); padding-top: 18px; margin-top: 18px;">
         <h3 style="margin: 0 0 18px; font-size: 18px; color: var(--brand);">Hóspede ${i}</h3>
         <label>
           <span>Nome completo *</span>
@@ -176,7 +180,7 @@ function renderExtraGuests() {
             <span>Telefone *</span>
             <div class="phone-input-group">
               <div class="phone-code-wrap">
-                <button type="button" class="phone-code-btn guest-phone-code-btn" data-field="phone_code" data-guest-index="${i}"><span class="fi fi-pt"></span> +351</button>
+                <button type="button" class="phone-code-btn guest-phone-code-btn"><span class="fi fi-pt"></span> +351</button>
                 <input type="hidden" data-field="phone_code" value="${AppModules.booking.escapeHtml(prev.phone_code || '+351')}">
               </div>
               <input data-field="phone" type="tel" required value="${AppModules.booking.escapeHtml(prev.phone || '')}" placeholder="912 345 678" autocomplete="off">
@@ -187,13 +191,13 @@ function renderExtraGuests() {
           <label>
             <span>Nacionalidade *</span>
             <div class="country-search">
-              <input data-field="country" class="country-input guest-country-input" required value="${AppModules.booking.escapeHtml(country)}" placeholder="Portugal" autocomplete="off" data-guest-index="${i}">
+              <input data-field="country" class="country-input guest-country-input" required value="${AppModules.booking.escapeHtml(country)}" placeholder="Portugal" autocomplete="off">
               <div class="country-dropdown" style="display: none;"></div>
             </div>
           </label>
           <label>
             <span>Data de nascimento</span>
-            <input class="birth-input guest-birth-input" data-field="birth_date" type="text" inputmode="numeric" value="${prev.birth_date || ''}" placeholder="dd-mm-aaaa" maxlength="10" autocomplete="off">
+            <input class="birth-input guest-birth-input" data-field="birth_date" type="text" inputmode="numeric" value="${AppModules.booking.escapeHtml(prev.birth_date || '')}" placeholder="dd-mm-aaaa" maxlength="10" autocomplete="off">
             <small class="rate-hint"></small>
           </label>
         </div>
@@ -212,17 +216,14 @@ function renderExtraGuests() {
   });
 
   // Setup country selectors and phone codes for all guests
-  wrap.querySelectorAll('[data-guest-index]').forEach(guestSection => {
+  wrap.querySelectorAll('.extra-guest-box').forEach(guestSection => {
     const guestIndex = guestSection.dataset.guestIndex;
     const countryInput = guestSection.querySelector('.guest-country-input');
     const phoneCodeBtn = guestSection.querySelector('.guest-phone-code-btn');
 
     if (countryInput) {
       const countryDropdown = countryInput.parentElement.querySelector('.country-dropdown');
-      AppModules.booking.setupCountrySearch(countryInput, countryDropdown, () => {
-        renderExtraGuests();
-        AppModules.booking.recalc();
-      });
+      AppModules.booking.setupCountrySearch(countryInput, countryDropdown, AppModules.booking.recalc);
     }
 
     if (phoneCodeBtn) {

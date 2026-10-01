@@ -9,9 +9,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/public-reservation.css">
-  <link rel="stylesheet" href="/css/components/date-picker.css">
-  <link rel="stylesheet" href="/css/vendor/flag-icons.min.css">
+  <link rel="stylesheet" href="/css/public-reservation.css?v=public-flow-20261001-2">
+  <link rel="stylesheet" href="/css/components/date-picker.css?v=public-flow-20261001-2">
+  <link rel="stylesheet" href="/css/vendor/flag-icons.min.css?v=public-flow-20261001-2">
 </head>
 <body class="precheckin-page">
   <div class="booking-page">
@@ -46,7 +46,17 @@
 
         <form class="booking-form" id="precheckin-form" novalidate>
           <nav class="pc-progress" id="pc-progress" aria-label="Etapas do pré-check-in"></nav>
-          <div class="flow-mobile-slot" data-flow-mobile></div>
+          <div class="flow-mobile-slot" data-flow-mobile>
+            <div data-flow-controls>
+              <div class="step-error" id="pc-error" role="alert" style="display:none;"></div>
+
+              <div class="form-actions">
+                <button type="button" class="secondary-btn" id="pc-back" hidden>Anterior</button>
+                <button type="button" class="primary-btn" id="pc-next" disabled>Seguinte</button>
+                <button type="submit" class="primary-btn" id="pc-submit" hidden>Enviar pré check-in</button>
+              </div>
+            </div>
+          </div>
           <div class="step-heading">
             <span id="pc-stay" aria-live="polite">A carregar...</span>
             <h2 id="pc-step-title" tabindex="-1">Dados dos hóspedes</h2>
@@ -83,26 +93,18 @@
           </label>
           </section>
 
-          <div data-flow-controls>
-            <div class="step-error" id="pc-error" role="alert" style="display:none;"></div>
-
-            <div class="form-actions">
-              <button type="button" class="secondary-btn" id="pc-back" hidden>Anterior</button>
-              <button type="button" class="primary-btn" id="pc-next" disabled>Seguinte</button>
-              <button type="submit" class="primary-btn" id="pc-submit" hidden>Enviar pré check-in</button>
-            </div>
-          </div>
+          <div data-flow-desktop></div>
         </form>
 
       </section>
     </main>
   </div>
 
-  <script src="/js/domain/modules.js"></script>
-<script src="/js/domain/actions.js"></script>
-  <script src="/js/domain/dates.js"></script>
-  <script src="/js/domain/date-picker.js"></script>
-  <script src="/js/public-flow.js"></script>
-  <script src="/js/pre-checkin.js"></script>
+  <script src="/js/domain/modules.js?v=public-flow-20261001-2"></script>
+<script src="/js/domain/actions.js?v=public-flow-20261001-2"></script>
+  <script src="/js/domain/dates.js?v=public-flow-20261001-2"></script>
+  <script src="/js/domain/date-picker.js?v=public-flow-20261001-2"></script>
+  <script src="/js/public-flow.js?v=public-flow-20261001-2"></script>
+  <script src="/js/pre-checkin.js?v=public-flow-20261001-2"></script>
 </body>
 </html>

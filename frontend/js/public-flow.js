@@ -1,25 +1,39 @@
 // Navegação partilhada pelos formulários públicos.
 (() => {
+  const mobileQuery = '(max-width: 900px)';
+  let scrollTimer;
+  let scrollFrame;
   function setupNavigation() {
     const controls = document.querySelector('[data-flow-controls]');
     const mobileSlot = document.querySelector('[data-flow-mobile]');
     if (!controls || !mobileSlot) return;
-    const desktopSlot = controls.parentElement;
-    const marker = document.createComment('Navegação em desktop');
-    desktopSlot.insertBefore(marker, controls);
-    const mobile = window.matchMedia('(max-width: 900px)');
+    const desktopSlot = document.querySelector('[data-flow-desktop]');
+    if (!desktopSlot) return;
+    const mobile = window.matchMedia(mobileQuery);
     const place = () => {
       if (mobile.matches) mobileSlot.append(controls);
-      else marker.after(controls);
+      else desktopSlot.append(controls);
     };
-    mobile.addEventListener('change', place);
+    if (mobile.addEventListener) mobile.addEventListener('change', place);
+    else mobile.addListener(place);
     place();
   }
 
   function focusStep(heading) {
+    clearTimeout(scrollTimer);
+    cancelAnimationFrame(scrollFrame);
     heading?.setAttribute('tabindex', '-1');
     heading?.focus({ preventScroll: true });
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (!window.matchMedia(mobileQuery).matches) return;
+    const toTop = () => {
+      if (!window.matchMedia(mobileQuery).matches) return;
+      window.scrollTo(0, 0);
+      if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
+    };
+    toTop();
+    scrollFrame = requestAnimationFrame(toTop);
+    // O Safari reajusta o viewport depois de fechar o teclado virtual.
+    scrollTimer = setTimeout(toTop, 300);
   }
 
   function complete(kind, details = {}) {

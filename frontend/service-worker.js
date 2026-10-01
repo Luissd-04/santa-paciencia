@@ -5,7 +5,7 @@
                offline). Cache-first apenas para CDNs (fontes, libs).
 ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'sp-v39';
+const CACHE_NAME = 'sp-v40';
 const CACHE_VERSION = 37;
 const CACHE_PREFIX = 'sp-';
 
@@ -39,6 +39,8 @@ const STATIC_ASSETS = [
   '/css/mobile/paisagem.css',
   '/css/mobile/ajustes.css',
   '/js/public-reservation.js',
+  '/js/public-flow.js',
+  '/js/public-success.js',
   '/js/features/public-reservation/helpers.js',
   '/js/features/public-reservation/landing.js',
   '/js/features/public-reservation/dados-hospedes.js',

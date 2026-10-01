@@ -55,7 +55,7 @@ function validateStep() {
       return false;
     }
 
-    const guestSections = Array.from(document.querySelectorAll('[data-guest-index]'));
+    const guestSections = Array.from(document.querySelectorAll('.extra-guest-box'));
     for (let i = 0; i < guestSections.length; i++) {
       const section = guestSections[i];
       const idx = Number(section.dataset.guestIndex);
@@ -110,7 +110,7 @@ function collectPayload() {
       nationality: AppModules.booking.$('pb-country').value.trim(),
       birth_date: AppModules.booking.iso(AppModules.booking.$('pb-birth').value) || null
     },
-    guests_data: Array.from(document.querySelectorAll('[data-guest-index]')).map(guestSection => {
+    guests_data: Array.from(document.querySelectorAll('.extra-guest-box')).map(guestSection => {
       const fullName = guestSection.querySelector('[data-field="name"]').value.trim();
       const parts = fullName.split(' ');
       const guestPhoneCode = guestSection.querySelector('input[data-field="phone_code"]').value;
