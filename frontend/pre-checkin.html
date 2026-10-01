@@ -46,6 +46,7 @@
 
         <form class="booking-form" id="precheckin-form" novalidate>
           <nav class="pc-progress" id="pc-progress" aria-label="Etapas do pré-check-in"></nav>
+          <div class="flow-mobile-slot" data-flow-mobile></div>
           <div class="step-heading">
             <span id="pc-stay" aria-live="polite">A carregar...</span>
             <h2 id="pc-step-title" tabindex="-1">Dados dos hóspedes</h2>
@@ -82,13 +83,14 @@
           </label>
           </section>
 
-          <div class="success-box" id="pc-success" role="status" tabindex="-1"></div>
-          <div class="step-error" id="pc-error" role="alert" style="display:none;"></div>
+          <div data-flow-controls>
+            <div class="step-error" id="pc-error" role="alert" style="display:none;"></div>
 
-          <div class="form-actions">
-            <button type="button" class="secondary-btn" id="pc-back" hidden>Voltar</button>
-            <button type="button" class="primary-btn" id="pc-next" disabled>Continuar</button>
-            <button type="submit" class="primary-btn" id="pc-submit" hidden>Enviar pré check-in</button>
+            <div class="form-actions">
+              <button type="button" class="secondary-btn" id="pc-back" hidden>Anterior</button>
+              <button type="button" class="primary-btn" id="pc-next" disabled>Seguinte</button>
+              <button type="submit" class="primary-btn" id="pc-submit" hidden>Enviar pré check-in</button>
+            </div>
           </div>
         </form>
 
@@ -100,6 +102,7 @@
 <script src="/js/domain/actions.js"></script>
   <script src="/js/domain/dates.js"></script>
   <script src="/js/domain/date-picker.js"></script>
+  <script src="/js/public-flow.js"></script>
   <script src="/js/pre-checkin.js"></script>
 </body>
 </html>

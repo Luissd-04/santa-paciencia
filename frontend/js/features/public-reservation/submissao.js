@@ -6,25 +6,29 @@ AppModules.define('booking', {
   renderStep: { get: () => renderStep },
 });
 
-function renderStep() {
+function renderStep(focus = false) {
   document.querySelectorAll('.form-step').forEach(step => step.classList.toggle('active', Number(step.dataset.step) === AppModules.booking.state.step));
   document.querySelectorAll('[data-step-dot]').forEach(dot => dot.classList.toggle('active', Number(dot.dataset.stepDot) === AppModules.booking.state.step));
   AppModules.booking.$('prev-btn').style.display = AppModules.booking.state.step > 1 ? '' : 'none';
-  AppModules.booking.$('next-btn').textContent = AppModules.booking.state.step === 3 ? 'Enviar pedido' : 'Continuar';
+  AppModules.booking.$('next-btn').textContent = AppModules.booking.state.step === 3 ? 'Enviar pedido' : 'Seguinte';
   if (AppModules.booking.state.step === 3) AppModules.booking.renderTurnstile();
+  if (focus) AppModules.publicFlow.focusStep(document.querySelector('.form-step.active h2'));
 }
 
 function nextStep() {
+  if (AppModules.booking.$('next-btn').disabled) return;
   if (!validateStep()) return;
   if (AppModules.booking.state.step === 3) return submitReservation();
   AppModules.booking.state.step++;
-  renderStep();
+  renderStep(true);
 }
 
 function prevStep() {
+  if (AppModules.booking.$('prev-btn').disabled) return;
   if (AppModules.booking.state.step > 1) {
+    AppModules.booking.clearStepError();
     AppModules.booking.state.step--;
-    renderStep();
+    renderStep(true);
   }
 }
 
@@ -134,28 +138,27 @@ async function submitReservation() {
   try {
     const payload = collectPayload();
     AppUI.setButtonLoading(btn, true, 'A processar...');
+    AppModules.booking.$('prev-btn').disabled = true;
 
     const result = await AppModules.booking.api(`/api/public/booking/${AppModules.booking.state.slug}/reservations`, {
       method: 'POST',
       body: JSON.stringify(payload)
     });
 
-    AppModules.booking.$('success-box').classList.add('show');
-    AppModules.booking.$('success-box').innerHTML = `
-      <strong>Pedido enviado com sucesso!</strong><br>
-      A reserva ficou pendente de confirmação.<br>
-      <small>Referência: ${result.data.id}</small><br>
-      <small>Total: ${AppModules.booking.fmtCurrency(result.data.total_amount)}</small>
-    `;
-    AppModules.booking.$('next-btn').style.display = 'none';
+    AppModules.publicFlow.complete('reserva', {
+      reference: result.data.id,
+      total: AppModules.booking.fmtCurrency(result.data.total_amount),
+    });
   } catch (err) {
     AppModules.booking.showStepError('Erro ao enviar pedido: ' + err.message);
     AppUI.setButtonLoading(btn, false);
+    AppModules.booking.$('prev-btn').disabled = false;
     AppModules.booking.resetTurnstile();
   }
 }
 
 
+AppModules.publicFlow.setupNavigation();
 AppModules.booking.init();
 
 })();

@@ -411,6 +411,7 @@ function updateGuestStatus(card) {
 }
 function stepForCard(card) { return Number(card.dataset.guest) === 0 ? 0 : 1; }
 function showStep(index, focus = true) {
+  if ($('pc-submit').disabled) return;
   currentStep = index;
   const final = index === steps.length - 1;
   allCards().forEach(card => { card.hidden = final || stepForCard(card) !== index; });
@@ -435,7 +436,7 @@ function showStep(index, focus = true) {
     const card = allCards().find(card => !card.hidden);
     if (card) card.open = true;
   }
-  if (focus) $('pc-step-title').focus();
+  if (focus) AppModules.publicFlow.focusStep($('pc-step-title'));
 }
 function focusInvalid(input) {
   const card = input.closest('.guest-card');
@@ -671,6 +672,7 @@ $('precheckin-form').addEventListener('submit', async event => {
   $('pc-error').style.display = 'none';
   const btn = $('pc-submit');
   btn.disabled = true;
+  $('pc-back').disabled = true;
   btn.textContent = 'A enviar...';
   try {
     const cards = Array.from(document.querySelectorAll('[data-guest]'));
@@ -684,16 +686,13 @@ $('precheckin-form').addEventListener('submit', async event => {
         guests_data: guests.slice(1),
       }),
     });
-    $('pc-success').classList.add('show');
-    $('pc-success').innerHTML = result.data?.resubmission
-      ? '<strong>Alterações guardadas.</strong><br>Obrigado. O alojamento foi avisado dos dados atualizados.'
-      : '<strong>Pré check-in enviado com sucesso!</strong><br>Obrigado. Se precisar de corrigir algum dado, pode voltar a este link até ao dia de chegada.';
-    const submittedAt = reservationData.reservation.precheckin_submitted_at || new Date().toISOString();
-    reservationData.reservation.precheckin_submitted_at = submittedAt;
-    showSubmittedState(submittedAt);
-    $('pc-success').focus();
-    btn.disabled = false;
+    AppModules.publicFlow.complete(result.data?.resubmission ? 'alteracoes' : 'dados', {
+      reference: reservationData.reservation.id,
+      returnPath: location.pathname,
+    });
   } catch (err) {
+    btn.disabled = false;
+    $('pc-back').disabled = false;
     showError(err.message);
     const invalid = (err.fieldErrors || []).map(item => {
       const input = item.guest_index === undefined ? $(item.field === 'arrival_time' ? 'pc-arrival-time' : 'pc-rgpd') : $(`pc-guest-${item.guest_index}-${item.field}`);
@@ -701,11 +700,11 @@ $('precheckin-form').addEventListener('submit', async event => {
       return input;
     }).filter(Boolean);
     if (invalid.length) focusInvalid(invalid[0]);
-    btn.disabled = false;
     btn.textContent = reservationData.reservation.precheckin_submitted_at ? 'Guardar alterações' : 'Enviar pré check-in';
   }
 });
 
+AppModules.publicFlow.setupNavigation();
 setupArrivalTime();
 $('pc-rgpd').addEventListener('change', () => validateField($('pc-rgpd')));
 $('pc-back').addEventListener('click', () => showStep(Math.max(0, currentStep - 1)));

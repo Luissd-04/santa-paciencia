@@ -47,6 +47,7 @@ async function main() {
     viewport: { width: 1280, height: 900 },
     serviceWorkers: 'block',
   });
+  await context.route('https://**/*', route => route.abort());
   const page = await context.newPage();
   page.setDefaultTimeout(10000);
   const pageErrors = [];
@@ -65,10 +66,37 @@ async function main() {
   await page.locator('#pb-checkin').fill('01-02-2035');
   await page.locator('#pb-checkout').fill('03-02-2035');
   await page.locator('#pb-adults').fill('1');
+  await expect(page.locator('#pb-voucher')).toBeHidden();
+  await page.locator('#next-btn').click();
+  await expect(page.locator('[data-step="2"]')).toBeVisible();
+  assert.equal(await page.evaluate(() => scrollY), 0);
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(page.locator('[data-flow-mobile] #next-btn')).toBeVisible();
+  await expect(page.locator('.summary-panel #next-btn')).toHaveCount(0);
+  await page.locator('#next-btn').click();
+  await expect(page.locator('[data-flow-mobile] #step-error')).toBeVisible();
+  await expect(page.locator('[data-step="2"]')).toBeVisible();
+  await page.locator('#pb-name').fill('Hóspede Público');
+  await page.locator('#pb-email').fill('publico@example.invalid');
+  await page.locator('#pb-phone').fill('912345678');
+  await page.locator('#pb-country').fill('Portugal');
+  await page.locator('#next-btn').click();
+  assert.equal(await page.evaluate(() => scrollY), 0);
+  await expect(page.locator('[data-step="3"] #pb-voucher')).toBeVisible();
   await page.locator('#pb-voucher').fill('publico10');
   await page.locator('#pb-voucher-btn').click();
   await expect(page.locator('#pb-voucher-status')).toContainText('10% de desconto');
   await expect(page.locator('#summary-discount')).toContainText('20,00');
+  assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+
+  // Voltar e avançar preserva o voucher e o total.
+  await page.locator('#prev-btn').click();
+  assert.equal(await page.evaluate(() => scrollY), 0);
+  await page.locator('#next-btn').click();
+  await expect(page.locator('#pb-voucher')).toHaveValue('publico10');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(page.locator('.summary-panel #next-btn')).toBeVisible();
+  await page.setViewportSize({ width: 375, height: 812 });
 
   // Alterar o texto invalida imediatamente a validação visual anterior.
   await page.locator('#pb-voucher').fill('OUTRO');
@@ -77,17 +105,26 @@ async function main() {
 
   // O código válido também é enviado sem depender de um segundo clique em Aplicar.
   await page.locator('#pb-voucher').fill('publico10');
-  await page.locator('#next-btn').click();
-  await page.locator('#pb-name').fill('Hóspede Público');
-  await page.locator('#pb-email').fill('publico@example.invalid');
-  await page.locator('#pb-phone').fill('912345678');
-  await page.locator('#pb-country').fill('Portugal');
-  await page.locator('#next-btn').click();
   await page.locator('#pb-rgpd').check();
   await page.evaluate(() => { AppModules.booking.state.pageLoadedAt = Date.now() - 10000; });
+  // Uma falha de gravação mantém os dados e permite repetir o envio.
+  const submitRoute = '**/api/public/booking/casa-teste/reservations';
+  await page.route(submitRoute, route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ success: false, error: 'Falha temporária de teste' }) }));
   await page.locator('#next-btn').click();
-  await expect(page.locator('#success-box')).toContainText('Pedido enviado com sucesso');
-  await expect(page.locator('#success-box')).toContainText('€180,00');
+  await expect(page.locator('#step-error')).toContainText('Falha temporária de teste');
+  await expect(page).toHaveURL(`${base}/reservar/casa-teste`);
+  await expect(page.locator('#next-btn')).toBeEnabled();
+  await expect(page.locator('#prev-btn')).toBeEnabled();
+  await expect(page.locator('#pb-voucher')).toHaveValue('publico10');
+  await page.unroute(submitRoute);
+  await page.locator('#next-btn').click();
+  await expect(page).toHaveURL(`${base}/public-success.html?tipo=reserva`);
+  await expect(page.locator('#confirmation-title')).toContainText('Pedido enviado com sucesso');
+  await expect(page.locator('#confirmation-total')).toContainText('€180,00');
+  await expect(page.locator('#public-booking-form')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('#confirmation-title')).toContainText('Pedido enviado com sucesso');
+  assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
 
   const reservation = db.prepare('SELECT total_amount FROM reservations').get();
   const usage = db.prepare('SELECT COUNT(*) AS total FROM voucher_redemptions WHERE voucher_id = ?').get('public-voucher');

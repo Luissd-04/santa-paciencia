@@ -590,6 +590,28 @@ textarea { resize: vertical; }
   margin-top: 18px;
 }
 
+.flow-mobile-slot { display: none; }
+[data-flow-controls] button { min-height: 48px; }
+[data-flow-controls] button:disabled { opacity: .6; cursor: wait; }
+[data-flow-controls] button:focus-visible,
+.confirmation-return:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
+.voucher-row { margin: 20px 0; }
+.voucher-input-row { display: flex; gap: 8px; }
+.voucher-input-row input { min-width: 0; flex: 1; text-transform: uppercase; font-size: 16px; }
+.voucher-input-row button { min-height: 48px; white-space: nowrap; }
+
+.public-success-page { background: #f2ece5; }
+.public-success-page .booking-hero { color: var(--brand); }
+.confirmation-card { max-width: 600px; padding: clamp(24px, 6vw, 48px); text-align: center; }
+.confirmation-icon { width: 56px; height: 56px; color: #1c6040; }
+.confirmation-card h1 { font-family: "Playfair Display", serif; font-size: clamp(28px, 5vw, 38px); }
+.confirmation-card p { line-height: 1.65; }
+.confirmation-details { margin: 24px 0; text-align: left; }
+.confirmation-details > div { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.confirmation-details dt { color: var(--muted); }
+.confirmation-details dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; min-width: 0; }
+.confirmation-return { display: inline-block; min-height: 48px; margin-top: 16px; line-height: 1.5; text-decoration: none; }
+
 .primary-btn,
 .ghost-btn {
   border: 0;
@@ -882,6 +904,7 @@ textarea { resize: vertical; }
 }
 @media (prefers-reduced-motion: reduce) {
   .precheckin-page *, .precheckin-page *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .booking-card, .form-step.active, .booking-hero { animation: none; }
 }
 
 .pc-time-input {
@@ -991,6 +1014,8 @@ textarea { resize: vertical; }
 }
 
 @media (max-width: 900px) {
+  .flow-mobile-slot { display: block; margin-bottom: 20px; }
+  .flow-mobile-slot .form-actions { margin-top: 0; }
   .booking-page { padding: 24px 14px 36px; }
   .booking-grid { grid-template-columns: 1fr; }
   .summary-panel { position: static; }

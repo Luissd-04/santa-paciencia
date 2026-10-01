@@ -85,11 +85,14 @@ async function main() {
   await page.locator('#pc-back').click();
   await expect(mainCard.locator('[data-field="document_number"]')).toHaveValue('AB12345');
   await page.screenshot({ path: path.join(temp, 'desktop.png'), fullPage: true, animations: 'disabled' });
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 375, height: 812 });
+  await expect(page.locator('[data-flow-mobile] #pc-next')).toBeVisible();
   await page.screenshot({ path: path.join(temp, 'mobile.png'), fullPage: true, animations: 'disabled' });
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await page.locator('#pc-next').click();
   await page.locator('#pc-next').click();
+  assert.equal(await page.evaluate(() => scrollY), 0);
+  await expect(page.locator('[data-flow-mobile] #pc-submit')).toBeVisible();
   await expect(page.locator('#pc-time-presets button')).toHaveCount(6);
   await page.locator('#pc-submit').click();
   await expect(page.locator('#pc-arrival-time')).toBeFocused();
@@ -105,10 +108,15 @@ async function main() {
   await expect(page.locator('#pc-error')).toBeHidden();
   await page.screenshot({ path: path.join(temp, 'confirmacao.png'), fullPage: true, animations: 'disabled' });
   await page.locator('#pc-submit').click();
-  await expect(page.locator('#pc-success')).toContainText('sucesso');
+  await expect(page).toHaveURL(/public-success\.html\?tipo=dados$/);
+  await expect(page.locator('#confirmation-title')).toContainText('Dados guardados com sucesso');
+  await expect(page.locator('#precheckin-form')).toHaveCount(0);
+  await page.screenshot({ path: path.join(temp, 'sucesso.png'), fullPage: true, animations: 'disabled' });
   assert.equal(db.prepare('SELECT arrival_time FROM reservations WHERE id=?').get('res').arrival_time, '17:30');
   assert.equal(db.prepare('SELECT document_number FROM guests WHERE id=?').get('guest').document_number, 'AB12345');
   await page.reload();
+  await expect(page.locator('#confirmation-title')).toContainText('Dados guardados com sucesso');
+  await page.locator('#confirmation-return').click();
   await expect(page.locator('#pc-edit-note')).toContainText('Já enviou');
   await expect(mainCard.locator('[data-field="company"]')).toHaveValue('Empresa de teste');
   await mainCard.locator('.pc-company-toggle').click();
@@ -116,10 +124,11 @@ async function main() {
   await page.locator('#pc-next').click();
   await page.locator('#pc-rgpd').check();
   await page.locator('#pc-submit').click();
-  await expect(page.locator('#pc-success')).toContainText('Alterações guardadas');
+  await expect(page).toHaveURL(/public-success\.html\?tipo=alteracoes$/);
+  await expect(page.locator('#confirmation-title')).toContainText('Alterações guardadas');
   assert.equal(db.prepare('SELECT company FROM guests WHERE id=?').get('guest').company, null);
   assert.equal(db.prepare('SELECT company_nif FROM guests WHERE id=?').get('guest').company_nif, null);
-  await page.reload();
+  await page.locator('#confirmation-return').click();
   await expect(mainCard.locator('[data-field="is_company"]')).not.toBeChecked();
   // Reserva individual: duas etapas e país normalizado a partir do código ISO.
   db.exec("UPDATE reservations SET num_guests=1,num_adults=1,num_children=0,guests_data='[]' WHERE id='res'; UPDATE guests SET nationality='PT' WHERE id='guest'");
