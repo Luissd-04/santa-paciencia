@@ -108,7 +108,16 @@ function bindEvents() {
     AppModules.booking.renderUnits();
     AppModules.booking.recalc();
   });
-  AppModules.booking.$('pb-voucher')?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyVoucher(); } });
+  const voucherInput = AppModules.booking.$('pb-voucher');
+  voucherInput?.addEventListener('input', () => {
+    const typedCode = voucherInput.value.trim().toUpperCase();
+    if (typedCode === AppModules.booking._voucherData?.code) return;
+    AppModules.booking._voucherData = null;
+    const statusEl = AppModules.booking.$('pb-voucher-status');
+    if (statusEl) statusEl.style.display = 'none';
+    AppModules.booking.recalc();
+  });
+  voucherInput?.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyVoucher(); } });
   AppModules.booking.$('next-btn').addEventListener('click', AppModules.booking.nextStep);
   AppModules.booking.$('prev-btn').addEventListener('click', AppModules.booking.prevStep);
 }

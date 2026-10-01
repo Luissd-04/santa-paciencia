@@ -88,7 +88,9 @@ function collectPayload() {
     num_adults: Number(AppModules.booking.$('pb-adults').value) || 1,
     num_children: Number(AppModules.booking.$('pb-children').value) || 0,
     breakfast_included: false,
-    voucher_code: AppModules.booking._voucherData?.code || null,
+    // O servidor volta sempre a validar o código. Enviar o valor escrito evita
+    // perder o voucher quando o hóspede não carrega primeiro em «Aplicar».
+    voucher_code: AppModules.booking.$('pb-voucher')?.value.trim().toUpperCase() || null,
     notes: AppModules.booking.$('pb-notes').value.trim() || null,
     rgpd_consent: AppModules.booking.$('pb-rgpd').checked,
     captcha_token: AppModules.booking._turnstileToken || null,

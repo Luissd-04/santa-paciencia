@@ -7,6 +7,15 @@ const path = require('node:path');
 const frontend = path.resolve(__dirname, '../../../frontend');
 const decodeAttribute = value => value.replace(/&(amp|lt|gt|quot|#039|#39);/g, (_, name) => ({ amp: '&', lt: '<', gt: '>', quot: '"', '#039': "'", '#39': "'" })[name]);
 
+test('página pública carrega scripts locais a partir da raiz', () => {
+  const html = fs.readFileSync(path.join(frontend, 'public-reservation.html'), 'utf8');
+  const localScripts = [...html.matchAll(/<script\s+[^>]*src="([^"]+)"/g)]
+    .map(match => match[1])
+    .filter(src => !/^https?:\/\//.test(src));
+  assert.ok(localScripts.length > 0);
+  assert.deepEqual(localScripts.filter(src => !src.startsWith('/')), []);
+});
+
 test('nome público com aspas permanece texto no botão de eliminar hóspede', () => {
   const elements = new Map();
   const document = { getElementById(id) {
