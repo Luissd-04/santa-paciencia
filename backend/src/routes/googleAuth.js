@@ -7,9 +7,9 @@ const {
   isEmailAuthenticated, getEmailConnectionInfo, GMAIL_SCOPES,
 } = require('../config/googleEmail');
 const {
-  getTasksOAuth2Client, saveTasksTokens, deleteTasksTokens,
+  getTasksOAuth2Client, saveTasksTokens,
   isTasksAuthenticated, getTasksConnectionInfo, TASKS_SCOPES,
-  revokeTasksTokens, deleteAllSyncedTasks,
+  disconnectTasks,
 } = require('../config/googleTasks');
 const requireAuth = require('../middleware/requireAuth');
 const requireRole = require('../middleware/requireRole');
@@ -237,18 +237,13 @@ router.get('/google-tasks/status', requireAuth, requireRole('manager'), (req, re
 });
 
 router.delete('/google-tasks', requireAuth, requireRole('manager'), async (req, res) => {
-  const organizationId = req.user.organization_id;
-  let removed = 0;
-  if (isTasksAuthenticated(organizationId)) {
-    try {
-      removed = await deleteAllSyncedTasks(organizationId);
-    } catch (err) {
-      console.error('Erro ao limpar tarefas antes de desligar o Google Tasks:', { type: err.name, status: err.status || err.response?.status });
-    }
-    await revokeTasksTokens(organizationId);
+  try {
+    const removed = await disconnectTasks(req.user.organization_id);
+    res.json({ success: true, message: `Google Tasks desligado (${removed} tarefas removidas)` });
+  } catch (err) {
+    console.error('Erro ao desligar Google Tasks:', { type: err.name, status: err.status || err.response?.status });
+    res.status(503).json({ success: false, error: err.message });
   }
-  deleteTasksTokens(organizationId);
-  res.json({ success: true, message: `Google Tasks desligado (${removed} tarefas removidas)` });
 });
 
 };

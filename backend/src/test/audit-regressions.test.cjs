@@ -161,11 +161,10 @@ async function main() {
       db.prepare('UPDATE reservations SET check_in=? WHERE id=?').run(row.check_in, row.id);
     }
   });
-  await check('S04: SIBA — documento para crianças estrangeiras, morada opcional', async () => {
+  await check('S04: SIBA — documento para crianças e campos opcionais dispensados', async () => {
     const row = db.prepare('SELECT id, num_guests, num_adults FROM reservations WHERE precheckin_token=?').get(publicToken);
     db.prepare('UPDATE reservations SET num_guests=2, num_adults=1 WHERE id=?').run(row.id);
-    const foreign = extra => ({ nationality: 'Espanha', birth_date: '1990-02-03', birth_city: 'Madrid',
-      birth_country: 'Espanha', city: 'Madrid', residence_country: 'Espanha',
+    const foreign = extra => ({ nationality: 'Espanha', birth_date: '1990-02-03', residence_country: 'Espanha',
       document_type: 'passport', document_number: 'X1', document_issuer_country: 'Espanha', ...extra });
     try {
       const guest = foreign({ name: 'Adulto Estrangeiro', email: 'adulto@example.invalid' });
@@ -173,9 +172,9 @@ async function main() {
       const noChildDoc = await call(publicCtrl.submitPreCheckin, request({ rgpd_consent: true, guest,
         guests_data: [{ ...child, document_type: '', document_number: '' }] }, { token: publicToken }));
       assert.equal(noChildDoc.statusCode, 400);
-      const noAddress = await call(publicCtrl.submitPreCheckin, request({ rgpd_consent: true,
-        guest: { ...guest, address: '' }, guests_data: [child] }, { token: publicToken }));
-      assert.equal(noAddress.statusCode, 200, JSON.stringify(noAddress.body));
+      const withoutOptionalFields = await call(publicCtrl.submitPreCheckin, request({ rgpd_consent: true,
+        guest, guests_data: [child] }, { token: publicToken }));
+      assert.equal(withoutOptionalFields.statusCode, 200, JSON.stringify(withoutOptionalFields.body));
     } finally {
       db.prepare('UPDATE reservations SET num_guests=?, num_adults=? WHERE id=?').run(row.num_guests, row.num_adults, row.id);
     }

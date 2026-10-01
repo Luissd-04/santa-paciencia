@@ -491,9 +491,27 @@ function buildReservationCard(rows, total) {
 
 // ── Documento completo ─────────────────────────────────────────────────────
 
+function normalizeBodyParagraph(bodyHtml) {
+  const html = String(bodyHtml || '');
+  let hasBlock = false;
+  // Usar o parser também nesta decisão: texto com "<" ou HTML escapado não
+  // equivale a uma etiqueta. O corpo já foi sanitizado antes da composição.
+  sanitizeHtml(html, {
+    onOpenTag(tag) {
+      if (/^(?:p|div|h[1-6]|table|ul|ol|li|blockquote|pre|hr|section|article|address|dl|figure)$/.test(tag)) hasBlock = true;
+    },
+  });
+  if (hasBlock || !html.trim()) return html;
+  // Uma linha escrita no contenteditable chega como texto/strong/br, sem
+  // parágrafo. Dar-lhe a mesma cor e estrutura explícitas dos modelos; não
+  // depender só da herança da célula que também possui o fundo bloqueado.
+  return `<p class="sp-text-soft sp-ink" style="font-family:${SERIF};font-size:16px;line-height:1.7;${lockedTextStyle(PALETTE.textSoft)}margin:0 0 14px;">${html}</p>`;
+}
+
 function composeEmail(bodyHtml, settings, options = {}) {
   const s = settings || {};
   const title = escapeHtml(options.title || s.property_name || 'Santa Paciência');
+  bodyHtml = normalizeBodyParagraph(bodyHtml);
   const html = `<!DOCTYPE html>
 <html lang="pt" class="sp-email-root" style="color-scheme:light only;supported-color-schemes:light;">
 <head>

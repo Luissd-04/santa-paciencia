@@ -1,3 +1,4 @@
+const { findUsableVoucher, voucherDiscount: calculateVoucherDiscount, redeemVoucher } = require('../services/voucherService');
 const { findConflict, unavailableUnits, validateExtraUnits } = require('../services/reservationAvailability');
 const { validateReservationInput } = require('../services/reservationValidation');
 const crypto = require('crypto');
@@ -174,22 +175,13 @@ function validatePublicVoucher(req, res) {
   if (!rawCode) return res.status(400).json({ success: false, error: 'Código obrigatório.' });
   if (!/^[A-Z0-9]{3,20}$/.test(rawCode)) return res.status(400).json({ success: false, error: 'Formato de código inválido.' });
 
-  const voucher = db.prepare(`
-    SELECT * FROM vouchers
-    WHERE code = ? AND organization_id = ? AND status = 'active'
-  `).get(rawCode, parent.organization_id);
-  if (!voucher) return res.status(404).json({ success: false, error: 'Voucher inválido ou já utilizado.' });
-
-  const today = new Date().toISOString().slice(0, 10);
-  if (voucher.valid_until && voucher.valid_until < today)
-    return res.status(400).json({ success: false, error: 'Voucher expirado.' });
-  if (voucher.valid_from && voucher.valid_from > today)
-    return res.status(400).json({ success: false, error: 'Voucher ainda não está ativo.' });
-
-  res.json({ success: true, data: {
-    id: voucher.id, code: voucher.code, type: voucher.type, value: voucher.value,
-    description: voucher.description, min_nights: voucher.min_nights, accommodation_id: voucher.accommodation_id
-  }});
+  try {
+    const voucher = findUsableVoucher(parent.organization_id, rawCode);
+    res.json({ success: true, data: {
+      id: voucher.id, code: voucher.code, type: voucher.type, value: voucher.value,
+      description: voucher.description, min_nights: voucher.min_nights, accommodation_id: voucher.accommodation_id
+    }});
+  } catch (err) { res.status(err.status || 500).json({ success: false, error: err.message }); }
 }
 
 function getAvailability(req, res) {
@@ -315,23 +307,13 @@ async function createReservation(req, res, next) {
       if (!/^[A-Z0-9]{3,20}$/.test(vCode)) {
         return res.status(400).json({ success: false, error: 'Formato de código de voucher inválido.' });
       }
-      const voucher = db.prepare(
-        "SELECT * FROM vouchers WHERE code = ? AND organization_id = ? AND status = 'active'"
-      ).get(vCode, parent.organization_id);
-      if (voucher) {
-        const today = new Date().toISOString().slice(0, 10);
-        const dateOk = (!voucher.valid_from || voucher.valid_from <= today) && (!voucher.valid_until || voucher.valid_until >= today);
-        const nightsOk = !voucher.min_nights || totals.nights >= voucher.min_nights;
-        const accomOk = !voucher.accommodation_id || voucher.accommodation_id === unit.id || voucher.accommodation_id === parent.id;
-        if (dateOk && nightsOk && accomOk) {
-          pendingVoucherCode = vCode;
-          voucherDiscount = voucher.type === 'discount_pct'
-            ? totals.totalAmount * (voucher.value / 100)
-            : Math.min(voucher.value, totals.totalAmount);
-        }
-      }
+      const voucher = findUsableVoucher(parent.organization_id, vCode, {
+        nights: totals.nights, accommodation_id: unit.id, parent_id: parent.id,
+      });
+      pendingVoucherCode = vCode;
+      voucherDiscount = calculateVoucherDiscount(voucher, totals.totalAmount);
     }
-    const finalTotal = Math.max(0, totals.totalAmount - voucherDiscount);
+    let finalTotal = Math.max(0, totals.totalAmount - voucherDiscount);
 
     // ID único sem colisão por concorrência
     const reservationId = `SP-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
@@ -353,20 +335,15 @@ async function createReservation(req, res, next) {
         ...cleanGuestData(payload.guest), phone: String(payload.guest.phone || '').slice(0, 40),
       });
 
-      // Validar e marcar voucher atomicamente — re-verifica status dentro da transação
+      // Revalidar capacidade e desconto dentro da mesma transação da reserva.
       let confirmedVoucherId = null;
       if (pendingVoucherCode) {
-        const locked = db.prepare(
-          "SELECT id FROM vouchers WHERE code = ? AND organization_id = ? AND status = 'active'"
-        ).get(pendingVoucherCode, parent.organization_id);
-        if (!locked) {
-          // Outro pedido já usou o voucher entretanto
-          throw Object.assign(new Error('Voucher já foi utilizado por outra reserva.'), { status: 409 });
-        }
+        const locked = findUsableVoucher(parent.organization_id, pendingVoucherCode, {
+          nights: totals.nights, accommodation_id: accommodationId, parent_id: parent.id,
+        });
         confirmedVoucherId = locked.id;
-        db.prepare(
-          "UPDATE vouchers SET status = 'used', used_at = datetime('now'), used_in_reservation_id = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?"
-        ).run(reservationId, confirmedVoucherId, parent.organization_id);
+        voucherDiscount = calculateVoucherDiscount(locked, totals.totalAmount);
+        finalTotal = Math.max(0, totals.totalAmount - voucherDiscount);
       }
 
       // Inserir reserva
@@ -384,6 +361,7 @@ async function createReservation(req, res, next) {
         JSON.stringify(normalizedGuestsData), token, precheckinToken, precheckinExpiresAt, payload.arrival_time || null, JSON.stringify({ name: g.name, email: g.email, phone: g.phone })
       );
 
+      if (confirmedVoucherId) redeemVoucher(parent.organization_id, confirmedVoucherId, reservationId, voucherDiscount);
       return g;
     }).immediate();
 
@@ -529,6 +507,12 @@ function getPreCheckin(req, res) {
     .get(reservation.guest_id, reservation.organization_id)?.total || 0) > 1;
   const snapshot = shared ? parseJson(reservation.guest_snapshot, {}) : {};
   const own = field => (shared ? '' : (reservation[field] || ''));
+  const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?')
+    .get(reservation.accommodation_id, reservation.organization_id);
+  const parentPrivacy = accommodation?.parent_id
+    ? db.prepare('SELECT rgpd_text FROM accommodations WHERE id = ? AND organization_id = ?').get(accommodation.parent_id, reservation.organization_id)?.rgpd_text
+    : '';
+  const privacyText = require('sanitize-html')(accommodation?.rgpd_text || parentPrivacy || '', { allowedTags: [], allowedAttributes: {} });
   res.json({
     success: true,
     data: {
@@ -572,6 +556,7 @@ function getPreCheckin(req, res) {
         company_nif: own('company_nif'),
       },
       guests_data: parseJson(reservation.guests_data, []),
+      privacy_text: privacyText,
     }
   });
 }
@@ -597,6 +582,7 @@ function cleanGuestData(item = {}) {
     postal_code: String(item.postal_code || '').trim().slice(0, 20),
     city: String(item.city || '').trim().slice(0, 120),
     residence_country: String(item.residence_country || '').trim().slice(0, 80),
+    is_company: typeof item.is_company === 'boolean' ? item.is_company : undefined,
     nif: String(item.nif || '').trim().slice(0, 20),
     company: String(item.company || '').trim().slice(0, 160),
     company_nif: String(item.company_nif || '').trim().slice(0, 20),
@@ -619,21 +605,20 @@ function submitPreCheckin(req, res) {
   const allGuests = [mainGuest, ...extraGuests].slice(0, expectedGuests);
   const isPortuguese = g => (g.nationality || '').toLowerCase().trim() === 'portugal';
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  // Campos do boletim do SIBA, exigidos a todos os estrangeiros, menores
-  // incluídos. A morada completa não faz parte do boletim (só a localidade e
-  // o país de residência), por isso é opcional.
-  const missingIndex = allGuests.findIndex((g, idx) => {
-    if (!g.name || !g.nationality) return true;
-    if (idx === 0 && !emailRegex.test(g.email || '')) return true;
-    if (!isPortuguese(g)) {
-      if (!g.birth_date) return true;
-      if (!g.birth_city || !g.birth_country || !g.city || !g.residence_country) return true;
-      if (!g.document_type || !g.document_number || !g.document_issuer_country) return true;
-    }
-    return false;
+  // Campos obrigatórios do boletim do SIBA para estrangeiros, menores
+  // incluídos. Local de nascimento e localidade de residência são opcionais;
+  // país de nascimento, morada e código postal não fazem parte do boletim.
+  const fieldErrors = [];
+  allGuests.forEach((g, idx) => {
+    const required = ['name', 'nationality'];
+    if (!isPortuguese(g)) required.push('birth_date', 'residence_country', 'document_type', 'document_number', 'document_issuer_country');
+    required.forEach(field => {
+      if (!g[field]) fieldErrors.push({ guest_index: idx, field, message: 'Preencha este campo.' });
+    });
+    if (idx === 0 && !emailRegex.test(g.email || '')) fieldErrors.push({ guest_index: idx, field: 'email', message: 'Introduza um email válido.' });
   });
-  if (missingIndex >= 0 || allGuests.length < expectedGuests) {
-    return res.status(400).json({ success: false, error: 'Preencha os dados obrigatórios de todos os hóspedes.' });
+  if (fieldErrors.length || allGuests.length < expectedGuests) {
+    return res.status(400).json({ success: false, error: 'Preencha os dados obrigatórios de todos os hóspedes.', fieldErrors });
   }
   if (!req.body?.rgpd_consent) {
     return res.status(400).json({ success: false, error: 'É necessário aceitar o tratamento dos dados (RGPD).' });

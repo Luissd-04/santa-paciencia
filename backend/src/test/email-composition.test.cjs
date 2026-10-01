@@ -397,6 +397,28 @@ test('baseTemplate das mensagens avulsas usa a mesma moldura dos templates', () 
   }
 });
 
+test('texto simples de Mensagens recebe um parágrafo com a cor dos modelos', () => {
+  for (const body of ['teste', 'Olá <strong>Rui</strong>,<br />até breve &amp; obrigado']) {
+    const { html } = emailService.renderManualEmail({ organizationId: null, subject: 'teste', body, context: null });
+    const content = composer.extractBody(html);
+    assert.match(content, /^<p class="sp-text-soft sp-ink" style="[^"]*color:#5d554c/);
+    assert.match(content, /<span class="sp-gmail-exclusion"><span class="sp-gmail-difference">/);
+    assert.match(content, /<\/p>$/);
+    const textOnly = value => backendRequire('sanitize-html')(value, { allowedTags: [], allowedAttributes: {} });
+    assert.equal(textOnly(content), textOnly(body));
+  }
+});
+
+test('normalização de texto solto conserva parágrafos, listas e cartões existentes', () => {
+  const body = '<p>Parágrafo</p><ul><li>Linha</li></ul><table><tr><td>Cartão</td></tr></table>';
+  const { html } = emailService.renderManualEmail({ organizationId: null, subject: 'teste', body, context: null });
+  const content = composer.extractBody(html);
+  assert.equal((content.match(/<p\b/g) || []).length, 1);
+  assert.match(content, /<ul><li/);
+  assert.match(content, /<table><tr><td>/);
+  assert.doesNotMatch(content, /<p[^>]*>\s*<p/);
+});
+
 test('envio manual de um template transforma os blocos estruturais no servidor', () => {
   const r = reservation('confirmada', { precheckin_token: 'token manual' });
   const rendered = emailService.renderManualEmail({

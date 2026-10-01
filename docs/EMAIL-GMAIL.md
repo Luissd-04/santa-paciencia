@@ -5,6 +5,26 @@ estão corretos, mas a captura de pré-check-in mostra texto claro sobre creme
 e letras escuras no botão terracota. Correção de legibilidade preparada
 localmente; ainda falta validar uma mensagem nova no Gmail do iPhone.
 
+## Mensagens simples versus modelos
+
+O utilizador esclareceu que os previews de teste já estão legíveis no modo
+escuro; a falha permanece no email escrito diretamente no separador Mensagens.
+Foi comparado o email específico «teste» de 27/09 às 18:22 com o preview:
+o MIME conserva o doctype e o mesmo CSS, incluindo as camadas de mistura.
+O corpo da mensagem simples, porém, é texto solto diretamente na célula;
+os modelos usam parágrafos com a cor explícita.
+
+A composição agora envolve corpos constituídos apenas por texto e elementos
+inline num parágrafo com a mesma tipografia e cor dos modelos. Parágrafos,
+listas e tabelas existentes não são envolvidos nem reestruturados. Esta é
+uma correção direcionada à diferença observada no HTML, não uma confirmação
+da causa no motor do Gmail. A proteção global dos previews foi conservada.
+
+Validação local: 169 testes e análise estática passaram. As amostras incluem
+o texto solto real do editor e uma mensagem com negrito/quebra de linha.
+Continua a faltar validar uma mensagem nova no Gmail do iPhone em modo escuro;
+uma simulação no browser não substitui esse teste. Alteração ainda por publicar.
+
 ## Logótipo carregado e preview
 
 ### Imagem ausente no email recebido

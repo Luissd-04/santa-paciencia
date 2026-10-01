@@ -1,7 +1,7 @@
 const { db } = require('../config/database');
 const { syncReservationOperationalTasks } = require('./operationalTasksService');
 const { deleteCalendarEvent } = require('./calendarService');
-const { processAllQueuedTaskDeletions } = require('../config/googleTasks');
+const { processAllQueuedTaskDeletions, syncEnabledOrganizationsToGoogleTasks } = require('../config/googleTasks');
 
 // TTL em horas para reservas vindas do motor público (canal != 'direto') que
 // nunca pagaram. Configurável via env.
@@ -59,6 +59,16 @@ function expirePendingReservations() {
 }
 
 let timer = null;
+let tasksTimer = null;
+let tasksSyncRunning = false;
+const TASKS_SYNC_INTERVAL_MS = Math.max(10000, Number(process.env.GOOGLE_TASKS_SYNC_INTERVAL_MS) || 60000);
+async function reconcileGoogleTasks() {
+  if (tasksSyncRunning) return;
+  tasksSyncRunning = true;
+  try { await syncEnabledOrganizationsToGoogleTasks(); }
+  catch (err) { console.error('Erro na reconciliação do Google Tasks:', err.message); }
+  finally { tasksSyncRunning = false; }
+}
 
 function retryPendingGoogleTaskDeletions() {
   processAllQueuedTaskDeletions()
@@ -76,12 +86,16 @@ function runMaintenance() {
 function startScheduler() {
   if (timer) return;
   runMaintenance();
+  reconcileGoogleTasks();
+  tasksTimer = setInterval(reconcileGoogleTasks, TASKS_SYNC_INTERVAL_MS);
+  if (typeof tasksTimer.unref === 'function') tasksTimer.unref();
   timer = setInterval(runMaintenance, SCHEDULER_INTERVAL_MS);
   if (typeof timer.unref === 'function') timer.unref();
   console.log(`⏰ Reservation scheduler ativo (TTL ${PENDING_TTL_HOURS}h, cada ${Math.round(SCHEDULER_INTERVAL_MS / 60000)}min)`);
 }
 
 function stopScheduler() {
+  if (tasksTimer) { clearInterval(tasksTimer); tasksTimer = null; }
   if (timer) {
     clearInterval(timer);
     timer = null;
@@ -91,6 +105,8 @@ function stopScheduler() {
 module.exports = {
   expirePendingReservations,
   retryPendingGoogleTaskDeletions,
+  reconcileGoogleTasks,
+  TASKS_SYNC_INTERVAL_MS,
   startScheduler,
   stopScheduler,
   PENDING_TTL_HOURS,

@@ -49,6 +49,15 @@ function savePrecheckin(reservation, guest, extraGuests, arrivalTime) {
     }
     if (!isolated) throw new Error('Não foi possível guardar a ficha do hóspede.');
 
+    // Desligar explicitamente a faturação a empresa deve persistir no reenvio.
+    // Pedidos antigos, sem esta escolha, conservam os dados do backoffice.
+    if (guest.is_company === false) {
+      db.prepare('UPDATE guests SET company = NULL, company_nif = NULL WHERE id = ? AND organization_id = ?')
+        .run(isolated.id, reservation.organization_id);
+      isolated.company = null;
+      isolated.company_nif = null;
+    }
+
     db.prepare(`UPDATE reservations SET guest_id = ?, guest_snapshot = ?, guests_data = ?,
       arrival_time = ?, status = CASE WHEN status = 'pre_checkin' THEN 'aguardar_pagamento' ELSE status END, updated_at = datetime('now')
       WHERE id = ? AND organization_id = ?`)

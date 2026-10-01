@@ -118,7 +118,7 @@ const FEATURE_MODULES = {
     scripts: ['js/relatorios.js'],
   },
   vouchers: {
-    // Cada voucher usado abre a ficha da reserva onde foi aplicado.
+    // O histórico de utilizações abre as fichas das reservas associadas.
     deps: ['reservas'],
     scripts: ['js/vouchers.js'],
   },

@@ -10,6 +10,9 @@ AppModules.define('vouchers', {
 
 let vouchersData = [];
 let voucherEditingId = null;
+let voucherHistoryId = null;
+let voucherHistoryPage = 1;
+let voucherHistoryRequest = 0;
 
 const VOUCHER_TYPE_LABELS = {
   discount_pct:   { label: 'Percentagem',         icon: 'percent',       color: '#4f8f6b' },
@@ -19,7 +22,7 @@ const VOUCHER_TYPE_LABELS = {
 
 const VOUCHER_STATUS_LABELS = {
   active:    { label: 'Ativo',      class: 'badge-green'  },
-  used:      { label: 'Utilizado',  class: 'badge-cinza'  },
+  used:      { label: 'Esgotado',  class: 'badge-cinza'  },
   expired:   { label: 'Expirado',   class: 'badge-orange' },
   cancelled: { label: 'Cancelado',  class: 'badge-red'    },
 };
@@ -37,6 +40,7 @@ async function loadVouchers() {
 
 function getVoucherStatus(v) {
   if (v.status !== 'active') return v.status;
+  if (Number(v.used_count || 0) >= Number(v.max_uses || 1)) return 'used';
   const today = new Date().toISOString().slice(0, 10);
   if (v.valid_until && v.valid_until < today) return 'expired';
   return 'active';
@@ -99,10 +103,11 @@ function renderVouchersList() {
       <td style="font-weight:700;font-size:15px;">${formatVoucherValue(v)}</td>
       <td style="font-size:12px;color:var(--cinza);">${validRange}</td>
       <td><span class="badge ${statusInfo.class}">${statusInfo.label}</span>${expiryWarning}</td>
-      <td style="font-size:12px;">${v.used_in_reservation_id ? `<button class="btn btn-ghost btn-xs" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;" ${AppActions.attrs("click", "vouchers-show-detail-3d67b14", [String((v.used_in_reservation_id) ?? '')])}><i data-lucide="external-link" style="width:12px;height:12px;"></i> Ver reserva</button>` : '<span style="color:var(--cinza);">—</span>'}</td>
+      <td class="voucher-usage">${Number(v.used_count || 0)} / ${Number(v.max_uses || 1)}</td>
+      <td style="font-size:12px;">${Number(v.used_count || 0) > 0 ? `<button class="btn btn-ghost btn-xs" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;" ${AppActions.attrs("click", "vouchers-open-history", [String((v.id) ?? '')])}><i data-lucide="external-link" style="width:12px;height:12px;"></i> Ver reservas</button>` : '<span style="color:var(--cinza);">—</span>'}</td>
       <td>
         <div style="display:flex;gap:6px;">
-          ${status === 'active' ? `<button class="btn btn-ghost btn-xs" ${AppActions.attrs("click", "vouchers-open-voucher-modal-36eda97", [String((v.id) ?? '')])}><i data-lucide="pencil" style="width:13px;height:13px;"></i></button>` : ''}
+          ${status !== 'cancelled' ? `<button class="btn btn-ghost btn-xs" ${AppActions.attrs("click", "vouchers-open-voucher-modal-36eda97", [String((v.id) ?? '')])}><i data-lucide="pencil" style="width:13px;height:13px;"></i></button>` : ''}
           <button class="btn btn-ghost btn-xs" ${AppActions.attrs("click", "vouchers-delete-voucher-55d18ca", [String((v.id) ?? '')])}><i data-lucide="trash-2" style="width:13px;height:13px;"></i></button>
         </div>
       </td>
@@ -136,10 +141,11 @@ function renderVouchersList() {
           <div class="vmc-value">${formatVoucherValue(v)}</div>
         </div>
         ${v.description ? `<div class="vmc-desc">${AppModules.core.escapeHtml(v.description)}</div>` : ''}
+        <div class="voucher-usage">Utilizações: ${Number(v.used_count || 0)} / ${Number(v.max_uses || 1)}</div>
         ${validRange ? `<div class="vmc-validity"><i data-lucide="calendar"></i> ${validRange}</div>` : ''}
-        ${v.used_in_reservation_id ? `<button class="vmc-res" style="background:none;border:0;padding:0;cursor:pointer;color:var(--marca);font:inherit;display:inline-flex;align-items:center;gap:4px;" ${AppActions.attrs("click", "vouchers-show-detail-3d67b14", [String((v.used_in_reservation_id) ?? '')])}><i data-lucide="external-link"></i> Ver reserva</button>` : ''}
+        ${Number(v.used_count || 0) > 0 ? `<button class="vmc-res" style="background:none;border:0;padding:0;cursor:pointer;color:var(--marca);font:inherit;display:inline-flex;align-items:center;gap:4px;" ${AppActions.attrs("click", "vouchers-open-history", [String((v.id) ?? '')])}><i data-lucide="external-link"></i> Ver reservas</button>` : ''}
         <div class="vmc-actions">
-          ${status === 'active' ? `<button class="vmc-btn" ${AppActions.attrs("click", "vouchers-open-voucher-modal-36eda97", [String((v.id) ?? '')])}><i data-lucide="pencil"></i> Editar</button>` : ''}
+          ${status !== 'cancelled' ? `<button class="vmc-btn" ${AppActions.attrs("click", "vouchers-open-voucher-modal-36eda97", [String((v.id) ?? '')])}><i data-lucide="pencil"></i> Editar</button>` : ''}
           <button class="vmc-btn vmc-btn-danger" ${AppActions.attrs("click", "vouchers-delete-voucher-55d18ca", [String((v.id) ?? '')])}><i data-lucide="trash-2"></i> Eliminar</button>
         </div>
       </div>`;
@@ -151,13 +157,14 @@ function renderVouchersList() {
         <table class="table vouchers-table">
           <thead>
             <tr>
-              <th style="width:22%;">Código</th>
-              <th style="width:12%;">Tipo</th>
-              <th style="width:10%;">Valor</th>
-              <th style="width:16%;">Validade</th>
-              <th style="width:15%;">Estado</th>
-              <th style="width:17%;">Reserva</th>
-              <th style="width:8%;"></th>
+              <th>Código</th>
+              <th>Tipo</th>
+              <th>Valor</th>
+              <th>Validade</th>
+              <th>Estado</th>
+              <th>Utilizações</th>
+              <th>Reservas</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -214,6 +221,13 @@ function openVoucherModal(id = null) {
   document.getElementById('v-valid-from').value  = v?.valid_from  || '';
   document.getElementById('v-valid-until').value = v?.valid_until || '';
   document.getElementById('v-min-nights').value  = v?.min_nights  ?? 1;
+  document.getElementById('v-max-uses').value = v?.max_uses ?? 1;
+  document.getElementById('v-max-uses').min = Math.max(1, Number(v?.used_count || 0));
+  document.getElementById('v-max-uses').removeAttribute('aria-invalid');
+  document.getElementById('v-max-uses-error').textContent = '';
+  document.getElementById('v-max-uses-help').textContent = v?.used_count
+    ? `${v.used_count} utilizações já registadas. O limite não pode ser inferior a este número.`
+    : 'Número máximo de reservas que podem usar este voucher. Cada reserva conta uma vez.';
   document.getElementById('v-notes').value       = v?.notes       || '';
   populateVoucherAccommodations();
   document.getElementById('v-accommodation').value = v?.accommodation_id || '';
@@ -237,10 +251,25 @@ async function saveVoucher() {
     return;
   }
 
+  const maxUsesInput = document.getElementById('v-max-uses');
+  const maxUses = Number(maxUsesInput.value);
+  const usedCount = vouchersData.find(v => v.id === voucherEditingId)?.used_count || 0;
+  if (!Number.isSafeInteger(maxUses) || maxUses < Math.max(1, usedCount)) {
+    document.getElementById('v-max-uses-error').textContent = usedCount
+      ? `Introduz um número inteiro igual ou superior a ${usedCount}.`
+      : 'Introduz um número inteiro igual ou superior a 1.';
+    maxUsesInput.setAttribute('aria-invalid', 'true');
+    maxUsesInput.focus();
+    return;
+  }
+  maxUsesInput.removeAttribute('aria-invalid');
+  document.getElementById('v-max-uses-error').textContent = '';
+
   const body = {
     code:             document.getElementById('v-code').value.trim() || undefined,
     type,
     value,
+    max_uses: maxUses,
     description:      document.getElementById('v-description').value.trim() || null,
     valid_from:       document.getElementById('v-valid-from').value  || null,
     valid_until:      document.getElementById('v-valid-until').value || null,
@@ -270,8 +299,8 @@ async function saveVoucher() {
 async function deleteVoucher(id) {
   const v = vouchersData.find(x => x.id === id);
   if (!v) return;
-  const msg = getVoucherStatus(v) === 'used'
-    ? `⚠️ O voucher "${v.code}" já foi usado numa reserva. Eliminar mesmo assim?`
+  const msg = Number(v.used_count || 0) > 0
+    ? `O voucher "${v.code}" já tem ${v.used_count} utilizações. Eliminar o voucher e o respetivo histórico?`
     : `Eliminar voucher "${v.code}"?`;
   if (!confirm(msg)) return;
   try {
@@ -283,12 +312,65 @@ async function deleteVoucher(id) {
   }
 }
 
+function closeVoucherHistory() {
+  voucherHistoryRequest++;
+  voucherHistoryId = null;
+  AppUI.closeModal('voucher-history-modal-bg');
+}
+
+async function openVoucherHistory(id, page = 1) {
+  voucherHistoryId = id;
+  voucherHistoryPage = page;
+  const request = ++voucherHistoryRequest;
+  const list = document.getElementById('voucher-history-list');
+  document.getElementById('voucher-history-title').textContent = 'Reservas do voucher';
+  document.getElementById('voucher-history-summary').textContent = '';
+  document.getElementById('voucher-history-page').textContent = '';
+  document.getElementById('voucher-history-prev').disabled = true;
+  document.getElementById('voucher-history-next').disabled = true;
+  list.textContent = 'A carregar reservas…';
+  AppUI.openModal('voucher-history-modal-bg');
+  try {
+    const result = await AppModules.core.apiGet(`/api/vouchers/${encodeURIComponent(id)}/reservations?page=${page}`);
+    if (request !== voucherHistoryRequest) return;
+    const voucher = result.voucher;
+    page = result.pagination.page;
+    voucherHistoryPage = page;
+    const escape = AppModules.core.escapeHtml;
+    document.getElementById('voucher-history-title').textContent = `Reservas · ${voucher.code}`;
+    document.getElementById('voucher-history-summary').textContent = `${voucher.used_count} de ${voucher.max_uses} utilizações. Reservas canceladas ou eliminadas continuam no histórico.`;
+    list.innerHTML = result.data.length ? result.data.map(row => `
+      <article class="voucher-history-item">
+        <div class="voucher-history-info">
+          <strong>${escape(row.guest_name || (row.reservation_reference ? 'Reserva eliminada' : 'Utilização anterior'))}</strong>
+          <span>${escape(row.reservation_reference || 'Sem reserva associada')}</span>
+          ${row.reservation_id ? `<span>${escape(row.accommodation_name || '')} · ${escape(AppModules.core.formatDate(row.check_in))} → ${escape(AppModules.core.formatDate(row.check_out))}</span>
+            <span>${escape(row.status || '')}</span>` : ''}
+          <span>Utilizado em ${escape(AppModules.core.formatDate((row.used_at || '').slice(0, 10)))}</span>
+        </div>
+        ${row.reservation_id ? `<button class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'vouchers-open-used-reservation', [row.reservation_id])}>Ver reserva <i data-lucide="arrow-up-right"></i></button>` : ''}
+      </article>`).join('') : '<p>Ainda não há reservas associadas a este voucher.</p>';
+    document.getElementById('voucher-history-prev').disabled = page <= 1;
+    document.getElementById('voucher-history-next').disabled = page >= result.pagination.totalPages;
+    document.getElementById('voucher-history-page').textContent = `${page} / ${result.pagination.totalPages}`;
+    if (window.lucide) lucide.createIcons();
+  } catch (err) {
+    if (request !== voucherHistoryRequest) return;
+    list.textContent = err?.payload?.error || 'Não foi possível carregar as reservas. Fecha esta janela e tenta novamente.';
+  }
+}
+
 AppActions.register({
   "vouchers-open-voucher-modal-d7741bd": (el, event, args) => { openVoucherModal() },
 }, "click");
 
 AppActions.register({
-  "vouchers-show-detail-3d67b14": (el, event, args) => { AppModules.reservas.showDetail(args[0]) },
+  "vouchers-open-history": (el, event, args) => { openVoucherHistory(args[0]) },
+  "vouchers-close-history": () => { closeVoucherHistory() },
+  "vouchers-history-backdrop": (el, event) => { if (event.target === el) closeVoucherHistory() },
+  "vouchers-history-prev": () => { openVoucherHistory(voucherHistoryId, voucherHistoryPage - 1) },
+  "vouchers-history-next": () => { openVoucherHistory(voucherHistoryId, voucherHistoryPage + 1) },
+  "vouchers-open-used-reservation": (el, event, args) => { closeVoucherHistory(); AppModules.reservas.showDetail(args[0]) },
   "vouchers-open-voucher-modal-36eda97": (el, event, args) => { openVoucherModal(args[0]) },
   "vouchers-copy-voucher-code-37fe980": (el, event, args) => { copyVoucherCode(args[0]) },
   "vouchers-delete-voucher-55d18ca": (el, event, args) => { deleteVoucher(args[0]) },
@@ -298,6 +380,7 @@ AppActions.register({
 AppModules.onReset('vouchers.js', () => {
   vouchersData = [];
   voucherEditingId = null;
+  closeVoucherHistory();
 });
 
 })();

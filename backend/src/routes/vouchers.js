@@ -7,6 +7,7 @@ router.get('/validate', ctrl.validate);
 router.get('/', ctrl.getAll);
 router.post('/', ctrl.create);
 router.put('/:id', ctrl.update);
+router.get('/:id/reservations', ctrl.getReservations);
 router.post('/:id/apply', ctrl.apply);
 router.delete('/:id', ctrl.remove);
 

@@ -1,3 +1,4 @@
+const { findUsableVoucher, voucherDiscount: calculateVoucherDiscount, redeemVoucher } = require('../services/voucherService');
 const { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } = require('../services/calendarService');
 const { sendConfirmationEmail, sendCancellationEmail, sendPaymentConfirmationEmail } = require('../services/emailService');
 const { recordConsent } = require('../services/rgpdService');
@@ -14,7 +15,7 @@ const { findBlockConflict } = require('../services/accommodationBlockService');
 const { notifyOrganization } = require('../services/pushService');
 const { recordHistory, diffReservationFields } = require('../services/reservationHistoryService');
 
-const { safeJson, computeStandardTotals, upsertAdditionalGuests, getOrganizationServices, syncReservationTasksToGoogle } = require('../services/reservationSupport');
+const { safeJson, computeStandardTotals, upsertAdditionalGuests, getOrganizationServices } = require('../services/reservationSupport');
 
 async function create(req, res, next) {
   try {
@@ -145,20 +146,11 @@ async function create(req, res, next) {
     let voucherDiscount = 0;
     let appliedVoucherId = null;
     if (voucher_code) {
-      const vCode = String(voucher_code).toUpperCase().trim();
-      const voucher = db.prepare(
-        "SELECT * FROM vouchers WHERE code = ? AND organization_id = ? AND status = 'active'"
-      ).get(vCode, organizationId);
-      if (voucher) {
-        const today = new Date().toISOString().slice(0, 10);
-        const dateOk = (!voucher.valid_from || voucher.valid_from <= today) && (!voucher.valid_until || voucher.valid_until >= today);
-        if (dateOk) {
-          appliedVoucherId = voucher.id;
-          voucherDiscount = voucher.type === 'discount_pct'
-            ? totals.totalAmount * (voucher.value / 100)
-            : Math.min(voucher.value, totals.totalAmount);
-        }
-      }
+      const voucher = findUsableVoucher(organizationId, voucher_code, {
+        nights: totals.nights, accommodation_id, parent_id: accommodation.parent_id,
+      });
+      appliedVoucherId = voucher.id;
+      voucherDiscount = calculateVoucherDiscount(voucher, totals.totalAmount);
     }
     const voucherAdjusted = Math.max(0, totals.totalAmount - voucherDiscount);
     const finalTotal = manualTotalCreate !== undefined ? Number(manualTotalCreate) : voucherAdjusted;
@@ -202,11 +194,7 @@ async function create(req, res, next) {
       priceEdited ? new Date().toISOString() : null,
       priceEdited ? req.user.id : null, initialStatus, JSON.stringify(extraUnits)
     );
-    if (appliedVoucherId) {
-      db.prepare(
-        "UPDATE vouchers SET status = 'used', used_at = datetime('now'), used_in_reservation_id = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?"
-      ).run(reservationId, appliedVoucherId, organizationId);
-    }
+    if (appliedVoucherId) redeemVoucher(organizationId, appliedVoucherId, reservationId, voucherDiscount);
 
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservationId, organizationId);
     ensureLegacyPayment(reservation);
@@ -224,7 +212,6 @@ async function create(req, res, next) {
     }).immediate();
 
     // Google Calendar (async, não bloqueia resposta)
-    syncReservationTasksToGoogle(reservationId, organizationId, req.user.id);
     createCalendarEvent(reservation, { userId: req.user.id, organizationId }).then(eventId => {
       if (eventId) {
         db.prepare('UPDATE reservations SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ? AND organization_id = ?')
@@ -480,9 +467,6 @@ async function update(req, res, next) {
 
       return { updated, accommodation, organizationId, cancelling, nextPaymentStatus, existing };
     }).immediate();
-
-    // Google Calendar tarefas (async)
-    syncReservationTasksToGoogle(req.params.id, organizationId, req.user.id);
 
     // Google Calendar: cancelar remove o evento (paridade com o DELETE)
     if (cancelling) {

@@ -117,7 +117,7 @@ function ensurePrecheckinToken(reservation) {
 // chamados à parte) não passa por aqui — continua sempre automática.
 function syncReservationTasksToGoogle(reservationId, organizationId, userId) {
   const tasks = db.prepare(
-    "SELECT * FROM operational_events WHERE reservation_id = ? AND organization_id = ? AND auto_generated = 1 AND status != 'concluido'"
+    "SELECT * FROM operational_events WHERE reservation_id = ? AND organization_id = ? AND auto_generated = 1"
   ).all(reservationId, organizationId);
   if (!tasks.length) return;
   syncOperationalEventsToGoogle(tasks, { userId, organizationId })

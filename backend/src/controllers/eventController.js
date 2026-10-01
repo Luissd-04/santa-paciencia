@@ -6,7 +6,7 @@ const {
   syncOrganizationOperationalTasks,
 } = require('../services/operationalTasksService');
 const { deleteTaskCalendarEvent, syncOperationalEventsToGoogle } = require('../services/calendarService');
-const { deleteSyncedTask } = require('../config/googleTasks');
+const { queueSyncedTaskDeletion, processQueuedTaskDeletions, suppressAutoTask } = require('../config/googleTasks');
 const { listEvents } = require('../services/listQueries');
 
 // Sincroniza um evento operacional com o Google Calendar e/ou o Google Tasks — ver
@@ -123,14 +123,18 @@ function remove(req, res) {
   const orgId = req.user.organization_id;
   const existing = db.prepare('SELECT * FROM operational_events WHERE id = ? AND organization_id = ?').get(req.params.id, orgId);
   if (!existing) return res.status(404).json({ error: 'Evento não encontrado' });
-  db.prepare('DELETE FROM operational_events WHERE id = ? AND organization_id = ?').run(req.params.id, orgId);
+  db.transaction(() => {
+    suppressAutoTask(existing);
+    queueSyncedTaskDeletion(orgId, existing.google_task_id);
+    db.prepare('DELETE FROM operational_events WHERE id = ? AND organization_id = ?').run(req.params.id, orgId);
+  })();
   res.json({ success: true });
   if (existing.google_event_id) {
     deleteTaskCalendarEvent(existing, { userId: existing.google_calendar_user_id, organizationId: orgId })
       .catch(err => console.error('Erro ao remover evento de tarefa do Google Calendar:', err.message));
   }
   if (existing.google_task_id) {
-    deleteSyncedTask(orgId, existing.google_task_id)
+    processQueuedTaskDeletions(orgId)
       .catch(err => console.error('Erro ao remover tarefa do Google Tasks:', err.message));
   }
 }
@@ -146,7 +150,7 @@ function getSettings(req, res) {
 function saveSettings(req, res) {
   try {
     const settings = saveAutoTaskSettings(req.user.organization_id, req.body || {});
-    syncOrganizationOperationalTasks(req.user.organization_id);
+    syncOrganizationOperationalTasks(req.user.organization_id, req.user.id);
     res.json({ success: true, data: settings });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message || 'Erro ao guardar definições.' });

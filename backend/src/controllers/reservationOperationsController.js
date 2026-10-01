@@ -1,5 +1,6 @@
 const { db } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
+const { syncOperationalEventsToGoogle } = require('../services/calendarService');
 const { recordHistory } = require('../services/reservationHistoryService');
 const { getOccupancyStats, occupancyRate, firstOfMonth: firstDayOfMonth } = require('../services/occupancyStats');
 
@@ -156,6 +157,9 @@ function setTaskStatus(req, res, next) {
       meta: { kind, done },
     });
 
+    const task = findReservationTask(orgId, r.id, kind, date);
+    if (task) syncOperationalEventsToGoogle([task], { userId: req.user.id, organizationId: orgId })
+      .catch(err => console.error('Erro ao sincronizar estado da tarefa:', err.message));
     res.json({ success: true, data: getReservationTaskStatus(orgId, r) });
   } catch (err) {
     next(err);

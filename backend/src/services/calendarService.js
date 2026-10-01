@@ -494,7 +494,6 @@ function getOrgSyncSetting(organizationId, key) {
 // definições.
 async function syncOperationalEventsToGoogle(tasks, { userId, organizationId }) {
   const list = Array.isArray(tasks) ? tasks.filter(Boolean) : [tasks].filter(Boolean);
-  if (!list.length) return { calendarCreated: 0, calendarUpdated: 0, calendarErrors: 0 };
 
   let calendarCreated = 0, calendarUpdated = 0, calendarErrors = 0;
 
@@ -521,13 +520,20 @@ async function syncOperationalEventsToGoogle(tasks, { userId, organizationId }) 
     }
   }
 
-  if (getOrgSyncSetting(organizationId, GCAL_SYNC_TASKS_KEY)) {
-    if (isTasksAuthenticated(organizationId)) {
-      syncOrganizationTasksToGoogleTasks(organizationId).catch(err => console.error('Erro ao sincronizar com o Google Tasks:', err.message));
+  let tasksCreated = 0, tasksUpdated = 0, tasksErrors = 0;
+  if (getOrgSyncSetting(organizationId, GCAL_SYNC_TASKS_KEY) && isTasksAuthenticated(organizationId)) {
+    try {
+      const result = await syncOrganizationTasksToGoogleTasks(organizationId);
+      tasksCreated = result.created;
+      tasksUpdated = result.updated;
+      tasksErrors = result.errors;
+    } catch (err) {
+      tasksErrors++;
+      console.error('Erro ao sincronizar com o Google Tasks:', err.message);
     }
   }
 
-  return { calendarCreated, calendarUpdated, calendarErrors };
+  return { calendarCreated, calendarUpdated, calendarErrors, tasksCreated, tasksUpdated, tasksErrors };
 }
 
 module.exports = {

@@ -512,6 +512,8 @@ async function disconnectGoogleTasks() {
     if (data.success) {
       AppModules.core.toast('Google Tasks desligado.', 'info');
       await loadGoogleTasksStatus();
+    } else {
+      AppModules.core.toast(data.error || 'Erro ao desligar Google Tasks.', 'error');
     }
   } catch {
     AppModules.core.toast('❌ Erro ao desligar.', 'error');
@@ -525,7 +527,7 @@ async function syncGoogleTasks() {
     const res = await AppModules.core.apiPost('/api/tasks/sync', {});
     if (res.success) {
       const d = res.data;
-      AppModules.core.toast(`✅ Tasks sincronizadas: ${d.created} criadas, ${d.updated} atualizadas${d.errors ? ', ' + d.errors + ' erros' : ''}.`, 'success');
+      AppModules.core.toast(`✅ Tasks sincronizadas: ${d.created} criadas, ${d.updated} atualizadas, ${d.imported || 0} alterações recebidas, ${d.deleted || 0} apagadas${d.errors ? ', ' + d.errors + ' erros' : ''}.`, 'success');
       await loadGoogleTasksStatus();
     } else {
       AppModules.core.toast('❌ ' + (res.error || 'Erro ao sincronizar.'), 'error');

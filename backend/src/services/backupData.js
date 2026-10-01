@@ -5,7 +5,7 @@ const { accommodationUrls, uploadPath } = require('./mediaStorage');
 // Ordem das dependências; deletes usam a ordem inversa, numa única transação.
 const TABLES = ['organization_settings', 'organization_email_templates', 'accommodations',
   'pricing_periods', 'accommodation_blocks', 'suppliers', 'vouchers', 'guests', 'expenses',
-  'reservations', 'reservation_payments', 'reservation_history', 'operational_events',
+  'reservations', 'voucher_redemptions', 'reservation_payments', 'reservation_history', 'operational_events',
   'invoice_messages', 'conversation_archives', 'organization_email_log', 'organization_email_queue'];
 const REFERENCES = { parent_id: 'accommodations', accommodation_id: 'accommodations',
   guest_id: 'guests', reservation_id: 'reservations', used_in_reservation_id: 'reservations',
@@ -18,19 +18,33 @@ function uploadUrls(tables) {
 }
 
 function exportData(organizationId) {
-  return db.transaction(() => ({ version: 4, scope: 'client-data', exported_at: new Date().toISOString(),
+  return db.transaction(() => ({ version: 5, scope: 'client-data', exported_at: new Date().toISOString(),
     tables: Object.fromEntries(TABLES.map(table => [table,
       db.prepare(`SELECT * FROM ${table} WHERE organization_id = ?`).all(organizationId)])) }))();
 }
 
 function prepareImport(payload, organizationId) {
-  if (![3, 4].includes(payload.version) || !payload.tables || Array.isArray(payload.tables)) throw new Error('Versão ou estrutura de backup inválida.');
+  if (![3, 4, 5].includes(payload.version) || !payload.tables || Array.isArray(payload.tables)) throw new Error('Versão ou estrutura de backup inválida.');
   if (Object.keys(payload.tables).some(table => !TABLES.includes(table))) throw new Error('Backup contém tabelas não permitidas.');
+  // Backups anteriores só tinham uma referência por voucher. Reconstruir esse
+  // registo sem perder utilizações cujo original já tenha sido eliminado.
+  if (payload.version < 5 && !Object.hasOwn(payload.tables, 'voucher_redemptions')) {
+    const reservations = new Set((payload.tables.reservations || []).map(row => row.id));
+    const vouchers = (payload.tables.vouchers || []).map(row => ({ ...row,
+      used_in_reservation_id: reservations.has(row.used_in_reservation_id) ? row.used_in_reservation_id : null,
+    }));
+    const redemptions = (payload.tables.vouchers || []).filter(row => row.status === 'used' || row.used_at || row.used_in_reservation_id)
+      .map(row => ({ id: randomUUID(), organization_id: organizationId, voucher_id: row.id,
+        reservation_id: reservations.has(row.used_in_reservation_id) ? row.used_in_reservation_id : null,
+        reservation_reference: row.used_in_reservation_id || null,
+        used_at: row.used_at || row.updated_at || row.created_at || new Date().toISOString(), discount_amount: null }));
+    payload = { ...payload, tables: { ...payload.tables, vouchers, voucher_redemptions: redemptions } };
+  }
   const tables = {};
   const maps = Object.fromEntries(TABLES.map(table => [table, new Map()]));
   for (const table of TABLES) {
     if (!Object.hasOwn(payload.tables, table)) {
-      if (payload.version === 4 || db.prepare(`SELECT 1 FROM ${table} WHERE organization_id = ? LIMIT 1`).get(organizationId)) {
+      if (payload.version >= 4 || db.prepare(`SELECT 1 FROM ${table} WHERE organization_id = ? LIMIT 1`).get(organizationId)) {
         throw new Error(`O backup não contém ${table}; restauro recusado para evitar perda de dados.`);
       }
     }
@@ -67,6 +81,9 @@ function prepareImport(payload, organizationId) {
         const member = db.prepare('SELECT 1 FROM memberships WHERE organization_id = ? AND user_id = ? AND active = 1').get(organizationId, row[key]);
         if (!member) row[key] = null;
       }
+    }
+    if (table === 'voucher_redemptions' && row.reservation_reference) {
+      row.reservation_reference = maps.reservations.get(row.reservation_reference) || row.reservation_reference;
     }
     if (table === 'reservations') {
       const units = JSON.parse(row.accommodations_data || '[]');

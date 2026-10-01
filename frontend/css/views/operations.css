@@ -840,9 +840,9 @@ body.tl-is-panning * {
   padding: 8px 22px 22px;
 }
 
-/* Colunas com proporções fixas — não se espalham pelo monitor todo */
+/* A largura acompanha os botões e a contagem de utilizações. */
 .vouchers-table {
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .vouchers-table tbody td {
@@ -1694,3 +1694,30 @@ body.tl-is-panning * {
     background: var(--surface-card-strong);
   }
 }
+
+/* Utilizações e reservas associadas a um voucher. */
+.voucher-usage { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.voucher-mobile-card .voucher-usage { margin: 8px 0; }
+.voucher-history-summary { color: var(--cinza); margin-bottom: 16px; line-height: 1.5; }
+.voucher-history-item { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--cinza-claro); }
+.voucher-history-item:last-child { border-bottom: 0; }
+.voucher-history-info { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.voucher-history-info span { color: var(--cinza); font-size: 13px; }
+.voucher-history-item .btn { flex-shrink: 0; min-height: 44px; }
+.voucher-history-footer { flex-wrap: wrap; align-items: center; }
+.voucher-history-footer .btn { min-height: 44px; }
+#v-max-uses-help { color: var(--cinza); line-height: 1.5; }
+@media (max-width: 600px) {
+  .voucher-history-item { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .voucher-mobile-card .vmc-res { min-height: 44px; }
+}
+#voucher-modal-bg,
+#voucher-history-modal-bg { z-index: 400; }
+#voucher-modal-bg .modal,
+#voucher-history-modal-bg .modal { display: flex; flex-direction: column; max-height: 92dvh; overflow: hidden; }
+#voucher-modal-bg .modal-body,
+#voucher-history-modal-bg .modal-body { min-height: 0; overflow-y: auto; }
+#voucher-modal-bg .modal-header,
+#voucher-modal-bg .modal-footer,
+#voucher-history-modal-bg .modal-header,
+#voucher-history-modal-bg .modal-footer { flex-shrink: 0; }

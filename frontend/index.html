@@ -427,69 +427,6 @@
       </div>
 
       <!-- Voucher Modal -->
-      <!-- Fora de #view-vouchers: data-feature diz que só abre com o módulo. -->
-      <div class="modal-bg" id="voucher-modal-bg" data-feature="vouchers" data-on-click="index-if-a56dfb4">
-        <div class="modal" style="max-width:520px;">
-          <div class="modal-header">
-            <h2 class="modal-title" id="voucher-modal-title">Novo Voucher</h2>
-            <button class="modal-close" data-on-click="index-close-voucher-modal-6443b3b"><i data-lucide="x"></i></button>
-          </div>
-          <div class="modal-body">
-            <div class="form-grid">
-              <div class="form-group">
-                <label class="form-label">Código</label>
-                <input class="form-control" id="v-code" type="text" placeholder="Gerado automaticamente" style="text-transform:uppercase;" autocomplete="off">
-                <small style="color:var(--cinza);font-size:11px;">Deixa em branco para gerar automaticamente</small>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Tipo <span class="req-star">*</span></label>
-                <select class="form-control" id="v-type" data-on-change="index-update-voucher-value-label-5b6b115">
-                  <option value="discount_pct">Desconto percentual (%)</option>
-                  <option value="discount_fixed">Desconto fixo (€)</option>
-                  <option value="credit_stay">Crédito de estadia (€)</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label" id="v-value-label">Valor (%) <span class="req-star">*</span></label>
-                <input class="form-control" id="v-value" type="number" min="0.01" step="0.01" placeholder="Ex: 10" autocomplete="off">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Descrição</label>
-                <input class="form-control" id="v-description" type="text" placeholder="Ex: Voucher de Natal 2025" autocomplete="off">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Válido a partir de</label>
-                <input class="form-control" id="v-valid-from" type="date" autocomplete="off">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Válido até</label>
-                <input class="form-control" id="v-valid-until" type="date" autocomplete="off">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Mínimo de noites</label>
-                <input class="form-control" id="v-min-nights" type="number" min="1" value="1" autocomplete="off">
-              </div>
-              <div class="form-group">
-                <label class="form-label">Alojamento (opcional)</label>
-                <select class="form-control" id="v-accommodation">
-                  <option value="">Todos os alojamentos</option>
-                </select>
-              </div>
-              <div class="form-group form-full">
-                <label class="form-label">Notas internas</label>
-                <textarea class="form-control" id="v-notes" rows="2" placeholder="Notas para uso interno..."></textarea>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-ghost" data-on-click="index-close-voucher-modal-6443b3b">Cancelar</button>
-            <button class="btn btn-primary" id="v-save-btn" data-on-click="index-save-voucher-fb5708f">
-              <i data-lucide="save"></i> Guardar
-            </button>
-          </div>
-        </div>
-      </div>
-
       <!-- ══ PREÇOS DINÂMICOS ══ -->
       <div class="view" id="view-precos">
       </div>
@@ -1248,6 +1185,94 @@
     </div>
   </form>
 </div>
+
+      <!-- Modais ao nível da página, acima da navegação fixa. -->
+      <div class="modal-bg" id="voucher-modal-bg" data-feature="vouchers" data-on-click="index-if-a56dfb4">
+        <div class="modal" style="max-width:520px;">
+          <div class="modal-header">
+            <h2 class="modal-title" id="voucher-modal-title">Novo Voucher</h2>
+            <button class="modal-close" data-on-click="index-close-voucher-modal-6443b3b"><i data-lucide="x"></i></button>
+          </div>
+          <div class="modal-body">
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Código</label>
+                <input class="form-control" id="v-code" type="text" placeholder="Gerado automaticamente" style="text-transform:uppercase;" autocomplete="off">
+                <small style="color:var(--cinza);font-size:11px;">Deixa em branco para gerar automaticamente</small>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Tipo <span class="req-star">*</span></label>
+                <select class="form-control" id="v-type" data-on-change="index-update-voucher-value-label-5b6b115">
+                  <option value="discount_pct">Desconto percentual (%)</option>
+                  <option value="discount_fixed">Desconto fixo (€)</option>
+                  <option value="credit_stay">Crédito de estadia (€)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" id="v-value-label">Valor (%) <span class="req-star">*</span></label>
+                <input class="form-control" id="v-value" type="number" min="0.01" step="0.01" placeholder="Ex: 10" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Descrição</label>
+                <input class="form-control" id="v-description" type="text" placeholder="Ex: Voucher de Natal 2025" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Válido a partir de</label>
+                <input class="form-control" id="v-valid-from" type="date" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Válido até</label>
+                <input class="form-control" id="v-valid-until" type="date" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Mínimo de noites</label>
+                <input class="form-control" id="v-min-nights" type="number" min="1" value="1" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Alojamento (opcional)</label>
+                <select class="form-control" id="v-accommodation">
+                  <option value="">Todos os alojamentos</option>
+                </select>
+              </div>
+              <div class="form-group form-full">
+                <label class="form-label" for="v-max-uses">Limite de utilizações <span class="req-star">*</span></label>
+                <input class="form-control" id="v-max-uses" type="number" min="1" step="1" value="1" required inputmode="numeric" aria-describedby="v-max-uses-help v-max-uses-error">
+                <small id="v-max-uses-help">Número máximo de reservas que podem usar este voucher. Cada reserva conta uma vez.</small>
+                <small id="v-max-uses-error" role="alert" style="color:var(--vermelho);"></small>
+              </div>
+              <div class="form-group form-full">
+                <label class="form-label">Notas internas</label>
+                <textarea class="form-control" id="v-notes" rows="2" placeholder="Notas para uso interno..."></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" data-on-click="index-close-voucher-modal-6443b3b">Cancelar</button>
+            <button class="btn btn-primary" id="v-save-btn" data-on-click="index-save-voucher-fb5708f">
+              <i data-lucide="save"></i> Guardar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-bg" id="voucher-history-modal-bg" data-feature="vouchers" data-on-click="vouchers-history-backdrop">
+        <div class="modal" style="max-width:640px;">
+          <div class="modal-header">
+            <h2 class="modal-title" id="voucher-history-title">Reservas do voucher</h2>
+            <button class="modal-close" aria-label="Fechar lista de reservas" data-on-click="vouchers-close-history"><i data-lucide="x"></i></button>
+          </div>
+          <div class="modal-body">
+            <p id="voucher-history-summary" class="voucher-history-summary"></p>
+            <div id="voucher-history-list" aria-live="polite"></div>
+          </div>
+          <div class="modal-footer voucher-history-footer">
+            <button class="btn btn-ghost" id="voucher-history-prev" data-on-click="vouchers-history-prev" disabled>Anterior</button>
+            <span id="voucher-history-page"></span>
+            <button class="btn btn-ghost" id="voucher-history-next" data-on-click="vouchers-history-next" disabled>Seguinte</button>
+            <button class="btn btn-primary" data-on-click="vouchers-close-history">Fechar</button>
+          </div>
+        </div>
+      </div>
 
 <!-- Sessões ativas -->
 <div id="sessions-modal" class="modal-bg" data-on-click="index-if-370b5e1">

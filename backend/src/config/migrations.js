@@ -43,6 +43,8 @@ function runMigrations(db) {
   migrateListIndexes(db);
   migrateAuthScheduler(db);
   migrateGoogleTaskCleanupQueue(db);
+  migrateGoogleTaskBidirectional(db);
+  migrateVoucherRedemptions(db);
 }
 function migrateAuthScheduler(db) {
   const id = '20260919_auth_scheduler';
@@ -77,6 +79,93 @@ function migrateGoogleTaskCleanupQueue(db) {
     );
     CREATE INDEX idx_google_task_cleanup_created
       ON google_task_cleanup_queue(organization_id, created_at);`);
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+function migrateGoogleTaskBidirectional(db) {
+  const id = '20261001_google_task_bidirectional';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`ALTER TABLE operational_events ADD COLUMN auto_source_snapshot TEXT;
+      UPDATE operational_events SET auto_source_snapshot = json_object(
+        'title', title, 'type', type, 'date', date, 'start_time', start_time,
+        'end_time', end_time, 'accommodation_id', accommodation_id, 'notes', notes, 'important', important)
+        WHERE auto_generated = 1;
+      CREATE TABLE google_task_sync_state (
+        event_id TEXT PRIMARY KEY REFERENCES operational_events(id) ON DELETE CASCADE,
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        google_task_id TEXT NOT NULL,
+        tasks_list_id TEXT NOT NULL,
+        local_payload TEXT NOT NULL,
+        remote_payload TEXT NOT NULL
+      );
+      CREATE TABLE auto_task_suppressions (
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        reservation_id TEXT NOT NULL REFERENCES reservations(id) ON DELETE CASCADE,
+        auto_key TEXT NOT NULL,
+        PRIMARY KEY (organization_id, auto_key)
+      );
+      CREATE TRIGGER operational_event_google_task_cleanup BEFORE DELETE ON operational_events
+      WHEN OLD.google_task_id IS NOT NULL
+        AND EXISTS (SELECT 1 FROM organizations WHERE id = OLD.organization_id)
+      BEGIN
+        INSERT OR IGNORE INTO google_task_cleanup_queue (organization_id, google_task_id)
+          VALUES (OLD.organization_id, OLD.google_task_id);
+      END;
+      CREATE TRIGGER reservation_operational_event_cleanup BEFORE DELETE ON reservations
+      BEGIN
+        DELETE FROM operational_events WHERE reservation_id = OLD.id AND organization_id = OLD.organization_id;
+      END;`);
+    // Guardar a base antes da primeira edição após o upgrade. Permite distinguir
+    // uma edição local pendente de uma mudança feita no Google na primeira leitura.
+    const { taskPayload, remotePayload } = require('./googleTaskMapping');
+    const rows = db.prepare(`SELECT e.*, a.name AS accommodation_name, c.tasks_list_id
+      FROM operational_events e JOIN google_tasks_connections c ON c.organization_id = e.organization_id
+      LEFT JOIN accommodations a ON a.id = e.accommodation_id AND a.organization_id = e.organization_id
+      WHERE e.google_task_id IS NOT NULL AND c.tasks_list_id IS NOT NULL`).all();
+    const insert = db.prepare(`INSERT INTO google_task_sync_state
+      (event_id, organization_id, google_task_id, tasks_list_id, local_payload, remote_payload)
+      VALUES (?, ?, ?, ?, ?, ?)`);
+    for (const row of rows) {
+      const local = remotePayload(taskPayload(row));
+      const oldNotes = [row.notes || '', row.responsible ? `Responsável: ${row.responsible}` : '',
+        row.start_time ? `Hora: ${row.start_time}${row.end_time ? '–' + row.end_time : ''}` : '',
+        row.status !== 'planeado' ? `Estado: ${row.status}` : ''].filter(Boolean).join('\n');
+      insert.run(row.id, row.organization_id, row.google_task_id, row.tasks_list_id,
+        JSON.stringify(local), JSON.stringify({ ...local, notes: oldNotes }));
+    }
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+function migrateVoucherRedemptions(db) {
+  const id = '20261001_voucher_redemptions';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`ALTER TABLE vouchers ADD COLUMN max_uses INTEGER NOT NULL DEFAULT 1 CHECK (max_uses >= 1);
+      CREATE TABLE voucher_redemptions (
+        id TEXT PRIMARY KEY,
+        organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+        voucher_id TEXT NOT NULL REFERENCES vouchers(id) ON DELETE CASCADE,
+        reservation_id TEXT REFERENCES reservations(id) ON DELETE SET NULL,
+        reservation_reference TEXT,
+        discount_amount REAL,
+        used_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (voucher_id, reservation_reference)
+      );
+      CREATE INDEX idx_voucher_redemptions_org_voucher ON voucher_redemptions(organization_id, voucher_id, used_at);
+      INSERT INTO voucher_redemptions (id, organization_id, voucher_id, reservation_id, reservation_reference, used_at)
+        SELECT 'legacy-' || v.id, v.organization_id, v.id, r.id, v.used_in_reservation_id,
+          COALESCE(v.used_at, v.updated_at, v.created_at, datetime('now'))
+        FROM vouchers v LEFT JOIN reservations r ON r.id = v.used_in_reservation_id AND r.organization_id = v.organization_id
+        WHERE v.status = 'used' OR v.used_at IS NOT NULL OR v.used_in_reservation_id IS NOT NULL;
+      UPDATE vouchers SET status = 'used' WHERE status = 'active' AND id IN (SELECT voucher_id FROM voucher_redemptions);
+      UPDATE vouchers SET used_in_reservation_id = NULL WHERE used_in_reservation_id IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM reservations r WHERE r.id = vouchers.used_in_reservation_id AND r.organization_id = vouchers.organization_id);
+      CREATE TRIGGER reservation_clear_legacy_voucher AFTER DELETE ON reservations
+      BEGIN
+        UPDATE vouchers SET used_in_reservation_id = NULL
+          WHERE used_in_reservation_id = OLD.id AND organization_id = OLD.organization_id;
+      END;`);
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }

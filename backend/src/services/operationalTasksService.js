@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
-const { deleteTaskCalendarEvent } = require('./calendarService');
+const { deleteTaskCalendarEvent, syncOperationalEventsToGoogle } = require('./calendarService');
 const { queueSyncedTaskDeletion, processQueuedTaskDeletions } = require('../config/googleTasks');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -142,8 +142,8 @@ function getInsertTaskStmt() {
       INSERT OR IGNORE INTO operational_events (
         id, organization_id, title, type, date, start_time, end_time, accommodation_id,
         status, responsible, notes, reservation_id, created_by_user_id, completed_at,
-        auto_generated, auto_kind, auto_key, important
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'planeado', NULL, ?, ?, ?, NULL, 1, ?, ?, ?)
+        auto_generated, auto_kind, auto_key, important, auto_source_snapshot
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'planeado', NULL, ?, ?, ?, NULL, 1, ?, ?, ?, ?)
     `);
   }
   return insertTaskStmt;
@@ -155,12 +155,13 @@ function getInsertTaskStmt() {
 const syncReservationTx = db.transaction((reservation, userId = null) => {
   const orgId = reservation.organization_id;
   const settings = getAutoTaskSettings(orgId);
-  const desired = buildReservationTasks(reservation, settings);
+  const suppressed = new Set(db.prepare(`SELECT auto_key FROM auto_task_suppressions
+    WHERE organization_id = ? AND reservation_id = ?`).all(orgId, reservation.id).map(row => row.auto_key));
+  const desired = buildReservationTasks(reservation, settings).filter(task => !suppressed.has(task.auto_key));
   const desiredKeys = new Set(desired.map(t => t.auto_key));
 
   const existingRows = db.prepare(`
-    SELECT id, auto_key, status, accommodation_id, google_event_id, google_calendar_user_id, google_task_id
-    FROM operational_events
+    SELECT * FROM operational_events
     WHERE organization_id = ? AND reservation_id = ? AND auto_generated = 1
   `).all(orgId, reservation.id);
   const byKey = new Map(existingRows.map(r => [r.auto_key, r]));
@@ -197,21 +198,23 @@ const syncReservationTx = db.transaction((reservation, userId = null) => {
   const updStmt = db.prepare(`
     UPDATE operational_events
     SET title = ?, type = ?, date = ?, start_time = ?, end_time = ?,
-        accommodation_id = ?, notes = ?, important = ?, updated_at = datetime('now')
+        accommodation_id = ?, notes = ?, important = ?, auto_source_snapshot = ?, updated_at = datetime('now')
     WHERE id = ? AND organization_id = ?
   `);
   for (const task of desired) {
     const existing = byKey.get(task.auto_key);
     if (existing) {
+      const baseline = safeJson(existing.auto_source_snapshot, {});
+      const value = key => existing[key] === baseline[key] ? task[key] : existing[key];
       updStmt.run(
-        task.title, task.type, task.date, task.start_time, task.end_time,
-        task.accommodation_id, task.notes, task.important, existing.id, orgId
+        value('title'), value('type'), value('date'), value('start_time'), value('end_time'),
+        value('accommodation_id'), value('notes'), value('important'), JSON.stringify(task), existing.id, orgId
       );
     } else {
       getInsertTaskStmt().run(
         uuidv4(), task.organization_id, task.title, task.type, task.date,
         task.start_time, task.end_time, task.accommodation_id, task.notes,
-        task.reservation_id, userId, task.kind, task.auto_key, task.important
+        task.reservation_id, userId, task.kind, task.auto_key, task.important, JSON.stringify(task)
       );
     }
   }
@@ -248,14 +251,24 @@ function flushReservationTaskCleanup(organizationId) {
   return processQueuedTaskDeletions(organizationId);
 }
 
+// Adiar a leitura até a transação exterior terminar (create/update de reservas).
+function scheduleOperationalSync(organizationId, userId = null, reservationId = null) {
+  Promise.resolve().then(() => {
+    const tasks = db.prepare(`SELECT * FROM operational_events WHERE organization_id = ?
+      AND (? IS NULL OR reservation_id = ?)`).all(organizationId, reservationId, reservationId);
+    return syncOperationalEventsToGoogle(tasks, { userId, organizationId });
+  }).catch(err => console.error('Erro ao sincronizar tarefas operacionais:', err.message));
+}
+
 function syncReservationOperationalTasks(reservation, userId = null) {
   if (!reservation?.id || !reservation.organization_id) return;
   const { orphanedCalendarEvents, orphanedTasks } = syncReservationTx(reservation, userId);
   deleteOrphanedCalendarEvents(orphanedCalendarEvents);
   deleteOrphanedTasks(reservation.organization_id, orphanedTasks);
+  scheduleOperationalSync(reservation.organization_id, userId, reservation.id);
 }
 
-function syncOrganizationOperationalTasks(organizationId) {
+function syncOrganizationOperationalTasks(organizationId, userId = null) {
   const reservations = db.prepare(`
     SELECT r.*, g.name AS guest_name, a.name AS accommodation_name
     FROM reservations r
@@ -276,6 +289,7 @@ function syncOrganizationOperationalTasks(organizationId) {
   tx(reservations);
   deleteOrphanedCalendarEvents(orphanedCalendarEvents);
   deleteOrphanedTasks(organizationId, orphanedTasks);
+  scheduleOperationalSync(organizationId, userId);
 }
 
 module.exports = {

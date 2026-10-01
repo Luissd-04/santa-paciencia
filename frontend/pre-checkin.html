@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="/css/components/date-picker.css">
   <link rel="stylesheet" href="/css/vendor/flag-icons.min.css">
 </head>
-<body>
+<body class="precheckin-page">
   <div class="booking-page">
     <div class="ambient-bg" id="pc-bg"></div>
     <div class="ambient-overlay"></div>
@@ -44,39 +44,51 @@
           </div>
         </div>
 
-        <form class="booking-form" id="precheckin-form">
+        <form class="booking-form" id="precheckin-form" novalidate>
+          <nav class="pc-progress" id="pc-progress" aria-label="Etapas do pré-check-in"></nav>
           <div class="step-heading">
-            <span id="pc-stay">A carregar...</span>
-            <h2>Dados dos hóspedes</h2>
+            <span id="pc-stay" aria-live="polite">A carregar...</span>
+            <h2 id="pc-step-title" tabindex="-1">Dados dos hóspedes</h2>
           </div>
 
           <p class="pc-edit-note" id="pc-edit-note" hidden></p>
 
           <div id="pc-guests"></div>
 
+          <section id="pc-final" hidden>
           <div class="pc-arrival-panel">
             <div class="step-heading" style="margin-bottom:14px;">
               <span>Chegada</span>
               <h2>Hora prevista de check-in</h2>
             </div>
-            <label>
+            <p id="pc-official-time" class="pc-help"></p>
+            <div class="pc-time-presets" id="pc-time-presets" role="group" aria-label="Sugestões de hora de chegada"></div>
+            <button type="button" class="pc-text-button" id="pc-other-time">Outra hora</button>
+            <label id="pc-custom-time" hidden>
               <span>Hora prevista *</span>
               <input id="pc-arrival-time" class="pc-time-input" type="text" inputmode="numeric" maxlength="5" placeholder="14:30" required autocomplete="off">
             </label>
             <p class="pc-time-hint" id="pc-time-hint" hidden></p>
-            <div class="pc-time-presets" id="pc-time-presets"></div>
           </div>
 
-          <label style="display:flex;align-items:flex-start;gap:10px;margin:18px 0 4px;font-size:13.5px;">
-            <input type="checkbox" id="pc-rgpd" required style="width:auto;margin:2px 0 0;">
+          <p class="pc-help">Os dados do documento de identificação são pedidos apenas aos hóspedes estrangeiros para comunicação ao SIBA.</p>
+          <details class="pc-privacy" id="pc-privacy">
+            <summary>Informação de privacidade</summary>
+            <p id="pc-privacy-text">Estes dados são usados pelo alojamento para preparar e registar a estadia, faturar e cumprir as obrigações legais. Para esclarecer o tratamento dos seus dados ou pedir uma correção, contacte o alojamento.</p>
+          </details>
+          <label class="pc-consent">
+            <input type="checkbox" id="pc-rgpd" required>
             <span>Autorizo o tratamento destes dados para efeitos de registo da estadia, faturação e cumprimento das obrigações legais do alojamento local (RGPD).</span>
           </label>
+          </section>
 
-          <div class="success-box" id="pc-success"></div>
-          <div class="step-error" id="pc-error" style="display:none;"></div>
+          <div class="success-box" id="pc-success" role="status" tabindex="-1"></div>
+          <div class="step-error" id="pc-error" role="alert" style="display:none;"></div>
 
           <div class="form-actions">
-            <button type="submit" class="primary-btn" id="pc-submit">Enviar pré check-in</button>
+            <button type="button" class="secondary-btn" id="pc-back" hidden>Voltar</button>
+            <button type="button" class="primary-btn" id="pc-next" disabled>Continuar</button>
+            <button type="submit" class="primary-btn" id="pc-submit" hidden>Enviar pré check-in</button>
           </div>
         </form>
 

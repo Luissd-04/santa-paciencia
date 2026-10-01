@@ -1,5 +1,6 @@
 const { db } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
+const { USAGE_COUNT_SQL, getVoucher, validateLimit, findUsableVoucher, redeemVoucher } = require('../services/voucherService');
 
 const VOUCHER_TYPES = ['discount_pct', 'discount_fixed', 'credit_stay'];
 
@@ -15,7 +16,7 @@ function generateCode(accommodationName = null) {
 
 function getAll(req, res) {
   const vouchers = db.prepare(`
-    SELECT v.*, a.name as accommodation_name
+    SELECT v.*, ${USAGE_COUNT_SQL} AS used_count, a.name as accommodation_name
     FROM vouchers v
     LEFT JOIN accommodations a ON a.id = v.accommodation_id AND a.organization_id = v.organization_id
     WHERE v.organization_id = ?
@@ -28,24 +29,31 @@ function validate(req, res) {
   const { code } = req.query;
   if (!code) return res.status(400).json({ error: 'Código obrigatório' });
 
-  const voucher = db.prepare(`
-    SELECT v.*, a.name as accommodation_name
-    FROM vouchers v
-    LEFT JOIN accommodations a ON a.id = v.accommodation_id AND a.organization_id = v.organization_id
-    WHERE v.code = ? AND v.organization_id = ? AND v.status = 'active'
-  `).get(code.toUpperCase().trim(), req.user.organization_id);
+  try {
+    const voucher = findUsableVoucher(req.user.organization_id, code);
+    res.json({ success: true, data: voucher });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+}
 
-  if (!voucher) return res.status(404).json({ error: 'Voucher inválido ou já utilizado' });
-
-  const today = new Date().toISOString().slice(0, 10);
-  if (voucher.valid_until && voucher.valid_until < today) {
-    return res.status(400).json({ error: 'Voucher expirado' });
-  }
-  if (voucher.valid_from && voucher.valid_from > today) {
-    return res.status(400).json({ error: 'Voucher ainda não está ativo' });
-  }
-
-  res.json({ success: true, data: voucher });
+function getReservations(req, res) {
+  const voucher = getVoucher(req.user.organization_id, req.params.id);
+  if (!voucher) return res.status(404).json({ error: 'Voucher não encontrado' });
+  const requestedPage = Number(req.query.page ?? 1);
+  if (!Number.isSafeInteger(requestedPage) || requestedPage < 1) return res.status(400).json({ error: 'Página inválida.' });
+  const limit = 25;
+  const page = Math.min(requestedPage, Math.max(1, Math.ceil(voucher.used_count / limit)));
+  const rows = db.prepare(`SELECT vr.id, vr.used_at, vr.discount_amount, vr.reservation_reference,
+      r.id AS reservation_id, r.check_in, r.check_out, r.status, r.total_amount,
+      g.name AS guest_name, a.name AS accommodation_name
+    FROM voucher_redemptions vr
+    LEFT JOIN reservations r ON r.id = vr.reservation_id AND r.organization_id = vr.organization_id
+    LEFT JOIN guests g ON g.id = r.guest_id AND g.organization_id = vr.organization_id
+    LEFT JOIN accommodations a ON a.id = r.accommodation_id AND a.organization_id = vr.organization_id
+    WHERE vr.voucher_id = ? AND vr.organization_id = ?
+    ORDER BY vr.used_at DESC, vr.id DESC LIMIT ? OFFSET ?`)
+    .all(voucher.id, req.user.organization_id, limit, (page - 1) * limit);
+  res.json({ success: true, data: rows, voucher,
+    pagination: { page, total: voucher.used_count, totalPages: Math.max(1, Math.ceil(voucher.used_count / limit)) } });
 }
 
 function create(req, res) {
@@ -59,6 +67,9 @@ function create(req, res) {
     return res.status(400).json({ error: 'Desconto percentual não pode exceder 100%' });
   }
 
+  let maxUses;
+  try { maxUses = validateLimit(req.body.max_uses); }
+  catch (err) { return res.status(400).json({ error: err.message }); }
   let acc = null;
   if (accommodation_id) {
     acc = db.prepare('SELECT id, name FROM accommodations WHERE id = ? AND organization_id = ?').get(accommodation_id, req.user.organization_id);
@@ -82,21 +93,25 @@ function create(req, res) {
 
   const id = uuidv4().slice(0, 8);
   db.prepare(`
-    INSERT INTO vouchers (id, organization_id, code, type, value, description, valid_from, valid_until, min_nights, accommodation_id, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO vouchers (id, organization_id, code, type, value, description, valid_from, valid_until, min_nights, accommodation_id, notes, max_uses)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, req.user.organization_id, voucherCode, type,
     parsedValue, description || null,
     valid_from || null, valid_until || null,
     min_nights ? parseInt(min_nights) : 1,
-    accommodation_id || null, notes || null
+    accommodation_id || null, notes || null, maxUses
   );
 
-  res.status(201).json({ success: true, data: db.prepare('SELECT * FROM vouchers WHERE id = ? AND organization_id = ?').get(id, req.user.organization_id) });
+  res.status(201).json({ success: true, data: getVoucher(req.user.organization_id, id) });
 }
 
 function update(req, res) {
-  const existing = db.prepare('SELECT * FROM vouchers WHERE id = ? AND organization_id = ?').get(req.params.id, req.user.organization_id);
+  return db.transaction(() => updateInTransaction(req, res)).immediate();
+}
+
+function updateInTransaction(req, res) {
+  const existing = getVoucher(req.user.organization_id, req.params.id);
   if (!existing) return res.status(404).json({ error: 'Voucher não encontrado' });
 
   const { type, value, description, valid_from, valid_until, min_nights, accommodation_id, notes, status } = req.body;
@@ -108,6 +123,18 @@ function update(req, res) {
     if (!pv || pv <= 0) return res.status(400).json({ error: 'O valor deve ser maior que 0' });
   }
 
+  let maxUses;
+  try { maxUses = validateLimit(req.body.max_uses !== undefined ? req.body.max_uses : existing.max_uses, existing.used_count); }
+  catch (err) { return res.status(400).json({ error: err.message }); }
+  if (status !== undefined && !['active', 'used', 'expired', 'cancelled'].includes(status)) {
+    return res.status(400).json({ error: 'Estado inválido.' });
+  }
+  const requestedStatus = status ?? existing.status;
+  const nextStatus = ['active', 'used'].includes(requestedStatus)
+    ? (existing.used_count >= maxUses ? 'used' : 'active') : requestedStatus;
+  if (accommodation_id && !db.prepare('SELECT 1 FROM accommodations WHERE id=? AND organization_id=?').get(accommodation_id, req.user.organization_id)) {
+    return res.status(400).json({ error: 'Alojamento não encontrado.' });
+  }
   // Padrão único: se a chave existe no body, usa o valor (incluindo string vazia
   // para apagar); se não, mantém o valor actual. Evita a mistura COALESCE+JS.
   const keep = (key, current) => req.body[key] !== undefined
@@ -125,6 +152,7 @@ function update(req, res) {
       accommodation_id = ?,
       notes = ?,
       status = ?,
+      max_uses = ?,
       updated_at = datetime('now')
     WHERE id = ? AND organization_id = ?
   `).run(
@@ -138,32 +166,25 @@ function update(req, res) {
     min_nights !== undefined ? parseInt(min_nights) : existing.min_nights,
     keep('accommodation_id', existing.accommodation_id),
     keep('notes', existing.notes),
-    keep('status', existing.status),
+    nextStatus, maxUses,
     req.params.id, req.user.organization_id
   );
 
-  res.json({ success: true, data: db.prepare('SELECT * FROM vouchers WHERE id = ? AND organization_id = ?').get(req.params.id, req.user.organization_id) });
+  res.json({ success: true, data: getVoucher(req.user.organization_id, req.params.id) });
 }
 
 function apply(req, res) {
-  const existing = db.prepare('SELECT * FROM vouchers WHERE id = ? AND organization_id = ?').get(req.params.id, req.user.organization_id);
-  if (!existing) return res.status(404).json({ error: 'Voucher não encontrado' });
-  if (existing.status !== 'active') return res.status(400).json({ error: 'Voucher não está ativo' });
-
-  const { reservation_id } = req.body;
-  db.prepare(`
-    UPDATE vouchers SET status = 'used', used_at = datetime('now'), used_in_reservation_id = ?, updated_at = datetime('now')
-    WHERE id = ? AND organization_id = ?
-  `).run(reservation_id || null, req.params.id, req.user.organization_id);
-
-  res.json({ success: true, data: db.prepare('SELECT * FROM vouchers WHERE id = ? AND organization_id = ?').get(req.params.id, req.user.organization_id) });
+  try {
+    const voucher = redeemVoucher(req.user.organization_id, req.params.id, req.body.reservation_id);
+    res.json({ success: true, data: voucher });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 }
 
 function remove(req, res) {
-  const existing = db.prepare('SELECT * FROM vouchers WHERE id = ? AND organization_id = ?').get(req.params.id, req.user.organization_id);
+  const existing = getVoucher(req.user.organization_id, req.params.id);
   if (!existing) return res.status(404).json({ error: 'Voucher não encontrado' });
   db.prepare('DELETE FROM vouchers WHERE id = ? AND organization_id = ?').run(req.params.id, req.user.organization_id);
   res.json({ success: true });
 }
 
-module.exports = { getAll, validate, create, update, apply, remove };
+module.exports = { getAll, validate, create, update, apply, remove, getReservations };

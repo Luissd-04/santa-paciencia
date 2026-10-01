@@ -33,6 +33,8 @@ function saveSettings(req, res) {
   if (req.body.syncTasks !== undefined) {
     setOrgSetting(orgId, GCAL_SYNC_TASKS_KEY, req.body.syncTasks ? '1' : '0');
   }
+  syncOperationalEventsToGoogle([], { userId: req.user.id, organizationId: orgId })
+    .catch(err => console.error('Erro ao aplicar definições de sincronização:', err.message));
   res.json({ success: true });
 }
 
@@ -132,13 +134,13 @@ async function syncAll(req, res) {
     const limit = new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10);
     const tasks = db.prepare(`
       SELECT * FROM operational_events
-      WHERE organization_id = ? AND date >= ? AND date <= ? AND status != 'concluido'
+      WHERE organization_id = ? AND date >= ? AND date <= ?
     `).all(orgId, today, limit);
 
     const result = await syncOperationalEventsToGoogle(tasks, { userId: req.user.id, organizationId: orgId });
-    taskCreated = result.calendarCreated;
-    taskUpdated = result.calendarUpdated;
-    taskErrors = result.calendarErrors;
+    taskCreated = result.calendarCreated + result.tasksCreated;
+    taskUpdated = result.calendarUpdated + result.tasksUpdated;
+    taskErrors = result.calendarErrors + result.tasksErrors;
   }
 
   res.json({

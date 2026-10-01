@@ -66,7 +66,9 @@ function reservationWith(status) {
 // Casos guardados: os dois dos prints, mais o estado pendente (que era a falha
 // de fundo do modelo "confirmacao") e um caso de dados longos/acentuados.
 const CASES = [
-  { id: 'mensagem-manual', body: '<p>teste</p>' },
+  // O contenteditable envia texto solto quando se escreve uma única linha.
+  { id: 'mensagem-manual', body: 'teste' },
+  { id: 'mensagem-manual-formatada', body: 'Olá <strong>Rui</strong>,<br />Aguardamos a sua visita.' },
   { id: 'pre-checkin', slug: 'pre_checkin', status: 'aguardar_pagamento' },
   { id: 'boas-vindas',            slug: 'apos_checkin', status: 'confirmada' },
   { id: 'confirmacao',            slug: 'confirmacao',  status: 'confirmada' },

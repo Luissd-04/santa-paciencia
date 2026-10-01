@@ -2,18 +2,10 @@ const { fetchWithTimeout } = require('../services/httpClient');
 const { OAuth2Client } = require('google-auth-library');
 const { db } = require('./database');
 const { encodeTokens, decodeTokens } = require('./tokenStorage');
-const { EVENT_TYPE_LABELS } = require('./eventTypes');
+const { taskPayload, remotePayload } = require('./googleTaskMapping');
 
 const TASKS_SCOPES = ['https://www.googleapis.com/auth/tasks'];
 const TASKS_BASE = 'https://tasks.googleapis.com/tasks/v1';
-
-// Base partilhada + chaves legacy próprias das operational_events
-const TASK_TYPE_LABELS = {
-  ...EVENT_TYPE_LABELS,
-  check_in:  'Check-in',
-  check_out: 'Check-out',
-  outro:     'Tarefa',
-};
 
 function getTasksOAuth2Client() {
   return new OAuth2Client({
@@ -88,7 +80,9 @@ async function getOrCreateTaskList(auth, organizationId) {
     try {
       await auth.request({ url: `${TASKS_BASE}/users/@me/lists/${info.tasksListId}` });
       return info.tasksListId;
-    } catch { /* foi apagada — criar nova */ }
+    } catch (err) {
+      if (![404, 410].includes(googleErrorStatus(err))) throw err;
+    }
   }
 
   const { data } = await auth.request({
@@ -96,7 +90,13 @@ async function getOrCreateTaskList(auth, organizationId) {
     method: 'POST',
     data: { title: process.env.PROPERTY_NAME || 'Santa Paciência' },
   });
-  saveTasksListId(organizationId, data.id);
+  db.transaction(() => {
+    saveTasksListId(organizationId, data.id);
+    // IDs da lista anterior nunca devem ser interpretados como eliminações na nova.
+    db.prepare('UPDATE operational_events SET google_task_id = NULL WHERE organization_id = ?').run(organizationId);
+    db.prepare('DELETE FROM google_task_sync_state WHERE organization_id = ?').run(organizationId);
+    db.prepare('DELETE FROM google_task_cleanup_queue WHERE organization_id = ?').run(organizationId);
+  })();
   return data.id;
 }
 
@@ -114,108 +114,241 @@ async function revokeTasksTokens(organizationId) {
   }
 }
 
-// Apaga do Google Tasks todas as tarefas sincronizadas da organização e limpa as
-// referências locais. Usado ao desligar a integração.
-async function deleteAllSyncedTasks(organizationId) {
-  const info = getTasksConnectionInfo(organizationId);
-  if (!info.connected || !info.tasksListId) return 0;
-
-  const auth = getAuthenticatedTasksClient(organizationId);
-  const rows = db.prepare(`
-    SELECT id, google_task_id FROM operational_events
-    WHERE organization_id = ? AND google_task_id IS NOT NULL
-  `).all(organizationId);
-
-  let deleted = 0;
-  for (const row of rows) {
-    try {
-      await auth.request({ url: `${TASKS_BASE}/lists/${info.tasksListId}/tasks/${row.google_task_id}`, method: 'DELETE' });
-      deleted++;
-    } catch (err) {
-      console.error('Erro ao apagar tarefa do Google Tasks:', err.message);
-    }
-  }
-  db.prepare(`
-    UPDATE operational_events SET google_task_id = NULL, updated_at = datetime('now')
-    WHERE organization_id = ?
-  `).run(organizationId);
-  return deleted;
+// As operações remotas de uma organização são sequenciais. Uma segunda passagem
+// lê a BD depois da primeira, incluindo alterações feitas enquanto a API respondia.
+const taskRuns = new Map();
+function withTaskLock(organizationId, operation) {
+  const previous = taskRuns.get(organizationId) || Promise.resolve();
+  const run = previous.catch(() => {}).then(operation);
+  taskRuns.set(organizationId, run);
+  return run.finally(() => {
+    if (taskRuns.get(organizationId) === run) taskRuns.delete(organizationId);
+  });
 }
 
-// Sincroniza para o Google Tasks todos os eventos operacionais dos próximos 90 dias.
-// Usado tanto pelo botão manual "Sincronizar agora" como pelo auto-sync ao criar/editar eventos.
-async function syncOrganizationTasksToGoogleTasks(organizationId) {
-  if (!getTasksConnectionInfo(organizationId).connected) {
-    return { created: 0, updated: 0, errors: 0, total: 0 };
+// Só esquecer referências depois de confirmar a eliminação remota. Em caso de
+// falha, conservar a ligação e permitir repetir antes de desligar a integração.
+async function clearSyncedTasks(organizationId) {
+  db.transaction(() => {
+    const rows = db.prepare(`SELECT google_task_id FROM operational_events
+      WHERE organization_id = ? AND google_task_id IS NOT NULL`).all(organizationId);
+    for (const row of rows) queueSyncedTaskDeletion(organizationId, row.google_task_id);
+  })();
+  const result = await processQueuedTaskDeletions(organizationId);
+  if (result.pending) throw new Error(`${result.pending} tarefa(s) aguardam eliminação. Tenta novamente antes de desligar.`);
+  return result.deleted;
+}
+
+function deleteAllSyncedTasks(organizationId) {
+  return withTaskLock(organizationId, () => clearSyncedTasks(organizationId));
+}
+
+function disconnectTasks(organizationId) {
+  return withTaskLock(organizationId, async () => {
+    db.prepare(`INSERT INTO organization_settings (organization_id, key, value)
+      VALUES (?, 'gcal_sync_tasks', '0') ON CONFLICT(organization_id, key) DO UPDATE SET value = '0'`).run(organizationId);
+    const removed = await clearSyncedTasks(organizationId);
+    await revokeTasksTokens(organizationId);
+    deleteTasksTokens(organizationId);
+    return removed;
+  });
+}
+
+// Inclui eventos passados e distantes: mover uma tarefa para fora de uma janela
+// de datas nunca pode deixar a cópia remota na data/estado anterior.
+function syncOrganizationTasksToGoogleTasks(organizationId) {
+  return withTaskLock(organizationId, () => runOrganizationTaskSync(organizationId));
+}
+
+function suppressAutoTask(ev) {
+  if (ev.auto_generated && ev.auto_key && ev.reservation_id) {
+    db.prepare(`INSERT OR IGNORE INTO auto_task_suppressions (organization_id, reservation_id, auto_key)
+      VALUES (?, ?, ?)`).run(ev.organization_id, ev.reservation_id, ev.auto_key);
   }
+}
 
-  // Dar prioridade a eliminações pendentes: evita voltar a sincronizar uma
-  // coleção grande enquanto tarefas de reservas já apagadas continuam no Google.
-  await processQueuedTaskDeletions(organizationId);
-
-  const auth = getAuthenticatedTasksClient(organizationId);
-  const listId = await getOrCreateTaskList(auth, organizationId);
-
-  const events = db.prepare(`
-    SELECT e.*, a.name as accommodation_name
-    FROM operational_events e
-    LEFT JOIN accommodations a ON a.id = e.accommodation_id
-    WHERE e.organization_id = ?
-      AND e.date >= date('now', '-1 day')
-      AND e.date <= date('now', '+90 days')
-    ORDER BY e.date ASC, e.start_time ASC
-  `).all(organizationId);
-
-  let created = 0, updated = 0, errors = 0;
-
-  for (const ev of events) {
-    try {
-      const typeLabel = TASK_TYPE_LABELS[ev.type] || ev.type;
-      const title = ev.accommodation_name
-        ? `[${ev.accommodation_name}] ${ev.title || typeLabel}`
-        : (ev.title || typeLabel);
-
-      const notes = [
-        ev.notes || '',
-        ev.responsible ? `Responsável: ${ev.responsible}` : '',
-        ev.start_time  ? `Hora: ${ev.start_time}${ev.end_time ? '–' + ev.end_time : ''}` : '',
-        ev.status !== 'planeado' ? `Estado: ${ev.status}` : '',
-      ].filter(Boolean).join('\n');
-
-      /* RFC 3339 — Google Tasks quer YYYY-MM-DDT00:00:00.000Z */
-      const due = ev.date ? new Date(ev.date + 'T00:00:00Z').toISOString() : undefined;
-
-      const taskBody = { title, notes, due };
-      if (ev.status === 'concluido') taskBody.status = 'completed';
-
-      if (ev.google_task_id) {
-        // A API do Google Tasks exige o campo "id" no corpo do pedido, igual ao
-        // ID no URL — sem ele devolve "Missing task ID" mesmo com o URL correto.
-        await auth.request({
-          url: `${TASKS_BASE}/lists/${listId}/tasks/${ev.google_task_id}`,
-          method: 'PUT',
-          data: { ...taskBody, id: ev.google_task_id },
-        });
-        updated++;
-      } else {
-        const { data } = await auth.request({
-          url: `${TASKS_BASE}/lists/${listId}/tasks`,
-          method: 'POST',
-          data: taskBody,
-        });
-        db.prepare(`
-          UPDATE operational_events SET google_task_id = ?, updated_at = datetime('now')
-          WHERE id = ?
-        `).run(data.id, ev.id);
-        created++;
-      }
-    } catch (err) {
-      console.error('Tasks sync erro (evento', ev.id, '):', err.message);
-      errors++;
+// Comparação por campo: mudanças independentes fundem-se; num conflito no mesmo
+// campo, a edição local ainda não enviada prevalece. Não dependemos dos relógios.
+function applyRemoteChanges(ev, remote, state) {
+  const current = remotePayload(taskPayload(ev));
+  const previousLocal = state ? JSON.parse(state.local_payload) : current;
+  const previousRemote = state ? JSON.parse(state.remote_payload) : current;
+  const accepts = key => current[key] === previousLocal[key] && remote[key] !== previousRemote[key];
+  const next = { ...ev };
+  if (accepts('status')) {
+    next.status = remote.status === 'completed' ? 'concluido' : 'planeado';
+    next.completed_at = next.status === 'concluido' ? (remote.completed || new Date().toISOString()) : null;
+  }
+  if (accepts('title') && remote.title.trim()) {
+    const prefix = ev.accommodation_name ? `[${ev.accommodation_name}] ` : '';
+    next.title = prefix && remote.title.startsWith(prefix) ? remote.title.slice(prefix.length) : remote.title;
+  }
+  if (accepts('due') && /^\d{4}-\d{2}-\d{2}$/.test(remote.due)) next.date = remote.due;
+  if (accepts('notes')) {
+    next.notes = remote.notes.split('--- Santa Paciência ---')[0].trim() || null;
+    // A primeira passagem pode encontrar o formato antigo, sem separador.
+    if (!remote.notes.includes('--- Santa Paciência ---') && (!state || !previousRemote.notes.includes('--- Santa Paciência ---'))) {
+      next.notes = remote.notes.split('\n').filter(line =>
+        !line.startsWith('Responsável: ') && !line.startsWith('Hora: ') && !line.startsWith('Estado: ')
+      ).join('\n').trim() || null;
     }
   }
+  const changed = ['status', 'completed_at', 'title', 'date', 'notes'].some(key => next[key] !== ev[key]);
+  if (changed) db.prepare(`UPDATE operational_events SET status = ?, completed_at = ?,
+    title = ?, date = ?, notes = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?`)
+    .run(next.status, next.completed_at, next.title, next.date, next.notes, ev.id, ev.organization_id);
+  return { event: next, changed };
+}
 
-  return { created, updated, errors, total: events.length };
+async function listRemoteTasks(auth, listId) {
+  const tasks = new Map();
+  let pageToken = '';
+  do {
+    const query = new URLSearchParams({ maxResults: '100', showCompleted: 'true', showHidden: 'true', showDeleted: 'true' });
+    if (pageToken) query.set('pageToken', pageToken);
+    const { data } = await auth.request({ url: `${TASKS_BASE}/lists/${listId}/tasks?${query}` });
+    for (const task of data.items || []) tasks.set(task.id, task);
+    pageToken = data.nextPageToken || '';
+  } while (pageToken);
+  return tasks;
+}
+
+function saveSyncState(ev, listId, localPayload, remote) {
+  db.prepare(`INSERT INTO google_task_sync_state
+    (event_id, organization_id, google_task_id, tasks_list_id, local_payload, remote_payload)
+    VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(event_id) DO UPDATE SET
+    google_task_id = excluded.google_task_id, tasks_list_id = excluded.tasks_list_id,
+    local_payload = excluded.local_payload, remote_payload = excluded.remote_payload`)
+    .run(ev.id, ev.organization_id, ev.google_task_id, listId, JSON.stringify(localPayload), JSON.stringify(remotePayload(remote)));
+}
+
+async function runOrganizationTaskSync(organizationId) {
+  if (!getTasksConnectionInfo(organizationId).connected) {
+    return { created: 0, updated: 0, imported: 0, deleted: 0, errors: 0, total: 0 };
+  }
+  const cleanup = await processQueuedTaskDeletions(organizationId);
+  const auth = getAuthenticatedTasksClient(organizationId);
+  const listId = await getOrCreateTaskList(auth, organizationId);
+  const remoteTasks = await listRemoteTasks(auth, listId);
+  const readEvent = db.prepare(`SELECT e.*, a.name AS accommodation_name
+    FROM operational_events e LEFT JOIN accommodations a ON a.id = e.accommodation_id
+      AND a.organization_id = e.organization_id
+    WHERE e.organization_id = ? AND e.id = ?`);
+  const events = db.prepare(`SELECT id FROM operational_events
+    WHERE organization_id = ? ORDER BY date, start_time`).all(organizationId);
+  let created = 0, updated = 0, imported = 0, deleted = 0, errors = cleanup.errors;
+  for (const { id } of events) {
+    let ev = readEvent.get(organizationId, id);
+    if (!ev) continue;
+    try {
+      if (ev.google_task_id && db.prepare(`SELECT 1 FROM google_task_cleanup_queue
+        WHERE organization_id = ? AND google_task_id = ?`).get(organizationId, ev.google_task_id)) continue;
+      // Recuperar um POST que chegou ao Google mas cuja resposta se perdeu.
+      // O marcador identifica apenas tarefas criadas pela aplicação.
+      if (!ev.google_task_id) {
+        const matches = [...remoteTasks.values()].filter(task => !task.deleted &&
+          (task.notes || '').split('\n').includes(`Evento da aplicação: ${id}`));
+        if (matches.length === 1 && !db.prepare(`SELECT 1 FROM google_task_cleanup_queue
+          WHERE organization_id = ? AND google_task_id = ?`).get(organizationId, matches[0].id)) {
+          ev.google_task_id = matches[0].id;
+          db.prepare('UPDATE operational_events SET google_task_id = ? WHERE id = ? AND organization_id = ?')
+            .run(ev.google_task_id, id, organizationId);
+        }
+      }
+      let remote = remoteTasks.get(ev.google_task_id);
+      let state = db.prepare(`SELECT * FROM google_task_sync_state WHERE event_id = ? AND organization_id = ?`)
+        .get(id, organizationId);
+      if (state && ((state.google_task_id && state.google_task_id !== ev.google_task_id) || state.tasks_list_id !== listId)) state = null;
+      const needsCreate = !ev.google_task_id;
+      if (!needsCreate && !remote) {
+        // Confirmar individualmente: não interpretar uma listagem incompleta como eliminação.
+        try {
+          remote = (await auth.request({ url: `${TASKS_BASE}/lists/${listId}/tasks/${ev.google_task_id}` })).data;
+        } catch (err) {
+          if (![404, 410].includes(googleErrorStatus(err))) throw err;
+          remote = { deleted: true };
+        }
+        ev = readEvent.get(organizationId, id);
+        if (!ev) continue;
+      }
+      if (!needsCreate && remote.deleted) {
+        db.transaction(() => {
+          suppressAutoTask(ev);
+          db.prepare('DELETE FROM operational_events WHERE id = ? AND organization_id = ?').run(id, organizationId);
+        })();
+        if (ev.google_event_id) await require('../services/calendarService').deleteTaskCalendarEvent(ev,
+          { userId: ev.google_calendar_user_id, organizationId });
+        deleted++;
+        continue;
+      }
+      let changed = false;
+      if (!needsCreate) {
+        const before = remotePayload(taskPayload(ev));
+        const merged = applyRemoteChanges(ev, { ...remotePayload(remote), completed: remote.completed }, state);
+        ev = merged.event;
+        changed = merged.changed;
+        if (changed) {
+          imported++;
+          // Confirmar já os campos recebidos, mesmo se o envio seguinte falhar.
+          // Campos locais pendentes continuam comparados com a base anterior.
+          const baseline = state ? JSON.parse(state.local_payload) : { ...before };
+          const after = remotePayload(taskPayload(ev));
+          for (const key of Object.keys(baseline)) if (before[key] === baseline[key]) baseline[key] = after[key];
+          saveSyncState(ev, listId, baseline, remote);
+          if (ev.google_event_id) await require('../services/calendarService').updateTaskCalendarEvent(ev,
+            { userId: ev.google_calendar_user_id, organizationId });
+          ev = readEvent.get(organizationId, id);
+          if (!ev) continue;
+        }
+      }
+      const body = taskPayload(ev);
+      const localPayload = JSON.stringify(remotePayload(body));
+      if (needsCreate) {
+        // Registar o conteúdo tentado antes do POST: se a resposta se perder,
+        // recuperar pelo marcador sem confundir edições locais posteriores.
+        saveSyncState({ ...ev, google_task_id: '' }, listId, JSON.parse(localPayload), body);
+        const { data } = await auth.request({
+          url: `${TASKS_BASE}/lists/${listId}/tasks`, method: 'POST', data: body,
+        });
+        const saved = db.prepare(`UPDATE operational_events SET google_task_id = ?
+          WHERE organization_id = ? AND id = ?`).run(data.id, organizationId, id);
+        if (!saved.changes) { queueSyncedTaskDeletion(organizationId, data.id); continue; }
+        remote = data;
+        ev.google_task_id = data.id;
+        created++;
+      } else if (localPayload !== JSON.stringify(remotePayload(remote))) {
+        const { data } = await auth.request({
+          url: `${TASKS_BASE}/lists/${listId}/tasks/${ev.google_task_id}`,
+          method: 'PATCH', data: body,
+          // Se houve uma edição no Google durante esta passagem, repetir depois.
+          ...(remote.etag ? { headers: { 'If-Match': remote.etag } } : {}),
+        });
+        remote = { ...remote, ...body, ...data };
+        updated++;
+      }
+      // O evento pode ter desaparecido enquanto a API respondia.
+      if (readEvent.get(organizationId, id)) {
+        saveSyncState(ev, listId, JSON.parse(localPayload), remote);
+      }
+    } catch (err) {
+      console.error('Tasks sync erro (evento', id, '):', err.message);
+      errors++;
+      if (googleErrorStatus(err) === 429) break;
+    }
+  }
+  await processQueuedTaskDeletions(organizationId);
+  return { created, updated, imported, deleted, errors, total: events.length };
+}
+
+// Reconciliação após falhas/reinícios e para alterações feitas por outros fluxos.
+async function syncEnabledOrganizationsToGoogleTasks() {
+  const rows = db.prepare(`SELECT c.organization_id FROM google_tasks_connections c
+    JOIN organization_settings s ON s.organization_id = c.organization_id
+    WHERE s.key = 'gcal_sync_tasks' AND s.value = '1'`).all();
+  for (const row of rows) {
+    try { await syncOrganizationTasksToGoogleTasks(row.organization_id); }
+    catch (err) { console.error('Erro ao repetir sincronização do Google Tasks:', err.message); }
+  }
 }
 
 function queueSyncedTaskDeletion(organizationId, googleTaskId) {
@@ -246,7 +379,7 @@ async function deleteSyncedTask(organizationId, googleTaskId) {
     await auth.request({ url: `${TASKS_BASE}/lists/${info.tasksListId}/tasks/${googleTaskId}`, method: 'DELETE' });
     return true;
   } catch (err) {
-    if (googleErrorStatus(err) === 404) return true;
+    if ([404, 410].includes(googleErrorStatus(err))) return true;
     throw err;
   }
 }
@@ -275,6 +408,8 @@ async function runQueuedTaskDeletions(organizationId) {
           DELETE FROM google_task_cleanup_queue
           WHERE organization_id = ? AND google_task_id = ?
         `).run(organizationId, row.google_task_id);
+        db.prepare(`UPDATE operational_events SET google_task_id = NULL
+          WHERE organization_id = ? AND google_task_id = ?`).run(organizationId, row.google_task_id);
         result.deleted++;
         madeProgress = true;
       } catch (err) {
@@ -335,7 +470,11 @@ module.exports = {
   getOrCreateTaskList,
   revokeTasksTokens,
   deleteAllSyncedTasks,
+  disconnectTasks,
   syncOrganizationTasksToGoogleTasks,
+  syncEnabledOrganizationsToGoogleTasks,
+  withTaskLock,
+  suppressAutoTask,
   deleteSyncedTask,
   queueSyncedTaskDeletion,
   processQueuedTaskDeletions,
