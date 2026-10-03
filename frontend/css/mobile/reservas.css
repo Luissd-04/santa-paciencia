@@ -3,6 +3,134 @@
 ══════════════════════════════════════════════════════════════ */
 .m-filters-trigger { display: none; }
 
+/* Ficha da reserva: cartões independentes e conteúdo que se adapta à largura. */
+@media (max-width: 767px), (max-height: 500px) and (orientation: landscape) {
+  #reserva-detail-page {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  #reserva-detail-content {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  #reserva-detail-content svg { flex-shrink: 0; }
+  #reserva-detail-content :is(button, input, select) { min-height: 44px; }
+  #reserva-detail-content :is(input, select) { min-width: 0; max-width: 100%; font-size: 16px; }
+  #reserva-detail-content button { white-space: normal; touch-action: manipulation; }
+  #reserva-detail-content button:focus-visible { outline: 2px solid var(--brand-shell); outline-offset: 2px; }
+
+  .rdv2-header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) 44px;
+    gap: 14px 10px;
+    margin-bottom: 14px;
+  }
+  .rdv2-header > .btn { padding: 8px 12px; border-radius: 24px; }
+  .rdv2-title-area { min-width: 0; flex-direction: column; align-items: flex-start; gap: 3px; }
+  .rdv2-subtitle { font-size: 18px; line-height: 1.2; }
+  .rdv2-id-pill { max-width: 100%; padding: 0; border: 0; border-radius: 0; background: none; font-size: 12px; font-weight: 400; letter-spacing: 0; }
+  .rdv2-tabs { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .rdv2-tab { justify-content: center; min-width: 0; padding: 10px 6px; font-size: 13px; border-radius: 16px; background: var(--surface-card); }
+  .rdv2-tab-active { background: var(--brand-shell); }
+  .rdv2-body { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .rdv2-body > .rdv2-main { display: flex; flex-direction: column; gap: 14px; background: none; border: 0; border-radius: 0; overflow: visible; }
+  .rdv2-card,
+  .rdv2-widget,
+  .rdv2-guests {
+    display: block;
+    min-width: 0;
+    border: 1px solid var(--border-soft);
+    border-radius: 16px;
+    background: var(--surface-card-strong);
+    box-shadow: 0 2px 6px var(--border-soft);
+  }
+  .rdv2-mobile-only,
+  .rdv2-info-field.rdv2-mobile-only { display: flex; }
+  .rdv2-field-dates,
+  .rdv2-task-label-desktop { display: none; }
+  .rdv2-info-bar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 16px 16px 0; gap: 12px; border: 0; }
+  .rdv2-info-field,
+  .rdv2-info-field:last-child { padding: 0; margin: 0; border: 0; gap: 4px; }
+  .rdv2-if-label { font-size: 11px; font-weight: 500; color: var(--text-muted); }
+  .rdv2-if-val { font-size: 14px; line-height: 1.5; gap: 6px; flex-wrap: wrap; }
+  .rdv2-field-guest { grid-column: 1 / -1; grid-row: 1; padding-bottom: 12px; border-bottom: 1px solid var(--border-soft); }
+  .rdv2-field-guest .rdv2-if-val { font-size: 18px; font-weight: 700; }
+  .rdv2-field-checkin { grid-column: 1; grid-row: 2; }
+  .rdv2-field-checkout { grid-column: 2; grid-row: 2; padding-left: 12px; border-left: 1px solid var(--border-soft); }
+  .rdv2-field-nights { grid-column: 1 / -1; grid-row: 3; align-items: center; }
+  .rdv2-field-nights > .rdv2-if-label { display: none; }
+  .rdv2-field-arrival { grid-column: 1 / -1; }
+  .rdv2-field-arrival .rdv2-if-val { min-height: 44px; }
+  .rdv2-field-arrival .rdv2-edit-btn { margin-left: auto; }
+  #rdv2-task-bar { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0 16px; padding: 12px 0 !important; }
+  #rdv2-task-bar .btn { justify-content: center; min-width: 0; padding: 8px 6px; border: 1px solid var(--border-soft); border-radius: 12px; font-size: 13px; }
+  .rdv2-canal-bar { flex-direction: column; gap: 0; padding: 0 16px; border: 0; }
+  .rdv2-canal-bar .rdv2-info-field { padding: 12px 0; }
+  .rdv2-canal-bar .rdv2-info-field + .rdv2-info-field { border-top: 1px solid var(--border-soft); }
+
+  .rdv2-zone-divider { padding: 14px 16px; border-top: 0; border-radius: 16px 16px 0 0; background: none; color: var(--text-main); font-size: 16px; letter-spacing: 0; text-transform: none; gap: 10px; }
+  .rdv2-zone-divider svg { width: 20px !important; height: 20px !important; color: var(--brand-shell); }
+  .rdv2-section-head { padding: 10px 16px; gap: 12px; background: none; color: var(--text-muted); }
+  .rdv2-section-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 12px 16px; font-size: 14px; }
+  .rdv2-section-row > span { min-width: 0; }
+  .rdv2-formula { display: block; margin: 4px 0 0; font-size: 12px; color: var(--text-muted); }
+  .rdv2-section-subtot { padding: 8px 16px; }
+  .rdv2-amt { white-space: nowrap; }
+  .rdv2-total-row { padding: 14px 16px; border-radius: 0 0 16px 16px; font-size: 16px; background: var(--surface-muted); color: var(--text-main); }
+  .rdv2-prices-card > .rdv2-total-row ~ div { margin: 0 16px 12px; }
+  .rdv2-pay-section { padding: 12px 16px 16px; }
+  .rdv2-pay-empty { font-size: 14px; padding: 4px 0 14px; }
+  .rdv2-payment-cta { width: 100%; justify-content: center; margin-top: 8px; border-radius: 10px; }
+  .rdv2-pay-entry { flex-wrap: wrap; gap: 8px; }
+  .rdv2-pay-entry-info { min-width: 0; flex-wrap: wrap; }
+  .rdv2-pay-entry-right { margin-left: auto; }
+  .rdv2-pay-row { gap: 12px; font-size: 14px; }
+  .rdv2-edit-btn,
+  .rdv2-icon-btn,
+  .rdv2-tarefa-check { width: 44px; height: 44px; }
+  .rdv2-invoice-card > div:last-child { margin: 12px; }
+  .rdv2-invoice-card b { min-width: 0; text-align: right; }
+  .rdv2-notes { margin: 0; padding: 14px 16px; }
+  .rdv2-guest-row { flex-direction: column; gap: 4px; padding: 8px 0; font-size: 14px; }
+  .rdv2-sync { border: 0; padding: 0 4px; font-size: 12px; color: var(--text-muted); }
+
+  .rdv2-sidebar { min-width: 0; gap: 14px; position: static; }
+  .rdv2-widget { padding: 14px; }
+  .rdv2-widget-title { margin-bottom: 10px; font-size: 16px; color: var(--text-main); }
+  .rdv2-widget-title svg { color: var(--brand-shell); }
+  .rdv2-status-row { gap: 12px; padding: 8px 0; }
+  .rdv2-status-select { flex: 1; max-width: 65%; }
+  .rdv2-action-link,
+  .rdv2-doc-link { min-width: 0; padding: 10px 2px; gap: 10px; font-size: 14px; line-height: 1.4; color: var(--text-main); }
+  .rdv2-action-link::after,
+  .rdv2-doc-link::after { content: ''; width: 6px; height: 6px; flex-shrink: 0; margin: 0 4px 0 auto; border-top: 1.5px solid var(--text-muted); border-right: 1.5px solid var(--text-muted); transform: rotate(45deg); }
+  .rdv2-action-link:hover,
+  .rdv2-doc-link:hover { padding-left: 2px; background: var(--surface-muted); }
+  .rdv2-action-link svg,
+  .rdv2-doc-link svg { width: 18px !important; height: 18px !important; }
+  .rdv2-action-danger { color: #b03030; }
+  .rdv2-widget-docs .rdv2-widget-title { color: var(--text-main); }
+  .rdv2-concierge-url { min-width: 0; padding: 4px 6px 4px 10px; }
+  .rdv2-url-text { min-width: 0; font-size: 13px; }
+  .rdv2-concierge-btns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .rdv2-cta-btn { min-width: 0; font-size: 13px; }
+  .rdv2-concierge-btns > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+  .rdv2-tarefas-card,
+  .rdv2-timeline-card { padding: 16px; }
+  .rdv2-tarefas-add { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .rdv2-tarefas-add > * { width: 100%; }
+  .rdv2-tarefa-meta { flex-wrap: wrap; }
+  .rdv2-tl-head { flex-wrap: wrap; gap: 6px; }
+  .rdv2-tl-change { flex-wrap: wrap; }
+  [data-theme="dark"] .rdv2-action-danger { color: #f2a6a6; }
+}
+
 @media (max-width: 600px) {
   /* "Nova Reserva" do topo escondido — a ação vive só no FAB partilhado */
   .view-toolbar-reservas {

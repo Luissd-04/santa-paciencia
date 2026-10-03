@@ -242,6 +242,28 @@
 }
 
 /* ══ Reservation Detail v2 ══ */
+.rdv2-card { display: contents; }
+.rdv2-mobile-only,
+.rdv2-info-field.rdv2-mobile-only { display: none; }
+.rdv2-quick-edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--brand-shell);
+  border-radius: 50%;
+  background: var(--brand-shell);
+  color: #fff;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.rdv2-quick-edit:hover { opacity: .85; }
+.rdv2-quick-edit:focus-visible {
+  outline: 2px solid var(--text-main);
+  outline-offset: 3px;
+}
 .rdv2-header {
   display: flex;
   align-items: center;
@@ -302,11 +324,12 @@
 /* Body layout */
 .rdv2-body {
   display: grid;
-  grid-template-columns: 1fr 264px;
+  grid-template-columns: minmax(0, 1fr) 264px;
   gap: 18px;
   align-items: start;
 }
 .rdv2-main {
+  min-width: 0;
   background: var(--surface-card-strong);
   border: 1px solid var(--border-soft);
   border-radius: 14px;
@@ -323,6 +346,7 @@
   border-bottom: 1px solid var(--border-soft);
 }
 .rdv2-info-field {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -345,12 +369,14 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Canal bar */
 .rdv2-canal-bar {
   display: flex;
+  flex-wrap: wrap;
   gap: 24px;
   padding: 16px 20px;
   border-bottom: 1px solid var(--border-soft);
@@ -513,6 +539,9 @@
   padding: 14px;
 }
 .rdv2-widget-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
   font-weight: 700;
   color: var(--text-main);

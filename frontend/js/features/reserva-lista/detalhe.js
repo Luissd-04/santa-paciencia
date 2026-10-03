@@ -14,9 +14,9 @@ function rdv2TaskBtnHtml(resId, kind, done) {
     ? `<button class="btn btn-ghost btn-sm" style="color:#0f9d58;border:1px solid #0f9d5844;background:#0f9d580f;"
          ${AppActions.attrs("click", "detalhe-toggle-reservation-task-7c3386e", [String((resId) ?? ''), String((kind) ?? '')])} title="Clique para repor como por fazer">
          ${AppModules.core.lcIcon('check-circle', 13)} ${label} feito</button>`
-    : `<button class="btn btn-ghost btn-sm"
+    : `<button class="btn btn-ghost btn-sm" aria-label="Marcar ${label.toLowerCase()} feito"
          ${AppActions.attrs("click", "detalhe-toggle-reservation-task-bf7e72a", [String((resId) ?? ''), String((kind) ?? '')])}>
-         ${AppModules.core.lcIcon(icon, 13)} Marcar ${label.toLowerCase()} feito</button>`;
+         ${AppModules.core.lcIcon(icon, 13)} <span class="rdv2-task-label-desktop">Marcar ${label.toLowerCase()} feito</span><span class="rdv2-mobile-only">${label}</span></button>`;
 }
 
 async function toggleReservationTask(resId, kind, done) {
@@ -152,6 +152,7 @@ async function showDetail(id, opts = {}) {
           <span class="rdv2-subtitle">Editar reserva</span>
           <span class="rdv2-id-pill">${r.id}</span>
         </div>
+        <button type="button" class="rdv2-quick-edit" aria-label="Editar reserva" title="Editar reserva" ${AppActions.attrs("click", "detalhe-open-edit-page-8b67124", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('pencil', 18)}</button>
         <div class="rdv2-tabs">
           <button class="rdv2-tab rdv2-tab-active" id="rdv2-tab-btn-reserva" data-on-click="detalhe-rdv2-show-tab-b77b54f">${AppModules.core.lcIcon('clipboard', 12)} Reserva</button>
           <button class="rdv2-tab" id="rdv2-tab-btn-tarefas" data-on-click="detalhe-rdv2-show-tab-c86cc3e">${AppModules.core.lcIcon('list-checks', 12)} Tarefas</button>
@@ -165,19 +166,28 @@ async function showDetail(id, opts = {}) {
         <!-- Main card -->
         <div class="rdv2-main">
 
+          <div class="rdv2-card rdv2-summary-card">
           <!-- Info bar -->
           <div class="rdv2-info-bar">
-            <div class="rdv2-info-field">
+            <div class="rdv2-info-field rdv2-field-guest">
               <span class="rdv2-if-label">Hóspede</span>
               <span class="rdv2-if-val">${AppModules.core.escapeHtml(r.guest_name)}</span>
             </div>
-            <div class="rdv2-info-field">
+            <div class="rdv2-info-field rdv2-field-nights">
               <span class="rdv2-if-label">Noites</span>
-              <span class="rdv2-if-val">${AppModules.core.lcIcon('moon', 11)} ${r.nights}</span>
+              <span class="rdv2-if-val">${AppModules.core.lcIcon('moon', 11)} ${r.nights}<span class="rdv2-mobile-only">${Number(r.nights) === 1 ? 'noite' : 'noites'}</span></span>
             </div>
-            <div class="rdv2-info-field">
+            <div class="rdv2-info-field rdv2-field-dates">
               <span class="rdv2-if-label">Datas</span>
               <span class="rdv2-if-val">${AppModules.core.lcIcon('calendar', 11)} ${sd(r.check_in)} → ${sd(r.check_out)}</span>
+            </div>
+            <div class="rdv2-info-field rdv2-mobile-only rdv2-field-checkin">
+              <span class="rdv2-if-label">Check-in</span>
+              <span class="rdv2-if-val">${AppModules.core.lcIcon('calendar', 16)} ${sd(r.check_in)}</span>
+            </div>
+            <div class="rdv2-info-field rdv2-mobile-only rdv2-field-checkout">
+              <span class="rdv2-if-label">Check-out</span>
+              <span class="rdv2-if-val">${AppModules.core.lcIcon('calendar', 16)} ${sd(r.check_out)}</span>
             </div>
             <div class="rdv2-info-field">
               <span class="rdv2-if-label">Adultos</span>
@@ -188,7 +198,7 @@ async function showDetail(id, opts = {}) {
               <span class="rdv2-if-val">${r.num_children || 0} ${AppModules.core.lcIcon('baby', 11)}</span>
               ${childAges.length ? `<span style="font-size:10.5px;color:var(--text-muted);">${childAges.join(' · ')}</span>` : ''}
             </div>
-            <div class="rdv2-info-field">
+            <div class="rdv2-info-field rdv2-field-arrival">
               <span class="rdv2-if-label">Hora chegada</span>
               <span class="rdv2-if-val">${AppModules.core.lcIcon('clock', 11)}
                 <span id="rdv2-arrival-val">${r.arrival_time || '—'}</span>
@@ -219,8 +229,10 @@ async function showDetail(id, opts = {}) {
               <span class="rdv2-if-val">${AppModules.core.escapeHtml(r.guest_phone)}</span>
             </div>` : ''}
           </div>
+          </div>
 
           <!-- Divisor zona alojamento -->
+          <div class="rdv2-card rdv2-prices-card">
           <div class="rdv2-zone-divider">${AppModules.core.lcIcon('home', 10)} Alojamento e Preços</div>
 
           <!-- Alojamentos -->
@@ -231,7 +243,7 @@ async function showDetail(id, opts = {}) {
             </div>
             ${accRows.map(row => `
             <div class="rdv2-section-row">
-              <span>${row.name || row.accommodation_name || '—'} <span class="rdv2-formula">€${Number(row.price_per_night || 0).toFixed(0)}/noite × ${row.nights || r.nights}🌙</span></span>
+              <span>${AppModules.core.escapeHtml(row.name || row.accommodation_name || '—')} <span class="rdv2-formula">€${Number(row.price_per_night || 0).toFixed(0)}/noite × ${row.nights || r.nights} noites</span></span>
               <span class="rdv2-amt">${fmt(row.subtotal || (Number(row.price_per_night || 0) * (row.nights || r.nights)))}</span>
             </div>`).join('')}
             <div class="rdv2-section-subtot">
@@ -278,8 +290,10 @@ async function showDetail(id, opts = {}) {
             <span class="rdv2-amt">${fmt(total)}</span>
           </div>
           ${priceCompareLine}
+          </div>
 
           <!-- Divisor zona pagamentos -->
+          <div class="rdv2-card rdv2-payments-card">
           <div class="rdv2-zone-divider">${AppModules.core.lcIcon('credit-card', 10)} Pagamentos</div>
 
           <!-- Pagamentos -->
@@ -310,15 +324,18 @@ async function showDetail(id, opts = {}) {
               </div>` : `
               <div class="rdv2-pay-empty">Sem pagamentos registados</div>
               `}
+            <button type="button" class="btn btn-primary rdv2-mobile-only rdv2-payment-cta" ${AppActions.attrs("click", "detalhe-open-payment-form-74a29ac", [String((r.id) ?? ''), paid, total])}>${AppModules.core.lcIcon('credit-card', 16)} Registar pagamento</button>
+          </div>
           </div>
 
           ${r.invoice_number || r.invoice_date || r.invoice_sent_date ? `
+          <div class="rdv2-card rdv2-invoice-card">
           <div class="rdv2-zone-divider">${AppModules.core.lcIcon('file-text', 10)} Fatura</div>
           <div style="background:var(--surface-muted);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;">
             <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--text-muted);">Nº</span><b style="color:var(--text-main);">${AppModules.core.escapeHtml(r.invoice_number || '—')}</b></div>
             <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--text-muted);">Data</span><b style="color:var(--text-main);">${r.invoice_date ? sd(r.invoice_date) : '—'}</b></div>
             <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--text-muted);">Enviada</span><b style="color:var(--text-main);">${r.invoice_sent_date ? sd(r.invoice_sent_date) : '—'}${r.invoice_sent_method ? ' · ' + AppModules.reservas.invoiceMethodLabel(r.invoice_sent_method) : ''}</b></div>
-          </div>` : ''}
+          </div></div>` : ''}
 
           ${r.notes ? `<div class="rdv2-notes">${AppModules.core.lcIcon('file-text', 12)} ${AppModules.core.escapeHtml(r.notes)}</div>` : ''}
 
@@ -359,7 +376,7 @@ async function showDetail(id, opts = {}) {
 
           <!-- Ações -->
           <div class="rdv2-widget">
-            <div class="rdv2-widget-title">Reserva</div>
+            <div class="rdv2-widget-title">${AppModules.core.lcIcon('settings', 18)} Ações da reserva</div>
             ${r.status === 'pendente' ? `<button class="rdv2-action-link rdv2-action-success" ${AppActions.attrs("click", "detalhe-aprovar-reserva-0f31ccd", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('check', 12)} Aprovar e enviar pre check-in</button>` : ''}
             <button class="rdv2-action-link" data-accs="${(JSON.stringify(accsData)).replace(/"/g,'&quot;')}" data-res='{"id":"${r.id}","accId":"${r.accommodation_id}","ci":"${r.check_in}","co":"${r.check_out}","ng":${r.num_guests||1},"na":${r.num_adults||1},"nc":${r.num_children||0},"bkf":${r.breakfast_included?true:false},"nights":${r.nights||1}}' data-on-click="detalhe-open-accommodation-panel-from-btn-4247f77">${AppModules.core.lcIcon('home', 12)} Editar alojamento</button>
             <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-edit-page-8b67124", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('pencil', 12)} Editar reserva</button>
@@ -377,10 +394,10 @@ async function showDetail(id, opts = {}) {
           ${r.status !== 'pendente' && r.status !== 'cancelada' ? `
           <!-- Concierge -->
           <div class="rdv2-widget">
-            <div class="rdv2-widget-title">Concierge</div>
+            <div class="rdv2-widget-title">${AppModules.core.lcIcon('send', 18)} Concierge</div>
             ${preCheckinUrl ? `
             <div class="rdv2-concierge-url">
-              <span class="rdv2-url-text">${preCheckinUrl}</span>
+              <span class="rdv2-url-text" title="${preCheckinUrl}">${preCheckinUrl}</span>
               <button class="rdv2-icon-btn" ${AppActions.attrs("click", "detalhe-write-text-8f51584", [String((preCheckinUrl) ?? '')])} title="Copiar">${AppModules.core.lcIcon('copy', 12)}</button>
             </div>
             <div class="rdv2-concierge-btns">
@@ -400,7 +417,7 @@ async function showDetail(id, opts = {}) {
 
           <!-- Documentos -->
           <div class="rdv2-widget rdv2-widget-docs">
-            <div class="rdv2-widget-title">Documentos</div>
+            <div class="rdv2-widget-title">${AppModules.core.lcIcon('files', 18)} Documentos</div>
             <button class="rdv2-doc-link" ${AppActions.attrs("click", "detalhe-open-reservation-sheet-d1319da", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('clipboard', 12)} Ficha de reserva</button>
             <button class="rdv2-doc-link" ${AppActions.attrs("click", "detalhe-open-guest-card-621ccbd", [String((r.guest_id) ?? ''), String((r.id) ?? '')])}>${AppModules.core.lcIcon('user', 12)} Ficha de hóspede</button>
             <button class="rdv2-doc-link" ${AppActions.attrs("click", "detalhe-open-account-statement-dbfcf1c", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('credit-card', 12)} Conta corrente</button>
