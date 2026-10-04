@@ -1392,14 +1392,6 @@ body.tl-is-panning * {
     stroke-width: 3.2;
   }
 
-  .agenda-checkout-filter-bar {
-    display: flex;
-  }
-
-  .legend-checkout-filter {
-    font-size: 10.5px;
-  }
-
   /* Cartão de tarefa em Eventos — variante do .agenda-item partilhado
      (Calendário de reservas continua com o layout dot+status original).
      Checkbox substitui o dot; border-left passa a sinalizar prioridade

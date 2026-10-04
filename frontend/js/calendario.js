@@ -3,7 +3,6 @@
 AppModules.define('calendario', {
   CAL: { get: () => CAL },
   calAccColor: { get: () => calAccColor },
-  calAgendaHideCheckedOut: { get: () => calAgendaHideCheckedOut, set: value => { calAgendaHideCheckedOut = value; } },
   calLandSelectedDate: { get: () => calLandSelectedDate, set: value => { calLandSelectedDate = value; } },
   calMode: { get: () => window.matchMedia('(max-width: 600px)').matches ? 'calendar' : calMode, set: value => { calMode = value; } },
   calReservationSuiteInfo: { get: () => calReservationSuiteInfo },
@@ -27,8 +26,6 @@ AppModules.define('calendario', {
 });
 
 let calMode = AppModules.core.SS.get('calMode', 'calendar');
-// Calendário vertical: mantém a opção de ocultar estadias já saídas.
-let calAgendaHideCheckedOut = AppModules.core.SS.get('calAgendaHideCheckedOut', true);
 let tlPointerDrag = null;
 let tlPanDrag = null;
 let timelineDays  = AppModules.core.SS.get('tlDays', 14);

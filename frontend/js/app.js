@@ -750,6 +750,89 @@ async function initApp() {
   }
 }
 
+// Um único controlo para o documento, listas e formulários com scroll próprio.
+function initMobileBackToTop() {
+  const button = document.getElementById('mobile-back-to-top');
+  const main = document.getElementById('main-content');
+  const layout = document.getElementById('app-layout');
+  if (!button || !main || !layout) return;
+  const mobile = window.matchMedia('(max-width: 767px), (max-height: 500px) and (orientation: landscape)');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const scrollers = new Set([document.scrollingElement, main]);
+  let frame = 0;
+  let target = null;
+  let scope = main;
+  const visible = element => element?.isConnected && element.getClientRects().length > 0 &&
+    !element.closest('[hidden], [inert], [aria-hidden="true"]');
+
+  function update() {
+    frame = 0;
+    target = null;
+    button.hidden = true;
+    if (!mobile.matches || !layout.getClientRects().length) return;
+    // Menus/folhas temporárias não devem mostrar o atalho da página por trás.
+    if (document.querySelector('.side-drawer.open, .m-sheet-open, .precos-sheet-open')) return;
+    const dialogs = Array.from(document.querySelectorAll('.modal-bg[aria-hidden="false"], .image-lightbox[aria-hidden="false"]'));
+    const dialog = dialogs.reverse().find(visible);
+    scope = dialog || main;
+    // Dentro de um diálogo, participa no mesmo foco e não fica inert.
+    const host = dialog || document.body;
+    if (button.parentElement !== host) {
+      host.appendChild(button);
+      button.inert = false;
+    }
+    for (const element of Array.from(scrollers).reverse()) {
+      if (!element?.isConnected) { scrollers.delete(element); continue; }
+      const isDocument = element === document.scrollingElement;
+      if (isDocument ? Boolean(dialog) : (!scope.contains(element) || !visible(element))) continue;
+      if (element.scrollTop < 240 || element.scrollHeight <= element.clientHeight) continue;
+      if (!isDocument) {
+        const rect = element.getBoundingClientRect();
+        if (rect.bottom <= 0 || rect.top >= window.innerHeight) continue;
+      }
+      target = element;
+      break;
+    }
+    if (!target) return;
+    const header = document.querySelector('.topbar');
+    button.style.setProperty('--back-to-top-header', `${header?.getBoundingClientRect().height || 0}px`);
+    button.hidden = false;
+  }
+  function schedule() {
+    if (!frame) frame = requestAnimationFrame(update);
+  }
+  document.addEventListener('scroll', event => {
+    const element = event.target === document ? document.scrollingElement : event.target;
+    // Scroll de inputs ou de opções de um seletor não é navegação na página.
+    if (!(element instanceof Element) || element.closest('textarea, input, select, .app-select-menu, .side-drawer')) return;
+    scrollers.delete(element);
+    scrollers.add(element);
+    schedule();
+  }, { capture: true, passive: true });
+  button.addEventListener('click', () => {
+    update();
+    if (!target) return;
+    const behavior = reducedMotion.matches ? 'instant' : 'smooth';
+    let element = target;
+    while (element) {
+      if (element.scrollTop > 0) element.scrollTo({ top: 0, left: element.scrollLeft, behavior });
+      if (element === scope || element === document.scrollingElement) break;
+      element = element.parentElement;
+    }
+  });
+  // Mudanças de vista, fecho de diálogos e conteúdo carregado sem scroll.
+  const observer = new MutationObserver(records => {
+    if (records.some(record => !button.contains(record.target) &&
+      (record.type !== 'childList' || [...record.addedNodes, ...record.removedNodes].some(node => node !== button)))) schedule();
+  });
+  observer.observe(document.body, { subtree: true, childList: true, attributes: true,
+    attributeFilter: ['class', 'style', 'hidden', 'aria-hidden', 'inert'] });
+  mobile.addEventListener('change', schedule);
+  window.addEventListener('resize', schedule, { passive: true });
+  schedule();
+}
+initMobileBackToTop();
+
 document.documentElement.setAttribute('data-theme', 'light');
 localStorage.removeItem('sp-theme');
 AppModules.core.boot();

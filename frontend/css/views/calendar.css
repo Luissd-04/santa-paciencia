@@ -124,8 +124,6 @@
   border-top: 1px solid var(--border-soft);
 }
 .agenda-selected-heading h4 { margin: 0; font-size: 14px; color: var(--text-main); }
-.agenda-selected-heading .btn,
-#calendar-agenda-mobile .legend-checkout-filter { min-height: 44px; }
 .agenda-day-results { display: grid; gap: 12px; }
 .agenda-day-summary {
   display: grid;

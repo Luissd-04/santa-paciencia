@@ -244,12 +244,6 @@ function openOverflowReservation(id) {
   AppModules.reservas.showDetail(id);
 }
 
-function toggleAgendaCheckoutFilter() {
-  AppModules.calendario.calAgendaHideCheckedOut = !AppModules.calendario.calAgendaHideCheckedOut;
-  AppModules.core.SS.set('calAgendaHideCheckedOut', AppModules.calendario.calAgendaHideCheckedOut);
-  AppModules.calendario.renderCal();
-}
-
 function selectAgendaDate(dateStr) {
   calAgendaSelectedDate = dateStr;
   AppModules.calendario.drawCal();
@@ -267,8 +261,7 @@ function renderCalendarAgenda(monthDays, filters = AppModules.calendario.getCale
   }
   const selected = calAgendaSelectedDate;
   const reservations = AppModules.calendario.calendarReservas
-    .filter(r => AppModules.calendario.reservationMatchesCalendarFilters(r, filters))
-    .filter(r => !AppModules.calendario.calAgendaHideCheckedOut || !(r.task_status?.checkout_done || r.status === 'check_out'));
+    .filter(r => AppModules.calendario.reservationMatchesCalendarFilters(r, filters));
   const dayReservations = reservations.filter(r => r.check_in <= selected && r.check_out >= selected)
     .sort((a, b) => a.check_in.localeCompare(b.check_in) || (a.guest_name || '').localeCompare(b.guest_name || ''));
   const firstWeekday = new Date(`${monthDays[0]}T12:00:00`).getDay();
@@ -298,12 +291,6 @@ function renderCalendarAgenda(monthDays, filters = AppModules.calendario.getCale
     </div>
     <div class="agenda-selected-heading">
       <h4>${esc(dateLabel)}</h4>
-      <button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'mes-agenda-open-modal-from-calendar-76a36bf', [selected])}>Nova reserva</button>
-    </div>
-    <div class="agenda-checkout-filter-bar">
-      <button type="button" class="legend-pill legend-checkout-filter${AppModules.calendario.calAgendaHideCheckedOut ? ' active' : ''}" aria-pressed="${AppModules.calendario.calAgendaHideCheckedOut}" data-on-click="mes-agenda-toggle-agenda-checkout-filter-3b558fb">
-        ${AppModules.calendario.calAgendaHideCheckedOut ? 'A mostrar: sem check-out' : 'A mostrar: todas'}
-      </button>
     </div>
     <div class="agenda-day-results" aria-live="polite" aria-atomic="true">
       <div class="agenda-day-summary">${counts.map(([label, count]) => `<div><span>${label}</span><strong>${count}</strong></div>`).join('')}</div>
@@ -331,10 +318,6 @@ function renderCalendarAgenda(monthDays, filters = AppModules.calendario.getCale
 // evita repetir a matemática do mês. Só tem efeito visual dentro do
 // media query de paisagem (ver mobile.css) — em qualquer outra
 // orientação/largura fica escondida, por isso é barato renderizar sempre.
-
-AppActions.register({
-  "mes-agenda-toggle-agenda-checkout-filter-3b558fb": (el, event, args) => { toggleAgendaCheckoutFilter() },
-}, "click");
 
 AppActions.register({
   "mes-agenda-select-date": (el, event, args) => { selectAgendaDate(args[0]) },
