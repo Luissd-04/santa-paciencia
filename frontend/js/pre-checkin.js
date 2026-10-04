@@ -129,9 +129,8 @@ function guestForm(guest, index, numAdults) {
           <span data-base-label="Tipo de documento">Tipo de documento</span>
           <select data-field="document_type" data-foreign-required>
             <option value="">Escolher...</option>
-            <option value="passport" ${guest?.document_type === 'passport' ? 'selected' : ''}>Passaporte</option>
-            <option value="id_card" ${guest?.document_type === 'id_card' ? 'selected' : ''}>Cartão de cidadão / ID</option>
-            <option value="other" ${guest?.document_type === 'other' ? 'selected' : ''}>Outro</option>
+            ${[['passaporte', 'Passaporte'], ['cc', 'Cartão de cidadão / ID'], ['bi', 'Bilhete de identidade'], ['nie', 'NIE'], ['outro', 'Outro']].map(([value, label]) =>
+              `<option value="${value}" ${(({ passport: 'passaporte', id_card: 'cc', other: 'outro' })[guest?.document_type] || guest?.document_type) === value ? 'selected' : ''}>${label}</option>`).join('')}
           </select>
         </label>
       </div>

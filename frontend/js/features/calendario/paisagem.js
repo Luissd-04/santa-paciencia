@@ -168,6 +168,7 @@ function goToday() {
     return;
   }
   const today = new Date();
+  AppModules.calendario.calAgendaSelectedDate = null;
   AppModules.core.calYear = today.getFullYear(); AppModules.core.calMonth = today.getMonth(); AppModules.calendario.renderCal();
 }
 

@@ -5,7 +5,7 @@ AppModules.define('calendario', {
   calAccColor: { get: () => calAccColor },
   calAgendaHideCheckedOut: { get: () => calAgendaHideCheckedOut, set: value => { calAgendaHideCheckedOut = value; } },
   calLandSelectedDate: { get: () => calLandSelectedDate, set: value => { calLandSelectedDate = value; } },
-  calMode: { get: () => calMode, set: value => { calMode = value; } },
+  calMode: { get: () => window.matchMedia('(max-width: 600px)').matches ? 'calendar' : calMode, set: value => { calMode = value; } },
   calReservationSuiteInfo: { get: () => calReservationSuiteInfo },
   calReservationSuites: { get: () => calReservationSuites },
   getCalendarFilters: { get: () => getCalendarFilters },
@@ -27,8 +27,7 @@ AppModules.define('calendario', {
 });
 
 let calMode = AppModules.core.SS.get('calMode', 'calendar');
-// Agenda vertical (telemóvel em pé): por padrão só mostra reservas cujo
-// check-out ainda não foi marcado — evita lista cheia de estadias já saídas.
+// Calendário vertical: mantém a opção de ocultar estadias já saídas.
 let calAgendaHideCheckedOut = AppModules.core.SS.get('calAgendaHideCheckedOut', true);
 let tlPointerDrag = null;
 let tlPanDrag = null;
@@ -58,6 +57,9 @@ const calAccColor = id => (AppModules.core.accommodations.find(a => a.id === id)
 
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 let calLandSelectedDate = null;
+window.matchMedia('(max-width: 600px)').addEventListener('change', () => {
+  if (document.getElementById('view-calendario')?.classList.contains('active')) renderCalView();
+});
 
 // No mobile, os filtros do Calendário (suite/estado/canal) viram uma
 // folha deslizante — mesmo mecanismo de #reservas-filter-panel
@@ -199,7 +201,7 @@ function renderCalView() {
   const agendaWrap  = document.getElementById('calendar-agenda-mobile');
   const tlWrap      = document.getElementById('timeline-wrap');
   const rangeToggle = document.getElementById('timeline-range-toggle');
-  const toTimeline  = calMode === 'timeline';
+  const toTimeline  = AppModules.calendario.calMode === 'timeline';
 
   if (calWrap)     calWrap.style.display     = toTimeline ? 'none' : '';
   if (tlWrap)      tlWrap.style.display      = toTimeline ? '' : 'none';

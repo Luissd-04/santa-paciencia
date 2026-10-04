@@ -2,8 +2,11 @@
 (() => {
 AppModules.define('calendario', {
   drawCal: { get: () => drawCal },
+  calAgendaSelectedDate: { get: () => calAgendaSelectedDate, set: value => { calAgendaSelectedDate = value; } },
   openCalendarOverflow: { get: () => openCalendarOverflow },
 });
+
+let calAgendaSelectedDate = null;
 
 function drawCal() {
   AppModules.core.SS.set('calYear', AppModules.core.calYear);
@@ -16,7 +19,8 @@ function drawCal() {
   const firstDay = new Date(AppModules.core.calYear, AppModules.core.calMonth, 1).getDay();
   const daysInM  = new Date(AppModules.core.calYear, AppModules.core.calMonth + 1, 0).getDate();
   const prevDays = new Date(AppModules.core.calYear, AppModules.core.calMonth, 0).getDate();
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   const grid = document.getElementById('cal-grid');
 
@@ -246,57 +250,79 @@ function toggleAgendaCheckoutFilter() {
   AppModules.calendario.renderCal();
 }
 
+function selectAgendaDate(dateStr) {
+  calAgendaSelectedDate = dateStr;
+  AppModules.calendario.drawCal();
+  document.querySelector(`[data-agenda-date="${dateStr}"]`)?.focus({ preventScroll: true });
+}
+
 function renderCalendarAgenda(monthDays, filters = AppModules.calendario.getCalendarFilters(), targetId = 'calendar-agenda-mobile') {
   const agenda = document.getElementById(targetId);
-  if (!agenda) return;
-
-  const filterBar = `<div class="agenda-checkout-filter-bar">
-    <button type="button" class="legend-pill legend-checkout-filter${AppModules.calendario.calAgendaHideCheckedOut ? ' active' : ''}" data-on-click="mes-agenda-toggle-agenda-checkout-filter-3b558fb">
-      ${AppModules.calendario.calAgendaHideCheckedOut ? 'A mostrar: sem check-out' : 'A mostrar: todas'}
-    </button>
-  </div>`;
-
-  const monthReservations = AppModules.calendario.calendarReservas
+  if (!agenda || !monthDays.length) return;
+  const esc = AppModules.core.escapeHtml;
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  if (!monthDays.includes(calAgendaSelectedDate)) {
+    calAgendaSelectedDate = monthDays.includes(today) ? today : monthDays[0];
+  }
+  const selected = calAgendaSelectedDate;
+  const reservations = AppModules.calendario.calendarReservas
     .filter(r => AppModules.calendario.reservationMatchesCalendarFilters(r, filters))
-    .filter(r => !AppModules.calendario.calAgendaHideCheckedOut || !r.task_status?.checkout_done)
-    .filter(r => r.check_out >= monthDays[0] && r.check_in <= monthDays[monthDays.length - 1])
-    .sort((a, b) => a.check_in.localeCompare(b.check_in) || a.check_out.localeCompare(b.check_out));
-
-  const groups = monthDays.map(dateStr => {
-    const dayReservations = monthReservations.filter(r => r.check_in <= dateStr && r.check_out >= dateStr);
-    if (!dayReservations.length) return '';
-    const date = new Date(`${dateStr}T12:00:00`);
-    const dayLabel = date.toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: 'short' });
-    return `<section class="agenda-day">
-      <div class="agenda-day-title">${dayLabel}</div>
-      <div class="agenda-day-list">
-        ${dayReservations.map(r => {
-          const suiteInfos = AppModules.calendario.calReservationSuiteInfo(r);
-          const isMulti    = suiteInfos.length > 1;
-          const color      = suiteInfos[0].color;
-          const isCheckIn  = r.check_in === dateStr;
-          const isCheckOut = r.check_out === dateStr;
-          const marker     = isCheckIn ? 'Check-in' : isCheckOut ? 'Check-out' : 'Estadia';
-          const suitesHtml = isMulti
-            ? `<span class="agenda-item-suites">${suiteInfos.map(s => `<small style="color:${s.color};"><span class="agenda-item-suite-dot" style="background:${s.color};"></span>${AppModules.core.escapeHtml(s.name)}</small>`).join('')}</span>`
-            : `<small>${AppModules.core.escapeHtml(suiteInfos[0].name)} · ${marker}</small>`;
-          const checkoutDot = r.task_status?.checkout_done ? '<span class="agenda-item-checkout-dot"></span>' : '';
-          return `<button type="button" class="agenda-item${isMulti ? ' agenda-item-multi' : ''}" ${AppActions.attrs("click", "mes-agenda-show-detail-3d67b14", [String((r.id) ?? '')])} style="--agenda-color:${color};">
-            ${checkoutDot}
-            <span class="agenda-item-dot"></span>
-            <span class="agenda-item-main">
-              <strong>${AppModules.core.escapeHtml(r.guest_name || 'Reserva')}</strong>
-              ${suitesHtml}
-            </span>
-            <span class="agenda-item-status">${r.status || '—'}</span>
+    .filter(r => !AppModules.calendario.calAgendaHideCheckedOut || !(r.task_status?.checkout_done || r.status === 'check_out'));
+  const dayReservations = reservations.filter(r => r.check_in <= selected && r.check_out >= selected)
+    .sort((a, b) => a.check_in.localeCompare(b.check_in) || (a.guest_name || '').localeCompare(b.guest_name || ''));
+  const firstWeekday = new Date(`${monthDays[0]}T12:00:00`).getDay();
+  const dateLabel = new Date(`${selected}T12:00:00`).toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
+  const statusLabels = { pre_reserva: 'Pré-reserva', pendente: 'Pendente', pre_checkin: 'Pré-check-in',
+    aguardar_pagamento: 'Aguardar pagamento', confirmada: 'Confirmada', check_in: 'Check-in', check_out: 'Check-out', cancelada: 'Cancelada' };
+  const counts = [
+    ['Check-ins', dayReservations.filter(r => r.check_in === selected).length],
+    ['Estadias', dayReservations.filter(r => r.check_in < selected && r.check_out > selected).length],
+    ['Check-outs', dayReservations.filter(r => r.check_out === selected).length],
+  ];
+  agenda.innerHTML = `
+    <div class="agenda-month" role="group" aria-label="Selecionar dia do mês">
+      <div class="agenda-month-weekdays" aria-hidden="true">${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => `<span>${day}</span>`).join('')}</div>
+      <div class="agenda-month-days">
+        ${'<span aria-hidden="true"></span>'.repeat(firstWeekday)}
+        ${monthDays.map(date => {
+          const count = reservations.filter(r => r.check_in <= date && r.check_out >= date).length;
+          const label = new Date(`${date}T12:00:00`).toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' });
+          return `<button type="button" class="agenda-date${date === today ? ' is-today' : ''}" data-agenda-date="${date}"
+            aria-pressed="${date === selected}" ${date === today ? 'aria-current="date"' : ''}
+            aria-label="${esc(label)}, ${count} reserva${count === 1 ? '' : 's'}" ${AppActions.attrs('click', 'mes-agenda-select-date', [date])}>
+            <span>${Number(date.slice(-2))}</span><span class="agenda-date-dot${count ? ' has-reservations' : ''}" aria-hidden="true"></span>
           </button>`;
         }).join('')}
       </div>
-    </section>`;
-  }).filter(Boolean);
-
-  const emptyMsg = monthDays.length === 1 ? 'Sem reservas visíveis neste dia.' : 'Sem reservas visíveis neste mês.';
-  agenda.innerHTML = filterBar + (groups.join('') || AppModules.core.emptyStateHtml('📅', 'Sem reservas', emptyMsg, { inline: true }));
+    </div>
+    <div class="agenda-selected-heading">
+      <h4>${esc(dateLabel)}</h4>
+      <button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'mes-agenda-open-modal-from-calendar-76a36bf', [selected])}>Nova reserva</button>
+    </div>
+    <div class="agenda-checkout-filter-bar">
+      <button type="button" class="legend-pill legend-checkout-filter${AppModules.calendario.calAgendaHideCheckedOut ? ' active' : ''}" aria-pressed="${AppModules.calendario.calAgendaHideCheckedOut}" data-on-click="mes-agenda-toggle-agenda-checkout-filter-3b558fb">
+        ${AppModules.calendario.calAgendaHideCheckedOut ? 'A mostrar: sem check-out' : 'A mostrar: todas'}
+      </button>
+    </div>
+    <div class="agenda-day-results" aria-live="polite" aria-atomic="true">
+      <div class="agenda-day-summary">${counts.map(([label, count]) => `<div><span>${label}</span><strong>${count}</strong></div>`).join('')}</div>
+      <div class="agenda-reservation-list">${dayReservations.map(r => {
+        const suites = AppModules.calendario.calReservationSuiteInfo(r);
+        const marker = r.check_in === selected && r.check_out === selected ? 'Check-in e check-out' : r.check_in === selected ? 'Check-in' : r.check_out === selected ? 'Check-out' : 'Estadia';
+        const nights = Number(r.nights) || Math.round((new Date(`${r.check_out}T12:00:00Z`) - new Date(`${r.check_in}T12:00:00Z`)) / 86400000);
+        const adults = r.num_adults == null ? `${Number(r.num_guests) || 1} hóspedes` : `${Number(r.num_adults)} adulto${Number(r.num_adults) === 1 ? '' : 's'}`;
+        const children = Number(r.num_children) ? ` · ${Number(r.num_children)} criança${Number(r.num_children) === 1 ? '' : 's'}` : '';
+        return `<button type="button" class="agenda-reservation" style="--agenda-color:${suites[0].color}" ${AppActions.attrs('click', 'mes-agenda-show-detail-3d67b14', [String(r.id)])}>
+          <span class="agenda-reservation-top"><span class="agenda-reservation-status">${esc(statusLabels[r.status] || r.status || 'Reserva')}</span><span>${marker}</span></span>
+          <strong class="agenda-reservation-name">${esc(r.guest_name || 'Reserva')}</strong>
+          <span class="agenda-reservation-suites">${esc(suites.map(suite => suite.name).join(' · '))}</span>
+          <span class="agenda-reservation-meta">${AppModules.core.lcIcon('calendar-days', 16)} ${AppModules.calendario.shortDatePt(r.check_in)} – ${AppModules.calendario.shortDatePt(r.check_out)}</span>
+          <span class="agenda-reservation-meta">${AppModules.core.lcIcon('moon', 16)} ${nights} noite${nights === 1 ? '' : 's'}</span>
+          <span class="agenda-reservation-meta">${AppModules.core.lcIcon('users', 16)} ${adults}${children}</span>
+        </button>`;
+      }).join('') || '<p class="agenda-day-empty">Sem reservas visíveis neste dia.</p>'}</div>
+    </div>`;
   if (window.lucide) lucide.createIcons();
 }
 
@@ -311,6 +337,7 @@ AppActions.register({
 }, "click");
 
 AppActions.register({
+  "mes-agenda-select-date": (el, event, args) => { selectAgendaDate(args[0]) },
   "mes-agenda-show-detail-3d67b14": (el, event, args) => { AppModules.reservas.showDetail(args[0]) },
   "mes-agenda-stop-propagation-eb43f3e": (el, event, args) => { event.stopPropagation();AppModules.reservas.showDetail(args[0]) },
   "mes-agenda-open-overflow-87a42f1": (el, event, args) => { event.stopPropagation();openCalendarOverflow(args[0]) },

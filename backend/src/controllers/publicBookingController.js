@@ -1,3 +1,4 @@
+const { normalizeDocumentType } = require('../services/documentType');
 const { findUsableVoucher, voucherDiscount: calculateVoucherDiscount, redeemVoucher } = require('../services/voucherService');
 const { findConflict, unavailableUnits, validateExtraUnits } = require('../services/reservationAvailability');
 const { validateReservationInput } = require('../services/reservationValidation');
@@ -573,7 +574,7 @@ function cleanGuestData(item = {}) {
     birth_date: normalizeDateValue(item.birth_date) || null,
     nationality: String(item.nationality || '').trim(),
     country: String(item.country || item.nationality || '').trim(),
-    document_type: String(item.document_type || '').trim(),
+    document_type: normalizeDocumentType(item.document_type),
     document_number: String(item.document_number || '').trim(),
     document_issuer_country: String(item.document_issuer_country || item.nationality || '').trim(),
     birth_city: String(item.birth_city || '').trim().slice(0, 120),

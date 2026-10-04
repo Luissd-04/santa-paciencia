@@ -179,6 +179,77 @@ async function main() {
       db.prepare('UPDATE reservations SET num_guests=?, num_adults=? WHERE id=?').run(row.num_guests, row.num_adults, row.id);
     }
   });
+  await check('Envio de pré-check-in atualiza estado apenas com entrega e sem recuar reservas', async () => {
+    reservation('send-precheckin');
+    let deliveries = 0;
+    let delivery = { id: 'synthetic-delivery' };
+    const ctrl = load('controllers/reservationController.js', {
+      '../services/emailService': { ...emailStub, sendPreCheckinEmail: async () => {
+        deliveries++;
+        if (delivery instanceof Error) throw delivery;
+        return delivery;
+      } },
+    });
+    const send = body => call(ctrl.sendPrecheckinLink, request(body, { id: 'send-precheckin' }));
+    const status = () => db.prepare("SELECT status FROM reservations WHERE id='send-precheckin'").get().status;
+    for (const original of ['pre_reserva', 'pendente', 'confirmada', 'aguardar_pagamento']) {
+      db.prepare("UPDATE reservations SET status=? WHERE id='send-precheckin'").run(original);
+      const result = await send({ send: true });
+      assert.equal(result.body.data.email_sent, true);
+      assert.equal(result.body.data.status, 'pre_checkin');
+      assert.equal(status(), 'pre_checkin');
+    }
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM reservation_history WHERE reservation_id='send-precheckin' AND action='updated'").get().n, 4);
+    for (const original of ['pre_checkin', 'check_in', 'check_out', 'cancelada']) {
+      db.prepare("UPDATE reservations SET status=? WHERE id='send-precheckin'").run(original);
+      await send({ send: true });
+      assert.equal(status(), original);
+    }
+    db.exec("UPDATE reservations SET status='confirmada' WHERE id='send-precheckin'");
+    const before = deliveries;
+    await send({ send: false });
+    assert.equal(deliveries, before);
+    assert.equal(status(), 'confirmada');
+    for (const result of [null, new Error('Falha de envio sintética')]) {
+      delivery = result;
+      assert.equal((await send({ send: true })).body.data.email_sent, false);
+      assert.equal(status(), 'confirmada');
+    }
+    delivery = { id: 'synthetic-delivery' };
+    db.exec("UPDATE reservations SET precheckin_submitted_at=datetime('now') WHERE id='send-precheckin'");
+    await send({ send: true });
+    assert.equal(status(), 'confirmada');
+  });
+  await check('Tipo de documento: aliases antigos persistem como valores do backoffice', async () => {
+    const row = db.prepare('SELECT id FROM reservations WHERE precheckin_token=?').get(publicToken);
+    db.prepare('UPDATE reservations SET num_guests=2 WHERE id=?').run(row.id);
+    const guest = { name: 'Documento Teste', email: 'document@example.invalid', nationality: 'Espanha',
+      birth_date: '1990-01-01', residence_country: 'Espanha', document_number: 'TEST123', document_issuer_country: 'Espanha' };
+    for (const [alias, canonical] of [['passport', 'passaporte'], ['id_card', 'cc'], ['other', 'outro'], ['bi', 'bi'], ['nie', 'nie']]) {
+      const result = await call(publicCtrl.submitPreCheckin, request({ rgpd_consent: true,
+        guest: { ...guest, document_type: alias }, guests_data: [{ ...guest, document_type: alias }] }, { token: publicToken }));
+      assert.equal(result.statusCode, 200);
+      const saved = db.prepare('SELECT g.document_type, r.guests_data FROM reservations r JOIN guests g ON g.id=r.guest_id WHERE r.id=?').get(row.id);
+      assert.equal(saved.document_type, canonical);
+      assert.equal(JSON.parse(saved.guests_data)[0].document_type, canonical);
+      const reopened = await call(publicCtrl.getPreCheckin, request({}, { token: publicToken }));
+      assert.equal(reopened.body.data.guest.document_type, canonical);
+    }
+  });
+  await check('Migração corrige documentos antigos sem alterar restantes dados', () => {
+    db.exec("UPDATE guests SET document_type='passport' WHERE id='guest-a'");
+    const extras = [{ name: 'Documento antigo', document_type: 'id_card', document_number: 'KEEP' }, { document_type: 'bi' }];
+    db.prepare("UPDATE reservations SET guests_data=? WHERE id='send-precheckin'").run(JSON.stringify(extras));
+    db.prepare('DELETE FROM schema_migrations WHERE id=?').run('20261004_document_types');
+    const { runMigrations } = backendRequire('./config/migrations');
+    runMigrations(db);
+    assert.equal(db.prepare("SELECT document_type FROM guests WHERE id='guest-a'").get().document_type, 'passaporte');
+    const saved = JSON.parse(db.prepare("SELECT guests_data FROM reservations WHERE id='send-precheckin'").get().guests_data);
+    assert.deepEqual(saved, [{ ...extras[0], document_type: 'cc' }, extras[1]]);
+    runMigrations(db);
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM schema_migrations WHERE id='20261004_document_types'").get().n, 1);
+    db.exec("DELETE FROM reservation_history WHERE reservation_id='send-precheckin'; DELETE FROM reservations WHERE id='send-precheckin'");
+  });
   await check('S08: pré-check-in conserva aprovação e expiração', async () => {
     const row = db.prepare('SELECT * FROM reservations WHERE precheckin_token=?').get(publicToken);
     assert.equal(row.status, 'pendente');

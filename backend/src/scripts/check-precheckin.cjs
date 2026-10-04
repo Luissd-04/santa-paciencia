@@ -64,7 +64,7 @@ async function main() {
   await residence.fill('fra');
   await mainCard.getByRole('option', { name: 'França', exact: true }).click();
   await expect(residence).toHaveValue('França');
-  await mainCard.locator('[data-field="document_type"]').selectOption('passport');
+  await mainCard.locator('[data-field="document_type"]').selectOption('passaporte');
   await mainCard.locator('[data-field="document_number"]').fill('AB12345');
   await mainCard.locator('[data-copy-nationality]').click();
   await expect(mainCard.locator('[data-field="document_issuer_country"]')).toHaveValue('Espanha');
@@ -77,7 +77,7 @@ async function main() {
   await expect(child).toBeVisible();
   await child.locator('[data-copy-residence]').click();
   await expect(child.locator('[data-field="residence_country"]')).toHaveValue('França');
-  await child.locator('[data-field="document_type"]').selectOption('passport');
+  await child.locator('[data-field="document_type"]').selectOption('passaporte');
   await child.locator('[data-field="document_number"]').fill('CH12345');
   await child.locator('[data-copy-nationality]').click();
   await child.locator('[data-complete-guest]').click();
@@ -114,6 +114,8 @@ async function main() {
   await page.screenshot({ path: path.join(temp, 'sucesso.png'), fullPage: true, animations: 'disabled' });
   assert.equal(db.prepare('SELECT arrival_time FROM reservations WHERE id=?').get('res').arrival_time, '17:30');
   assert.equal(db.prepare('SELECT document_number FROM guests WHERE id=?').get('guest').document_number, 'AB12345');
+  assert.equal(db.prepare('SELECT document_type FROM guests WHERE id=?').get('guest').document_type, 'passaporte');
+  assert.equal(JSON.parse(db.prepare('SELECT guests_data FROM reservations WHERE id=?').get('res').guests_data)[0].document_type, 'passaporte');
   await page.reload();
   await expect(page.locator('#confirmation-title')).toContainText('Dados guardados com sucesso');
   await page.locator('#confirmation-return').click();
@@ -130,6 +132,23 @@ async function main() {
   assert.equal(db.prepare('SELECT company_nif FROM guests WHERE id=?').get('guest').company_nif, null);
   await page.locator('#confirmation-return').click();
   await expect(mainCard.locator('[data-field="is_company"]')).not.toBeChecked();
+  // O backoffice reabre os tipos gravados pelo formulário público, inclusive acompanhantes.
+  const auth = require('../services/authService');
+  const orgs = require('../services/orgService');
+  const user = auth.createUser({ name: 'Backoffice Teste', email: 'backoffice@example.invalid', password: 'SyntheticPrecheckin123!' });
+  orgs.createMembership({ organizationId: 'org', userId: user.id, role: 'owner' });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  await context.addCookies([{ name: auth.SESSION_COOKIE, value: auth.createSession(user.id, 'org').sessionId, url: base }]);
+  const backoffice = await context.newPage();
+  backoffice.on('pageerror', error => errors.push(error.message));
+  await backoffice.goto(base);
+  await backoffice.evaluate(async () => {
+    await AppModules.core.showView('reservas');
+    await AppModules.reservas.openEditPage('res');
+  });
+  await expect(backoffice.locator('#f-doc-tipo')).toHaveValue('passaporte');
+  await expect(backoffice.locator('.extra-guest-row [data-field="doc_type"]').first()).toHaveValue('passaporte');
+  await backoffice.close();
   // Reserva individual: duas etapas e país normalizado a partir do código ISO.
   db.exec("UPDATE reservations SET num_guests=1,num_adults=1,num_children=0,guests_data='[]' WHERE id='res'; UPDATE guests SET nationality='PT' WHERE id='guest'");
   await page.reload();
@@ -142,7 +161,7 @@ async function main() {
   await page.setViewportSize({ width: 844, height: 390 });
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   assert.deepEqual(errors, []);
-  console.log(`OK: etapas, países, validação, submissão, reabertura e layouts. Capturas: ${temp}`);
+  console.log(`OK: etapas, países, validação, submissão, reabertura, documentos no backoffice e layouts. Capturas: ${temp}`);
 }
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
   await browser?.close();

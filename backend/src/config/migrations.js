@@ -45,6 +45,7 @@ function runMigrations(db) {
   migrateGoogleTaskCleanupQueue(db);
   migrateGoogleTaskBidirectional(db);
   migrateVoucherRedemptions(db);
+  migrateDocumentTypes(db);
 }
 function migrateAuthScheduler(db) {
   const id = '20260919_auth_scheduler';
@@ -176,6 +177,31 @@ function migrateListIndexes(db) {
     db.exec(`CREATE INDEX IF NOT EXISTS idx_res_org_guest ON reservations(organization_id,guest_id,status,check_in);
       CREATE INDEX IF NOT EXISTS idx_guest_org_name ON guests(organization_id,name COLLATE NOCASE,id);
       CREATE INDEX IF NOT EXISTS idx_events_res_kind ON operational_events(organization_id,reservation_id,auto_kind,created_at);`);
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+function migrateDocumentTypes(db) {
+  const id = '20261004_document_types';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  const { normalizeDocumentType } = require('../services/documentType');
+  db.transaction(() => {
+    const updateGuest = db.prepare('UPDATE guests SET document_type=? WHERE id=?');
+    for (const guest of db.prepare("SELECT id, document_type FROM guests WHERE document_type IN ('passport', 'id_card', 'other')").all()) {
+      updateGuest.run(normalizeDocumentType(guest.document_type), guest.id);
+    }
+    const updateExtras = db.prepare('UPDATE reservations SET guests_data=? WHERE id=?');
+    for (const row of db.prepare("SELECT id, guests_data FROM reservations WHERE guests_data IS NOT NULL AND guests_data != '[]'").all()) {
+      let guests;
+      try { guests = JSON.parse(row.guests_data); } catch { continue; }
+      if (!Array.isArray(guests)) continue;
+      let changed = false;
+      for (const guest of guests) {
+        if (!guest || typeof guest !== 'object' || !guest.document_type) continue;
+        const type = normalizeDocumentType(guest.document_type);
+        if (type !== guest.document_type) { guest.document_type = type; changed = true; }
+      }
+      if (changed) updateExtras.run(JSON.stringify(guests), row.id);
+    }
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }

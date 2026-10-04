@@ -216,9 +216,7 @@ async function approve(req, res, next) {
 }
 
 // POST /api/reservations/:id/send-precheckin
-// Gera (se necessário) e envia o link de pré-checkin sem alterar o estado da
-// reserva — ao contrário de approve(), serve para reservas criadas
-// diretamente no backoffice (nascem "confirmada", nunca passam por "pendente").
+// O envio bem-sucedido inicia o pré-check-in de reservas ainda não preenchidas.
 async function sendPrecheckinLink(req, res, next) {
   try {
     const organizationId = req.user.organization_id;
@@ -243,15 +241,30 @@ async function sendPrecheckinLink(req, res, next) {
     if (shouldSend) {
       if (guest.email) {
         try {
-          await sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl);
-          emailSent = true;
+          const delivery = await sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl);
+          emailSent = Boolean(delivery);
         } catch (err) {
           console.warn('Email de pre-check-in não enviado:', err.message);
         }
       }
     }
 
-    res.json({ success: true, data: { pre_checkin_url: preCheckinUrl, email_sent: emailSent } });
+    // Revalidar após o envio: entretanto o hóspede pode ter preenchido o
+    // formulário ou a equipa pode ter cancelado/concluído a reserva.
+    const updated = db.transaction(() => {
+      const current = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservation.id, organizationId);
+      if (emailSent && !current.precheckin_submitted_at &&
+          ['pre_reserva', 'pendente', 'confirmada', 'aguardar_pagamento'].includes(current.status)) {
+        db.prepare("UPDATE reservations SET status = 'pre_checkin', updated_at = datetime('now') WHERE id = ? AND organization_id = ?")
+          .run(current.id, organizationId);
+        recordHistory({ organizationId, reservationId: current.id, userId: req.user.id, action: 'updated',
+          changes: [{ field: 'status', from: current.status, to: 'pre_checkin' }], meta: { source: 'send_precheckin' } });
+        current.status = 'pre_checkin';
+      }
+      return current;
+    })();
+    syncReservationOperationalTasks({ ...updated, guest_name: guest.name, accommodation_name: accommodation.name }, req.user.id);
+    res.json({ success: true, data: { pre_checkin_url: preCheckinUrl, email_sent: emailSent, status: updated.status } });
   } catch (err) {
     next(err);
   }

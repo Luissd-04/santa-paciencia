@@ -35,7 +35,7 @@ async function enviarLinkPrecheckin(id, send = true) {
       if (!send) {
         AppModules.core.toast('🔗 Link de pré-checkin gerado.', 'success');
       } else {
-        AppModules.core.toast(res.data?.email_sent ? '✅ Link de pré-checkin enviado por email.' : '🔗 Link de pré-checkin gerado — copia-o para enviar (o hóspede não tem email registado).', 'success');
+        AppModules.core.toast(res.data?.email_sent ? '✅ Link de pré-checkin enviado por email.' : '🔗 Link de pré-checkin gerado — copia-o para enviar (o email não foi enviado).', 'success');
       }
       await AppModules.reservas.loadReservas();
       AppModules.reservas.showDetail(id);
