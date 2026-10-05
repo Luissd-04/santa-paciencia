@@ -47,6 +47,7 @@ function runMigrations(db) {
   migrateVoucherRedemptions(db);
   migrateDocumentTypes(db);
   migrateStripePayments(db);
+  migrateStripeLiveMode(db);
 }
 function migrateStripePayments(db) {
   const id = '20261005_stripe_payments';
@@ -82,6 +83,14 @@ function migrateStripePayments(db) {
         id TEXT PRIMARY KEY, type TEXT NOT NULL,
         processed_at TEXT NOT NULL DEFAULT (datetime('now'))
       );`);
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+function migrateStripeLiveMode(db) {
+  const id = '20261005_stripe_live_mode';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec('ALTER TABLE stripe_payment_attempts ADD COLUMN livemode INTEGER NOT NULL DEFAULT 0 CHECK(livemode IN (0,1))');
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }

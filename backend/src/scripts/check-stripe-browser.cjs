@@ -12,6 +12,7 @@ process.chdir(temp);
 Object.assign(process.env, {
   DB_PATH: ':memory:', NODE_ENV: 'test', EMAIL_ENABLED: 'false',
   FRONTEND_PATH: path.resolve(__dirname, '../../../frontend'), PUBLIC_APP_URL: 'http://localhost:3001',
+  STRIPE_MODE: 'test',
   STRIPE_SECRET_KEY: 'sk_test_browser_synthetic', STRIPE_WEBHOOK_SECRET: 'whsec_browser_synthetic',
   STRIPE_ORGANIZATION_ID: 'browser-org',
 });

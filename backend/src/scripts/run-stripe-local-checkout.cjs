@@ -51,6 +51,7 @@ async function startApp(webhookSecret) {
     EMAIL_ENABLED: 'false',
     FRONTEND_PATH: path.join(projectRoot, 'frontend'),
     PUBLIC_APP_URL: `http://localhost:${testPort}`,
+    STRIPE_MODE: 'test',
     STRIPE_WEBHOOK_SECRET: webhookSecret,
   });
 

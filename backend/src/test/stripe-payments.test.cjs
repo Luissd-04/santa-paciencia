@@ -11,13 +11,14 @@ process.env.DB_PATH = ':memory:';
 process.env.NODE_ENV = 'test';
 process.env.EMAIL_ENABLED = 'false';
 process.env.PUBLIC_APP_URL = 'http://localhost:3001';
+process.env.STRIPE_MODE = 'test';
 process.env.STRIPE_SECRET_KEY = 'sk_test_synthetic';
 process.env.STRIPE_WEBHOOK_SECRET = 'whsec_synthetic';
 process.env.STRIPE_ORGANIZATION_ID = 'stripe-org';
 const { db, initDatabase } = require('../config/database');
 initDatabase();
 const service = require('../services/stripePayments');
-const { getStripe, stripeEnabled } = require('../services/stripeClient');
+const { getStripe, stripeConfig, stripeEnabled } = require('../services/stripeClient');
 const { activeCheckout } = require('../services/stripePaymentGuards');
 const controller = require('../controllers/stripePaymentsController');
 const sdk = getStripe();
@@ -90,6 +91,7 @@ test('checkout ignora montantes do cliente, usa EUR e metadata da reserva', asyn
   assert.equal(params.customer_email, 'guest@example.invalid');
   assert.equal(params.payment_method_types, undefined);
   assert.ok(params.success_url.startsWith(process.env.PUBLIC_APP_URL));
+  assert.equal(db.prepare('SELECT livemode FROM stripe_payment_attempts').get().livemode, 0);
 });
 
 test('pedidos simultâneos e retries usam uma só sessão e chave de idempotência', async () => {
@@ -112,16 +114,36 @@ test('rejeita token inválido, reservas canceladas, pendentes de aprovação e l
   assert.equal(requests.size, 0);
 });
 
-test('falha fechada sem configuração, com chave live ou organização diferente', () => {
-  assert.equal(stripeEnabled('other-org'), false);
-  const key = process.env.STRIPE_SECRET_KEY;
-  process.env.STRIPE_SECRET_KEY = 'sk_live_synthetic';
-  assert.equal(stripeEnabled('stripe-org'), false);
-  process.env.STRIPE_SECRET_KEY = key;
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  delete process.env.STRIPE_WEBHOOK_SECRET;
-  assert.equal(stripeEnabled('stripe-org'), false);
-  process.env.STRIPE_WEBHOOK_SECRET = secret;
+test('modo Stripe exige ambiente, chave e organização correspondentes', async () => {
+  const original = { key: process.env.STRIPE_SECRET_KEY, secret: process.env.STRIPE_WEBHOOK_SECRET,
+    mode: process.env.STRIPE_MODE, nodeEnv: process.env.NODE_ENV, publicUrl: process.env.PUBLIC_APP_URL };
+  try {
+    assert.equal(stripeEnabled('other-org'), false);
+    process.env.STRIPE_SECRET_KEY = 'sk_live_synthetic';
+    assert.equal(stripeEnabled('stripe-org'), false);
+    process.env.STRIPE_SECRET_KEY = original.key;
+    delete process.env.STRIPE_WEBHOOK_SECRET;
+    assert.equal(stripeEnabled('stripe-org'), false);
+    process.env.STRIPE_WEBHOOK_SECRET = original.secret;
+    process.env.STRIPE_MODE = 'live';
+    process.env.STRIPE_SECRET_KEY = 'sk_live_synthetic';
+    assert.equal(stripeEnabled('stripe-org'), false);
+    process.env.NODE_ENV = 'production';
+    process.env.PUBLIC_APP_URL = 'https://example.invalid';
+    assert.equal(stripeEnabled('stripe-org'), true);
+    assert.equal(stripeConfig().livemode, true);
+    assert.equal(service.paymentSummary({ id: 'none', organization_id: 'stripe-org', status: 'aguardar_pagamento',
+      payment_status: 'pendente', check_out: '2035-01-03', total_amount: 1, amount_paid: 0 }).test_mode, false);
+    await assert.rejects(service.processWebhook({ livemode: false }), { status: 400 });
+    process.env.STRIPE_MODE = 'invalid';
+    assert.equal(stripeEnabled('stripe-org'), false);
+  } finally {
+    process.env.STRIPE_MODE = original.mode;
+    process.env.STRIPE_SECRET_KEY = original.key;
+    process.env.STRIPE_WEBHOOK_SECRET = original.secret;
+    process.env.NODE_ENV = original.nodeEnv;
+    process.env.PUBLIC_APP_URL = original.publicUrl;
+  }
 });
 
 test('pagamento confirmado atualiza reserva e ledger exatamente uma vez', async () => {
@@ -324,6 +346,10 @@ test('backup conserva o histórico Stripe e impede restauros desatualizados ou e
   const backup = require('../services/backupData');
   const data = backup.exportData('stripe-org');
   assert.equal(data.tables.stripe_payment_attempts.length, 1);
+  const legacy = structuredClone(data);
+  legacy.version = 6;
+  delete legacy.tables.stripe_payment_attempts[0].livemode;
+  assert.equal(backup.prepareImport(legacy, 'stripe-org').stripe_payment_attempts[0].livemode, 0);
   assert.throws(() => backup.prepareImport(data, 'other-org'), /entre organizações/);
   backup.restoreData(backup.prepareImport(data, 'stripe-org'), 'stripe-org');
   await service.processWebhook(event(session, 'checkout.session.completed'));

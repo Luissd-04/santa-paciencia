@@ -164,7 +164,7 @@ test('rollback não consome voucher quando a transação da reserva falha', asyn
 test('backup conserva limites e histórico e importa versões anteriores', async () => {
   const backup = require('../services/backupData');
   const v = await voucher(10); reservation('r1'); service.redeemVoucher('org', v.id, 'r1');
-  const data = backup.exportData('org'); assert.equal(data.version, 6);
+  const data = backup.exportData('org'); assert.equal(data.version, 7);
   assert.equal(data.tables.voucher_redemptions.length, 1);
   const tables = backup.prepareImport(data, 'org'); backup.restoreData(tables, 'org');
   assert.equal(service.getVoucher('org', v.id).used_count, 1); assert.equal(service.getVoucher('org', v.id).max_uses, 10);

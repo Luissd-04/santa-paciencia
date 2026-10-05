@@ -18,19 +18,23 @@ function uploadUrls(tables) {
 }
 
 function exportData(organizationId) {
-  return db.transaction(() => ({ version: 6, scope: 'client-data', exported_at: new Date().toISOString(),
+  return db.transaction(() => ({ version: 7, scope: 'client-data', exported_at: new Date().toISOString(),
     tables: Object.fromEntries(TABLES.map(table => [table,
       db.prepare(`SELECT * FROM ${table} WHERE organization_id = ?`).all(organizationId)])) }))();
 }
 
 function prepareImport(payload, organizationId) {
-  if (![3, 4, 5, 6].includes(payload.version) || !payload.tables || Array.isArray(payload.tables)) throw new Error('Versão ou estrutura de backup inválida.');
+  if (![3, 4, 5, 6, 7].includes(payload.version) || !payload.tables || Array.isArray(payload.tables)) throw new Error('Versão ou estrutura de backup inválida.');
   if (Object.keys(payload.tables).some(table => !TABLES.includes(table))) throw new Error('Backup contém tabelas não permitidas.');
   if (payload.version < 6 && !Object.hasOwn(payload.tables, 'stripe_payment_attempts')) {
     if (db.prepare('SELECT 1 FROM stripe_payment_attempts WHERE organization_id=?').get(organizationId)) {
       throw new Error('O backup não contém o histórico Stripe; restauro recusado.');
     }
     payload = { ...payload, tables: { ...payload.tables, stripe_payment_attempts: [] } };
+  }
+  if (payload.version < 7 && Object.hasOwn(payload.tables, 'stripe_payment_attempts')) {
+    payload = { ...payload, tables: { ...payload.tables,
+      stripe_payment_attempts: payload.tables.stripe_payment_attempts.map(row => ({ ...row, livemode: 0 })) } };
   }
   // Backups anteriores só tinham uma referência por voucher. Reconstruir esse
   // registo sem perder utilizações cujo original já tenha sido eliminado.
@@ -129,7 +133,7 @@ function restoreData(tables, organizationId) {
     for (const attempt of existing) {
       if (['creating', 'open', 'processing'].includes(attempt.state)) throw new Error('Existem pagamentos Stripe em curso. Aguarde a reconciliação antes do restauro.');
       const restored = tables.stripe_payment_attempts.find(row => row.id === attempt.id);
-      if (!restored || ['reservation_id', 'organization_id', 'amount_cents', 'currency', 'snapshot', 'request_json',
+      if (!restored || ['reservation_id', 'organization_id', 'amount_cents', 'currency', 'livemode', 'snapshot', 'request_json',
         'checkout_session_id', 'payment_intent_id', 'captured_cents', 'refunded_cents', 'state'].some(key => restored[key] !== attempt[key])) {
         throw new Error('O backup alteraria o histórico Stripe. Use um backup atualizado.');
       }

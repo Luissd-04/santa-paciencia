@@ -7,9 +7,16 @@ function stripeConfig() {
   const key = String(process.env.STRIPE_SECRET_KEY || '').trim();
   const organizationId = String(process.env.STRIPE_ORGANIZATION_ID || '').trim();
   const webhookSecret = String(process.env.STRIPE_WEBHOOK_SECRET || '').trim();
-  // This integration intentionally accepts test credentials only.
-  const ready = /^(sk|rk)_test_/.test(key) && webhookSecret.startsWith('whsec_') && !!organizationId && !!configuredOrigin();
-  return { key, organizationId, webhookSecret, ready };
+  const requestedMode = String(process.env.STRIPE_MODE || 'test').trim().toLowerCase();
+  const mode = ['test', 'live'].includes(requestedMode) ? requestedMode : 'invalid';
+  const livemode = mode === 'live';
+  const keyMatchesMode = mode !== 'invalid' && new RegExp(`^(sk|rk)_${mode}_`).test(key);
+  // Cobranças reais exigem duas decisões explícitas: modo live e ambiente de
+  // produção. Isto impede uma chave live colada por engano no desenvolvimento.
+  const environmentAllowed = !livemode || process.env.NODE_ENV === 'production';
+  const ready = keyMatchesMode && environmentAllowed && webhookSecret.startsWith('whsec_')
+    && !!organizationId && !!configuredOrigin();
+  return { key, organizationId, webhookSecret, mode, livemode, ready };
 }
 function stripeEnabled(organizationId) {
   const config = stripeConfig();

@@ -40,13 +40,29 @@ function payable(r) {
     && cents(r.total_amount) - cents(r.amount_paid || 0) >= 50;
 }
 function paymentSummary(r) {
-  const active = activeCheckout(r.id);
+  const attempt = activeCheckout(r.id);
+  const active = attempt && Boolean(attempt.livemode) === stripeConfig().livemode ? attempt : null;
   return {
-    available: payable(r), test_mode: true,
+    available: payable(r), test_mode: !stripeConfig().livemode,
     status: r.online_payment_status || null,
     processing: active?.state === 'processing',
     amount_due: Math.max(0, cents(r.total_amount) - cents(r.amount_paid || 0)) / 100,
   };
+}
+
+function activeCheckoutForMode(reservationId) {
+  const attempt = activeCheckout(reservationId);
+  if (!attempt || Boolean(attempt.livemode) === stripeConfig().livemode) return attempt;
+  if (attempt.livemode) fail('Existe um pagamento real em curso. Aguarde a confirmação antes de mudar o ambiente Stripe.');
+  // Ao promover Test para Live, uma sessão de teste aberta não deve bloquear a
+  // cobrança real. Não é possível nem necessário expirá-la com a chave live.
+  db.transaction(() => {
+    db.prepare("UPDATE stripe_payment_attempts SET state='cancelled', updated_at=datetime('now') WHERE id=? AND livemode=0")
+      .run(attempt.id);
+    db.prepare(`UPDATE reservations SET online_payment_status=NULL, stripe_checkout_session_id=NULL,
+      updated_at=datetime('now') WHERE id=? AND stripe_checkout_session_id=?`)
+      .run(attempt.reservation_id, attempt.checkout_session_id);
+  }).immediate();
 }
 
 // Persist the exact request before contacting Stripe. Retries (including after
@@ -55,7 +71,7 @@ async function createCheckout(token) {
   const stripe = getStripe();
   let r = lookup(token);
   if (!payable(r)) fail('Esta reserva não está disponível para pagamento online.');
-  let attempt = activeCheckout(r.id);
+  let attempt = activeCheckoutForMode(r.id);
   if (attempt?.checkout_session_id) {
     await reconcileAttempt(attempt, stripe);
     r = lookup(token);
@@ -64,7 +80,7 @@ async function createCheckout(token) {
   attempt = db.transaction(() => {
     r = lookup(token);
     if (!payable(r)) fail('Esta reserva não está disponível para pagamento online.');
-    const active = activeCheckout(r.id);
+    const active = activeCheckoutForMode(r.id);
     if (active) {
       if (active.state === 'processing') fail('O pagamento está a ser processado. Aguarde a confirmação.');
       if (active.snapshot !== snapshot(r)) fail('A reserva foi alterada. Contacte o alojamento.');
@@ -94,8 +110,9 @@ async function createCheckout(token) {
       // including eligible wallets and MB WAY. No card data touches our server.
     };
     db.prepare(`INSERT INTO stripe_payment_attempts
-      (id,reservation_id,organization_id,amount_cents,state,snapshot,request_json)
-      VALUES (?,?,?,?,'creating',?,?)`).run(id, r.id, r.organization_id, amount, snapshot(r), JSON.stringify(request));
+      (id,reservation_id,organization_id,amount_cents,livemode,state,snapshot,request_json)
+      VALUES (?,?,?,?,?,'creating',?,?)`).run(id, r.id, r.organization_id, amount,
+        Number(stripeConfig().livemode), snapshot(r), JSON.stringify(request));
     db.prepare("UPDATE reservations SET online_payment_status='pending', payment_amount=?, payment_currency='EUR' WHERE id=?")
       .run(amount / 100, r.id);
     return activeCheckout(r.id);
@@ -133,7 +150,9 @@ async function createStripeSession(attempt, stripe) {
 
 function validateSession(attempt, session) {
   const m = session.metadata || {};
-  if (session.livemode !== false || m.integration !== 'santa_paciencia' || m.attempt_id !== attempt.id
+  const expectedLivemode = stripeConfig().livemode;
+  if (Boolean(attempt.livemode) !== expectedLivemode || session.livemode !== expectedLivemode
+    || m.integration !== 'santa_paciencia' || m.attempt_id !== attempt.id
     || m.booking_id !== attempt.reservation_id || m.organization_id !== attempt.organization_id
     || session.client_reference_id !== attempt.reservation_id
     || session.amount_total !== attempt.amount_cents || session.currency !== attempt.currency
@@ -160,7 +179,7 @@ async function canonicalPayment(attempt, stripe) {
   if (typeof pi === 'string') pi = await stripe.paymentIntents.retrieve(pi, { expand: ['latest_charge'] });
   if (pi) {
     const m = pi.metadata || {};
-    if (pi.livemode !== false || pi.amount !== attempt.amount_cents || pi.currency !== attempt.currency
+    if (pi.livemode !== stripeConfig().livemode || pi.amount !== attempt.amount_cents || pi.currency !== attempt.currency
       || m.attempt_id !== attempt.id || m.booking_id !== attempt.reservation_id || m.organization_id !== attempt.organization_id
       || (attempt.payment_intent_id && attempt.payment_intent_id !== pi.id)) fail('PaymentIntent não corresponde à reserva.');
   }
@@ -256,7 +275,7 @@ async function reconcileAttempt(attempt, stripe = getStripe(), event) {
 }
 
 async function processWebhook(event) {
-  if (event.livemode !== false || event.account) fail('Apenas eventos de teste da conta configurada são aceites.', 400);
+  if (event.livemode !== stripeConfig().livemode || event.account) fail('O evento não pertence ao ambiente Stripe configurado.', 400);
   if (!SUPPORTED_EVENTS.has(event.type)) return { ignored: true };
   if (db.prepare('SELECT 1 FROM stripe_webhook_events WHERE id=?').get(event.id)) return { duplicate: true };
   const stripe = getStripe();
@@ -278,6 +297,7 @@ async function processWebhook(event) {
   }
   if (!attempt) return { ignored: true };
   if (attempt.organization_id !== stripeConfig().organizationId) fail('Organização do pagamento inválida.');
+  if (Boolean(attempt.livemode) !== stripeConfig().livemode) fail('Ambiente do pagamento inválido.');
   if (!attempt.checkout_session_id) {
     // A webhook can beat the response to checkout.sessions.create.
     if (object.object !== 'checkout.session') fail('Sessão ainda não associada. Repetir o evento.', 503);
@@ -288,12 +308,12 @@ async function processWebhook(event) {
 }
 
 async function closeOpenCheckout(reservationId) {
-  const attempt = activeCheckout(reservationId);
+  const attempt = activeCheckoutForMode(reservationId);
   if (!attempt) return;
   if (!attempt.checkout_session_id) fail('A criação do pagamento está em curso. Tente novamente dentro de instantes.');
   const stripe = getStripe();
   await reconcileAttempt(attempt, stripe);
-  const active = activeCheckout(reservationId);
+  const active = activeCheckoutForMode(reservationId);
   if (!active) return;
   if (active.state === 'processing') fail('O pagamento está a ser processado. Aguarde a confirmação antes de alterar a reserva.');
   await stripe.checkout.sessions.expire(active.checkout_session_id);
@@ -304,6 +324,7 @@ async function reconcileActiveCheckouts() {
   const rows = db.prepare("SELECT * FROM stripe_payment_attempts WHERE state IN ('creating','open','processing') ORDER BY updated_at LIMIT 100").all();
   for (let attempt of rows) {
     if (attempt.organization_id !== stripeConfig().organizationId) continue;
+    if (Boolean(attempt.livemode) !== stripeConfig().livemode) continue;
     try {
       if (!attempt.checkout_session_id) {
         if (Date.now() - Date.parse(attempt.created_at + 'Z') > 23 * 3600000) continue;
