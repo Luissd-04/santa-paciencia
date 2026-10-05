@@ -60,6 +60,10 @@ async function getById(req, res, next) {
 
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
 
+    // Reservas antigas podem ter apenas o token do pré-check-in. A ficha de
+    // backoffice precisa também do token público para abrir o pagamento.
+    ensurePublicToken(reservation);
+
     reservation.payments = db.prepare(`
       SELECT * FROM reservation_payments
       WHERE reservation_id = ? AND organization_id = ?
