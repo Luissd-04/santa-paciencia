@@ -7,6 +7,8 @@ router.get('/', ctrl.getAll);
 router.post('/', ctrl.create);
 router.get('/:id', ctrl.getById);
 router.put('/:id', ctrl.update);
-router.delete('/:id', ctrl.remove);
+// Apagar remove também as reservas canceladas do hóspede: mesmo nível da
+// eliminação definitiva de reservas.
+router.delete('/:id', requireRole('manager'), ctrl.remove);
 
 module.exports = router;

@@ -9,6 +9,13 @@ function normalizeDateValue(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === iso ? iso : '';
 }
 
+// Data de calendário no fuso do servidor (TZ), não em UTC: em Lisboa, no
+// verão, toISOString() ainda devolve o dia anterior entre as 00h e a 01h.
+function localDateIso(date = new Date(), offsetDays = 0) {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate() + offsetDays);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function countNights(checkIn, checkOut) {
   const ci = normalizeDateValue(checkIn);
   const co = normalizeDateValue(checkOut);
@@ -179,7 +186,7 @@ function calculateReservationTotals(accommodation, services = [], payload = {}) 
   const nights = countNights(checkIn, checkOut);
   if (!checkIn || !checkOut || nights <= 0 || nights > 366) throw Object.assign(new Error('Datas inválidas ou estadia superior a 366 noites.'), { status: 400 });
   if (guests > Number(accommodation?.max_guests || 0)) {
-    throw new Error(`Este alojamento permite no máximo ${accommodation?.max_guests || 0} hóspedes.`);
+    throw Object.assign(new Error(`Este alojamento permite no máximo ${accommodation?.max_guests || 0} hóspedes.`), { status: 400 });
   }
 
   const taxSvc = services.find(s => s.id === 'tourist_tax');
@@ -223,6 +230,7 @@ function getPaymentStatus(amountPaid, totalAmount, fallback = 'pendente') {
 
 module.exports = {
   normalizeDateValue,
+  localDateIso,
   countNights,
   getAgeAtDate,
   normalizeExtraOccupancyOptions,

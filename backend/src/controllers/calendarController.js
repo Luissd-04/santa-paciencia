@@ -1,5 +1,6 @@
 const { isAuthenticated } = require('../config/google');
 const { db } = require('../config/database');
+const { localDateIso } = require('../services/reservationRules');
 const { createCalendarEvent, updateCalendarEvent, cleanDuplicateAppEvents, syncOperationalEventsToGoogle,
         ensureAllAccommodationCalendars } = require('../services/calendarService');
 
@@ -130,8 +131,8 @@ async function syncAll(req, res) {
   let taskCreated = 0, taskUpdated = 0, taskErrors = 0;
 
   if (syncCalendar || syncTasks) {
-    const today = new Date().toISOString().slice(0, 10);
-    const limit = new Date(Date.now() + 60 * 86400000).toISOString().slice(0, 10);
+    const today = localDateIso();
+    const limit = localDateIso(new Date(), 60);
     const tasks = db.prepare(`
       SELECT * FROM operational_events
       WHERE organization_id = ? AND date >= ? AND date <= ?

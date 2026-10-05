@@ -3,9 +3,9 @@ const { sendCancellationEmail, sendPreCheckinEmail } = require('../services/emai
 
 const {
   syncReservationOperationalTasks,
-  queueReservationTaskCleanup,
   flushReservationTaskCleanup,
 } = require('../services/operationalTasksService');
+const { purgeReservations } = require('../services/reservationPurge');
 
 const { addPayment, deletePayment, saveInvoice } = require('./reservationPaymentsController');
 
@@ -161,26 +161,11 @@ async function hardDelete(req, res, next) {
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?')
       .get(req.params.id, organizationId);
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
-    if (db.prepare('SELECT 1 FROM stripe_payment_attempts WHERE reservation_id=?').get(reservation.id)) {
-      return res.status(409).json({ error: 'Reservas com tentativas Stripe devem ser conservadas para reconciliação e reembolsos.' });
-    }
     if (reservation.status !== 'cancelada') {
       return res.status(409).json({ error: 'Só é possível apagar reservas já canceladas. Cancela primeiro.' });
     }
 
-    db.transaction(() => {
-      // A fila é gravada na mesma transação e antes dos eventos locais. Assim os
-      // IDs externos sobrevivem mesmo quando o Google está temporariamente em erro.
-      queueReservationTaskCleanup(organizationId, reservation.id);
-      db.prepare('DELETE FROM reservation_payments WHERE reservation_id = ? AND organization_id = ?')
-        .run(reservation.id, organizationId);
-      db.prepare('DELETE FROM operational_events WHERE reservation_id = ? AND organization_id = ?')
-        .run(reservation.id, organizationId);
-      db.prepare('DELETE FROM reservation_history WHERE reservation_id = ? AND organization_id = ?')
-        .run(reservation.id, organizationId);
-      db.prepare('DELETE FROM reservations WHERE id = ? AND organization_id = ?')
-        .run(reservation.id, organizationId);
-    })();
+    db.transaction(() => purgeReservations(organizationId, [reservation.id]))();
 
     const cleanup = await flushReservationTaskCleanup(organizationId);
     const message = cleanup.pending

@@ -293,7 +293,7 @@ async function openAccountStatement(resId) {
         <tr>
           <td>${p.payment_date ? sd(p.payment_date) : '—'}</td>
           <td>${methodLabel[p.method] || p.method || '—'}</td>
-          <td>${p.notes || '—'}</td>
+          <td>${AppModules.core.escapeHtml(p.notes || '—')}</td>
           <td style="text-align:right;font-weight:600;color:#2e7d52;">${fmt(p.amount)}</td>
           <td style="text-align:right;color:${running > 0.01 ? '#b03030' : '#2e7d52'};">${fmt(Math.max(0, running))}</td>
         </tr>`;

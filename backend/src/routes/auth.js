@@ -60,6 +60,12 @@ function verifyOAuthState(req, res) {
   return true;
 }
 
+let dummyHash;
+function dummyPasswordHash() {
+  dummyHash ||= require('../services/authService').hashPassword(require('crypto').randomBytes(16).toString('hex'));
+  return dummyHash;
+}
+
 function sessionMeta(req) {
   return { userAgent: req.get('user-agent') || '', ip: req.ip || '' };
 }
@@ -134,11 +140,9 @@ router.post('/login', loginLimiter, async (req, res) => {
   const user = getUserByEmail(email);
   // Resposta genérica para não revelar se o email existe (anti-enumeration)
   const genericError = { success: false, error: 'Credenciais inválidas.' };
-  if (!user) return res.status(401).json(genericError);
-  if (!user.active) return res.status(401).json(genericError);
-  if (!await verifyPasswordAsync(String(password || ''), user.password_hash)) {
-    return res.status(401).json(genericError);
-  }
+  // Calcular sempre um scrypt: sem conta, a resposta não pode ser mais rápida.
+  const valid = await verifyPasswordAsync(String(password || ''), user?.active ? user.password_hash : dummyPasswordHash());
+  if (!user?.active || !valid) return res.status(401).json(genericError);
 
   try {
     const { sessionId } = createSession(user.id, null, null, sessionMeta(req));

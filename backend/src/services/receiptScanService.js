@@ -8,7 +8,7 @@ const VALID_CATEGORIES = [
 ];
 
 // Modelo com visão. Haiku é o mais barato; a imagem vai em alta resolução (2560px)
-// para compensar. Trocável por env: 'claude-opus-4-8' (melhor) ou 'claude-fable-5' (máximo).
+// para compensar. Trocável por env, por exemplo 'claude-sonnet-5' ou 'claude-opus-5-5'.
 const MODEL = process.env.RECEIPT_SCAN_MODEL || 'claude-haiku-4-5';
 
 const SYSTEM_PROMPT = `És um assistente que lê fotografias de talões e faturas de compras portuguesas para um alojamento local.

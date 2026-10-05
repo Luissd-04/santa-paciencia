@@ -4,7 +4,8 @@ const requireRole = require('../middleware/requireRole');
 
 router.use(requireRole('staff'));
 router.get('/settings', ctrl.getSettings);
-router.post('/settings', ctrl.saveSettings);
+// Geração automática de tarefas é uma definição da organização.
+router.post('/settings', requireRole('manager'), ctrl.saveSettings);
 router.get('/', ctrl.getAll);
 router.post('/', ctrl.create);
 router.put('/:id', ctrl.update);

@@ -12,7 +12,7 @@ router.get('/public-key', (req, res) => {
 // Registar subscrição do browser/dispositivo
 router.post('/subscribe', (req, res) => {
   const sub = req.body?.subscription;
-  if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth) {
+  if (!push.isValidPushEndpoint(sub?.endpoint) || !sub?.keys?.p256dh || !sub?.keys?.auth) {
     return res.status(400).json({ success: false, error: 'Subscrição inválida.' });
   }
   const deviceName = push.deviceLabelFromUA(req.headers['user-agent'] || '');

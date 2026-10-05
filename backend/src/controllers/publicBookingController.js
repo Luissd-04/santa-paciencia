@@ -328,7 +328,11 @@ async function createReservation(req, res, next) {
     // à página de gestão e vice-versa.
     const precheckinToken = crypto.randomBytes(32).toString('hex');
     const precheckinExpiresAt = totals.checkOut;
-    const normalizedGuestsData = guestsData.map(g => ({ ...g, birth_date: normalizeDateValue(g.birth_date) }));
+    // Só os campos conhecidos e apenas os acompanhantes declarados: o corpo do
+    // pedido é público e acaba no backoffice.
+    const normalizedGuestsData = guestsData.slice(0, guestCount - 1).map(g => cleanGuestData(g));
+    const arrivalTime = /^([01]\d|2[0-3]):[0-5]\d$/.test(String(payload.arrival_time || '').trim())
+      ? String(payload.arrival_time).trim() : null;
     const accommodationId = isCompleteProperty ? parent.id : unit.id;
     const licenseNumber = isCompleteProperty ? parent.license_number : unit.license_number;
     const accommodationName = isCompleteProperty ? parent.name : unit.name;
@@ -363,7 +367,7 @@ async function createReservation(req, res, next) {
         totals.checkIn, totals.checkOut, totals.nights, totals.guests,
         finalTotal, payload.breakfast_included ? 1 : 0, totals.touristTax,
         'website', null, payload.notes || null, licenseNumber,
-        JSON.stringify(normalizedGuestsData), token, precheckinToken, precheckinExpiresAt, payload.arrival_time || null, JSON.stringify({ name: g.name, email: g.email, phone: g.phone })
+        JSON.stringify(normalizedGuestsData), token, precheckinToken, precheckinExpiresAt, arrivalTime, JSON.stringify({ name: g.name, email: g.email, phone: g.phone })
       );
 
       if (confirmedVoucherId) redeemVoucher(parent.organization_id, confirmedVoucherId, reservationId, voucherDiscount);

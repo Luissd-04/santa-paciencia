@@ -324,8 +324,9 @@ async function main() {
     db.exec("UPDATE accommodations SET logo_url='/uploads/audit-logo.png' WHERE id='unit-a'");
     db.exec("INSERT INTO expenses (id,organization_id,date,description,amount,receipt_image) VALUES ('audit-expense','org-a','2030-01-01','Synthetic',1,'/uploads/receipts/audit-receipt.png')");
     fs.mkdirSync(path.join(temp, 'data/uploads/receipts'), { recursive: true });
-    fs.writeFileSync(path.join(temp, 'data/uploads/audit-logo.png'), 'synthetic logo');
-    fs.writeFileSync(path.join(temp, 'data/uploads/receipts/audit-receipt.png'), 'synthetic receipt');
+    const png = text => Buffer.concat([Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]), Buffer.from(text)]);
+    fs.writeFileSync(path.join(temp, 'data/uploads/audit-logo.png'), png('synthetic logo'));
+    fs.writeFileSync(path.join(temp, 'data/uploads/receipts/audit-receipt.png'), png('synthetic receipt'));
     let zipped; const res = response();
     res.download = (file, name, callback) => { zipped = fs.readFileSync(file); callback(); };
     await out(request(), res);
@@ -335,6 +336,21 @@ async function main() {
     const restored = await call(into, request({ archiveBase64: zipped.toString('base64') }));
     assert.equal(restored.statusCode, 200, JSON.stringify(restored.body));
     assert.equal(db.prepare("SELECT count(*) AS n FROM accommodation_blocks WHERE id='audit-block'").get().n, 1);
+    // Um upload que não é imagem seria servido na origem da aplicação.
+    const unzipper = backendRequire('unzipper');
+    const entries = await unzipper.Open.buffer(zipped);
+    const forged = backendRequire('archiver')('zip'); const chunks = [];
+    forged.on('data', chunk => chunks.push(chunk));
+    const done = new Promise((resolve, reject) => { forged.on('end', resolve); forged.on('error', reject); });
+    const payload = JSON.parse((await entries.files.find(f => f.path === 'backup.json').buffer()).toString());
+    payload.tables.accommodations.find(a => a.id === 'unit-a').logo_url = '/uploads/audit-logo.html';
+    forged.append(JSON.stringify(payload), { name: 'backup.json' });
+    forged.append('<script>synthetic()</script>', { name: 'uploads/audit-logo.html' });
+    forged.append(png('synthetic receipt'), { name: 'uploads/receipts/audit-receipt.png' });
+    await forged.finalize(); await done;
+    const rejected = await call(into, request({ archiveBase64: Buffer.concat(chunks).toString('base64') }));
+    assert.equal(rejected.statusCode, 400);
+    assert.match(rejected.body.error, /imagem/);
   });
   await check('S04: backup incompleto preserva outras organizações', async () => {
     db.exec("INSERT INTO vouchers (id,organization_id,code,value) VALUES ('other-voucher','org-b','ORIGINAL',25)");
@@ -373,10 +389,10 @@ async function main() {
       generateVAPIDKeys: () => ({ publicKey: 'fake', privateKey: 'fake' }), setVapidDetails() {},
       sendNotification: async (subscription, payload) => sent.push({ subscription, payload }),
     } });
-    push.saveSubscription('org-a', 'audit-user', { endpoint: 'https://example.invalid/push', keys: {} });
-    push.saveSubscription('org-b', 'audit-user', { endpoint: 'https://example.invalid/foreign-push', keys: {} });
-    assert.equal(push.deleteSubscription('org-a', 'audit-user', 'https://example.invalid/foreign-push'), false);
-    assert.equal(db.prepare("SELECT count(*) AS n FROM push_subscriptions WHERE endpoint='https://example.invalid/foreign-push'").get().n, 1);
+    push.saveSubscription('org-a', 'audit-user', { endpoint: 'https://fcm.googleapis.com/fcm/send/audit-push', keys: {} });
+    push.saveSubscription('org-b', 'audit-user', { endpoint: 'https://fcm.googleapis.com/fcm/send/foreign-push', keys: {} });
+    assert.equal(push.deleteSubscription('org-a', 'audit-user', 'https://fcm.googleapis.com/fcm/send/foreign-push'), false);
+    assert.equal(db.prepare("SELECT count(*) AS n FROM push_subscriptions WHERE endpoint='https://fcm.googleapis.com/fcm/send/foreign-push'").get().n, 1);
     await call(team.removeMember, request({}, { id: 'member-a' }));
     await push.sendToOrganization('org-a', { body: 'Synthetic guest information' });
     assert.equal(sent.length, 0);
@@ -491,6 +507,60 @@ async function main() {
     listeners.fetch(event); await pending;
     assert.equal(entries.size, 0);
     online = false; listeners.fetch(event); await assert.rejects(pending, /offline/);
+  });
+  await check('A10: subscrição push só aceita serviços de push dos browsers', () => {
+    const push = load('services/pushService.js', { 'web-push': { generateVAPIDKeys: () => ({}), setVapidDetails() {} } });
+    for (const ok of ['https://fcm.googleapis.com/fcm/send/x', 'https://updates.push.services.mozilla.com/wpush/v2/x',
+      'https://web.push.apple.com/x', 'https://wns2-db5p.notify.windows.com/w/?token=x']) assert.equal(push.isValidPushEndpoint(ok), true, ok);
+    for (const bad of ['http://fcm.googleapis.com/x', 'https://127.0.0.1/x', 'https://169.254.169.254/latest',
+      'https://fcm.googleapis.com.evil.invalid/x', 'https://user:pw@fcm.googleapis.com/x', 'https://fcm.googleapis.com:8443/x', null]) {
+      assert.equal(push.isValidPushEndpoint(bad), false, String(bad));
+    }
+  });
+  await check('A10: reserva pública normaliza acompanhantes e hora de chegada', async () => {
+    const res = await call(publicCtrl.createReservation, request({ accommodation_id: 'unit-b',
+      check_in: '2033-03-01', check_out: '2033-03-03', num_guests: 2, rgpd_consent: true, elapsed_ms: 9000,
+      arrival_time: '<img src=x>', guest: { name: 'Synthetic Main', email: 'main-a10@example.invalid' },
+      guests_data: [{ name: 'Synthetic Companion', injected: '<b>x</b>' }, { name: 'Undeclared Extra' }],
+    }, { slug: 'audit-b' }));
+    assert.equal(res.statusCode, 201, JSON.stringify(res.body));
+    const row = db.prepare('SELECT guests_data, arrival_time FROM reservations WHERE id=?').get(res.body.data.id);
+    const companions = JSON.parse(row.guests_data);
+    assert.equal(companions.length, 1);
+    assert.equal(companions[0].name, 'Synthetic Companion');
+    assert.equal(Object.hasOwn(companions[0], 'injected'), false);
+    assert.equal(row.arrival_time, null);
+    const over = await call(publicCtrl.createReservation, request({ accommodation_id: 'unit-b',
+      check_in: '2033-04-01', check_out: '2033-04-03', num_guests: 9, rgpd_consent: true, elapsed_ms: 9000,
+      guest: { name: 'Synthetic Main', email: 'main-a10@example.invalid' },
+      guests_data: Array.from({ length: 8 }, (_, i) => ({ name: `Synthetic ${i}` })),
+    }, { slug: 'audit-b' }));
+    assert.equal(over.statusCode, 400);
+  });
+  await check('A10: remover hóspede apaga pagamentos/histórico e conserva tentativas Stripe', async () => {
+    const guests = load('controllers/guestController.js');
+    db.exec(`INSERT INTO guests (id,organization_id,name,email) VALUES ('guest-purge','org-a','Purge','purge@example.invalid'),
+        ('guest-stripe','org-a','Stripe','stripe@example.invalid');
+      INSERT INTO reservations (id,organization_id,guest_id,accommodation_id,check_in,check_out,nights,num_guests,total_amount,status)
+        VALUES ('res-purge','org-a','guest-purge','unit-b','2034-01-01','2034-01-02',1,1,100,'cancelada'),
+               ('res-stripe','org-a','guest-stripe','unit-b','2034-02-01','2034-02-02',1,1,100,'cancelada');
+      INSERT INTO reservation_payments (id,reservation_id,organization_id,amount) VALUES ('pay-purge','res-purge','org-a',50);
+      INSERT INTO reservation_history (id,organization_id,reservation_id,action) VALUES ('hist-purge','org-a','res-purge','created');
+      INSERT INTO stripe_payment_attempts (id,reservation_id,organization_id,amount_cents,livemode,state,snapshot,request_json)
+        VALUES ('attempt-purge','res-stripe','org-a',10000,0,'expired','x','{}');`);
+    const removed = await call(guests.remove, request({}, { id: 'guest-purge' }));
+    assert.equal(removed.statusCode, 200, JSON.stringify(removed.body));
+    for (const table of ['reservations', 'reservation_payments', 'reservation_history']) {
+      const column = table === 'reservations' ? 'id' : 'reservation_id';
+      assert.equal(db.prepare(`SELECT count(*) AS n FROM ${table} WHERE ${column}='res-purge'`).get().n, 0, table);
+    }
+    const kept = await call(guests.remove, request({}, { id: 'guest-stripe' }));
+    assert.equal(kept.statusCode, 409);
+    assert.equal(db.prepare("SELECT count(*) AS n FROM guests WHERE id='guest-stripe'").get().n, 1);
+  });
+  await check('A10: data de hoje usa o fuso do servidor', () => {
+    assert.equal(rules.localDateIso(new Date(2026, 6, 1, 0, 30)), '2026-07-01');
+    assert.equal(rules.localDateIso(new Date(2026, 11, 31, 23, 59), 1), '2027-01-01');
   });
 }
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => {

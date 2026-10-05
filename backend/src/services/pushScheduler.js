@@ -1,5 +1,6 @@
 const { db } = require('../config/database');
 const { sendToOrganization } = require('./pushService');
+const { localDateIso } = require('./reservationRules');
 
 // Hora local a partir da qual o resumo diário é enviado (0-23).
 const SUMMARY_HOUR = process.env.PUSH_SUMMARY_HOUR !== undefined
@@ -11,10 +12,6 @@ const SCHEDULER_INTERVAL_MS = Number(process.env.PUSH_SUMMARY_INTERVAL_MS) || 15
 
 const SENT_KEY = 'push_daily_summary_sent';
 
-function localToday() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 // Check-ins/outs de hoje ainda por fazer (mesma regra do sino: tarefas
 // operacionais concluídas não contam).
@@ -41,7 +38,7 @@ function countPendingToday(orgId, today) {
 async function sendDailySummaries() {
   try {
     if (new Date().getHours() < SUMMARY_HOUR) return;
-    const today = localToday();
+    const today = localDateIso();
 
     // Só organizações com dispositivos subscritos
     const orgs = db.prepare('SELECT DISTINCT organization_id FROM push_subscriptions').all();

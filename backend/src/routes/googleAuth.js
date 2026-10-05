@@ -1,4 +1,5 @@
 const { fetchWithTimeout } = require('../services/httpClient');
+const { escapeHtml } = require('../services/emailComposer');
 const { oauthCallbackLimiter } = require('../middleware/rateLimiter');
 const { deleteTokens, getOAuth2Client, isAuthenticated, saveTokens, revokeTokens } = require('../config/google');
 const { deleteAllSyncedEvents } = require('../services/calendarService');
@@ -122,7 +123,7 @@ router.get('/google-email/callback', oauthCallbackLimiter, requireAuth, requireR
     res.send(`
       <html><body style="font-family:sans-serif;text-align:center;padding:50px;">
         <h1>✅ Gmail ligado!</h1>
-        <p>${email ? `A enviar emails como <strong>${email}</strong>.` : ''}</p>
+        <p>${email ? `A enviar emails como <strong>${escapeHtml(email)}</strong>.` : ''}</p>
         <p>Podes fechar esta janela e voltar ao dashboard.</p>
         <script>setTimeout(() => window.close(), 3000);</script>
       </body></html>

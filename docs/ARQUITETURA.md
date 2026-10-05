@@ -1,6 +1,6 @@
 # Arquitetura
 
-Estado confirmado em 20 de setembro de 2026.
+Estado confirmado em 5 de outubro de 2026.
 
 ## Visão geral
 
@@ -15,7 +15,7 @@ Express 5 ── páginas públicas e SPA
     ├── API autenticada
     ├── SQLite + uploads privados
     ├── schedulers de reservas, email e push
-    └── Google Calendar, Gmail, Tasks e Web Push
+    └── Google Calendar, Gmail, Tasks, Stripe, Anthropic e Web Push
 ```
 
 O backend vive em `backend/src`; o frontend em `frontend`. Em produção, o
@@ -62,7 +62,10 @@ Rotas públicas principais:
 - `/reserva/:token` — acompanhamento público por token;
 - `/pre-checkin/:token` — recolha de dados antes da chegada;
 - `/auth/*` e `/api/public/*` — autenticação, callbacks OAuth e operações
-  públicas com limites próprios.
+  públicas com limites próprios, incluindo
+  `POST /api/public/reservation/:token/checkout` (abre o Checkout Stripe);
+- `POST /api/stripe/webhook` — recebido antes do parser JSON e autenticado
+  apenas pela assinatura Stripe.
 
 Depois de `/api`, a sessão é obrigatória. As famílias autenticadas são:
 
@@ -79,8 +82,9 @@ serve para orientar a arquitetura e evita duplicar contratos sujeitos a mudança
 
 O servidor inicia três schedulers:
 
-- reservas: expiração de pedidos públicos pendentes e limpeza/repetição de
-  operações associadas, incluindo a fila de remoção de Google Tasks;
+- reservas: reconciliação de tentativas Stripe abertas, expiração de pedidos
+  públicos pendentes e limpeza/repetição de operações associadas, incluindo a
+  fila de remoção de Google Tasks e a sincronização bidirecional com o Tasks;
 - email: envio das mensagens automáticas elegíveis;
 - push: resumos e notificações operacionais.
 
@@ -97,14 +101,25 @@ leases e a idempotência de cada tarefa.
 - limites de pedidos específicos para login e fluxos públicos;
 - documentos de despesas autenticados e isolados por organização;
 - tokens Google encriptados com AES-256-GCM;
-- `Cache-Control: no-store` em autenticação e API.
+- `Cache-Control: no-store` em autenticação e API;
+- uploads validados por magic bytes (alojamentos, talões e importação de
+  backups), servidos com `nosniff`;
+- subscrições push aceites apenas para serviços de push dos browsers.
+
+Papéis: `staff` consulta e opera o dia a dia (reservas, hóspedes, eventos,
+check-in/out); `manager` gere reservas, pagamentos, alojamentos, despesas,
+modelos de email e definições da organização, e apaga hóspedes/reservas;
+`owner` gere equipa e backups.
 
 Consultar [Segurança](../SECURITY.md) para operação e reporte.
 
 ## Dependências externas
 
 Google Calendar, Gmail e Tasks dependem de credenciais OAuth e de autorização
-por organização. Turnstile depende das chaves e hostnames configurados. As
+por organização. Stripe liga uma conta a uma única organização
+(`STRIPE_ORGANIZATION_ID`). A leitura automática de talões envia a fotografia
+à API da Anthropic (`ANTHROPIC_API_KEY`); sem chave a funcionalidade fica
+indisponível. Turnstile depende das chaves e hostnames configurados. As
 bibliotecas visuais do frontend são carregadas por versões declaradas e
 auditadas, algumas a partir de CDN; a CSP e o service worker têm de ser revistos
 sempre que um novo domínio externo for introduzido.
@@ -112,6 +127,10 @@ sempre que um novo domínio externo for introduzido.
 ## Decisões a preservar
 
 - SQLite é adequado enquanto existir uma única instância e carga moderada;
+- datas de calendário («hoje») calculam-se no fuso do servidor (`TZ`) com
+  `localDateIso()`, nunca com `toISOString()`;
+- eliminar reservas definitivamente passa sempre por `purgeReservations()`,
+  que remove pagamentos/histórico e conserva tentativas Stripe;
 - a aplicação é multi-organização e todas as consultas de dados privados devem
   filtrar por `organization_id`;
 - tarefas externas e mensagens devem ser idempotentes e recuperáveis após falha;

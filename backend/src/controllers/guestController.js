@@ -1,5 +1,7 @@
 const { db } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
+const { purgeReservations } = require('../services/reservationPurge');
+const { flushReservationTaskCleanup } = require('../services/operationalTasksService');
 
 // POST /api/guests
 async function create(req, res, next) {
@@ -158,8 +160,14 @@ async function remove(req, res, next) {
       });
     }
 
-    db.prepare("DELETE FROM reservations WHERE guest_id = ? AND organization_id = ?").run(req.params.id, organizationId);
-    db.prepare("DELETE FROM guests WHERE id = ? AND organization_id = ?").run(req.params.id, organizationId);
+    db.transaction(() => {
+      const cancelled = db.prepare('SELECT id FROM reservations WHERE guest_id = ? AND organization_id = ?')
+        .all(req.params.id, organizationId).map(row => row.id);
+      purgeReservations(organizationId, cancelled);
+      db.prepare('DELETE FROM guests WHERE id = ? AND organization_id = ?').run(req.params.id, organizationId);
+    })();
+    // O scheduler repete a fila se o Google falhar agora.
+    flushReservationTaskCleanup(organizationId).catch(() => {});
     res.json({ success: true, message: 'Hóspede removido.' });
   } catch (err) {
     next(err);

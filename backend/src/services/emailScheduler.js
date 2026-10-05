@@ -3,6 +3,7 @@ const { sendTemplatedEmail, getEmailSettings } = require('./emailService');
 const crypto = require('crypto');
 const { canSendTemplate } = require('./emailEligibility');
 const { withSchedulerLease } = require('./schedulerLease');
+const { localDateIso } = require('./reservationRules');
 
 function getSendTime(reservation, template, settings) {
   const { timing_offset, timing_unit, timing_direction, timing_event } = template;
@@ -29,8 +30,8 @@ async function runScheduler() {
   try {
     await withSchedulerLease(db, 'email', async ensureLease => {
     const orgs = db.prepare('SELECT id FROM organizations').all();
-    const from = new Date(Date.now() - 8 * 86400000).toISOString().slice(0, 10);
-    const to   = new Date(Date.now() + 31 * 86400000).toISOString().slice(0, 10);
+    const from = localDateIso(new Date(), -8);
+    const to   = localDateIso(new Date(), 31);
     const now = new Date();
 
     for (const org of orgs) {
@@ -47,13 +48,18 @@ async function runScheduler() {
         FROM reservations r
         JOIN guests g ON r.guest_id = g.id
         JOIN accommodations a ON r.accommodation_id = a.id
-        WHERE r.organization_id = ? AND r.status NOT IN ('cancelada') AND r.check_in >= ? AND r.check_out <= ?
-      `).all(org.id, from, to);
+        WHERE r.organization_id = ? AND r.status NOT IN ('cancelada')
+          AND ((r.check_in >= ? AND r.check_in <= ?) OR (r.check_out >= ? AND r.check_out <= ?))
+      `).all(org.id, from, to, from, to);
 
       for (const res of reservations) {
         if (!res.guest_email) continue;
         for (const tpl of templates) {
           ensureLease();
+          // A janela aplica-se à data de referência do modelo: uma estadia longa
+          // entra pela saída, mas não deve receber um email de chegada antigo.
+          const anchor = tpl.timing_event === 'checkin' ? res.check_in : res.check_out;
+          if (anchor < from || anchor > to) continue;
           if (!canSendTemplate(tpl, res)) continue;
           const sendTime = getSendTime(res, tpl, settings);
           if (!sendTime || sendTime > now) continue;
@@ -114,7 +120,12 @@ async function flushQueuedEmails(ensureLease) {
         parent_id: res.accommodation_parent_id, organization_id: q.organization_id,
       };
       const tpl = db.prepare('SELECT * FROM organization_email_templates WHERE organization_id=? AND slug=? AND active=1').get(q.organization_id, q.template_slug);
-      if (!tpl || !canSendTemplate(tpl, res)) continue;
+      if (!tpl) {
+        // Modelo apagado ou desativado: a entrada nunca seria enviada.
+        db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id);
+        continue;
+      }
+      if (!canSendTemplate(tpl, res)) continue;
       const scheduled = ['checkin', 'checkout'].includes(tpl.timing_event);
       if (scheduled && db.prepare('SELECT 1 FROM organization_email_log WHERE organization_id=? AND template_slug=? AND reservation_id=?')
         .get(q.organization_id, q.template_slug, q.reservation_id)) {

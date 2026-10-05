@@ -1,7 +1,7 @@
 # Operações
 
-Procedimentos de desenvolvimento, publicação e recuperação. Confirmado em 20 de
-setembro de 2026.
+Procedimentos de desenvolvimento, publicação e recuperação. Confirmado em 5 de
+outubro de 2026.
 
 ## Configuração
 
@@ -18,7 +18,14 @@ em produção são:
 - chaves Turnstile para aceitar reservas públicas;
 - `TOKEN_ENCRYPTION_KEY` ou `TOKEN_ENCRYPTION_KEY_FILE`, se a chave não for
   gerada junto à base de dados;
-- `EMAIL_ENABLED`, que funciona como interruptor global de envio.
+- `EMAIL_ENABLED`, que funciona como interruptor global de envio;
+- `STRIPE_MODE`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` e
+  `STRIPE_ORGANIZATION_ID` para pagamentos online
+  ([pagamentos Stripe](stripe-payments.md));
+- `ANTHROPIC_API_KEY`, opcional, para a leitura automática de talões.
+
+`TZ` define o dia «hoje» usado em dashboards, notificações, vouchers e
+schedulers; manter `Europe/Lisbon` salvo instalação noutro fuso.
 
 O `GOOGLE_CLIENT_SECRET` também protege o estado OAuth. Não reutilizar
 credenciais entre ambientes nem guardar segredos no Git.
@@ -67,8 +74,14 @@ As migrações correm automaticamente no arranque. Por isso:
 - registar qualquer migração que exija uma tarefa manual no roadmap ou na nota
   da versão.
 
-A migração de 20 de setembro de 2026 cria `google_task_cleanup_queue`. É aplicada
-no primeiro arranque da versão que contém a correção.
+As migrações versionadas ficam em `schema_migrations`. As mais recentes:
+
+- `20260920_google_task_cleanup_queue` — fila de remoção de Google Tasks;
+- `20261001_google_task_bidirectional` — sincronização nos dois sentidos;
+- `20261001_voucher_redemptions` — vouchers com várias utilizações;
+- `20261005_stripe_payments` e seguintes — tentativas e eventos Stripe.
+
+Confirmar com `SELECT id, applied_at FROM schema_migrations ORDER BY applied_at`.
 
 ## Cópias de segurança
 
@@ -92,6 +105,8 @@ restaurado não deve ser considerado validado.
 - reinícios e consumo de disco do container/volume;
 - falhas dos schedulers e mensagens pendentes;
 - estado OAuth de Calendar, Gmail e Tasks;
+- tentativas Stripe em `creating`/`processing` há mais de uma hora e entregas
+  de webhook falhadas no Dashboard Stripe;
 - tamanho e antiguidade das filas duráveis;
 - taxas anormais de login, reserva pública e pré-check-in;
 - validade do certificado, domínio público e túnel.
@@ -103,6 +118,8 @@ observabilidade. A adoção de logs estruturados e alertas está priorizada em
 ## Incidente e rollback
 
 1. Se existir risco de envio indevido, definir `EMAIL_ENABLED=false` e reiniciar.
+   Para suspender pagamentos online, remover `STRIPE_SECRET_KEY` e reiniciar:
+   novas reservas voltam à aprovação manual.
 2. Preservar logs, imagem em execução e uma cópia dos dados antes de intervir.
 3. Revogar credenciais ou sessões afetadas quando necessário.
 4. Corrigir ou repor a versão apenas depois de avaliar a compatibilidade do

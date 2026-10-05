@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const { syncOperationalEventsToGoogle } = require('../services/calendarService');
 const { recordHistory } = require('../services/reservationHistoryService');
 const { getOccupancyStats, occupancyRate, firstOfMonth: firstDayOfMonth } = require('../services/occupancyStats');
+const { localDateIso } = require('../services/reservationRules');
 
 async function getDashboardStats(req, res, next) {
   try {
@@ -27,7 +28,7 @@ async function getDashboardStats(req, res, next) {
       SELECT COUNT(*) as count FROM reservations WHERE organization_id = ? AND status = 'confirmada'
     `).get(organizationId);
 
-    const todayDate = now.toISOString().slice(0, 10);
+    const todayDate = localDateIso(now);
     const today = db.prepare(`SELECT
       COUNT(CASE WHEN check_in=? THEN 1 END) AS arrivals,
       COUNT(CASE WHEN check_out=? THEN 1 END) AS departures,
@@ -40,7 +41,7 @@ async function getDashboardStats(req, res, next) {
       g.name AS guest_name,a.name AS accommodation_name FROM reservations r
       JOIN guests g ON g.id=r.guest_id AND g.organization_id=r.organization_id
       JOIN accommodations a ON a.id=r.accommodation_id AND a.organization_id=r.organization_id
-      WHERE r.organization_id=? AND r.status NOT IN ('cancelada','check-out') AND r.check_in>=?
+      WHERE r.organization_id=? AND r.status NOT IN ('cancelada','check_out') AND r.check_in>=?
       ORDER BY r.check_in,r.id LIMIT 5`).all(organizationId, todayDate);
 
     // Noites-quarto: uma reserva do alojamento inteiro (ou multi-suite) ocupa
@@ -191,8 +192,8 @@ function getHistory(req, res, next) {
 function getNotifications(req, res, next) {
   try {
     const orgId = req.user.organization_id;
-    const today    = new Date().toISOString().slice(0, 10);
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const today    = localDateIso();
+    const tomorrow = localDateIso(new Date(), 1);
 
     const baseSelect = `
       SELECT r.id, r.check_in, r.check_out, r.status, r.total_amount, r.amount_paid,

@@ -206,8 +206,8 @@ function renderNotifDropdown() {
     <div class="notif-item ${priorityClass[n.priority] || ''}" ${notificationClickAttr(n)}>
       <div class="notif-item-icon"><i data-lucide="${icons[n.icon] || 'bell'}" style="width:15px;height:15px;"></i></div>
       <div class="notif-item-body">
-        <div class="notif-item-title">${n.title}</div>
-        <div class="notif-item-sub">${n.subtitle}</div>
+        <div class="notif-item-title">${AppModules.core.escapeHtml(n.title)}</div>
+        <div class="notif-item-sub">${AppModules.core.escapeHtml(n.subtitle)}</div>
       </div>
     </div>
   `).join('');
@@ -255,8 +255,8 @@ function renderNotificationsPage() {
     <div class="notifications-page-item ${priorityClass[n.priority] || ''}">
       <span class="notif-item-icon"><i data-lucide="${icons[n.icon] || 'bell'}"></i></span>
       <span class="notifications-page-copy">
-        <strong>${n.title}</strong>
-        <small>${n.subtitle}</small>
+        <strong>${AppModules.core.escapeHtml(n.title)}</strong>
+        <small>${AppModules.core.escapeHtml(n.subtitle)}</small>
       </span>
       ${n.type === 'export_reminder' ? `
         <span class="notifications-page-actions">

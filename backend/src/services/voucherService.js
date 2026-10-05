@@ -1,5 +1,6 @@
 const { randomUUID } = require('crypto');
 const { db } = require('../config/database');
+const { localDateIso } = require('./reservationRules');
 
 const USAGE_COUNT_SQL = '(SELECT COUNT(*) FROM voucher_redemptions vr WHERE vr.voucher_id = v.id AND vr.organization_id = v.organization_id)';
 function voucherError(message, status = 400) { return Object.assign(new Error(message), { status }); }
@@ -19,7 +20,7 @@ function assertUsable(voucher, context = {}) {
   if (!voucher) throw voucherError('Voucher inválido.', 404);
   if (voucher.used_count >= voucher.max_uses || voucher.status === 'used') throw voucherError('O voucher atingiu o limite de utilizações.', 409);
   if (voucher.status !== 'active') throw voucherError('Voucher não está ativo.');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateIso();
   if (voucher.valid_until && voucher.valid_until < today) throw voucherError('Voucher expirado.');
   if (voucher.valid_from && voucher.valid_from > today) throw voucherError('Voucher ainda não está ativo.');
   if (context.nights !== undefined && context.nights < voucher.min_nights) throw voucherError(`O voucher exige pelo menos ${voucher.min_nights} noites.`);

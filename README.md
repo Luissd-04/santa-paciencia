@@ -13,6 +13,8 @@ serve a API, o frontend e as páginas públicas.
 Integrações existentes:
 
 - Google Calendar, Gmail e Google Tasks por OAuth;
+- pagamentos online com Stripe Checkout (Test por omissão; Live protegido);
+- leitura automática de talões de despesas com a API da Anthropic (opcional);
 - notificações Web Push;
 - Cloudflare Turnstile nas reservas públicas;
 - importação e exportação de cópias de segurança;
@@ -74,7 +76,11 @@ hóspedes, tokens OAuth ou a chave de encriptação no repositório.
 - [Roadmap de produto](docs/ROADMAP.md)
 - [Melhorias técnicas](docs/MELHORIAS.md)
 - [Política e controlos de segurança](SECURITY.md)
+- [Pagamentos Stripe](docs/stripe-payments.md)
+- [Vouchers com várias utilizações](docs/VOUCHERS.md)
+- [Sincronização com Google Tasks](docs/GOOGLE-TASKS.md)
+- [Emails no Gmail para iPhone](docs/EMAIL-GMAIL.md)
 
-Estas páginas descrevem o estado confirmado em 20 de setembro de 2026. A regra
+Estas páginas descrevem o estado confirmado em 5 de outubro de 2026. A regra
 é atualizá-las no mesmo pull request que alterar arquitetura, operação,
 segurança ou prioridades.

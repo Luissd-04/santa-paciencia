@@ -1,6 +1,6 @@
 # Segurança
 
-Estado dos controlos e processo de reporte, revisto em 20 de setembro de 2026.
+Estado dos controlos e processo de reporte, revisto em 5 de outubro de 2026.
 
 ## Reportar uma vulnerabilidade
 
@@ -22,7 +22,7 @@ capturas públicas:
 
 - documentos de identificação e contactos reais;
 - cookies de sessão ou tokens de reserva/pré-check-in;
-- tokens OAuth, chaves Turnstile ou segredos Google;
+- tokens OAuth, chaves Turnstile, segredos Google ou Stripe (`sk_`, `rk_`, `whsec_`);
 - base de dados, `.env`, backups ou chave de encriptação;
 - códigos de porta e palavras-passe Wi-Fi.
 
@@ -32,6 +32,7 @@ Usar sempre dados sintéticos nos testes.
 
 - autenticação por sessão e separação por organização;
 - autorização por papel, incluindo operações exclusivas do proprietário;
+  apagar hóspedes e alterar definições da organização exige `manager`;
 - validação de origem, CORS restrito e cookies seguros em produção;
 - Helmet/CSP com JavaScript inline bloqueado;
 - rate limiting em autenticação e fluxos públicos;
@@ -39,12 +40,24 @@ Usar sempre dados sintéticos nos testes.
 - uploads de recibos privados, autenticados e filtrados pela organização;
 - tokens Google encriptados com AES-256-GCM;
 - validação Turnstile fail-closed em produção para reserva pública;
+- dados públicos de reserva normalizados no servidor (campos conhecidos dos
+  acompanhantes, hora de chegada `HH:MM`) e escapados no backoffice;
+- webhook Stripe autenticado pela assinatura sobre o corpo original; preço,
+  moeda e montante calculados apenas no servidor; Live exige
+  `STRIPE_MODE=live` e `NODE_ENV=production`;
+- uploads de imagens, talões e backups validados por magic bytes; importação de
+  backups aceita apenas imagens;
+- subscrições push restritas aos serviços de push dos browsers (sem SSRF);
+- login com tempo de resposta independente da existência da conta;
 - limites de tamanho distintos para JSON, uploads e importação de backups;
 - containers sem privilégios, filesystem read-only e porta ligada ao loopback;
 - testes automatizados de autenticação, isolamento, CSP, dependências e HTTP.
 
 Os controlos reduzem risco; não substituem revisão, monitorização, backups e
-gestão de incidentes.
+gestão de incidentes. Riscos conhecidos ainda por tratar (CSP com domínios CDN
+inteiros, tokens de convite em claro, rate limit na mudança de palavra-passe,
+injeção de fórmulas em exportações) estão em
+[Melhorias técnicas](docs/MELHORIAS.md#p1--segurança).
 
 ## Segredos e chaves
 
@@ -63,6 +76,7 @@ OAuth existentes inutilizáveis.
 - `TRUST_PROXY` identifica apenas os proxies controlados;
 - `COOKIE_SECURE` está ativo por configuração ou por `NODE_ENV=production`;
 - Turnstile está configurado para o hostname correto;
+- Stripe: modo, chave e segredo de webhook pertencem ao mesmo ambiente;
 - redirect URIs Google coincidem exatamente com o ambiente;
 - `.env`, dados, tokens, uploads e backups não são servidos pelo frontend;
 - backups e restauro foram testados e a chave de tokens está recuperável;

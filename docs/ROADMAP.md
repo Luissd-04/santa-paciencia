@@ -1,6 +1,6 @@
 # Roadmap de produto
 
-Roadmap vivo, revisto no repositório em 26 de setembro de 2026. A revisão local
+Roadmap vivo, revisto no repositório em 5 de outubro de 2026. A revisão local
 não confirma o estado da publicação nem das validações em produção. As datas serão atribuídas
 quando houver capacidade e acesso confirmado às plataformas externas.
 
@@ -35,6 +35,11 @@ com limites, estado visível e reconciliação. Uma chamada externa bem-sucedida
 - Validar backups e um restauro completo, incluindo uploads e chave dos tokens.
 - Concluir testes manuais de email real, pré-check-in e reserva pública em
   telemóvel.
+- Pagamentos online Stripe: o código suporta Test e Live (Live só com
+  `STRIPE_MODE=live` em produção). Executar a validação na conta de teste real,
+  depois uma cobrança Live de valor baixo com reembolso, como descrito em
+  [pagamentos Stripe](stripe-payments.md). Falta ainda um ecrã de
+  reconciliação para tentativas incertas e reembolsos a partir da aplicação.
 
 ## Seguinte — SIBA/UCFE
 
@@ -103,6 +108,9 @@ quando o número de propriedades e o volume justificarem o custo operacional.
 
 ## Mais tarde
 
+- links de avaliação (Google, TripAdvisor) no email pós-estadia, por
+  alojamento — hoje só existem as redes sociais do alojamento;
+- opção para esconder tarefas/eventos concluídos nas vistas operacionais;
 - motor de preços com regras sazonais, ocupação e recomendações auditáveis;
 - portal do proprietário e relatórios programados;
 - contabilidade/faturação certificada através de parceiro adequado;

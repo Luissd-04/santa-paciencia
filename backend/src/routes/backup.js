@@ -7,7 +7,7 @@ const archiver = require('archiver');
 const requireRole = require('../middleware/requireRole');
 const { exportData, prepareImport, restoreData, uploadUrls } = require('../services/backupData');
 const { extractArchive } = require('../services/backupArchive');
-const { UPLOADS_DIR, uploadPath, removeUnreferencedImage } = require('../services/mediaStorage');
+const { UPLOADS_DIR, uploadPath, removeUnreferencedImage, detectImageMagicType } = require('../services/mediaStorage');
 router.use(requireRole('owner'));
 
 router.get('/export', async (req, res, next) => {
@@ -51,6 +51,11 @@ router.post('/import', async (req, res) => {
     for (const url of uploadUrls(tables)) {
       const source = path.join(temporary, url.slice(1));
       if (!fs.existsSync(source)) throw new Error('Backup incompleto: ficheiro referenciado em falta.');
+      // Os uploads são servidos na origem da aplicação: só imagens verdadeiras,
+      // nunca HTML/SVG ou outro conteúdo com extensão arbitrária.
+      if (!/\.(jpe?g|png|gif|webp|avif)$/i.test(url) || !detectImageMagicType(fs.readFileSync(source))) {
+        throw new Error('Backup inválido: ficheiro que não é uma imagem suportada.');
+      }
       const relative = `${url.startsWith('/uploads/receipts/') ? 'receipts/' : ''}import_${randomUUID()}${path.extname(url)}`;
       const target = path.join(UPLOADS_DIR, relative);
       fs.mkdirSync(path.dirname(target), { recursive: true });

@@ -52,6 +52,22 @@ function deviceLabelFromUA(ua = '') {
   return browser ? `${os} · ${browser}` : os;
 }
 
+// O servidor faz POST ao endpoint recebido: aceitar só os serviços de push
+// dos browsers evita usar a subscrição para chegar a hosts internos.
+const PUSH_HOSTS = [
+  /^fcm\.googleapis\.com$/, /^android\.googleapis\.com$/,
+  /(^|\.)push\.services\.mozilla\.com$/,
+  /(^|\.)notify\.windows\.com$/,
+  /(^|\.)push\.apple\.com$/,
+];
+function isValidPushEndpoint(endpoint) {
+  if (typeof endpoint !== 'string' || endpoint.length > 2048) return false;
+  let url;
+  try { url = new URL(endpoint); } catch { return false; }
+  return url.protocol === 'https:' && !url.username && !url.password && !url.port
+    && PUSH_HOSTS.some(pattern => pattern.test(url.hostname));
+}
+
 function saveSubscription(organizationId, userId, subscription, deviceName = null) {
   // Reativar sempre ao (re)subscrever: é um opt-in explícito do dispositivo.
   db.prepare(`
@@ -141,6 +157,8 @@ async function sendToOrganization(organizationId, payload, options = {}) {
   getVapidKeys();
   const { excludeUserId = null, type = null } = options;
   let rows = db.prepare('SELECT s.endpoint, s.keys_json, s.user_id, s.organization_id FROM push_subscriptions s JOIN memberships m ON m.user_id=s.user_id AND m.organization_id=s.organization_id JOIN users u ON u.id=s.user_id WHERE s.organization_id = ? AND s.active = 1 AND m.active = 1 AND u.active = 1').all(organizationId);
+  // Subscrições gravadas antes da validação também não podem ser usadas.
+  rows = rows.filter(r => isValidPushEndpoint(r.endpoint));
   if (excludeUserId) rows = rows.filter(r => r.user_id !== excludeUserId);
   if (type) {
     const prefsCache = {};
@@ -177,6 +195,7 @@ function notifyOrganization(organizationId, type, { title, body, url = '/', excl
 }
 
 module.exports = {
+  isValidPushEndpoint,
   getPublicKey, saveSubscription, deleteSubscription, sendToOrganization,
   notifyOrganization, getUserPushPrefs, saveUserPushPrefs, PUSH_TYPES,
   deviceLabelFromUA, listDevices, setDeviceActive, deleteDeviceById,

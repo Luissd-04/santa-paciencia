@@ -2,6 +2,7 @@ const { db } = require('../config/database');
 const { sendMail } = require('../services/emailService');
 const { buildInvitationUrl, createInvitation, ensureRole, listInvitations, listMembers } = require('../services/orgService');
 const { getUserByEmail, isValidEmail } = require('../services/authService');
+const { escapeHtml } = require('../services/emailComposer');
 
 function getOverview(req, res) {
   const organizationId = req.user.organization_id;
@@ -61,9 +62,9 @@ async function invite(req, res) {
       subject: `Convite para a equipa ${req.user.organization_name} — Santa Paciência`,
       html: `
         <div style="font-family:Arial,sans-serif;padding:24px;color:#2a2520;">
-          <h2>Foste convidado para ${req.user.organization_name}</h2>
-          <p>O teu papel será <strong>${role}</strong>.</p>
-          <p><a href="${inviteUrl}">Aceitar convite</a></p>
+          <h2>Foste convidado para ${escapeHtml(req.user.organization_name)}</h2>
+          <p>O teu papel será <strong>${escapeHtml(role)}</strong>.</p>
+          <p><a href="${escapeHtml(inviteUrl)}">Aceitar convite</a></p>
           <p>Este link expira em 7 dias.</p>
         </div>
       `

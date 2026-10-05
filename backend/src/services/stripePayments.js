@@ -4,7 +4,7 @@ const { getStripe, stripeConfig, stripeEnabled } = require('./stripeClient');
 const { configuredOrigin } = require('./publicOrigin');
 const { activeCheckout } = require('./stripePaymentGuards');
 const { ensureLegacyPayment, ledgerTotal } = require('./paymentLedger');
-const { getPaymentStatus } = require('./reservationRules');
+const { getPaymentStatus, localDateIso } = require('./reservationRules');
 const { findConflict } = require('./reservationAvailability');
 const { recordHistory } = require('./reservationHistoryService');
 
@@ -36,7 +36,7 @@ function lookup(token) {
 function payable(r) {
   return stripeEnabled(r.organization_id) && ['aguardar_pagamento', 'confirmada', 'pre_checkin'].includes(r.status)
     && r.payment_status !== 'reembolsado' && !['refunded', 'partially_refunded', 'review_required'].includes(r.online_payment_status)
-    && r.check_out >= new Date().toISOString().slice(0, 10)
+    && r.check_out >= localDateIso()
     && cents(r.total_amount) - cents(r.amount_paid || 0) >= 50;
 }
 function paymentSummary(r) {

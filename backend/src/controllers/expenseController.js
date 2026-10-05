@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { scanReceipt: scanReceiptAI } = require('../services/receiptScanService');
 const { listExpenses } = require('../services/listQueries');
+const { detectImageMagicType } = require('../services/mediaStorage');
 
 const RECEIPTS_DIR = path.resolve('./data/uploads/receipts');
 if (!fs.existsSync(RECEIPTS_DIR)) fs.mkdirSync(RECEIPTS_DIR, { recursive: true });
@@ -17,7 +18,11 @@ function parseReceiptImage(dataUri) {
   const type = m[1].toLowerCase();
   const ext = RECEIPT_MIME_EXT[type];
   if (!ext) return null;
-  return { mediaType: `image/${type === 'jpg' ? 'jpeg' : type}`, base64: m[2], buffer: Buffer.from(m[2], 'base64'), ext };
+  const mediaType = `image/${type === 'jpg' ? 'jpeg' : type}`;
+  const buffer = Buffer.from(m[2], 'base64');
+  // O tipo declarado tem de corresponder ao conteúdo, como nos alojamentos.
+  if (`image/${detectImageMagicType(buffer)}` !== mediaType) return null;
+  return { mediaType, base64: m[2], buffer, ext };
 }
 
 // Guarda a imagem do talão em disco e devolve o URL público, ou null.

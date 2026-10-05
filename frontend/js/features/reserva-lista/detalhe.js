@@ -205,7 +205,7 @@ async function showDetail(id, opts = {}) {
             <div class="rdv2-info-field rdv2-field-arrival">
               <span class="rdv2-if-label">Hora chegada</span>
               <span class="rdv2-if-val">${AppModules.core.lcIcon('clock', 11)}
-                <span id="rdv2-arrival-val">${r.arrival_time || '—'}</span>
+                <span id="rdv2-arrival-val">${AppModules.core.escapeHtml(r.arrival_time || '—')}</span>
                 <button class="rdv2-edit-btn" ${AppActions.attrs("click", "detalhe-editar-hora-chegada-5c1a9e2", [String((r.id) ?? ''), String((r.arrival_time) ?? '')])} title="Editar hora de chegada">${AppModules.core.lcIcon('pencil', 11)}</button>
               </span>
             </div>

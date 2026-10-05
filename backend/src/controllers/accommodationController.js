@@ -1,6 +1,9 @@
 const { uploadCover, removeCover, uploadLogo, removeLogo, uploadImages, deleteImage, patchImages, parseImageDataUri, UPLOADS_DIR } = require('./accommodationMediaController');
 const { db } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
+const { purgeReservations } = require('../services/reservationPurge');
+const { flushReservationTaskCleanup } = require('../services/operationalTasksService');
+const { accommodationUrls, removeUnreferencedImage } = require('../services/mediaStorage');
 const { recolorAccommodationCalendar, ensureAllAccommodationCalendars } = require('../services/calendarService');
 
 const INHERITED_FIELDS = ['address','postal_code','city','region','country',
@@ -537,18 +540,30 @@ function remove(req, res) {
   const acc = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(req.params.id, req.user.organization_id);
   if (!acc) return res.status(404).json({ success: false, error: 'Alojamento não encontrado.' });
 
-  const active = db.prepare(
-    "SELECT COUNT(*) as c FROM reservations WHERE accommodation_id = ? AND organization_id = ? AND status != 'cancelada'"
-  ).get(req.params.id, req.user.organization_id);
-  if (active.c > 0) {
+  const organizationId = req.user.organization_id;
+  // reservation_units inclui também as reservas onde o alojamento é unidade
+  // adicional, não só a principal.
+  const linked = db.prepare(`SELECT DISTINCT r.id, r.status FROM reservation_units u
+    JOIN reservations r ON r.id = u.reservation_id AND r.organization_id = u.organization_id
+    WHERE u.accommodation_id = ? AND u.organization_id = ?`).all(req.params.id, organizationId);
+  const active = linked.filter(r => r.status !== 'cancelada').length;
+  if (active > 0) {
     return res.status(409).json({
       success: false,
-      error: `Não é possível apagar: o alojamento tem ${active.c} reserva(s) ativa(s).`
+      error: `Não é possível apagar: o alojamento tem ${active} reserva(s) ativa(s).`
     });
   }
+  if (db.prepare('SELECT 1 FROM accommodations WHERE parent_id = ? AND organization_id = ?').get(req.params.id, organizationId)) {
+    return res.status(409).json({ success: false, error: 'Não é possível apagar: o alojamento tem unidades associadas.' });
+  }
 
-  db.prepare('DELETE FROM reservations WHERE accommodation_id = ? AND organization_id = ?').run(req.params.id, req.user.organization_id);
-  db.prepare('DELETE FROM accommodations WHERE id = ? AND organization_id = ?').run(req.params.id, req.user.organization_id);
+  db.transaction(() => {
+    purgeReservations(organizationId, linked.map(r => r.id));
+    // Preços e bloqueios saem por ON DELETE CASCADE.
+    db.prepare('DELETE FROM accommodations WHERE id = ? AND organization_id = ?').run(req.params.id, organizationId);
+  })();
+  flushReservationTaskCleanup(organizationId).catch(() => {});
+  for (const url of accommodationUrls([acc])) removeUnreferencedImage(url);
   res.json({ success: true });
 }
 
