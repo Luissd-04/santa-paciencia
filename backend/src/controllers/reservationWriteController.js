@@ -243,11 +243,18 @@ async function create(req, res, next) {
 // PUT /api/reservations/:id
 async function update(req, res, next) {
   try {
+    const owned = db.prepare('SELECT id FROM reservations WHERE id=? AND organization_id=?').get(req.params.id, req.user.organization_id);
+    if (owned) await require('../services/stripePayments').closeOpenCheckout(owned.id);
     const { updated, accommodation, organizationId, cancelling, nextPaymentStatus, existing } = db.transaction(() => {
     validateReservationInput(req.body);
     const organizationId = req.user.organization_id;
     const existing = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
     if (!existing) throw Object.assign(new Error(({ error: 'Reserva não encontrada' }).error), { status: 404 });
+    require('../services/stripePaymentGuards').assertNoActiveCheckout(existing.id);
+    if (req.body.amount_paid !== undefined && Math.round(Number(req.body.amount_paid) * 100) !== Math.round(Number(existing.amount_paid) * 100)
+      && db.prepare('SELECT 1 FROM stripe_payment_attempts WHERE reservation_id=? AND captured_cents>0').get(existing.id)) {
+      throw Object.assign(new Error('Registe pagamentos adicionais no histórico. Os pagamentos Stripe só podem ser reembolsados através da Stripe.'), { status: 409 });
+    }
 
     const {
       check_in, check_out, num_guests, num_adults, num_children, breakfast_included,

@@ -18,6 +18,8 @@ const { findBlockConflict } = require('../services/accommodationBlockService');
 const turnstile = require('../services/turnstileService');
 const { recordHistory } = require('../services/reservationHistoryService');
 const { publicOrigin } = require('../services/publicOrigin');
+const { stripeEnabled } = require('../services/stripeClient');
+const { paymentSummary } = require('../services/stripePayments');
 
 const { createReservationGuest, savePrecheckin } = require('../services/publicGuestService');
 
@@ -158,6 +160,7 @@ function getLanding(req, res) {
         ...serializeAccommodation(req, unit, parent),
         pricing_periods: getPricingPeriods(parent.organization_id, unit.id)
       })),
+      online_payment_available: stripeEnabled(parent.organization_id),
       services: getServices(parent.organization_id)
         .filter(s => ['breakfast', 'tourist_tax'].includes(s.id))
         .map(s => ({ id: s.id, name: s.name, value: Number(s.value || 0), unit: s.unit, active: s.active !== false })),
@@ -315,6 +318,7 @@ async function createReservation(req, res, next) {
       voucherDiscount = calculateVoucherDiscount(voucher, totals.totalAmount);
     }
     let finalTotal = Math.max(0, totals.totalAmount - voucherDiscount);
+    const onlinePayment = stripeEnabled(parent.organization_id);
 
     // ID único sem colisão por concorrência
     const reservationId = `SP-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
@@ -363,6 +367,9 @@ async function createReservation(req, res, next) {
       );
 
       if (confirmedVoucherId) redeemVoucher(parent.organization_id, confirmedVoucherId, reservationId, voucherDiscount);
+      if (onlinePayment && finalTotal >= 0.50) {
+        db.prepare("UPDATE reservations SET status='aguardar_pagamento' WHERE id=?").run(reservationId);
+      }
       return g;
     }).immediate();
 
@@ -391,7 +398,7 @@ async function createReservation(req, res, next) {
 
     notifyOrganization(parent.organization_id, 'new_reservation', {
       title: '🟠 Nova reserva pendente',
-      body: `${txResult.name} · ${accommodationName} · ${reservation.check_in} → ${reservation.check_out} · Requer aprovação`,
+      body: `${txResult.name} · ${accommodationName} · ${reservation.check_in} → ${reservation.check_out} · ${reservation.status === 'aguardar_pagamento' ? 'A aguardar pagamento' : 'Requer aprovação'}`,
       url: `/reservas?reserva=${reservationId}`,
       requireInteraction: true,
       tag: `sp-new_reservation-${reservationId}`,
@@ -401,7 +408,8 @@ async function createReservation(req, res, next) {
       success: true,
       data: {
         id: reservationId,
-        status: 'pendente',
+        status: reservation.status,
+        online_payment_available: onlinePayment && finalTotal >= 0.50,
         total_amount: finalTotal,
         public_token: token,
         public_url: `${publicUrl(req)}/reserva/${token}`,
@@ -439,7 +447,7 @@ function getReservationStatus(req, res) {
     return res.status(404).json({ success: false, error: 'Reserva não encontrada.' });
   }
   const reservation = db.prepare(`
-    SELECT r.id, r.check_in, r.check_out, r.num_guests, r.status,
+    SELECT r.id, r.organization_id, r.check_in, r.check_out, r.num_guests, r.status, r.online_payment_status,
            r.payment_status, r.total_amount, r.amount_paid, r.created_at,
            a.name AS accommodation_name, a.cover_image, a.images
     FROM reservations r
@@ -458,6 +466,7 @@ function getReservationStatus(req, res) {
       num_guests: reservation.num_guests,
       status: reservation.status,
       payment_status: reservation.payment_status,
+      online_payment: paymentSummary(reservation),
       total_amount: Number(reservation.total_amount || 0),
       amount_paid: Number(reservation.amount_paid || 0),
       created_at: reservation.created_at,

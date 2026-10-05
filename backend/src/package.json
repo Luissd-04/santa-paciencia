@@ -9,6 +9,7 @@
     "test:http": "node scripts/check-http.cjs",
     "check": "node scripts/check-source.cjs",
     "test:browser": "node scripts/check-browser.cjs",
+    "test:stripe": "node scripts/run-stripe-local-checkout.cjs",
     "measure:frontend": "node scripts/measure-frontend.cjs"
   },
   "dependencies": {
@@ -24,6 +25,7 @@
     "helmet": "^8.2.0",
     "sanitize-html": "2.17.7",
     "sharp": "^0.35.4",
+    "stripe": "23.0.0",
     "unzipper": "^0.12.3",
     "uuid": "^14.0.0",
     "web-push": "^3.6.7"

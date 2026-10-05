@@ -18,6 +18,14 @@
 .rs-grid dd { margin: 6px 0 0; color: var(--ink); font-weight: 700; }
 .rs-note { margin: 24px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .rs-error { display: block; }
+.rs-checkout { margin-top: 24px; border-top: 1px solid var(--line); padding-top: 16px; }
+.rs-checkout p { line-height: 1.6; }
+.rs-checkout .rs-note { margin-top: 12px; }
+.rs-checkout button { width: 100%; min-height: 48px; white-space: normal; }
+.rs-refresh { margin-top: 20px; min-height: 44px; }
+.rs-checkout button:focus-visible, .rs-refresh:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
+.rs-checkout button:disabled { opacity: .65; cursor: wait; }
+[hidden] { display: none !important; }
 @media (max-width: 520px) {
   .reservation-status-card { width: calc(100% - 16px); padding: 22px 16px; }
   .rs-grid { grid-template-columns: 1fr; }

@@ -59,7 +59,9 @@ function savePrecheckin(reservation, guest, extraGuests, arrivalTime) {
     }
 
     db.prepare(`UPDATE reservations SET guest_id = ?, guest_snapshot = ?, guests_data = ?,
-      arrival_time = ?, status = CASE WHEN status = 'pre_checkin' THEN 'aguardar_pagamento' ELSE status END, updated_at = datetime('now')
+      arrival_time = ?, status = CASE WHEN status = 'pre_checkin'
+        THEN CASE WHEN payment_status = 'confirmado' THEN 'confirmada' ELSE 'aguardar_pagamento' END
+        ELSE status END, updated_at = datetime('now')
       WHERE id = ? AND organization_id = ?`)
       .run(isolated.id, JSON.stringify({ name: guest.name, email: guest.email, phone: isolated.phone }),
         JSON.stringify(extraGuests), arrivalTime, reservation.id, reservation.organization_id);

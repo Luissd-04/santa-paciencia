@@ -10,7 +10,8 @@ function renderStep(focus = false) {
   document.querySelectorAll('.form-step').forEach(step => step.classList.toggle('active', Number(step.dataset.step) === AppModules.booking.state.step));
   document.querySelectorAll('[data-step-dot]').forEach(dot => dot.classList.toggle('active', Number(dot.dataset.stepDot) === AppModules.booking.state.step));
   AppModules.booking.$('prev-btn').style.display = AppModules.booking.state.step > 1 ? '' : 'none';
-  AppModules.booking.$('next-btn').textContent = AppModules.booking.state.step === 3 ? 'Enviar pedido' : 'Seguinte';
+  AppModules.booking.$('next-btn').textContent = AppModules.booking.state.step === 3
+    ? (AppModules.booking.state.onlinePayment ? 'Reservar e continuar para pagamento' : 'Enviar pedido') : 'Seguinte';
   if (AppModules.booking.state.step === 3) AppModules.booking.renderTurnstile();
   if (focus) AppModules.publicFlow.focusStep(document.querySelector('.form-step.active h2'));
 }
@@ -145,6 +146,10 @@ async function submitReservation() {
       body: JSON.stringify(payload)
     });
 
+    if (result.data.online_payment_available && /^[a-f0-9]{64}$/i.test(result.data.public_token || '')) {
+      location.assign(`/reserva/${result.data.public_token}`);
+      return;
+    }
     AppModules.publicFlow.complete('reserva', {
       reference: result.data.id,
       total: AppModules.booking.fmtCurrency(result.data.total_amount),

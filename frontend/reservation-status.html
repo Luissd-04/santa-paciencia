@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
   <title>Estado da reserva — Santa Paciência</title>
   <link rel="apple-touch-icon" href="/favicon.png?v=2">
   <link rel="icon" type="image/png" href="/favicon.png?v=2">
@@ -39,6 +40,12 @@
             <div><dt>Total</dt><dd id="rs-total">—</dd></div>
             <div><dt>Pago</dt><dd id="rs-paid">—</dd></div>
           </dl>
+          <div class="rs-checkout" id="rs-payment-panel" hidden>
+            <p id="rs-payment-message" role="status"></p>
+            <button class="primary-btn" id="rs-pay" type="button" hidden>Pagar online</button>
+            <p class="rs-note" id="rs-test-note" hidden>Modo de teste — não são efetuadas cobranças reais.</p>
+          </div>
+          <button class="ghost-btn rs-refresh" id="rs-refresh" type="button">Atualizar estado</button>
           <p class="rs-note">Guarde este link. Por segurança, não apresenta dados pessoais dos hóspedes.</p>
         </div>
         <div class="step-error rs-error" id="rs-error" role="alert" hidden></div>

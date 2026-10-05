@@ -308,7 +308,7 @@ async function showDetail(id, opts = {}) {
                     </div>
                     <div class="rdv2-pay-entry-right">
                       ${p.payment_date ? `<span class="rdv2-pay-entry-date">${sd(p.payment_date)}</span>` : '<span class="rdv2-pay-entry-date">—</span>'}
-                      <button class="rdv2-icon-btn rdv2-pay-del" ${AppActions.attrs("click", "detalhe-delete-payment-entry-6f2ae81", [String((r.id) ?? ''), String((p.id) ?? '')])} title="Remover pagamento">${AppModules.core.lcIcon('trash-2', 11)}</button>
+                      ${String(p.id).startsWith('stripe-') ? '' : `<button class="rdv2-icon-btn rdv2-pay-del" ${AppActions.attrs("click", "detalhe-delete-payment-entry-6f2ae81", [String((r.id) ?? ''), String((p.id) ?? '')])} title="Remover pagamento">${AppModules.core.lcIcon('trash-2', 11)}</button>`}
                     </div>
                   </div>`).join('')}
               </div>
@@ -360,6 +360,11 @@ async function showDetail(id, opts = {}) {
           <!-- Estado -->
           <div class="rdv2-widget">
             <div class="rdv2-widget-title">Estado</div>
+            ${r.online_payment_status ? `<p class="rdv2-status-label">Pagamento online: ${AppModules.core.escapeHtml(({
+              pending: 'A aguardar', processing: 'Em processamento', paid: 'Pago', failed: 'Falhou',
+              cancelled: 'Cancelado', expired: 'Sessão expirada', refunded: 'Reembolsado',
+              partially_refunded: 'Reembolso parcial', review_required: 'Requer verificação — pagamento recebido com reserva alterada ou cancelada',
+            })[r.online_payment_status] || r.online_payment_status)}</p>` : ''}
             <div class="rdv2-status-row">
               <span class="rdv2-status-label">Reserva</span>
               <select class="rdv2-status-select" ${AppActions.attrs("change", "detalhe-update-detail-status-05d2970", [String((r.id) ?? '')])}>

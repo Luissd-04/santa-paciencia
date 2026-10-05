@@ -17,6 +17,10 @@ async function init() {
     AppModules.booking.state.units = payload.data.units || [];
     AppModules.booking.state.services = payload.data.services || [];
     AppModules.booking.state.captcha = payload.data.captcha || null;
+    AppModules.booking.state.onlinePayment = payload.data.online_payment_available === true;
+    if (AppModules.booking.state.onlinePayment) {
+      AppModules.booking.$('pb-payment-note').textContent = 'Após criar a reserva, poderá pagar online. A reserva fica confirmada após o pagamento. Modo de teste: não são efetuadas cobranças reais.';
+    }
     AppModules.booking.state.selectedUnitId = 'property';
     renderLanding();
     AppModules.booking.bindEvents();

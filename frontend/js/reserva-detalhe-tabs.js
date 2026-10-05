@@ -179,6 +179,7 @@ const RDV2_ACTION_META = {
   cancelled:       { icon: 'x-circle',     label: 'Reserva cancelada' },
   payment_added:   { icon: 'credit-card',  label: 'Pagamento registado' },
   payment_deleted: { icon: 'trash-2',      label: 'Pagamento removido' },
+  stripe_payment:  { icon: 'credit-card', label: 'Pagamento online atualizado' },
   invoice_saved:   { icon: 'file-text',    label: 'Fatura registada' },
   task_status:     { icon: 'list-checks',  label: 'Tarefa atualizada' },
 };
@@ -225,7 +226,13 @@ function rdv2TimelineMetaLine(action, meta) {
   try { meta = typeof meta === 'string' ? JSON.parse(meta) : meta; } catch { return ''; }
   if (!meta || typeof meta !== 'object') return '';
   const bits = [];
-  if (action === 'payment_added' || action === 'payment_deleted') {
+  if (action === 'stripe_payment') {
+    const labels = { pending: 'Pendente', processing: 'Em processamento', paid: 'Pago', failed: 'Falhou',
+      expired: 'Sessão expirada', cancelled: 'Cancelado', refunded: 'Reembolsado', partially_refunded: 'Reembolso parcial', review_required: 'Requer verificação' };
+    bits.push(labels[meta.status] || AppModules.core.escapeHtml(String(meta.status || '')));
+    if (meta.amount != null) bits.push(`Recebido: €${Number(meta.amount).toFixed(2)}`);
+    if (meta.refunded) bits.push(`Reembolsado: €${Number(meta.refunded).toFixed(2)}`);
+  } else if (action === 'payment_added' || action === 'payment_deleted') {
     if (meta.amount != null) bits.push(`€${Number(meta.amount).toFixed(2)}`);
     if (meta.method) bits.push(AppModules.core.escapeHtml(String(meta.method)));
     if (meta.payment_date) bits.push(rdv2ShortDate(String(meta.payment_date)));

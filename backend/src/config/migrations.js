@@ -46,6 +46,44 @@ function runMigrations(db) {
   migrateGoogleTaskBidirectional(db);
   migrateVoucherRedemptions(db);
   migrateDocumentTypes(db);
+  migrateStripePayments(db);
+}
+function migrateStripePayments(db) {
+  const id = '20261005_stripe_payments';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`ALTER TABLE reservations ADD COLUMN stripe_checkout_session_id TEXT;
+      ALTER TABLE reservations ADD COLUMN stripe_payment_intent_id TEXT;
+      ALTER TABLE reservations ADD COLUMN paid_at TEXT;
+      ALTER TABLE reservations ADD COLUMN payment_amount REAL;
+      ALTER TABLE reservations ADD COLUMN payment_currency TEXT;
+      ALTER TABLE reservations ADD COLUMN online_payment_status TEXT;
+      CREATE TABLE stripe_payment_attempts (
+        id TEXT PRIMARY KEY,
+        reservation_id TEXT NOT NULL REFERENCES reservations(id),
+        organization_id TEXT NOT NULL REFERENCES organizations(id),
+        amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),
+        currency TEXT NOT NULL DEFAULT 'eur' CHECK(currency = 'eur'),
+        state TEXT NOT NULL CHECK(state IN ('creating','open','processing','paid','expired','cancelled')),
+        snapshot TEXT NOT NULL,
+        request_json TEXT NOT NULL,
+        checkout_session_id TEXT UNIQUE,
+        payment_intent_id TEXT UNIQUE,
+        captured_cents INTEGER NOT NULL DEFAULT 0,
+        refunded_cents INTEGER NOT NULL DEFAULT 0,
+        last_event_created INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE UNIQUE INDEX idx_stripe_active_reservation ON stripe_payment_attempts(reservation_id)
+        WHERE state IN ('creating','open','processing');
+      CREATE INDEX idx_stripe_org ON stripe_payment_attempts(organization_id, reservation_id);
+      CREATE TABLE stripe_webhook_events (
+        id TEXT PRIMARY KEY, type TEXT NOT NULL,
+        processed_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );`);
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
 }
 function migrateAuthScheduler(db) {
   const id = '20260919_auth_scheduler';

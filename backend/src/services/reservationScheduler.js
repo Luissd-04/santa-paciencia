@@ -23,6 +23,8 @@ function expirePendingReservations() {
       WHERE status IN ('pendente', 'aguardar_pagamento', 'pre_reserva')
         AND channel = 'website'
         AND (amount_paid IS NULL OR amount_paid = 0)
+        AND NOT EXISTS (SELECT 1 FROM stripe_payment_attempts sp
+          WHERE sp.reservation_id=reservations.id AND sp.state IN ('creating','open','processing'))
         AND datetime(created_at) < datetime('now', '-' || ? || ' hours')
     `).all(PENDING_TTL_HOURS);
 
@@ -34,14 +36,20 @@ function expirePendingReservations() {
           notes = COALESCE(notes || char(10), '') || '[Auto-cancelada por TTL — pendente >' || ? || 'h]',
           updated_at = datetime('now')
       WHERE id = ? AND organization_id = ?
+        AND status IN ('pendente', 'aguardar_pagamento', 'pre_reserva')
+        AND COALESCE(amount_paid, 0) = 0
+        AND NOT EXISTS (SELECT 1 FROM stripe_payment_attempts sp
+          WHERE sp.reservation_id=reservations.id AND sp.state IN ('creating','open','processing'))
     `);
 
     // Passar pelo mesmo caminho do cancelamento manual: apagar as tarefas
     // auto-geradas (check-in/checkout/limpeza) e o evento no Google Calendar —
     // este UPDATE em massa era o único ponto de cancelamento que não o fazia,
     // deixando tarefas "ativas" ligadas a reservas já canceladas.
+    let expired = 0;
     for (const reservation of rows) {
-      updateStmt.run(PENDING_TTL_HOURS, reservation.id, reservation.organization_id);
+      if (!updateStmt.run(PENDING_TTL_HOURS, reservation.id, reservation.organization_id).changes) continue;
+      expired++;
       const cancelled = { ...reservation, status: 'cancelada' };
       syncReservationOperationalTasks(cancelled);
       deleteCalendarEvent(cancelled, {
@@ -50,8 +58,8 @@ function expirePendingReservations() {
       }).catch(err => console.error('Erro ao remover evento de reserva expirada do Google Calendar:', err.message));
     }
 
-    console.log(`🧹 ${rows.length} reserva(s) pendente(s) expirada(s) por TTL`);
-    return rows.length;
+    console.log(`🧹 ${expired} reserva(s) pendente(s) expirada(s) por TTL`);
+    return expired;
   } catch (err) {
     console.error('Erro ao expirar reservas pendentes:', err.message);
     return 0;
@@ -78,9 +86,16 @@ function retryPendingGoogleTaskDeletions() {
     .catch(err => console.error('Erro ao repetir eliminações do Google Tasks:', err.message));
 }
 
-function runMaintenance() {
-  expirePendingReservations();
-  retryPendingGoogleTaskDeletions();
+let maintenanceRunning = false;
+async function runMaintenance() {
+  if (maintenanceRunning) return;
+  maintenanceRunning = true;
+  try {
+    await require('./stripePayments').reconcileActiveCheckouts();
+    expirePendingReservations();
+    retryPendingGoogleTaskDeletions();
+  } catch { console.warn('Falha na manutenção das reservas; será repetida.'); }
+  finally { maintenanceRunning = false; }
 }
 
 function startScheduler() {

@@ -124,6 +124,10 @@ app.use(cors({
 }));
 
 // Os parsers maiores só ficam acessíveis depois de autenticar e autorizar.
+// Stripe signs the original bytes. This route must precede JSON parsing and
+// browser origin/auth middleware; its authentication is the webhook signature.
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json', limit: '256kb' }),
+  require('./controllers/stripePaymentsController').webhook);
 app.use('/api/backup/import', requireAuth, require('./middleware/requireRole')('owner'), express.json({ limit: '100mb' }));
 const uploadParser = express.json({ limit: '15mb' });
 app.use(['/api/accommodations', '/api/expenses'], (req, res, next) => {

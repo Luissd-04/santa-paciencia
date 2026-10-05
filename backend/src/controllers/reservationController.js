@@ -104,15 +104,18 @@ async function cancel(req, res, next) {
     const organizationId = req.user.organization_id;
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
-
-    db.prepare(`
+    await require('../services/stripePayments').closeOpenCheckout(reservation.id);
+    db.transaction(() => {
+      require('../services/stripePaymentGuards').assertNoActiveCheckout(reservation.id);
+      db.prepare(`
       UPDATE reservations SET
         status = 'cancelada',
         cancelled_previous_status = CASE WHEN status != 'cancelada' THEN status ELSE cancelled_previous_status END,
         cancelled_previous_payment_status = payment_status,
         updated_at = datetime('now')
       WHERE id = ? AND organization_id = ?
-    `).run(req.params.id, organizationId);
+      `).run(req.params.id, organizationId);
+    }).immediate();
     recordHistory({ organizationId, reservationId: req.params.id, userId: req.user.id, action: 'cancelled' });
     syncReservationOperationalTasks({ ...reservation, status: 'cancelada' }, req.user.id);
 
@@ -154,6 +157,9 @@ async function hardDelete(req, res, next) {
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?')
       .get(req.params.id, organizationId);
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+    if (db.prepare('SELECT 1 FROM stripe_payment_attempts WHERE reservation_id=?').get(reservation.id)) {
+      return res.status(409).json({ error: 'Reservas com tentativas Stripe devem ser conservadas para reconciliação e reembolsos.' });
+    }
     if (reservation.status !== 'cancelada') {
       return res.status(409).json({ error: 'Só é possível apagar reservas já canceladas. Cancela primeiro.' });
     }

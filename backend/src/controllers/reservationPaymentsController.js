@@ -5,6 +5,8 @@ const { getPaymentStatus } = require('../services/reservationRules');
 const { recordHistory } = require('../services/reservationHistoryService');
 async function addPayment(req, res, next) {
   try {
+    const owned = db.prepare('SELECT id FROM reservations WHERE id=? AND organization_id=?').get(req.params.id, req.user.organization_id);
+    if (owned) await require('../services/stripePayments').closeOpenCheckout(owned.id);
     const { paymentId, numAmount, method, payment_date, notes, newPaid, autoStatus } = db.transaction(() => {
     const { id } = req.params;
     const organizationId = req.user.organization_id;
@@ -17,6 +19,7 @@ async function addPayment(req, res, next) {
 
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(id, organizationId);
     if (!reservation) throw Object.assign(new Error(({ error: 'Reserva não encontrada' }).error), { status: 404 });
+    require('../services/stripePaymentGuards').assertNoActiveCheckout(reservation.id);
 
     const reservationTotal = Number(reservation.total_amount) || 0;
     const paymentCap = Math.max(reservationTotal * 10, 1000000);
@@ -59,9 +62,11 @@ async function deletePayment(req, res, next) {
 
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(id, organizationId);
     if (!reservation) throw Object.assign(new Error(({ error: 'Reserva não encontrada' }).error), { status: 404 });
+    require('../services/stripePaymentGuards').assertNoActiveCheckout(reservation.id);
 
     const payment = db.prepare('SELECT * FROM reservation_payments WHERE id = ? AND reservation_id = ? AND organization_id = ?').get(paymentId, id, organizationId);
     if (!payment) throw Object.assign(new Error(({ error: 'Pagamento não encontrado' }).error), { status: 404 });
+    if (payment.id.startsWith('stripe-')) throw Object.assign(new Error('Este movimento é gerido pela Stripe. Efetue o reembolso no painel Stripe.'), { status: 409 });
 
     db.prepare('DELETE FROM reservation_payments WHERE id = ? AND organization_id = ?').run(paymentId, organizationId);
 
