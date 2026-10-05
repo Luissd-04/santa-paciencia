@@ -688,6 +688,7 @@ $('precheckin-form').addEventListener('submit', async event => {
     AppModules.publicFlow.complete(result.data?.resubmission ? 'alteracoes' : 'dados', {
       reference: reservationData.reservation.id,
       returnPath: location.pathname,
+      paymentPath: reservationData.reservation.payment_path,
     });
   } catch (err) {
     btn.disabled = false;

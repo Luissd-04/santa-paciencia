@@ -25,6 +25,11 @@
       $('confirmation-return').href = receipt.returnPath;
       $('confirmation-return').hidden = false;
     }
+    if (kind !== 'reserva' && /^\/reserva\/[a-f0-9]{64}$/i.test(receipt.paymentPath || '')) {
+      $('confirmation-payment').href = receipt.paymentPath;
+      $('confirmation-payment').hidden = false;
+      $('confirmation-close').hidden = true;
+    }
   }
   $('confirmation-title').focus({ preventScroll: true });
   window.scrollTo({ top: 0, left: 0, behavior: 'instant' });

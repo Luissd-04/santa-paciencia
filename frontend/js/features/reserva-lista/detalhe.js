@@ -125,6 +125,10 @@ async function showDetail(id, opts = {}) {
 
     const preCheckinToken = r.precheckin_token || r.public_token;
     const preCheckinUrl = preCheckinToken ? `${window.location.origin}/pre-checkin/${preCheckinToken}` : null;
+    const paymentPageUrl = r.public_token ? `${window.location.origin}/reserva/${r.public_token}` : null;
+    const canOpenOnlinePayment = paymentPageUrl
+      && ['aguardar_pagamento', 'confirmada', 'pre_checkin'].includes(r.status)
+      && r.payment_status !== 'confirmado' && total - paid >= 0.5;
     const guestEmail = encodeURIComponent(r.guest_email || '');
     const guestName = encodeURIComponent(r.guest_name || '');
 
@@ -387,6 +391,7 @@ async function showDetail(id, opts = {}) {
             <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-edit-page-8b67124", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('pencil', 12)} Editar reserva</button>
             <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-add-guest-form-2a832ca", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('user-plus', 12)} Adicionar hóspede</button>
             <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-payment-form-74a29ac", [String((r.id) ?? ''), paid, total])}>${AppModules.core.lcIcon('credit-card', 12)} Registar pagamento</button>
+            ${canOpenOnlinePayment ? `<button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-7fd73a2", [String((paymentPageUrl) ?? '')])}>${AppModules.core.lcIcon('external-link', 12)} Abrir pagamento online</button>` : ''}
             <button class="rdv2-action-link" data-inv='${JSON.stringify({ n: r.invoice_number || '', d: r.invoice_date || '', sd: r.invoice_sent_date || '', m: r.invoice_sent_method || '' }).replace(/'/g, "&#39;")}' ${AppActions.attrs("click", "detalhe-open-invoice-form-from-btn-ddace26", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('file-text', 12)} Registar fatura</button>
             ${r.guest_email ? `<button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-abrir-mensagens-da-reserva-8cd7ba1", [String((r.id) ?? ''), String((guestEmail) ?? ''), String((guestName) ?? '')])}>${AppModules.core.lcIcon('mail', 12)} Enviar email</button>` : ''}
             ${r.status === 'cancelada'

@@ -523,6 +523,7 @@ function getPreCheckin(req, res) {
     ? db.prepare('SELECT rgpd_text FROM accommodations WHERE id = ? AND organization_id = ?').get(accommodation.parent_id, reservation.organization_id)?.rgpd_text
     : '';
   const privacyText = require('sanitize-html')(accommodation?.rgpd_text || parentPrivacy || '', { allowedTags: [], allowedAttributes: {} });
+  const onlinePayment = paymentSummary(reservation);
   res.json({
     success: true,
     data: {
@@ -542,6 +543,7 @@ function getPreCheckin(req, res) {
         precheckin_submitted_at: reservation.precheckin_submitted_at || null,
         precheckin_updated_at: reservation.precheckin_updated_at || null,
         editable_until: reservation.check_in,
+        payment_path: onlinePayment.available && reservation.public_token ? `/reserva/${reservation.public_token}` : null,
       },
       guest: {
         name: (shared ? snapshot.name : reservation.guest_name) || '',
