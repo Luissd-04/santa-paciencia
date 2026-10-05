@@ -133,7 +133,7 @@ async function main() {
   console.log('OK: cada vista traz o seu código uma só vez, com as dependências primeiro.');
 
   // Download falhado: a vista mostra o aviso com repetição, e repetir resolve.
-  await page.route('**/js/vouchers.js', route => route.abort());
+  await page.route('**/js/vouchers.js*', route => route.abort());
   await page.evaluate(() => AppModules.core.showView('vouchers'));
   await expect(page.locator('#view-vouchers .feature-load-error')).toBeVisible();
   assert.equal(await page.evaluate(() => typeof AppModules.vouchers.loadVouchers), 'undefined');
@@ -141,7 +141,7 @@ async function main() {
   // campos lá dentro têm de sobreviver ao aviso.
   await expect(page.locator('#view-vouchers #vouchers-list-wrap')).toHaveCount(1);
   await expect(page.locator('#view-vouchers #vouchers-list-wrap')).toBeHidden();
-  await page.unroute('**/js/vouchers.js');
+  await page.unroute('**/js/vouchers.js*');
   await page.locator('#view-vouchers [data-feature-retry]').click();
   await expect(page.locator('#view-vouchers .feature-load-error')).toHaveCount(0);
   await expect(page.locator('#view-vouchers #vouchers-list-wrap')).toBeVisible();
@@ -224,6 +224,7 @@ async function main() {
   await expect(deepPage.locator('#view-reservas')).toHaveClass(/active/);
   await expect(deepPage.locator('#reserva-detail-page')).toBeVisible();
   await expect(deepPage.locator('#reserva-detail-page')).toContainText('Hóspede 001');
+  await expect(deepPage.getByText('Abrir pagamento online', { exact: true })).toBeVisible();
   assert.deepEqual(deepErrors, []);
   await deepPage.close();
   console.log('OK: ligação direta a uma reserva abre a ficha com o módulo carregado.');

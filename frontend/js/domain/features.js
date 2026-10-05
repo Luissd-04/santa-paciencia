@@ -194,15 +194,18 @@ for (const [name, feature] of Object.entries(FEATURE_MODULES)) {
 
 const featureScriptRequests = new Map();  // src → promessa (apagada se falhar)
 const featureRequests = new Map();        // funcionalidade → promessa em curso
+const FEATURE_ASSET_VERSION = 'stripe-payment-20261005-2';
+const featureAssetUrl = src => `${src}${src.includes('?') ? '&' : '?'}v=${FEATURE_ASSET_VERSION}`;
 
 // O preload traz os ficheiros em paralelo; a execução a seguir é sequencial
 // e sai da cache do browser, sem cascata de latências.
 function preloadFeatureScript(src) {
-  if (document.querySelector(`link[rel="preload"][href="${src}"]`)) return;
+  const url = featureAssetUrl(src);
+  if (document.querySelector(`link[rel="preload"][href="${url}"]`)) return;
   const link = document.createElement('link');
   link.rel = 'preload';
   link.as = 'script';
-  link.href = src;
+  link.href = url;
   document.head.appendChild(link);
 }
 
@@ -214,7 +217,7 @@ function runFeatureScript(src) {
   if (existing) return existing;
   const request = new Promise((resolve, reject) => {
     const element = document.createElement('script');
-    element.src = src;
+    element.src = featureAssetUrl(src);
     element.async = false;
     const timer = setTimeout(() => fail(), 30000);
     const done = () => { clearTimeout(timer); element.onload = null; element.onerror = null; };
