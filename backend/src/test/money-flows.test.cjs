@@ -152,10 +152,27 @@ test('edição com valor pago cria um ajuste no ledger e pede o email de pagamen
   assert.deepEqual(sent.map(s => s.name), ['sendPaymentConfirmationEmail']);
 });
 
-test('pagamento manual sem política numa reserva a aguardar pagamento não a confirma', async () => {
+// Regra única (reservationState): sem política, o pagamento integral confirma,
+// seja manual ou pela Stripe. Antes, só a Stripe e a edição confirmavam.
+test('pagamento manual sem política: o pagamento integral confirma, o parcial não', async () => {
   reservation({ status: 'aguardar_pagamento' });
-  await call(payments.addPayment, { amount: 200 }, { id: 'res' });
-  assert.equal(row().payment_status, 'confirmado');
+  await call(payments.addPayment, { amount: 50 }, { id: 'res' });
   assert.equal(row().status, 'aguardar_pagamento');
+  await call(payments.addPayment, { amount: 150 }, { id: 'res' });
+  assert.equal(row().payment_status, 'confirmado');
+  assert.equal(row().status, 'confirmada');
   assert.deepEqual(sent, []);
+});
+
+test('pré-check-in concluído confirma, salvo sinal da política por pagar', () => {
+  const { savePrecheckin } = require('../services/publicGuestService');
+  reservation({ status: 'pre_checkin' });
+  savePrecheckin(row(), { name: 'Hóspede', email: 'hospede@example.com' }, [], null);
+  assert.equal(row().status, 'confirmada');
+  db.exec("DELETE FROM reservations");
+  enablePolicy();
+  reservation({ status: 'pre_checkin' });
+  policy.attachPolicy({ id: 'res', organization_id: ORG });
+  savePrecheckin(row(), { name: 'Hóspede', email: 'hospede@example.com' }, [], null);
+  assert.equal(row().status, 'aguardar_pagamento');
 });

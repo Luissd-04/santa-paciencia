@@ -3,13 +3,14 @@ const { db } = require('../config/database');
 const { getStripe, stripeConfig, stripeEnabled } = require('./stripeClient');
 const { configuredOrigin } = require('./publicOrigin');
 const { activeCheckout } = require('./stripePaymentGuards');
-const { ensureLegacyPayment, ledgerTotal } = require('./paymentLedger');
-const { getPaymentStatus, localDateIso } = require('./reservationRules');
+const ledger = require('./financialLedger');
+const { ensureLegacyPayment, ledgerTotal } = ledger;
+const { localDateIso } = require('./reservationRules');
 const { findConflict } = require('./reservationAvailability');
 const policy = require('./paymentPolicy');
 const { recordHistory } = require('./reservationHistoryService');
 
-const cents = value => Math.round(Number(value) * 100);
+const { cents } = require('./money');
 const objectId = value => typeof value === 'string' ? value : value?.id;
 const fail = (message, status = 409) => { throw Object.assign(new Error(message), { status }); };
 const SUPPORTED_EVENTS = new Set([
@@ -235,26 +236,26 @@ function applyPayment(attempt, canonical, event) {
     if (pi?.status === 'succeeded') {
       state = 'paid';
       ensureLegacyPayment(r);
-      const insert = db.prepare(`INSERT INTO reservation_payments
-        (id,reservation_id,organization_id,amount,method,payment_date,notes) VALUES (?,?,?,?,?,date('now'),?)`);
+      const today = db.prepare("SELECT date('now') AS d").get().d;
       if (!captured) {
-        insert.run(`stripe-payment-${attempt.id}`, r.id, r.organization_id, attempt.amount_cents / 100, 'Stripe', 'Pagamento online confirmado pela Stripe');
+        ledger.addEntry(r, { id: `stripe-payment-${attempt.id}`, amount: attempt.amount_cents / 100, method: 'Stripe',
+          paymentDate: today, notes: 'Pagamento online confirmado pela Stripe' });
         captured = attempt.amount_cents;
       }
       if (refunded > returned) {
-        insert.run(`stripe-refund-${attempt.id}-${refunded}`, r.id, r.organization_id, -(refunded - returned) / 100, 'Stripe', 'Reembolso confirmado pela Stripe');
+        ledger.addEntry(r, { id: `stripe-refund-${attempt.id}-${refunded}`, amount: -(refunded - returned) / 100, method: 'Stripe',
+          paymentDate: today, notes: 'Reembolso confirmado pela Stripe' });
         returned = refunded;
       }
-      const paid = ledgerTotal(r.id, r.organization_id);
       const review = (r.status === 'cancelada' && (!r.policy_cancellation_json || !attempt.captured_cents)) || snapshot(r) !== attempt.snapshot;
       online = review ? 'review_required' : returned === captured ? 'refunded' : returned > 0 ? 'partially_refunded' : 'paid';
-      const paymentStatus = returned > 0 && cents(paid) === 0 ? 'reembolsado' : getPaymentStatus(paid, r.total_amount, 'pendente');
-      const depositMet = r.payment_policy_json && cents(paid) >= policy.planFor(r).depositCents;
-      const status = !review && (paymentStatus === 'confirmado' || depositMet) && ['pendente','pre_reserva','aguardar_pagamento'].includes(r.status) ? 'confirmada' : r.status;
-      db.prepare(`UPDATE reservations SET amount_paid=?, payment_status=?, status=?,
+      // Um pagamento a rever não confirma a estadia; a Stripe nunca faz recuar
+      // uma reserva já confirmada.
+      ledger.recompute(r.id, r.organization_id, { deriveStatus: !review, allowDowngrade: false, fallbackPaymentStatus: 'pendente' });
+      db.prepare(`UPDATE reservations SET
         paid_at=COALESCE(paid_at,datetime('now')), payment_date=COALESCE(payment_date,date('now')),
         payment_method='Stripe', updated_at=datetime('now') WHERE id=? AND organization_id=?`)
-        .run(paid, paymentStatus, status, r.id, r.organization_id);
+        .run(r.id, r.organization_id);
       if (!review && r.policy_auto_consent === '1' && pi.customer && pi.payment_method && pi.latest_charge?.payment_method_details?.type === 'card') {
         db.prepare('UPDATE reservations SET stripe_customer_id=?, stripe_payment_method_id=?, stripe_saved_livemode=? WHERE id=?')
           .run(objectId(pi.customer), objectId(pi.payment_method), String(Number(pi.livemode)), r.id);

@@ -7,7 +7,7 @@ const { findUsableVoucher, voucherDiscount: calculateVoucherDiscount, activeRede
 const { assertMoneyLimit } = require('./reservationValidation');
 const { safeJson, computeStandardTotals, getOrganizationServices } = require('./reservationSupport');
 
-const httpError = (message, status, extra = {}) => Object.assign(new Error(message), { status, ...extra });
+const { httpError } = require('./httpError');
 
 // Os formulários enviam tipos diferentes dos guardados (true vs 1, "2" vs 2,
 // datas dd/mm/aaaa): comparar valores normalizados evita tratar uma edição de

@@ -58,19 +58,20 @@ function savePrecheckin(reservation, guest, extraGuests, arrivalTime) {
       isolated.company_nif = null;
     }
 
-    // Concluído o pré-check-in, a reserva fica confirmada. Só uma reserva com
-    // política de pagamento cujo sinal ainda não foi pago fica à espera do
-    // pagamento; sem política (pagamento à chegada, outros canais) não há
-    // nada a aguardar.
-    const awaitingDeposit = Boolean(reservation.payment_policy_json) && require('./paymentPolicy').cents(reservation.amount_paid)
-      < require('./paymentPolicy').planFor(reservation).depositCents;
+    // Concluído o pré-check-in, a reserva fica confirmada, salvo se tiver
+    // política de pagamento e o sinal ainda não estiver pago (mesma regra dos
+    // pagamentos, em reservationState).
+    const current = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservation.id, reservation.organization_id);
+    const { cents } = require('./money');
+    const nextStatus = current.status !== 'pre_checkin' ? current.status : require('./reservationState').statusAfterPayment({
+      status: 'confirmada', paidCents: cents(current.amount_paid || 0), totalCents: cents(current.total_amount || 0),
+      depositCents: current.payment_policy_json ? require('./paymentPolicy').planFor(current).depositCents : null,
+    });
     db.prepare(`UPDATE reservations SET guest_id = ?, guest_snapshot = ?, guests_data = ?,
-      arrival_time = ?, status = CASE WHEN status = 'pre_checkin'
-        THEN CASE WHEN payment_status = 'confirmado' OR NOT ? THEN 'confirmada' ELSE 'aguardar_pagamento' END
-        ELSE status END, updated_at = datetime('now')
+      arrival_time = ?, status = ?, updated_at = datetime('now')
       WHERE id = ? AND organization_id = ?`)
       .run(isolated.id, JSON.stringify({ name: guest.name, email: guest.email, phone: isolated.phone }),
-        JSON.stringify(extraGuests), arrivalTime, Number(awaitingDeposit), reservation.id, reservation.organization_id);
+        JSON.stringify(extraGuests), arrivalTime, nextStatus, reservation.id, reservation.organization_id);
     return isolated;
   })();
 }

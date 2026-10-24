@@ -5,12 +5,11 @@ const { sendConfirmationEmail, sendCancellationEmail, sendPaymentConfirmationEma
 const { recordConsent } = require('../services/rgpdService');
 const { syncReservationOperationalTasks } = require('../services/operationalTasksService');
 
-const { ensureLegacyPayment, setPaidAmount } = require('../services/paymentLedger');
+const ledger = require('../services/financialLedger');
 const { findConflict, validateExtraUnits } = require('../services/reservationAvailability');
 const { validateReservationInput, assertMoneyLimit } = require('../services/reservationValidation');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
-const { getPaymentStatus } = require('../services/reservationRules');
 
 const { stayChanged, priceCreate, priceUpdate, assertExpectedTotal, createQuote, updateQuote } = require('../services/reservationQuote');
 const moneyChanged = (value, current) => value !== undefined && Math.round(Number(value) * 100) !== Math.round(Number(current || 0) * 100);
@@ -160,7 +159,6 @@ async function create(req, res, next) {
     assertExpectedTotal(req.body.expected_total, finalTotal);
 
     const paidAmt = Number(amount_paid) || 0;
-    const autoPaymentStatus = getPaymentStatus(paidAmt, finalTotal, reqPaymentStatus || 'pendente');
 
     // Criar reserva
     const reservationId = `SP-${uuidv4().slice(0, 8).toUpperCase()}`;
@@ -181,16 +179,18 @@ async function create(req, res, next) {
       totals.touristTax, channel || 'direto', payment_method || null,
       notes || null, accommodation.license_number,
       JSON.stringify(upsertAdditionalGuests(guests_data, organizationId, guestRecord.id)),
-      paidAmt, payment_date || null, autoPaymentStatus,
+      paidAmt, payment_date || null, reqPaymentStatus || 'pendente',
       JSON.stringify(totals.nightlyPrices || []),
       priceEdited ? new Date().toISOString() : null,
       priceEdited ? req.user.id : null, initialStatus, JSON.stringify(extraUnits)
     );
     if (appliedVoucherId) redeemVoucher(organizationId, appliedVoucherId, reservationId, voucherDiscount);
 
+    require('../services/paymentPolicy').attachPolicy({ id: reservationId, organization_id: organizationId, check_in: totals.checkIn, channel: channel || 'direto' });
+    ledger.ensureLegacyPayment({ id: reservationId, organization_id: organizationId, amount_paid: paidAmt,
+      payment_method: payment_method || null, payment_date: payment_date || null });
+    ledger.recompute(reservationId, organizationId);
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservationId, organizationId);
-    require('../services/paymentPolicy').attachPolicy(reservation);
-    ensureLegacyPayment(reservation);
     recordHistory({
       organizationId, reservationId, userId: req.user.id, action: 'created',
       meta: { check_in: reservation.check_in, check_out: reservation.check_out, accommodation_id: reservation.accommodation_id, total_amount: reservation.total_amount },
@@ -332,20 +332,10 @@ async function update(req, res, next) {
         priceEditedBy = null;
       }
     }
-    const autoPaymentStatus2 = getPaymentStatus(newPaidAmt, effectiveTotal, payment_status || existing.payment_status || 'pendente');
     const reactivating = existing.status === 'cancelada' && status && status !== 'cancelada';
-    const nextStatus = reactivating
-      ? (existing.cancelled_previous_status || status)
-      : status || (
-        ['aguardar_pagamento', 'confirmada'].includes(existing.status) && existing.payment_policy_json
-          ? (Math.round(newPaidAmt * 100) >= require('../services/paymentPolicy').planFor({ ...existing, total_amount: effectiveTotal, check_in: newCheckIn }).depositCents ? 'confirmada' : 'aguardar_pagamento')
-          : existing.status === 'aguardar_pagamento' && (existing.payment_policy_json
-          ? Math.round(newPaidAmt * 100) >= require('../services/paymentPolicy').planFor({ ...existing, total_amount: effectiveTotal, check_in: newCheckIn }).depositCents
-          : newPaidAmt > 0)
-          ? 'confirmada'
-          : existing.status
-      );
-    const nextPaymentStatus = autoPaymentStatus2;
+    // Estado escolhido pela equipa (ou o anterior ao cancelamento, ao reativar);
+    // sem escolha, o dinheiro recebido decide (reservationState).
+    const chosenStatus = reactivating ? (existing.cancelled_previous_status || status) : status;
 
     db.prepare(`
       UPDATE reservations SET
@@ -367,8 +357,8 @@ async function update(req, res, next) {
       pricingChanged ? totals.touristTax : existing.tourist_tax,
       channel || existing.channel,
       payment_method !== undefined ? (payment_method || null) : existing.payment_method,
-      notes !== undefined ? notes : existing.notes, nextStatus,
-      nextPaymentStatus,
+      notes !== undefined ? notes : existing.notes, chosenStatus || existing.status,
+      existing.payment_status,
       guests_data !== undefined ? JSON.stringify(upsertAdditionalGuests(guests_data, organizationId, existing.guest_id)) : (existing.guests_data || '[]'),
       newAccData,
       newPaidAmt,
@@ -388,7 +378,12 @@ async function update(req, res, next) {
       db.prepare(`UPDATE reservations SET policy_accepted_at=NULL, policy_auto_consent=NULL, stripe_payment_method_id=NULL,
         balance_attempted_at=NULL, balance_deadline=NULL, balance_notice_sent_at=NULL WHERE id=?`).run(existing.id);
     }
-    if (amount_paid !== undefined) setPaidAmount(existing, newPaidAmt);
+    // Reservas antigas só tinham amount_paid: migrar antes de recalcular a partir do ledger.
+    ledger.ensureLegacyPayment(existing);
+    if (amount_paid !== undefined) ledger.setPaidAmount(existing, newPaidAmt);
+    const { paymentStatus: nextPaymentStatus } = ledger.recompute(existing.id, organizationId, {
+      deriveStatus: !chosenStatus, fallbackPaymentStatus: payment_status || existing.payment_status || 'pendente',
+    });
     if (cancelling) releaseVoucherIfUnpaid(organizationId, existing.id);
     if (reactivating) reclaimReleasedVoucher(organizationId, existing.id);
     // Google Calendar: cancelar remove o evento (paridade com o DELETE); as
