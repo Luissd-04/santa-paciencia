@@ -63,7 +63,9 @@ async function main() {
   const cell = page.locator('.precos-day-cell[data-date]').nth(3);
   await cell.click();
   // O clique redesenha a grelha: medir sobre a célula atual, não sobre uma já substituída.
-  const box = await cell.evaluate(el=>{const r=el.getBoundingClientRect();return {x:r.left,y:r.top,width:r.width,height:r.height};});
+  // Centrar primeiro: depois do clique a célula pode ficar sob a barra superior fixa,
+  // e o toque seguinte cairia na barra em vez da célula.
+  const box = await cell.evaluate(el=>{el.scrollIntoView({block:'center',inline:'nearest'});const r=el.getBoundingClientRect();return {x:r.left,y:r.top,width:r.width,height:r.height};});
   await page.evaluate(()=>{const raf=window.requestAnimationFrame.bind(window);const held=[];window.__heldRaf=true;
     window.requestAnimationFrame=cb=>{if(window.__heldRaf){held.push(cb);return -1;}return raf(cb);};
     document.addEventListener('pointerdown',()=>{window.__heldRaf=false;raf(t=>held.splice(0).forEach(cb=>cb(t)));},{capture:true,once:true});});
