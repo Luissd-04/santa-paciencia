@@ -241,6 +241,8 @@ function applyPayment(attempt, canonical, event) {
         ledger.addEntry(r, { id: `stripe-payment-${attempt.id}`, amount: attempt.amount_cents / 100, method: 'Stripe',
           paymentDate: today, notes: 'Pagamento online confirmado pela Stripe' });
         captured = attempt.amount_cents;
+        require('./reservationEvents').emit('payment.received', { organizationId: r.organization_id, reservationId: r.id,
+          payload: { amount: attempt.amount_cents / 100, source: attempt.kind === 'automatic' ? 'automatic' : 'stripe' } });
       }
       if (refunded > returned) {
         ledger.addEntry(r, { id: `stripe-refund-${attempt.id}-${refunded}`, amount: -(refunded - returned) / 100, method: 'Stripe',

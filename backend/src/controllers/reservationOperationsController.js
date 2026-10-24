@@ -294,6 +294,13 @@ function getNotifications(req, res, next) {
           CASE WHEN SUM(state='uncertain') > 0 THEN 'uncertain' ELSE 'blocked' END AS state, MAX(last_error) AS last_error, MAX(updated_at) AS updated_at
         FROM email_deliveries WHERE organization_id=? AND state IN ('blocked','uncertain')
         GROUP BY reservation_id, template_slug ORDER BY updated_at DESC LIMIT 100`).all(orgId);
+      // Avisos (emails, push) que esgotaram as tentativas: ninguém os recebeu.
+      const effects = db.prepare(`SELECT e.reservation_id, e.type, f.effect, f.last_error FROM reservation_event_effects f
+        JOIN reservation_events e ON e.id = f.event_id
+        WHERE e.organization_id = ? AND f.state = 'failed' AND f.updated_at > datetime('now', '-14 days')
+        ORDER BY f.updated_at DESC LIMIT 50`).all(orgId);
+      for (const f of effects) notifications.push({ type: 'notice_failed', priority: 'high', icon: 'bell-off', title: 'Aviso não entregue',
+        subtitle: `${f.effect.replace(/_/g, ' ')} · ${f.last_error || 'falhou depois de várias tentativas'}`, reservation_id: f.reservation_id });
       for (const d of deliveries) notifications.push({ type: 'email_review', priority: 'high', icon: 'mail', title: d.state === 'blocked' ? 'Email por enviar' : 'Envio de email por confirmar', subtitle: `${d.template_slug} · ${d.last_error || 'Aguarde a conclusão e confirme no Gmail antes de repetir.'}`, reservation_id: d.reservation_id, template_slug: d.template_slug, delivery_state: d.state });
     }
     res.json({ success: true, data: { notifications } });

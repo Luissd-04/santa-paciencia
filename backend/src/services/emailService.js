@@ -546,26 +546,14 @@ async function sendReservationRequestApprovedEmail(guest, reservation, accommoda
   return sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl);
 }
 
+// Aviso à equipa de um pedido novo do site público (staffNotifier).
 async function sendOwnerNewReservationEmail(organizationId, guest, reservation, accommodation, appUrl) {
   if (EMAIL_DISABLED) return null;
-  const { db } = require('../config/database');
-
-  const owners = db.prepare(`
-    SELECT u.email FROM users u
-    JOIN memberships m ON m.user_id = u.id
-    WHERE m.organization_id = ? AND m.role IN ('owner', 'manager') AND m.active = 1 AND u.active = 1
-    ORDER BY CASE m.role WHEN 'owner' THEN 1 ELSE 2 END
-  `).all(organizationId);
-
-  if (!owners.length) return null;
-
-  accommodation = resolveAccommodationInheritance(accommodation, organizationId);
-  const settings = getEmailSettings(accommodation, organizationId);
-  const reservationUrl = appUrl ? `${appUrl}/reservas?reserva=${encodeURIComponent(reservation.id)}` : '';
-
-  const content = `
-    ${composer.buildReservationTitle('Nova reserva recebida', '•')}
-    ${composer.buildReservationCard([
+  return require('./staffNotifier').email(organizationId, {
+    subject: `Nova reserva — ${guest.name} · ${reservation.id}`,
+    title: 'Nova reserva recebida',
+    accommodation,
+    rows: [
       { label: 'Referência',  value: reservation.id || '' },
       { label: 'Hóspede',     value: `${guest.name || ''} <${guest.email || ''}>` },
       { label: 'Alojamento',  value: accommodation.name || '' },
@@ -573,21 +561,10 @@ async function sendOwnerNewReservationEmail(organizationId, guest, reservation, 
       { label: 'Check-out',   value: formatDate(reservation.check_out) },
       { label: 'Hóspedes',    value: String(reservation.num_guests || 1) },
       { label: 'Estado',      value: statusPresentation(reservation).title },
-    ], composer.formatCurrency(reservation.total_amount || 0))}
-    ${composer.buildCtaBlock(reservationUrl, 'Ver reserva no backoffice')}
-  `;
-
-  for (const owner of owners) {
-    try {
-      await sendMail(organizationId, {
-        to: owner.email,
-        subject: `Nova reserva — ${guest.name} · ${reservation.id}`,
-        html: baseTemplate(content, settings),
-      });
-    } catch (err) {
-      console.error(`Notificação owner nova reserva (${owner.email}):`, err.message);
-    }
-  }
+    ],
+    total: composer.formatCurrency(reservation.total_amount || 0),
+    url: appUrl ? `${appUrl}/reservas?reserva=${encodeURIComponent(reservation.id)}` : '',
+  });
 }
 
 module.exports = {

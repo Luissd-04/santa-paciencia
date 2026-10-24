@@ -417,10 +417,20 @@
                   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
                     <div>
                       <div style="font-weight:600;font-size:13px;">❌ Cancelamentos</div>
-                      <div style="font-size:12px;color:var(--cinza);">Quando uma reserva é cancelada</div>
+                      <div style="font-size:12px;color:var(--cinza);">Quando uma reserva é cancelada, incluindo pelo hóspede, por expiração ou por falta de pagamento</div>
                     </div>
                     <label class="toggle-switch" style="flex-shrink:0;">
                       <input type="checkbox" data-push-pref="cancellation" data-on-change="index-save-push-prefs-0f45e7b">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                    <div>
+                      <div style="font-weight:600;font-size:13px;">💶 Pagamento recebido</div>
+                      <div style="font-size:12px;color:var(--cinza);">Pagamentos online pela Stripe, incluindo a cobrança automática do restante</div>
+                    </div>
+                    <label class="toggle-switch" style="flex-shrink:0;">
+                      <input type="checkbox" data-push-pref="payment" data-on-change="index-save-push-prefs-0f45e7b">
                       <span class="toggle-slider"></span>
                     </label>
                   </div>

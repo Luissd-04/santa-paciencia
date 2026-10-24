@@ -1,7 +1,6 @@
 const { redeemVoucher, releaseVoucherIfUnpaid, reclaimReleasedVoucher } = require('../services/voucherService');
 const { queueCalendarUpsert, detachReservationEvent, kickCalendarQueue } = require('../services/calendarService');
 const { isAuthenticated: hasGoogleCalendar } = require('../config/google');
-const { sendConfirmationEmail, sendCancellationEmail } = require('../services/emailService');
 const { recordConsent } = require('../services/rgpdService');
 const { syncReservationOperationalTasks } = require('../services/operationalTasksService');
 
@@ -21,7 +20,6 @@ function affectsOnlinePayment(body, existing) {
 }
 
 const { findBlockConflict } = require('../services/accommodationBlockService');
-const { notifyOrganization } = require('../services/pushService');
 const { recordHistory, diffReservationFields } = require('../services/reservationHistoryService');
 
 const { safeJson, upsertAdditionalGuests } = require('../services/reservationSupport');
@@ -203,6 +201,8 @@ async function create(req, res, next) {
     // Google Calendar: intenção gravada com a reserva; a fila cria o evento.
     if (hasGoogleCalendar(req.user.id, organizationId)) queueCalendarUpsert(organizationId, 'reservation', reservationId, req.user.id);
 
+    require('../services/reservationEvents').emit('reservation.created', { organizationId, reservationId, actorUserId: req.user.id });
+
     if (intent) {
       db.prepare('INSERT INTO reservation_create_intents (organization_id, intent_key, fingerprint, reservation_id) VALUES (?, ?, ?, ?)')
         .run(organizationId, intent.key, intent.fingerprint, reservationId);
@@ -213,17 +213,6 @@ async function create(req, res, next) {
     if (!created) return res.json({ success: true, replayed: true, data: replay });
     const { reservation, guestRecord, accommodation, organizationId } = created;
     kickCalendarQueue(organizationId);
-
-    // Email de confirmação (async)
-    sendConfirmationEmail(guestRecord, reservation, accommodation)
-      .catch(err => console.warn('Email não enviado:', err.message));
-
-    notifyOrganization(organizationId, 'new_reservation', {
-      title: '🆕 Nova reserva',
-      body: `${guestRecord.name} · ${accommodation.name} · ${reservation.check_in} → ${reservation.check_out}`,
-      url: `/reservas?reserva=${reservation.id}`,
-      excludeUserId: req.user.id,
-    });
 
     res.status(201).json({
       success: true,
@@ -385,7 +374,10 @@ async function update(req, res, next) {
     if (reactivating) reclaimReleasedVoucher(organizationId, existing.id);
     // Google Calendar: cancelar remove o evento (paridade com o DELETE); as
     // restantes alterações atualizam-no. Gravado na mesma transação.
-    if (cancelling) detachReservationEvent(organizationId, existing.id);
+    if (cancelling) {
+      detachReservationEvent(organizationId, existing.id);
+      require('../services/reservationEvents').emit('reservation.cancelled', { organizationId, reservationId: existing.id, actorUserId: req.user.id, payload: { reason: 'staff', policy: false } });
+    }
     else if (existing.google_event_id || (reactivating && existing.google_calendar_user_id)) {
       queueCalendarUpsert(organizationId, 'reservation', existing.id, existing.google_calendar_user_id || req.user.id);
     }
@@ -407,19 +399,6 @@ async function update(req, res, next) {
     }).immediate();
 
     kickCalendarQueue(organizationId);
-
-    // Email + push de cancelamento (paridade com o DELETE)
-    if (cancelling) {
-      const guestRecord = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(updated.guest_id, organizationId);
-      sendCancellationEmail(guestRecord, updated, accommodation)
-        .catch(err => console.warn('Email não enviado:', err.message));
-      notifyOrganization(organizationId, 'cancellation', {
-        title: '❌ Reserva cancelada',
-        body: `${guestRecord?.name || 'Hóspede'} · ${accommodation.name} · ${updated.check_in} → ${updated.check_out}`,
-        url: `/reservas?reserva=${req.params.id}`,
-        excludeUserId: req.user.id,
-      });
-    }
 
     res.json({ success: true, data: updated });
   } catch (err) {

@@ -13,6 +13,7 @@ process.env.DB_PATH = ':memory:';
 process.env.NODE_ENV = 'test';
 process.env.EMAIL_ENABLED = 'false';
 process.env.PUBLIC_APP_URL = 'http://localhost:3001';
+process.env.RESERVATION_EVENTS_DISPATCH = 'manual';
 const { db, initDatabase } = require('../config/database');
 initDatabase();
 
@@ -34,7 +35,7 @@ const policy = require('../services/paymentPolicy');
 
 const ORG = 'org-money';
 beforeEach(() => {
-  db.exec(`DELETE FROM reservation_payments; DELETE FROM manual_payment_intents; DELETE FROM reservation_history;
+  db.exec(`DELETE FROM reservation_events; DELETE FROM reservation_payments; DELETE FROM manual_payment_intents; DELETE FROM reservation_history;
     DELETE FROM reservations; DELETE FROM guests; DELETE FROM accommodations; DELETE FROM organization_settings;
     DELETE FROM organizations;
     INSERT INTO organizations(id,name,slug) VALUES ('${ORG}','Money','money');
@@ -169,6 +170,7 @@ test('cada pagamento no separador Pagamentos pede o email de pagamento, sem repe
   await call(payments.addPayment, { amount: 50, idempotency_key: key }, { id: 'res' });
   await call(payments.addPayment, { amount: 50, idempotency_key: key }, { id: 'res' });
   await call(payments.addPayment, { amount: 150 }, { id: 'res' });
+  await require('../services/reservationEvents').dispatchPending();
   assert.deepEqual(sent.map(s => [s.name, s.amount]), [['sendPaymentConfirmationEmail', 50], ['sendPaymentConfirmationEmail', 150]]);
 });
 

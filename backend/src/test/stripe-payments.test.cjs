@@ -186,6 +186,9 @@ test('pagamento confirmado atualiza reserva e ledger exatamente uma vez', async 
   assert.ok(row().paid_at);
   assert.equal(row().stripe_payment_intent_id, session.payment_intent.id);
   assert.equal(db.prepare('SELECT COUNT(*) n FROM reservation_payments').get().n, 1);
+  // Um único acontecimento de pagamento, mesmo com eventos repetidos.
+  assert.deepEqual(db.prepare('SELECT type, payload FROM reservation_events').all().map(e => [e.type, JSON.parse(e.payload)]),
+    [['payment.received', { amount: 200, source: 'stripe' }]]);
 });
 
 test('webhook anterior à resposta de criação associa a sessão por metadata', async () => {
