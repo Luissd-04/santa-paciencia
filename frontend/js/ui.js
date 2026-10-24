@@ -308,7 +308,11 @@
     });
     activeModals.push(modal);
     document.body.classList.add('modal-open');
-    const focus = () => { if (modalState.has(modal)) modal.focus({ preventScroll: true }); };
+    // Só quando o foco ainda está fora: quem já está a escrever num campo do
+    // diálogo não o perde no frame seguinte (o texto escrito perdia-se).
+    const focus = () => {
+      if (modalState.has(modal) && !modal.contains(document.activeElement)) modal.focus({ preventScroll: true });
+    };
     if (typeof requestAnimationFrame === 'function') requestAnimationFrame(focus);
     else setTimeout(focus, 0);
   }
