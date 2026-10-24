@@ -1,19 +1,8 @@
-const { randomUUID } = require('crypto');
 const { db } = require('../config/database');
 
 // Um email declarado num formulário público não comprova a identidade.
 // A ficha criada por este fluxo pertence apenas à reserva em causa.
-function createReservationGuest(organizationId, guest) {
-  const id = randomUUID();
-  const fields = ['name', 'email', 'phone', 'first_name', 'last_name', 'birth_date',
-    'nationality', 'country', 'document_type', 'document_number', 'document_issuer_country',
-    'birth_city', 'birth_country', 'address', 'postal_code', 'city', 'residence_country',
-    'nif', 'company', 'company_nif'];
-  db.prepare(`INSERT INTO guests (id, organization_id, ${fields.join(',')})
-    VALUES (?, ?, ${fields.map(() => '?').join(',')})`)
-    .run(id, organizationId, ...fields.map(field => guest[field] || null));
-  return db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(id, organizationId);
-}
+const createReservationGuest = (organizationId, guest) => require('./guestService').insertGuest(organizationId, guest);
 
 function savePrecheckin(reservation, guest, extraGuests, arrivalTime) {
   return db.transaction(() => {

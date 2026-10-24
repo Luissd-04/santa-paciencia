@@ -2,14 +2,29 @@ const { db } = require('../config/database');
 const { getAccommodationScope, getUnavailableAccommodationIds } = require('./availabilityRules');
 const { findBlockConflict, getBlockedAccommodationIds } = require('./accommodationBlockService');
 
+// Primeira reserva ou bloqueio que ocupa [checkIn, checkOut) no alojamento
+// (incluindo propriedade ↔ unidades). `kind` distingue os dois.
 function findConflict(org, unit, checkIn, checkOut, excludeId = null) {
   const accommodations = db.prepare('SELECT id, type, parent_id FROM accommodations WHERE organization_id = ?').all(org);
   const ids = getAccommodationScope(accommodations, unit);
   if (!ids.length) return null;
-  return db.prepare(`SELECT r.id FROM reservation_units u JOIN reservations r ON r.id = u.reservation_id AND r.organization_id = u.organization_id
+  const reservation = db.prepare(`SELECT r.id FROM reservation_units u JOIN reservations r ON r.id = u.reservation_id AND r.organization_id = u.organization_id
     WHERE u.organization_id = ? AND u.accommodation_id IN (${ids.map(() => '?').join(',')})
     AND r.status != 'cancelada' AND r.check_in < ? AND r.check_out > ? AND (? IS NULL OR r.id != ?) LIMIT 1`)
-    .get(org, ...ids, checkOut, checkIn, excludeId, excludeId) || findBlockConflict(org, unit, checkIn, checkOut);
+    .get(org, ...ids, checkOut, checkIn, excludeId, excludeId);
+  if (reservation) return { ...reservation, kind: 'reservation' };
+  const block = findBlockConflict(org, unit, checkIn, checkOut);
+  return block ? { ...block, kind: 'block' } : null;
+}
+
+// Recusa a estadia com a mensagem certa para reserva ou bloqueio.
+function assertAvailable(org, unit, checkIn, checkOut, excludeId = null, label = 'Este alojamento') {
+  const conflict = findConflict(org, unit, checkIn, checkOut, excludeId);
+  if (!conflict) return;
+  const message = conflict.kind === 'block'
+    ? `${label === 'Este alojamento' ? 'Estas datas estão bloqueadas' : `${label} está bloqueado nessas datas`}${conflict.reason ? ` (${conflict.reason})` : ''}.`
+    : `${label} já está ocupado nessas datas (reserva ${conflict.id}).`;
+  throw Object.assign(new Error(message), { status: 409 });
 }
 
 function unavailableUnits(org, checkIn, checkOut, excludeId = null) {
@@ -35,4 +50,4 @@ function validateExtraUnits(org, units, mainId, checkIn, checkOut, excludeId) {
     selected.add(id);
   }
 }
-module.exports = { findConflict, unavailableUnits, validateExtraUnits };
+module.exports = { findConflict, assertAvailable, unavailableUnits, validateExtraUnits };

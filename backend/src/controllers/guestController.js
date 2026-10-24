@@ -1,5 +1,4 @@
 const { db } = require('../config/database');
-const { v4: uuidv4 } = require('uuid');
 const { purgeReservations } = require('../services/reservationPurge');
 const { flushReservationTaskCleanup } = require('../services/operationalTasksService');
 
@@ -18,7 +17,7 @@ async function create(req, res, next) {
     }
 
     const fullName = name || `${first_name || ''} ${last_name || ''}`.trim();
-    const effectiveEmail = email || `guest_${require('crypto').randomUUID()}@sem-email.local`;
+    const effectiveEmail = email || require('../services/guestService').placeholderEmail();
     const organizationId = req.user.organization_id;
 
     const existing = db.prepare('SELECT * FROM guests WHERE email = ? AND organization_id = ?').get(effectiveEmail, organizationId);
@@ -26,24 +25,7 @@ async function create(req, res, next) {
       return res.status(409).json({ error: 'Já existe um hóspede com este email', data: existing });
     }
 
-    const id = uuidv4();
-    db.prepare(`
-      INSERT INTO guests (id, name, first_name, last_name, email, email_personal,
-        phone, birth_date, birth_city, birth_country, nif, nationality, country, organization_id,
-        document_type, document_number, document_issuer_country,
-        address, postal_code, city, residence_country, company, company_nif)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      id, fullName, first_name || null, last_name || null,
-      effectiveEmail, email_personal || null,
-      phone || null, birth_date || null, birth_city || null, birth_country || null, nif || null,
-      nationality || null, country || null, organizationId,
-      document_type || null, document_number || null, document_issuer_country || null,
-      address || null, postal_code || null, city || null, residence_country || null,
-      company || null, company_nif || null
-    );
-
-    const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(id, organizationId);
+    const guest = require('../services/guestService').insertGuest(organizationId, { ...req.body, name: fullName, email: effectiveEmail });
     res.status(201).json({ success: true, data: guest });
   } catch (err) {
     next(err);
@@ -84,7 +66,7 @@ async function update(req, res, next) {
     const existing = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
     if (!existing) return res.status(404).json({ error: 'Hóspede não encontrado' });
 
-    const updated = require('../services/guestPatch').updateGuest(req.params.id, organizationId, req.body);
+    const updated = require('../services/guestService').updateGuest(req.params.id, organizationId, req.body);
     res.json({ success: true, data: updated });
   } catch (err) {
     next(err);

@@ -1,7 +1,7 @@
 const { normalizeDocumentType } = require('../services/documentType');
-const { findUsableVoucher, voucherDiscount: calculateVoucherDiscount, redeemVoucher } = require('../services/voucherService');
-const { findConflict, unavailableUnits, validateExtraUnits } = require('../services/reservationAvailability');
-const { validateReservationInput, assertMoneyLimit } = require('../services/reservationValidation');
+const { findUsableVoucher, redeemVoucher } = require('../services/voucherService');
+const { findConflict } = require('../services/reservationAvailability');
+const { validateReservationInput } = require('../services/reservationValidation');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
@@ -9,12 +9,9 @@ const { recordConsent } = require('../services/rgpdService');
 const { syncReservationOperationalTasks } = require('../services/operationalTasksService');
 const { getEmailSettings, resolveAccommodationInheritance } = require('../services/emailService');
 const {
-  calculateReservationTotals,
   getPaymentStatus,
   normalizeDateValue,
 } = require('../services/reservationRules');
-const { getAccommodationScope } = require('../services/availabilityRules');
-const { findBlockConflict } = require('../services/accommodationBlockService');
 const turnstile = require('../services/turnstileService');
 const { recordHistory } = require('../services/reservationHistoryService');
 const { publicOrigin } = require('../services/publicOrigin');
@@ -126,10 +123,6 @@ function getChildren(parent) {
 
 
 
-function getServices(organizationId) {
-  const row = db.prepare("SELECT value FROM organization_settings WHERE organization_id = ? AND key = 'services'").get(organizationId);
-  return row ? parseJson(row.value, []) : [];
-}
 
 function getPricingPeriods(organizationId, accommodationId) {
   return db.prepare(`
@@ -139,10 +132,6 @@ function getPricingPeriods(organizationId, accommodationId) {
   `).all(organizationId, accommodationId);
 }
 
-function calculateTotal(accommodation, organizationId, payload) {
-  const pricing_periods = getPricingPeriods(organizationId, accommodation.id);
-  return calculateReservationTotals(accommodation, getServices(organizationId), { check_in: payload.check_in, check_out: payload.check_out, num_guests: payload.num_guests, breakfast_included: payload.breakfast_included, guest: payload.guest, guests_data: payload.guests_data, pricing_periods });
-}
 
 function getLanding(req, res) {
   const parent = getPropertyBySlug(req.params.slug);
@@ -163,7 +152,7 @@ function getLanding(req, res) {
       online_payment_available: stripeEnabled(parent.organization_id),
       online_payment_test: !require('../services/stripeClient').stripeConfig().livemode,
       payment_policy: require('../services/paymentPolicy').getPolicy(parent.organization_id),
-      services: getServices(parent.organization_id)
+      services: require('../services/reservationSupport').getOrganizationServices(parent.organization_id)
         .filter(s => ['breakfast', 'tourist_tax'].includes(s.id))
         .map(s => ({ id: s.id, name: s.name, value: Number(s.value || 0), unit: s.unit, active: s.active !== false })),
       captcha: {
@@ -297,7 +286,10 @@ async function createReservation(req, res, next) {
         return res.status(400).json({ success: false, error: `Dados do hóspede ${i + 2} em falta.` });
       }
     }
-    const totals = calculateTotal(unit, parent.organization_id, payload);
+    // Mesmo cálculo de preço e voucher do backoffice (reservationQuote).
+    const { pricePublic } = require('../services/reservationQuote');
+    const pricing = pricePublic(parent.organization_id, unit, payload);
+    const { totals } = pricing;
     // Datas de calendário do alojamento (Lisboa): não se reserva o passado.
     if (totals.checkIn < require('../services/paymentPolicy').localDay()) {
       return res.status(400).json({ success: false, error: 'A data de chegada já passou.' });
@@ -311,31 +303,17 @@ async function createReservation(req, res, next) {
     }
     if (!payload.rgpd_consent) return res.status(400).json({ success: false, error: 'É necessário aceitar o RGPD.' });
 
-    // Calcular desconto de voucher (validação preliminar fora da transação)
-    let pendingVoucherCode = null;
-    let voucherDiscount = 0;
-    if (payload.voucher_code) {
-      const vCode = String(payload.voucher_code).toUpperCase().trim();
-      if (!/^[A-Z0-9]{3,20}$/.test(vCode)) {
-        return res.status(400).json({ success: false, error: 'Formato de código de voucher inválido.' });
-      }
-      const voucher = findUsableVoucher(parent.organization_id, vCode, {
-        nights: totals.nights, accommodation_id: unit.id, parent_id: parent.id,
-      });
-      pendingVoucherCode = vCode;
-      voucherDiscount = calculateVoucherDiscount(voucher, totals.totalAmount, totals.nightlyPrices);
-    }
-    let finalTotal = Math.max(0, totals.totalAmount - voucherDiscount);
-    assertMoneyLimit(finalTotal);
+    let { finalTotal, voucherDiscount } = pricing;
     const onlinePayment = stripeEnabled(parent.organization_id);
 
     // ID único sem colisão por concorrência
     const reservationId = `SP-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
-    const token = crypto.randomBytes(32).toString('hex');
+    const { newToken } = require('../services/publicLinks');
+    const token = newToken();
     // Token distinto para pre-checkin (S2): TTL = check_out (deixa de funcionar
     // depois da estadia). Evita que quem tenha só o link de pre-checkin aceda
     // à página de gestão e vice-versa.
-    const precheckinToken = crypto.randomBytes(32).toString('hex');
+    const precheckinToken = newToken();
     const precheckinExpiresAt = totals.checkOut;
     // Só os campos conhecidos e apenas os acompanhantes declarados: o corpo do
     // pedido é público e acaba no backoffice.
@@ -353,15 +331,13 @@ async function createReservation(req, res, next) {
         ...cleanGuestData(payload.guest), phone: String(payload.guest.phone || '').slice(0, 40),
       });
 
-      // Revalidar capacidade e desconto dentro da mesma transação da reserva.
+      // Revalidar o voucher dentro da mesma transação da reserva: duas reservas
+      // não podem consumir a última utilização.
       let confirmedVoucherId = null;
-      if (pendingVoucherCode) {
-        const locked = findUsableVoucher(parent.organization_id, pendingVoucherCode, {
-          nights: totals.nights, accommodation_id: accommodationId, parent_id: parent.id,
-        });
-        confirmedVoucherId = locked.id;
-        voucherDiscount = calculateVoucherDiscount(locked, totals.totalAmount, totals.nightlyPrices);
-        finalTotal = Math.max(0, totals.totalAmount - voucherDiscount);
+      if (pricing.voucherCode) {
+        const locked = pricePublic(parent.organization_id, unit, payload);
+        confirmedVoucherId = locked.voucher.id;
+        ({ voucherDiscount, finalTotal } = locked);
       }
 
       // Inserir reserva
