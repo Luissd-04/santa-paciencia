@@ -579,6 +579,23 @@ mudou sem querer.
 7. `pre_checkin` deve continuar a ser um estado da reserva, ou passa a ser uma
    marca à parte? Isso evita que uma reserva confirmada "recue".
 
+### Decisões tomadas (24 de outubro de 2026)
+
+| # | Decisão |
+|---|---|
+| 1 | Um pagamento Stripe confirmado envia o email `pagamento` ao hóspede e avisa a equipa por push. Acontece **em cada pagamento** (sinal e restante). |
+| 2 | Um pedido feito no site continua a avisar só a equipa. O hóspede não recebe email de "pedido recebido" (por agora). |
+| 3 | Um pagamento manual registado no separador Pagamentos envia o email `pagamento` ao hóspede **em cada pagamento**, incluindo o sinal. Manual e Stripe seguem a mesma regra. |
+| 4 | Cancelamento pelo hóspede, expiração por TTL e cancelamento por falta de pagamento avisam a equipa **por push e por email**. |
+| 5 | Os pagamentos passam a ser registados **apenas no separador Pagamentos**. O campo "valor pago" do assistente deixa de criar movimentos. |
+| 6 | Nos relatórios, a taxa turística e o sinal retido em cancelamentos contam como receita. |
+| 7 | Em aberto: o estado `pre_checkin` será redesenhado mais tarde. |
+
+O email ao hóspede só é enviado quando o modelo `pagamento` está ativo e a
+reserva tem um email real. Com estas decisões, A1, A2 (parte do pagamento), A4
+e A6 passam a ter um comportamento alvo definido. Em A10, o sinal retido passa a
+contar como receita.
+
 ---
 
 ## 10. Lista de achados
