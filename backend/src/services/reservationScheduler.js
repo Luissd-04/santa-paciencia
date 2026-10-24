@@ -1,6 +1,5 @@
 const { db } = require('../config/database');
-const { syncReservationOperationalTasks } = require('./operationalTasksService');
-const { detachReservationEvent, kickCalendarQueue, processAllCalendarQueues } = require('./calendarService');
+const { processAllCalendarQueues } = require('./calendarService');
 const { processAllQueuedTaskDeletions, syncEnabledOrganizationsToGoogleTasks } = require('../config/googleTasks');
 
 // TTL em horas para reservas vindas do motor público (canal != 'direto') que
@@ -38,21 +37,17 @@ function expirePendingReservations() {
 
     if (!rows.length) return 0;
 
-    const updateStmt = db.prepare(`
-      UPDATE reservations
-      SET status = 'cancelada',
-          cancelled_previous_status = status, cancelled_previous_payment_status = payment_status,
-          notes = COALESCE(notes || char(10), '') || '[Auto-cancelada por TTL — pendente >' || ? || 'h]',
-          updated_at = datetime('now')
-      WHERE id = ? AND organization_id = ?
+    // Revalidar dentro da transação: entretanto pode ter chegado um pagamento,
+    // uma aprovação ou uma tentativa Stripe.
+    const stillExpired = db.prepare(`
+      SELECT * FROM reservations WHERE id = ? AND organization_id = ?
         AND status IN ('pendente', 'aguardar_pagamento', 'pre_reserva')
         AND COALESCE(amount_paid, 0) = 0
         AND NOT EXISTS (SELECT 1 FROM stripe_payment_attempts sp
           WHERE sp.reservation_id=reservations.id AND sp.state IN ('creating','open','processing'))
         AND ${NEVER_PROGRESSED_SQL}
     `);
-    const { recordHistory } = require('./reservationHistoryService');
-    const { releaseVoucherIfUnpaid } = require('./voucherService');
+    const { markCancelled, afterCancel } = require('./reservationLifecycle');
 
     // Passar pelo mesmo caminho do cancelamento manual: apagar as tarefas
     // auto-geradas (check-in/checkout/limpeza) e o evento no Google Calendar —
@@ -61,20 +56,13 @@ function expirePendingReservations() {
     let expired = 0;
     for (const reservation of rows) {
       const changed = db.transaction(() => {
-        if (!updateStmt.run(String(PENDING_TTL_HOURS), reservation.id, reservation.organization_id).changes) return false;
-        releaseVoucherIfUnpaid(reservation.organization_id, reservation.id);
-        detachReservationEvent(reservation.organization_id, reservation.id);
-        recordHistory({ organizationId: reservation.organization_id, reservationId: reservation.id, userId: null, action: 'cancelled',
-          meta: { reason: 'ttl', hours: PENDING_TTL_HOURS } });
-        require('./reservationEvents').emit('reservation.cancelled', { organizationId: reservation.organization_id, reservationId: reservation.id,
-          payload: { reason: 'ttl', policy: Boolean(reservation.payment_policy_json) } });
-        return true;
+        const current = stillExpired.get(reservation.id, reservation.organization_id);
+        return Boolean(current) && markCancelled(current, { reason: 'ttl', meta: { hours: PENDING_TTL_HOURS },
+          note: `[Auto-cancelada por TTL — pendente >${PENDING_TTL_HOURS}h]` });
       }).immediate();
       if (!changed) continue;
       expired++;
-      const cancelled = { ...reservation, status: 'cancelada' };
-      syncReservationOperationalTasks(cancelled);
-      kickCalendarQueue(cancelled.organization_id);
+      afterCancel(reservation.organization_id, reservation.id);
     }
 
     console.log(`🧹 ${expired} reserva(s) pendente(s) expirada(s) por TTL`);

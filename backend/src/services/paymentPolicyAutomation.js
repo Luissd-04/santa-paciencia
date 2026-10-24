@@ -5,7 +5,6 @@ const payments = require('./stripePayments');
 const { activeCheckout } = require('./stripePaymentGuards');
 const { stripeConfig, stripeEnabled, getStripe } = require('./stripeClient');
 const { withSchedulerLease } = require('./schedulerLease');
-const { recordHistory } = require('./reservationHistoryService');
 const fail = message => { throw Object.assign(new Error(message), { status: 409 }); };
 const row = id => db.prepare('SELECT * FROM reservations WHERE id=?').get(id);
 
@@ -54,17 +53,13 @@ async function cancelByPolicy(id, { reason = 'guest', expectedRefundCents, key, 
     }
     const cancellation = { reason, refundCents, refundPercent: reason === 'nonpayment' ? 0 : quote.refundPercent,
       requestedAt: new Date().toISOString(), state: remaining ? 'manual_review' : items.length ? 'pending' : 'complete', manualCents: remaining, items };
-    db.prepare("UPDATE reservations SET policy_cancellation_json=?, cancelled_previous_status=status, cancelled_previous_payment_status=payment_status, status='cancelada', updated_at=datetime('now') WHERE id=?")
-      .run(JSON.stringify(cancellation), id);
-    require('./voucherService').releaseVoucherIfUnpaid(r.organization_id, id);
-    require('./calendarService').detachReservationEvent(r.organization_id, id);
-    recordHistory({ organizationId: r.organization_id, reservationId: id, userId, action: 'policy_cancelled', meta: { reason, refund: refundCents / 100, refund_percent: cancellation.refundPercent } });
-    require('./reservationEvents').emit('reservation.cancelled', { organizationId: r.organization_id, reservationId: id, actorUserId: userId, payload: { reason, policy: true } });
+    db.prepare('UPDATE reservations SET policy_cancellation_json=? WHERE id=?').run(JSON.stringify(cancellation), id);
+    require('./reservationLifecycle').markCancelled(r, { reason, actorUserId: userId, policy: true,
+      meta: { refund: refundCents / 100, refund_percent: cancellation.refundPercent } });
   }).immediate();
   r = row(id);
   if (r.status !== 'cancelada') return cancellationQuote(r);
-  try { require('./operationalTasksService').syncReservationOperationalTasks(r); } catch { console.warn('Sincronização operacional pendente após cancelamento.'); }
-  require('./calendarService').kickCalendarQueue(r.organization_id);
+  require('./reservationLifecycle').afterCancel(r.organization_id, id);
   await processRefunds(id);
   await sendNotice(row(id), 'cancelled');
   return cancellationQuote(row(id));

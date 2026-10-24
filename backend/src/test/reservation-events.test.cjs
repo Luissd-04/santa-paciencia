@@ -19,7 +19,7 @@ initDatabase();
 
 const log = [];
 const emailService = require('../services/emailService');
-for (const name of ['sendConfirmationEmail', 'sendCancellationEmail', 'sendPaymentConfirmationEmail', 'sendOwnerNewReservationEmail']) {
+for (const name of ['sendConfirmationEmail', 'sendCancellationEmail', 'sendPaymentConfirmationEmail', 'sendPreCheckinEmail', 'sendOwnerNewReservationEmail']) {
   emailService[name] = async () => { log.push(`guest:${name}`.replace('guest:sendOwnerNewReservationEmail', 'staff:email_new_request')); return { id: 'mail' }; };
 }
 const staff = require('../services/staffNotifier');
@@ -48,6 +48,7 @@ beforeEach(() => {
     DELETE FROM reservations; DELETE FROM guests; DELETE FROM accommodations; DELETE FROM organization_settings;
     DELETE FROM organizations;
     INSERT INTO organizations(id,name,slug) VALUES ('${ORG}','Eventos','eventos');
+    INSERT OR IGNORE INTO users(id,name,email,password_hash) VALUES ('manager','Gestor','gestor@example.com','x');
     INSERT INTO guests(id,organization_id,name,email) VALUES ('guest','${ORG}','Hóspede','hospede@example.com');
     INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests,public_slug)
       VALUES ('unit','${ORG}','Quarto','alojamento',100,4,'quarto');`);
@@ -164,4 +165,54 @@ test('após o máximo de tentativas o efeito fica como falhado', async () => {
     await events.dispatchPending();
   }
   assert.equal(db.prepare("SELECT state FROM reservation_event_effects WHERE effect='staff_email_cancelled'").get().state, 'failed');
+});
+
+// Ciclo de vida (reservationLifecycle): os quatro caminhos de cancelamento
+// deixam o mesmo registo no histórico, com o motivo.
+const cancelHistory = () => db.prepare("SELECT action, meta FROM reservation_history WHERE reservation_id='res' AND action IN ('cancelled','policy_cancelled')")
+  .all().map(h => [h.action, JSON.parse(h.meta).reason]);
+
+test('todos os cancelamentos ficam no histórico como «cancelled» com o motivo', async () => {
+  reservation();
+  await call(reservations.cancel, {}, { id: 'res' });
+  assert.deepEqual(cancelHistory(), [['cancelled', 'staff']]);
+  // Repetir o pedido não regista nem avisa outra vez.
+  await call(reservations.cancel, {}, { id: 'res' });
+  assert.deepEqual(cancelHistory(), [['cancelled', 'staff']]);
+  assert.deepEqual(types(), ['reservation.cancelled']);
+
+  db.exec("DELETE FROM reservation_history; DELETE FROM reservations");
+  reservation();
+  await call(write.update, { status: 'cancelada' }, { id: 'res' });
+  assert.deepEqual(cancelHistory(), [['cancelled', 'staff']]);
+
+  db.exec("DELETE FROM reservation_history; DELETE FROM reservations");
+  reservation({ status: 'pendente', channel: 'website' });
+  db.prepare("UPDATE reservations SET created_at = datetime('now', '-3 days') WHERE id='res'").run();
+  expirePendingReservations();
+  assert.deepEqual(cancelHistory(), [['cancelled', 'ttl']]);
+  assert.match(db.prepare("SELECT notes FROM reservations WHERE id='res'").get().notes, /Auto-cancelada por TTL/);
+});
+
+test('cancelamento por política regista o reembolso no mesmo histórico', async () => {
+  policy.savePolicy(ORG, { ...policy.DEFAULT_POLICY, enabled: true });
+  reservation({ status: 'aguardar_pagamento' });
+  policy.attachPolicy({ id: 'res', organization_id: ORG });
+  const quote = automation.cancellationQuote(db.prepare("SELECT * FROM reservations WHERE id='res'").get());
+  await automation.cancelByPolicy('res', { reason: 'guest', key: quote.key, expectedRefundCents: quote.refundCents });
+  const meta = JSON.parse(db.prepare("SELECT meta FROM reservation_history WHERE reservation_id='res' AND action='cancelled'").get().meta);
+  assert.deepEqual(meta, { reason: 'guest', policy: true, refund: 0, refund_percent: quote.refundPercent });
+});
+
+test('aprovar envia o pré-check-in por acontecimento e nunca recua uma estadia', async () => {
+  reservation({ status: 'pendente' });
+  const res = await call(reservations.approve, {}, { id: 'res' });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.data.status, 'pre_checkin');
+  assert.match(res.body.data.pre_checkin_url, /\/pre-checkin\/[a-f0-9]{64}$/);
+  assert.deepEqual(await effects(), ['guest:sendPreCheckinEmail']);
+  db.exec("UPDATE reservations SET status='check_in'");
+  assert.equal((await call(reservations.approve, {}, { id: 'res' })).statusCode, 409);
+  db.exec("UPDATE reservations SET status='cancelada'");
+  assert.equal((await call(reservations.approve, {}, { id: 'res' })).statusCode, 400);
 });

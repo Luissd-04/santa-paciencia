@@ -243,8 +243,12 @@ function rdv2TimelineMetaLine(action, meta) {
   } else if (action === 'task_status') {
     const kind = meta.kind === 'checkin' ? 'Check-in' : meta.kind === 'checkout' ? 'Check-out' : AppModules.core.escapeHtml(String(meta.kind || ''));
     bits.push(`${kind} ${meta.done ? 'marcado como feito' : 'reposto como por fazer'}`);
-  } else if (action === 'cancelled' && meta.reason === 'ttl') {
-    bits.push('Automático — sem pagamento dentro do prazo');
+  } else if (action === 'cancelled' || action === 'policy_cancelled') {
+    const reasons = { staff: 'Pela equipa', guest: 'Pelo hóspede, no link da reserva',
+      ttl: 'Automático — sem pagamento dentro do prazo', nonpayment: 'Automático — restante não pago no prazo' };
+    if (reasons[meta.reason]) bits.push(reasons[meta.reason]);
+    if (meta.policy || action === 'policy_cancelled') bits.push('segundo a política de pagamento');
+    if (meta.refund != null) bits.push(`Reembolso: €${Number(meta.refund).toFixed(2)}`);
   } else if (action === 'email_delivery_resolved') {
     bits.push(`${AppModules.core.escapeHtml(String(meta.template_slug || ''))} · ${meta.resolution === 'sent' ? 'confirmado como entregue' : 'nova tentativa autorizada'}`);
   } else if (action === 'created') {
