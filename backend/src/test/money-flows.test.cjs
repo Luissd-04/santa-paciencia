@@ -21,7 +21,7 @@ initDatabase();
 const sent = [];
 const emailService = require('../services/emailService');
 for (const name of ['sendConfirmationEmail', 'sendCancellationEmail', 'sendPaymentConfirmationEmail', 'sendPreCheckinEmail', 'sendOwnerNewReservationEmail']) {
-  emailService[name] = async (...args) => { sent.push({ name, reservation: args.find(a => a?.check_in)?.id }); return { id: 'mail' }; };
+  emailService[name] = async (...args) => { sent.push({ name, reservation: args.find(a => a?.check_in)?.id, amount: args.at(-1)?.amount }); return { id: 'mail' }; };
 }
 const pushes = [];
 require('../services/pushService').notifyOrganization = (org, type) => { pushes.push(type); };
@@ -143,13 +143,33 @@ test('apagar um movimento que deixaria saldo negativo é recusado', async () => 
   assert.equal(ledger().length, 2);
 });
 
-test('edição com valor pago cria um ajuste no ledger e pede o email de pagamento', async () => {
+// Decisão 5: os pagamentos registam-se só no separador Pagamentos.
+test('a edição não altera o valor pago nem cria ajustes no ledger', async () => {
   reservation();
   const res = await call(write.update, { amount_paid: 200 }, { id: 'res' });
-  assert.equal(res.statusCode, 200);
-  assert.deepEqual(ledger().map(e => [e.amount, e.notes]), [[200, 'Ajuste do saldo pela gestão da reserva']]);
+  assert.equal(res.statusCode, 409);
+  assert.deepEqual(ledger(), []);
+  assert.equal(row().amount_paid, 0);
+  // Enviar o mesmo valor (formulário antigo) não é uma alteração.
+  assert.equal((await call(write.update, { amount_paid: 0, notes: 'nota' }, { id: 'res' })).statusCode, 200);
+});
+
+test('alterar o total recalcula o estado do pagamento a partir do ledger', async () => {
+  reservation();
+  await call(payments.addPayment, { amount: 150 }, { id: 'res' });
+  assert.equal(row().payment_status, 'parcial');
+  await call(write.update, { total_amount: 150 }, { id: 'res' });
   assert.equal(row().payment_status, 'confirmado');
-  assert.deepEqual(sent.map(s => s.name), ['sendPaymentConfirmationEmail']);
+});
+
+// Decisão 3: cada pagamento registado pede o email de pagamento ao hóspede.
+test('cada pagamento no separador Pagamentos pede o email de pagamento, sem repetir em pedidos repetidos', async () => {
+  reservation();
+  const key = 'intent-payment-0001';
+  await call(payments.addPayment, { amount: 50, idempotency_key: key }, { id: 'res' });
+  await call(payments.addPayment, { amount: 50, idempotency_key: key }, { id: 'res' });
+  await call(payments.addPayment, { amount: 150 }, { id: 'res' });
+  assert.deepEqual(sent.map(s => [s.name, s.amount]), [['sendPaymentConfirmationEmail', 50], ['sendPaymentConfirmationEmail', 150]]);
 });
 
 // Regra única (reservationState): sem política, o pagamento integral confirma,
@@ -161,7 +181,6 @@ test('pagamento manual sem política: o pagamento integral confirma, o parcial n
   await call(payments.addPayment, { amount: 150 }, { id: 'res' });
   assert.equal(row().payment_status, 'confirmado');
   assert.equal(row().status, 'confirmada');
-  assert.deepEqual(sent, []);
 });
 
 test('pré-check-in concluído confirma, salvo sinal da política por pagar', () => {

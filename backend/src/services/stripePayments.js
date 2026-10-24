@@ -236,7 +236,7 @@ function applyPayment(attempt, canonical, event) {
     if (pi?.status === 'succeeded') {
       state = 'paid';
       ensureLegacyPayment(r);
-      const today = db.prepare("SELECT date('now') AS d").get().d;
+      const today = localDateIso();
       if (!captured) {
         ledger.addEntry(r, { id: `stripe-payment-${attempt.id}`, amount: attempt.amount_cents / 100, method: 'Stripe',
           paymentDate: today, notes: 'Pagamento online confirmado pela Stripe' });
@@ -253,9 +253,9 @@ function applyPayment(attempt, canonical, event) {
       // uma reserva já confirmada.
       ledger.recompute(r.id, r.organization_id, { deriveStatus: !review, allowDowngrade: false, fallbackPaymentStatus: 'pendente' });
       db.prepare(`UPDATE reservations SET
-        paid_at=COALESCE(paid_at,datetime('now')), payment_date=COALESCE(payment_date,date('now')),
-        payment_method='Stripe', updated_at=datetime('now') WHERE id=? AND organization_id=?`)
-        .run(r.id, r.organization_id);
+        paid_at=COALESCE(paid_at,datetime('now')), payment_date=COALESCE(payment_date,?),
+        payment_method=COALESCE(NULLIF(payment_method,''),'Stripe'), updated_at=datetime('now') WHERE id=? AND organization_id=?`)
+        .run(today, r.id, r.organization_id);
       if (!review && r.policy_auto_consent === '1' && pi.customer && pi.payment_method && pi.latest_charge?.payment_method_details?.type === 'card') {
         db.prepare('UPDATE reservations SET stripe_customer_id=?, stripe_payment_method_id=?, stripe_saved_livemode=? WHERE id=?')
           .run(objectId(pi.customer), objectId(pi.payment_method), String(Number(pi.livemode)), r.id);

@@ -40,7 +40,7 @@ const RESERVA_DRAFT_FIELDS = [
   'f-canal', 'f-aloj', 'f-nome-completo', 'f-email', 'f-tel-prefix', 'f-tel-num',
   'f-pais', 'f-doc-tipo', 'f-doc-num', 'f-doc-emissor', 'f-nascimento',
   'f-local-nascimento', 'f-nif', 'f-morada', 'f-cp', 'f-cidade', 'f-notas',
-  'f-estado', 'f-payment-status', 'f-pagamento', 'f-amount-paid', 'f-payment-date',
+  'f-estado',
   'f-discount-type', 'f-discount-val', 'f-total', 'f-noites',
 ];
 
@@ -48,7 +48,7 @@ const RESERVA_DRAFT_FIELDS = [
 function reservaFormHasData() {
   const val = id => (document.getElementById(id)?.value || '').trim();
   if (val('f-nome-completo') || val('f-email') || val('f-tel-num') ||
-      val('f-notas') || val('f-aloj') || val('f-amount-paid') || val('f-discount-val') ||
+      val('f-notas') || val('f-aloj') || val('f-discount-val') ||
       val('f-doc-num') || val('f-nif') || val('f-morada')) {
     return true;
   }

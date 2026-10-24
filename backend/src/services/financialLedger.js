@@ -22,19 +22,11 @@ function addEntry(reservation, { id = randomUUID(), amount, method = null, payme
 
 // Reservas anteriores ao ledger guardavam só amount_paid: o saldo passa a um
 // movimento antes de qualquer alteração.
-function ensureLegacyPayment(reservation) {
+function ensureLegacyPayment(reservation, notes = 'Saldo inicial migrado') {
   if (Number(reservation.amount_paid) <= 0) return;
   if (db.prepare('SELECT 1 FROM reservation_payments WHERE reservation_id = ? AND organization_id = ?').get(reservation.id, reservation.organization_id)) return;
   addEntry(reservation, { amount: reservation.amount_paid, method: reservation.payment_method || null,
-    paymentDate: reservation.payment_date || null, notes: 'Saldo inicial migrado' });
-}
-
-function setPaidAmount(reservation, amount) {
-  ensureLegacyPayment(reservation);
-  const delta = cents(amount || 0) - cents(ledgerTotal(reservation.id, reservation.organization_id));
-  if (!delta) return;
-  addEntry(reservation, { amount: delta / 100, method: reservation.payment_method || null,
-    paymentDate: reservation.payment_date || null, notes: 'Ajuste do saldo pela gestão da reserva' });
+    paymentDate: reservation.payment_date || null, notes });
 }
 
 // Movimentos da Stripe só mudam com a Stripe (reembolsos no painel).
@@ -67,4 +59,4 @@ function recompute(reservationId, organizationId, { deriveStatus = true, allowDo
   return { paid, paymentStatus, status, previousStatus: r.status, previousPaymentStatus: r.payment_status };
 }
 
-module.exports = { ledgerTotal, addEntry, ensureLegacyPayment, setPaidAmount, removeEntry, recompute };
+module.exports = { ledgerTotal, addEntry, ensureLegacyPayment, removeEntry, recompute };

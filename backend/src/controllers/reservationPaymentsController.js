@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const ledger = require('../services/financialLedger');
 const { httpError } = require('../services/httpError');
 const { recordHistory } = require('../services/reservationHistoryService');
+const { sendPaymentConfirmationEmail } = require('../services/emailService');
 
 async function addPayment(req, res, next) {
   try {
@@ -22,6 +23,8 @@ async function addPayment(req, res, next) {
     if (previous) return res.json({ success: true, data: previous });
     const owned = db.prepare('SELECT id FROM reservations WHERE id=? AND organization_id=?').get(req.params.id, req.user.organization_id);
     if (owned) await require('../services/stripePayments').closeOpenCheckout(owned.id);
+    // Um pedido repetido em simultâneo devolve o registo já feito, sem novo email.
+    let created = false;
     const data = db.transaction(() => {
     const previous = replay();
     if (previous) return previous;
@@ -53,12 +56,28 @@ async function addPayment(req, res, next) {
     });
 
       const response = { id: paymentId, amount: numAmount, method, payment_date, notes, newTotalPaid: result.paid, newPaymentStatus: result.paymentStatus };
+      created = true;
       if (intentKey) db.prepare('INSERT INTO manual_payment_intents(organization_id,reservation_id,intent_key,fingerprint,response_json) VALUES(?,?,?,?,?)').run(organizationId, id, intentKey, fingerprint, JSON.stringify(response));
       return response;
     }).immediate();
+    if (created) notifyPaymentReceived(req.user.organization_id, req.params.id, data.amount);
     res.json({ success: true, data });
   } catch (err) {
     next(err);
+  }
+}
+
+// Cada pagamento registado envia ao hóspede o email de pagamento (modelo
+// «pagamento», quando ativo). O envio não bloqueia nem desfaz o registo.
+function notifyPaymentReceived(organizationId, reservationId, amount) {
+  try {
+    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservationId, organizationId);
+    const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(reservation.guest_id, organizationId);
+    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(reservation.accommodation_id, organizationId);
+    sendPaymentConfirmationEmail(guest, reservation, accommodation, { amount })
+      .catch(err => console.warn('Email de pagamento não enviado:', err.message));
+  } catch (err) {
+    console.warn('Email de pagamento não enviado:', err.message);
   }
 }
 

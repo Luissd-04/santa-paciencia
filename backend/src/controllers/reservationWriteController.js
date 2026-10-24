@@ -1,7 +1,7 @@
 const { redeemVoucher, releaseVoucherIfUnpaid, reclaimReleasedVoucher } = require('../services/voucherService');
 const { queueCalendarUpsert, detachReservationEvent, kickCalendarQueue } = require('../services/calendarService');
 const { isAuthenticated: hasGoogleCalendar } = require('../config/google');
-const { sendConfirmationEmail, sendCancellationEmail, sendPaymentConfirmationEmail } = require('../services/emailService');
+const { sendConfirmationEmail, sendCancellationEmail } = require('../services/emailService');
 const { recordConsent } = require('../services/rgpdService');
 const { syncReservationOperationalTasks } = require('../services/operationalTasksService');
 
@@ -17,7 +17,6 @@ const moneyChanged = (value, current) => value !== undefined && Math.round(Numbe
 // ou estado). Notas, hora de chegada e dados de contacto não o interrompem.
 function affectsOnlinePayment(body, existing) {
   return stayChanged(body, existing) || moneyChanged(body.total_amount, existing.total_amount)
-    || moneyChanged(body.amount_paid, existing.amount_paid)
     || (body.status !== undefined && body.status !== existing.status);
 }
 
@@ -188,7 +187,7 @@ async function create(req, res, next) {
 
     require('../services/paymentPolicy').attachPolicy({ id: reservationId, organization_id: organizationId, check_in: totals.checkIn, channel: channel || 'direto' });
     ledger.ensureLegacyPayment({ id: reservationId, organization_id: organizationId, amount_paid: paidAmt,
-      payment_method: payment_method || null, payment_date: payment_date || null });
+      payment_method: payment_method || null, payment_date: payment_date || null }, 'Pagamento registado na criação da reserva');
     ledger.recompute(reservationId, organizationId);
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservationId, organizationId);
     recordHistory({
@@ -244,19 +243,20 @@ async function update(req, res, next) {
     if (owned?.policy_cancellation_json) throw Object.assign(new Error('Esta reserva tem um cancelamento financeiro registado. Crie uma nova reserva para uma nova estadia.'), { status: 409 });
     validateReservationInput(req.body);
     if (owned && affectsOnlinePayment(req.body, owned)) await require('../services/stripePayments').closeOpenCheckout(owned.id);
-    const { updated, accommodation, organizationId, cancelling, nextPaymentStatus, existing } = db.transaction(() => {
+    const { updated, accommodation, organizationId, cancelling } = db.transaction(() => {
     const organizationId = req.user.organization_id;
     const existing = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
     if (!existing) throw Object.assign(new Error(({ error: 'Reserva não encontrada' }).error), { status: 404 });
     if (affectsOnlinePayment(req.body, existing)) require('../services/stripePaymentGuards').assertNoActiveCheckout(existing.id);
-    if (req.body.amount_paid !== undefined && Math.round(Number(req.body.amount_paid) * 100) !== Math.round(Number(existing.amount_paid) * 100)
-      && db.prepare('SELECT 1 FROM stripe_payment_attempts WHERE reservation_id=? AND captured_cents>0').get(existing.id)) {
-      throw Object.assign(new Error('Registe pagamentos adicionais no histórico. Os pagamentos Stripe só podem ser reembolsados através da Stripe.'), { status: 409 });
+    // Os pagamentos registam-se só no separador Pagamentos (movimento com valor,
+    // método e data). A edição não altera o valor pago.
+    if (moneyChanged(req.body.amount_paid, existing.amount_paid)) {
+      throw Object.assign(new Error('Registe os pagamentos no separador Pagamentos da reserva.'), { status: 409, code: 'payments_tab' });
     }
 
     const {
-      channel, payment_method, notes, status, payment_status, guests_data, guest,
-      amount_paid, payment_date, accommodations_data, arrival_time
+      channel, payment_method, notes, status, guests_data, guest,
+      payment_date, accommodations_data, arrival_time
     } = req.body;
 
     // Preço da alteração: mesma função da pré-visualização do wizard.
@@ -306,7 +306,6 @@ async function update(req, res, next) {
     if (guest) {
       require('../services/guestPatch').updateGuest(existing.guest_id, organizationId, guest);
     }
-    const newPaidAmt = amount_paid !== undefined ? Number(amount_paid) : (existing.amount_paid || 0);
     if (pricing.confirmation) {
       throw Object.assign(new Error(pricing.confirmation.message), { status: 409, code: pricing.confirmation.code,
         details: { total_amount: pricing.effectiveTotal } });
@@ -361,7 +360,7 @@ async function update(req, res, next) {
       existing.payment_status,
       guests_data !== undefined ? JSON.stringify(upsertAdditionalGuests(guests_data, organizationId, existing.guest_id)) : (existing.guests_data || '[]'),
       newAccData,
-      newPaidAmt,
+      existing.amount_paid || 0,
       payment_date !== undefined ? (payment_date || null) : existing.payment_date,
       pricingChanged ? JSON.stringify(totals.nightlyPrices || []) : existing.nightly_prices,
       cancelling ? existing.status : (existing.cancelled_previous_status || null),
@@ -380,10 +379,8 @@ async function update(req, res, next) {
     }
     // Reservas antigas só tinham amount_paid: migrar antes de recalcular a partir do ledger.
     ledger.ensureLegacyPayment(existing);
-    if (amount_paid !== undefined) ledger.setPaidAmount(existing, newPaidAmt);
-    const { paymentStatus: nextPaymentStatus } = ledger.recompute(existing.id, organizationId, {
-      deriveStatus: !chosenStatus, fallbackPaymentStatus: payment_status || existing.payment_status || 'pendente',
-    });
+    // O total pode ter mudado: o estado do pagamento é sempre derivado do ledger.
+    ledger.recompute(existing.id, organizationId, { deriveStatus: !chosenStatus });
     if (cancelling) releaseVoucherIfUnpaid(organizationId, existing.id);
     if (reactivating) reclaimReleasedVoucher(organizationId, existing.id);
     // Google Calendar: cancelar remove o evento (paridade com o DELETE); as
@@ -406,7 +403,7 @@ async function update(req, res, next) {
       accommodation_name: accommodation.name,
     }, req.user.id);
 
-      return { updated, accommodation, organizationId, cancelling, nextPaymentStatus, existing };
+      return { updated, accommodation, organizationId, cancelling };
     }).immediate();
 
     kickCalendarQueue(organizationId);
@@ -422,13 +419,6 @@ async function update(req, res, next) {
         url: `/reservas?reserva=${req.params.id}`,
         excludeUserId: req.user.id,
       });
-    }
-
-    // Email de pagamento se confirmado agora
-    if (nextPaymentStatus === 'confirmado' && existing.payment_status !== 'confirmado' && Number(updated.total_amount) > 0) {
-      const guestRecord = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(updated.guest_id, organizationId);
-      sendPaymentConfirmationEmail(guestRecord, updated, accommodation)
-        .catch(err => console.warn('Email não enviado:', err.message));
     }
 
     res.json({ success: true, data: updated });

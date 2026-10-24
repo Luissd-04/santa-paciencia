@@ -36,12 +36,6 @@ function openModal(config = {}) {
   document.getElementById('f-breakfast').value = 'false';
   document.getElementById('f-canal').value = 'direto';
   document.getElementById('f-estado').value = 'confirmada';
-  document.getElementById('f-payment-status').value = 'pendente';
-  document.getElementById('pagamento-metodo-wrap').style.display = 'none';
-  document.getElementById('f-pagamento').value = 'transferencia';
-  const amtPaidEl = document.getElementById('f-amount-paid'); if (amtPaidEl) amtPaidEl.value = '';
-  const payDateEl = document.getElementById('f-payment-date'); if (payDateEl) payDateEl.value = '';
-  const remWrap = document.getElementById('payment-remaining-wrap'); if (remWrap) remWrap.style.display = 'none';
   document.getElementById('f-noites').value = '';
   document.getElementById('f-total').value = '';
   AppModules.reservas.resetFormDiscount();
@@ -169,22 +163,6 @@ async function openEditModal(id) {
     document.getElementById('f-breakfast').value     = r.breakfast_included ? 'true' : 'false';
     document.getElementById('f-canal').value         = r.channel || 'direto';
     document.getElementById('f-estado').value        = r.status || 'confirmada';
-    const ps = r.payment_status === 'pago' ? 'confirmado' : (r.payment_status || 'pendente');
-    document.getElementById('f-payment-status').value = ps;
-    document.getElementById('pagamento-metodo-wrap').style.display = (ps === 'confirmado' || ps === 'parcial') ? '' : 'none';
-    document.getElementById('f-pagamento').value     = r.payment_method || 'transferencia';
-    const amtPaidEl2 = document.getElementById('f-amount-paid');
-    if (amtPaidEl2) amtPaidEl2.value = r.amount_paid > 0 ? Number(r.amount_paid).toFixed(2) : '';
-    const payDateEl2 = document.getElementById('f-payment-date');
-    if (payDateEl2) payDateEl2.value = AppModules.core.formatDateForStandardInput(r.payment_date || '');
-    const remWrap2 = document.getElementById('payment-remaining-wrap');
-    const remVal2  = document.getElementById('payment-remaining-val');
-    if (ps === 'parcial' && r.amount_paid > 0 && r.total_amount > r.amount_paid) {
-      if (remWrap2) remWrap2.style.display = '';
-      if (remVal2) remVal2.textContent = '€' + (r.total_amount - r.amount_paid).toFixed(2);
-    } else {
-      if (remWrap2) remWrap2.style.display = 'none';
-    }
     document.getElementById('f-notas').value         = r.notes || '';
     document.getElementById('f-noites').value        = r.nights || '';
     document.getElementById('f-total').value         = Number(r.total_amount || 0).toFixed(2);
