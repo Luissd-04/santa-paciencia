@@ -26,6 +26,16 @@ test('definições: texto, JSON, várias chaves e valores por omissão', () => {
   assert.deepEqual(settings.services('org-s'), []);
 });
 
+test('definições: organização nova recebe os valores por omissão sem perder os seus', () => {
+  const settings = require('../services/settingsService');
+  db.exec("INSERT INTO organizations(id,name,slug) VALUES ('org-new','N','n'); INSERT OR REPLACE INTO settings(key,value) VALUES ('teste_omissao','sim'), ('gcal_sync_tasks','0')");
+  settings.set('org-new', 'gcal_sync_tasks', '1');
+  settings.seedDefaults('org-new');
+  assert.equal(settings.get('org-new', 'teste_omissao'), 'sim');
+  assert.equal(settings.get('org-new', 'gcal_sync_tasks'), '1');
+  assert.deepEqual(settings.organizationsWith('gcal_sync_tasks', 1), ['org-new']);
+});
+
 test('datas: «hoje» no fuso do alojamento, não em UTC', () => {
   const { localDay } = require('../services/dates');
   const previous = process.env.TZ;
