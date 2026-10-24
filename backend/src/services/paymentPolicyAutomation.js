@@ -93,26 +93,33 @@ async function processRefunds(id) {
     : c.items.every(i => i.state === 'succeeded') ? 'complete' : 'pending';
   db.prepare('UPDATE reservations SET policy_cancellation_json=? WHERE id=?').run(JSON.stringify(c), id);
 }
+// Avisos da política (restante em falta, cancelamento) pelos modelos
+// «aviso_restante» e «cancelamento_politica», editáveis em Definições → Emails.
+// O prazo adicional só começa depois de um envio confirmado; um envio por
+// fazer volta a ser tentado na próxima manutenção (não fica na fila genérica,
+// que o enviaria sem atualizar o prazo).
 async function sendNotice(r, kind) {
   const field = kind === 'cancelled' ? 'policy_cancel_notice_at' : 'balance_notice_sent_at';
   if (r[field]) return true;
-  const guest = db.prepare('SELECT email FROM guests WHERE id=? AND organization_id=?').get(r.guest_id, r.organization_id);
+  const slug = kind === 'cancelled' ? 'cancelamento_politica' : 'aviso_restante';
+  const guest = db.prepare('SELECT * FROM guests WHERE id=? AND organization_id=?').get(r.guest_id, r.organization_id) || {};
   let snapshot = {}; try { snapshot = JSON.parse(r.guest_snapshot || '{}'); } catch {}
-  const email = snapshot.email || guest?.email;
+  const email = snapshot.email || guest.email;
   if (!require('./emailAddress').isDeliverableEmail(email)) return false;
   require('./reservationSupport').ensurePublicToken(r);
-  const url = `${require('./publicOrigin').configuredOrigin()}/reserva/${r.public_token}`;
-  const esc = require('./emailComposer').escapeHtml;
-  const plan = policy.planFor(r);
-  const deadline = r.balance_deadline || new Date(Math.max(Date.parse(plan.deadline), Date.now() + policy.policyFor(r).graceHours * 3600000)).toISOString();
-  const date = new Date(deadline).toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });
-  const money = ((policy.cents(r.total_amount) - policy.cents(r.amount_paid)) / 100).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
-  const content = kind === 'cancelled'
-    ? 'A sua reserva foi cancelada. Consulte o estado e o reembolso aplicável no link abaixo.'
-    : `Falta concluir o pagamento de ${money}. Pague até ${date} (hora de Lisboa). Após este prazo, a reserva será cancelada sem devolução dos montantes já pagos. Se tentou pagar por cartão, poderá ser necessária uma nova autorização do banco.`;
-  const sent = await require('./emailService').sendMail(r.organization_id, { to: email, subject: `${kind === 'cancelled' ? 'Cancelamento' : 'Pagamento do restante'} — Reserva ${r.id}`,
-    html: `<p>${esc(content)}</p><p><a href="${esc(url)}">Consultar reserva e pagamento</a></p>` });
-  if (!sent) return false;
+  const accommodation = db.prepare('SELECT * FROM accommodations WHERE id=? AND organization_id=?').get(r.accommodation_id, r.organization_id) || {};
+  const emailService = require('./emailService');
+  let deadline = null, extra = {};
+  if (kind === 'balance') {
+    const plan = policy.planFor(r);
+    deadline = r.balance_deadline || new Date(Math.max(Date.parse(plan.deadline), Date.now() + policy.policyFor(r).graceHours * 3600000)).toISOString();
+    extra = { prazo_pagamento: emailService.formatDateTimeLisbon(deadline) };
+  }
+  const sent = await emailService.sendTemplatedEmail(slug, { ...guest, email }, r, accommodation, extra);
+  if (!sent?.id) {
+    db.prepare('DELETE FROM organization_email_queue WHERE organization_id=? AND template_slug=? AND reservation_id=?').run(r.organization_id, slug, r.id);
+    return false;
+  }
   const current = row(r.id);
   if (!current || (kind === 'balance' && (current.policy_accepted_at !== r.policy_accepted_at
     || current.status === 'cancelada' || policy.consentKey(current) !== policy.consentKey(r)))) return false;
@@ -156,4 +163,4 @@ async function runPolicyMaintenance() {
     }
   });
 }
-module.exports = { cancellationQuote, cancelByPolicy, processRefunds, runPolicyMaintenance };
+module.exports = { cancellationQuote, cancelByPolicy, processRefunds, runPolicyMaintenance, __test: { sendNotice } };

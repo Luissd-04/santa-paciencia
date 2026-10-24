@@ -95,15 +95,7 @@ router.post('/email/send', requireAuth, requireRole('manager'), async (req, res)
     res.json({ success: true });
   } catch (err) {
     console.error('Erro ao enviar email avulso:', { type: err.name, status: err.status || err.response?.status });
-    const errMsg = err.message || '';
-    const errData = err.response?.data?.error || '';
-    const isAuthError = errMsg.includes('Login Required')
-      || errMsg.includes('invalid_grant')
-      || errMsg.includes('Token has been expired')
-      || errMsg.includes('Invalid Credentials')
-      || errData === 'invalid_grant'
-      || err.status === 401 || err.code === 401;
-    if (isAuthError) {
+    if (require('../services/googleConnection').isAuthExpiredError(err)) {
       deleteEmailTokens(req.user.organization_id);
       return res.status(401).json({
         success: false,
@@ -181,13 +173,9 @@ router.get('/email/inbox', requireAuth, requireRole('manager'), async (req, res)
 
     res.json({ success: true, data: { messages, next_page_token: nextPageToken } });
   } catch (err) {
-    const errMsg = err.message || '';
-    const errData = err.response?.data?.error || '';
-    const isAuthError = errMsg.includes('invalid_grant') || errMsg.includes('Login Required')
-      || errMsg.includes('Token has been expired') || errMsg.includes('Invalid Credentials')
-      || errData === 'invalid_grant' || err.status === 401 || err.code === 401;
+    const isAuthError = require('../services/googleConnection').isAuthExpiredError(err);
     if (isAuthError) deleteEmailTokens(req.user.organization_id);
-    const needs_reauth = isAuthError || errMsg.includes('insufficient') || err.code === 403;
+    const needs_reauth = isAuthError || String(err.message || '').includes('insufficient') || err.code === 403;
     console.error('Gmail inbox error:', { type: err.name, status: err.status || err.response?.status });
     res.status(502).json({ success: false, data: { needs_reauth }, error: 'Não foi possível carregar as mensagens do Gmail. Tente novamente.' });
   }

@@ -190,8 +190,7 @@ function acceptInvitation({ invitationId, userId }) {
 }
 
 function buildInvitationUrl(token) {
-  const base = process.env.PUBLIC_APP_URL || process.env.FRONTEND_PUBLIC_URL || 'http://localhost:3001';
-  return `${base.replace(/\/$/, '')}/?invite=${token}`;
+  return require('./publicLinks').absoluteUrl(`/?invite=${token}`);
 }
 
 module.exports = {

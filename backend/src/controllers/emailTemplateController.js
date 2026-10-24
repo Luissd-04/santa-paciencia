@@ -149,6 +149,10 @@ function buildPreviewContext(req) {
     nights: 2,
     num_guests: 1,
     total_amount: 240,
+    amount_paid: 80,
+    public_token: 'exemplo',
+    balance_deadline: '2026-05-14T11:00:00Z',
+    policy_cancellation_json: JSON.stringify({ refundCents: 4000 }),
     organization_id: orgId,
   };
   const accommodationForVars = accommodation || { name: 'Suite Mezzanine Deluxe', city: settings.property_name };
@@ -157,6 +161,7 @@ function buildPreviewContext(req) {
     link_pre_checkin: `${req.protocol}://${req.get('host')}/pre-checkin/exemplo`,
     wifi_password: accommodationForVars.wifi_password || '••••••••',
     codigo_porta: accommodationForVars.door_code || '1234#',
+    valor_pagamento: '80,00 €',
   }));
 
   return { settings, vars, blocks: buildBlocks(vars, settings, reservation), reservation };
@@ -232,7 +237,7 @@ async function preview(req, res) {
   const { settings, vars, blocks } = buildPreviewContext(req);
   const rendered = renderEmail({ subject: draft.subject, body: draft.body, vars, blocks, settings });
 
-  const { isEmailAuthenticated, getEmailConnectionInfo, sendViaGmail } = require('../config/googleEmail');
+  const { isEmailAuthenticated, getEmailConnectionInfo } = require('../config/googleEmail');
   const orgId = req.user.organization_id;
   const gmailInfo = getEmailConnectionInfo(orgId);
   // Só a caixa ligada da própria organização: um destinatário arbitrário no
@@ -244,7 +249,8 @@ async function preview(req, res) {
   }
 
   try {
-    await sendViaGmail(orgId, { to: previewTo, subject: `[PREVIEW] ${rendered.subject}`, html: rendered.html });
+    // Mesmo caminho dos envios reais, para o remetente ser o mesmo.
+    await require('../services/emailService').sendMail(orgId, { to: previewTo, subject: `[PREVIEW] ${rendered.subject}`, html: rendered.html });
     res.json({
       success: true,
       message: `Preview enviado para ${previewTo}`,

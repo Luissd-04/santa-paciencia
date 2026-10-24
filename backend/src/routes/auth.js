@@ -21,18 +21,13 @@ const {
 } = require('../services/authService');
 
 function appUrl() {
-  return process.env.PUBLIC_APP_URL || process.env.FRONTEND_PUBLIC_URL || '';
+  return require('../services/publicLinks').origin();
 }
 
+// Emails de conta com o mesmo desenho dos emails aos hóspedes.
 function emailWrap(title, body) {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;color:#2a2520;">
-      <h2 style="color:#843424;margin-bottom:8px;">${title}</h2>
-      ${body}
-      <hr style="border:none;border-top:1px solid #e8ddd0;margin:24px 0;">
-      <p style="font-size:12px;color:#888;">Santa Paciência · Gestão de Alojamento Local</p>
-    </div>
-  `;
+  const composer = require('../services/emailComposer');
+  return require('../services/emailService').baseTemplate(`${composer.buildReservationTitle(title, '•')}${body}`);
 }
 const {
   acceptInvitation,

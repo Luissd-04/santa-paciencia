@@ -15,7 +15,8 @@ async function buildEmailMimeBody(organizationId, html) {
   let content = String(html || '');
   const images = [];
   const replacements = new Map();
-  const base = (process.env.PUBLIC_APP_URL || process.env.FRONTEND_PUBLIC_URL || 'http://localhost:3001').replace(/\/$/, '');
+  let base = '';
+  try { base = require('./publicLinks').origin(); } catch { /* sem origem: só caminhos relativos */ }
   const sources = new Set([...content.matchAll(/<img\b[^>]*\ssrc="([^"]*)"[^>]*>/gi)].map(match => match[1]));
   const logos = organizationId ? db.prepare(`SELECT DISTINCT logo_url FROM accommodations
     WHERE organization_id = ? AND logo_url IS NOT NULL`).all(organizationId) : [];

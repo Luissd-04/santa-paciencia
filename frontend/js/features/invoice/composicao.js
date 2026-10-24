@@ -233,6 +233,7 @@ const SERVER_TEMPLATE_BLOCKS = new Set([
   'titulo_reserva', 'titulo_boas_vindas', 'cartao_reserva',
   'cartao_reserva_sem_total', 'botao_alojamento',
   'botao_pre_checkin', 'acompanhe_nos',
+  'titulo_pagamento', 'titulo_aviso_pagamento', 'cartao_pagamento', 'botao_reserva',
 ]);
 
 function _unresolvedTemplateVars(subject, body) {

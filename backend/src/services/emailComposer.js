@@ -303,7 +303,7 @@ function sanitizeBodyHtml(html, { placeholders = true } = {}) {
 // pública é HTTPS; caso contrário os botões ficam só com texto, que continua
 // a ser compreensível (era esse o requisito).
 function publicBaseUrl() {
-  return String(process.env.PUBLIC_APP_URL || process.env.FRONTEND_PUBLIC_URL || '').replace(/\/$/, '');
+  try { return require('./publicOrigin').configuredOrigin(); } catch { return ''; }
 }
 
 function emailAssetUrl(relativePath) {
