@@ -423,7 +423,7 @@ function renderEventosCalendar() {
   const firstDay = new Date(eventosYear, eventosMonth, 1).getDay();
   const daysInMonth = new Date(eventosYear, eventosMonth + 1, 0).getDate();
   const prevDays = new Date(eventosYear, eventosMonth, 0).getDate();
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = window.ReservationDates.localIso();
   const visibleDays = [];
 
   for (let i = firstDay - 1; i >= 0; i--) {
@@ -474,7 +474,7 @@ function renderEventosTimeline(autoScroll = true) {
   const year = now.getFullYear();
   const yearStart = new Date(year, 0, 1);
   const totalDays = Math.round((new Date(year + 1, 0, 1) - yearStart) / 86400000);
-  const todayStr = now.toISOString().slice(0, 10);
+  const todayStr = window.ReservationDates.localIso(now);
   const startStr = `${year}-01-01`;
   const endStr = `${year + 1}-01-01`;
   const curMonthStart = `${year}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
@@ -852,10 +852,14 @@ function openEventoModal(id = null, date = null, accId = null) {
   populateEventosAccommodationSelects();
   populateEventosResponsibleSelect(evento?.responsible || AppModules.core.currentUser?.name || '');
   document.getElementById('evento-modal-title').textContent = evento ? 'Editar Evento' : 'Novo Evento';
+  ['evento-title', 'evento-date'].forEach(id => {
+    document.getElementById(id)?.removeAttribute('aria-invalid');
+    const error = document.getElementById(id + '-error'); if (error) error.textContent = '';
+  });
   document.getElementById('evento-title').value = evento?.title || '';
   document.getElementById('evento-type').value = evento?.type || 'limpeza';
   document.getElementById('evento-status').value = evento?.status || 'planeado';
-  document.getElementById('evento-date').value = window.ReservationDates?.formatPtDate(evento?.date || date || new Date().toISOString().slice(0, 10)) || '';
+  document.getElementById('evento-date').value = window.ReservationDates?.normalizeIsoDate(evento?.date || date || window.ReservationDates.localIso()) || '';
   document.getElementById('evento-start-time').value = evento?.start_time || '';
   document.getElementById('evento-end-time').value = evento?.end_time || '';
   document.getElementById('evento-accommodation').value = evento?.accommodation_id || accId || '';
@@ -874,6 +878,21 @@ function closeEventoModal() {
   AppUI.closeModal('evento-modal-bg');
 }
 
+function eventoFieldError(id, message) {
+  const field = document.getElementById(id);
+  let error = document.getElementById(id + '-error');
+  if (!error) {
+    error = document.createElement('div');
+    error.id = id + '-error'; error.className = 'field-error'; error.setAttribute('role', 'alert');
+    field.after(error);
+    const clear = () => { field.removeAttribute('aria-invalid'); error.textContent = ''; };
+    field.addEventListener('input', clear); field.addEventListener('change', clear);
+  }
+  field.setAttribute('aria-invalid', 'true'); field.setAttribute('aria-describedby', error.id);
+  error.textContent = message;
+  field.focus({ preventScroll: true }); field.scrollIntoView({ block: 'center', behavior: 'auto' });
+}
+
 async function saveEvento() {
   const btn = document.getElementById('evento-save-btn');
   const body = {
@@ -889,11 +908,12 @@ async function saveEvento() {
   };
   // Mensagens específicas (ajuda a perceber qual campo está em falta) + salvaguarda na data.
   if (!body.title) {
-    AppModules.core.toast('⚠️ Indica o título do evento.', 'error');
+    eventoFieldError('evento-title', 'Indica o título do evento.');
     return;
   }
   if (!body.date) {
-    body.date = new Date().toISOString().slice(0, 10);
+    eventoFieldError('evento-date', 'Indica uma data válida.');
+    return;
   }
 
   AppUI.setButtonLoading(btn, true, 'A guardar...');

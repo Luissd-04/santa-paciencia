@@ -108,7 +108,7 @@ function updateChildAgeHints() {
 // Converte cada idade escolhida numa data de nascimento aproximada, alinhada ao
 // check-in (idade-ao-check-in = idade escolhida). Idade não escolhida => null.
 function childBirthDates() {
-  const ci = iso(AppModules.booking.$('pb-checkin').value) || new Date().toISOString().slice(0, 10);
+  const ci = iso(AppModules.booking.$('pb-checkin').value) || window.ReservationDates.localIso();
   const year = Number(ci.slice(0, 4));
   const monthDay = ci.slice(4); // "-MM-DD"
   return Array.from(document.querySelectorAll('#pb-child-ages select')).map(s =>

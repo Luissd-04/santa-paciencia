@@ -15,7 +15,7 @@ jobs:
           cache-dependency-path: backend/src/package-lock.json
       - run: npm ci
         working-directory: backend/src
-      - run: npm run check && npm test && npm run test:http
+      - run: npm run check && npm test && npm run test:http && node scripts/check-v1-functional.cjs && node scripts/check-v1-security-email.cjs && node scripts/check-v1-accounts.cjs && node scripts/check-instance-restore.cjs && node scripts/check-performance.cjs
         working-directory: backend/src
       - run: npm audit --omit=dev --audit-level=moderate
         working-directory: backend/src
@@ -34,12 +34,14 @@ jobs:
           cache-dependency-path: backend/src/package-lock.json
       - run: npm ci
         working-directory: backend/src
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium webkit
         working-directory: backend/src
       - run: npm run test:browser
         working-directory: backend/src
         env:
           BROWSER_ARTIFACTS_DIR: ${{ github.workspace }}/browser-artifacts
+      - run: npm run test:mobile && BROWSER_ENGINE=webkit npm run test:mobile && node scripts/check-precheckin.cjs && node scripts/check-public-voucher.cjs && node scripts/check-payment-policy-browser.cjs && node scripts/check-wizard-voucher.cjs && BROWSER_ENGINE=webkit node scripts/check-wizard-voucher.cjs && node scripts/check-pwa-resilience.cjs && BROWSER_ENGINE=webkit node scripts/check-pwa-resilience.cjs && node scripts/check-vouchers.cjs && node scripts/check-calendar-mobile.cjs && node scripts/check-public-mobile.cjs && node scripts/check-stripe-browser.cjs && node scripts/check-frontend-modules.cjs
+        working-directory: backend/src
       - run: npm run measure:frontend
         working-directory: backend/src
       - uses: actions/upload-artifact@v4

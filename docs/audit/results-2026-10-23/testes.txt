@@ -1,0 +1,47 @@
+unit-final
+# tests 252
+# pass 252
+# fail 0
+# duration_ms 1556.4965
+
+http
+OK: autenticação, consulta de alojamentos e permissões de staff.
+OK: documentos privados, isolamento entre organizações e caminhos codificados.
+OK: API de Mensagens, no-store e revogação de sessões.
+
+check-browser.cjs
+OK: cada vista traz o seu código uma só vez, com as dependências primeiro.
+OK: um módulo que falha a carregar avisa na vista e pode ser repetido.
+OK: atalhos entre vistas carregam o módulo de destino antes de saltar.
+OK: painel, botão + e exportações de Definições funcionam sem ter passado pela vista.
+OK: ligação direta a uma reserva abre a ficha com o módulo carregado.
+OK: erro HTTP e backend antigo não são apresentados como zero reservas.
+OK: reservas passadas ficam separadas e a pesquisa consulta todo o histórico.
+OK: calendário recupera com o botão de repetir após atualização do backend.
+OK: painel resumido, páginas, pesquisa global e calendário independente.
+OK: Excel carrega por pedido e exporta 123 reservas, não apenas a página.
+OK: exportação de hóspedes respeita a pesquisa ativa.
+OK: PDF, gráficos e recursos do mapa carregam apenas quando pedidos.
+OK: pesquisa e navegação entre páginas no telemóvel.
+OK: pré-visualização de emails vem do servidor, segue o rascunho e ignora respostas atrasadas.
+OK: eventos paginam no servidor; calendário carrega por intervalo; erro ≠ lista vazia.
+OK: despesas paginam, pesquisam e ordenam no servidor; total e exportação cobrem todas as páginas.
+OK: escolher, enviar e fechar um template compõe os blocos e devolve a interação à página.
+OK: mensagens paginam no servidor, sem carregar reservas/hóspedes completos.
+OK: logout limpa as coleções; sem erros JavaScript não tratados.
+
+check-precheckin.cjs
+OK: etapas, países, validação, submissão, reabertura, documentos no backoffice e layouts. Capturas: /var/folders/tr/z9x6cqmd38v8zvyjwgyh73280000gn/T/sp-precheckin-vuFZWc
+
+check-payment-policy-browser.cjs
+OK: settings, editable intervals, validation, simulator, saving, mobile/landscape, guest consent and deposit; /Users/luisbernardo/Documents/santa_paciencia/browser-artifacts/payment-policy
+
+check-public-voucher.cjs
+Voucher público: botão Aplicar, desconto, invalidação ao editar e criação da reserva verificados.
+
+mobile
+OK: mobile UX — login, first prices load, overflow, lazy loading, sheets 320/375/600, rotation, menu, event validation, dirty edit, date picker and reduced motion.
+
+performance
+Arranque: 57 pedidos JS/CSS, 1004 KB, 23 scripts, 1153 ms até à vista inicial.
+Total após visitar todas as vistas: 112 pedidos, 1873.3 KB.

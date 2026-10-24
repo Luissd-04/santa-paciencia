@@ -54,6 +54,7 @@ const VIEW_TITLES = {
 // fica visível primeiro (o esqueleto já está no HTML) e só depois corre a
 // inicialização, para que uma ligação lenta não deixe o ecrã parado.
 async function showView(v, pushState = true) {
+  AppUI.closeSheets();
   if (v === 'gcal') {
     switchSettingsTab('gcal', false);
     v = 'definicoes';
@@ -107,6 +108,10 @@ async function showView(v, pushState = true) {
   const feature = AppModules.core.VIEW_FEATURE[v];
   if (feature) {
     AppModules.core.clearFeatureLoadError(v);
+    if (!nextView.dataset.markupReady && !nextView.children.length) {
+      nextView.innerHTML = '<div class="view-loading" role="status">A carregar…<div class="view-loading-bar"></div><div class="view-loading-bar"></div></div>';
+    }
+    nextView.setAttribute('aria-busy', 'true');
     // Código e marcação trazem-se em paralelo — nenhum depende do outro para
     // ser pedido, só initView() precisa dos dois já prontos. A marcação é
     // pedida para a funcionalidade inteira (todas as suas vistas), não só a
@@ -117,6 +122,8 @@ async function showView(v, pushState = true) {
       AppModules.core.ensureFeature(feature),
       AppModules.core.ensureViewMarkup(feature),
     ]);
+    nextView.removeAttribute('aria-busy');
+    nextView.querySelector('.view-loading')?.remove();
     if (!featureOk || !markupOk) {
       AppModules.core.showFeatureLoadError(v, feature || v, () => showView(v, false));
       return;
@@ -292,7 +299,7 @@ let settingsTab = AppModules.core.SS.get('settings:tab', 'gcal');
 
 function switchSettingsTab(tab, render = true) {
   if (tab === 'equipa' && AppModules.core.currentUser?.role !== 'owner') tab = 'gcal';
-  settingsTab = ['gcal', 'database', 'operations', 'emails', 'fornecedores', 'push', 'equipa'].includes(tab) ? tab : 'gcal';
+  settingsTab = ['gcal', 'database', 'operations', 'emails', 'fornecedores', 'push', 'equipa', 'payments'].includes(tab) ? tab : 'gcal';
   AppModules.core.SS.set('settings:tab', settingsTab);
 
   document.querySelectorAll('[data-settings-tab]').forEach(btn => {
@@ -310,6 +317,7 @@ function renderSettingsView() {
   switchSettingsTab(settingsTab, false);
   AppUI.enhanceSelects(document.getElementById('view-definicoes'));
   AppUI.refreshDropdowns(document.getElementById('view-definicoes'));
+  if (settingsTab === 'payments') AppModules.definicoes.loadPaymentPolicy();
   if (settingsTab === 'gcal') { loadCalendarStatus(); loadGmailStatus(); loadGoogleTasksStatus(); }
   if (settingsTab === 'database') {
     if (typeof AppModules.core.initExportReminderControls === 'function') AppModules.core.initExportReminderControls();
@@ -368,7 +376,7 @@ function populateAccommodationSelects() {
 
 // ── SIDEBAR MOBILE ──
 function toggleSidebar() {
-  if (window.innerWidth <= 600) {
+  if (window.matchMedia('(max-width: 767px), (max-height: 500px) and (orientation: landscape)').matches) {
     openSideDrawer();
     return;
   }
@@ -539,13 +547,29 @@ async function syncGoogleTasks() {
   }
 }
 
+// Pré-visualização obrigatória: o servidor só apaga se o número confirmado
+// coincidir com o que encontra nesse momento.
+async function previewDuplicates(url, btn, noun) {
+  AppUI.setButtonLoading(btn, true, 'A procurar...');
+  try {
+    const preview = await AppModules.core.apiPost(url, {});
+    if (!preview.count) { AppModules.core.toast('✅ Sem duplicados.', 'success'); return null; }
+    const lines = (preview.sample || []).map(item => `• ${String(item.start || '').slice(0, 10)} — ${item.summary || item.title || ''}`).join('\n');
+    const more = preview.count > (preview.sample || []).length ? '\n…' : '';
+    return confirm(`${preview.count} duplicado(s) de ${noun} da app:\n\n${lines}${more}\n\nApagar estes duplicados? Fica sempre uma cópia de cada.`) ? preview.count : null;
+  } finally {
+    AppUI.setButtonLoading(btn, false);
+  }
+}
+
 // Remove tarefas duplicadas no Google Tasks (órfãos deixados pelo bug antigo de sincronização).
 async function cleanGtasksDuplicates() {
-  if (!confirm('Procurar e apagar tarefas DUPLICADAS no teu Google Tasks (criadas pela app)?\n\nMantém sempre uma cópia de cada.')) return;
   const btn = document.getElementById('gtasks-clean-btn');
-  AppUI.setButtonLoading(btn, true, 'A limpar...');
   try {
-    const res = await AppModules.core.apiPost('/api/tasks/clean-duplicates', {});
+    const expected = await previewDuplicates('/api/tasks/clean-duplicates', btn, 'tarefas');
+    if (expected == null) return;
+    AppUI.setButtonLoading(btn, true, 'A limpar...');
+    const res = await AppModules.core.apiPost('/api/tasks/clean-duplicates', { confirm: true, expected });
     if (res.success) {
       AppModules.core.toast(res.deleted > 0
         ? `✅ ${res.deleted} tarefa(s) duplicada(s) removida(s).`
@@ -580,7 +604,11 @@ async function loadCalendarStatus() {
     const el = id => document.getElementById(id);
     if (el('sync-total'))   el('sync-total').textContent   = d.total      ?? 0;
     if (el('sync-ok'))      el('sync-ok').textContent      = d.inCalendar ?? 0;
-    if (el('sync-removed')) el('sync-removed').textContent = d.removed    ?? 0;
+    // Fila durável: alterações e remoções ainda não confirmadas pelo Google.
+    if (el('sync-removed')) {
+      el('sync-removed').textContent = d.queue?.pending ?? 0;
+      el('sync-removed').title = d.queue?.failing ? `${d.queue.failing} com falhas; nova tentativa automática.` : '';
+    }
 
     const calToggle = el('gcal-sync-calendar-toggle');
     if (calToggle) calToggle.checked = s.syncCalendar ?? false;
@@ -677,12 +705,14 @@ async function syncAllGcal() {
 }
 
 // Remove eventos duplicados no Google (órfãos deixados pelo bug antigo de sincronização).
+// Não mexe em eventos pessoais: só eventos com o ícone da app.
 async function cleanGcalDuplicates() {
-  if (!confirm('Procurar e apagar eventos DUPLICADOS no teu Google Calendar (criados pela app)?\n\nMantém sempre uma cópia de cada. Não mexe nos teus eventos pessoais.')) return;
   const btn = document.getElementById('gcal-clean-btn');
-  AppUI.setButtonLoading(btn, true, 'A limpar...');
   try {
-    const res = await AppModules.core.apiPost('/api/calendar/clean-duplicates', {});
+    const expected = await previewDuplicates('/api/calendar/clean-duplicates', btn, 'eventos');
+    if (expected == null) return;
+    AppUI.setButtonLoading(btn, true, 'A limpar...');
+    const res = await AppModules.core.apiPost('/api/calendar/clean-duplicates', { confirm: true, expected });
     if (res.success) {
       AppModules.core.toast(res.deleted > 0
         ? `✅ ${res.deleted} evento(s) duplicado(s) removido(s).`

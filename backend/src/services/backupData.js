@@ -6,7 +6,7 @@ const { accommodationUrls, uploadPath } = require('./mediaStorage');
 const TABLES = ['organization_settings', 'organization_email_templates', 'accommodations',
   'pricing_periods', 'accommodation_blocks', 'suppliers', 'vouchers', 'guests', 'expenses',
   'reservations', 'stripe_payment_attempts', 'voucher_redemptions', 'reservation_payments', 'reservation_history', 'operational_events',
-  'invoice_messages', 'conversation_archives', 'organization_email_log', 'organization_email_queue'];
+  'invoice_messages', 'conversation_archives', 'organization_email_log', 'organization_email_queue', 'manual_payment_intents', 'email_deliveries'];
 const REFERENCES = { parent_id: 'accommodations', accommodation_id: 'accommodations',
   guest_id: 'guests', reservation_id: 'reservations', used_in_reservation_id: 'reservations',
   supplier_id: 'suppliers', voucher_id: 'vouchers' };
@@ -18,13 +18,13 @@ function uploadUrls(tables) {
 }
 
 function exportData(organizationId) {
-  return db.transaction(() => ({ version: 7, scope: 'client-data', exported_at: new Date().toISOString(),
+  return db.transaction(() => ({ version: 9, scope: 'client-data', exported_at: new Date().toISOString(),
     tables: Object.fromEntries(TABLES.map(table => [table,
       db.prepare(`SELECT * FROM ${table} WHERE organization_id = ?`).all(organizationId)])) }))();
 }
 
 function prepareImport(payload, organizationId) {
-  if (![3, 4, 5, 6, 7].includes(payload.version) || !payload.tables || Array.isArray(payload.tables)) throw new Error('Versão ou estrutura de backup inválida.');
+  if (![3, 4, 5, 6, 7, 8, 9].includes(payload.version) || !payload.tables || Array.isArray(payload.tables)) throw new Error('Versão ou estrutura de backup inválida.');
   if (Object.keys(payload.tables).some(table => !TABLES.includes(table))) throw new Error('Backup contém tabelas não permitidas.');
   if (payload.version < 6 && !Object.hasOwn(payload.tables, 'stripe_payment_attempts')) {
     if (db.prepare('SELECT 1 FROM stripe_payment_attempts WHERE organization_id=?').get(organizationId)) {
@@ -50,6 +50,12 @@ function prepareImport(payload, organizationId) {
         used_at: row.used_at || row.updated_at || row.created_at || new Date().toISOString(), discount_amount: null }));
     payload = { ...payload, tables: { ...payload.tables, vouchers, voucher_redemptions: redemptions } };
   }
+  for (const table of ['manual_payment_intents', 'email_deliveries']) {
+    if (payload.version < 9 && !Object.hasOwn(payload.tables, table)) {
+      if (db.prepare(`SELECT 1 FROM ${table} WHERE organization_id=?`).get(organizationId)) throw new Error(`O backup não contém ${table}; restauro recusado.`);
+      payload = { ...payload, tables: { ...payload.tables, [table]: [] } };
+    }
+  }
   const tables = {};
   const maps = Object.fromEntries(TABLES.map(table => [table, new Map()]));
   for (const table of TABLES) {
@@ -65,7 +71,11 @@ function prepareImport(payload, organizationId) {
     tables[table] = rows.map(input => {
       if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => !columns.has(key))) throw new Error(`Colunas inválidas: ${table}.`);
       const row = { ...input, organization_id: organizationId };
+      if (table === 'reservations' && input.payment_policy_json && input.organization_id !== organizationId) {
+        throw new Error('Políticas e autorizações de pagamento não podem ser transferidas entre organizações.');
+      }
       if (table === 'stripe_payment_attempts') {
+        row.kind = row.kind || 'checkout';
         if (input.organization_id !== organizationId) throw new Error('Pagamentos Stripe não podem ser transferidos entre organizações.');
         if (['creating', 'open', 'processing'].includes(row.state)) throw new Error('O backup contém pagamentos Stripe em curso. Reconcilie-os antes do restauro.');
       }
@@ -134,7 +144,7 @@ function restoreData(tables, organizationId) {
       if (['creating', 'open', 'processing'].includes(attempt.state)) throw new Error('Existem pagamentos Stripe em curso. Aguarde a reconciliação antes do restauro.');
       const restored = tables.stripe_payment_attempts.find(row => row.id === attempt.id);
       if (!restored || ['reservation_id', 'organization_id', 'amount_cents', 'currency', 'livemode', 'snapshot', 'request_json',
-        'checkout_session_id', 'payment_intent_id', 'captured_cents', 'refunded_cents', 'state'].some(key => restored[key] !== attempt[key])) {
+        'checkout_session_id', 'payment_intent_id', 'captured_cents', 'refunded_cents', 'state', 'kind'].some(key => restored[key] !== attempt[key])) {
         throw new Error('O backup alteraria o histórico Stripe. Use um backup atualizado.');
       }
       const payments = db.prepare("SELECT * FROM reservation_payments WHERE reservation_id=? AND id LIKE 'stripe-%' ORDER BY id").all(attempt.reservation_id);
@@ -144,6 +154,12 @@ function restoreData(tables, organizationId) {
           throw new Error('O backup alteraria movimentos Stripe já registados.');
         }
       }
+    }
+    for (const r of db.prepare('SELECT * FROM reservations WHERE organization_id=? AND payment_policy_json IS NOT NULL').all(organizationId)) {
+      const restored = tables.reservations.find(item => item.id === r.id);
+      const fields = ['payment_policy_json','policy_accepted_at','policy_auto_consent','stripe_customer_id','stripe_payment_method_id',
+        'stripe_saved_livemode','balance_attempted_at','balance_deadline','balance_notice_sent_at','policy_cancellation_json','policy_cancel_notice_at'];
+      if (!restored || fields.some(key => (restored[key] ?? null) !== r[key])) throw new Error('O backup alteraria políticas, cobranças ou reembolsos agendados. Use um backup atualizado.');
     }
     db.pragma('defer_foreign_keys = ON');
     for (const table of [...TABLES].reverse()) db.prepare(`DELETE FROM ${table} WHERE organization_id = ?`).run(organizationId);

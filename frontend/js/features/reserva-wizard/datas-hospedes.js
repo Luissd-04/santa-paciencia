@@ -42,7 +42,7 @@ function renderWizChildAges() {
   const count = parseInt(document.getElementById('f-num-criancas')?.value) || 0;
   if (count <= 0) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
 
-  const ci = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkin')?.value) || new Date().toISOString().slice(0, 10);
+  const ci = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkin')?.value) || window.ReservationDates.localIso();
   const prev = Array.from(wrap.querySelectorAll('select')).map(s => s.value);
   const rowAges = wizChildRowBirthDates().map(d => (d ? getAgeAtDate(d, ci) : null));
 
@@ -88,7 +88,7 @@ function updateWizChildAgeHints() {
 // Converte cada idade escolhida numa data de nascimento aproximada alinhada ao
 // check-in (idade-ao-check-in = idade escolhida), como no formulário público.
 function wizChildAgeBirthDates() {
-  const ci = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkin')?.value) || new Date().toISOString().slice(0, 10);
+  const ci = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkin')?.value) || window.ReservationDates.localIso();
   const year = Number(ci.slice(0, 4));
   const monthDay = ci.slice(4); // "-MM-DD"
   return Array.from(document.querySelectorAll('#resf-child-ages [data-wiz-child-age]')).map(s =>
@@ -166,7 +166,7 @@ function getAgeSpecialRateInfo(suite, birthDate, checkIn = null) {
 
 function updateSpecialRateHints() {
   const suite = AppModules.core.accommodations.find(a => a.id === document.getElementById('f-aloj')?.value);
-  const checkIn = document.getElementById('f-checkin')?.value || new Date().toISOString().slice(0, 10);
+  const checkIn = document.getElementById('f-checkin')?.value || window.ReservationDates.localIso();
   const included = Math.max(1, Math.min(
     Number(suite?.base_guests_included) || Math.min(Number(suite?.max_guests) || 2, 2),
     Number(suite?.max_guests) || 20
@@ -210,6 +210,7 @@ function renderExtraGuests() {
   wrap.style.display = '';
 
   const existing = Array.from(container.querySelectorAll('.extra-guest-row')).map(row => ({
+    guest_id:        row.dataset.guestId || '',
     nome_completo:   row.querySelector('[data-field="nome_completo"]')?.value   || '',
     email:           row.querySelector('[data-field="email"]')?.value           || '',
     tel_prefix:      row.querySelector('[data-field="tel_prefix"]')?.value      || '+351',
@@ -237,7 +238,7 @@ function renderExtraGuests() {
     const isChild = i > numAdultos;
     const rowLabel = isChild ? `Hóspede ${i} — criança` : `Hóspede ${i}`;
     parts.push(`
-      <div class="extra-guest-row" data-extra-idx="${idx}" data-is-child="${isChild}" style="background:var(--cinza-claro);border-radius:10px;padding:14px;margin-bottom:12px;">
+      <div class="extra-guest-row" data-extra-idx="${idx}" data-is-child="${isChild}" data-guest-id="${AppModules.core.escapeHtml(p.guest_id || '')}" style="background:var(--cinza-claro);border-radius:10px;padding:14px;margin-bottom:12px;">
         <div style="font-size:12px;font-weight:700;color:var(--cinza);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">${rowLabel}</div>
         ${!isChild ? `<div class="form-group form-full" style="margin-bottom:12px;">
           <label class="form-label">Pesquisa rápida (hóspede existente)</label>
@@ -387,6 +388,7 @@ function extraGuestSelect(idx, gIdx) {
   const row = document.querySelector(`.extra-guest-row[data-extra-idx="${idx}"]`);
   if (!row) return;
   const setVal = (field, val) => { const el = row.querySelector(`[data-field="${field}"]`); if (el) el.value = val || ''; };
+  row.dataset.guestId = g.id || '';
   setVal('nome_completo', [g.first_name, g.last_name].filter(Boolean).join(' ') || g.name || '');
   setVal('email',       g.email);
   const rawPhone = g.phone || '';

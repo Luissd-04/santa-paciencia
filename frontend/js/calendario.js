@@ -61,10 +61,9 @@ window.matchMedia('(max-width: 600px)').addEventListener('change', () => {
 // No mobile, os filtros do Calendário (suite/estado/canal) viram uma
 // folha deslizante — mesmo mecanismo de #reservas-filter-panel
 // (ver comentário em toggleReservasFiltersSheet, reserva-lista.js).
-function toggleCalendarioFiltersSheet(open) {
-  document.getElementById('calendario-filter-panel')?.classList.toggle('m-sheet-open', open);
-  document.getElementById('calendario-filters-backdrop')?.classList.toggle('active', open);
-  document.getElementById('view-calendario')?.classList.toggle('m-sheet-ancestor-fix', open);
+function toggleCalendarioFiltersSheet(open, trigger) {
+  if (open) trigger?.focus({ preventScroll: true });
+  AppUI.setSheetOpen('calendario-filter-panel', 'calendario-filters-backdrop', open, 'm-sheet-open');
 }
 
 function getCalendarFilters() {
@@ -192,6 +191,8 @@ function setCalCount(n, label) {
 
 // ── PUBLIC ENTRY POINT ──
 function renderCalView() {
+  // Ainda a carregar: initView() desenha a vista quando todos os scripts correrem.
+  if (AppModules.core.isFeatureLoaded && !AppModules.core.isFeatureLoaded('calendario')) return;
   const filterEl    = document.getElementById('cal-status-filter');
 
   const calWrap     = document.querySelector('.cal-wrap');

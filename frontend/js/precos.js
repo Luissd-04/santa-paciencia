@@ -200,7 +200,7 @@ function renderPrecosCalendar() {
   const hintEl    = document.getElementById('precos-selection-hint');
   if (!container) return;
 
-  const today    = new Date().toISOString().slice(0, 10);
+  const today    = window.ReservationDates.localIso();
   const firstDay = new Date(_precosYear, _precosMonth - 1, 1);
   const lastDay  = new Date(_precosYear, _precosMonth, 0);
   const startDow = firstDay.getDay();
@@ -348,20 +348,39 @@ function renderPrecosCalendar() {
 }
 
 let _hoverRafId = null;
-function handlePrecosDayHover(iso) {
-  if (!_rangeStart || _rangeEnd || _hoverDay === iso) return;
-  _hoverDay = iso;
+// Redesenhar a grelha substitui as células. Se acontecer entre premir e largar
+// (frame atrasado num telemóvel lento), o nó premido desaparece, o browser não
+// gera o clique e o toque perde-se. A pré-visualização do intervalo espera que
+// o dedo/botão seja largado; o clique em si redesenha de imediato.
+let _precosPressActive = false;
+let _precosHoverPending = false;
+document.addEventListener('pointerdown', () => { _precosPressActive = true; }, true);
+for (const type of ['pointerup', 'pointercancel']) {
+  document.addEventListener(type, () => {
+    _precosPressActive = false;
+    if (_precosHoverPending) { _precosHoverPending = false; schedulePrecosHoverRender(); }
+  }, true);
+}
+function schedulePrecosHoverRender() {
+  if (_precosPressActive) { _precosHoverPending = true; return; }
   if (_hoverRafId) return;
   _hoverRafId = requestAnimationFrame(() => {
     _hoverRafId = null;
+    if (_precosPressActive) { _precosHoverPending = true; return; }
     renderPrecosCalendar();
   });
+}
+
+function handlePrecosDayHover(iso) {
+  if (!_rangeStart || _rangeEnd || _hoverDay === iso) return;
+  _hoverDay = iso;
+  schedulePrecosHoverRender();
 }
 
 function handlePrecosDayLeave() {
   if (_rangeStart && !_rangeEnd && _hoverDay) {
     _hoverDay = null;
-    renderPrecosCalendar();
+    schedulePrecosHoverRender();
   }
 }
 
@@ -412,8 +431,7 @@ function handlePrecosDayClick(iso) {
 // No mobile, o painel de edição (#precos-side-panel) vira uma folha deslizante
 // a partir do fundo do ecrã, em vez do painel lateral fixo do desktop.
 function setPrecosMobileSheetOpen(open) {
-  document.getElementById('precos-side-panel')?.classList.toggle('precos-sheet-open', open);
-  document.getElementById('precos-sheet-backdrop')?.classList.toggle('active', open);
+  AppUI.setSheetOpen('precos-side-panel', 'precos-sheet-backdrop', open, 'precos-sheet-open');
 }
 
 function cancelPrecosSelection() {
@@ -823,6 +841,7 @@ AppModules.onReset('precos.js', () => {
   _rangeEnd = null;
   _hoverDay = null;
   _hoverRafId = null;
+  _precosHoverPending = false;
   _precosDowState = new Set([0,1,2,3,4,5,6]);
 });
 

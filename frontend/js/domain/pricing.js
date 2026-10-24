@@ -155,7 +155,30 @@
     };
   }
 
+  // Mesma regra do servidor (voucherService.voucherDiscount): arredondado ao
+  // cêntimo; um crédito de estadia vale o preço das primeiras N noites.
+  function voucherDiscount(voucher, total, nightlyPrices = []) {
+    if (!voucher) return 0;
+    const value = Number(voucher.value) || 0;
+    let discount;
+    if (voucher.type === 'discount_pct') discount = Math.round(total * value) / 100;
+    else if (voucher.type === 'credit_stay') {
+      discount = (Array.isArray(nightlyPrices) ? nightlyPrices : []).slice(0, Math.max(0, Math.floor(value)))
+        .reduce((sum, night) => sum + Math.round((Number(night?.price) || 0) * 100), 0) / 100;
+    } else discount = Math.round(value * 100) / 100;
+    return Math.max(0, Math.min(total, discount));
+  }
+
+  function voucherLabel(voucher) {
+    const value = Number(voucher?.value) || 0;
+    if (voucher?.type === 'discount_pct') return `${value}% de desconto`;
+    if (voucher?.type === 'credit_stay') return `${value} ${value === 1 ? 'noite oferecida' : 'noites oferecidas'}`;
+    return `€${value.toFixed(2)} de desconto`;
+  }
+
   window.ReservationPricing = {
+    voucherDiscount,
+    voucherLabel,
     normalizeExtraOccupancyOptions,
     getAgeSpecialRates,
     getExtraOccupancyCharge,

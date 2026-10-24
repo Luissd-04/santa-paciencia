@@ -5,8 +5,8 @@
                offline). Cache-first apenas para CDNs (fontes, libs).
 ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'sp-v40';
-const CACHE_VERSION = 37;
+const CACHE_NAME = 'sp-v41';
+const CACHE_VERSION = 38;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -139,6 +139,7 @@ const FEATURE_ASSETS = [
   '/js/features/emails/editor.js',
   '/js/features/emails/preview.js',
   '/js/fornecedores.js',
+  '/js/payment-policy.js',
   '/js/team.js',
   '/js/push.js',
 ];

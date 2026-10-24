@@ -10,6 +10,7 @@ router.get('/booking/:slug/voucher', voucherLimiter, ctrl.validatePublicVoucher)
 router.post('/booking/:slug/reservations', publicBookingLimiter, ctrl.createReservation);
 router.get('/reservation/:token', preCheckinLookupLimiter, ctrl.getReservationStatus);
 router.post('/reservation/:token/checkout', publicBookingLimiter, require('../controllers/stripePaymentsController').checkout);
+router.post('/reservation/:token/cancel', publicBookingLimiter, require('../controllers/stripePaymentsController').cancel);
 router.get('/pre-checkin/:token', preCheckinLookupLimiter, ctrl.getPreCheckin);
 router.post('/pre-checkin/:token', preCheckinSubmitLimiter, ctrl.submitPreCheckin);
 

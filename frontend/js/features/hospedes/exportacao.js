@@ -39,7 +39,7 @@ async function _doExportHospedesXLS(selectedKeys) {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Hóspedes');
     AppModules.core.updateOperationProgress(90, 'A iniciar download...');
-    XLSX.writeFile(wb, `hospedes_${new Date().toISOString().slice(0,10)}.xlsx`);
+    XLSX.writeFile(wb, `hospedes_${window.ReservationDates.localIso()}.xlsx`);
     AppModules.core.updateOperationProgress(100, 'Concluído.');
     AppModules.core.toast('📊 Excel exportado!', 'success');
   } catch (error) {
@@ -129,7 +129,7 @@ async function _doExportHospedesPDF(selectedKeys) {
     AppModules.core.updateOperationProgress(70, 'A gerar PDF...');
     doc.autoTable({ head, body, startY, styles: { fontSize: 9 }, headStyles: { fillColor: [132, 52, 36] } });
     AppModules.core.updateOperationProgress(90, 'A iniciar download...');
-    doc.save(`hospedes_${new Date().toISOString().slice(0,10)}.pdf`);
+    doc.save(`hospedes_${window.ReservationDates.localIso()}.pdf`);
     AppModules.core.updateOperationProgress(100, 'Concluído.');
     AppModules.core.toast('📄 PDF exportado!', 'success');
   } catch (error) {

@@ -1,6 +1,7 @@
 const { db } = require('../config/database');
 const { publicOrigin } = require('./publicOrigin');
 const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 const { calculateReservationTotals, buildNightlyPrices } = require('./reservationRules');
 const { syncOperationalEventsToGoogle } = require('./calendarService');
 
@@ -39,17 +40,21 @@ function computeStandardTotals(organizationId, resLike, primaryAccommodation, pr
   return { ...single, baseAmount: base, totalAmount: base + extras };
 }
 
-function upsertAdditionalGuests(guestsData, organizationId) {
+// Acompanhantes: a ficha é reencontrada pelo id devolvido na gravação anterior
+// e, só depois, por um email real. O email do hóspede principal (comum em
+// famílias) nunca identifica um acompanhante — atualizá-lo renomearia o titular.
+function upsertAdditionalGuests(guestsData, organizationId, mainGuestId = null) {
   if (!Array.isArray(guestsData) || !guestsData.length) return guestsData || [];
-  return guestsData.map((g, i) => {
+  return guestsData.map(g => {
     if (!g?.name) return g;
-    const email = g.email?.trim() || `guest_${Date.now()}_${i}@sem-email.local`;
-    let existing = email
-      ? db.prepare('SELECT id FROM guests WHERE email = ? AND organization_id = ?').get(email, organizationId)
+    const realEmail = g.email?.trim() || null;
+    let existing = g.id && g.id !== mainGuestId
+      ? db.prepare('SELECT id FROM guests WHERE id = ? AND organization_id = ?').get(g.id, organizationId)
       : null;
-    if (!existing && g.id) {
-      existing = db.prepare('SELECT id FROM guests WHERE id = ? AND organization_id = ?').get(g.id, organizationId);
+    if (!existing && realEmail) {
+      existing = db.prepare('SELECT id FROM guests WHERE email = ? AND organization_id = ? AND id != ?').get(realEmail, organizationId, mainGuestId || '');
     }
+    const email = realEmail || `guest_${randomUUID()}@sem-email.local`;
     if (existing) {
       db.prepare(`UPDATE guests SET
         name = COALESCE(?, name), phone = COALESCE(?, phone),

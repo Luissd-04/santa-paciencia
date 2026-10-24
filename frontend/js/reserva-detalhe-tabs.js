@@ -102,7 +102,7 @@ function rdv2RenderTarefas(resId) {
       </div>`;
   }).join('');
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = window.ReservationDates.localIso();
   const defaultDate = (AppModules.reservas._rdv2Current?.check_in && AppModules.reservas._rdv2Current.check_in >= today) ? AppModules.reservas._rdv2Current.check_in : today;
 
   panel.innerHTML = `
@@ -182,6 +182,8 @@ const RDV2_ACTION_META = {
   stripe_payment:  { icon: 'credit-card', label: 'Pagamento online atualizado' },
   invoice_saved:   { icon: 'file-text',    label: 'Fatura registada' },
   task_status:     { icon: 'list-checks',  label: 'Tarefa atualizada' },
+  policy_cancelled: { icon: 'x-circle',    label: 'Reserva cancelada segundo a política' },
+  email_delivery_resolved: { icon: 'mail', label: 'Envio de email resolvido' },
 };
 
 const RDV2_FIELD_LABELS = {
@@ -241,6 +243,10 @@ function rdv2TimelineMetaLine(action, meta) {
   } else if (action === 'task_status') {
     const kind = meta.kind === 'checkin' ? 'Check-in' : meta.kind === 'checkout' ? 'Check-out' : AppModules.core.escapeHtml(String(meta.kind || ''));
     bits.push(`${kind} ${meta.done ? 'marcado como feito' : 'reposto como por fazer'}`);
+  } else if (action === 'cancelled' && meta.reason === 'ttl') {
+    bits.push('Automático — sem pagamento dentro do prazo');
+  } else if (action === 'email_delivery_resolved') {
+    bits.push(`${AppModules.core.escapeHtml(String(meta.template_slug || ''))} · ${meta.resolution === 'sent' ? 'confirmado como entregue' : 'nova tentativa autorizada'}`);
   } else if (action === 'created') {
     if (meta.check_in && meta.check_out) bits.push(`${rdv2ShortDate(String(meta.check_in))} → ${rdv2ShortDate(String(meta.check_out))}`);
     if (meta.total_amount != null) bits.push(`€${Number(meta.total_amount).toFixed(2)}`);

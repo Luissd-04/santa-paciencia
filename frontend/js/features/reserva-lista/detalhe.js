@@ -146,6 +146,23 @@ async function showDetail(id, opts = {}) {
       { v: 'confirmado', l: 'Completo' },
     ];
 
+    // A ficha e o menu mobile partilham ações, dados e permissões.
+    const reservationActionsHtml = `
+            ${r.status === 'pendente' ? `<button class="rdv2-action-link rdv2-action-success" ${AppActions.attrs("click", "detalhe-aprovar-reserva-0f31ccd", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('check', 12)} Aprovar e enviar pre check-in</button>` : ''}
+            <button class="rdv2-action-link" data-accs="${(JSON.stringify(accsData)).replace(/"/g,'&quot;')}" data-res='{"id":"${r.id}","accId":"${r.accommodation_id}","ci":"${r.check_in}","co":"${r.check_out}","ng":${r.num_guests||1},"na":${r.num_adults||1},"nc":${r.num_children||0},"bkf":${r.breakfast_included?true:false},"nights":${r.nights||1}}' data-on-click="detalhe-open-accommodation-panel-from-btn-4247f77">${AppModules.core.lcIcon('home', 12)} Editar alojamento</button>
+            <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-edit-page-8b67124", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('pencil', 12)} Editar reserva</button>
+            <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-add-guest-form-2a832ca", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('user-plus', 12)} Adicionar hóspede</button>
+            <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-payment-form-74a29ac", [String((r.id) ?? ''), paid, total])}>${AppModules.core.lcIcon('credit-card', 12)} Registar pagamento</button>
+            ${canOpenOnlinePayment ? `<button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-7fd73a2", [String((paymentPageUrl) ?? '')])}>${AppModules.core.lcIcon('external-link', 12)} Abrir pagamento online</button>` : ''}
+            <button class="rdv2-action-link" data-inv='${JSON.stringify({ n: r.invoice_number || '', d: r.invoice_date || '', sd: r.invoice_sent_date || '', m: r.invoice_sent_method || '' }).replace(/'/g, "&#39;")}' ${AppActions.attrs("click", "detalhe-open-invoice-form-from-btn-ddace26", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('file-text', 12)} Registar fatura</button>
+            ${r.guest_email ? `<button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-abrir-mensagens-da-reserva-8cd7ba1", [String((r.id) ?? ''), String((guestEmail) ?? ''), String((guestName) ?? '')])}>${AppModules.core.lcIcon('mail', 12)} Enviar email</button>` : ''}
+            ${r.status === 'cancelada'
+              ? `${!r.payment_policy?.cancellation ? `<button class="rdv2-action-link rdv2-action-success" ${AppActions.attrs("click", "detalhe-reativar-reserva-9888cf4", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('refresh-cw', 12)} Reativar reserva</button>` : ''}
+                 ${AppModules.reservas.hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" ${AppActions.attrs("click", "detalhe-apagar-reserva-definitivo-727881f", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('trash-2', 12)} Apagar definitivamente</button>` : ''}`
+              : `<button class="rdv2-action-link rdv2-action-danger" ${AppActions.attrs("click", "detalhe-cancelar-reserva-2d9df9b", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('x-circle', 12)} Cancelar reserva</button>
+                 ${AppModules.reservas.hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" ${AppActions.attrs("click", "detalhe-apagar-reserva-definitivo-727881f", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('trash-2', 12)} Apagar reserva</button>` : ''}`}
+    `;
+
     if (detailLoading) detailLoading.style.display = 'none';
 
     detailContent.innerHTML = `
@@ -156,7 +173,17 @@ async function showDetail(id, opts = {}) {
           <span class="rdv2-subtitle">Editar reserva</span>
           <span class="rdv2-id-pill">${r.id}</span>
         </div>
-        <button type="button" class="rdv2-quick-edit" aria-label="Editar reserva" title="Editar reserva" ${AppActions.attrs("click", "detalhe-open-edit-page-8b67124", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('pencil', 18)}</button>
+        <div class="rdv2-header-actions">
+          <button type="button" class="rdv2-quick-edit" aria-label="Editar reserva" title="Editar reserva" ${AppActions.attrs("click", "detalhe-open-edit-page-8b67124", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('pencil', 18)}</button>
+          <button type="button" class="rdv2-quick-edit rdv2-more-actions" id="rdv2-actions-trigger" aria-label="Ações da reserva" title="Ações da reserva" aria-haspopup="dialog" aria-expanded="false" aria-controls="rdv2-actions-menu" popovertarget="rdv2-actions-menu">${AppModules.core.lcIcon('ellipsis-vertical', 18)}</button>
+        </div>
+        <div id="rdv2-actions-menu" class="rdv2-actions-menu" popover="auto" role="dialog" aria-labelledby="rdv2-actions-title">
+          <div class="rdv2-actions-menu-heading">
+            <div class="rdv2-widget-title" id="rdv2-actions-title">Ações da reserva</div>
+            <button type="button" class="rdv2-icon-btn" aria-label="Fechar ações da reserva" popovertarget="rdv2-actions-menu" popovertargetaction="hide">${AppModules.core.lcIcon('x', 18)}</button>
+          </div>
+          ${reservationActionsHtml}
+        </div>
         <div class="rdv2-tabs">
           <button class="rdv2-tab rdv2-tab-active" id="rdv2-tab-btn-reserva" data-on-click="detalhe-rdv2-show-tab-b77b54f">${AppModules.core.lcIcon('clipboard', 12)} Reserva</button>
           <button class="rdv2-tab" id="rdv2-tab-btn-tarefas" data-on-click="detalhe-rdv2-show-tab-c86cc3e">${AppModules.core.lcIcon('list-checks', 12)} Tarefas</button>
@@ -383,22 +410,20 @@ async function showDetail(id, opts = {}) {
             </div>
           </div>
 
+          ${r.payment_policy ? `<div class="rdv2-widget">
+            <div class="rdv2-widget-title">${AppModules.core.lcIcon('credit-card', 18)} Política de pagamento</div>
+            <p>Inicial: <strong>${fmt(r.payment_policy.depositCents / 100)}</strong> · Restante previsto: <strong>${fmt(r.payment_policy.balanceCents / 100)}</strong></p>
+            ${r.payment_policy.balanceCents ? `<p>Vencimento: ${AppModules.core.escapeHtml(new Date(r.payment_policy.dueAt).toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' }))} (Lisboa)</p>` : ''}
+            <p>${r.payment_policy.accepted ? 'Condições aceites pelo hóspede.' : 'A aguardar aceitação das condições pelo hóspede.'}</p>
+            ${r.payment_policy.cancellation ? `<p>Reembolso previsto no cancelamento: ${fmt(r.payment_policy.cancellation.amount)}.</p>` : `<p>Reembolso se cancelar agora: ${fmt(r.payment_policy.refundCents / 100)} (${r.payment_policy.refundPercent}%).</p>`}
+            ${r.balance_deadline ? `<p>Prazo adicional: ${AppModules.core.escapeHtml(new Date(r.balance_deadline).toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' }))}.</p>` : ''}
+            ${r.payment_policy.cancellation ? `<p>Cancelamento: ${r.payment_policy.cancellation.state === 'complete' ? 'processamento concluído' : r.payment_policy.cancellation.state === 'manual_review' ? 'reembolso precisa de revisão manual' : 'reembolso em processamento'}.</p>` : ''}
+            ${paymentPageUrl ? `<button class="rdv2-action-link" ${AppActions.attrs('click', 'detalhe-write-text-8f51584', [paymentPageUrl])}>${AppModules.core.lcIcon('copy', 12)} Copiar link da reserva e pagamento</button>` : ''}
+          </div>` : ''}
           <!-- Ações -->
           <div class="rdv2-widget">
             <div class="rdv2-widget-title">${AppModules.core.lcIcon('settings', 18)} Ações da reserva</div>
-            ${r.status === 'pendente' ? `<button class="rdv2-action-link rdv2-action-success" ${AppActions.attrs("click", "detalhe-aprovar-reserva-0f31ccd", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('check', 12)} Aprovar e enviar pre check-in</button>` : ''}
-            <button class="rdv2-action-link" data-accs="${(JSON.stringify(accsData)).replace(/"/g,'&quot;')}" data-res='{"id":"${r.id}","accId":"${r.accommodation_id}","ci":"${r.check_in}","co":"${r.check_out}","ng":${r.num_guests||1},"na":${r.num_adults||1},"nc":${r.num_children||0},"bkf":${r.breakfast_included?true:false},"nights":${r.nights||1}}' data-on-click="detalhe-open-accommodation-panel-from-btn-4247f77">${AppModules.core.lcIcon('home', 12)} Editar alojamento</button>
-            <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-edit-page-8b67124", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('pencil', 12)} Editar reserva</button>
-            <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-add-guest-form-2a832ca", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('user-plus', 12)} Adicionar hóspede</button>
-            <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-payment-form-74a29ac", [String((r.id) ?? ''), paid, total])}>${AppModules.core.lcIcon('credit-card', 12)} Registar pagamento</button>
-            ${canOpenOnlinePayment ? `<button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-7fd73a2", [String((paymentPageUrl) ?? '')])}>${AppModules.core.lcIcon('external-link', 12)} Abrir pagamento online</button>` : ''}
-            <button class="rdv2-action-link" data-inv='${JSON.stringify({ n: r.invoice_number || '', d: r.invoice_date || '', sd: r.invoice_sent_date || '', m: r.invoice_sent_method || '' }).replace(/'/g, "&#39;")}' ${AppActions.attrs("click", "detalhe-open-invoice-form-from-btn-ddace26", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('file-text', 12)} Registar fatura</button>
-            ${r.guest_email ? `<button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-abrir-mensagens-da-reserva-8cd7ba1", [String((r.id) ?? ''), String((guestEmail) ?? ''), String((guestName) ?? '')])}>${AppModules.core.lcIcon('mail', 12)} Enviar email</button>` : ''}
-            ${r.status === 'cancelada'
-              ? `<button class="rdv2-action-link rdv2-action-success" ${AppActions.attrs("click", "detalhe-reativar-reserva-9888cf4", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('refresh-cw', 12)} Reativar reserva</button>
-                 ${AppModules.reservas.hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" ${AppActions.attrs("click", "detalhe-apagar-reserva-definitivo-727881f", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('trash-2', 12)} Apagar definitivamente</button>` : ''}`
-              : `<button class="rdv2-action-link rdv2-action-danger" ${AppActions.attrs("click", "detalhe-cancelar-reserva-2d9df9b", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('x-circle', 12)} Cancelar reserva</button>
-                 ${AppModules.reservas.hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" ${AppActions.attrs("click", "detalhe-apagar-reserva-definitivo-727881f", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('trash-2', 12)} Apagar reserva</button>` : ''}`}
+            ${reservationActionsHtml}
           </div>
 
           ${r.status !== 'pendente' && r.status !== 'cancelada' ? `
@@ -440,6 +465,17 @@ async function showDetail(id, opts = {}) {
       <div id="rdv2-panel-tarefas" style="display:none;"></div>
       <div id="rdv2-panel-timeline" style="display:none;"></div>
     `;
+    const actionsMenu = document.getElementById('rdv2-actions-menu');
+    const actionsTrigger = document.getElementById('rdv2-actions-trigger');
+    actionsMenu.addEventListener('toggle', event => {
+      const open = event.newState === 'open';
+      actionsTrigger.setAttribute('aria-expanded', String(open));
+      if (open) actionsMenu.querySelector('.rdv2-action-link')?.focus({ preventScroll: true });
+    });
+    // Fecha antes de a ação delegada abrir o formulário ou mudar de página.
+    actionsMenu.addEventListener('click', event => {
+      if (event.target.closest('.rdv2-action-link')) actionsMenu.hidePopover();
+    });
     if (window.lucide) lucide.createIcons();
   } catch (e) {
     AppModules.core.toast('❌ Erro ao carregar detalhe.', 'error');

@@ -15,9 +15,34 @@
   let refreshTimer;
   let refreshCount = 0;
   let openingCheckout = false;
+  let currentPolicy = null;
+  let cancelling = false;
+  const fmtDeadline = value => new Date(value).toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });
+  function renderPolicy(payment) {
+    const p = payment.policy;
+    currentPolicy = p;
+    $('rs-policy').hidden = !p;
+    $('rs-consent-label').hidden = !p || p.accepted || !payment.available;
+    $('rs-auto-label').hidden = !p || p.accepted || !payment.available || !p.policy.automaticCharge || !p.balanceCents;
+    $('rs-cancellation').hidden = !p?.canCancel;
+    if (!p) return;
+    const rules = p.policy.refundRules.map(r => `<tr><td>${r.minDays}${r.maxDays === null ? ' ou mais' : ` a ${r.maxDays}`} dias</td><td>${r.percent}% do valor pago</td></tr>`).join('');
+    $('rs-policy').innerHTML = `<h3>Pagamentos e cancelamentos</h3>
+      <p>Pagamento inicial: <strong>${fmtMoney(p.depositCents / 100)}</strong> (${p.depositPercent}% do total${p.depositAdjusted ? ', ajustado ao mínimo de 0,50 € por pagamento' : ''}).</p>
+      ${p.balanceCents ? `<p>Restante previsto: <strong>${fmtMoney(p.balanceCents / 100)}</strong>, com vencimento em <strong>${fmtDeadline(p.dueAt)}</strong> (Lisboa).</p>
+      <p>${p.policy.automaticCharge ? 'Com cartão autorizado, tentaremos cobrar automaticamente nessa data. ' : ''}Se for necessário concluir o pagamento, receberá um link e terá ${p.policy.graceHours} horas após o aviso. Depois do prazo, a reserva será cancelada sem devolução do valor já pago.</p>` : '<p>Pagamento integral para confirmar esta reserva.</p>'}
+      ${p.accepted && p.balanceCents ? `<p>Cobrança automática por cartão: ${p.automatic ? 'autorizada, quando o cartão for elegível' : 'não autorizada; pagamento por link'}.</p>` : ''}
+      ${p.balanceNoticeSent && payment.available ? `<p><strong>Conclua o pagamento até ${fmtDeadline(p.deadline)} (Lisboa).</strong></p>` : ''}
+      <p>O reembolso é calculado pela antecedência entre <strong>${p.refundBasis === 'booking' ? 'a criação da reserva' : 'o pedido de cancelamento'}</strong> e o check-in. Após o dia de check-in, contacte o alojamento.</p>
+      <table><thead><tr><th>Antecedência</th><th>Reembolso</th></tr></thead><tbody>${rules}</tbody></table>
+      ${p.cancellation ? `<p>Cancelamento registado. Reembolso previsto: <strong>${fmtMoney(p.cancellation.amount)}</strong>. ${p.cancellation.state === 'complete' ? 'Processamento concluído.' : p.cancellation.state === 'manual_review' ? 'O alojamento está a verificar o reembolso.' : 'Reembolso em processamento.'}</p>` : ''}`;
+    $('rs-refund-quote').textContent = `Se cancelar agora, o reembolso previsto é ${fmtMoney(p.refundCents / 100)} (${p.refundPercent}% do valor já pago).`;
+  }
+
 
   function renderPayment(reservation) {
     const payment = reservation.online_payment || {};
+    renderPolicy(payment);
     const button = $('rs-pay');
     const awaitingWebhook = returnState === 'return' && ['pending', 'processing'].includes(payment.status)
       && reservation.payment_status !== 'confirmado';
@@ -103,13 +128,16 @@
 
   $('rs-pay').addEventListener('click', async () => {
     if (openingCheckout) return;
+    if (currentPolicy && !currentPolicy.accepted && !$('rs-consent').checked) {
+      $('rs-error').textContent = 'Aceite as condições antes de continuar.'; $('rs-error').hidden = false; $('rs-consent').focus(); return;
+    }
     openingCheckout = true;
     $('rs-pay').disabled = true;
     $('rs-pay').textContent = 'A abrir pagamento…';
     $('rs-error').hidden = true;
     try {
       const response = await fetch(`/api/public/reservation/${encodeURIComponent(token)}/checkout`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ consent: { accepted: $('rs-consent').checked, automatic: $('rs-auto').checked, key: currentPolicy?.consentKey } }),
       });
       const payload = await response.json();
       if (!response.ok || !payload.success) throw new Error(payload.error || 'Não foi possível abrir o pagamento.');
@@ -122,6 +150,22 @@
       $('rs-error').textContent = error.message;
       $('rs-error').hidden = false;
     }
+  });
+  $('rs-cancel').addEventListener('click', async () => {
+    if (cancelling || !currentPolicy?.canCancel) return;
+    if (!confirm(`Cancelar a reserva? Reembolso previsto: ${fmtMoney(currentPolicy.refundCents / 100)}. Esta ação liberta as datas da estadia.`)) return;
+    cancelling = true; $('rs-cancel').disabled = true;
+    try {
+      const response = await fetch(`/api/public/reservation/${encodeURIComponent(token)}/cancel`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: true, key: currentPolicy.consentKey, refundCents: currentPolicy.refundCents }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) throw new Error(payload.error || 'Não foi possível cancelar.');
+      await load();
+    } catch (error) {
+      await load(); $('rs-error').textContent = error.message; $('rs-error').hidden = false;
+    } finally { cancelling = false; $('rs-cancel').disabled = false; }
   });
   $('rs-refresh').addEventListener('click', () => { refreshCount = 0; load(); });
 

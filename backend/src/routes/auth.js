@@ -46,17 +46,15 @@ const {
 const { createHmac } = require('crypto');
 const COOKIE_MAX_AGE = Number(process.env.SESSION_TTL_DAYS || 14) * 86400000;
 
-function oauthState(sessionId) {
-  const secret = process.env.GOOGLE_CLIENT_SECRET || 'oauth-state-fallback';
-  return createHmac('sha256', secret).update(sessionId).digest('hex').slice(0, 32);
+function oauthState(sessionId, purpose) {
+  const token = require('crypto').randomBytes(32).toString('hex');
+  db.prepare('DELETE FROM oauth_states WHERE expires_at < ?').run(Date.now());
+  db.prepare('INSERT INTO oauth_states(token_hash,session_hash,purpose,expires_at) VALUES(?,?,?,?)').run(digestToken(token), digestToken(sessionId), purpose, Date.now() + 10 * 60000);
+  return token;
 }
-
-function verifyOAuthState(req, res) {
-  const expected = oauthState(req.sessionId);
-  if (!req.query.state || req.query.state !== expected) {
-    res.status(400).send('Estado OAuth inválido. Por favor tenta novamente.');
-    return false;
-  }
+function verifyOAuthState(req, res, purpose) {
+  const ok = typeof req.query.state === 'string' && db.prepare('DELETE FROM oauth_states WHERE token_hash=? AND session_hash=? AND purpose=? AND expires_at>?').run(digestToken(req.query.state), digestToken(req.sessionId), purpose, Date.now()).changes;
+  if (!ok) { res.status(400).send('Estado OAuth inválido ou expirado. Volte a iniciar a ligação.'); return false; }
   return true;
 }
 
@@ -186,9 +184,7 @@ router.post('/invitations/accept', loginLimiter, async (req, res) => {
 
     const alreadyMember = getMembershipByUserAndOrganization(existingUser.id, invitation.organization_id);
     try {
-      if (!alreadyMember) {
-        acceptInvitation({ invitationId: invitation.id, userId: existingUser.id });
-      }
+      acceptInvitation({ invitationId: invitation.id, userId: existingUser.id });
       const { sessionId } = createSession(existingUser.id, invitation.organization_id, null, sessionMeta(req));
       setSessionCookie(res, sessionId);
       const sessionUser = require('../services/authService').getSessionUser(sessionId);
@@ -213,13 +209,12 @@ router.post('/invitations/accept', loginLimiter, async (req, res) => {
   }
 
   try {
-    const user = await createUserAsync({
-      name: trimmedName,
-      email: normalizedEmail,
-      password,
-      role: invitation.role,
-    });
-    acceptInvitation({ invitationId: invitation.id, userId: user.id });
+    const preparedHash = await hashPasswordAsync(password);
+    const user = db.transaction(() => {
+      const created = require('../services/authService').createUser({ name: trimmedName, email: normalizedEmail, password, role: invitation.role }, preparedHash);
+      acceptInvitation({ invitationId: invitation.id, userId: created.id });
+      return created;
+    }).immediate();
     const { sessionId } = createSession(user.id, invitation.organization_id, null, sessionMeta(req));
     setSessionCookie(res, sessionId);
     const sessionUser = require('../services/authService').getSessionUser(sessionId);
@@ -335,7 +330,7 @@ router.post('/reset-password', loginLimiter, async (req, res) => {
   }
 });
 
-router.post('/change-password', requireAuth, async (req, res) => {
+router.post('/change-password', requireAuth, loginLimiter, require('../middleware/rateLimiter').sensitiveAccountLimiter, async (req, res) => {
   const { current_password, password, confirm_password } = req.body || {};
   if (!current_password || !password || !confirm_password) {
     return res.status(400).json({ success: false, error: 'Preenche todos os campos.' });
@@ -363,7 +358,7 @@ router.post('/change-password', requireAuth, async (req, res) => {
 // ── Perfil ──
 // PUT /auth/profile { name, email, current_password } — a palavra-passe atual
 // só é exigida quando o email muda (o email é o identificador de login).
-router.put('/profile', requireAuth, async (req, res) => {
+router.put('/profile', requireAuth, loginLimiter, require('../middleware/rateLimiter').sensitiveAccountLimiter, async (req, res) => {
   const { name, email, current_password } = req.body || {};
   const trimmedName = String(name || '').trim();
   const newEmail = normalizeEmail(email);
@@ -382,10 +377,55 @@ router.put('/profile', requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, error: 'Já existe uma conta com esse email.' });
     }
   }
-  db.prepare(`UPDATE users SET name = ?, email = ?, updated_at = datetime('now') WHERE id = ?`)
-    .run(trimmedName, newEmail, user.id);
+  if (emailChanged) {
+    const token = require('crypto').randomBytes(32).toString('hex');
+    const tokenHash = digestToken(token);
+    const origin = require('../services/publicOrigin').publicOrigin(req);
+    const url = `${origin}/auth/confirm-email?token=${encodeURIComponent(token)}`;
+    const esc = require('../services/emailComposer').escapeHtml;
+    db.prepare('INSERT INTO email_changes(token_hash,user_id,old_email,new_email,expires_at) VALUES(?,?,?,?,?)').run(tokenHash, user.id, user.email, newEmail, Date.now() + 30 * 60000);
+    try {
+      const sent = await require('../services/emailService').sendMail(req.user.organization_id, { to: newEmail, subject: 'Confirmar alteração de email', html: emailWrap('Confirmar novo endereço', `<p>Confirme a alteração do email da sua conta. O link expira em 30 minutos e exige sessão iniciada na mesma conta.</p><p><a href="${esc(url)}">Confirmar endereço</a></p>`) });
+      if (!sent?.id) throw new Error('O email de confirmação não foi enviado. Ligue o Gmail e tente novamente.');
+      // Keep only the most recently delivered verification; the login email is unchanged.
+      db.prepare('DELETE FROM email_changes WHERE user_id=? AND token_hash!=?').run(user.id, tokenHash);
+    } catch {
+      db.prepare('DELETE FROM email_changes WHERE token_hash=?').run(tokenHash);
+      return res.status(409).json({ success: false, error: 'Não foi possível enviar a confirmação. O endereço de acesso continua inalterado.' });
+    }
+  }
+  db.prepare(`UPDATE users SET name = ?, updated_at = datetime('now') WHERE id = ?`).run(trimmedName, user.id);
   const sessionUser = require('../services/authService').getSessionUser(req.sessionId);
-  res.json({ success: true, data: { user: serializeUser(sessionUser) } });
+  res.json({ success: true, data: { user: serializeUser(sessionUser), email_pending: emailChanged ? newEmail : null } });
+});
+
+router.get('/confirm-email', requireAuth, (req, res) => {
+  const token = typeof req.query.token === 'string' ? req.query.token : '';
+  const pending = db.prepare('SELECT * FROM email_changes WHERE token_hash=? AND user_id=? AND expires_at>?').get(digestToken(token), req.user.id, Date.now());
+  if (!pending) return res.status(400).send('Link inválido ou expirado. Inicie sessão na conta original e peça uma nova alteração de email.');
+  const esc = require('../services/emailComposer').escapeHtml;
+  res.set('Referrer-Policy', 'no-referrer').send(`<html lang="pt"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Confirmar email</title><body><h1>Confirmar alteração de email</h1><p>Novo endereço: ${esc(pending.new_email)}</p><form method="post" action="/auth/confirm-email"><input type="hidden" name="token" value="${esc(token)}"><button type="submit">Confirmar novo endereço</button></form></body></html>`);
+});
+router.post('/confirm-email', requireAuth, loginLimiter, async (req, res) => {
+  const tokenHash = digestToken(String(req.body.token || ''));
+  let previous;
+  try {
+    previous = db.transaction(() => {
+      const pending = db.prepare('SELECT * FROM email_changes WHERE token_hash=? AND user_id=? AND expires_at>?').get(tokenHash, req.user.id, Date.now());
+      const user = db.prepare('SELECT * FROM users WHERE id=?').get(req.user.id);
+      if (!pending || pending.old_email !== user.email) throw new Error('Link inválido ou expirado.');
+      if (getUserByEmail(pending.new_email)) throw new Error('O novo email já pertence a uma conta.');
+      db.prepare("UPDATE users SET email=?, updated_at=datetime('now') WHERE id=?").run(pending.new_email, user.id);
+      db.prepare('DELETE FROM email_changes WHERE user_id=?').run(user.id);
+      db.prepare('DELETE FROM auth_sessions WHERE user_id=? AND id!=?').run(user.id, digestToken(req.sessionId));
+      db.prepare('DELETE FROM password_reset_tokens WHERE user_id=?').run(user.id);
+      return pending;
+    }).immediate();
+  } catch (error) { return res.status(400).send(require('../services/emailComposer').escapeHtml(error.message)); }
+  try {
+    await require('../services/emailService').sendMail(req.user.organization_id, { to: previous.old_email, subject: 'Email de acesso alterado', html: emailWrap('Email de acesso alterado', '<p>O email de acesso da sua conta foi alterado após confirmação do novo endereço. Se não reconhece esta alteração, contacte o responsável pela sua organização.</p>') });
+  } catch { console.warn('Notificação de alteração de email pendente de verificação.'); }
+  res.send('<html lang="pt"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Email confirmado</title><body><h1>Email confirmado</h1><p>Use o novo endereço no próximo acesso.</p><a href="/">Voltar à aplicação</a></body></html>');
 });
 
 // ── Sessões ativas ──

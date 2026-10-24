@@ -26,10 +26,11 @@ function parseReceiptImage(dataUri) {
 }
 
 // Guarda a imagem do talão em disco e devolve o URL público, ou null.
-function saveReceiptImage(dataUri) {
+async function saveReceiptImage(dataUri) {
   const parsed = parseReceiptImage(dataUri);
-  if (!parsed) return null;
-  const filename = `receipt_${uuidv4().slice(0, 8)}_${Date.now()}.${parsed.ext}`;
+  if (!parsed) throw Object.assign(new Error('Imagem inválida.'), { status: 400 });
+  await require('../services/imageOptimizer').validateImage(parsed.buffer);
+  const filename = `receipt_${uuidv4()}_${Date.now()}.${parsed.ext}`;
   fs.writeFileSync(path.join(RECEIPTS_DIR, filename), parsed.buffer);
   return `/uploads/receipts/${filename}`;
 }
@@ -48,8 +49,8 @@ function getAll(req, res, next) {
 
 function getSummary(req, res) {
   const now = new Date();
-  const thisMonth = now.toISOString().slice(0, 7);
-  const thisYear  = now.toISOString().slice(0, 4);
+  const thisMonth = require('../services/reservationRules').localDateIso(now).slice(0, 7);
+  const thisYear  = thisMonth.slice(0, 4);
   const orgId = req.user.organization_id;
   const monthTotal = db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM expenses WHERE organization_id = ? AND substr(date,1,7)=?").get(orgId, thisMonth).t;
   const yearTotal  = db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM expenses WHERE organization_id = ? AND substr(date,1,4)=?").get(orgId, thisYear).t;
@@ -85,14 +86,26 @@ function checkInvoice(req, res) {
   res.json({ success: true, data: { exists: rows.length > 0, count: rows.length, matches: rows.slice(0, 5) } });
 }
 
-function create(req, res) {
+function validateExpense(input, partial = false) {
+  const { normalizeDateValue } = require('../services/reservationRules');
+  if ((!partial || input.date !== undefined) && (!input.date || normalizeDateValue(input.date) !== input.date)) return 'Data inválida.';
+  if ((!partial || input.description !== undefined) && (typeof input.description !== 'string' || !input.description.trim() || input.description.length > 2000)) return 'Descrição inválida.';
+  if (!partial || input.amount !== undefined) {
+    const value = input.amount;
+    if (!['number', 'string'].includes(typeof value) || !/^-?\d+(?:\.\d{1,2})?$/.test(String(value)) || !Number.isFinite(Number(value)) || Number(value) < 0 || Number(value) > 10000000) return 'Valor inválido (até duas casas decimais).';
+  }
+  return null;
+}
+async function create(req, res) {
+  const error = validateExpense(req.body);
+  if (error) return res.status(400).json({ error });
   const { date, description, category, amount, payment_method, notes, invoice_ref, supplier, image, has_nif } = req.body;
   if (!date || !description || amount == null) {
     return res.status(400).json({ error: 'Data, descrição e valor são obrigatórios' });
   }
   const orgId = req.user.organization_id;
-  const receiptImage = image ? saveReceiptImage(image) : null;
-  const id = uuidv4().slice(0, 8);
+  const receiptImage = image ? await saveReceiptImage(image) : null;
+  const id = uuidv4();
 
   // O estado Com/Sem NIF pertence à fatura (nº + fornecedor): uma linha nova
   // de uma fatura já registada herda o estado das linhas existentes.
@@ -113,15 +126,20 @@ function create(req, res) {
   }
 
   db.prepare('INSERT INTO expenses (id,organization_id,date,description,category,amount,payment_method,notes,invoice_ref,supplier,receipt_image,has_nif) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-    .run(id, orgId, date, description, category || 'outro', parseFloat(amount), payment_method || 'numerário', notes || null, ref || null, sup, receiptImage, effectiveHasNif);
+    .run(id, orgId, date, description, category || 'outro', Number(amount), payment_method || 'numerário', notes || null, ref || null, sup, receiptImage, effectiveHasNif);
   res.status(201).json({ success: true, data: db.prepare('SELECT * FROM expenses WHERE id=? AND organization_id = ?').get(id, orgId), inherited_nif: inheritedNif });
 }
 
 // POST /api/expenses/scan-receipt — lê a foto do talão via IA e devolve os campos.
+const activeScans = new Set();
 async function scanReceipt(req, res, next) {
+  const orgId = req.user.organization_id;
+  if (activeScans.has(orgId)) return res.status(429).json({ error: 'Já existe um talão em processamento. Aguarde.' });
+  activeScans.add(orgId);
   try {
     const parsed = parseReceiptImage(req.body.image);
     if (!parsed) return res.status(400).json({ error: 'Imagem inválida. Envia uma foto (JPEG, PNG ou WebP).' });
+    await require('../services/imageOptimizer').validateImage(parsed.buffer);
     const data = await scanReceiptAI({ base64: parsed.base64, mediaType: parsed.mediaType });
     if (!data.items.length) {
       return res.status(422).json({ error: 'Não foram encontrados artigos no talão. Tenta uma foto mais nítida.' });
@@ -130,28 +148,30 @@ async function scanReceipt(req, res, next) {
   } catch (err) {
     if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
     next(err);
-  }
+  } finally { activeScans.delete(orgId); }
 }
 
 // POST /api/expenses/bulk — grava várias despesas de uma vez (ex.: linhas de um talão),
 // guardando a foto uma vez e associando-a a todas.
-function bulkCreate(req, res) {
+async function bulkCreate(req, res) {
   const orgId = req.user.organization_id;
   const expenses = Array.isArray(req.body.expenses) ? req.body.expenses : [];
   if (!expenses.length) return res.status(400).json({ error: 'Sem despesas para gravar.' });
   for (const e of expenses) {
+    const error = validateExpense(e || {});
+    if (error) return res.status(400).json({ error });
     if (!e.date || !e.description || e.amount == null) {
       return res.status(400).json({ error: 'Cada despesa precisa de data, descrição e valor.' });
     }
   }
-  const receiptImage = req.body.image ? saveReceiptImage(req.body.image) : null;
+  const receiptImage = req.body.image ? await saveReceiptImage(req.body.image) : null;
   const hasNif = req.body.has_nif ? 1 : 0; // uma fatura → aplica-se a todas as linhas
   const insert = db.prepare('INSERT INTO expenses (id,organization_id,date,description,category,amount,payment_method,notes,invoice_ref,supplier,receipt_image,has_nif) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
   const ids = [];
   db.transaction(() => {
     for (const e of expenses) {
-      const id = uuidv4().slice(0, 8);
-      insert.run(id, orgId, e.date, e.description, e.category || 'outro', parseFloat(e.amount),
+      const id = uuidv4();
+      insert.run(id, orgId, e.date, e.description, e.category || 'outro', Number(e.amount),
         e.payment_method || 'numerário', e.notes || null, e.invoice_ref || null,
         (e.supplier || '').trim() || null, receiptImage, e.has_nif != null ? (e.has_nif ? 1 : 0) : hasNif);
       ids.push(id);
@@ -162,20 +182,22 @@ function bulkCreate(req, res) {
 }
 
 function update(req, res) {
+  const error = validateExpense(req.body, true);
+  if (error) return res.status(400).json({ error });
   const { id } = req.params;
   const orgId = req.user.organization_id;
   const existing = db.prepare('SELECT * FROM expenses WHERE id=? AND organization_id = ?').get(id, orgId);
   if (!existing) return res.status(404).json({ error: 'Despesa não encontrada' });
 
   const { date, description, category, amount, payment_method, notes, invoice_ref, supplier, has_nif } = req.body;
-  const newInvoiceRef = invoice_ref ?? null;
+  const newInvoiceRef = invoice_ref === undefined ? existing.invoice_ref : (invoice_ref || null);
   db.prepare(`UPDATE expenses SET
     date=COALESCE(?,date), description=COALESCE(?,description), category=COALESCE(?,category),
     amount=COALESCE(?,amount), payment_method=COALESCE(?,payment_method), notes=?, invoice_ref=?, supplier=?, has_nif=?
     WHERE id=? AND organization_id = ?`).run(
     date ?? null, description ?? null, category ?? null,
-    amount !== undefined ? parseFloat(amount) : null,
-    payment_method ?? null, notes ?? null, newInvoiceRef,
+    amount !== undefined ? Number(amount) : null,
+    payment_method ?? null, notes === undefined ? existing.notes : (notes || null), newInvoiceRef,
     supplier !== undefined ? ((supplier || '').trim() || null) : existing.supplier,
     has_nif !== undefined ? (has_nif ? 1 : 0) : existing.has_nif,
     id, orgId

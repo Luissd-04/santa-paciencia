@@ -24,13 +24,13 @@ router.get('/google', requireAuth, (req, res) => {
     access_type: 'offline',
     scope: SCOPES,
     prompt: 'consent',
-    state: oauthState(req.sessionId),
+    state: oauthState(req.sessionId, 'calendar'),
   });
   res.redirect(authUrl);
 });
 
 router.get('/google/callback', oauthCallbackLimiter, requireAuth, async (req, res) => {
-  if (!verifyOAuthState(req, res)) return;
+  if (!verifyOAuthState(req, res, 'calendar')) return;
   const { code } = req.query;
   if (!code) return res.status(400).send('Código de autorização em falta.');
 
@@ -46,7 +46,7 @@ router.get('/google/callback', oauthCallbackLimiter, requireAuth, async (req, re
       <html><body style="font-family:sans-serif;text-align:center;padding:50px;">
         <h1>✅ Google Calendar ligado!</h1>
         <p>Podes fechar esta janela e voltar ao dashboard.</p>
-        <script>setTimeout(() => window.close(), 3000);</script>
+
       </body></html>
     `);
   } catch (err) {
@@ -63,14 +63,22 @@ router.delete('/google', requireAuth, async (req, res) => {
   const { id: userId, organization_id: organizationId } = req.user;
   let removed = 0;
   if (isAuthenticated(userId, organizationId)) {
+    let result;
     try {
-      removed = await deleteAllSyncedEvents(userId, organizationId);
+      result = await deleteAllSyncedEvents(userId, organizationId);
     } catch (err) {
       console.error('Erro ao limpar eventos antes de desligar o Google Calendar:', { type: err.name, status: err.status || err.response?.status });
+      result = { deleted: 0, failed: 1 };
+    }
+    removed = result.deleted;
+    // Sem a ligação não seria possível voltar a tentar: mantém-se até limpar tudo.
+    if (result.failed) {
+      return res.status(502).json({ success: false, error: `${result.failed} evento(s) não foram removidos do Google Calendar. A ligação foi mantida; tente desligar de novo mais tarde.` });
     }
     await revokeTokens(userId, organizationId);
   }
   deleteTokens(userId, organizationId);
+  require('../services/auditLog').recordAudit({ organizationId, userId, action: 'integration.calendar_disconnected', meta: { events_removed: removed } });
   res.json({ success: true, message: `Google Calendar desligado (${removed} eventos removidos)` });
 });
 
@@ -84,13 +92,13 @@ router.get('/google-email', requireAuth, requireRole('manager'), (req, res) => {
     access_type: 'offline',
     scope: GMAIL_SCOPES,
     prompt: 'consent',
-    state: oauthState(req.sessionId),
+    state: oauthState(req.sessionId, 'email'),
   });
   res.redirect(authUrl);
 });
 
 router.get('/google-email/callback', oauthCallbackLimiter, requireAuth, requireRole('manager'), async (req, res) => {
-  if (!verifyOAuthState(req, res)) return;
+  if (!verifyOAuthState(req, res, 'email')) return;
   const { code } = req.query;
   if (!code) return res.status(400).send('Código de autorização em falta.');
   try {
@@ -125,7 +133,7 @@ router.get('/google-email/callback', oauthCallbackLimiter, requireAuth, requireR
         <h1>✅ Gmail ligado!</h1>
         <p>${email ? `A enviar emails como <strong>${escapeHtml(email)}</strong>.` : ''}</p>
         <p>Podes fechar esta janela e voltar ao dashboard.</p>
-        <script>setTimeout(() => window.close(), 3000);</script>
+
       </body></html>
     `);
   } catch (err) {
@@ -141,6 +149,7 @@ router.get('/google-email/status', requireAuth, requireRole('manager'), (req, re
 
 router.delete('/google-email', requireAuth, requireRole('manager'), (req, res) => {
   deleteEmailTokens(req.user.organization_id);
+  require('../services/auditLog').recordAudit({ organizationId: req.user.organization_id, userId: req.user.id, action: 'integration.gmail_disconnected' });
   res.json({ success: true, message: 'Gmail desligado' });
 });
 
@@ -183,13 +192,13 @@ router.get('/google-tasks', requireAuth, requireRole('manager'), (req, res) => {
     access_type: 'offline',
     scope: TASKS_SCOPES,
     prompt: 'consent',
-    state: oauthState(req.sessionId),
+    state: oauthState(req.sessionId, 'tasks'),
   });
   res.redirect(authUrl);
 });
 
 router.get('/google-tasks/callback', oauthCallbackLimiter, requireAuth, requireRole('manager'), async (req, res) => {
-  if (!verifyOAuthState(req, res)) return;
+  if (!verifyOAuthState(req, res, 'tasks')) return;
   const { code } = req.query;
   if (!code) return res.status(400).send('Código de autorização em falta.');
   try {
@@ -223,7 +232,7 @@ router.get('/google-tasks/callback', oauthCallbackLimiter, requireAuth, requireR
         <h1>✅ Google Tasks ligado!</h1>
         <p>${email ? `Conta: <strong>${email}</strong>` : ''}</p>
         <p>Podes fechar esta janela e voltar ao dashboard.</p>
-        <script>setTimeout(() => window.close(), 3000);</script>
+
       </body></html>
     `);
   } catch (err) {
@@ -240,6 +249,7 @@ router.get('/google-tasks/status', requireAuth, requireRole('manager'), (req, re
 router.delete('/google-tasks', requireAuth, requireRole('manager'), async (req, res) => {
   try {
     const removed = await disconnectTasks(req.user.organization_id);
+    require('../services/auditLog').recordAudit({ organizationId: req.user.organization_id, userId: req.user.id, action: 'integration.tasks_disconnected', meta: { tasks_removed: removed } });
     res.json({ success: true, message: `Google Tasks desligado (${removed} tarefas removidas)` });
   } catch (err) {
     console.error('Erro ao desligar Google Tasks:', { type: err.name, status: err.status || err.response?.status });

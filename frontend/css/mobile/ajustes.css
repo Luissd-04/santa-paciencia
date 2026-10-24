@@ -6,7 +6,7 @@
 .precos-sheet-header { display: none; }
 .precos-sheet-backdrop { display: none; }
 
-@media (max-width: 600px) {
+@media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {
   .precos-cal-layout {
     flex-direction: column;
   }
@@ -36,18 +36,20 @@
     left: 0;
     right: 0;
     bottom: 0;
-    width: auto;
+    width: auto !important;
     z-index: 220;
     border-radius: 20px 20px 0 0;
     box-shadow: 0 -10px 30px rgba(42, 24, 16, 0.2);
     max-height: 80vh;
     overflow-y: auto;
+    visibility: hidden;
     transform: translateY(100%);
-    transition: transform 280ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform var(--motion-overlay) cubic-bezier(0.4, 0, 0.2, 1);
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
 
   #precos-side-panel.precos-sheet-open {
+    visibility: visible;
     transform: translateY(0);
   }
 
@@ -176,5 +178,38 @@
     display: block;
     width: 34px;
     height: 34px;
+  }
+}
+
+/* Mobile audit: keep scrolling, touch controls and overlays predictable. */
+body.modal-open { overflow: hidden; }
+body.modal-open .main { overflow: hidden; }
+body:not(.auth-ready) .bottom-nav-bar,
+body:not(.auth-ready) #mobile-fab { display: none !important; }
+.aloj-tabs { min-width: 0; max-width: 100%; overflow-x: auto; }
+.aloj-tabs .aloj-tab { flex-shrink: 0; }
+.view-loading { min-height: 200px; padding: 24px; color: var(--text-muted); }
+.view-loading-bar { height: 24px; margin: 16px 0; border-radius: 8px; background: var(--surface-muted); }
+.view-loading-bar:last-child { width: 65%; }
+.field-error { color: #a12c23; font-size: 14px; margin-top: 6px; }
+[aria-invalid="true"] { border-color: #a12c23 !important; }
+@media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {
+  .despesas-filter-panel .despesas-search-box { flex: 0 0 auto; width: 100%; }
+  .despesas-filter-panel > .app-select { flex: 0 0 auto; width: 100% !important; }
+  .despesas-filter-panel .m-sheet-header { flex-shrink: 0; }
+  .despesas-filter-panel-actions { padding-bottom: env(safe-area-inset-bottom, 0px); flex-shrink: 0; }
+  #view-alojamento-detalhe .btn, #view-alojamento-detalhe .form-control,
+  #precos-calendar-widget .btn, .cll-pill { min-height: 44px; }
+  #view-alojamento-detalhe input, #view-alojamento-detalhe select,
+  #view-alojamento-detalhe textarea, .despesas-filter-panel input { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
+    transition-delay: 0s !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
   }
 }

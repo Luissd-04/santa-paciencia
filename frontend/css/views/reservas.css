@@ -245,6 +245,8 @@
 .rdv2-card { display: contents; }
 .rdv2-mobile-only,
 .rdv2-info-field.rdv2-mobile-only { display: none; }
+.rdv2-header-actions { display: flex; align-items: center; gap: 8px; }
+.rdv2-actions-menu { display: none; }
 .rdv2-quick-edit {
   display: inline-flex;
   align-items: center;
@@ -260,6 +262,7 @@
   transition: opacity .15s;
 }
 .rdv2-quick-edit:hover { opacity: .85; }
+.rdv2-quick-edit.rdv2-more-actions { display: none; }
 .rdv2-quick-edit:focus-visible {
   outline: 2px solid var(--text-main);
   outline-offset: 3px;
@@ -1065,6 +1068,20 @@
   letter-spacing: .5px;
   color: var(--cinza);
 }
+
+/* Total do servidor: voucher aplicado, deixa de valer ou total por confirmar */
+.resf-voucher-line {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  background: #f0faf4;
+  color: #2d6a4f;
+}
+.resf-voucher-line[data-tone="warn"] { background: #fdf3e2; color: #8a5a00; }
+.resf-voucher-line[hidden] { display: none; }
+#f-total-manual.is-pending { opacity: .55; }
 
 /* ── Discount row (form + panel shared) ── */
 .resf-discount-row,

@@ -198,7 +198,7 @@ function renderNotifDropdown() {
     'log-in': 'log-in', 'log-out': 'log-out',
     'calendar-clock': 'calendar-clock', 'circle-alert': 'circle-alert', 'clock': 'clock',
     'sparkles': 'sparkles', 'bell-plus': 'bell-plus',
-    'download': 'download',
+    'download': 'download', 'mail': 'mail',
   };
   const priorityClass = { high: 'notif-high', medium: 'notif-medium', low: 'notif-low' };
 
@@ -248,7 +248,7 @@ function renderNotificationsPage() {
     'log-in': 'log-in', 'log-out': 'log-out',
     'calendar-clock': 'calendar-clock', 'circle-alert': 'circle-alert', 'clock': 'clock',
     'sparkles': 'sparkles', 'bell-plus': 'bell-plus',
-    'download': 'download',
+    'download': 'download', 'mail': 'mail',
   };
 
   list.innerHTML = _notifications.map(n => `
@@ -265,6 +265,18 @@ function renderNotificationsPage() {
           </button>
           <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "notifications-refuse-export-reminder-e3d92d6", [String((n.export_key) ?? '')])}>
             <i data-lucide="x"></i> Recusar
+          </button>
+        </span>
+      ` : n.type === 'email_review' ? `
+        <span class="notifications-page-actions">
+          <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "notifications-resolve-email-sent-7d2a1c4", [String(n.reservation_id ?? ''), String(n.template_slug ?? '')])}>
+            <i data-lucide="check"></i> Já foi entregue
+          </button>
+          <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "notifications-resolve-email-retry-9b3e5f0", [String(n.reservation_id ?? ''), String(n.template_slug ?? '')])}>
+            <i data-lucide="rotate-ccw"></i> Enviar de novo
+          </button>
+          <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "notifications-notif-go-to-0365e4e", [String((n.reservation_id) ?? '')])}>
+            <i data-lucide="chevron-right"></i> Ver
           </button>
         </span>
       ` : `
@@ -317,7 +329,7 @@ async function saveAutoTaskSettings() {
 }
 
 function openManualNotificationModal() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = window.ReservationDates.localIso();
   document.getElementById('manual-notification-title').value = '';
   document.getElementById('manual-notification-date').value = today;
   document.getElementById('manual-notification-time').value = '';
@@ -362,6 +374,22 @@ async function saveManualNotification() {
   }
 }
 
+// Envio incerto: só a equipa, depois de verificar a pasta Enviados do Gmail,
+// sabe se a mensagem chegou. Repetir sem verificar pode duplicá-la.
+async function resolveEmailDelivery(reservationId, templateSlug, resolution) {
+  const question = resolution === 'sent'
+    ? 'Confirmou no Gmail (pasta Enviados) que esta mensagem foi entregue? Fica registada como enviada e não será repetida.'
+    : 'Confirmou no Gmail que esta mensagem NÃO foi enviada? Será feita uma nova tentativa na próxima passagem do envio automático.';
+  if (!reservationId || !templateSlug || !confirm(question)) return;
+  try {
+    await AppModules.core.apiPost(`/api/reservations/${encodeURIComponent(reservationId)}/email-deliveries/resolve`, { template_slug: templateSlug, resolution });
+    AppModules.core.toast(resolution === 'sent' ? '✅ Envio registado como entregue.' : '✅ Nova tentativa autorizada.', 'success');
+    await loadNotifications();
+  } catch (err) {
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Não foi possível resolver o envio.'), 'error');
+  }
+}
+
 function startNotifPolling() {
   loadNotifications();
   clearInterval(_notifTimer);
@@ -389,6 +417,8 @@ AppActions.register({
   "notifications-notif-go-to-0365e4e": (el, event, args) => { notifGoTo(args[0]) },
   "notifications-approve-export-reminder-5611f49": (el, event, args) => { approveExportReminder(args[0]) },
   "notifications-refuse-export-reminder-e3d92d6": (el, event, args) => { refuseExportReminder(args[0]) },
+  "notifications-resolve-email-sent-7d2a1c4": (el, event, args) => { resolveEmailDelivery(args[0], args[1], 'sent') },
+  "notifications-resolve-email-retry-9b3e5f0": (el, event, args) => { resolveEmailDelivery(args[0], args[1], 'retry') },
 }, "click");
 
 // Limpeza da funcionalidade ao sair ou trocar de organização.

@@ -24,9 +24,7 @@ async function applyVoucher() {
   try {
     const res = await AppModules.booking.api(`/api/public/booking/${AppModules.booking.state.slug}/voucher?code=${encodeURIComponent(code)}`);
     AppModules.booking._voucherData = res.data;
-    const disc = AppModules.booking._voucherData.type === 'discount_pct'
-      ? `${AppModules.booking._voucherData.value}% de desconto`
-      : `€${Number(AppModules.booking._voucherData.value).toFixed(2)} de desconto`;
+    const disc = window.ReservationPricing.voucherLabel(AppModules.booking._voucherData);
     statusEl.style.background = '#f0faf4';
     statusEl.style.color = '#2d6a4f';
     statusEl.textContent = `✓ ${AppModules.booking._voucherData.description ? AppModules.booking._voucherData.description + ' · ' : ''}${disc}`;

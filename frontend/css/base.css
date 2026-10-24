@@ -1,4 +1,8 @@
 :root {
+  --motion-press: 120ms;
+  --motion-view: 220ms;
+  --motion-drawer: 260ms;
+  --motion-overlay: 280ms;
   --brand-shell: #843424;
   --surface-app: #f3ede4;
   --surface-panel: rgba(255, 255, 255, 0.78);
@@ -39,7 +43,7 @@ body.auth-ready::before {
   z-index: 0;
 }
 
-.layout,
+.layout { position: relative; }
 .auth-container {
   position: relative;
   z-index: 1;

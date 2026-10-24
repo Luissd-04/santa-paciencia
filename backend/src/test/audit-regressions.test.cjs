@@ -423,7 +423,7 @@ async function main() {
   await check('S12: rascunhos são isolados por conta', () => {
     const storage = new Map();
     const values = { 'f-doc-num': { value: 'SYNTHETIC-DOCUMENT' }, 'f-nif': { value: 'SYNTHETIC-NIF' } };
-    const context = vm.createContext({ window: {}, console, setTimeout, clearTimeout,
+    const context = vm.createContext({ window: { addEventListener() {} }, console, setTimeout, clearTimeout,
       document: { readyState: 'loading', addEventListener() {}, getElementById: id => values[id] || null,
         querySelector: () => null, querySelectorAll: () => [] },
       localStorage: { setItem: (key, value) => storage.set(key, value), getItem: key => storage.get(key), removeItem: key => storage.delete(key) },
@@ -449,6 +449,7 @@ async function main() {
     const calls = [];
     const scheduler = load('services/emailScheduler.js', { './emailService': {
       getEmailSettings: () => ({}),
+      resolveAccommodationInheritance: a => a,
       sendTemplatedEmail: async (...args) => { calls.push(args); return null; },
     } });
     process.env.EMAIL_ENABLED = 'true';
@@ -461,6 +462,7 @@ async function main() {
     db.exec("UPDATE reservations SET status='confirmada', amount_paid=100 WHERE id='scheduler-res'");
     const scheduler = load('services/emailScheduler.js', { './emailService': {
       getEmailSettings: () => ({}),
+      resolveAccommodationInheritance: a => a,
       sendTemplatedEmail: async (...args) => { calls.push(args); return delivered ? { id: 'synthetic-delivery' } : null; },
     } });
     const logCount = () => db.prepare("SELECT count(*) AS n FROM organization_email_log WHERE reservation_id='scheduler-res' AND template_slug='codigo_porta'").get().n;
@@ -474,11 +476,13 @@ async function main() {
   });
   await check('Email agendado enviado pela fila fica registado e não se repete', async () => {
     reservation('queued-scheduled', 'scheduler-unit', '[]', 200);
+    db.prepare('UPDATE reservations SET check_in=?, check_out=? WHERE id=?').run(new Date().toISOString().slice(0,10), new Date().toISOString().slice(0,10), 'queued-scheduled');
     db.prepare('INSERT INTO organization_email_queue(id,organization_id,template_slug,reservation_id) VALUES(?,?,?,?)')
       .run('queued-id', 'org-a', 'codigo_porta', 'queued-scheduled');
     let sends = 0;
     const scheduler = load('services/emailScheduler.js', { './emailService': {
       getEmailSettings: () => ({}),
+      resolveAccommodationInheritance: a => a,
       sendTemplatedEmail: async () => { sends++; return { id: 'synthetic-queued' }; },
     } });
     process.env.EMAIL_ENABLED = 'true';
@@ -537,14 +541,15 @@ async function main() {
     }, { slug: 'audit-b' }));
     assert.equal(over.statusCode, 400);
   });
-  await check('A10: remover hóspede apaga pagamentos/histórico e conserva tentativas Stripe', async () => {
+  await check('A10: remover hóspede apaga histórico e conserva reservas com pagamentos ou tentativas Stripe', async () => {
     const guests = load('controllers/guestController.js');
     db.exec(`INSERT INTO guests (id,organization_id,name,email) VALUES ('guest-purge','org-a','Purge','purge@example.invalid'),
-        ('guest-stripe','org-a','Stripe','stripe@example.invalid');
+        ('guest-stripe','org-a','Stripe','stripe@example.invalid'), ('guest-paid','org-a','Paid','paid@example.invalid');
       INSERT INTO reservations (id,organization_id,guest_id,accommodation_id,check_in,check_out,nights,num_guests,total_amount,status)
         VALUES ('res-purge','org-a','guest-purge','unit-b','2034-01-01','2034-01-02',1,1,100,'cancelada'),
-               ('res-stripe','org-a','guest-stripe','unit-b','2034-02-01','2034-02-02',1,1,100,'cancelada');
-      INSERT INTO reservation_payments (id,reservation_id,organization_id,amount) VALUES ('pay-purge','res-purge','org-a',50);
+               ('res-stripe','org-a','guest-stripe','unit-b','2034-02-01','2034-02-02',1,1,100,'cancelada'),
+               ('res-paid','org-a','guest-paid','unit-b','2034-03-01','2034-03-02',1,1,100,'cancelada');
+      INSERT INTO reservation_payments (id,reservation_id,organization_id,amount) VALUES ('pay-paid','res-paid','org-a',50);
       INSERT INTO reservation_history (id,organization_id,reservation_id,action) VALUES ('hist-purge','org-a','res-purge','created');
       INSERT INTO stripe_payment_attempts (id,reservation_id,organization_id,amount_cents,livemode,state,snapshot,request_json)
         VALUES ('attempt-purge','res-stripe','org-a',10000,0,'expired','x','{}');`);
@@ -557,6 +562,11 @@ async function main() {
     const kept = await call(guests.remove, request({}, { id: 'guest-stripe' }));
     assert.equal(kept.statusCode, 409);
     assert.equal(db.prepare("SELECT count(*) AS n FROM guests WHERE id='guest-stripe'").get().n, 1);
+    // Movimentos de pagamento são registo financeiro, mesmo numa reserva cancelada.
+    const paid = await call(guests.remove, request({}, { id: 'guest-paid' }));
+    assert.equal(paid.statusCode, 409);
+    assert.equal(db.prepare("SELECT count(*) AS n FROM reservation_payments WHERE reservation_id='res-paid'").get().n, 1);
+    assert.equal(db.prepare("SELECT count(*) AS n FROM guests WHERE id='guest-paid'").get().n, 1);
   });
   await check('A10: data de hoje usa o fuso do servidor', () => {
     assert.equal(rules.localDateIso(new Date(2026, 6, 1, 0, 30)), '2026-07-01');

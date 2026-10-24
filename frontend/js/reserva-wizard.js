@@ -3,6 +3,8 @@
 AppModules.define('reservas', {
   _cachedPricingPeriods: { get: () => _cachedPricingPeriods, set: value => { _cachedPricingPeriods = value; } },
   _editingPriceInfo: { get: () => _editingPriceInfo, set: value => { _editingPriceInfo = value; } },
+  _editingStoredTotal: { get: () => _editingStoredTotal, set: value => { _editingStoredTotal = value; } },
+  _createIntentKey: { get: () => _createIntentKey, set: value => { _createIntentKey = value; } },
   _lastExtrasTotal: { get: () => _lastExtrasTotal, set: value => { _lastExtrasTotal = value; } },
   _manualDistribWarned: { get: () => _manualDistribWarned, set: value => { _manualDistribWarned = value; } },
   _manualDistribWeights: { get: () => _manualDistribWeights, set: value => { _manualDistribWeights = value; } },
@@ -17,6 +19,7 @@ AppModules.define('reservas', {
   _wizExtraRooms: { get: () => _wizExtraRooms, set: value => { _wizExtraRooms = value; } },
   _wizHadMultiSuiteOnLoad: { get: () => _wizHadMultiSuiteOnLoad, set: value => { _wizHadMultiSuiteOnLoad = value; } },
   _wizMultiSuite: { get: () => _wizMultiSuite, set: value => { _wizMultiSuite = value; } },
+  _wizVoucherManaged: { get: () => _wizVoucherManaged, set: value => { _wizVoucherManaged = value; } },
   addDaysToIsoDate: { get: () => addDaysToIsoDate },
   buildCountrySelects: { get: () => buildCountrySelects },
   DIAL_COUNTRIES: { get: () => DIAL_COUNTRIES },
@@ -203,6 +206,9 @@ let _wizExtraRooms = [];         // quartos extra escolhidos no wizard: [{accomm
 let _wizHadMultiSuiteOnLoad = false; // reserva já era multi-suite ao abrir para edição (para poder limpar quartos extra)
 let _standardNightlyByDate = {}; // preço padrão por noite (calendário dinâmico, sem overrides)
 let _editingPriceInfo = null;    // { price_edited_at, price_edited_by_name } da reserva em edição
+let _editingStoredTotal = null;  // total gravado da reserva em edição (referência ao confirmar um novo total)
+let _wizVoucherManaged = false;  // reserva em edição com voucher cujo desconto o servidor recalcula
+let _createIntentKey = null;     // chave da criação em curso: repetir após falha de rede não duplica
 let _wizardPageMode = false;     // "Editar reserva" aberto como página completa (a partir do detalhe)
 let _returnToDetailId = null;    // reserva cujo detalhe deve ser refrescado ao guardar em modo página
 
@@ -263,7 +269,10 @@ AppModules.onReset('reserva-wizard.js', () => {
   _wizExtraRooms = [];
   _standardNightlyByDate = {};
   _editingPriceInfo = null;
+  _editingStoredTotal = null;
+  _wizVoucherManaged = false;
   _returnToDetailId = null;
+  AppModules.reservas.resetWizQuote?.();
 });
 
 })();

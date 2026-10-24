@@ -4,8 +4,8 @@ const { createCheckout, processWebhook } = require('../services/stripePayments')
 async function checkout(req, res, next) {
   try {
     // The token identifies the reservation. All monetary and guest data comes
-    // from the database; request.body is deliberately never used.
-    res.json({ success: true, data: await createCheckout(req.params.token) });
+    // from the database; only consent is accepted from request.body.
+    res.json({ success: true, data: await createCheckout(req.params.token, req.body?.consent) });
   } catch (error) {
     if (error.type?.startsWith('Stripe')) {
       console.warn(JSON.stringify({ event: 'stripe_checkout_failed', code: error.code || error.type }));
@@ -28,4 +28,14 @@ async function webhook(req, res, next) {
     res.json({ received: true });
   } catch (error) { next(error); }
 }
-module.exports = { checkout, webhook };
+async function cancel(req, res, next) {
+  try {
+    const r = require('../services/stripePayments').lookup(req.params.token);
+    if (req.body?.confirm !== true) return res.status(400).json({ success: false, error: 'Confirme o cancelamento.' });
+    const data = await require('../services/paymentPolicyAutomation').cancelByPolicy(r.id, {
+      expectedRefundCents: req.body.refundCents, key: req.body.key,
+    });
+    res.json({ success: true, data });
+  } catch (error) { next(error); }
+}
+module.exports = { checkout, webhook, cancel };

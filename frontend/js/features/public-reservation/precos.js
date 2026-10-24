@@ -6,7 +6,7 @@ AppModules.define('booking', {
 });
 
 function specialRate(unit, birthDate, index) {
-  const ci = AppModules.booking.iso(AppModules.booking.$('pb-checkin').value) || new Date().toISOString().slice(0, 10);
+  const ci = AppModules.booking.iso(AppModules.booking.$('pb-checkin').value) || window.ReservationDates.localIso();
   const age = ageAt(AppModules.booking.iso(birthDate), ci);
   if (age === null) return null;
   const included = Math.max(1, Math.min(unit.base_guests_included || 2, unit.max_guests || 2));
@@ -97,11 +97,7 @@ function recalc() {
     updateRateHints(unit);
   }
 
-  const discountAmount = AppModules.booking._voucherData ? (
-    AppModules.booking._voucherData.type === 'discount_pct'
-      ? totals.totalAmount * (AppModules.booking._voucherData.value / 100)
-      : Math.min(AppModules.booking._voucherData.value, totals.totalAmount)
-  ) : 0;
+  const discountAmount = window.ReservationPricing.voucherDiscount(AppModules.booking._voucherData, totals.totalAmount, totals.nightlyPrices);
   const finalTotal = Math.max(0, totals.totalAmount - discountAmount);
 
   AppModules.booking.$('summary-base').textContent = AppModules.booking.fmtCurrency(totals.baseAmount);

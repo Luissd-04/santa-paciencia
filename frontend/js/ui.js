@@ -271,12 +271,12 @@
     );
   }
 
-  function setOutsideInert(modal) {
+  function setOutsideInert(modal, backdrop) {
     const changed = [];
     let branch = modal;
     while (branch?.parentElement) {
       Array.from(branch.parentElement.children).forEach(sibling => {
-        if (sibling === branch || sibling.tagName === 'SCRIPT') return;
+        if (sibling === branch || sibling === backdrop || sibling.contains(backdrop) || sibling.tagName === 'SCRIPT') return;
         changed.push({ element: sibling, inert: sibling.inert });
         sibling.inert = true;
       });
@@ -298,17 +298,17 @@
     }
   }
 
-  function activateModal(modal) {
+  function activateModal(modal, backdrop) {
     if (!modal || modalState.has(modal)) return;
     prepareModal(modal);
     modal.setAttribute('aria-hidden', 'false');
     modalState.set(modal, {
       previousFocus: document.activeElement,
-      inertElements: setOutsideInert(modal),
+      inertElements: setOutsideInert(modal, backdrop),
     });
     activeModals.push(modal);
     document.body.classList.add('modal-open');
-    const focus = () => (modalFocusable(modal)[0] || modal).focus({ preventScroll: true });
+    const focus = () => { if (modalState.has(modal)) modal.focus({ preventScroll: true }); };
     if (typeof requestAnimationFrame === 'function') requestAnimationFrame(focus);
     else setTimeout(focus, 0);
   }
@@ -346,6 +346,33 @@
     deactivateModal(modal);
   }
 
+  const sheets = new Map();
+  const sheetMedia = matchMedia('(max-width: 600px), (max-height: 500px) and (orientation: landscape)');
+  function setSheetOpen(panelId, backdropId, open, openClass = 'm-sheet-open') {
+    const panel = document.getElementById(panelId);
+    const backdrop = document.getElementById(backdropId);
+    if (!panel) return;
+    open = Boolean(open && sheetMedia.matches);
+    const view = panel.closest('.view');
+    view?.classList.toggle('m-sheet-ancestor-fix', open);
+    if (open) view?.classList.remove('view-entering');
+    panel.classList.toggle(openClass, open);
+    backdrop?.classList.toggle('active', open);
+    if (open) {
+      panel.setAttribute('aria-label', panel.querySelector('.m-sheet-header, .precos-sheet-header')?.textContent.trim() || 'Filtros');
+      sheets.set(panel, { panelId, backdropId, openClass });
+      activateModal(panel, backdrop);
+    } else if (sheets.has(panel)) {
+      deactivateModal(panel);
+      ['role', 'aria-modal', 'aria-hidden', 'tabindex', 'aria-label'].forEach(name => panel.removeAttribute(name));
+      sheets.delete(panel);
+    }
+  }
+  function closeSheets() {
+    [...sheets.values()].reverse().forEach(s => setSheetOpen(s.panelId, s.backdropId, false, s.openClass));
+  }
+  sheetMedia.addEventListener('change', closeSheets);
+
   document.querySelectorAll('.modal-bg, .image-lightbox').forEach(modal => {
     prepareModal(modal);
     if (!modalIsOpen(modal)) modal.setAttribute('aria-hidden', 'true');
@@ -365,6 +392,12 @@
               else modal.setAttribute('aria-hidden', 'true');
             });
           });
+          // Diálogos criados e removidos dinamicamente (ex.: confirmações):
+          // sem isto o resto da página ficava inerte depois de os fechar.
+          record.removedNodes.forEach(node => {
+            if (node.nodeType !== 1) return;
+            activeModals.filter(modal => modal === node || node.contains(modal)).forEach(deactivateModal);
+          });
           return;
         }
         const modal = record.target.closest?.('.modal-bg, .image-lightbox');
@@ -382,6 +415,7 @@
     }
   });
   document.addEventListener('keydown', event => {
+    if (event.defaultPrevented || event.target.closest?.('.date-pop')) return;
     if (event.key === 'Tab' && activeModals.length) {
       const modal = activeModals.at(-1);
       const focusable = modalFocusable(modal);
@@ -399,8 +433,10 @@
       }
     }
     if (event.key === 'Escape') {
-      document.querySelectorAll('.app-select.is-open').forEach(closeDropdown);
-      const openModalEl = document.querySelector('.modal-bg.open, .image-lightbox.open');
+      const dropdowns = document.querySelectorAll('.app-select.is-open');
+      if (dropdowns.length) { dropdowns.forEach(closeDropdown); return; }
+      const openModalEl = activeModals.at(-1);
+      if (sheets.has(openModalEl)) { closeSheets(); return; }
       if (openModalEl) {
         // O modal de reservas gere o seu próprio fecho (confirmação + rascunho).
         if (openModalEl.id === 'modal-bg' && typeof AppModules.reservas.requestCloseReservaModal === 'function') {
@@ -426,6 +462,8 @@
   });
 
   window.AppUI = {
+    setSheetOpen,
+    closeSheets,
     setButtonLoading,
     showElement,
     hideElement,

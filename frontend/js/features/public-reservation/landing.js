@@ -19,7 +19,15 @@ async function init() {
     AppModules.booking.state.captcha = payload.data.captcha || null;
     AppModules.booking.state.onlinePayment = payload.data.online_payment_available === true;
     if (AppModules.booking.state.onlinePayment) {
-      AppModules.booking.$('pb-payment-note').textContent = 'Após criar a reserva, poderá pagar online. A reserva fica confirmada após o pagamento. Modo de teste: não são efetuadas cobranças reais.';
+      AppModules.booking.$('pb-payment-note').textContent = 'Após criar a reserva, poderá pagar online para confirmar.' + (payload.data.online_payment_test ? ' Modo de teste: não são efetuadas cobranças reais.' : '');
+    }
+    const paymentPolicy = payload.data.payment_policy;
+    if (paymentPolicy?.enabled && document.getElementById('pb-policy')) {
+      const ranges = rows => rows.map(r => `<li>${r.minDays}${r.maxDays === null ? ' ou mais' : ` a ${r.maxDays}`} dias: ${r.percent}%</li>`).join('');
+      document.getElementById('pb-policy').hidden = false;
+      document.getElementById('pb-policy-details').innerHTML = `<p>Pagamento inicial, pela antecedência da reserva:</p><ul>${ranges(paymentPolicy.depositRules)}</ul>
+        <p>O restante vence ${paymentPolicy.balanceDays} dias antes do check-in, às 12:00 de Lisboa. Dentro desse prazo, o pagamento inicial é integral. ${paymentPolicy.automaticCharge ? 'Com autorização, o cartão pode ser cobrado automaticamente.' : ''} Se for necessário pagar por link, terá ${paymentPolicy.graceHours} horas após o aviso; depois, a reserva é cancelada sem reembolso.</p>
+        <p>Reembolso do valor pago, pela antecedência ${paymentPolicy.refundBasis === 'booking' ? 'da criação da reserva' : 'do pedido de cancelamento'}:</p><ul>${ranges(paymentPolicy.refundRules)}</ul><p>Os valores e as datas exatas serão apresentados antes do pagamento.</p>`;
     }
     AppModules.booking.state.selectedUnitId = 'property';
     renderLanding();

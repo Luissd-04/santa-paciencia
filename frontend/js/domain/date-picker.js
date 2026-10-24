@@ -91,11 +91,19 @@
     render();
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onResize);
+    window.visualViewport?.addEventListener('resize', onResize);
+    window.visualViewport?.addEventListener('scroll', onResize);
+    document.addEventListener('animationend', onResize, true);
+    document.addEventListener('transitionend', onResize, true);
   }
 
   function hardClose() {
     window.removeEventListener('scroll', onScroll, true);
     window.removeEventListener('resize', onResize);
+    window.visualViewport?.removeEventListener('resize', onResize);
+    window.visualViewport?.removeEventListener('scroll', onResize);
+    document.removeEventListener('animationend', onResize, true);
+    document.removeEventListener('transitionend', onResize, true);
     document.querySelectorAll('.date-pop').forEach(el => el.remove());
   }
   function close() {
@@ -321,7 +329,7 @@
 
   // ---------------------------------------------------------------- keyboard
   function onKey(e) {
-    if (e.key === 'Escape') { const i = close(); i && i.focus && i.focus(); return; }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); const i = close(); i && i.focus && i.focus(); return; }
     if (e.key === 'Tab') return trapTab(e);
     if (cur.view !== 'days') return;
 
@@ -377,12 +385,17 @@
     const pop = cur.pop, input = cur.input;
     if (!pop || !input) return;
     const r = input.getBoundingClientRect();
+    const viewport = window.visualViewport;
+    const x = viewport?.offsetLeft || 0, y = viewport?.offsetTop || 0;
+    const width = viewport?.width || window.innerWidth, height = viewport?.height || window.innerHeight;
+    pop.style.maxHeight = Math.max(44, height - 16) + 'px';
+    pop.style.maxWidth = Math.max(44, width - 16) + 'px';
+    pop.style.overflowY = 'auto';
     const pw = pop.offsetWidth, ph = pop.offsetHeight;
-    const left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8));
     let top = r.bottom + 8;
-    if (top + ph > window.innerHeight && r.top - ph - 8 > 8) top = r.top - ph - 8;
-    pop.style.left = left + 'px';
-    pop.style.top = Math.max(8, top) + 'px';
+    if (top + ph > y + height - 8 && r.top - ph - 8 >= y + 8) top = r.top - ph - 8;
+    pop.style.left = Math.max(x + 8, Math.min(r.left, x + width - pw - 8)) + 'px';
+    pop.style.top = Math.max(y + 8, Math.min(top, y + height - ph - 8)) + 'px';
   }
 
   // ---------------------------------------------------------------- attach

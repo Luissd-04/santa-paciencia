@@ -131,7 +131,10 @@
       <!-- Histórico de reservas do hóspede -->
       <div id="gedit-reservas-historico" style="margin-top:24px;"></div>
 
-      <div style="display:flex;justify-content:flex-end;margin-top:24px;border-top:1px solid var(--borda);padding-top:16px;">
+      <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:24px;border-top:1px solid var(--borda);padding-top:16px;">
+        <button class="btn btn-ghost btn-sm" id="gedit-anonymize-btn" hidden>
+          <i data-lucide="user-x" style="width:13px;height:13px;"></i> Anonimizar dados
+        </button>
         <button class="btn btn-danger btn-sm" id="gedit-delete-btn">
           <i data-lucide="trash-2" style="width:13px;height:13px;"></i> Remover hóspede
         </button>

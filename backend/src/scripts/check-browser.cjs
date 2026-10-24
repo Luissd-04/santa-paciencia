@@ -9,8 +9,21 @@ const previous = process.cwd();
 process.chdir(temp);
 process.env.DB_PATH = ':memory:';
 process.env.NODE_ENV = 'test';
-process.env.EMAIL_ENABLED = 'false';
+// Gmail simulado: sem ligação, a API responde (corretamente) «não enviado»
+// (V1-07). O envio manual precisa de um transporte para validar a composição.
+process.env.EMAIL_ENABLED = 'true';
+delete process.env.TOKEN_ENCRYPTION_KEY;
 process.env.FRONTEND_PATH = path.resolve(__dirname, '../../../frontend');
+const { OAuth2Client } = require('google-auth-library');
+let syntheticGmailSends = 0;
+OAuth2Client.prototype.request = async function (request) {
+  if (request.method === 'POST' && String(request.url).endsWith('/messages/send')) {
+    syntheticGmailSends++;
+    return { data: { id: `synthetic-gmail-${syntheticGmailSends}`, threadId: 'synthetic-thread' } };
+  }
+  if (String(request.url).includes('gmail.googleapis.com')) return { data: { messages: [], payload: { headers: [] } } };
+  throw new Error('Pedido externo não previsto pelo teste de browser');
+};
 const app = require('../app');
 const { db } = require('../config/database');
 const auth = require('../services/authService');
@@ -18,14 +31,15 @@ const orgs = require('../services/orgService');
 let server, browser;
 async function main() {
   const org = orgs.createOrganization('Interface Sintética');
+  require('../config/googleEmail').saveEmailTokens(org.id, { access_token: 'synthetic-only' }, 'sender@example.invalid');
   const user = auth.createUser({ name: 'Teste', email: 'browser@example.invalid', password: 'SyntheticBrowser123!' });
   orgs.createMembership({ organizationId: org.id, userId: user.id, role: 'owner' });
   const otherOrg = orgs.createOrganization('Outro espaço sintético');
   orgs.createMembership({ organizationId: otherOrg.id, userId: user.id, role: 'owner' });
   const session = auth.createSession(user.id, org.id).sessionId;
   db.prepare('INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests) VALUES(?,?,?,?,?,?)').run('unit', org.id, 'Unidade de teste', 'alojamento', 100, 4);
-  const today = new Date().toISOString().slice(0, 10);
-  const departure = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+  const today = require('../services/reservationRules').localDateIso();
+  const departure = require('../services/reservationRules').localDateIso(new Date(), 2);
   const insertGuest = db.prepare('INSERT INTO guests(id,organization_id,name,email) VALUES(?,?,?,?)');
   const insertRes = db.prepare(`INSERT INTO reservations(id,organization_id,guest_id,accommodation_id,check_in,check_out,nights,num_guests,total_amount,status)
     VALUES(?,?,?,'unit',?,?,2,1,200,'confirmada')`);
@@ -224,7 +238,7 @@ async function main() {
   await expect(deepPage.locator('#view-reservas')).toHaveClass(/active/);
   await expect(deepPage.locator('#reserva-detail-page')).toBeVisible();
   await expect(deepPage.locator('#reserva-detail-page')).toContainText('Hóspede 001');
-  await expect(deepPage.getByText('Abrir pagamento online', { exact: true })).toBeVisible();
+  await expect(deepPage.getByText('Abrir pagamento online', { exact: true }).filter({ visible: true })).toBeVisible();
   assert.deepEqual(deepErrors, []);
   await deepPage.close();
   console.log('OK: ligação direta a uma reserva abre a ficha com o módulo carregado.');

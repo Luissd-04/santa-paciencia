@@ -26,11 +26,36 @@
 
   .rdv2-header {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) 44px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 14px 10px;
     margin-bottom: 14px;
   }
   .rdv2-header > .btn { padding: 8px 12px; border-radius: 24px; }
+  .rdv2-quick-edit.rdv2-more-actions {
+    display: inline-flex;
+    background: var(--surface-card-strong);
+    border-color: var(--border-soft);
+    color: var(--text-main);
+  }
+  .rdv2-actions-menu:popover-open {
+    display: block;
+    position: fixed;
+    inset: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) auto auto;
+    width: min(340px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    box-sizing: border-box;
+    margin: 0;
+    padding: 14px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--border-soft);
+    border-radius: 16px;
+    background: var(--branco);
+    color: var(--text-main);
+    box-shadow: var(--shadow-card);
+  }
+  .rdv2-actions-menu-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .rdv2-actions-menu-heading .rdv2-widget-title { margin: 0; }
   .rdv2-title-area { min-width: 0; flex-direction: column; align-items: flex-start; gap: 3px; }
   .rdv2-subtitle { font-size: 18px; line-height: 1.2; }
   .rdv2-id-pill { max-width: 100%; padding: 0; border: 0; border-radius: 0; background: none; font-size: 12px; font-weight: 400; letter-spacing: 0; }

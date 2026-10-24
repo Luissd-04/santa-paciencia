@@ -127,6 +127,21 @@ async function openGuestEdit(id) {
       if (!AppModules.hospedes.hospedes.find(h => h.id === g.id)) AppModules.core.showView('hospedes');
     };
 
+    // Staff consulta a ficha mas não a altera (o servidor recusa a gravação).
+    const canEdit = ['owner', 'manager'].includes(AppModules.core.currentUser?.role);
+    const view = document.getElementById('view-hospede-detalhe');
+    view?.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = !canEdit; });
+    ['btn-guardar-hospede', 'gedit-delete-btn'].forEach(id => {
+      const button = document.getElementById(id);
+      if (button) button.hidden = !canEdit;
+    });
+    // Anonimizar: só o proprietário (irreversível); para quem não pode ser apagado.
+    const anonBtn = document.getElementById('gedit-anonymize-btn');
+    if (anonBtn) {
+      anonBtn.hidden = AppModules.core.currentUser?.role !== 'owner' || !!g.anonymized_at;
+      anonBtn.onclick = () => anonymizeGuest(g.id);
+    }
+
     // Página completa em vez de modal
     AppModules.core.showView('hospede-detalhe');
     if (window.lucide) lucide.createIcons();
@@ -151,6 +166,28 @@ async function deleteGuest(id, name) {
   } catch (e) {
     const msg = e?.payload?.error || e?.message || 'Erro de ligação ao servidor.';
     AppModules.core.toast('❌ ' + msg, 'error');
+  }
+}
+
+// Pré-visualização obrigatória: mostra o que muda e o que fica antes de aplicar.
+async function anonymizeGuest(id) {
+  try {
+    const { data } = await AppModules.core.apiGet(`/api/guests/${encodeURIComponent(id)}/anonymization`);
+    if (data.blockers?.length) { AppModules.core.toast('❌ ' + data.blockers.join(' '), 'error'); return; }
+    const lines = [
+      `Reservas afetadas: ${data.reservations} (${data.with_payments} com pagamentos)`,
+      `Acompanhantes anonimizados: ${data.companions_anonymized}${data.companions_kept ? ` · mantidos (noutras reservas): ${data.companions_kept}` : ''}`,
+      `Mensagens enviadas cujo conteúdo é removido: ${data.messages}`,
+      `Removidos: nome, contactos, documentos, morada, NIF, notas das reservas e ligações públicas.`,
+      `Mantidos: ${data.kept.join(', ')}.`,
+    ];
+    if (!confirm(`Anonimizar este hóspede?\n\n${lines.join('\n')}\n\nEsta ação não pode ser desfeita.`)) return;
+    await AppModules.core.apiPost(`/api/guests/${encodeURIComponent(id)}/anonymize`, { expected_reservations: data.reservations });
+    AppModules.core.toast('✅ Dados pessoais anonimizados. Registos financeiros mantidos.', 'success');
+    await AppModules.hospedes.loadHospedes();
+    AppModules.core.showView('hospedes');
+  } catch (e) {
+    AppModules.core.toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
   }
 }
 

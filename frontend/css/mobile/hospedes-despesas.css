@@ -148,6 +148,8 @@
   .despesas-filter-panel.m-sheet {
     display: flex;
     flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
     gap: 12px;
     padding: 16px;
     margin: 0;
@@ -307,10 +309,10 @@
   }
 
   .mec-actions .m-card-btn {
-    flex: 0 0 32px;
-    width: 32px;
-    height: 32px;
-    min-height: 32px;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
     padding: 0;
     border-radius: 9px;
     color: var(--text-muted);

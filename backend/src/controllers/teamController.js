@@ -3,6 +3,7 @@ const { sendMail } = require('../services/emailService');
 const { buildInvitationUrl, createInvitation, ensureRole, listInvitations, listMembers } = require('../services/orgService');
 const { getUserByEmail, isValidEmail } = require('../services/authService');
 const { escapeHtml } = require('../services/emailComposer');
+const { recordAudit } = require('../services/auditLog');
 
 function getOverview(req, res) {
   const organizationId = req.user.organization_id;
@@ -36,15 +37,16 @@ async function invite(req, res) {
 
   try {
     ensureRole(role);
+    if (role === 'owner') throw new Error('Convide como gestor. A transferência de propriedade requer um procedimento próprio.');
   } catch (err) {
     return res.status(400).json({ success: false, error: err.message });
   }
 
   const user = getUserByEmail(email);
-  if (user) {
+  if (user && require('../services/orgService').getMembershipByUserAndOrganization(user.id, organizationId)) {
     return res.status(409).json({
       success: false,
-      error: 'Este email já pertence a uma conta existente. Para já, usa um email novo para convite.',
+      error: 'Esta conta já pertence à equipa.',
     });
   }
 
@@ -56,6 +58,7 @@ async function invite(req, res) {
       invitedByUserId: req.user.id,
     });
     const inviteUrl = buildInvitationUrl(invitation.token);
+    recordAudit({ organizationId, userId: req.user.id, action: 'team.invited', targetType: 'invitation', targetId: invitation.id, meta: { role } });
 
     const emailResult = await sendMail(organizationId, {
       to: email,
@@ -99,6 +102,7 @@ function updateMemberRole(req, res) {
 
   try {
     ensureRole(req.body.role);
+    if (req.body.role === 'owner') throw new Error('A transferência de propriedade requer um procedimento próprio.');
   } catch (err) {
     return res.status(400).json({ success: false, error: err.message });
   }
@@ -107,6 +111,8 @@ function updateMemberRole(req, res) {
     UPDATE memberships SET role = ?, updated_at = datetime('now')
     WHERE id = ?
   `).run(req.body.role, membership.id);
+  recordAudit({ organizationId, userId: req.user.id, action: 'team.role_changed', targetType: 'user', targetId: membership.user_id,
+    meta: { from: membership.role, to: req.body.role } });
 
   res.json({ success: true });
 }
@@ -127,6 +133,7 @@ function removeMember(req, res) {
     db.prepare('DELETE FROM auth_sessions WHERE organization_id = ? AND user_id = ?').run(organizationId, membership.user_id);
     db.prepare('DELETE FROM google_calendar_connections WHERE organization_id = ? AND user_id = ?').run(organizationId, membership.user_id);
     db.prepare('DELETE FROM memberships WHERE id = ?').run(membership.id);
+    recordAudit({ organizationId, userId: req.user.id, action: 'team.member_removed', targetType: 'user', targetId: membership.user_id, meta: { role: membership.role } });
   })();
   res.json({ success: true });
 }
@@ -139,6 +146,7 @@ function removeInvitation(req, res) {
 
   if (!invitation) return res.status(404).json({ success: false, error: 'Convite não encontrado.' });
   db.prepare('DELETE FROM invitations WHERE id = ?').run(invitation.id);
+  recordAudit({ organizationId, userId: req.user.id, action: 'team.invitation_revoked', targetType: 'invitation', targetId: invitation.id, meta: { role: invitation.role } });
   res.json({ success: true });
 }
 

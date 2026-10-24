@@ -1,5 +1,5 @@
 const { db } = require('../config/database');
-const { sendTemplatedEmail, getEmailSettings } = require('./emailService');
+const { sendTemplatedEmail, getEmailSettings, resolveAccommodationInheritance } = require('./emailService');
 const crypto = require('crypto');
 const { canSendTemplate } = require('./emailEligibility');
 const { withSchedulerLease } = require('./schedulerLease');
@@ -40,7 +40,6 @@ async function runScheduler() {
       ).all(org.id);
       if (!templates.length) continue;
 
-      const settings = getEmailSettings(null, org.id);
       const reservations = db.prepare(`
         SELECT r.*, g.name as guest_name, g.email as guest_email, g.first_name,
                a.name as accommodation_name, a.wifi_name, a.wifi_password, a.door_code, a.parent_id as accommodation_parent_id,
@@ -54,6 +53,8 @@ async function runScheduler() {
 
       for (const res of reservations) {
         if (!res.guest_email) continue;
+        const effectiveAccommodation = resolveAccommodationInheritance(db.prepare('SELECT * FROM accommodations WHERE id=? AND organization_id=?').get(res.accommodation_id, org.id), org.id);
+        const settings = getEmailSettings(effectiveAccommodation, org.id);
         for (const tpl of templates) {
           ensureLease();
           // A janela aplica-se à data de referência do modelo: uma estadia longa
@@ -67,11 +68,7 @@ async function runScheduler() {
           if (already) continue;
           try {
             const guest = { name: res.guest_name, email: res.guest_email, first_name: res.first_name };
-            const accom = {
-              name: res.accommodation_name, wifi_name: res.wifi_name, wifi_password: res.wifi_password, door_code: res.door_code,
-              social_facebook: res.social_facebook, social_instagram: res.social_instagram, social_website: res.social_website, logo_url: res.logo_url,
-              parent_id: res.accommodation_parent_id, organization_id: org.id,
-            };
+            const accom = effectiveAccommodation;
             const result = await sendTemplatedEmail(tpl.slug, guest, res, accom);
             if (!result || result.queued) continue; // adiado para a janela de envio — organization_email_queue trata do reenvio
             db.prepare('INSERT OR IGNORE INTO organization_email_log (id,organization_id,template_slug,reservation_id) VALUES (?,?,?,?)')
@@ -86,7 +83,9 @@ async function runScheduler() {
 
     await flushQueuedEmails(ensureLease);
     });
+    require('./opsStatus').beat('email');
   } catch (e) {
+    require('./opsStatus').beat('email', e);
     console.warn('⚠️ Erro email scheduler:', e.message);
   } finally { running = false; }
 }
@@ -114,18 +113,21 @@ async function flushQueuedEmails(ensureLease) {
       }
 
       const guest = { name: res.guest_name, email: res.guest_email, first_name: res.first_name };
-      const accom = {
-        name: res.accommodation_name, wifi_name: res.wifi_name, wifi_password: res.wifi_password, door_code: res.door_code,
-        social_facebook: res.social_facebook, social_instagram: res.social_instagram, social_website: res.social_website, logo_url: res.logo_url,
-        parent_id: res.accommodation_parent_id, organization_id: q.organization_id,
-      };
+      const accom = resolveAccommodationInheritance(db.prepare('SELECT * FROM accommodations WHERE id=? AND organization_id=?').get(res.accommodation_id, q.organization_id), q.organization_id);
       const tpl = db.prepare('SELECT * FROM organization_email_templates WHERE organization_id=? AND slug=? AND active=1').get(q.organization_id, q.template_slug);
       if (!tpl) {
         // Modelo apagado ou desativado: a entrada nunca seria enviada.
         db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id);
         continue;
       }
-      if (!canSendTemplate(tpl, res)) continue;
+      if (tpl.slug === 'cancelamento' && res.status !== 'cancelada') { db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id); continue; }
+      if (!canSendTemplate(tpl, res)) {
+        // Deixou de ser elegível e a estadia já terminou: nunca será enviado.
+        if (res.check_out < localDateIso(new Date(), -1)) db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id);
+        continue;
+      }
+      const sendTime = getSendTime(res, tpl, getEmailSettings(accom, q.organization_id));
+      if (sendTime && sendTime > new Date()) continue;
       const scheduled = ['checkin', 'checkout'].includes(tpl.timing_event);
       if (scheduled && db.prepare('SELECT 1 FROM organization_email_log WHERE organization_id=? AND template_slug=? AND reservation_id=?')
         .get(q.organization_id, q.template_slug, q.reservation_id)) {

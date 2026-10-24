@@ -221,11 +221,13 @@ function calculateReservationTotals(accommodation, services = [], payload = {}) 
 }
 
 function getPaymentStatus(amountPaid, totalAmount, fallback = 'pendente') {
-  const paid = Number(amountPaid) || 0;
-  const total = Number(totalAmount) || 0;
+  const paid = Math.round((Number(amountPaid) || 0) * 100);
+  const total = Math.round((Number(totalAmount) || 0) * 100);
   if (paid >= total && paid > 0) return 'confirmado';
   if (paid > 0) return 'parcial';
-  return fallback || 'pendente';
+  // Nada a pagar (ex.: voucher de 100%): a reserva está liquidada.
+  if (total <= 0 && fallback !== 'reembolsado') return 'confirmado';
+  return fallback === 'reembolsado' ? 'reembolsado' : 'pendente';
 }
 
 module.exports = {

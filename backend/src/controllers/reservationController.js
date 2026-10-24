@@ -1,4 +1,4 @@
-const { deleteCalendarEvent } = require('../services/calendarService');
+const { detachReservationEvent, kickCalendarQueue } = require('../services/calendarService');
 const { sendCancellationEmail, sendPreCheckinEmail } = require('../services/emailService');
 
 const {
@@ -18,7 +18,7 @@ const { notifyOrganization } = require('../services/pushService');
 const { recordHistory } = require('../services/reservationHistoryService');
 
 const { safeJson, computeStandardTotals, getOrganizationServices, publicUrl, ensurePublicToken, ensurePrecheckinToken } = require('../services/reservationSupport');
-const { create, update } = require('./reservationWriteController');
+const { create, update, quote } = require('./reservationWriteController');
 const { getDashboardStats, getReservationTaskStatus, setTaskStatus, getHistory, getNotifications } = require('./reservationOperationsController');
 
 async function getAvailability(req, res, next) {
@@ -62,7 +62,8 @@ async function getById(req, res, next) {
 
     // Reservas antigas podem ter apenas o token do pré-check-in. A ficha de
     // backoffice precisa também do token público para abrir o pagamento.
-    ensurePublicToken(reservation);
+    if (req.user.role !== 'staff') ensurePublicToken(reservation);
+    reservation.payment_policy = require('../services/paymentPolicy').describe(reservation);
 
     reservation.payments = db.prepare(`
       SELECT * FROM reservation_payments
@@ -72,6 +73,12 @@ async function getById(req, res, next) {
 
     // Estado das tarefas de check-in/check-out (para os botões "feito" na ficha)
     reservation.task_status = getReservationTaskStatus(req.user.organization_id, reservation);
+
+    // Voucher em uso: o wizard mostra-o e deixa o servidor recalculá-lo.
+    const redemption = require('../services/voucherService').activeRedemption(req.user.organization_id, reservation.id);
+    reservation.voucher = redemption
+      ? { code: redemption.code, type: redemption.type, value: Number(redemption.value), discount_amount: redemption.discount_amount }
+      : null;
 
     // Total padrão do calendário dinâmico (referência para desconto/acréscimo na ficha)
     try {
@@ -108,6 +115,13 @@ async function cancel(req, res, next) {
     const organizationId = req.user.organization_id;
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+    // Repetir o pedido (duplo clique, resposta perdida) não volta a avisar o hóspede.
+    if (reservation.status === 'cancelada') return res.json({ success: true, message: 'A reserva já estava cancelada.' });
+    if (reservation.payment_policy_json) {
+      const automation = require('../services/paymentPolicyAutomation');
+      await automation.cancelByPolicy(reservation.id, { reason: 'staff', userId: req.user.id, key: req.body?.key, expectedRefundCents: req.body?.refundCents });
+      return res.json({ success: true, message: 'Reserva cancelada segundo a política guardada.' });
+    }
     await require('../services/stripePayments').closeOpenCheckout(reservation.id);
     db.transaction(() => {
       require('../services/stripePaymentGuards').assertNoActiveCheckout(reservation.id);
@@ -119,15 +133,14 @@ async function cancel(req, res, next) {
         updated_at = datetime('now')
       WHERE id = ? AND organization_id = ?
       `).run(req.params.id, organizationId);
+      require('../services/voucherService').releaseVoucherIfUnpaid(organizationId, reservation.id);
+      detachReservationEvent(organizationId, reservation.id);
     }).immediate();
     recordHistory({ organizationId, reservationId: req.params.id, userId: req.user.id, action: 'cancelled' });
     syncReservationOperationalTasks({ ...reservation, status: 'cancelada' }, req.user.id);
 
-    // Remover do Google Calendar
-    deleteCalendarEvent(reservation, {
-      userId: reservation.google_calendar_user_id || req.user.id,
-      organizationId
-    });
+    // Remover do Google Calendar (pedido gravado na transação acima)
+    kickCalendarQueue(organizationId);
 
     // Email de cancelamento
     const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(reservation.guest_id, organizationId);
@@ -165,7 +178,11 @@ async function hardDelete(req, res, next) {
       return res.status(409).json({ error: 'Só é possível apagar reservas já canceladas. Cancela primeiro.' });
     }
 
-    db.transaction(() => purgeReservations(organizationId, [reservation.id]))();
+    db.transaction(() => {
+      purgeReservations(organizationId, [reservation.id]);
+      require('../services/auditLog').recordAudit({ organizationId, userId: req.user.id, action: 'reservation.deleted', targetType: 'reservation', targetId: reservation.id,
+        meta: { check_in: reservation.check_in, check_out: reservation.check_out, total_amount: reservation.total_amount } });
+    })();
 
     const cleanup = await flushReservationTaskCleanup(organizationId);
     const message = cleanup.pending
@@ -188,6 +205,9 @@ async function approve(req, res, next) {
     `).get(req.params.id, organizationId);
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
     if (reservation.status === 'cancelada') return res.status(400).json({ error: 'Reserva cancelada não pode ser aprovada.' });
+    // Aprovar é o passo do pedido para o pré-check-in; nunca faz recuar uma
+    // estadia em curso ou terminada.
+    if (['check_in', 'check_out'].includes(reservation.status)) return res.status(409).json({ error: 'A estadia já começou; a reserva não pode voltar ao pré-check-in.' });
 
     ensurePublicToken(reservation);
     const precheckinToken = ensurePrecheckinToken(reservation);
@@ -234,10 +254,10 @@ async function sendPrecheckinLink(req, res, next) {
     const shouldSend = req.body?.send !== false;
     let emailSent = false;
     if (shouldSend) {
-      if (guest.email) {
+      if (require('../services/emailAddress').isDeliverableEmail(guest.email)) {
         try {
           const delivery = await sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl);
-          emailSent = Boolean(delivery);
+          emailSent = Boolean(delivery?.id);
         } catch (err) {
           console.warn('Email de pre-check-in não enviado:', err.message);
         }
@@ -265,5 +285,23 @@ async function sendPrecheckinLink(req, res, next) {
   }
 }
 
+// POST /api/reservations/:id/email-deliveries/resolve — depois de confirmar no
+// Gmail, a equipa marca um envio incerto como entregue ou autoriza repeti-lo.
+async function resolveEmailDelivery(req, res, next) {
+  try {
+    const organizationId = req.user.organization_id;
+    const reservation = db.prepare('SELECT id FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+    const slug = String(req.body?.template_slug || '');
+    if (!/^[a-z0-9_-]{1,80}$/i.test(slug)) return res.status(400).json({ error: 'Modelo inválido.' });
+    const resolved = require('../services/emailDelivery').resolveDelivery(organizationId, reservation.id, slug, req.body?.resolution);
+    recordHistory({ organizationId, reservationId: reservation.id, userId: req.user.id, action: 'email_delivery_resolved',
+      meta: { template_slug: slug, resolution: req.body.resolution } });
+    res.json({ success: true, data: { resolved } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /api/reservations/stats/dashboard
-module.exports = { getAll, getById, create, update, approve, sendPrecheckinLink, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, addPayment, deletePayment, saveInvoice, setTaskStatus, getHistory };
+module.exports = { resolveEmailDelivery, getAll, getById, create, update, quote, approve, sendPrecheckinLink, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, addPayment, deletePayment, saveInvoice, setTaskStatus, getHistory };

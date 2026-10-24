@@ -455,7 +455,11 @@ async function downloadStatementXls() {
 function downloadStatementCsv(resId) {
   const { r, payments } = statementData || {};
   if (!r) return;
-  const esc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const esc = v => {
+    let text = String(v ?? '');
+    if (/^[\s\u0000-\u001f]*[=+@-]/.test(text)) text = "'" + text;
+    return `"${text.replace(/"/g, '""')}"`;
+  };
   const lines = [
     ['Reserva', 'Hóspede', 'Check-in', 'Check-out', 'Noites', 'Total'].map(esc).join(','),
     [r.id, r.guest_name, r.check_in, r.check_out, r.nights, Number(r.total_amount).toFixed(2)].map(esc).join(','),

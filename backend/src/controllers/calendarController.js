@@ -1,7 +1,7 @@
 const { isAuthenticated } = require('../config/google');
 const { db } = require('../config/database');
 const { localDateIso } = require('../services/reservationRules');
-const { createCalendarEvent, updateCalendarEvent, cleanDuplicateAppEvents, syncOperationalEventsToGoogle,
+const { queueCalendarUpsert, processCalendarQueue, calendarQueueStatus, cleanDuplicateAppEvents, syncOperationalEventsToGoogle,
         ensureAllAccommodationCalendars } = require('../services/calendarService');
 
 const GCAL_SYNC_CALENDAR_KEY = 'gcal_sync_calendar';
@@ -48,10 +48,8 @@ function getStatus(req, res) {
     WHERE organization_id = ? AND google_calendar_user_id = ? AND google_event_id IS NOT NULL AND status != 'cancelada'
   `).get(orgId, req.user.id);
 
-  const removed = db.prepare(`
-    SELECT COUNT(*) as count FROM reservations
-    WHERE organization_id = ? AND google_calendar_user_id = ? AND status = 'cancelada' AND google_event_id IS NOT NULL
-  `).get(orgId, req.user.id);
+  // Remoções pedidas (reservas canceladas/apagadas) que o Google ainda não confirmou.
+  const queue = calendarQueueStatus(orgId);
 
   const total = db.prepare(`
     SELECT COUNT(*) as count FROM reservations WHERE organization_id = ? AND status != 'cancelada'
@@ -70,7 +68,8 @@ function getStatus(req, res) {
     data: {
       connected,
       inCalendar: inCalendar.count,
-      removed: removed.count,
+      removed: queue.deletions || 0,
+      queue: { pending: queue.pending || 0, failing: queue.failing || 0, oldest: queue.oldest || null },
       total: total.count,
       lastSync: connected ? new Date().toISOString() : null,
       syncCalendar,
@@ -104,26 +103,21 @@ async function syncAll(req, res) {
 
   let created = 0, updated = 0, skipped = 0, errors = 0;
 
-  for (const r of reservations) {
-    try {
-      if (r.google_event_id && r.google_calendar_user_id === req.user.id) {
-        const result = await updateCalendarEvent(r, { userId: req.user.id, organizationId: orgId });
-        if (result === 'recreated') created++; else updated++;
-      } else if (r.google_event_id && r.google_calendar_user_id && r.google_calendar_user_id !== req.user.id) {
-        skipped++;
-      } else {
-        const eventId = await createCalendarEvent(r, { userId: req.user.id, organizationId: orgId });
-        if (eventId) {
-          db.prepare('UPDATE reservations SET google_event_id = ?, google_calendar_user_id = ? WHERE id = ? AND organization_id = ?')
-            .run(eventId, req.user.id, r.id, orgId);
-          created++;
-        } else {
-          errors++;
-        }
-      }
-    } catch {
-      errors++;
+  // Tudo passa pela fila durável: o que falhar agora é repetido mais tarde.
+  const queued = new Set();
+  db.transaction(() => {
+    for (const r of reservations) {
+      if (r.google_event_id && r.google_calendar_user_id && r.google_calendar_user_id !== req.user.id) { skipped++; continue; }
+      queueCalendarUpsert(orgId, 'reservation', r.id, req.user.id);
+      queued.add(r.id);
     }
+  })();
+  for (const result of await processCalendarQueue(orgId)) {
+    if (result.entity_type !== 'reservation' || result.action !== 'upsert' || !queued.has(result.entity_id)) continue;
+    if (result.outcome === 'error') errors++;
+    else if (result.outcome === 'updated') updated++;
+    else if (result.outcome === 'skipped') skipped++;
+    else created++;
   }
 
   const syncCalendar = getOrgSetting(orgId, GCAL_SYNC_CALENDAR_KEY) === '1';
@@ -157,9 +151,11 @@ async function cleanDuplicates(req, res, next) {
     if (!isAuthenticated(req.user.id, orgId)) {
       return res.status(400).json({ error: 'Google Calendar não está ligado.' });
     }
-    const result = await cleanDuplicateAppEvents(req.user.id, orgId);
-    if (result.error) return res.status(400).json({ error: result.error });
-    res.json({ success: true, deleted: result.deleted });
+    // Primeiro pré-visualização; apagar exige confirmar o número mostrado.
+    const confirm = req.body?.confirm === true;
+    const result = await cleanDuplicateAppEvents(req.user.id, orgId, { preview: !confirm, expected: confirm ? req.body.expected : null });
+    if (result.error) return res.status(confirm && result.count !== undefined ? 409 : 400).json({ error: result.error, count: result.count, sample: result.sample });
+    res.json({ success: true, ...result });
   } catch (err) {
     next(err);
   }

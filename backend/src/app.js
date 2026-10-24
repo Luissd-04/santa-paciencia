@@ -41,9 +41,12 @@ const CSP_DIRECTIVES = {
   defaultSrc: ["'self'"],
   scriptSrc: [
     "'self'",
-    'https://unpkg.com',
-    'https://cdn.jsdelivr.net',
-    'https://cdnjs.cloudflare.com',
+    'https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js',
+    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+    'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
+    'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/5.0.8/jspdf.plugin.autotable.min.js',
     'https://challenges.cloudflare.com', // Cloudflare Turnstile
   ],
   scriptSrcAttr: ["'none'"],
@@ -117,7 +120,7 @@ const ALLOWED_ORIGINS = IS_PROD ? ALLOWED_ORIGINS_PROD : [...ALLOWED_ORIGINS_DEV
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    if (ALLOWED_ORIGINS.some(r => r.test(origin))) return callback(null, true);
+    if (IS_PROD ? origin === configuredOrigin() : ALLOWED_ORIGINS.some(r => r.test(origin))) return callback(null, true);
     callback(Object.assign(new Error('Origem não permitida pelo CORS: ' + origin), { status: 403, code: 'ORIGIN_NOT_ALLOWED' }));
   },
   credentials: true
@@ -171,7 +174,13 @@ app.use('/uploads', (req, res, next) => {
 }, express.static(path.resolve('./data/uploads'), {
   setHeaders(res) { res.setHeader('Cache-Control', UPLOAD_CACHE); },
 }));
-app.use(['/api', '/auth'], (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+const appBuild = require('./services/appBuild');
+app.use(['/api', '/auth'], (_req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  // Versão do frontend servido: o browser deteta uma publicação a meio da sessão.
+  if (appBuild.value) res.set('X-App-Build', appBuild.value);
+  next();
+});
 
 // Servir frontend estático (apenas em produção via Docker)
 if (process.env.FRONTEND_PATH) {
@@ -197,7 +206,7 @@ clearExpiredSessions();
 app.use(['/auth', '/api'], verifyRequestOrigin);
 app.use('/auth', authRoutes);
 app.use('/api/public', publicBookingRoutes);
-app.use('/api', requireAuth);
+app.use('/api', requireAuth, require('./middleware/staffResponse'));
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/accommodations', accommodationRoutes);
 app.use('/api/calendar', calendarRoutes);
@@ -209,9 +218,11 @@ app.use('/api/backup', backupRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/events', eventRoutes);
+app.use('/api/payment-policy', require('./routes/paymentPolicy'));
 app.use('/api/vouchers', voucherRoutes);
 app.use('/api/tasks', googleTasksRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/ops', require('./routes/ops'));
 
 // Health check
 app.get('/health', (req, res) => {

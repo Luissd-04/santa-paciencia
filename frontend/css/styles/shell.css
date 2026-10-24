@@ -743,6 +743,15 @@ select.form-control { cursor:pointer; }
 .toast.success { border-left:4px solid #0f9d58; }
 .toast.error   { border-left:4px solid #ea4335; }
 .toast.info    { border-left:4px solid var(--dourado); }
+/* Versão nova publicada durante a sessão (helpers.js). Acima da barra inferior mobile. */
+.app-update-banner {
+  position:fixed; left:50%; transform:translateX(-50%);
+  bottom:calc(16px + env(safe-area-inset-bottom, 0px)); z-index:10001;
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:center;
+  max-width:calc(100vw - 32px); padding:10px 14px; border-radius:10px;
+  background:var(--azul); color:#fff; font-size:13.5px; box-shadow:var(--sombra-forte);
+}
+@media (max-width: 600px) { .app-update-banner { bottom:calc(84px + env(safe-area-inset-bottom, 0px)); } }
 
 .toolbar {
   display:flex;

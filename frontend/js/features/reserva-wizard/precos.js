@@ -12,7 +12,12 @@ AppModules.define('reservas', {
   snapshotManualDistribWeights: { get: () => snapshotManualDistribWeights },
 });
 
+// Recálculos sobrepostos (cada um espera pelos períodos de preço): só o mais
+// recente escreve no formulário.
+let calcSeq = 0;
+
 async function calcTotal() {
+  const seq = ++calcSeq;
   const ci = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkin').value);
   const co = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkout').value);
   const numHospedes = parseInt(document.getElementById('f-num-hospedes').value) || 1;
@@ -40,6 +45,7 @@ async function calcTotal() {
 
   if (ci && co && suite) {
     const pricingPeriods = await AppModules.reservas.loadWizPricingPeriods(alojId);
+    if (seq !== calcSeq) return;
     const totals = window.ReservationPricing.calculateReservationTotal(suite, AppModules.core.servicosData, {
       check_in: ci,
       check_out: co,
@@ -72,9 +78,9 @@ async function calcTotal() {
     if (AppModules.reservas._manualTotalOverride != null) finalTotal = AppModules.reservas._manualTotalOverride;
 
     document.getElementById('f-noites').value = totals.nights;
+    // Valor local só para compor o pedido; o total visível (badge, campo de
+    // total final) é o devolvido pelo servidor em scheduleWizQuote.
     document.getElementById('f-total').value = finalTotal.toFixed(2);
-    const badge2 = document.getElementById('resf-total-badge');
-    if (badge2) badge2.textContent = `€${finalTotal.toFixed(2)}`;
 
     // Breakdown + campo de total editável
     const extras = (totals.extraOccupancyCost || 0) + (totals.touristTax || 0) + (totals.breakfastCost || 0);
@@ -85,7 +91,6 @@ async function calcTotal() {
     const extrasWrap = document.getElementById('resf-nightly-extras-wrap');
     if (extrasEl) extrasEl.textContent = `€${extras.toFixed(2)}`;
     if (extrasWrap) extrasWrap.style.display = extras > 0.005 ? '' : 'none';
-    updateNightlyTotalField(finalTotal);
 
     const discWrap = document.getElementById('resf-discount-wrap');
     if (discWrap) discWrap.style.display = '';
@@ -104,6 +109,7 @@ async function calcTotal() {
     renderNightlyGrid();
     if (!ci || !co) document.getElementById('f-noites').value = '';
   }
+  AppModules.reservas.scheduleWizQuote();
   AppModules.reservas.updateWizSummary();
   AppModules.reservas.updateSpecialRateHints();
 }
@@ -181,13 +187,6 @@ function resetNightlyOverrides() {
   calcTotal();
 }
 
-function updateNightlyTotalField(finalTotal) {
-  const inp = document.getElementById('f-total-manual');
-  if (!inp) return;
-  // Reflete sempre o total atual, exceto enquanto o utilizador está a escrever no campo.
-  if (document.activeElement !== inp) inp.value = finalTotal.toFixed(2);
-}
-
 // Fixa os pesos por noite ao entrar no campo de total — enquanto o utilizador
 // digita ("1" → "12" → "120") as proporções mantêm-se as de partida.
 function snapshotManualDistribWeights() {
@@ -229,8 +228,9 @@ function onManualTotalInput(value) {
   const v = value === '' ? null : Number(value);
   if (v == null || isNaN(v) || v < 0) return; // input incompleto/inválido: não distribuir
   // Multi-suite: a grelha só mostra a suite principal — distribuir o total das
-  // duas suites inflava-a. Mantém-se o total fixo (comportamento antigo).
-  if (AppModules.reservas._wizMultiSuite) {
+  // duas suites inflava-a. Com voucher, o servidor descontaria-o outra vez
+  // sobre as noites distribuídas. Em ambos o total digitado fica fixo.
+  if (AppModules.reservas._wizMultiSuite || AppModules.reservas.wizVoucherActive()) {
     AppModules.reservas._manualTotalOverride = Math.max(0, v);
     calcTotal();
     return;

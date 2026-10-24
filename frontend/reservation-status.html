@@ -40,11 +40,15 @@
             <div><dt>Total</dt><dd id="rs-total">—</dd></div>
             <div><dt>Pago</dt><dd id="rs-paid">—</dd></div>
           </dl>
+          <section id="rs-policy" class="rs-policy" hidden aria-label="Condições de pagamento e cancelamento"></section>
           <div class="rs-checkout" id="rs-payment-panel" hidden>
             <p id="rs-payment-message" role="status"></p>
+            <label id="rs-consent-label" class="rs-consent" hidden><input type="checkbox" id="rs-consent"> Li e aceito as condições de pagamento e cancelamento apresentadas acima.</label>
+            <label id="rs-auto-label" class="rs-consent" hidden><input type="checkbox" id="rs-auto"> Autorizo a Stripe a guardar o cartão para cobrar o restante desta reserva na data indicada. Com MB WAY, pagarei através de um novo link.</label>
             <button class="primary-btn" id="rs-pay" type="button" hidden>Pagar online</button>
             <p class="rs-note" id="rs-test-note" hidden>Modo de teste — não são efetuadas cobranças reais.</p>
           </div>
+          <div id="rs-cancellation" class="rs-policy" hidden><p id="rs-refund-quote"></p><button type="button" class="ghost-btn" id="rs-cancel">Cancelar reserva</button></div>
           <button class="ghost-btn rs-refresh" id="rs-refresh" type="button">Atualizar estado</button>
           <p class="rs-note">Guarde este link. Por segurança, não apresenta dados pessoais dos hóspedes.</p>
         </div>

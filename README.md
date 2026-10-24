@@ -50,13 +50,22 @@ Executar a partir de `backend/src`:
 npm run check
 npm test
 npm run test:http
+node scripts/check-v1-functional.cjs        # aceitação V1 (também -security-email e -accounts)
+node scripts/check-instance-restore.cjs     # backup + restauro completo, pasta temporária
+node scripts/check-performance.cjs          # volume sintético (~7 500 reservas)
 npm run test:browser
+npm run test:mobile                         # e BROWSER_ENGINE=webkit npm run test:mobile
+node scripts/check-wizard-voucher.cjs       # total do wizard = total gravado
+node scripts/check-pwa-resilience.cjs       # rede instável, sessão expirada, versão nova
 npm run measure:frontend
 ```
 
-`test:browser` necessita de Chromium do Playwright. A CI executa análise
-estática, testes Node e HTTP em Node 22 e 24, auditoria de dependências, testes
-de browser e o orçamento de desempenho do frontend.
+Os testes de browser necessitam de Chromium e WebKit do Playwright. Todos usam
+bases descartáveis, dados inventados e serviços externos simulados. A CI executa
+os anteriores (e os checks de pré-check-in, voucher público e política) em
+Node 22 e 24, com auditoria de dependências. Antes de publicar, correr também
+`node scripts/check-upgrade-rollback.cjs --previous <versão publicada>`
+([Operações](docs/OPERACOES.md#antes-de-publicar)).
 
 ## Produção
 
@@ -75,12 +84,16 @@ hóspedes, tokens OAuth ou a chave de encriptação no repositório.
 - [Operações, configuração e recuperação](docs/OPERACOES.md)
 - [Roadmap de produto](docs/ROADMAP.md)
 - [Melhorias técnicas](docs/MELHORIAS.md)
+- [Revisão de segurança, organização e emails — 8 de outubro](docs/REVISAO-2026-10-08.md)
 - [Política e controlos de segurança](SECURITY.md)
 - [Pagamentos Stripe](docs/stripe-payments.md)
 - [Vouchers com várias utilizações](docs/VOUCHERS.md)
 - [Sincronização com Google Tasks](docs/GOOGLE-TASKS.md)
+- [Sincronização com Google Calendar](docs/GOOGLE-CALENDAR.md)
+- [Âmbito V1/V2](docs/ESCOPO-V1-V2.md) e [fecho da V1 — 24 de outubro](docs/FECHO-V1-2026-10-24.md)
 - [Emails no Gmail para iPhone](docs/EMAIL-GMAIL.md)
 
-Estas páginas descrevem o estado confirmado em 5 de outubro de 2026. A regra
-é atualizá-las no mesmo pull request que alterar arquitetura, operação,
-segurança ou prioridades.
+A documentação de base foi revista em 5 de outubro de 2026; o relatório de
+8 de outubro acrescenta os achados sobre o código local e atualiza prioridades.
+A revisão local não confirma o estado da publicação. Atualizar estas páginas
+no mesmo pull request que alterar arquitetura, operação, segurança ou prioridades.

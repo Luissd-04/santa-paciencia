@@ -18,7 +18,7 @@ async function create(req, res, next) {
     }
 
     const fullName = name || `${first_name || ''} ${last_name || ''}`.trim();
-    const effectiveEmail = email || `guest_${Date.now()}@sem-email.local`;
+    const effectiveEmail = email || `guest_${require('crypto').randomUUID()}@sem-email.local`;
     const organizationId = req.user.organization_id;
 
     const existing = db.prepare('SELECT * FROM guests WHERE email = ? AND organization_id = ?').get(effectiveEmail, organizationId);
@@ -84,59 +84,7 @@ async function update(req, res, next) {
     const existing = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
     if (!existing) return res.status(404).json({ error: 'Hóspede não encontrado' });
 
-    const {
-      first_name, last_name, email, email_personal,
-      phone, birth_date, birth_city, birth_country, nif, nationality, country,
-      document_type, document_number, document_issuer_country,
-      address, postal_code, city, residence_country, company, company_nif,
-      is_favorite, is_vip, is_unwanted
-    } = req.body;
-
-    const name = (first_name || last_name)
-      ? `${first_name || ''} ${last_name || ''}`.trim()
-      : existing.name;
-
-    db.prepare(`
-      UPDATE guests SET
-        first_name = ?, last_name = ?, name = ?,
-        email = ?, email_personal = ?,
-        phone = ?, birth_date = ?, birth_city = ?, birth_country = ?, nif = ?,
-        nationality = ?, country = ?,
-        document_type = ?, document_number = ?, document_issuer_country = ?,
-        address = ?, postal_code = ?, city = ?, residence_country = ?,
-        company = ?, company_nif = ?,
-        is_favorite = ?, is_vip = ?, is_unwanted = ?
-      WHERE id = ? AND organization_id = ?
-    `).run(
-      first_name ?? existing.first_name,
-      last_name  ?? existing.last_name,
-      name,
-      email          ?? existing.email,
-      email_personal ?? existing.email_personal,
-      phone          ?? existing.phone,
-      birth_date     ?? existing.birth_date,
-      birth_city     ?? existing.birth_city,
-      birth_country  ?? existing.birth_country,
-      nif            ?? existing.nif,
-      nationality    ?? existing.nationality,
-      country        ?? existing.country,
-      document_type  ?? existing.document_type,
-      document_number        ?? existing.document_number,
-      document_issuer_country ?? existing.document_issuer_country,
-      address        ?? existing.address,
-      postal_code    ?? existing.postal_code,
-      city           ?? existing.city,
-      residence_country ?? existing.residence_country,
-      company        ?? existing.company,
-      company_nif    ?? existing.company_nif,
-      is_favorite ? 1 : 0,
-      is_vip      ? 1 : 0,
-      is_unwanted ? 1 : 0,
-      req.params.id,
-      organizationId
-    );
-
-    const updated = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
+    const updated = require('../services/guestPatch').updateGuest(req.params.id, organizationId, req.body);
     res.json({ success: true, data: updated });
   } catch (err) {
     next(err);
@@ -165,6 +113,8 @@ async function remove(req, res, next) {
         .all(req.params.id, organizationId).map(row => row.id);
       purgeReservations(organizationId, cancelled);
       db.prepare('DELETE FROM guests WHERE id = ? AND organization_id = ?').run(req.params.id, organizationId);
+      require('../services/auditLog').recordAudit({ organizationId, userId: req.user.id, action: 'guest.deleted', targetType: 'guest', targetId: req.params.id,
+        meta: { reservations_deleted: cancelled.length } });
     })();
     // O scheduler repete a fila se o Google falhar agora.
     flushReservationTaskCleanup(organizationId).catch(() => {});

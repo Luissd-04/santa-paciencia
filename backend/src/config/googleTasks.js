@@ -274,10 +274,10 @@ async function runOrganizationTaskSync(organizationId) {
       if (!needsCreate && remote.deleted) {
         db.transaction(() => {
           suppressAutoTask(ev);
+          require('../services/calendarService').detachOperationalEvent(ev);
           db.prepare('DELETE FROM operational_events WHERE id = ? AND organization_id = ?').run(id, organizationId);
         })();
-        if (ev.google_event_id) await require('../services/calendarService').deleteTaskCalendarEvent(ev,
-          { userId: ev.google_calendar_user_id, organizationId });
+        if (ev.google_event_id) require('../services/calendarService').kickCalendarQueue(organizationId);
         deleted++;
         continue;
       }
@@ -295,8 +295,10 @@ async function runOrganizationTaskSync(organizationId) {
           const after = remotePayload(taskPayload(ev));
           for (const key of Object.keys(baseline)) if (before[key] === baseline[key]) baseline[key] = after[key];
           saveSyncState(ev, listId, baseline, remote);
-          if (ev.google_event_id) await require('../services/calendarService').updateTaskCalendarEvent(ev,
-            { userId: ev.google_calendar_user_id, organizationId });
+          if (ev.google_event_id) {
+            require('../services/calendarService').queueCalendarUpsert(organizationId, 'event', ev.id, ev.google_calendar_user_id);
+            require('../services/calendarService').kickCalendarQueue(organizationId);
+          }
           ev = readEvent.get(organizationId, id);
           if (!ev) continue;
         }

@@ -1,7 +1,7 @@
 const { normalizeDocumentType } = require('../services/documentType');
 const { findUsableVoucher, voucherDiscount: calculateVoucherDiscount, redeemVoucher } = require('../services/voucherService');
 const { findConflict, unavailableUnits, validateExtraUnits } = require('../services/reservationAvailability');
-const { validateReservationInput } = require('../services/reservationValidation');
+const { validateReservationInput, assertMoneyLimit } = require('../services/reservationValidation');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
@@ -11,6 +11,7 @@ const { sendOwnerNewReservationEmail, getEmailSettings, resolveAccommodationInhe
 const { notifyOrganization } = require('../services/pushService');
 const {
   calculateReservationTotals,
+  getPaymentStatus,
   normalizeDateValue,
 } = require('../services/reservationRules');
 const { getAccommodationScope } = require('../services/availabilityRules');
@@ -161,6 +162,8 @@ function getLanding(req, res) {
         pricing_periods: getPricingPeriods(parent.organization_id, unit.id)
       })),
       online_payment_available: stripeEnabled(parent.organization_id),
+      online_payment_test: !require('../services/stripeClient').stripeConfig().livemode,
+      payment_policy: require('../services/paymentPolicy').getPolicy(parent.organization_id),
       services: getServices(parent.organization_id)
         .filter(s => ['breakfast', 'tourist_tax'].includes(s.id))
         .map(s => ({ id: s.id, name: s.name, value: Number(s.value || 0), unit: s.unit, active: s.active !== false })),
@@ -194,6 +197,8 @@ function getAvailability(req, res) {
   const checkIn = normalizeDateValue(req.query.check_in);
   const checkOut = normalizeDateValue(req.query.check_out);
   const guests = Math.max(1, Number(req.query.num_guests) || 1);
+  // Datas passadas nunca estão disponíveis (a criação também as recusa).
+  const past = Boolean(checkIn) && checkIn < require('../services/paymentPolicy').localDay();
   const children = getChildren(parent);
   const reservable = children.length ? children : [parent];
 
@@ -204,14 +209,14 @@ function getAvailability(req, res) {
       type: 'property',
       available: reservable.every(child => {
         const conflict = checkIn && checkOut ? findConflict(parent.organization_id, child.id, checkIn, checkOut) : null;
-        return !conflict && guests <= Number(child.max_guests || 0);
+        return !past && !conflict && guests <= Number(parent.max_guests || 0);
       }),
       occupied: reservable.some(child => {
         const conflict = checkIn && checkOut ? findConflict(parent.organization_id, child.id, checkIn, checkOut) : null;
         return !!conflict;
       }),
-      over_capacity: reservable.some(child => guests > Number(child.max_guests || 0)),
-      max_guests: Math.max(...reservable.map(u => Number(u.max_guests || 0)))
+      over_capacity: guests > Number(parent.max_guests || 0),
+      max_guests: Number(parent.max_guests || 0)
     }
   ];
 
@@ -221,7 +226,7 @@ function getAvailability(req, res) {
       id: unit.id,
       name: unit.name,
       type: 'unit',
-      available: !conflict && guests <= Number(unit.max_guests || 0),
+      available: !past && !conflict && guests <= Number(unit.max_guests || 0),
       occupied: !!conflict,
       over_capacity: guests > Number(unit.max_guests || 0),
       max_guests: Number(unit.max_guests || 0)
@@ -283,7 +288,7 @@ async function createReservation(req, res, next) {
         }
       }
     }
-    if (!payload.guest?.name || !payload.guest?.email) {
+    if (!payload.guest?.name || !require('../services/authService').isValidEmail(String(payload.guest?.email || ''))) {
       return res.status(400).json({ success: false, error: 'Dados do hóspede principal em falta.' });
     }
     const guestsData = Array.isArray(payload.guests_data) ? payload.guests_data : [];
@@ -294,6 +299,10 @@ async function createReservation(req, res, next) {
       }
     }
     const totals = calculateTotal(unit, parent.organization_id, payload);
+    // Datas de calendário do alojamento (Lisboa): não se reserva o passado.
+    if (totals.checkIn < require('../services/paymentPolicy').localDay()) {
+      return res.status(400).json({ success: false, error: 'A data de chegada já passou.' });
+    }
     const minNights = Number(unit.min_nights || parent.min_nights || 1);
     if (totals.nights < minNights) {
       return res.status(400).json({ success: false, error: `A estadia mínima é de ${minNights} noite${minNights !== 1 ? 's' : ''}.` });
@@ -315,9 +324,10 @@ async function createReservation(req, res, next) {
         nights: totals.nights, accommodation_id: unit.id, parent_id: parent.id,
       });
       pendingVoucherCode = vCode;
-      voucherDiscount = calculateVoucherDiscount(voucher, totals.totalAmount);
+      voucherDiscount = calculateVoucherDiscount(voucher, totals.totalAmount, totals.nightlyPrices);
     }
     let finalTotal = Math.max(0, totals.totalAmount - voucherDiscount);
+    assertMoneyLimit(finalTotal);
     const onlinePayment = stripeEnabled(parent.organization_id);
 
     // ID único sem colisão por concorrência
@@ -351,7 +361,7 @@ async function createReservation(req, res, next) {
           nights: totals.nights, accommodation_id: accommodationId, parent_id: parent.id,
         });
         confirmedVoucherId = locked.id;
-        voucherDiscount = calculateVoucherDiscount(locked, totals.totalAmount);
+        voucherDiscount = calculateVoucherDiscount(locked, totals.totalAmount, totals.nightlyPrices);
         finalTotal = Math.max(0, totals.totalAmount - voucherDiscount);
       }
 
@@ -361,15 +371,16 @@ async function createReservation(req, res, next) {
           id, organization_id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
           total_amount, breakfast_included, tourist_tax, channel, payment_method, notes, license_number, status,
           guests_data, amount_paid, payment_status, public_token, precheckin_token, precheckin_token_expires_at, arrival_time, guest_snapshot
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, 0, 'pendente', ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, 0, ?, ?, ?, ?, ?, ?)
       `).run(
         reservationId, parent.organization_id, g.id, accommodationId,
         totals.checkIn, totals.checkOut, totals.nights, totals.guests,
         finalTotal, payload.breakfast_included ? 1 : 0, totals.touristTax,
         'website', null, payload.notes || null, licenseNumber,
-        JSON.stringify(normalizedGuestsData), token, precheckinToken, precheckinExpiresAt, arrivalTime, JSON.stringify({ name: g.name, email: g.email, phone: g.phone })
+        JSON.stringify(normalizedGuestsData), getPaymentStatus(0, finalTotal), token, precheckinToken, precheckinExpiresAt, arrivalTime, JSON.stringify({ name: g.name, email: g.email, phone: g.phone })
       );
 
+      require('../services/paymentPolicy').attachPolicy({ id: reservationId, organization_id: parent.organization_id });
       if (confirmedVoucherId) redeemVoucher(parent.organization_id, confirmedVoucherId, reservationId, voucherDiscount);
       if (onlinePayment && finalTotal >= 0.50) {
         db.prepare("UPDATE reservations SET status='aguardar_pagamento' WHERE id=?").run(reservationId);
@@ -451,8 +462,7 @@ function getReservationStatus(req, res) {
     return res.status(404).json({ success: false, error: 'Reserva não encontrada.' });
   }
   const reservation = db.prepare(`
-    SELECT r.id, r.organization_id, r.check_in, r.check_out, r.num_guests, r.status, r.online_payment_status,
-           r.payment_status, r.total_amount, r.amount_paid, r.created_at,
+    SELECT r.*,
            a.name AS accommodation_name, a.cover_image, a.images
     FROM reservations r
     JOIN accommodations a ON a.id = r.accommodation_id AND a.organization_id = r.organization_id

@@ -8,6 +8,7 @@ const requireRole = require('../middleware/requireRole');
 const { exportData, prepareImport, restoreData, uploadUrls } = require('../services/backupData');
 const { extractArchive } = require('../services/backupArchive');
 const { UPLOADS_DIR, uploadPath, removeUnreferencedImage, detectImageMagicType } = require('../services/mediaStorage');
+const { recordAudit } = require('../services/auditLog');
 router.use(requireRole('owner'));
 
 router.get('/export', async (req, res, next) => {
@@ -28,6 +29,8 @@ router.get('/export', async (req, res, next) => {
       }
       zip.finalize().catch(reject);
     });
+    recordAudit({ organizationId: req.user.organization_id, userId: req.user.id, action: 'backup.exported',
+      meta: { reservations: payload.tables.reservations.length, guests: payload.tables.guests.length } });
     res.download(file, `santa_paciencia_${new Date().toISOString().slice(0, 10)}.zip`, () => fs.rmSync(temporary, { recursive: true, force: true }));
   } catch (error) {
     fs.rmSync(temporary, { recursive: true, force: true });
@@ -73,11 +76,14 @@ router.post('/import', async (req, res) => {
     for (const row of tables.expenses) row.receipt_image = replacements.get(row.receipt_image) || row.receipt_image;
     restoreData(tables, org);
     committed = true;
+    recordAudit({ organizationId: org, userId: req.user.id, action: 'backup.restored',
+      meta: { version: payload.version, reservations: tables.reservations.length, guests: tables.guests.length, uploads: replacements.size } });
     // A limpeza é posterior ao commit; ficheiros partilhados continuam protegidos.
     for (const url of previous) { try { removeUnreferencedImage(url); } catch (error) { console.warn('Limpeza de upload adiada:', error.code); } }
     res.json({ success: true, message: 'Dados e ficheiros restaurados com sucesso.' });
   } catch (error) {
     if (!committed) for (const file of created) fs.rmSync(file, { force: true });
+    if (!committed) recordAudit({ organizationId: req.user.organization_id, userId: req.user.id, action: 'backup.restore_rejected' });
     res.status(400).json({ success: false, error: error.message });
   } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
 });

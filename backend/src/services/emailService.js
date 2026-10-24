@@ -4,14 +4,20 @@ const crypto = require('crypto');
 const { isEmailAuthenticated, sendViaGmail, getEmailConnectionInfo } = require('../config/googleEmail');
 const composer = require('./emailComposer');
 
+const { isDeliverableEmail, isPlaceholderEmail } = require('./emailAddress');
+
 async function sendMail(organizationId, { to, subject, html, bcc, threadId, inReplyTo, references }) {
   if (EMAIL_DISABLED) return null;
+  if (isPlaceholderEmail(to)) {
+    console.warn('⚠️ Email não enviado: destinatário sem endereço real');
+    return null;
+  }
   if (!organizationId || !isEmailAuthenticated(organizationId)) {
     console.warn('⚠️ Email não enviado: Gmail não ligado para a organização', organizationId || '(sem organização)');
     return null;
   }
   const info = getEmailConnectionInfo(organizationId);
-  const fromName = process.env.PROPERTY_NAME || 'Santa Paciência';
+  const fromName = getEmailSettings(null, organizationId).property_name;
   const from = info.email ? `${fromName} <${info.email}>` : fromName;
   return sendViaGmail(organizationId, { to, subject, html, from, bcc: bcc || undefined, threadId, inReplyTo, references });
 }
@@ -222,6 +228,9 @@ function renderManualEmail({ organizationId, subject, body, context }) {
   const reservation = context?.reservation || null;
   const accommodation = context?.accommodation || null;
   const settings = getEmailSettings(accommodation, organizationId);
+  if (!require('./emailEligibility').canSendTemplate({ subject, body }, reservation) && /\{\{\s*(codigo_porta|door_code|wifi_password|password_wifi)\s*\}\}/i.test(`${subject} ${body}`)) {
+    throw Object.assign(new Error('Os códigos de acesso só podem ser enviados numa reserva confirmada e integralmente paga.'), { status: 409 });
+  }
   let vars = { ...(context?.vars || {}) };
   let blocks = {};
 
@@ -269,8 +278,8 @@ function buildVars(guest, reservation, accommodation, settings, extra) {
     titulo_estado: statusPresentation(reservation).title,
     mensagem_estado: statusPresentation(reservation).message,
     wifi_nome: accommodation.wifi_name || '—',
-    wifi_password: accommodation.wifi_password || '—',
-    codigo_porta: accommodation.door_code || '—',
+    wifi_password: require('./emailEligibility').canSendTemplate({ slug: 'codigo_porta' }, reservation) ? (accommodation.wifi_password || '—') : '',
+    codigo_porta: require('./emailEligibility').canSendTemplate({ slug: 'codigo_porta' }, reservation) ? (accommodation.door_code || '—') : '',
     ...extra,
   };
 }
@@ -411,8 +420,11 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation, extra
     : db.prepare('SELECT * FROM email_templates WHERE slug=? AND active=1').get(slug);
   if (!template) { console.log(`Template ${slug} não encontrado ou inativo`); return null; }
   if (!require('./emailEligibility').canSendTemplate(template, reservation)) return null;
+  const current = db.prepare('SELECT * FROM reservations WHERE id=? AND organization_id=?').get(reservation.id, orgId);
+  if (current) reservation = current;
+  if (!require('./emailEligibility').canSendTemplate(template, reservation)) return null;
   const to = guest.email;
-  if (!to) return null;
+  if (!isDeliverableEmail(to)) return null;
 
   accommodation = resolveAccommodationInheritance(accommodation, orgId);
 
@@ -440,13 +452,11 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation, extra
   // A intenção de envio sobrevive a falhas de rede e reinícios.
   db.prepare(`INSERT OR IGNORE INTO organization_email_queue (id, organization_id, template_slug, reservation_id)
     VALUES (?, ?, ?, ?)`).run(crypto.randomUUID(), orgId, slug, reservation.id);
-  const result = await sendMail(orgId, {
-    to,
-    subject: rendered.subject,
-    html: rendered.html,
-    bcc: template.bcc || undefined,
-  });
-  if (result) db.transaction(() => {
+  const delivery = require('./emailDelivery');
+  const result = await delivery.deliverTemplate({ orgId, slug, reservation, to, rendered }, () => sendMail(orgId, {
+    to, subject: rendered.subject, html: rendered.html, bcc: template.bcc || undefined,
+  }));
+  if (result?.id) db.transaction(() => {
     if (['checkin', 'checkout'].includes(template.timing_event)) {
       db.prepare('INSERT OR IGNORE INTO organization_email_log (id,organization_id,template_slug,reservation_id) VALUES (?,?,?,?)')
         .run(crypto.randomUUID(), orgId, slug, reservation.id);
@@ -466,12 +476,13 @@ async function sendCancellationEmail(guest, reservation, accommodation) {
 }
 
 async function sendPaymentConfirmationEmail(guest, reservation, accommodation) {
-  if (EMAIL_DISABLED) return null;
+  if (EMAIL_DISABLED || !isDeliverableEmail(guest?.email)) return null;
   const { db } = require('../config/database');
   const orgId = reservation.organization_id || accommodation.organization_id;
   const template = orgId
     ? db.prepare("SELECT * FROM organization_email_templates WHERE organization_id = ? AND slug='pagamento' AND active=1").get(orgId)
     : db.prepare("SELECT * FROM email_templates WHERE slug='pagamento' AND active=1").get();
+  if (!template && orgId && db.prepare("SELECT 1 FROM organization_email_templates WHERE organization_id=? AND slug='pagamento'").get(orgId)) return null;
   if (template) return sendTemplatedEmail('pagamento', guest, reservation, accommodation);
   accommodation = resolveAccommodationInheritance(accommodation, orgId);
   const settings = getEmailSettings(accommodation, orgId);
@@ -490,12 +501,13 @@ async function sendPaymentConfirmationEmail(guest, reservation, accommodation) {
 }
 
 async function sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl) {
-  if (EMAIL_DISABLED) return null;
+  if (EMAIL_DISABLED || !isDeliverableEmail(guest?.email)) return null;
   const { db } = require('../config/database');
   const orgId = reservation.organization_id || accommodation.organization_id;
   const template = orgId
     ? db.prepare("SELECT 1 FROM organization_email_templates WHERE organization_id = ? AND slug='pre_checkin' AND active=1").get(orgId)
     : null;
+  if (!template && orgId && db.prepare("SELECT 1 FROM organization_email_templates WHERE organization_id=? AND slug='pre_checkin'").get(orgId)) return null;
   if (template) {
     return sendTemplatedEmail('pre_checkin', guest, reservation, accommodation, { link_pre_checkin: preCheckinUrl });
   }
@@ -562,6 +574,7 @@ async function sendOwnerNewReservationEmail(organizationId, guest, reservation, 
 }
 
 module.exports = {
+  isDeliverableEmail,
   sendMail,
   sendConfirmationEmail,
   sendCancellationEmail,

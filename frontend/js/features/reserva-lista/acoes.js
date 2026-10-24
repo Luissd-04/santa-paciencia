@@ -102,9 +102,12 @@ async function copyPreCheckinLink(token) {
 }
 
 async function cancelarReserva(id) {
-  if (!confirm('Cancelar esta reserva? Será removida do Google Calendar.')) return;
   try {
-    const res = await AppModules.core.apiDelete(`/api/reservations/${id}`);
+    const { data: reservation } = await AppModules.core.apiGet(`/api/reservations/${id}`);
+    const policy = reservation.payment_policy;
+    const message = policy ? `Cancelar esta reserva? Reembolso previsto: €${(policy.refundCents / 100).toFixed(2)} (${policy.refundPercent}% do valor pago), segundo a política da reserva.` : 'Cancelar esta reserva? Será removida do Google Calendar.';
+    if (!confirm(message)) return;
+    const res = await AppModules.core.apiDelete(`/api/reservations/${id}`, undefined, policy ? { key: policy.consentKey, refundCents: policy.refundCents } : undefined);
     if (res.success) {
       AppUI.closeModal('detail-bg');
       AppModules.reservas.showReservasList();
@@ -116,7 +119,7 @@ async function cancelarReserva(id) {
       AppModules.core.toast('❌ ' + (res.error || 'Erro ao cancelar.'), 'error');
     }
   } catch (e) {
-    AppModules.core.toast('❌ Erro de ligação ao servidor.', 'error');
+    AppModules.core.toast('❌ ' + (e.message || 'Erro de ligação ao servidor.'), 'error');
   }
 }
 
@@ -129,12 +132,13 @@ function hasRole(minRole) {
 }
 
 async function apagarReservaDefinitivo(id) {
-  if (!confirm('⚠️ Esta reserva vai ser APAGADA e depois é IMPOSSÍVEL recuperar.\n\nOs pagamentos e tarefas operacionais associados também serão removidos. O hóspede e o histórico de emails são mantidos.')) return;
+  if (!confirm('⚠️ Esta reserva vai ser APAGADA e depois é IMPOSSÍVEL recuperar.\n\nAs tarefas operacionais associadas também serão removidas. O hóspede e o histórico de emails são mantidos. Reservas com pagamentos registados não podem ser apagadas.')) return;
   if (!confirm('Confirmar eliminação definitiva? Esta ação NÃO pode ser desfeita.')) return;
   try {
     const { data: r } = await AppModules.core.apiGet(`/api/reservations/${id}`);
     // O backend só apaga reservas já canceladas — cancelar primeiro se necessário.
     if (r && r.status !== 'cancelada') {
+      if (r.payment_policy) { AppModules.core.toast('Cancele primeiro a reserva e confirme o reembolso na ficha.', 'info'); return; }
       const c = await AppModules.core.apiDelete(`/api/reservations/${id}`);
       if (!c.success) { AppModules.core.toast('❌ ' + (c.error || 'Erro ao apagar.'), 'error'); return; }
     }
@@ -151,7 +155,7 @@ async function apagarReservaDefinitivo(id) {
       AppModules.core.toast('❌ ' + (res.error || 'Erro ao apagar.'), 'error');
     }
   } catch (e) {
-    AppModules.core.toast('❌ Erro de ligação ao servidor.', 'error');
+    AppModules.core.toast('❌ ' + (e.message || 'Erro de ligação ao servidor.'), 'error');
   }
 }
 
@@ -171,7 +175,7 @@ async function reativarReserva(id) {
       AppModules.core.toast('❌ ' + (res.error || 'Erro ao reativar.'), 'error');
     }
   } catch (e) {
-    AppModules.core.toast('❌ Erro de ligação ao servidor.', 'error');
+    AppModules.core.toast('❌ ' + (e.message || 'Erro de ligação ao servidor.'), 'error');
   }
 }
 

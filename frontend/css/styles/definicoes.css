@@ -159,3 +159,37 @@
   }
 }
 
+
+/* Políticas financeiras: intervalos legíveis e editáveis também no telemóvel. */
+#pp-content, #pp-form { display: grid; gap: 18px; min-width: 0; }
+.pp-card { padding: 22px; min-width: 0; }
+.pp-card h3 { margin: 0 0 12px; color: var(--text-main); }
+.pp-card p { color: var(--text-muted); line-height: 1.6; }
+.pp-card label { display: flex; flex-direction: column; gap: 8px; font-weight: 600; }
+.pp-card .pp-check { flex-direction: row; align-items: center; gap: 12px; margin: 16px 0; }
+.pp-card input:not([type="checkbox"]), .pp-card select {
+  min-height: 44px; width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--border-soft);
+  border-radius: 8px; background: var(--branco); color: var(--text-main); font: inherit;
+}
+.pp-card input[type="checkbox"] { width: 22px; height: 22px; flex-shrink: 0; }
+.pp-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 16px 0; }
+.pp-table { width: 100%; border-collapse: collapse; margin: 18px 0; }
+.pp-table th, .pp-table td { padding: 8px; text-align: left; }
+.pp-table th { font-size: 13px; color: var(--text-muted); }
+.pp-help { font-size: 13px; }
+.pp-save { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+.pp-simulation { display: grid; gap: 12px; padding: 16px; background: var(--surface-muted); border-radius: 12px; }
+.pp-simulation dt { color: var(--text-muted); font-size: 13px; }
+.pp-simulation dd { margin: 4px 0 0; font-weight: 700; }
+@media (max-width: 600px) {
+  .pp-card { padding: 16px; }
+  .pp-fields { grid-template-columns: minmax(0, 1fr); }
+  .pp-table thead { display: none; }
+  .pp-table, .pp-table tbody { display: block; }
+  .pp-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--border-soft); }
+  .pp-table td { display: block; padding: 0; min-width: 0; }
+  .pp-table td::before { content: attr(data-label); display: block; color: var(--text-muted); font-size: 12px; margin-bottom: 6px; }
+  .pp-table td:last-child { align-self: end; }
+  .pp-card input:not([type="checkbox"]), .pp-card select { font-size: 16px; }
+  .pp-card button { min-height: 44px; }
+}

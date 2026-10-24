@@ -74,10 +74,9 @@ function applyReservasViewMode() {
 // block de elementos position:fixed — a folha ficava fixa à vista
 // (que é mais alta que o ecrã), não ao viewport, por isso abria fora
 // de vista. m-sheet-ancestor-fix neutraliza isso enquanto a folha está aberta.
-function toggleReservasFiltersSheet(open) {
-  document.getElementById('reservas-filter-panel')?.classList.toggle('m-sheet-open', open);
-  document.getElementById('reservas-filters-backdrop')?.classList.toggle('active', open);
-  document.getElementById('view-reservas')?.classList.toggle('m-sheet-ancestor-fix', open);
+function toggleReservasFiltersSheet(open, trigger) {
+  if (open) trigger?.focus({ preventScroll: true });
+  AppUI.setSheetOpen('reservas-filter-panel', 'reservas-filters-backdrop', open, 'm-sheet-open');
 }
 
 function setReservasViewMode(mode) {

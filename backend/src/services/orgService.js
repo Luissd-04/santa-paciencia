@@ -153,9 +153,9 @@ function createInvitation({ organizationId, email, role, invitedByUserId }) {
     INSERT INTO invitations (
       id, organization_id, email, role, token, invited_by_user_id, expires_at, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
-  `).run(id, organizationId, normalizedEmail, role, token, invitedByUserId || null, expiresAt);
+  `).run(id, organizationId, normalizedEmail, role, require('./authService').digestToken(token), invitedByUserId || null, expiresAt);
 
-  return db.prepare('SELECT * FROM invitations WHERE id = ?').get(id);
+  return { ...db.prepare('SELECT * FROM invitations WHERE id = ?').get(id), token };
 }
 
 function getInvitationByToken(token) {
@@ -164,16 +164,17 @@ function getInvitationByToken(token) {
     FROM invitations i
     JOIN organizations o ON o.id = i.organization_id
     WHERE i.token = ?
-  `).get(token);
+  `).get(require('./authService').digestToken(String(token || '')));
 }
 
 function acceptInvitation({ invitationId, userId }) {
+  return db.transaction(() => {
   const invitation = db.prepare('SELECT * FROM invitations WHERE id = ?').get(invitationId);
   if (!invitation) throw new Error('Convite inválido.');
   if (invitation.accepted_at) throw new Error('Este convite já foi utilizado.');
   if (new Date(invitation.expires_at).getTime() <= Date.now()) throw new Error('Este convite expirou.');
 
-  createMembership({
+  if (!getMembershipByUserAndOrganization(userId, invitation.organization_id)) createMembership({
     organizationId: invitation.organization_id,
     userId,
     role: invitation.role,
@@ -185,6 +186,7 @@ function acceptInvitation({ invitationId, userId }) {
   `).run(invitationId);
 
   return invitation;
+  }).immediate();
 }
 
 function buildInvitationUrl(token) {

@@ -1,6 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
-const { deleteTaskCalendarEvent, syncOperationalEventsToGoogle } = require('./calendarService');
+const { detachOperationalEvent, kickCalendarQueue, syncOperationalEventsToGoogle } = require('./calendarService');
 const { queueSyncedTaskDeletion, processQueuedTaskDeletions } = require('../config/googleTasks');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -169,22 +169,15 @@ const syncReservationTx = db.transaction((reservation, userId = null) => {
   // Remover as auto-tarefas que já não fazem sentido (ex.: datas mudaram, opção
   // desligada, reserva cancelada), exceto as concluídas (mantidas para histórico).
   // As que já tinham evento no Google Calendar / tarefa no Google Tasks ficariam
-  // órfãs lá — são devolvidas para o caller apagar depois da transação (a API do
+  // órfãs lá — a remoção fica nas filas duráveis, na mesma transação (a API do
   // Google não pode ser chamada dentro de uma transação síncrona do better-sqlite3).
-  const orphanedCalendarEvents = [];
+  let orphanedCalendarEvents = 0;
   const orphanedTasks = [];
   const delStmt = db.prepare('DELETE FROM operational_events WHERE id = ? AND organization_id = ?');
   for (const row of existingRows) {
     if (!desiredKeys.has(row.auto_key) && row.status !== 'concluido') {
       delStmt.run(row.id, orgId);
-      if (row.google_event_id) {
-        orphanedCalendarEvents.push({
-          google_event_id: row.google_event_id,
-          google_calendar_user_id: row.google_calendar_user_id,
-          accommodation_id: row.accommodation_id,
-          organization_id: orgId,
-        });
-      }
+      if (detachOperationalEvent(row)) orphanedCalendarEvents++;
       if (row.google_task_id) {
         // Guardar o ID antes de apagar a linha local. Se a API estiver sem quota
         // ou indisponível, a eliminação pode ser repetida sem deixar um órfão.
@@ -222,11 +215,8 @@ const syncReservationTx = db.transaction((reservation, userId = null) => {
   return { orphanedCalendarEvents, orphanedTasks };
 });
 
-function deleteOrphanedCalendarEvents(rows) {
-  rows.forEach(row => {
-    deleteTaskCalendarEvent(row, { userId: row.google_calendar_user_id, organizationId: row.organization_id })
-      .catch(err => console.error('Erro ao remover evento de tarefa do Google Calendar:', err.message));
-  });
+function deleteOrphanedCalendarEvents(organizationId, count) {
+  if (count) kickCalendarQueue(organizationId);
 }
 
 function deleteOrphanedTasks(organizationId, googleTaskIds) {
@@ -247,7 +237,9 @@ function queueReservationTaskCleanup(organizationId, reservationId) {
   return rows.length;
 }
 
+// Depois de eliminar reservas: remoções no Google Tasks e no Google Calendar.
 function flushReservationTaskCleanup(organizationId) {
+  kickCalendarQueue(organizationId);
   return processQueuedTaskDeletions(organizationId);
 }
 
@@ -263,7 +255,7 @@ function scheduleOperationalSync(organizationId, userId = null, reservationId = 
 function syncReservationOperationalTasks(reservation, userId = null) {
   if (!reservation?.id || !reservation.organization_id) return;
   const { orphanedCalendarEvents, orphanedTasks } = syncReservationTx(reservation, userId);
-  deleteOrphanedCalendarEvents(orphanedCalendarEvents);
+  deleteOrphanedCalendarEvents(reservation.organization_id, orphanedCalendarEvents);
   deleteOrphanedTasks(reservation.organization_id, orphanedTasks);
   scheduleOperationalSync(reservation.organization_id, userId, reservation.id);
 }
@@ -277,17 +269,17 @@ function syncOrganizationOperationalTasks(organizationId, userId = null) {
     WHERE r.organization_id = ?
   `).all(organizationId);
 
-  const orphanedCalendarEvents = [];
+  let orphanedCalendarEvents = 0;
   const orphanedTasks = [];
   const tx = db.transaction(rows => {
     rows.forEach(row => {
       const result = syncReservationTx(row, null);
-      orphanedCalendarEvents.push(...result.orphanedCalendarEvents);
+      orphanedCalendarEvents += result.orphanedCalendarEvents;
       orphanedTasks.push(...result.orphanedTasks);
     });
   });
   tx(reservations);
-  deleteOrphanedCalendarEvents(orphanedCalendarEvents);
+  deleteOrphanedCalendarEvents(organizationId, orphanedCalendarEvents);
   deleteOrphanedTasks(organizationId, orphanedTasks);
   scheduleOperationalSync(organizationId, userId);
 }

@@ -112,10 +112,9 @@ const despCols = AppModules.core.createColLayout({
 
 // Filtros de Despesas viram uma folha deslizante no telemóvel — mesmo
 // mecanismo de #reservas-filter-panel/#calendario-filter-panel.
-function toggleDespesasFiltersSheet(open) {
-  document.getElementById('despesas-filter-panel')?.classList.toggle('m-sheet-open', open);
-  document.getElementById('despesas-filters-backdrop')?.classList.toggle('active', open);
-  document.getElementById('view-despesas')?.classList.toggle('m-sheet-ancestor-fix', open);
+function toggleDespesasFiltersSheet(open, trigger) {
+  if (open) trigger?.focus({ preventScroll: true });
+  AppUI.setSheetOpen('despesas-filter-panel', 'despesas-filters-backdrop', open, 'm-sheet-open');
 }
 
 // Filtros ativos = qualquer coisa diferente dos valores por omissão.
@@ -406,8 +405,8 @@ function renderDespesasMobileCards(filtered, total) {
       <div class="mec-bottom">
         <span class="mec-amount">${AppModules.core.formatEUR(d.amount)}</span>
         <div class="mec-actions" data-stop="1">
-          <button class="m-card-btn" data-on-click="open-despesa-modal" data-id="${AppModules.core.escapeHtml(d.id)}"><i data-lucide="pencil"></i></button>
-          <button class="m-card-btn" data-on-click="delete-despesa" data-id="${AppModules.core.escapeHtml(d.id)}"><i data-lucide="trash-2"></i></button>
+          <button class="m-card-btn" aria-label="Editar despesa" data-on-click="open-despesa-modal" data-id="${AppModules.core.escapeHtml(d.id)}"><i data-lucide="pencil"></i></button>
+          <button class="m-card-btn" aria-label="Apagar despesa" data-on-click="delete-despesa" data-id="${AppModules.core.escapeHtml(d.id)}"><i data-lucide="trash-2"></i></button>
         </div>
       </div>
     </div>`;
@@ -431,7 +430,7 @@ function openDespesaModal(id) {
   despesaEditId = id || null;
   const d = id ? despesasPaged.state.rows.find(x => x.id === id) : null;
   document.getElementById('despesa-modal-title').textContent = d ? 'Editar Despesa' : 'Nova Despesa';
-  document.getElementById('despesa-date').value        = AppModules.core.formatDateForStandardInput(d ? d.date : new Date().toISOString().slice(0, 10));
+  document.getElementById('despesa-date').value        = AppModules.core.formatDateForStandardInput(d ? d.date : window.ReservationDates.localIso());
   document.getElementById('despesa-category').value    = d ? d.category    : 'limpeza';
   document.getElementById('despesa-description').value = d ? d.description : '';
   document.getElementById('despesa-amount').value      = d ? d.amount      : '';
@@ -709,7 +708,7 @@ function _renderReceiptError(msg) {
 
 function _renderReceiptReview(data) {
   _receiptLines = (data.items || []).map(i => ({ description: i.description, category: i.category, amount: i.amount }));
-  const today = new Date().toISOString().slice(0, 10);
+  const today = window.ReservationDates.localIso();
   const dateVal = data.date || today;
   const el = document.getElementById('receipt-review-content');
   el.innerHTML = `
@@ -878,7 +877,7 @@ AppActions.register({
   'close-despesa-modal': () => closeDespesaModal(),
   'save-despesa': () => saveDespesa(),
   'export-despesas-xlsx': () => exportDespesasXLSX(),
-  'open-despesas-filters': () => toggleDespesasFiltersSheet(true),
+  'open-despesas-filters': el => toggleDespesasFiltersSheet(true, el),
   'close-despesas-filters': () => toggleDespesasFiltersSheet(false),
   'clear-despesas-filtros': () => clearDespesasFiltros(),
   'trigger-receipt-input': () => document.getElementById('receipt-file-input').click(),

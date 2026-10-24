@@ -62,8 +62,10 @@ router.post('/clean-duplicates', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Google Tasks não ligado.' });
   }
 
+  // Primeiro pré-visualização; apagar exige confirmar o número mostrado.
+  const confirm = req.body?.confirm === true;
   try {
-    const deleted = await withTaskLock(orgId, async () => {
+    const outcome = await withTaskLock(orgId, async () => {
       const auth = getAuthenticatedTasksClient(orgId);
       const listId = await getOrCreateTaskList(auth, orgId);
 
@@ -97,25 +99,33 @@ router.post('/clean-duplicates', async (req, res) => {
         groups.get(key).push(t);
       }
 
-      let deleted = 0;
+      const candidates = [];
       for (const tasks of groups.values()) {
         if (tasks.length < 2) continue;
         let keepIdx = tasks.findIndex(t => localIds.has(t.id));
         if (keepIdx < 0) keepIdx = 0;
-        for (let i = 0; i < tasks.length; i++) {
-          if (i === keepIdx || localIds.has(tasks[i].id)) continue;
-          try {
-            await auth.request({ url: `${TASKS_BASE}/lists/${listId}/tasks/${tasks[i].id}`, method: 'DELETE' });
-            deleted++;
-          } catch (err) {
-            console.error('Erro a apagar tarefa duplicada:', err.message);
-          }
+        tasks.forEach((task, i) => { if (i !== keepIdx && !localIds.has(task.id)) candidates.push(task); });
+      }
+      const sample = candidates.slice(0, 20).map(t => ({ title: t.title || '', start: (t.due || '').slice(0, 10) }));
+      if (!confirm) return { preview: true, count: candidates.length, sample };
+      if (Number(req.body.expected) !== candidates.length) return { conflict: true, count: candidates.length, sample };
+
+      let deleted = 0, failed = 0;
+      for (const task of candidates) {
+        try {
+          await auth.request({ url: `${TASKS_BASE}/lists/${listId}/tasks/${task.id}`, method: 'DELETE' });
+          deleted++;
+        } catch (err) {
+          failed++;
+          console.error('Erro a apagar tarefa duplicada:', err.message);
         }
       }
-
-      return deleted;
+      return { deleted, failed };
     });
-    res.json({ success: true, deleted });
+    if (outcome.conflict) {
+      return res.status(409).json({ success: false, error: 'Os duplicados mudaram desde a pré-visualização. Reveja a lista antes de apagar.', count: outcome.count, sample: outcome.sample });
+    }
+    res.json({ success: true, ...outcome });
   } catch (err) {
     console.error('Tasks clean-duplicates erro:', err);
     res.status(500).json({ success: false, error: err.message });

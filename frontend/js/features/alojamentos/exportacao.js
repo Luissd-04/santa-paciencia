@@ -150,7 +150,7 @@ function _doExportAlojamentosXLS(selectedKeys) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Alojamentos');
   AppModules.core.updateOperationProgress(90, 'A iniciar download...');
-  XLSX.writeFile(wb, `alojamentos_${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.writeFile(wb, `alojamentos_${window.ReservationDates.localIso()}.xlsx`);
   AppModules.core.updateOperationProgress(100, 'Concluído.');
   AppModules.core.hideOperationProgress();
   AppModules.core.toast('📊 Excel exportado!', 'success');
@@ -215,7 +215,7 @@ async function _doExportAlojamentosPDF(selectedKeys) {
   }
   doc.setTextColor(40);
   AppModules.core.updateOperationProgress(92, 'A iniciar download...');
-  doc.save(`alojamentos_${new Date().toISOString().slice(0,10)}.pdf`);
+  doc.save(`alojamentos_${window.ReservationDates.localIso()}.pdf`);
   AppModules.core.updateOperationProgress(100, 'Concluído.');
   AppModules.core.hideOperationProgress();
   AppModules.core.toast('📄 PDF exportado!', 'success');

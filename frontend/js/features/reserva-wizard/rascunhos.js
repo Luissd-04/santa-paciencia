@@ -6,6 +6,7 @@ AppModules.define('reservas', {
   clearReservaDraft: { get: () => clearReservaDraft },
   discardReservaDraft: { get: () => discardReservaDraft },
   loadReservaDraft: { get: () => loadReservaDraft },
+  captureReservaEditBaseline: { get: () => captureReservaEditBaseline },
   requestCloseReservaModal: { get: () => requestCloseReservaModal },
   reservaModalIsOpen: { get: () => reservaModalIsOpen },
 });
@@ -15,6 +16,19 @@ try { localStorage.removeItem('sp_reserva_draft_v1'); } catch {}
 function reservaDraftKey() { return `${RESERVA_DRAFT_KEY}:${AppModules.core.currentUser?.id || ''}:${AppModules.core.currentUser?.organization_id || ''}`; }
 let _draftSaveTimer = null;
 let _suppressDraftSave = false;
+let editBaseline = '';
+function editSnapshot() {
+  const fields = Array.from(document.querySelectorAll('#modal-bg input, #modal-bg select, #modal-bg textarea'))
+    .filter(el => !el.closest('.app-select-search') && !el.classList.contains('app-select-search'))
+    .map(el => [el.id || el.name || el.dataset.field || '', el.value, el.type === 'checkbox' ? el.checked : null]);
+  return JSON.stringify({ fields, rooms: AppModules.reservas._wizExtraRooms, nightly: AppModules.reservas._nightlyOverrides, total: AppModules.reservas._manualTotalOverride });
+}
+function captureReservaEditBaseline() { editBaseline = editSnapshot(); }
+function editIsDirty() { return Boolean(AppModules.core.editingId && editBaseline && editBaseline !== editSnapshot()); }
+window.addEventListener('beforeunload', event => {
+  if (!reservaModalIsOpen() || !editIsDirty()) return;
+  event.preventDefault(); event.returnValue = '';
+});
 
 function reservaModalIsOpen() {
   return document.getElementById('modal-bg')?.classList.contains('open');
@@ -43,8 +57,11 @@ function reservaFormHasData() {
 }
 
 function requestCloseReservaModal() {
-  // Em edição não guardamos rascunho; fechar diretamente.
-  if (AppModules.core.editingId) { AppModules.reservas.closeModal(); return; }
+  if (AppModules.core.editingId) {
+    if (editIsDirty() && !window.confirm('Descartar as alterações desta reserva?\n\nAs alterações ainda não foram guardadas.')) return false;
+    AppModules.reservas.closeModal();
+    return true;
+  }
   if (reservaFormHasData()) {
     saveReservaDraft(); // garante que o estado atual fica guardado
     const ok = window.confirm('Fechar e guardar como rascunho?\n\nOs dados ficam guardados e podes continuar da próxima vez que abrires "Nova Reserva".');
@@ -134,6 +151,7 @@ function applyReservaDraft(draft) {
       const row = rows[idx];
       if (!row) return;
       const setVal = (field, v) => { const el = row.querySelector(`[data-field="${field}"]`); if (el) el.value = v || ''; };
+      row.dataset.guestId = g.id || '';
       setVal('nome_completo', [g.first_name, g.last_name].filter(Boolean).join(' ') || g.name || '');
       setVal('email', g.email);
       const rawP = g.phone || '';
@@ -182,9 +200,11 @@ if (document.readyState === 'loading') {
 }
 
 
-// Limpeza da funcionalidade ao sair ou trocar de organização.
+// Limpeza da funcionalidade ao sair, trocar de organização ou perder a sessão.
+// O rascunho não é apagado aqui: com a sessão expirada, o utilizador volta a
+// entrar e continua a reserva (a chave inclui utilizador e organização).
+// Logout e troca de organização apagam-no explicitamente (auth.js).
 AppModules.onReset('features/reserva-wizard/rascunhos.js', () => {
-  clearReservaDraft();
   clearTimeout(_draftSaveTimer); clearInterval(_draftSaveTimer); _draftSaveTimer = null;
 });
 

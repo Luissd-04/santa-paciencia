@@ -5,7 +5,7 @@ const {
   saveAutoTaskSettings,
   syncOrganizationOperationalTasks,
 } = require('../services/operationalTasksService');
-const { deleteTaskCalendarEvent, syncOperationalEventsToGoogle } = require('../services/calendarService');
+const { detachOperationalEvent, kickCalendarQueue, syncOperationalEventsToGoogle } = require('../services/calendarService');
 const { queueSyncedTaskDeletion, processQueuedTaskDeletions, suppressAutoTask } = require('../config/googleTasks');
 const { listEvents } = require('../services/listQueries');
 
@@ -22,15 +22,19 @@ const VALID_STATUS = new Set(['planeado', 'concluido']);
 
 function normalizeDate(value) {
   const raw = String(value || '').trim();
-  return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
+  return require('../services/reservationRules').normalizeDateValue(raw);
 }
 
 function normalizeTime(value) {
   const raw = String(value || '').trim();
-  return /^\d{2}:\d{2}$/.test(raw) ? raw : null;
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(raw) ? raw : null;
 }
 
 function normalizePayload(body = {}, existing = {}) {
+  for (const key of ['start_time', 'end_time']) if (body[key] && !normalizeTime(body[key])) throw Object.assign(new Error('Hora inválida.'), { status: 400 });
+  const start = body.start_time === undefined ? existing.start_time : body.start_time;
+  const end = body.end_time === undefined ? existing.end_time : body.end_time;
+  if (start && end && end <= start) throw Object.assign(new Error('A hora final deve ser posterior à inicial.'), { status: 400 });
   const status = VALID_STATUS.has(body.status) ? body.status : (existing.status || 'planeado');
   return {
     title: String(body.title ?? existing.title ?? '').trim(),
@@ -126,13 +130,11 @@ function remove(req, res) {
   db.transaction(() => {
     suppressAutoTask(existing);
     queueSyncedTaskDeletion(orgId, existing.google_task_id);
+    detachOperationalEvent(existing);
     db.prepare('DELETE FROM operational_events WHERE id = ? AND organization_id = ?').run(req.params.id, orgId);
   })();
   res.json({ success: true });
-  if (existing.google_event_id) {
-    deleteTaskCalendarEvent(existing, { userId: existing.google_calendar_user_id, organizationId: orgId })
-      .catch(err => console.error('Erro ao remover evento de tarefa do Google Calendar:', err.message));
-  }
+  if (existing.google_event_id) kickCalendarQueue(orgId);
   if (existing.google_task_id) {
     processQueuedTaskDeletions(orgId)
       .catch(err => console.error('Erro ao remover tarefa do Google Tasks:', err.message));

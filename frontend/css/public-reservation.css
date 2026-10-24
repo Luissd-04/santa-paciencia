@@ -1069,3 +1069,7 @@ textarea { resize: vertical; }
 }
 
 .pc-time-hint { margin: 8px 0 0; font-size: 13px; color: #8a6d5f; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

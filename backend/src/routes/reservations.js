@@ -13,7 +13,9 @@ router.get('/:id/history', ctrl.getHistory);
 router.get('/:id', ctrl.getById);
 
 // Criação e edição — manager+
+router.post('/quote', requireRole('manager'), ctrl.quote);
 router.post('/', requireRole('manager'), ctrl.create);
+router.post('/:id/quote', requireRole('manager'), ctrl.quote);
 router.put('/:id', requireRole('manager'), ctrl.update);
 router.post('/:id/approve', requireRole('manager'), ctrl.approve);
 router.post('/:id/send-precheckin', requireRole('manager'), ctrl.sendPrecheckinLink);
@@ -24,6 +26,9 @@ router.post('/:id/task-status', ctrl.setTaskStatus);
 // Pagamentos — manager+ (financeiro)
 router.post('/:id/payments', requireRole('manager'), ctrl.addPayment);
 router.delete('/:id/payments/:paymentId', requireRole('manager'), ctrl.deletePayment);
+
+// Resolver envio de email incerto/recusado — manager+
+router.post('/:id/email-deliveries/resolve', requireRole('manager'), ctrl.resolveEmailDelivery);
 
 // Fatura da reserva — manager+
 router.put('/:id/invoice', requireRole('manager'), ctrl.saveInvoice);

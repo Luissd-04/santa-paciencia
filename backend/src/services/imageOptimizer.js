@@ -17,7 +17,14 @@ const THUMBS_DIR = path.join(UPLOADS_DIR, '.thumbs');
 // Marcas não são fotografias: conservar os bytes e a resolução de PNG/JPEG/
 // GIF, sem nova compressão com perdas. Converter WebP/AVIF para PNG porque
 // o mesmo ficheiro é usado pelos clientes de email.
+async function validateImage(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length > 10 * 1024 * 1024) throw Object.assign(new Error('Imagem demasiado grande (máximo 10 MB).'), { status: 400 });
+  try {
+    await sharp(buffer, { failOn: 'warning', limitInputPixels: 40000000 }).resize({ width: 1, height: 1, fit: 'inside' }).png().toBuffer();
+  } catch { throw Object.assign(new Error('Imagem inválida, incompleta ou com dimensões excessivas.'), { status: 400 }); }
+}
 async function optimizeLogoUpload(buffer, ext) {
+  await validateImage(buffer);
   if (ext !== 'webp' && ext !== 'avif') return { data: buffer, ext };
   return { data: await sharp(buffer, { failOn: 'error' }).rotate().png().toBuffer(), ext: 'png' };
 }
@@ -26,6 +33,7 @@ async function optimizeLogoUpload(buffer, ext) {
 // emails, onde o Outlook não aceita WebP) mantém-se PNG. GIF fica intacto
 // para não perder animação.
 async function optimizeUpload(buffer, ext) {
+  await validateImage(buffer);
   if (ext === 'gif') return { data: buffer, ext };
   try {
     const image = sharp(buffer, { failOn: 'error' }).rotate();
@@ -41,11 +49,7 @@ async function optimizeUpload(buffer, ext) {
     }
     const larger = (meta.width || 0) > MAX_SIDE || (meta.height || 0) > MAX_SIDE;
     return larger || out.data.length < buffer.length ? out : { data: buffer, ext };
-  } catch {
-    // Imagem que o sharp não consegue ler: guarda-se o original, já validado
-    // pelos magic bytes no controlador.
-    return { data: buffer, ext };
-  }
+  } catch { throw Object.assign(new Error('Não foi possível processar a imagem.'), { status: 400 }); }
 }
 
 function thumbPath(filename, width) {
@@ -85,4 +89,4 @@ function removeThumbnails(filename) {
   }
 }
 
-module.exports = { MAX_SIDE, THUMB_WIDTHS, optimizeUpload, optimizeLogoUpload, thumbnail, removeThumbnails };
+module.exports = { validateImage, MAX_SIDE, THUMB_WIDTHS, optimizeUpload, optimizeLogoUpload, thumbnail, removeThumbnails };

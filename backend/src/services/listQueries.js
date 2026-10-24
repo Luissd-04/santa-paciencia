@@ -301,8 +301,8 @@ function listExpenses(organizationId, query = {}) {
 // TODAS as reservas e TODOS os hóspedes por páginas e cruzava-os em memória;
 // agora o cruzamento é feito aqui e só volta a página pedida.
 //
-// `@reserva.local` é o email de marcador usado quando não há email real do
-// hóspede (ver realEmail() no frontend) — essas reservas não dão conversa.
+// `@reserva.local` e `@sem-email.local` são os emails de marcador usados quando
+// não há email real do hóspede (ver realEmail() no frontend) — essas reservas não dão conversa.
 const THREAD_SORTS = {
   last_sent_at: 'last_sent_at',
   guest_name: 'guest_name COLLATE NOCASE',
@@ -325,7 +325,7 @@ function listMessageThreads(organizationId, query = {}) {
       FROM reservations r
       JOIN guests g ON g.id = r.guest_id AND g.organization_id = r.organization_id
       WHERE r.organization_id = :org
-        AND COALESCE(g.email,'') != '' AND g.email NOT LIKE '%@reserva.local'
+        AND COALESCE(g.email,'') != '' AND g.email NOT LIKE '%@reserva.local' AND g.email NOT LIKE '%@sem-email.local'
     ),
     conversas AS (
       SELECT
@@ -344,7 +344,7 @@ function listMessageThreads(organizationId, query = {}) {
       JOIN accommodations a ON a.id = r.accommodation_id AND a.organization_id = r.organization_id
       LEFT JOIN ultima u ON u.email = app_lower(g.email)
       WHERE r.organization_id = :org
-        AND COALESCE(g.email,'') != '' AND g.email NOT LIKE '%@reserva.local'
+        AND COALESCE(g.email,'') != '' AND g.email NOT LIKE '%@reserva.local' AND g.email NOT LIKE '%@sem-email.local'
 
       UNION ALL
 

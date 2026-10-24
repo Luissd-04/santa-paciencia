@@ -184,9 +184,12 @@ function createRangeCollection(path) {
   return { state, load, reset };
 }
 
-function resetPrivateLists() {
+// keepDraft: sessão expirada — o ecrã é limpo, mas o rascunho da reserva nova
+// (sessionStorage deste separador, chave por utilizador/organização) fica para
+// quando o mesmo utilizador voltar a entrar. Logout e troca de organização apagam-no.
+function resetPrivateLists({ keepDraft = false } = {}) {
   AppModules.core.cancelApiRequests?.();
-  AppModules.reservas.clearReservaDraft?.();
+  if (!keepDraft) AppModules.reservas.clearReservaDraft?.();
   AppModules.resetPrivateState();
   document.querySelectorAll?.('.modal-bg input, .modal-bg textarea, .modal-bg [contenteditable="true"]').forEach(el => {
     if (el.matches('[contenteditable]')) el.textContent = '';

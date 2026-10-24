@@ -1,12 +1,41 @@
 # Melhorias técnicas
 
-Backlog técnico revisto em 5 de outubro de 2026, após auditoria completa do
+> Âmbito de versões (24/10/2026): consultar a [classificação consolidada V1/V2](ESCOPO-V1-V2.md). Distingue requisitos de fiabilidade, correções mobile já concluídas e melhorias que podem acompanhar a 2.0.
+
+> Atualização de 23/10/2026: concluída a [revisão funcional para fechar a 1.0](REVISAO-FUNCIONAL-2026-10-23.md), com reproduções atuais e critérios de conclusão. A suite geral de browser já passa e as 13 falhas mobile foram corrigidas; continuam pendentes os bloqueadores funcionais e operacionais identificados nessa revisão.
+
+Backlog técnico atualizado em 8 de outubro de 2026, após revisão do
 código (backend, frontend, infraestrutura e documentação). Este documento contém
 trabalho de engenharia; funcionalidades e integrações pertencem ao
 [roadmap de produto](ROADMAP.md).
 
-As correções feitas durante a auditoria já não aparecem aqui (ver Git). As
-restantes estão abaixo, por prioridade.
+As correções anteriores já não aparecem aqui (ver Git). Os achados novos ainda
+não foram corrigidos. Evidência, âmbito, limitações e critérios de conclusão
+estão no [relatório de 8 de outubro](REVISAO-2026-10-08.md).
+
+## Ordem de execução após a revisão de 8 de outubro
+
+Os códigos referem-se ao relatório. Esta lista prevalece sobre a ordenação
+histórica das secções abaixo; P1 no relatório significa antes da publicação.
+
+- [ ] **Segurança:** impedir exposição de tokens de reserva a staff (S01),
+  rejeitar injeção de cabeçalhos MIME em todos os envios (S02), atualizar
+  dependências vulneráveis (S03), reforçar alterações de conta/convites (S04)
+  e neutralizar fórmulas em CSV (S06).
+- [ ] **Emails:** eliminar sucesso falso e envios duplicados (M01–M02), usar
+  contexto completo e regras coerentes no scheduler e no envio manual
+  (M03–M05), alinhar idioma, composição e histórico (M06–M08).
+- [ ] **Pagamentos:** tratar os casos de consentimento/reconciliação e manter
+  os montantes aprovados pelo operador durante o cancelamento (P01–P03).
+- [ ] **Dados:** preservar campos em atualizações parciais, validar datas e
+  valores, corrigir disponibilidade de unidades e comparações monetárias
+  (D01–D04); uniformizar datas locais e rever identificadores (D05).
+- [ ] **Publicação:** recuperar a suite geral de browser, acrescentar
+  regressões para os problemas reproduzidos e integrar os novos checks na CI
+  (O01); concluir as validações operacionais abaixo.
+- [ ] **Organização e operação:** centralizar eventos e consultas partilhadas,
+  melhorar filas, restauro e observabilidade, e reduzir módulos grandes e
+  artefactos versionados (O02–O06).
 
 ## P0 — antes da próxima publicação
 
@@ -52,7 +81,7 @@ Critérios de conclusão:
 `cdnjs.cloudflare.com`. Qualquer pacote público nesses CDN passa a ser
 executável se surgir uma injeção de HTML. Alojar localmente (como já acontece
 com SheetJS e flag-icons) ou limitar a CSP aos caminhos exatos com versão.
-Em seguida, remover `'unsafe-inline'` de `style-src`.
+Migrar os estilos inline antes de remover `'unsafe-inline'` de `style-src`.
 
 ### Origem CORS de produção vem do código
 
@@ -80,9 +109,11 @@ ambientes.
 
 ### Exportações e fórmulas
 
-Nomes, notas e moradas chegam de formulários públicos. Exportações XLSX/CSV
-devem neutralizar valores começados por `=`, `+`, `-`, `@`, tabulação ou CR
-(prefixo `'`) para evitar injeção de fórmulas na folha de cálculo.
+Nomes, notas e moradas chegam de formulários públicos. Exportações CSV devem
+neutralizar campos textuais não fiáveis começados por `=`, `+`, `-`, `@`,
+tabulação ou CR; colocar aspas não impede a interpretação como fórmula.
+Em XLSX, verificar que estes campos têm tipo texto e nenhuma propriedade `f`.
+Não assumir que uma string tipada no SheetJS é executada como fórmula.
 
 ### Vouchers consumidos por reservas públicas não pagas
 
@@ -93,9 +124,10 @@ manual — devolve a utilização.
 
 ### Robustez do processo
 
-- Não existe `process.on('unhandledRejection')`. As chamadas assíncronas sem
-  `await` atuais apanham erros, mas uma regressão futura termina o processo
-  sem registo útil. Acrescentar handler que regista e mantém o processo.
+- Definir tratamento de falhas assíncronas fatais com registo útil, encerramento
+  controlado e reinício pelo supervisor. Não manter indefinidamente um processo
+  com estado possivelmente inconsistente. No encerramento normal, esperar pelas
+  operações em curso dos schedulers, com prazo máximo.
 - A fila `organization_email_queue` repete falhas a cada hora sem limite de
   tentativas nem registo do último erro.
 - Tentativas Stripe `creating` com mais de 23 horas ficam bloqueadas sem
@@ -150,10 +182,10 @@ schedulers. Manter os testes de regressão de segurança já existentes.
 - O Compose monta `./tokens`, usado apenas pelo caminho legado
   `tokens/google_token.json` em `config/google.js`. Confirmar que não há tokens
   legados e remover ambos.
-- Dependências backend com versão maior nova: `better-sqlite3` 13,
-  `google-auth-library` 11, `archiver` 8, `dotenv` 18. Atualizações menores
-  pendentes: `helmet`, `express-rate-limit`, `sharp`, `unzipper`, `uuid`.
-- Frontend: aviso de severidade baixa em `dompurify` (via `jspdf` 4.2.1).
+- Auditoria de 8 de outubro: backend com avisos em `proxy-addr`, `sharp` e
+  `source-map-js`; frontend com avisos baixos em `dompurify`, via jsPDF.
+  Ver S03 no relatório para versões e condições de exposição. Atualizar de
+  forma dirigida; confirmar também os recursos CDN efetivamente servidos.
 
 ### Privacidade e retenção
 
@@ -219,6 +251,10 @@ Definir o ponto em que SQLite deixa de cumprir concorrência, disponibilidade ou
 escala.
 
 ### Qualidade de email
+
+Uniformizar os percursos descritos em M01–M08 no relatório: transporte comum
+não garante composição, regras, fila ou histórico comuns. Corrigir primeiro
+os problemas funcionais reproduzidos.
 
 Testar renderização em Gmail, Outlook e Apple Mail, versões mobile e dark mode.
 Adicionar monitorização de rejeições e falhas permanentes antes de aumentar a

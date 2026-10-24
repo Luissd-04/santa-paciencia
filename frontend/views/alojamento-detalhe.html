@@ -15,7 +15,7 @@
         </div>
 
         <!-- Tabs -->
-        <div style="display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--cinza-claro);">
+        <div class="aloj-tabs" aria-label="Configurações do alojamento" style="display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--cinza-claro);">
           <button class="aloj-tab active" data-on-click="index-show-aloj-tab-48e872d" id="tab-info">
             <i data-lucide="info"></i> Informação
           </button>
@@ -54,37 +54,37 @@
               </div>
               <div class="form-grid">
                 <div class="form-group">
-                  <label class="form-label">Nome</label>
+                  <label for="aloj-nome" class="form-label">Nome</label>
                   <input class="form-control" id="aloj-nome" placeholder="Nome do alojamento" autocomplete="off">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Cor no calendário</label>
+                  <label for="aloj-color" class="form-label">Cor no calendário</label>
                   <div style="display:flex;align-items:center;gap:10px;">
                     <input type="color" id="aloj-color" value="#843424" style="width:48px;height:36px;padding:2px;border:1px solid var(--borda);border-radius:8px;cursor:pointer;background:none;">
                     <span id="aloj-color-label" style="font-size:13px;color:var(--cinza);">#843424</span>
                   </div>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Número de licença</label>
+                  <label for="aloj-licenca" class="form-label">Número de licença</label>
                   <div style="display:flex;gap:8px;align-items:center;">
                     <input class="form-control" id="aloj-licenca" placeholder="12345" autocomplete="off">
                     <span style="font-size:13px;color:var(--cinza);white-space:nowrap;">/ AL</span>
                   </div>
                 </div>
                 <div class="form-group form-full">
-                  <label class="form-label">Morada</label>
+                  <label for="aloj-morada" class="form-label">Morada</label>
                   <input class="form-control" id="aloj-morada" placeholder="Rua, número" autocomplete="off">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Código Postal</label>
+                  <label for="aloj-cp" class="form-label">Código Postal</label>
                   <input class="form-control" id="aloj-cp" placeholder="0000-000" autocomplete="off">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Localidade</label>
+                  <label for="aloj-cidade" class="form-label">Localidade</label>
                   <input class="form-control" id="aloj-cidade" placeholder="Lisboa" autocomplete="off">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Região</label>
+                  <label for="aloj-regiao" class="form-label">Região</label>
                   <select class="form-control" id="aloj-regiao">
                     <option>Continente</option>
                     <option>Açores</option>
@@ -92,7 +92,7 @@
                   </select>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">País</label>
+                  <label for="aloj-pais" class="form-label">País</label>
                   <input class="form-control" id="aloj-pais" value="Portugal" autocomplete="off">
                 </div>
               </div>
@@ -106,7 +106,7 @@
               </div>
               <div class="form-grid">
                 <div class="form-group">
-                  <label class="form-label">Tipologia</label>
+                  <label for="aloj-tipo" class="form-label">Tipologia</label>
                   <select class="form-control" id="aloj-tipo" data-on-change="index-on-aloj-tipo-change-7469612">
                     <option value="alojamento">Alojamento Principal</option>
                     <option value="suite">Suite</option>
@@ -117,14 +117,14 @@
                   </select>
                 </div>
                 <div class="form-group" id="aloj-parent-wrap" style="display:none;">
-                  <label class="form-label">Alojamento Principal</label>
+                  <label for="aloj-parent-id" class="form-label">Alojamento Principal</label>
                   <select class="form-control" id="aloj-parent-id" data-on-change="index-on-aloj-parent-change-4ab93cd">
                     <option value="">— Nenhum —</option>
                   </select>
                   <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;display:block;">Associa esta unidade a um alojamento principal</span>
                 </div>
                 <div class="form-group form-full" id="aloj-public-link-wrap" style="display:none;">
-                  <label class="form-label">Link público de reserva</label>
+                  <label for="aloj-public-link" class="form-label">Link público de reserva</label>
                   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                     <input class="form-control" id="aloj-public-link" readonly placeholder="O link é gerado automaticamente" style="flex:1 1 320px;" autocomplete="off">
                     <button class="btn btn-ghost btn-sm" type="button" data-on-click="index-copy-public-booking-link-34d2940">
@@ -137,47 +137,47 @@
                   <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;display:block;">Abre a página que o cliente vê para fazer uma reserva neste alojamento.</span>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Área (m²)</label>
+                  <label for="aloj-area" class="form-label">Área (m²)</label>
                   <input class="form-control" id="aloj-area" type="number" min="1" placeholder="ex: 45" autocomplete="off">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Capacidade máx. hóspedes</label>
+                  <label for="aloj-capacidade" class="form-label">Capacidade máx. hóspedes</label>
                   <input class="form-control" id="aloj-capacidade" type="number" min="1" max="20" autocomplete="off">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Quartos</label>
+                  <label for="aloj-quartos" class="form-label">Quartos</label>
                   <input class="form-control" id="aloj-quartos" type="number" min="0" max="20" autocomplete="off">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Casas de banho</label>
+                  <label for="aloj-casasbanho" class="form-label">Casas de banho</label>
                   <input class="form-control" id="aloj-casasbanho" type="number" min="0" max="20" autocomplete="off">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Preço / noite (€)</label>
+                  <label for="aloj-preco" class="form-label">Preço / noite (€)</label>
                   <input class="form-control" id="aloj-preco" type="number" min="0" step="0.01" autocomplete="off">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Estadia mínima (noites)</label>
+                  <label for="aloj-min-nights" class="form-label">Estadia mínima (noites)</label>
                   <input class="form-control" id="aloj-min-nights" type="number" min="1" max="30" value="1" autocomplete="off">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Hóspedes incluídos no preço base</label>
+                  <label for="aloj-hospedes-incluidos" class="form-label">Hóspedes incluídos no preço base</label>
                   <input class="form-control" id="aloj-hospedes-incluidos" type="number" min="1" max="20" autocomplete="off">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Bebé até (anos, inclusive)</label>
+                  <label for="aloj-baby-age-limit" class="form-label">Bebé até (anos, inclusive)</label>
                   <input class="form-control" id="aloj-baby-age-limit" type="number" min="0" max="18" value="2" autocomplete="off">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Preço bebé / noite (€)</label>
+                  <label for="aloj-baby-price" class="form-label">Preço bebé / noite (€)</label>
                   <input class="form-control" id="aloj-baby-price" type="number" min="0" step="0.01" value="0" autocomplete="off">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Crianças abaixo de (anos)</label>
+                  <label for="aloj-child-age-limit" class="form-label">Crianças abaixo de (anos)</label>
                   <input class="form-control" id="aloj-child-age-limit" type="number" min="0" max="18" value="12" autocomplete="off">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Preço criança / noite (€)</label>
+                  <label for="aloj-child-price" class="form-label">Preço criança / noite (€)</label>
                   <input class="form-control" id="aloj-child-price" type="number" min="0" step="0.01" value="0" autocomplete="off">
                 </div>
                 <div class="form-group form-full">
@@ -247,11 +247,11 @@
               </div>
               <div class="form-grid" style="grid-template-columns:1fr;">
                 <div class="form-group">
-                  <label class="form-label">Check-in</label>
+                  <label for="aloj-checkin-time" class="form-label">Check-in</label>
                   <input class="form-control" id="aloj-checkin-time" type="time" value="15:00" autocomplete="off">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Check-out</label>
+                  <label for="aloj-checkout-time" class="form-label">Check-out</label>
                   <input class="form-control" id="aloj-checkout-time" type="time" value="11:00" autocomplete="off">
                 </div>
               </div>
@@ -264,11 +264,11 @@
                 </span>
               </div>
               <div class="form-group" style="margin-bottom:12px;">
-                <label class="form-label">Nome da rede (SSID)</label>
+                <label for="aloj-wifi-nome" class="form-label">Nome da rede (SSID)</label>
                 <input class="form-control" id="aloj-wifi-nome" placeholder="Nome da rede Wi-Fi" autocomplete="off">
               </div>
               <div class="form-group">
-                <label class="form-label">Senha</label>
+                <label for="aloj-wifi-password" class="form-label">Senha</label>
                 <div class="password-field">
                   <input class="form-control" id="aloj-wifi-password" type="password" placeholder="Senha do Wi-Fi" autocomplete="off">
                   <button type="button" class="password-eye" data-on-click="index-toggle-wifi-pass-8b16cb6" tabindex="-1" title="Mostrar/ocultar senha">
@@ -286,7 +286,7 @@
                 </span>
               </div>
               <div class="form-group">
-                <label class="form-label">Código de abertura de portas</label>
+                <label for="aloj-door-code" class="form-label">Código de abertura de portas</label>
                 <input class="form-control" id="aloj-door-code" placeholder="Ex.: 1234#" autocomplete="off">
               </div>
               <span style="font-size:11.5px;color:var(--cinza);">Enviado automaticamente no email de código de acesso</span>
@@ -299,7 +299,7 @@
                 </span>
               </div>
               <div class="form-group">
-                <label class="form-label">Facebook</label>
+                <label for="aloj-social-fb" class="form-label">Facebook</label>
                 <input class="form-control" id="aloj-social-fb" placeholder="https://facebook.com/..." autocomplete="off">
                 <label class="email-active-toggle" style="margin-top:6px;">
                   <input type="checkbox" id="aloj-social-fb-email" checked>
@@ -308,7 +308,7 @@
                 </label>
               </div>
               <div class="form-group">
-                <label class="form-label">Instagram</label>
+                <label for="aloj-social-ig" class="form-label">Instagram</label>
                 <input class="form-control" id="aloj-social-ig" placeholder="https://instagram.com/..." autocomplete="off">
                 <label class="email-active-toggle" style="margin-top:6px;">
                   <input type="checkbox" id="aloj-social-ig-email" checked>
@@ -317,7 +317,7 @@
                 </label>
               </div>
               <div class="form-group">
-                <label class="form-label">Website</label>
+                <label for="aloj-social-web" class="form-label">Website</label>
                 <input class="form-control" id="aloj-social-web" placeholder="https://..." autocomplete="off">
                 <label class="email-active-toggle" style="margin-top:6px;">
                   <input type="checkbox" id="aloj-social-web-email" checked>
@@ -326,7 +326,7 @@
                 </label>
               </div>
               <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">TripAdvisor</label>
+                <label for="aloj-social-ta" class="form-label">TripAdvisor</label>
                 <input class="form-control" id="aloj-social-ta" placeholder="https://www.tripadvisor.com/..." autocomplete="off">
                 <label class="email-active-toggle" style="margin-top:6px;">
                   <input type="checkbox" id="aloj-social-ta-email" checked>
@@ -368,7 +368,7 @@
                 </span>
               </div>
               <div class="form-group">
-                <label class="form-label">ID do Calendário</label>
+                <label for="aloj-gcal-id" class="form-label">ID do Calendário</label>
                 <input class="form-control" id="aloj-gcal-id" placeholder="exemplo@group.calendar.google.com" autocomplete="off">
                 <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;">Deixe em branco para usar o calendário principal</span>
               </div>
@@ -390,12 +390,12 @@
                 </span>
               </div>
               <div class="form-group">
-                <label class="form-label">Airbnb iCal</label>
+                <label for="aloj-airbnb-ical-url" class="form-label">Airbnb iCal</label>
                 <input class="form-control" id="aloj-airbnb-ical-url" type="url" placeholder="https://www.airbnb.com/calendar/ical/..." autocomplete="off">
                 <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;">Link de exportação iCal do anúncio no Airbnb</span>
               </div>
               <div class="form-group" style="margin-bottom:0;">
-                <label class="form-label">Booking.com iCal</label>
+                <label for="aloj-booking-ical-url" class="form-label">Booking.com iCal</label>
                 <input class="form-control" id="aloj-booking-ical-url" type="url" placeholder="https://admin.booking.com/hotel/hoteladmin/ical.html?..." autocomplete="off">
                 <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;">Link de sincronização iCal do calendário da Booking.com</span>
               </div>

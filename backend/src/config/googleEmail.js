@@ -83,13 +83,32 @@ function encodeFromHeader(from) {
 }
 
 async function sendViaGmail(organizationId, { to, subject, html, from, bcc, threadId, inReplyTo, references }) {
-  if (!to) throw new Error('Endereço de destino em falta');
+  const invalid = () => { throw Object.assign(new Error('Cabeçalho ou endereço de email inválido.'), { status: 400 }); };
+  for (const value of [to, subject, from, bcc, threadId, inReplyTo, references]) {
+    if (value != null && (typeof value !== 'string' || /[\x00-\x1f\x7f]/.test(value))) invalid();
+  }
+  const addresses = value => {
+    if (typeof value !== 'string' || !value.trim()) invalid();
+    const entries = value.match(/(?:[^,"]|"[^"]*")+/g) || [];
+    if (!entries.length) invalid();
+    for (const entry of entries) {
+      const mailbox = entry.trim().match(/^(?:[^<>]+<([^<>]+)>|([^<>]+))$/);
+      if (!mailbox || !/^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/.test((mailbox[1] || mailbox[2]).trim())) invalid();
+    }
+  };
+  addresses(to);
+  if (bcc) addresses(bcc);
+  if (from) addresses(from);
+  for (const value of [inReplyTo, references]) if (value && !/^(?:<[^<>\s]+@[^<>\s]+>\s*)+$/.test(value)) invalid();
   const auth = getAuthenticatedEmailClient(organizationId);
 
   const info = getEmailConnectionInfo(organizationId);
   const senderEmail = info.email || 'me';
   const propertyName = process.env.PROPERTY_NAME || 'Santa Paciência';
-  const fromHeader = encodeFromHeader(from || `${propertyName} <${senderEmail}>`);
+  const effectiveFrom = from || `${propertyName} <${senderEmail}>`;
+  if (/[\x00-\x1f\x7f]/.test(effectiveFrom)) invalid();
+  addresses(effectiveFrom);
+  const fromHeader = encodeFromHeader(effectiveFrom);
 
   // Message-ID só para cumprir RFC 2822 no raw MIME que enviamos — o Gmail
   // ignora-o e atribui sempre o seu próprio (ver fetch a seguir ao envio).

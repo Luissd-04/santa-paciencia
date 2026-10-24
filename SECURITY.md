@@ -1,6 +1,7 @@
 # Segurança
 
-Estado dos controlos e processo de reporte, revisto em 5 de outubro de 2026.
+Estado dos controlos e processo de reporte, com riscos conhecidos atualizados
+em 8 de outubro de 2026.
 
 ## Reportar uma vulnerabilidade
 
@@ -54,10 +55,12 @@ Usar sempre dados sintéticos nos testes.
 - testes automatizados de autenticação, isolamento, CSP, dependências e HTTP.
 
 Os controlos reduzem risco; não substituem revisão, monitorização, backups e
-gestão de incidentes. Riscos conhecidos ainda por tratar (CSP com domínios CDN
-inteiros, tokens de convite em claro, rate limit na mudança de palavra-passe,
-injeção de fórmulas em exportações) estão em
-[Melhorias técnicas](docs/MELHORIAS.md#p1--segurança).
+gestão de incidentes. A revisão local de 8 de outubro confirmou exposição de
+tokens de reserva a staff que permite contornar a autorização de cancelamento,
+injeção de cabeçalhos MIME e dependências com avisos publicados. Estes problemas
+continuam por corrigir. Evidência e condições de exposição estão no
+[relatório de revisão](docs/REVISAO-2026-10-08.md); prioridades e restantes riscos
+estão em [Melhorias técnicas](docs/MELHORIAS.md).
 
 ## Segredos e chaves
 

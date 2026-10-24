@@ -11,7 +11,7 @@ router.get('/summary', ctrl.getSummary);
 router.get('/periods', ctrl.getPeriods);
 router.get('/check-invoice', ctrl.checkInvoice);
 router.get('/', ctrl.getAll);
-router.post('/scan-receipt', imageParser, ctrl.scanReceipt);
+router.post('/scan-receipt', require('../middleware/rateLimiter').receiptLimiter, imageParser, ctrl.scanReceipt);
 router.post('/bulk', imageParser, ctrl.bulkCreate);
 router.post('/', imageParser, ctrl.create);
 router.put('/:id', ctrl.update);

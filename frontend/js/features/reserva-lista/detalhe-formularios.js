@@ -8,6 +8,10 @@ AppModules.define('reservas', {
   openPaymentForm: { get: () => openPaymentForm },
 });
 
+const pendingPaymentKey = id => `sp-payment:${AppModules.core.currentUser?.organization_id}:${AppModules.core.currentUser?.id}:${id}`;
+function readPendingPayment(id) {
+  try { return JSON.parse(sessionStorage.getItem(pendingPaymentKey(id)) || 'null'); } catch { return null; }
+}
 function openPaymentForm(reservationId, currentPaid, total) {
   const remaining = Math.max(0, total - currentPaid).toFixed(2);
   const html = `
@@ -33,7 +37,7 @@ function openPaymentForm(reservationId, currentPaid, total) {
           </div>
           <div>
             <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Data</label>
-            <input id="pf-date" type="date" value="${new Date().toISOString().slice(0,10)}" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);" autocomplete="off">
+            <input id="pf-date" type="date" value="${window.ReservationDates.localIso()}" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);" autocomplete="off">
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
@@ -43,6 +47,13 @@ function openPaymentForm(reservationId, currentPaid, total) {
       </div>
     </div>`;
   document.body.insertAdjacentHTML('beforeend', html);
+  const pending = readPendingPayment(reservationId);
+  if (pending) {
+    document.getElementById('pf-amount').value = pending.payload.amount;
+    document.getElementById('pf-method').value = pending.payload.method;
+    document.getElementById('pf-date').value = pending.payload.payment_date || '';
+    AppModules.core.toast('Existe um pagamento por confirmar. Repita Guardar para verificar o resultado sem duplicar.', 'info');
+  }
   document.getElementById('pf-amount')?.focus();
 }
 
@@ -54,10 +65,18 @@ async function savePaymentForm(reservationId) {
   const btn = document.getElementById('pf-save-btn');
   if (btn) btn.disabled = true;
   try {
-    const res = await AppModules.core.apiPost(`/api/reservations/${reservationId}/payments`, {
-      amount, method, payment_date: date || null,
-    });
+    const payload = { amount, method, payment_date: date || null };
+    let pending = readPendingPayment(reservationId);
+    if (pending && JSON.stringify(pending.payload) !== JSON.stringify(payload)) {
+      AppModules.core.toast('Confirme primeiro o pagamento anterior com os mesmos dados. O resultado pode já estar guardado.', 'error');
+      if (btn) btn.disabled = false;
+      return;
+    }
+    if (!pending) pending = { key: crypto.randomUUID(), payload };
+    sessionStorage.setItem(pendingPaymentKey(reservationId), JSON.stringify(pending));
+    const res = await AppModules.core.apiPost(`/api/reservations/${reservationId}/payments`, { ...payload, idempotency_key: pending.key });
     if (res.success) {
+      sessionStorage.removeItem(pendingPaymentKey(reservationId));
       document.getElementById('rdv2-pay-form')?.remove();
       AppModules.core.toast('✅ Pagamento registado', 'success');
       await AppModules.reservas.loadReservas();
@@ -67,7 +86,8 @@ async function savePaymentForm(reservationId) {
       if (btn) btn.disabled = false;
     }
   } catch (e) {
-    AppModules.core.toast('❌ Erro de ligação', 'error');
+    if ([400, 401, 403, 404].includes(e.status)) sessionStorage.removeItem(pendingPaymentKey(reservationId));
+    AppModules.core.toast('❌ ' + (e.status ? e.message : 'Não foi possível confirmar o pagamento. Repita Guardar com os mesmos dados.'), 'error');
     if (btn) btn.disabled = false;
   }
 }

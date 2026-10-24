@@ -35,7 +35,7 @@ async function exportReservasXLS() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Reservas');
-    XLSX.writeFile(wb, `reservas_${new Date().toISOString().slice(0,10)}.xlsx`);
+    XLSX.writeFile(wb, `reservas_${window.ReservationDates.localIso()}.xlsx`);
     AppModules.core.toast('📊 Excel exportado!', 'success');
   } catch (error) {
     AppModules.core.toast('❌ Não foi possível exportar: ' + error.message, 'error');
@@ -160,7 +160,7 @@ async function exportReservasPDF() {
         '€' + Number(r.total_amount).toFixed(2),
       ]),
     });
-    doc.save(`reservas_${new Date().toISOString().slice(0,10)}.pdf`);
+    doc.save(`reservas_${window.ReservationDates.localIso()}.pdf`);
     AppModules.core.toast('📄 PDF exportado!', 'success');
   } catch (error) {
     AppModules.core.toast('❌ Não foi possível exportar: ' + error.message, 'error');

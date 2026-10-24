@@ -141,7 +141,7 @@ function openCalLandscapeNewReservation(dateStr) {
 // Atalho do botão "Bloquear datas" no topo da grelha de paisagem — usa o
 // último dia tocado (ou hoje, se ainda nenhum foi selecionado).
 function calLandBlockShortcut() {
-  AppModules.bloqueios.openBlockModal('', AppModules.calendario.calLandSelectedDate || new Date().toISOString().slice(0, 10));
+  AppModules.bloqueios.openBlockModal('', AppModules.calendario.calLandSelectedDate || window.ReservationDates.localIso());
 }
 
 function calPrev() {

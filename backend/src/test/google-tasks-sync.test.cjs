@@ -24,7 +24,7 @@ function load(relative, stubs = {}) {
 let api, tasks, operations, remote, calls, hook, nextId, calendarCalls;
 const calendar = {
   async syncOperationalEventsToGoogle(rows, context) { calendarCalls.push({ rows, context }); },
-  async deleteTaskCalendarEvent() {}, async updateTaskCalendarEvent() {},
+  detachOperationalEvent() { return false; }, kickCalendarQueue() {}, queueCalendarUpsert() {},
 };
 function fail(status) { return Object.assign(new Error(`Google ${status}`), { status }); }
 beforeEach(() => {

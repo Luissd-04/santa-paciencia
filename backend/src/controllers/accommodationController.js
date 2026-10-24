@@ -561,6 +561,8 @@ function remove(req, res) {
     purgeReservations(organizationId, linked.map(r => r.id));
     // Preços e bloqueios saem por ON DELETE CASCADE.
     db.prepare('DELETE FROM accommodations WHERE id = ? AND organization_id = ?').run(req.params.id, organizationId);
+    require('../services/auditLog').recordAudit({ organizationId, userId: req.user.id, action: 'accommodation.deleted', targetType: 'accommodation', targetId: req.params.id,
+      meta: { reservations_deleted: linked.length } });
   })();
   flushReservationTaskCleanup(organizationId).catch(() => {});
   for (const url of accommodationUrls([acc])) removeUnreferencedImage(url);

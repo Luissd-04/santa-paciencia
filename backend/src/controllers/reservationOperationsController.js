@@ -277,6 +277,25 @@ function getNotifications(req, res, next) {
       event_id: e.id,
     }));
 
+    if (req.user.role !== 'staff') {
+      const issues = db.prepare(`SELECT id, guest_id, payment_policy_json, policy_accepted_at, policy_cancellation_json, status, total_amount, amount_paid, check_in, balance_notice_sent_at FROM reservations WHERE organization_id=? AND payment_policy_json IS NOT NULL`).all(orgId);
+      for (const r of issues) {
+        const cancellation = r.policy_cancellation_json && JSON.parse(r.policy_cancellation_json);
+        let title;
+        if (cancellation?.state === 'manual_review') title = 'Reembolso requer revisão manual';
+        else if (cancellation && cancellation.state !== 'complete') title = 'Reembolso pendente';
+        else if (!cancellation && Math.round(r.amount_paid * 100) < Math.round(r.total_amount * 100) && !r.policy_accepted_at && r.status !== 'cancelada') title = 'Pagamento: falta aceitar as condições';
+        else if (!cancellation && r.check_in <= today && Math.round(r.amount_paid * 100) < Math.round(r.total_amount * 100) && r.status !== 'cancelada') title = 'Pagamento em falta na chegada ou após a estadia';
+        if (title) notifications.push({ type: 'payment_review', priority: 'high', icon: 'circle-alert', title, subtitle: `Reserva ${r.id} · verifique os movimentos antes de cobrar ou reembolsar`, reservation_id: r.id });
+      }
+      const attempts = db.prepare("SELECT reservation_id FROM stripe_payment_attempts WHERE organization_id=? AND state IN ('creating','open','processing') AND datetime(created_at) < datetime('now','-23 hours') GROUP BY reservation_id").all(orgId);
+      for (const a of attempts) notifications.push({ type: 'payment_review', priority: 'high', icon: 'circle-alert', title: 'Pagamento por reconciliar', subtitle: 'Confirme o resultado na Stripe antes de repetir a cobrança.', reservation_id: a.reservation_id });
+      const deliveries = db.prepare(`SELECT reservation_id, template_slug,
+          CASE WHEN SUM(state='uncertain') > 0 THEN 'uncertain' ELSE 'blocked' END AS state, MAX(last_error) AS last_error, MAX(updated_at) AS updated_at
+        FROM email_deliveries WHERE organization_id=? AND state IN ('blocked','uncertain')
+        GROUP BY reservation_id, template_slug ORDER BY updated_at DESC LIMIT 100`).all(orgId);
+      for (const d of deliveries) notifications.push({ type: 'email_review', priority: 'high', icon: 'mail', title: d.state === 'blocked' ? 'Email por enviar' : 'Envio de email por confirmar', subtitle: `${d.template_slug} · ${d.last_error || 'Aguarde a conclusão e confirme no Gmail antes de repetir.'}`, reservation_id: d.reservation_id, template_slug: d.template_slug, delivery_state: d.state });
+    }
     res.json({ success: true, data: { notifications } });
   } catch (err) {
     next(err);

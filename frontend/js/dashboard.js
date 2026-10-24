@@ -50,7 +50,7 @@ async function exportDB() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `santa_paciencia_${new Date().toISOString().slice(0,10)}.zip`;
+    a.download = `santa_paciencia_${window.ReservationDates.localIso()}.zip`;
     a.click();
     URL.revokeObjectURL(url);
     AppModules.core.updateOperationProgress(100, 'Concluído.');
@@ -149,14 +149,12 @@ function accomChip(r) {
 
 function relativeArrivalLabel(dateStr, todayStr) {
   if (dateStr === todayStr) return 'Hoje';
-  const tomorrow = new Date(todayStr + 'T00:00:00');
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  if (dateStr === tomorrow.toISOString().slice(0, 10)) return 'Amanhã';
+  if (dateStr === window.ReservationDates.localIso(new Date(`${todayStr}T12:00:00`), 1)) return 'Amanhã';
   return AppModules.core.formatDate(dateStr);
 }
 
 function renderMobileDashboard(upcoming = [], counts = {}) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = window.ReservationDates.localIso();
   const todayArrivals = counts.arrivals || 0;
   const todayDeps = counts.departures || 0;
   const pendingPay = counts.pendingPayments || 0;
@@ -221,13 +219,13 @@ function renderMobileDashboard(upcoming = [], counts = {}) {
 }
 
 async function goToTodayCheckins() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = window.ReservationDates.localIso();
   await AppModules.core.showView('reservas');
   AppModules.reservas.setResExactDateFilter('check_in', today);
 }
 
 async function goToTodayCheckouts() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = window.ReservationDates.localIso();
   await AppModules.core.showView('reservas');
   AppModules.reservas.setResExactDateFilter('check_out', today);
 }

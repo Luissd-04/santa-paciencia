@@ -48,6 +48,40 @@ function runMigrations(db) {
   migrateDocumentTypes(db);
   migrateStripePayments(db);
   migrateStripeLiveMode(db);
+  migratePaymentPolicy(db);
+  migrateManualPaymentIntents(db);
+  migrateEmailDeliveries(db);
+  migrateAccountSecurity(db);
+  migrateVoucherRelease(db);
+  migratePolicyChannels(db);
+  migrateGoogleCalendarQueue(db);
+  db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
+    id TEXT PRIMARY KEY,
+    organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id TEXT, action TEXT NOT NULL, target_type TEXT, target_id TEXT, meta TEXT,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_audit_org_created ON audit_events(organization_id, created_at);`);
+  if (!db.pragma('table_info(guests)').some(c => c.name === 'anonymized_at')) db.exec('ALTER TABLE guests ADD COLUMN anonymized_at TEXT');
+  db.exec(`CREATE TABLE IF NOT EXISTS reservation_create_intents (
+    organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    intent_key TEXT NOT NULL, fingerprint TEXT NOT NULL,
+    reservation_id TEXT NOT NULL REFERENCES reservations(id) ON DELETE CASCADE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY(organization_id, intent_key)
+  )`);
+  if (!db.pragma('table_info(stripe_payment_attempts)').some(c => c.name === 'last_reconciled_at')) db.exec('ALTER TABLE stripe_payment_attempts ADD COLUMN last_reconciled_at TEXT');
+}
+function migratePaymentPolicy(db) {
+  const id = '20261006_payment_policy';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    for (const name of ['payment_policy_json', 'policy_accepted_at', 'policy_auto_consent', 'stripe_customer_id',
+      'stripe_payment_method_id', 'stripe_saved_livemode', 'balance_attempted_at', 'balance_deadline', 'balance_notice_sent_at',
+      'policy_cancellation_json', 'policy_cancel_notice_at']) db.exec(`ALTER TABLE reservations ADD COLUMN ${name} TEXT`);
+    db.exec("ALTER TABLE stripe_payment_attempts ADD COLUMN kind TEXT NOT NULL DEFAULT 'checkout' CHECK(kind IN ('checkout','automatic'))");
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
 }
 function migrateStripePayments(db) {
   const id = '20261005_stripe_payments';
@@ -253,3 +287,97 @@ function migrateDocumentTypes(db) {
   }).immediate();
 }
 module.exports = { runMigrations };
+
+function migrateManualPaymentIntents(db) {
+  db.exec(`CREATE TABLE IF NOT EXISTS manual_payment_intents (
+    organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    reservation_id TEXT NOT NULL REFERENCES reservations(id) ON DELETE CASCADE,
+    intent_key TEXT NOT NULL, fingerprint TEXT NOT NULL, response_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY(organization_id, reservation_id, intent_key)
+  )`);
+}
+
+function migrateEmailDeliveries(db) {
+  db.exec(`CREATE TABLE IF NOT EXISTS email_deliveries (
+    id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    reservation_id TEXT NOT NULL REFERENCES reservations(id) ON DELETE CASCADE,
+    template_slug TEXT NOT NULL, state TEXT NOT NULL, provider_id TEXT,
+    attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT, retry_at INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL
+  )`);
+}
+
+function migrateAccountSecurity(db) {
+  db.exec(`CREATE TABLE IF NOT EXISTS oauth_states(token_hash TEXT PRIMARY KEY, session_hash TEXT NOT NULL, purpose TEXT NOT NULL, expires_at INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS email_changes(token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, old_email TEXT NOT NULL, new_email TEXT NOT NULL, expires_at INTEGER NOT NULL)`);
+  const id = '20261024_invitation_hashes';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    const digest = token => 'sha256:' + require('crypto').createHash('sha256').update(token).digest('hex');
+    for (const row of db.prepare('SELECT id,token FROM invitations').all()) if (!row.token.startsWith('sha256:')) db.prepare('UPDATE invitations SET token=? WHERE id=?').run(digest(row.token), row.id);
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Verificada pela estrutura e não só pelo registo: a tabela de utilizações
+// pode ser recriada pela migração anterior (restauros de bases antigas).
+function migrateVoucherRelease(db) {
+  const id = '20261024_voucher_release';
+  if (db.pragma('table_info(voucher_redemptions)').some(c => c.name === 'released_at')) return;
+  db.transaction(() => {
+    db.exec('ALTER TABLE voucher_redemptions ADD COLUMN released_at TEXT');
+    db.prepare('INSERT OR IGNORE INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// A política de pagamentos só se aplica ao site e ao canal direto. Reservas de
+// outros canais que a receberam e nunca a aceitaram/pagaram online voltam ao
+// estado anterior; as que têm movimentos Stripe ou cancelamento ficam intactas.
+function migratePolicyChannels(db) {
+  const id = '20261024_policy_channels';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`UPDATE reservations SET status = CASE WHEN status = 'aguardar_pagamento' THEN 'confirmada' ELSE status END,
+        payment_policy_json = NULL, policy_auto_consent = NULL, balance_deadline = NULL, balance_notice_sent_at = NULL
+      WHERE payment_policy_json IS NOT NULL AND COALESCE(channel, 'direto') NOT IN ('website', 'direto')
+        AND policy_accepted_at IS NULL AND policy_cancellation_json IS NULL
+        AND NOT EXISTS (SELECT 1 FROM stripe_payment_attempts sp WHERE sp.reservation_id = reservations.id)`);
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Fila durável do Google Calendar (criações, alterações e remoções repetidas
+// após falha ou reinício) e o calendário onde cada evento foi criado, para o
+// remover do sítio certo depois de a reserva mudar de alojamento.
+function migrateGoogleCalendarQueue(db) {
+  const id = '20261024_google_calendar_queue';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`CREATE TABLE IF NOT EXISTS google_calendar_queue (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      action TEXT NOT NULL CHECK(action IN ('upsert', 'delete')),
+      entity_type TEXT NOT NULL CHECK(entity_type IN ('reservation', 'event')),
+      entity_id TEXT NOT NULL,
+      user_id TEXT,
+      calendar_id TEXT,
+      google_event_id TEXT,
+      revision INTEGER NOT NULL DEFAULT 0,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      last_error TEXT,
+      next_attempt_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_gcal_queue_upsert ON google_calendar_queue(organization_id, entity_type, entity_id) WHERE action = 'upsert';
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_gcal_queue_delete ON google_calendar_queue(organization_id, calendar_id, google_event_id) WHERE action = 'delete';
+    CREATE INDEX IF NOT EXISTS idx_gcal_queue_due ON google_calendar_queue(next_attempt_at);`);
+    for (const table of ['reservations', 'operational_events']) {
+      if (!db.pragma(`table_info(${table})`).some(c => c.name === 'google_event_calendar_id')) {
+        db.exec(`ALTER TABLE ${table} ADD COLUMN google_event_calendar_id TEXT`);
+      }
+    }
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}

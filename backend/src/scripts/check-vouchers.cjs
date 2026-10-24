@@ -39,7 +39,7 @@ async function main() {
   page.setDefaultTimeout(10000);
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto(base, { waitUntil: 'networkidle' });
-  await page.locator('[data-view="vouchers"]').click();
+  await page.locator('.nav-item[data-view="vouchers"]').click();
   await page.locator('#view-vouchers').getByRole('button', { name: 'Novo Voucher' }).click();
   await expect(page.locator('#v-max-uses')).toHaveValue('1');
   await page.locator('#v-code').fill('DEZVEZES');
@@ -56,7 +56,7 @@ async function main() {
   db.prepare("UPDATE reservations SET status='cancelada' WHERE id='SP-TESTE-2'").run();
   db.prepare("DELETE FROM reservations WHERE id='SP-TESTE-3'").run();
   await page.reload({ waitUntil: 'networkidle' });
-  await page.locator('[data-view="vouchers"]').click();
+  await page.locator('.nav-item[data-view="vouchers"]').click();
   await expect(page.locator('.vouchers-desktop')).toContainText('3 / 10');
   fs.mkdirSync(artifacts, { recursive: true });
   await page.screenshot({ path: path.join(artifacts, 'desktop-list.png'), fullPage: true, animations: 'disabled' });
@@ -70,7 +70,7 @@ async function main() {
   await expect(page.locator('#voucher-history-modal-bg')).not.toHaveClass(/open/);
   await expect(page.locator('#reserva-detail-page')).toBeVisible();
   await page.getByRole('button', { name: 'Voltar', exact: true }).click();
-  await page.locator('[data-view="vouchers"]').click();
+  await page.locator('.nav-item[data-view="vouchers"]').click();
   await page.locator('.vouchers-desktop [data-on-click="vouchers-open-voucher-modal-36eda97"]').click();
   await expect(page.locator('#v-max-uses')).toHaveValue('10');
   await page.getByLabel('Limite de utilizações').fill('2'); await page.locator('#v-save-btn').click();

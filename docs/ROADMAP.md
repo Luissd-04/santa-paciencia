@@ -1,6 +1,10 @@
 # Roadmap de produto
 
-Roadmap vivo, revisto no repositório em 5 de outubro de 2026. A revisão local
+> Âmbito de versões (24/10/2026): consultar a [classificação consolidada V1/V2](ESCOPO-V1-V2.md). Distingue requisitos de fiabilidade, correções mobile já concluídas e melhorias que podem acompanhar a 2.0.
+
+> Atualização de 23/10/2026: concluída a [revisão funcional para fechar a 1.0](REVISAO-FUNCIONAL-2026-10-23.md), com reproduções atuais e critérios de conclusão. A suite geral de browser já passa e as 13 falhas mobile foram corrigidas; continuam pendentes os bloqueadores funcionais e operacionais identificados nessa revisão.
+
+Roadmap vivo, revisto no repositório em 8 de outubro de 2026. A revisão local
 não confirma o estado da publicação nem das validações em produção. As datas serão atribuídas
 quando houver capacidade e acesso confirmado às plataformas externas.
 
@@ -16,6 +20,34 @@ com limites, estado visível e reconciliação. Uma chamada externa bem-sucedida
 é, por si só, prova de sincronização permanente.
 
 ## Agora — estabilizar a base
+
+### Plano registado em 8 de outubro de 2026
+
+- [x] Concluir e registar a revisão de segurança, organização e emails no
+  [relatório de revisão](REVISAO-2026-10-08.md).
+- [ ] Corrigir os problemas prioritários confirmados nessa revisão, antes de
+  fechar a publicação em preparação.
+- [ ] Fechar a política de pagamentos e cancelamentos já implementada localmente:
+  sinal, restante, consentimento, cobrança automática, avisos e reembolsos.
+  A implementação existe, mas a publicação e a validação real não estão confirmadas.
+- [ ] Acrescentar um painel de reconciliação para pagamentos incertos,
+  tentativas bloqueadas há mais de 23 horas e reembolsos em revisão manual.
+- [ ] Completar os checks HTTP, browser e desempenho; incorporar os novos
+  cenários de política de pagamentos na CI; atualizar documentação.
+- [ ] Rever o conjunto de alterações, fazer commit e preparar a publicação.
+- [ ] Validar na conta Stripe Test real os pagamentos faseados, falhas,
+  cancelamentos, reembolsos e repetição de webhooks.
+- [ ] Validar uma cobrança Live pequena e o respetivo reembolso, numa etapa
+  operacional própria e com autorização para movimentar dinheiro.
+- [ ] Fechar as validações abaixo de Gmail/iPhone, Google Tasks, restauro,
+  pré-check-in e reserva pública em dispositivos reais.
+
+Ordem seguinte: segurança e fiabilidade → SIBA/UCFE → WhatsApp transacional →
+channel manager → preços avançados, portal do proprietário e inbox unificada.
+Datas e responsáveis ainda por atribuir. Um teste local não fecha uma validação
+em produção.
+
+### Validações operacionais pendentes
 
 - Validar a correção das cores dos emails no Gmail para iPhone, numa conta
   Google, em modo claro e escuro. As novas capturas do utilizador confirmam
@@ -38,8 +70,9 @@ com limites, estado visível e reconciliação. Uma chamada externa bem-sucedida
 - Pagamentos online Stripe: o código suporta Test e Live (Live só com
   `STRIPE_MODE=live` em produção). Executar a validação na conta de teste real,
   depois uma cobrança Live de valor baixo com reembolso, como descrito em
-  [pagamentos Stripe](stripe-payments.md). Falta ainda um ecrã de
-  reconciliação para tentativas incertas e reembolsos a partir da aplicação.
+  [pagamentos Stripe](stripe-payments.md). Os cancelamentos com política já
+  ordenam reembolsos na implementação local. Falta o painel de reconciliação
+  para tentativas incertas e reembolsos que exigem intervenção manual.
 
 ## Seguinte — SIBA/UCFE
 

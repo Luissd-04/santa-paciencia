@@ -8,6 +8,7 @@ AppModules.define('core', {
   apiPost: { get: () => apiPost },
   apiPut: { get: () => apiPut },
   apiRequest: { get: () => apiRequest },
+  appUpdateAvailable: { get: () => appUpdateAvailable },
   badgeEstado: { get: () => badgeEstado },
   badgePagamento: { get: () => badgePagamento },
   cancelApiRequests: { get: () => cancelApiRequests },
@@ -49,6 +50,7 @@ async function apiRequest(path, options = {}, config = {}) {
   const timeout = setTimeout(abort, config.timeoutMs || 30000);
   try {
     const res = await fetch(AppModules.core.API_BASE + path, { ...request, signal: controller.signal });
+    noteAppBuild(res.headers?.get?.('X-App-Build'));
     let payload = null;
     try { payload = await res.json(); } catch (error) {
       if (controller.signal.aborted) throw error;
@@ -73,6 +75,31 @@ async function apiRequest(path, options = {}, config = {}) {
   }
 }
 
+// ── Nova versão publicada durante a sessão ──
+// O servidor envia a impressão digital do frontend em cada resposta. Se mudar,
+// esta página tem o núcleo antigo em memória e os módulos que ainda faltam já
+// seriam da versão nova: avisa e, ao abrir uma secção ainda não carregada,
+// recarrega em vez de misturar versões (ver ensureFeature em features.js).
+let appBuild = null;
+let appUpdateAvailable = false;
+function noteAppBuild(value) {
+  if (!value) return;
+  if (!appBuild) { appBuild = value; return; }
+  if (value === appBuild || appUpdateAvailable) return;
+  appUpdateAvailable = true;
+  showAppUpdateBanner();
+}
+function showAppUpdateBanner() {
+  if (document.getElementById('app-update-banner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'app-update-banner';
+  banner.className = 'app-update-banner';
+  banner.setAttribute('role', 'status');
+  banner.innerHTML = '<span>Está disponível uma versão nova da aplicação.</span> <button type="button" class="btn btn-primary btn-sm">Recarregar</button>';
+  banner.querySelector('button').addEventListener('click', () => location.reload());
+  document.body.appendChild(banner);
+}
+
 async function apiGet(path, config) {
   return apiRequest(path, {}, config);
 }
@@ -93,21 +120,25 @@ async function apiPut(path, body, config) {
   }, config);
 }
 
-async function apiDelete(path, config) {
-  return apiRequest(path, { method: 'DELETE' }, config);
+async function apiDelete(path, config, body) {
+  return apiRequest(path, { method: 'DELETE', ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) }, config);
 }
 
 // ── Confirmação de alteração de valores da estadia ──
 // Mostra o padrão do calendário dinâmico vs o novo valor, e avisa se a reserva
 // já tinha sido editada manualmente. Devolve Promise<boolean>.
-function confirmPriceChange({ standardTotal, newTotal, editedAt = null, editedByName = null }) {
+function confirmPriceChange({ standardTotal, newTotal, editedAt = null, editedByName = null,
+  title = 'Alterar valores da estadia?', intro = 'O novo valor difere do preço padrão do calendário dinâmico.',
+  standardLabel = 'Padrão (calendário dinâmico)' }) {
   return new Promise(resolve => {
     const fmt = v => `€${Number(v).toFixed(2)}`;
     const diff = Number(newTotal) - Number(standardTotal);
+    const esc = escapeHtml;
+    const reference = standardLabel === 'Padrão (calendário dinâmico)' ? 'ao padrão' : 'ao total atual';
     const diffLine = Math.abs(diff) > 0.005
       ? (diff < 0
-        ? `<span style="color:#0f9d58;font-weight:600;">Desconto de ${fmt(Math.abs(diff))} face ao padrão</span>`
-        : `<span style="color:#e8710a;font-weight:600;">Acréscimo de ${fmt(diff)} face ao padrão</span>`)
+        ? `<span style="color:#0f9d58;font-weight:600;">Desconto de ${fmt(Math.abs(diff))} face ${reference}</span>`
+        : `<span style="color:#e8710a;font-weight:600;">Acréscimo de ${fmt(diff)} face ${reference}</span>`)
       : '';
     const editedWarn = editedAt ? `
       <div style="background:#fdf3e2;border:1px solid #f0d9a8;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#8a6d1d;margin-top:12px;">
@@ -119,11 +150,11 @@ function confirmPriceChange({ standardTotal, newTotal, editedAt = null, editedBy
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:10000;';
     overlay.innerHTML = `
       <div class="modal" style="background:#fff;border-radius:14px;padding:26px 28px;max-width:440px;width:94%;box-shadow:0 8px 32px rgba(0,0,0,.18);">
-        <h3 style="margin:0 0 6px;font-size:17px;color:var(--azul);">Alterar valores da estadia?</h3>
-        <p style="margin:0 0 16px;font-size:13px;color:var(--cinza);">O novo valor difere do preço padrão do calendário dinâmico.</p>
+        <h3 style="margin:0 0 6px;font-size:17px;color:var(--azul);">${esc(title)}</h3>
+        <p style="margin:0 0 16px;font-size:13px;color:var(--cinza);">${esc(intro)}</p>
         <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
           <div style="display:flex;justify-content:space-between;color:var(--cinza);">
-            <span>Padrão (calendário dinâmico)</span><span style="font-size:12.5px;">${fmt(standardTotal)}</span>
+            <span>${esc(standardLabel)}</span><span style="font-size:12.5px;">${fmt(standardTotal)}</span>
           </div>
           <div style="display:flex;justify-content:space-between;font-weight:700;color:var(--azul);">
             <span>Novo total</span><span>${fmt(newTotal)}</span>
@@ -148,7 +179,7 @@ function confirmPriceChange({ standardTotal, newTotal, editedAt = null, editedBy
 // Returns the email only if it's a real one (not an internal placeholder)
 function realEmail(e) {
   if (!e) return null;
-  return e.includes('@reserva.local') ? null : e;
+  return /@(reserva|sem-email)\.local$/i.test(e) ? null : e;
 }
 
 // Descarrega uma imagem (mesma origem, com cookies) e devolve como data URL —

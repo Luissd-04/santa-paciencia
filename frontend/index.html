@@ -287,10 +287,15 @@
               </div>
             </div>
             <div class="view-section-heading stagger-3">
+              <h3>Próximas Chegadas</h3>
+              <span class="m-section-link" data-on-click="index-show-view-3d0e569">Ver todas</span>
+            </div>
+            <div class="m-arrivals-list m-card stagger-3" id="m-proximas-list"></div>
+            <div class="view-section-heading stagger-4">
               <h3>Ações Rápidas</h3>
               <span>Atalhos para a operação diária</span>
             </div>
-            <div class="mobile-quick-grid dashboard-mobile-actions stagger-4">
+            <div class="mobile-quick-grid dashboard-mobile-actions stagger-5">
               <div class="quick-item m-card" data-on-click="index-go-to-today-checkins-13ac1c9">
                 <div class="quick-icon"><i data-lucide="log-in"></i></div>
                 <div class="quick-label">Check-in Hoje</div>
@@ -312,11 +317,6 @@
                 <div class="quick-sub">Foto do talão</div>
               </div>
             </div>
-            <div class="view-section-heading stagger-5">
-              <h3>Próximas Chegadas</h3>
-              <span class="m-section-link" data-on-click="index-show-view-3d0e569">Ver todas</span>
-            </div>
-            <div class="m-arrivals-list m-card stagger-5" id="m-proximas-list"></div>
           </div>
 
           <div id="dash-desktop" class="dashboard-desktop-layout">
@@ -471,7 +471,7 @@
     <div class="modal-body">
       <div class="form-grid">
         <div class="form-group form-full">
-          <label class="form-label">Título</label>
+          <label for="evento-title" class="form-label">Título</label>
           <input class="form-control" id="evento-title" placeholder="Ex: Limpeza suite principal" autocomplete="off">
         </div>
         <div class="form-group">
@@ -480,38 +480,38 @@
           <select class="form-control" id="evento-type" data-enhance-select data-app-select-class="app-select--modal"></select>
         </div>
         <div class="form-group">
-          <label class="form-label">Estado</label>
+          <label for="evento-status" class="form-label">Estado</label>
           <select class="form-control" id="evento-status" data-enhance-select data-app-select-class="app-select--modal">
             <option value="planeado">Planeado</option>
             <option value="concluido">Concluído</option>
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Data</label>
+          <label for="evento-date" class="form-label">Data</label>
           <input class="form-control" id="evento-date" type="date" autocomplete="off">
         </div>
         <div class="form-group">
-          <label class="form-label">Hora início</label>
+          <label for="evento-start-time" class="form-label">Hora início</label>
           <input class="form-control" id="evento-start-time" type="time" autocomplete="off">
         </div>
         <div class="form-group">
-          <label class="form-label">Hora fim</label>
+          <label for="evento-end-time" class="form-label">Hora fim</label>
           <input class="form-control" id="evento-end-time" type="time" autocomplete="off">
         </div>
         <div class="form-group">
-          <label class="form-label">Alojamento</label>
+          <label for="evento-accommodation" class="form-label">Alojamento</label>
           <select class="form-control" id="evento-accommodation" data-enhance-select data-app-select-class="app-select--modal">
             <option value="">Sem alojamento</option>
           </select>
         </div>
         <div class="form-group form-full">
-          <label class="form-label">Responsável</label>
+          <label for="evento-responsible" class="form-label">Responsável</label>
           <select class="form-control" id="evento-responsible" data-enhance-select data-app-select-class="app-select--modal">
             <option value="">Sem responsável</option>
           </select>
         </div>
         <div class="form-group form-full">
-          <label class="form-label">Notas</label>
+          <label for="evento-notes" class="form-label">Notas</label>
           <textarea class="form-control" id="evento-notes" rows="3" placeholder="Notas internas..."></textarea>
         </div>
       </div>
@@ -540,19 +540,19 @@
     <div class="modal-body">
       <div class="form-grid">
         <div class="form-group form-full">
-          <label class="form-label">Título</label>
+          <label for="manual-notification-title" class="form-label">Título</label>
           <input class="form-control" id="manual-notification-title" placeholder="Ex: Comprar pão para amanhã" autocomplete="off">
         </div>
         <div class="form-group">
-          <label class="form-label">Data</label>
+          <label for="manual-notification-date" class="form-label">Data</label>
           <input class="form-control" id="manual-notification-date" type="date" autocomplete="off">
         </div>
         <div class="form-group">
-          <label class="form-label">Hora</label>
+          <label for="manual-notification-time" class="form-label">Hora</label>
           <input class="form-control" id="manual-notification-time" type="time" autocomplete="off">
         </div>
         <div class="form-group form-full">
-          <label class="form-label">Notas</label>
+          <label for="manual-notification-notes" class="form-label">Notas</label>
           <textarea class="form-control" id="manual-notification-notes" rows="3" placeholder="Detalhes internos..."></textarea>
         </div>
       </div>
@@ -578,11 +578,11 @@
     <div class="modal-body">
       <div class="form-grid">
         <div class="form-group">
-          <label class="form-label">Data</label>
+          <label for="despesa-date" class="form-label">Data</label>
           <input class="form-control" id="despesa-date" type="date" autocomplete="off">
         </div>
         <div class="form-group">
-          <label class="form-label">Categoria</label>
+          <label for="despesa-category" class="form-label">Categoria</label>
           <select class="form-control" id="despesa-category" data-enhance-select data-app-select-class="app-select--modal">
             <option value="limpeza">Limpeza</option>
             <option value="produtos_limpeza">Produtos de limpeza</option>
@@ -597,21 +597,21 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Fornecedor</label>
+          <label for="despesa-supplier" class="form-label">Fornecedor</label>
           <select class="form-control" id="despesa-supplier" data-enhance-select data-app-select-class="app-select--modal">
             <option value="">— Nenhum —</option>
           </select>
         </div>
         <div class="form-group form-full">
-          <label class="form-label">Descrição</label>
+          <label for="despesa-description" class="form-label">Descrição</label>
           <input class="form-control" id="despesa-description" placeholder="Descrição da despesa" autocomplete="off">
         </div>
         <div class="form-group">
-          <label class="form-label">Valor (€)</label>
+          <label for="despesa-amount" class="form-label">Valor (€)</label>
           <input class="form-control no-number-spin" id="despesa-amount" type="number" step="0.01" min="0" placeholder="0.00" autocomplete="off">
         </div>
         <div class="form-group">
-          <label class="form-label">Método de pagamento</label>
+          <label for="despesa-payment" class="form-label">Método de pagamento</label>
           <select class="form-control" id="despesa-payment" data-enhance-select data-app-select-class="app-select--modal">
             <option value="numerário">Numerário</option>
             <option value="transferencia">Transferência</option>
@@ -620,11 +620,11 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Nº Fatura</label>
+          <label for="despesa-invoice-ref" class="form-label">Nº Fatura</label>
           <input class="form-control" id="despesa-invoice-ref" placeholder="ex: FT 2026/123" autocomplete="off" data-on-focusout="check-despesa-duplicate">
         </div>
         <div class="form-group">
-          <label class="form-label">Contribuinte (NIF na fatura)</label>
+          <label for="despesa-has-nif" class="form-label">Contribuinte (NIF na fatura)</label>
           <select class="form-control" id="despesa-has-nif" data-enhance-select data-app-select-class="app-select--modal">
             <option value="0">Sem NIF</option>
             <option value="1">Com NIF</option>
@@ -637,7 +637,7 @@
           </div>
         </div>
         <div class="form-group form-full">
-          <label class="form-label">Notas</label>
+          <label for="despesa-notes" class="form-label">Notas</label>
           <textarea class="form-control" id="despesa-notes" rows="2" placeholder="Notas adicionais..."></textarea>
         </div>
       </div>
@@ -734,11 +734,11 @@
         <div class="resf-section-title"><i data-lucide="calendar" style="width:14px;height:14px;"></i> Datas & Alojamento</div>
         <div class="form-grid">
           <div class="form-group">
-            <label class="form-label">Check-in <span class="req-star">*</span></label>
+            <label for="f-checkin" class="form-label">Check-in <span class="req-star">*</span></label>
             <input class="form-control" id="f-checkin" type="date" data-on-change="index-calc-total-a1c3bab" autocomplete="off">
           </div>
           <div class="form-group">
-            <label class="form-label">Check-out <span class="req-star">*</span></label>
+            <label for="f-checkout" class="form-label">Check-out <span class="req-star">*</span></label>
             <input class="form-control" id="f-checkout" type="date" data-dp-range-end="f-checkin" data-on-change="index-calc-total-a1c3bab" autocomplete="off">
           </div>
           <div class="form-group form-full" id="wiz-nights-badge-wrap" style="display:none;">
@@ -751,24 +751,24 @@
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Adultos <span class="req-star">*</span></label>
+            <label for="f-num-adultos" class="form-label">Adultos <span class="req-star">*</span></label>
             <input class="form-control" id="f-num-adultos" type="number" min="1" max="20" value="2" data-on-change="index-update-num-hospedes-ef410f4" autocomplete="off">
           </div>
           <div class="form-group">
-            <label class="form-label">Crianças</label>
+            <label for="f-num-criancas" class="form-label">Crianças</label>
             <input class="form-control" id="f-num-criancas" type="number" min="0" max="20" value="0" data-on-change="index-update-num-hospedes-ef410f4" autocomplete="off">
           </div>
           <div class="form-group form-full" id="resf-child-ages" style="display:none;"></div>
           <input type="hidden" id="f-num-hospedes" value="2">
           <div class="form-group">
-            <label class="form-label">Pequeno-almoço</label>
+            <label for="f-breakfast" class="form-label">Pequeno-almoço</label>
             <select class="form-control" id="f-breakfast" data-on-change="index-calc-total-a239bdf">
               <option value="false">Não incluído</option>
               <option value="true">Incluído</option>
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Canal</label>
+            <label for="f-canal" class="form-label">Canal</label>
             <select class="form-control" id="f-canal">
               <option value="airbnb">Airbnb</option>
               <option value="booking">Booking.com</option>
@@ -782,7 +782,7 @@
           </div>
         </div>
         <div style="margin-top:16px;">
-          <label class="form-label">Alojamento <span class="req-star">*</span></label>
+          <label for="f-aloj" class="form-label">Alojamento <span class="req-star">*</span></label>
           <select id="f-aloj" style="display:none;" data-on-change="index-calc-total-8bcd488"></select>
           <div class="suite-cards" id="suite-cards-grid"></div>
         </div>
@@ -824,6 +824,8 @@
           </div>
         </div>
 
+        <div id="resf-voucher-line" class="resf-voucher-line" role="status" aria-live="polite" hidden></div>
+
         <div id="resf-discount-wrap" style="margin-top:16px;display:none;">
           <label class="form-label" style="margin-bottom:6px;">Desconto <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label>
           <div class="resf-discount-row">
@@ -843,7 +845,7 @@
         <div class="resf-section-title"><i data-lucide="user" style="width:14px;height:14px;"></i> Hóspede Principal</div>
 
         <div class="form-group form-full" style="margin-bottom:14px;">
-          <label class="form-label">Pesquisa rápida (hóspede existente)</label>
+          <label for="wiz-guest-search" class="form-label">Pesquisa rápida (hóspede existente)</label>
           <div class="guest-search-wrap">
             <input class="form-control" id="wiz-guest-search" placeholder="Nome, email ou telefone…" autocomplete="off" data-on-input="index-wiz-guest-search-ba4bf00">
             <div class="guest-drop" id="wiz-guest-drop"></div>
@@ -852,26 +854,26 @@
 
         <div class="form-grid">
           <div class="form-group form-full">
-            <label class="form-label">Nome Completo <span class="req-star">*</span></label>
+            <label for="f-nome-completo" class="form-label">Nome Completo <span class="req-star">*</span></label>
             <input class="form-control" id="f-nome-completo" placeholder="Nome completo do hóspede" data-on-input="index-update-wiz-summary-35ca320" autocomplete="off">
           </div>
           <div class="form-group">
-            <label class="form-label">Email</label>
+            <label for="f-email" class="form-label">Email</label>
             <input class="form-control" id="f-email" type="email" placeholder="email@exemplo.com" autocomplete="off">
           </div>
           <div class="form-group">
-            <label class="form-label">Telefone</label>
+            <label for="f-tel-prefix" class="form-label">Telefone</label>
             <div class="phone-group">
               <select class="form-control phone-prefix" id="f-tel-prefix"></select>
               <input class="form-control phone-number" id="f-tel-num" type="tel" placeholder="912 345 678" autocomplete="off">
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label">País</label>
+            <label for="f-pais" class="form-label">País</label>
             <select class="form-control" id="f-pais" data-on-change="index-update-foreign-requirements-2ec6793"></select>
           </div>
           <div class="form-group">
-            <label class="form-label">Data de Nascimento</label>
+            <label for="f-nascimento" class="form-label">Data de Nascimento</label>
             <div class="birth-date-control">
               <input class="form-control birth-date-input" id="f-nascimento" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" data-on-input="index-handle-birth-date-input-6742f58" data-on-blur="index-normalize-birth-date-input-19ea83e" autocomplete="off">
               <button class="birth-date-picker-btn" type="button" data-on-click="index-open-05fd9c5" aria-label="Abrir calendário">
@@ -881,11 +883,11 @@
             <div class="guest-rate-hint" id="f-nascimento-rate-hint"></div>
           </div>
           <div class="form-group">
-            <label class="form-label">Local de Nascimento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
+            <label for="f-local-nascimento" class="form-label">Local de Nascimento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
             <input class="form-control" id="f-local-nascimento" placeholder="Cidade de nascimento" autocomplete="off">
           </div>
           <div class="form-group">
-            <label class="form-label">Tipo de Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
+            <label for="f-doc-tipo" class="form-label">Tipo de Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
             <select class="form-control" id="f-doc-tipo">
               <option value="">— Selecionar —</option>
               <option value="cc">Cartão de Cidadão</option>
@@ -896,31 +898,31 @@
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Nº de Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
+            <label for="f-doc-num" class="form-label">Nº de Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
             <input class="form-control" id="f-doc-num" placeholder="XX000000" autocomplete="off">
           </div>
           <div class="form-group">
-            <label class="form-label">País Emissor do Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
+            <label for="f-doc-emissor" class="form-label">País Emissor do Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
             <select class="form-control" id="f-doc-emissor"></select>
           </div>
           <div class="form-group">
-            <label class="form-label">NIF</label>
+            <label for="f-nif" class="form-label">NIF</label>
             <input class="form-control" id="f-nif" placeholder="000 000 000" autocomplete="off">
           </div>
           <div class="form-group">
-            <label class="form-label">Empresa</label>
+            <label for="f-empresa" class="form-label">Empresa</label>
             <input class="form-control" id="f-empresa" placeholder="Nome da empresa (opcional)" autocomplete="off">
           </div>
           <div class="form-group form-full">
-            <label class="form-label">Morada</label>
+            <label for="f-morada" class="form-label">Morada</label>
             <input class="form-control" id="f-morada" placeholder="Rua, nº" autocomplete="off">
           </div>
           <div class="form-group">
-            <label class="form-label">Código Postal</label>
+            <label for="f-cp" class="form-label">Código Postal</label>
             <input class="form-control" id="f-cp" placeholder="0000-000" autocomplete="off">
           </div>
           <div class="form-group">
-            <label class="form-label">Localidade</label>
+            <label for="f-cidade" class="form-label">Localidade</label>
             <input class="form-control" id="f-cidade" placeholder="Lisboa" autocomplete="off">
           </div>
         </div>
@@ -939,7 +941,7 @@
         <div class="resf-section-title"><i data-lucide="credit-card" style="width:14px;height:14px;"></i> Pagamento & Estado</div>
         <div class="form-grid">
           <div class="form-group">
-            <label class="form-label">Estado da Reserva</label>
+            <label for="f-estado" class="form-label">Estado da Reserva</label>
             <select class="form-control" id="f-estado">
               <option value="pre_reserva">Pré-reserva</option>
               <option value="confirmada">Confirmada</option>
@@ -950,7 +952,7 @@
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Estado de Pagamento</label>
+            <label for="f-payment-status" class="form-label">Estado de Pagamento</label>
             <select class="form-control" id="f-payment-status" data-on-change="index-on-payment-status-change-93354d3">
               <option value="pendente">Não pago</option>
               <option value="confirmado">Completo</option>
@@ -958,11 +960,11 @@
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Valor Pago (€)</label>
+            <label for="f-amount-paid" class="form-label">Valor Pago (€)</label>
             <input type="number" class="form-control" id="f-amount-paid" min="0" step="0.01" placeholder="0.00" data-on-input="index-on-amount-paid-change-104efde" autocomplete="off">
           </div>
           <div class="form-group">
-            <label class="form-label">Data de Pagamento</label>
+            <label for="f-payment-date" class="form-label">Data de Pagamento</label>
             <input type="date" class="form-control" id="f-payment-date" autocomplete="off">
           </div>
           <div class="form-group form-full" id="payment-remaining-wrap" style="display:none;">
@@ -972,7 +974,7 @@
             </div>
           </div>
           <div class="form-group" id="pagamento-metodo-wrap" style="display:none;">
-            <label class="form-label">Método de Pagamento</label>
+            <label for="f-pagamento" class="form-label">Método de Pagamento</label>
             <select class="form-control" id="f-pagamento">
               <option value="transferencia">Transferência</option>
               <option value="mbway">MBWay</option>
@@ -981,13 +983,13 @@
             </select>
           </div>
           <div class="form-group form-full">
-            <label class="form-label">Notas</label>
+            <label for="f-notas" class="form-label">Notas</label>
             <textarea class="form-control" id="f-notas" rows="2" placeholder="Observações, pedidos especiais…"></textarea>
           </div>
           <div class="form-group form-full" id="resf-voucher-wrap">
-            <label class="form-label">Voucher (opcional)</label>
+            <label for="f-voucher-code" class="form-label">Voucher (opcional)</label>
             <div style="display:flex;gap:8px;">
-              <input class="form-control" id="f-voucher-code" name="sp-voucher-code" type="text" placeholder="Código de voucher" style="text-transform:uppercase;flex:1;" data-on-input="index-to-upper-case-da41d26" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" data-lpignore="true" data-1p-ignore data-form-type="other" readonly data-on-focus="index-remove-attribute-3e4a1fd">
+              <input class="form-control" id="f-voucher-code" name="sp-voucher-code" type="text" placeholder="Código de voucher" style="text-transform:uppercase;flex:1;" data-on-input="index-to-upper-case-da41d26" data-on-change="index-calc-total-a239bdf" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" data-lpignore="true" data-1p-ignore data-form-type="other" readonly data-on-focus="index-remove-attribute-3e4a1fd">
               <button type="button" class="btn btn-outline btn-sm" data-on-click="index-verify-backoffice-voucher-163d348">Verificar</button>
             </div>
             <div id="f-voucher-status" style="display:none;font-size:12px;margin-top:4px;padding:4px 8px;border-radius:6px;"></div>
@@ -1072,7 +1074,7 @@
 </button>
 
 <!-- FAB (mobile only) -->
-<button class="mobile-fab" id="mobile-fab" data-on-click="index-nova-reserva-87b11c0">
+<button class="mobile-fab" id="mobile-fab" aria-label="Nova reserva" data-on-click="index-nova-reserva-87b11c0">
   <i data-lucide="plus"></i>
 </button>
 
@@ -1115,8 +1117,14 @@
   <button type="button" class="side-drawer-item" data-view="relatorios" data-on-click="index-show-view-a532708">
     <i data-lucide="bar-chart-3"></i> Relatórios
   </button>
-  <button type="button" class="side-drawer-item" data-view="invoice" data-on-click="index-show-view-9eff395">
-    <i data-lucide="mail"></i> Emails
+  <button type="button" class="side-drawer-item" data-view="vouchers" data-on-click="mobile-open-vouchers">
+    <i data-lucide="ticket"></i> Vouchers
+  </button>
+  <button type="button" class="side-drawer-item" data-view="invoice" data-on-click="mobile-open-messages">
+    <i data-lucide="mail"></i> Mensagens
+  </button>
+  <button type="button" class="side-drawer-item" data-on-click="index-show-view-9eff395">
+    <i data-lucide="mail-open"></i> Modelos de email
   </button>
   <div class="side-drawer-section">Sistema</div>
   <button type="button" class="side-drawer-item" data-view="definicoes" data-on-click="index-show-view-ef3e4be">
@@ -1153,7 +1161,7 @@
 <script src="js/domain/libraries.js"></script>
 <script src="js/domain/pagination.js"></script>
 <script src="js/domain/event-types.js"></script>
-<script src="js/domain/features.js?v=stripe-payment-20261005-2"></script>
+<script src="js/domain/features.js?v=v1-20261024-2"></script>
 <script src="js/ui.js"></script>
 <script src="js/ui-blocks.js"></script>
 <script src="js/validators.js"></script>
@@ -1201,12 +1209,12 @@
           <div class="modal-body">
             <div class="form-grid">
               <div class="form-group">
-                <label class="form-label">Código</label>
+                <label for="v-code" class="form-label">Código</label>
                 <input class="form-control" id="v-code" type="text" placeholder="Gerado automaticamente" style="text-transform:uppercase;" autocomplete="off">
                 <small style="color:var(--cinza);font-size:11px;">Deixa em branco para gerar automaticamente</small>
               </div>
               <div class="form-group">
-                <label class="form-label">Tipo <span class="req-star">*</span></label>
+                <label for="v-type" class="form-label">Tipo <span class="req-star">*</span></label>
                 <select class="form-control" id="v-type" data-on-change="index-update-voucher-value-label-5b6b115">
                   <option value="discount_pct">Desconto percentual (%)</option>
                   <option value="discount_fixed">Desconto fixo (€)</option>
@@ -1214,27 +1222,27 @@
                 </select>
               </div>
               <div class="form-group">
-                <label class="form-label" id="v-value-label">Valor (%) <span class="req-star">*</span></label>
+                <label for="v-value" class="form-label" id="v-value-label">Valor (%) <span class="req-star">*</span></label>
                 <input class="form-control" id="v-value" type="number" min="0.01" step="0.01" placeholder="Ex: 10" autocomplete="off">
               </div>
               <div class="form-group">
-                <label class="form-label">Descrição</label>
+                <label for="v-description" class="form-label">Descrição</label>
                 <input class="form-control" id="v-description" type="text" placeholder="Ex: Voucher de Natal 2025" autocomplete="off">
               </div>
               <div class="form-group">
-                <label class="form-label">Válido a partir de</label>
+                <label for="v-valid-from" class="form-label">Válido a partir de</label>
                 <input class="form-control" id="v-valid-from" type="date" autocomplete="off">
               </div>
               <div class="form-group">
-                <label class="form-label">Válido até</label>
+                <label for="v-valid-until" class="form-label">Válido até</label>
                 <input class="form-control" id="v-valid-until" type="date" autocomplete="off">
               </div>
               <div class="form-group">
-                <label class="form-label">Mínimo de noites</label>
+                <label for="v-min-nights" class="form-label">Mínimo de noites</label>
                 <input class="form-control" id="v-min-nights" type="number" min="1" value="1" autocomplete="off">
               </div>
               <div class="form-group">
-                <label class="form-label">Alojamento (opcional)</label>
+                <label for="v-accommodation" class="form-label">Alojamento (opcional)</label>
                 <select class="form-control" id="v-accommodation">
                   <option value="">Todos os alojamentos</option>
                 </select>
@@ -1246,7 +1254,7 @@
                 <small id="v-max-uses-error" role="alert" style="color:var(--vermelho);"></small>
               </div>
               <div class="form-group form-full">
-                <label class="form-label">Notas internas</label>
+                <label for="v-notes" class="form-label">Notas internas</label>
                 <textarea class="form-control" id="v-notes" rows="2" placeholder="Notas para uso interno..."></textarea>
               </div>
             </div>
@@ -1312,15 +1320,15 @@
     </div>
     <div class="modal-body">
       <div class="form-group">
-        <label class="form-label">Palavra-passe atual</label>
+        <label for="cp-current" class="form-label">Palavra-passe atual</label>
         <div class="pw-wrap"><input type="password" id="cp-current" class="form-control" placeholder="Palavra-passe atual" autocomplete="current-password"><button type="button" class="pw-toggle" data-on-click="index-toggle-pw-074b3fd" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
       </div>
       <div class="form-group">
-        <label class="form-label">Nova palavra-passe</label>
+        <label for="cp-new" class="form-label">Nova palavra-passe</label>
         <div class="pw-wrap"><input type="password" id="cp-new" class="form-control" placeholder="Mín. 8 char., 1 maiúscula, 1 número" autocomplete="new-password"><button type="button" class="pw-toggle" data-on-click="index-toggle-pw-1c49c0f" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
       </div>
       <div class="form-group">
-        <label class="form-label">Confirmar nova palavra-passe</label>
+        <label for="cp-confirm" class="form-label">Confirmar nova palavra-passe</label>
         <div class="pw-wrap"><input type="password" id="cp-confirm" class="form-control" placeholder="Repete a nova password" autocomplete="new-password"><button type="button" class="pw-toggle" data-on-click="index-toggle-pw-1219ceb" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
       </div>
       <div id="cp-feedback" role="alert" style="display:none;font-size:13px;margin-top:4px;"></div>

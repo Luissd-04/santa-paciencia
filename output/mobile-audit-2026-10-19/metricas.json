@@ -1,0 +1,501 @@
+[
+  {
+    "label": "despesas-390",
+    "scrollWidth": 390,
+    "small": [
+      {
+        "display": "flex",
+        "font": "12.5px",
+        "height": 42,
+        "id": "",
+        "name": "Filtros",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 254,
+        "x": 18,
+        "y": 244.5
+      },
+      {
+        "display": "flex",
+        "font": "13.3333px",
+        "height": 42,
+        "id": "",
+        "name": "Exportar lista de despesas",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 42,
+        "x": 280,
+        "y": 244.5
+      },
+      {
+        "display": "flex",
+        "font": "13.3333px",
+        "height": 42,
+        "id": "",
+        "name": "Ler talão por foto (IA)",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 42,
+        "x": 330,
+        "y": 244.5
+      },
+      {
+        "display": "flex",
+        "font": "11px",
+        "height": 32,
+        "id": "",
+        "name": "",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 32,
+        "x": 286,
+        "y": 441
+      },
+      {
+        "display": "flex",
+        "font": "11px",
+        "height": 32,
+        "id": "",
+        "name": "",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 32,
+        "x": 324,
+        "y": 441
+      },
+      {
+        "display": "flex",
+        "font": "11px",
+        "height": 32,
+        "id": "",
+        "name": "",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 32,
+        "x": 286,
+        "y": 613.5
+      },
+      {
+        "display": "flex",
+        "font": "11px",
+        "height": 32,
+        "id": "",
+        "name": "",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 32,
+        "x": 324,
+        "y": 613.5
+      },
+      {
+        "display": "flex",
+        "font": "11px",
+        "height": 32,
+        "id": "",
+        "name": "",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 32,
+        "x": 286,
+        "y": 786
+      },
+      {
+        "display": "flex",
+        "font": "11px",
+        "height": 32,
+        "id": "",
+        "name": "",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 32,
+        "x": 324,
+        "y": 786
+      }
+    ],
+    "viewport": {
+      "height": 844,
+      "width": 390
+    }
+  },
+  {
+    "label": "hospedes-390",
+    "scrollWidth": 390,
+    "small": [
+      {
+        "display": "block",
+        "font": "16px",
+        "height": 39,
+        "id": "hospedes-search",
+        "name": "",
+        "tag": "INPUT",
+        "visibility": "visible",
+        "width": 260.4453125,
+        "x": 62.5546875,
+        "y": 218
+      }
+    ],
+    "viewport": {
+      "height": 844,
+      "width": 390
+    }
+  },
+  {
+    "label": "alojamento-detalhe-390",
+    "scrollWidth": 390,
+    "small": [
+      {
+        "display": "flex",
+        "font": "12px",
+        "height": 39,
+        "id": "",
+        "name": "Voltar",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 92.5625,
+        "x": 37,
+        "y": 89
+      },
+      {
+        "display": "flex",
+        "font": "12px",
+        "height": 36,
+        "id": "",
+        "name": "Apagar",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 96.5546875,
+        "x": 126.3984375,
+        "y": 218
+      },
+      {
+        "display": "flex",
+        "font": "13px",
+        "height": 42,
+        "id": "",
+        "name": "Guardar",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 118.046875,
+        "x": 234.953125,
+        "y": 218
+      },
+      {
+        "display": "block",
+        "font": "14px",
+        "height": 40.5,
+        "id": "aloj-nome",
+        "name": "",
+        "tag": "INPUT",
+        "visibility": "visible",
+        "width": 328,
+        "x": 31,
+        "y": 452.5
+      },
+      {
+        "display": "block",
+        "font": "16px",
+        "height": 36,
+        "id": "aloj-color",
+        "name": "",
+        "tag": "INPUT",
+        "visibility": "visible",
+        "width": 48,
+        "x": 31,
+        "y": 530.5
+      },
+      {
+        "display": "block",
+        "font": "14px",
+        "height": 40.5,
+        "id": "aloj-licenca",
+        "name": "",
+        "tag": "INPUT",
+        "visibility": "visible",
+        "width": 295.9609375,
+        "x": 31,
+        "y": 604
+      },
+      {
+        "display": "block",
+        "font": "14px",
+        "height": 40.5,
+        "id": "aloj-morada",
+        "name": "",
+        "tag": "INPUT",
+        "visibility": "visible",
+        "width": 328,
+        "x": 31,
+        "y": 682
+      },
+      {
+        "display": "block",
+        "font": "14px",
+        "height": 40.5,
+        "id": "aloj-cp",
+        "name": "",
+        "tag": "INPUT",
+        "visibility": "visible",
+        "width": 328,
+        "x": 31,
+        "y": 760
+      },
+      {
+        "display": "block",
+        "font": "14px",
+        "height": 40.5,
+        "id": "aloj-cidade",
+        "name": "",
+        "tag": "INPUT",
+        "visibility": "visible",
+        "width": 328,
+        "x": 31,
+        "y": 838
+      }
+    ],
+    "viewport": {
+      "height": 844,
+      "width": 390
+    }
+  },
+  {
+    "label": "relatorios-320",
+    "scrollWidth": 320,
+    "small": [
+      {
+        "display": "flex",
+        "font": "13px",
+        "height": 40,
+        "id": "rtab-btn-faturamento",
+        "name": "Faturamento",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 130.734375,
+        "x": 18,
+        "y": 70
+      },
+      {
+        "display": "flex",
+        "font": "13px",
+        "height": 40,
+        "id": "rtab-btn-despesas",
+        "name": "Despesas",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 112.7109375,
+        "x": 154.734375,
+        "y": 70
+      },
+      {
+        "display": "flex",
+        "font": "13px",
+        "height": 40,
+        "id": "rtab-btn-lucro",
+        "name": "Lucro",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 88.1171875,
+        "x": 273.4453125,
+        "y": 70
+      },
+      {
+        "display": "block",
+        "font": "14px",
+        "height": 22,
+        "id": "report-year-sel",
+        "name": "2026",
+        "tag": "SELECT",
+        "visibility": "visible",
+        "width": 120,
+        "x": 18,
+        "y": 130
+      },
+      {
+        "display": "inline-block",
+        "font": "13.5px",
+        "height": 42.5,
+        "id": "",
+        "name": "Selecionar opção: 2026",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 158,
+        "x": 18,
+        "y": 130
+      },
+      {
+        "display": "block",
+        "font": "14px",
+        "height": 22,
+        "id": "report-month-sel",
+        "name": "Ano inteiro\n                JaneiroFevereiroMarço\n          ",
+        "tag": "SELECT",
+        "visibility": "visible",
+        "width": 120,
+        "x": 18,
+        "y": 180.5
+      },
+      {
+        "display": "inline-block",
+        "font": "13.5px",
+        "height": 42.5,
+        "id": "",
+        "name": "Selecionar opção: Ano inteiro",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 158,
+        "x": 18,
+        "y": 180.5
+      },
+      {
+        "display": "block",
+        "font": "14px",
+        "height": 22,
+        "id": "report-acc-sel",
+        "name": "Todos os alojamentosUnidade de teste",
+        "tag": "SELECT",
+        "visibility": "visible",
+        "width": 120,
+        "x": 18,
+        "y": 231
+      },
+      {
+        "display": "inline-block",
+        "font": "13.5px",
+        "height": 42.5,
+        "id": "",
+        "name": "Selecionar opção: Todos os alojamentos",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 190,
+        "x": 18,
+        "y": 231
+      }
+    ],
+    "viewport": {
+      "height": 740,
+      "width": 320
+    }
+  },
+  {
+    "label": "precos-320",
+    "scrollWidth": 320,
+    "small": [
+      {
+        "display": "block",
+        "font": "14px",
+        "height": 22,
+        "id": "precos-aloj-sel",
+        "name": "— Selecionar alojamento —Unidade de teste",
+        "tag": "SELECT",
+        "visibility": "visible",
+        "width": 200,
+        "x": 18,
+        "y": 70
+      },
+      {
+        "display": "flex",
+        "font": "13px",
+        "height": 40,
+        "id": "precos-tab-btn-calendario",
+        "name": "Calendário",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 119.1875,
+        "x": 18,
+        "y": 161
+      },
+      {
+        "display": "flex",
+        "font": "13px",
+        "height": 40,
+        "id": "precos-tab-btn-config",
+        "name": "Lista",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 82.34375,
+        "x": 143.1875,
+        "y": 161
+      },
+      {
+        "display": "flex",
+        "font": "12px",
+        "height": 31,
+        "id": "",
+        "name": "Anterior",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 93.1953125,
+        "x": 33,
+        "y": 247
+      },
+      {
+        "display": "flex",
+        "font": "12px",
+        "height": 31,
+        "id": "",
+        "name": "Seguinte",
+        "tag": "BUTTON",
+        "visibility": "visible",
+        "width": 96.5,
+        "x": 195.28125,
+        "y": 247
+      }
+    ],
+    "viewport": {
+      "height": 740,
+      "width": 320
+    }
+  },
+  {
+    "label": "emails-320",
+    "scrollWidth": 320,
+    "small": [],
+    "viewport": {
+      "height": 740,
+      "width": 320
+    }
+  },
+  {
+    "label": "politica-430",
+    "scrollWidth": 430,
+    "small": [
+      {
+        "display": "block",
+        "font": "16px",
+        "height": 22,
+        "id": "pp-enabled",
+        "name": "",
+        "tag": "INPUT",
+        "visibility": "visible",
+        "width": 22,
+        "x": 31,
+        "y": 299.5
+      }
+    ],
+    "viewport": {
+      "height": 932,
+      "width": 430
+    }
+  },
+  {
+    "label": "politica-paisagem",
+    "scrollWidth": 844,
+    "small": [
+      {
+        "display": "block",
+        "font": "16px",
+        "height": 22,
+        "id": "pp-enabled",
+        "name": "",
+        "tag": "INPUT",
+        "visibility": "visible",
+        "width": 22,
+        "x": 47,
+        "y": 253.5
+      }
+    ],
+    "viewport": {
+      "height": 390,
+      "width": 844
+    }
+  }
+]

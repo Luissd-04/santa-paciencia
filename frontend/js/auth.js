@@ -527,7 +527,7 @@ async function switchAccount() {
 }
 
 async function handleUnauthorized() {
-  if (typeof AppModules.core.resetPrivateLists === 'function') AppModules.core.resetPrivateLists();
+  if (typeof AppModules.core.resetPrivateLists === 'function') AppModules.core.resetPrivateLists({ keepDraft: true });
   AppModules.core.currentUser = null;
   setAuthenticatedLayout(false);
   setAuthMode(inviteToken ? 'invite' : 'login');
@@ -753,10 +753,10 @@ async function submitProfile() {
     const oldEmail = (AppModules.core.currentUser?.email || '').toLowerCase();
     const payload = await AppModules.core.apiPut('/auth/profile', { name, email, current_password: password });
     AppModules.core.currentUser = { ...AppModules.core.currentUser, ...(payload?.data?.user || {}) };
-    if (emailChanged) setSavedAccounts(getSavedAccounts().filter(a => a.email !== oldEmail));
+    if (emailChanged && !payload?.data?.email_pending) setSavedAccounts(getSavedAccounts().filter(a => a.email !== oldEmail));
     rememberAccount(AppModules.core.currentUser);
     updateUserBadge();
-    AppModules.core.toast(emailChanged ? 'Perfil guardado. Usa o novo email no próximo login.' : 'Perfil guardado.', 'success');
+    AppModules.core.toast(payload?.data?.email_pending ? 'Confirme o link enviado ao novo email. Até lá, continue a usar o endereço atual.' : 'Perfil guardado.', 'success');
     closeProfileModal();
   } catch (err) {
     showMsg(err?.payload?.error || 'Não foi possível guardar o perfil.');

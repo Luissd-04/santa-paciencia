@@ -6,6 +6,7 @@ AppModules.define('core', {
   ensureFeature: { get: () => ensureFeature },
   ensureViewMarkup: { get: () => ensureViewMarkup },
   featureAction: { get: () => featureAction },
+  isFeatureLoaded: { get: () => isFeatureLoaded },
   showFeatureLoadError: { get: () => showFeatureLoadError },
   VIEW_FEATURE: { get: () => VIEW_FEATURE },
   VIEW_MARKUP: { get: () => VIEW_MARKUP },
@@ -137,6 +138,7 @@ const FEATURE_MODULES = {
   },
   definicoes: {
     scripts: [
+      'js/payment-policy.js',
       'js/emails.js',
       'js/features/emails/codes.js',
       'js/features/emails/editor.js',
@@ -194,7 +196,12 @@ for (const [name, feature] of Object.entries(FEATURE_MODULES)) {
 
 const featureScriptRequests = new Map();  // src → promessa (apagada se falhar)
 const featureRequests = new Map();        // funcionalidade → promessa em curso
-const FEATURE_ASSET_VERSION = 'stripe-payment-20261005-2';
+// Todos os scripts da funcionalidade já correram. Durante o carregamento só
+// parte da interface existe: um listener registado pelo primeiro script (ex.:
+// rodar o ecrã) não pode chamar funções definidas pelos seguintes.
+const loadedFeatures = new Set();
+const isFeatureLoaded = name => loadedFeatures.has(name);
+const FEATURE_ASSET_VERSION = 'v1-20261024-2';
 const featureAssetUrl = src => `${src}${src.includes('?') ? '&' : '?'}v=${FEATURE_ASSET_VERSION}`;
 
 // O preload traz os ficheiros em paralelo; a execução a seguir é sequencial
@@ -244,6 +251,7 @@ function loadFeature(name) {
     for (const dep of feature.deps || []) await loadFeature(dep);
     feature.scripts.forEach(preloadFeatureScript);
     for (const src of feature.scripts) await runFeatureScript(src);
+    loadedFeatures.add(name);
   })();
   featureRequests.set(name, request);
   // Uma falha não fica registada: o próximo pedido repete os ficheiros que
@@ -257,6 +265,13 @@ function loadFeature(name) {
 // simplesmente não faz nada.
 async function ensureFeature(name) {
   if (!name) return true;
+  // Versão nova publicada durante a sessão: não juntar módulos novos ao núcleo
+  // antigo. Recarregar já no URL da vista pedida (o aviso de alterações por
+  // guardar continua a poder cancelar; nesse caso a vista explica o motivo).
+  if (AppModules.core.appUpdateAvailable && !loadedFeatures.has(name)) {
+    location.reload();
+    return false;
+  }
   try {
     await loadFeature(name);
     return true;
@@ -343,12 +358,18 @@ function showFeatureLoadError(viewId, featureName, retry) {
   if (!view || view.querySelector(':scope > .feature-load-error')) return;
   const panel = document.createElement('div');
   panel.className = 'empty-state feature-load-error';
-  panel.innerHTML = `
+  const updated = AppModules.core.appUpdateAvailable;
+  panel.innerHTML = updated ? `
+    <div class="es-icon">🔄</div>
+    <h3>Há uma versão nova da aplicação</h3>
+    <p>Recarregue a página para abrir esta secção.</p>
+    <button type="button" class="btn btn-primary" data-feature-retry>Recarregar</button>` : `
     <div class="es-icon">📡</div>
     <h3>Esta secção não carregou</h3>
     <p>Falhou o download do código de <strong>${featureName}</strong>. Verifica a ligação.</p>
     <button type="button" class="btn btn-primary" data-feature-retry>Tentar novamente</button>`;
   panel.querySelector('[data-feature-retry]').addEventListener('click', () => {
+    if (updated) { location.reload(); return; }
     clearFeatureLoadError(viewId);
     retry();
   });

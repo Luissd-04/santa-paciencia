@@ -554,7 +554,34 @@ async function showAlojTab(tab) {
     const id = document.getElementById('aloj-editing-id')?.value;
     // O editor de preços é a vista Preços Dinâmicos embebida aqui: só chega
     // quando este separador é aberto.
-    if (id && await AppModules.core.ensureFeature('precos')) AppModules.precos.mountPrecosWidgetInAloj(id);
+    if (id) {
+      const panel = document.getElementById('aloj-tab-precos');
+      let status = panel.querySelector('.aloj-prices-status');
+      if (!status) {
+        status = document.createElement('div');
+        status.className = 'aloj-prices-status view-loading';
+        status.setAttribute('role', 'status');
+        panel.prepend(status);
+      }
+      status.textContent = 'A carregar preços…';
+      panel.setAttribute('aria-busy', 'true');
+      try {
+        const ready = await Promise.all([
+          AppModules.core.ensureFeature('precos'), AppModules.core.ensureViewMarkup('precos'),
+        ]);
+        if (ready.some(ok => !ok)) throw new Error('Não foi possível carregar os preços.');
+        if (panel.style.display === 'none' || document.getElementById('aloj-editing-id')?.value !== id) return;
+        await AppModules.precos.mountPrecosWidgetInAloj(id);
+        status.remove();
+      } catch (_) {
+        status.textContent = 'Não foi possível carregar os preços. ';
+        const retry = document.createElement('button');
+        retry.className = 'btn btn-ghost';
+        retry.textContent = 'Tentar novamente';
+        retry.addEventListener('click', () => showAlojTab('precos'));
+        status.append(retry);
+      } finally { panel.removeAttribute('aria-busy'); }
+    }
   } else if (typeof AppModules.precos.unmountPrecosWidget === 'function') {
     AppModules.precos.unmountPrecosWidget();
   }

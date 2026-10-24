@@ -11,6 +11,10 @@ AppModules.define('reservas', {
 function openModal(config = {}) {
   AppModules.core.editingId = null;
   AppModules.reservas._editingPriceInfo = null;
+  AppModules.reservas._editingStoredTotal = null;
+  AppModules.reservas._createIntentKey = crypto.randomUUID();
+  AppModules.reservas._wizVoucherManaged = false;
+  AppModules.reservas.resetWizQuote();
   AppModules.reservas._wizardPageMode = false;
   AppModules.reservas._returnToDetailId = null;
   AppModules.reservas._wizMultiSuite = false;
@@ -107,6 +111,11 @@ async function openEditModal(id) {
 
     AppModules.core.editingId = id;
     AppModules.reservas._editingPriceInfo = { price_edited_at: r.price_edited_at, price_edited_by_name: r.price_edited_by_name };
+    AppModules.reservas._editingStoredTotal = Number(r.total_amount);
+    AppModules.reservas.resetWizQuote();
+    // Voucher sem total editado à mão: as noites ficam com o preço sem desconto
+    // e o servidor recalcula o voucher quando a estadia muda.
+    AppModules.reservas._wizVoucherManaged = !!r.voucher && !r.price_edited_at;
     AppModules.reservas._wizExtraRooms = [];
     AppModules.reservas._wizResetExtraRoomsPanel();
     document.getElementById('modal-title').textContent = 'Editar Reserva — ' + id;
@@ -195,6 +204,7 @@ async function openEditModal(id) {
       if (!rows[idx]) return;
       const row = rows[idx];
       const setVal = (field, val) => { const el = row.querySelector(`[data-field="${field}"]`); if (el) el.value = val || ''; };
+      row.dataset.guestId = g.id || '';
       setVal('nome_completo', [g.first_name, g.last_name].filter(Boolean).join(' ') || g.name || '');
       setVal('email',      g.email);
       const rawP = g.phone || '';
@@ -234,6 +244,7 @@ async function openEditModal(id) {
       : (r.accommodations_data || []);
     AppModules.reservas._wizMultiSuite = Array.isArray(accsData) && accsData.length > 1;
     AppModules.reservas._wizHadMultiSuiteOnLoad = AppModules.reservas._wizMultiSuite;
+    if (AppModules.reservas._wizMultiSuite) AppModules.reservas._wizVoucherManaged = false;
     // Suites adicionais (além da principal) — preenchem o painel "Adicionar outro
     // quarto" para poderem ser vistas/editadas também a partir do wizard.
     AppModules.reservas._wizExtraRooms = (Array.isArray(accsData) ? accsData : [])
@@ -244,7 +255,7 @@ async function openEditModal(id) {
         price_per_night: Number(item.price_per_night || 0),
         subtotal: Number(item.subtotal || 0),
       }));
-    if (!isNaN(storedTotal) && !isNaN(recomputed) && Math.abs(storedTotal - recomputed) > 0.01) {
+    if (!AppModules.reservas._wizVoucherManaged && !isNaN(storedTotal) && !isNaN(recomputed) && Math.abs(storedTotal - recomputed) > 0.01) {
       if (AppModules.reservas._wizMultiSuite) {
         AppModules.reservas._manualTotalOverride = storedTotal;
       } else {
@@ -264,6 +275,7 @@ async function openEditModal(id) {
     AppModules.reservas.updateWizSummary();
     AppUI.refreshDropdowns(document.getElementById('modal-bg'));
     document.getElementById('modal-bg').classList.toggle('resf-page-mode', AppModules.reservas._wizardPageMode);
+    AppModules.reservas.captureReservaEditBaseline();
     AppUI.openModal('modal-bg');
   } catch (e) {
     AppModules.core.toast('❌ Erro ao carregar reserva.', 'error');
@@ -275,13 +287,14 @@ function closeModal() {
   const modal = bg.querySelector('.modal');
   AppModules.reservas._wizardPageMode = false;
   AppModules.reservas._returnToDetailId = null;
+  AppModules.reservas.resetWizQuote();
   modal.classList.add('modal-closing');
   setTimeout(() => {
     AppUI.closeModal(bg);
     modal.classList.remove('modal-closing');
     bg.classList.remove('resf-page-mode');
     AppModules.core.editingId = null;
-  }, 320);
+  }, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 320);
 }
 
 // ── FECHO SEGURO + RASCUNHO (só para Nova Reserva) ──

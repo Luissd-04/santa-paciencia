@@ -70,6 +70,7 @@ router.post('/email/send', requireAuth, requireRole('manager'), async (req, res)
       references: references || undefined,
     });
 
+    if (!sendResult?.id) return res.status(409).json({ success: false, delivery_status: 'disconnected', error: 'Email não enviado. Ative o envio e ligue uma conta Gmail antes de tentar novamente.' });
     const { randomUUID } = require('crypto');
     db.prepare(`
       INSERT INTO invoice_messages
@@ -110,7 +111,7 @@ router.post('/email/send', requireAuth, requireRole('manager'), async (req, res)
         error: 'A ligação ao Gmail expirou. Vai a Definições → Gmail e volta a ligar a conta.',
       });
     }
-    res.status(500).json({ success: false, error: 'Não foi possível concluir a operação no Gmail.' });
+    res.status([400, 409].includes(err.status) ? err.status : 502).json({ success: false, error: [400, 409].includes(err.status) ? err.message : 'Não foi possível confirmar o envio no Gmail. Verifique Enviados antes de repetir.' });
   }
 });
 
@@ -188,7 +189,7 @@ router.get('/email/inbox', requireAuth, requireRole('manager'), async (req, res)
     if (isAuthError) deleteEmailTokens(req.user.organization_id);
     const needs_reauth = isAuthError || errMsg.includes('insufficient') || err.code === 403;
     console.error('Gmail inbox error:', { type: err.name, status: err.status || err.response?.status });
-    res.json({ success: true, data: { messages: [], needs_reauth, error: 'Não foi possível carregar as mensagens do Gmail.' } });
+    res.status(502).json({ success: false, data: { needs_reauth }, error: 'Não foi possível carregar as mensagens do Gmail. Tente novamente.' });
   }
 });
 
@@ -250,7 +251,7 @@ router.get('/email/attachment', requireAuth, requireRole('manager'), async (req,
     res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
     res.send(buf);
   } catch (err) {
-    res.status(500).json({ success: false, error: 'Não foi possível concluir a operação no Gmail.' });
+    res.status([400, 409].includes(err.status) ? err.status : 502).json({ success: false, error: [400, 409].includes(err.status) ? err.message : 'Não foi possível confirmar o envio no Gmail. Verifique Enviados antes de repetir.' });
   }
 });
 

@@ -41,7 +41,7 @@ async function loadVouchers() {
 function getVoucherStatus(v) {
   if (v.status !== 'active') return v.status;
   if (Number(v.used_count || 0) >= Number(v.max_uses || 1)) return 'used';
-  const today = new Date().toISOString().slice(0, 10);
+  const today = window.ReservationDates.localIso();
   if (v.valid_until && v.valid_until < today) return 'expired';
   return 'active';
 }

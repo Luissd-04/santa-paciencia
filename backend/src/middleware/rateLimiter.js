@@ -67,7 +67,17 @@ const oauthCallbackLimiter = rateLimit({
   message: { success: false, error: 'Demasiadas tentativas. Tenta novamente em 15 minutos.' },
 });
 
+const sensitiveAccountLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: req => req.user.id,
+  message: { success: false, error: 'Demasiadas tentativas nesta conta. Tente novamente em 15 minutos.' },
+});
+const receiptLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: req => req.user.organization_id,
+  message: { success: false, error: 'Limite de leitura de talões atingido. Tente mais tarde.' },
+});
 module.exports = {
-  loginLimiter, publicBookingLimiter, voucherLimiter, preCheckinLookupLimiter,
+  sensitiveAccountLimiter, receiptLimiter, loginLimiter, publicBookingLimiter, voucherLimiter, preCheckinLookupLimiter,
   preCheckinSubmitLimiter, forgotPasswordLimiter, oauthCallbackLimiter,
 };

@@ -73,7 +73,15 @@
     return age;
   }
 
+  // Data de calendário local (AAAA-MM-DD). toISOString() devolve o dia em UTC:
+  // em Lisboa, no verão, entre as 00h e a 01h ainda seria o dia anterior.
+  function localIso(date = new Date(), offsetDays = 0) {
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate() + offsetDays);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
   window.ReservationDates = {
+    localIso,
     normalizeIsoDate,
     formatPtDate,
     formatShortPtDate,

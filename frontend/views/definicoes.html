@@ -21,8 +21,10 @@
             <button class="settings-tab" data-settings-tab="equipa" data-owner-only="true" style="display:none;" data-on-click="index-switch-settings-tab-e9ee807">
               <i data-lucide="users-round"></i> Equipa
             </button>
+            <button class="settings-tab" data-settings-tab="payments" data-on-click="payment-policy-open"><i data-lucide="credit-card"></i> Pagamentos e cancelamentos</button>
           </div>
 
+          <div class="settings-panel" id="settings-payments"><div id="pp-content"></div></div>
           <div class="settings-panel active" id="settings-gcal">
 
             <!-- Gmail para envio de emails -->
@@ -116,7 +118,7 @@
                 </div>
                 <div class="settings-stat">
                   <strong id="sync-removed">—</strong>
-                  <span>Canceladas (removidas)</span>
+                  <span>Alterações pendentes</span>
                 </div>
               </div>
               <div class="settings-sync-tasks-row" style="border-top:1px solid var(--borda);margin-top:16px;padding-top:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
