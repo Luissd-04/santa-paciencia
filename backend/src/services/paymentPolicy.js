@@ -7,7 +7,7 @@ const DEFAULT_POLICY = {
   refundRules: [{ minDays: 0, maxDays: 14, percent: 0 }, { minDays: 15, maxDays: 30, percent: 50 }, { minDays: 31, maxDays: null, percent: 100 }],
 };
 const fail = message => { throw httpError(message, 400); };
-const { cents } = require('./money');
+const { cents, dueCents, MIN_ONLINE_CENTS } = require('./money');
 function validatePolicy(input) {
   if (!input || typeof input !== 'object') fail('Política inválida.');
   for (const key of ['enabled', 'automaticCharge']) if (typeof input[key] !== 'boolean') fail('Opção inválida: ' + key);
@@ -56,7 +56,7 @@ function calculate(policy, { total, paid = 0, bookedOn, checkIn, cancelOn = book
   if (leadDays < 0 || daysBetween(bookedOn, cancelOn) < 0) fail('As datas devem ser posteriores à criação da reserva.');
   const depositPercent = leadDays <= p.balanceDays ? 100 : percentAt(p.depositRules, leadDays);
   let depositCents = Math.min(totalCents, Math.max(50, Math.round(totalCents * depositPercent / 100)));
-  if (totalCents - depositCents < 50) depositCents = totalCents;
+  if (totalCents - depositCents < MIN_ONLINE_CENTS) depositCents = totalCents;
   const refundDays = p.refundBasis === 'booking' ? leadDays : daysBetween(cancelOn, checkIn);
   const refundPercent = refundDays < 0 ? 0 : percentAt(p.refundRules, refundDays);
   const dueAt = noonLisbon(shiftDay(checkIn, -p.balanceDays));
@@ -99,11 +99,11 @@ function consentKey(r) {
   return createHash('sha256').update(JSON.stringify([r.payment_policy_json, r.check_in, r.check_out, cents(r.total_amount), cents(r.amount_paid || 0), amountDue(r), r.accommodation_id])).digest('hex');
 }
 function amountDue(r, now = new Date()) {
-  const remaining = Math.max(0, cents(r.total_amount) - cents(r.amount_paid || 0));
+  const remaining = Math.max(0, dueCents(r.total_amount, r.amount_paid));
   const plan = planFor(r, now);
   if (!plan) return remaining;
   const initial = plan.depositCents - cents(r.amount_paid || 0);
-  if (initial > 0 && now.getTime() < Date.parse(plan.dueAt)) return Math.min(remaining, initial < 50 ? 50 : initial);
+  if (initial > 0 && now.getTime() < Date.parse(plan.dueAt)) return Math.min(remaining, Math.max(initial, MIN_ONLINE_CENTS));
   return remaining;
 }
 function describe(r, now = new Date()) {

@@ -10,7 +10,7 @@ const { findConflict } = require('./reservationAvailability');
 const policy = require('./paymentPolicy');
 const { recordHistory } = require('./reservationHistoryService');
 
-const { cents } = require('./money');
+const { cents, dueCents, MIN_ONLINE_CENTS } = require('./money');
 const objectId = value => typeof value === 'string' ? value : value?.id;
 const fail = (message, status = 409) => { throw require('./httpError').httpError(message, status); };
 const SUPPORTED_EVENTS = new Set([
@@ -39,7 +39,7 @@ function payable(r) {
   return !r.policy_cancellation_json && stripeEnabled(r.organization_id) && ['aguardar_pagamento', 'confirmada', 'pre_checkin'].includes(r.status)
     && r.payment_status !== 'reembolsado' && !['refunded', 'partially_refunded', 'review_required'].includes(r.online_payment_status)
     && r.check_out >= localDateIso()
-    && cents(r.total_amount) - cents(r.amount_paid || 0) >= 50;
+    && dueCents(r.total_amount, r.amount_paid) >= MIN_ONLINE_CENTS;
 }
 function paymentSummary(r) {
   const attempt = activeCheckout(r.id);
@@ -107,7 +107,7 @@ async function createCheckout(token, consent = {}) {
     ensureLegacyPayment(r);
     r.amount_paid = ledgerTotal(r.id, r.organization_id);
     const amount = policy.amountDue(r);
-    if (!Number.isSafeInteger(amount) || amount < 50 || amount > 99999999) fail('Montante inválido para pagamento online.');
+    if (!Number.isSafeInteger(amount) || amount < MIN_ONLINE_CENTS || amount > 99999999) fail('Montante inválido para pagamento online.');
     let guest = {};
     try { guest = JSON.parse(r.guest_snapshot || '{}'); } catch { /* legacy reservation */ }
     const email = guest.email || r.guest_email;
@@ -406,8 +406,8 @@ async function chargeBalance(reservationId) {
     if (!p || !payable(r) || !r.policy_accepted_at || r.policy_auto_consent !== '1' || !p.automaticCharge || !r.stripe_payment_method_id
       || Number(r.stripe_saved_livemode) !== Number(stripeConfig().livemode) || r.balance_attempted_at
       || Date.now() < Date.parse(plan.dueAt) || cents(r.amount_paid) < plan.depositCents || activeCheckoutForMode(r.id)) return null;
-    const amount = cents(r.total_amount) - cents(ledgerTotal(r.id, r.organization_id));
-    if (amount < 50) return null;
+    const amount = dueCents(r.total_amount, ledgerTotal(r.id, r.organization_id));
+    if (amount < MIN_ONLINE_CENTS) return null;
     const id = randomUUID();
     const request = { amount, currency: 'eur', customer: r.stripe_customer_id, payment_method: r.stripe_payment_method_id,
       payment_method_types: ['card'], off_session: true, confirm: true,

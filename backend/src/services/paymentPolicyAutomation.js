@@ -2,6 +2,7 @@ const { randomUUID } = require('crypto');
 const { httpError } = require('./httpError');
 const { db } = require('../config/database');
 const policy = require('./paymentPolicy');
+const money = require('./money');
 const payments = require('./stripePayments');
 const { activeCheckout } = require('./stripePaymentGuards');
 const { stripeConfig, stripeEnabled, getStripe } = require('./stripeClient');
@@ -139,21 +140,21 @@ async function runPolicyMaintenance() {
         if (r.policy_cancellation_json) { await processRefunds(r.id); await sendNotice(row(r.id), 'cancelled'); continue; }
         if (!r.policy_accepted_at || !['confirmada','pre_checkin'].includes(r.status) || r.check_in < policy.localDay()) continue;
         let plan = policy.planFor(r);
-        if (!plan.balanceCents || Date.now() < Date.parse(plan.dueAt) || policy.cents(r.total_amount) - policy.cents(r.amount_paid) < 50) continue;
+        if (!plan.balanceCents || Date.now() < Date.parse(plan.dueAt) || money.dueCents(r.total_amount, r.amount_paid) < money.MIN_ONLINE_CENTS) continue;
         await reconcileReservation(r.id);
         r = row(r.id);
-        if (policy.cents(r.total_amount) - policy.cents(r.amount_paid) < 50) continue;
+        if (money.dueCents(r.total_amount, r.amount_paid) < money.MIN_ONLINE_CENTS) continue;
         // Refunds or a changed payment require staff review, not another
         // collection notice with a link that the guest cannot use.
         if (!payments.paymentSummary(r).available) continue;
         await payments.chargeBalance(r.id);
         r = row(r.id);
-        if (policy.cents(r.total_amount) - policy.cents(r.amount_paid) < 50) continue;
+        if (money.dueCents(r.total_amount, r.amount_paid) < money.MIN_ONLINE_CENTS) continue;
         const active = activeCheckout(r.id);
         if (active?.state === 'processing' || active?.state === 'creating') continue;
         if (active?.kind === 'automatic') await payments.closeOpenCheckout(r.id);
         r = row(r.id);
-        if (policy.cents(r.total_amount) - policy.cents(r.amount_paid) < 50) continue;
+        if (money.dueCents(r.total_amount, r.amount_paid) < money.MIN_ONLINE_CENTS) continue;
         if (!await sendNotice(r, 'balance')) continue;
         r = row(r.id);
         if (r.balance_deadline && Date.now() >= Date.parse(r.balance_deadline)) await cancelByPolicy(r.id, { reason: 'nonpayment' });

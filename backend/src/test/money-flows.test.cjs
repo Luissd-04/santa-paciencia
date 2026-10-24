@@ -194,3 +194,13 @@ test('pré-check-in concluído confirma, salvo sinal da política por pagar', ()
   savePrecheckin(row(), { name: 'Hóspede', email: 'hospede@example.com' }, [], null);
   assert.equal(row().status, 'aguardar_pagamento');
 });
+
+test('dinheiro: saldo em falta, arredondamento e mínimo online em cêntimos', () => {
+  const money = require('../services/money');
+  assert.equal(money.dueCents(0.3, 0.1 + 0.2), 0);
+  assert.equal(money.isUnderpaid(0.1 + 0.2, 0.3), false);
+  assert.equal(money.isUnderpaid(99.99, 100), true);
+  assert.equal(money.dueCents(100, null), 10000);
+  assert.equal(money.roundEUR(10.005), 10.01);
+  assert.equal(money.MIN_ONLINE_CENTS, 50);
+});

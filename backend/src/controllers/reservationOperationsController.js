@@ -4,6 +4,7 @@ const { syncOperationalEventsToGoogle } = require('../services/calendarService')
 const { recordHistory } = require('../services/reservationHistoryService');
 const { getOccupancyStats, occupancyRate, firstOfMonth: firstDayOfMonth } = require('../services/occupancyStats');
 const { localDateIso } = require('../services/reservationRules');
+const { isUnderpaid, formatEUR, fromCents, cents } = require('../services/money');
 
 async function getDashboardStats(req, res, next) {
   try {
@@ -218,7 +219,8 @@ function getNotifications(req, res, next) {
     const checkinsTomorrow = db.prepare(`${baseSelect} AND r.check_in = ?  AND r.status != 'cancelada' ${notDone('checkin')}`).all(orgId, tomorrow);
     const checkoutsToday   = db.prepare(`${baseSelect} AND r.check_out = ? AND r.status != 'cancelada' ${notDone('checkout')}`).all(orgId, today);
     const pending          = db.prepare(`${baseSelect} AND r.status = 'pendente'`).all(orgId);
-    const unpaid           = db.prepare(`${baseSelect} AND r.status = 'confirmada' AND r.total_amount > 0 AND r.amount_paid < r.total_amount`).all(orgId);
+    const unpaid           = db.prepare(`${baseSelect} AND r.status = 'confirmada' AND r.total_amount > 0`).all(orgId)
+      .filter(r => isUnderpaid(r.amount_paid, r.total_amount));
     const importantTasks   = db.prepare(`
       SELECT e.id, e.title, e.date, e.start_time, e.type, e.reservation_id,
              a.name AS accommodation_name
@@ -253,11 +255,11 @@ function getNotifications(req, res, next) {
       reservation_id: r.id,
     }));
     unpaid.forEach(r => {
-      const em = Number(r.total_amount) - Number(r.amount_paid);
+      const em = fromCents(cents(r.total_amount) - cents(r.amount_paid || 0));
       notifications.push({
         type: 'unpaid', priority: 'medium', icon: 'circle-alert',
         title: 'Pagamento em falta',
-        subtitle: `${r.guest_name} · ${require('../services/money').formatEUR(em)} por receber`,
+        subtitle: `${r.guest_name} · ${formatEUR(em)} por receber`,
         reservation_id: r.id,
       });
     });
@@ -284,8 +286,8 @@ function getNotifications(req, res, next) {
         let title;
         if (cancellation?.state === 'manual_review') title = 'Reembolso requer revisão manual';
         else if (cancellation && cancellation.state !== 'complete') title = 'Reembolso pendente';
-        else if (!cancellation && Math.round(r.amount_paid * 100) < Math.round(r.total_amount * 100) && !r.policy_accepted_at && r.status !== 'cancelada') title = 'Pagamento: falta aceitar as condições';
-        else if (!cancellation && r.check_in <= today && Math.round(r.amount_paid * 100) < Math.round(r.total_amount * 100) && r.status !== 'cancelada') title = 'Pagamento em falta na chegada ou após a estadia';
+        else if (!cancellation && isUnderpaid(r.amount_paid, r.total_amount) && !r.policy_accepted_at && r.status !== 'cancelada') title = 'Pagamento: falta aceitar as condições';
+        else if (!cancellation && r.check_in <= today && isUnderpaid(r.amount_paid, r.total_amount) && r.status !== 'cancelada') title = 'Pagamento em falta na chegada ou após a estadia';
         if (title) notifications.push({ type: 'payment_review', priority: 'high', icon: 'circle-alert', title, subtitle: `Reserva ${r.id} · verifique os movimentos antes de cobrar ou reembolsar`, reservation_id: r.id });
       }
       const attempts = db.prepare("SELECT reservation_id FROM stripe_payment_attempts WHERE organization_id=? AND state IN ('creating','open','processing') AND datetime(created_at) < datetime('now','-23 hours') GROUP BY reservation_id").all(orgId);

@@ -11,7 +11,8 @@ const { validateReservationInput, assertMoneyLimit } = require('../services/rese
 const { db } = require('../config/database');
 
 const { stayChanged, priceCreate, priceUpdate, assertExpectedTotal, createQuote, updateQuote } = require('../services/reservationQuote');
-const moneyChanged = (value, current) => value !== undefined && Math.round(Number(value) * 100) !== Math.round(Number(current || 0) * 100);
+const { cents } = require('../services/money');
+const moneyChanged = (value, current) => value !== undefined && cents(value) !== cents(current || 0);
 // Só estas alterações afetam um pagamento online em curso (montante, estadia
 // ou estado). Notas, hora de chegada e dados de contacto não o interrompem.
 function affectsOnlinePayment(body, existing) {

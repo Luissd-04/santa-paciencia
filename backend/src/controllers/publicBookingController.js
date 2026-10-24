@@ -8,6 +8,7 @@ const { recordConsent } = require('../services/rgpdService');
 const creation = require('../services/reservationCreation');
 const { getEmailSettings, resolveAccommodationInheritance } = require('../services/emailService');
 const { normalizeDateValue } = require('../services/reservationRules');
+const { cents, MIN_ONLINE_CENTS } = require('../services/money');
 const turnstile = require('../services/turnstileService');
 const { recordHistory } = require('../services/reservationHistoryService');
 const { publicOrigin } = require('../services/publicOrigin');
@@ -336,7 +337,7 @@ async function createReservation(req, res, next) {
         breakfast_included: payload.breakfast_included ? 1 : 0, tourist_tax: totals.touristTax,
         channel: 'website', payment_method: null, notes: payload.notes || null, license_number: licenseNumber,
         // Com pagamento online o pedido aguarda o pagamento; sem ele, a aprovação da equipa.
-        status: onlinePayment && finalTotal >= 0.50 ? 'aguardar_pagamento' : 'pendente',
+        status: onlinePayment && cents(finalTotal) >= MIN_ONLINE_CENTS ? 'aguardar_pagamento' : 'pendente',
         guests_data: JSON.stringify(normalizedGuestsData), public_token: token, precheckin_token: precheckinToken,
         precheckin_token_expires_at: precheckinExpiresAt, arrival_time: arrivalTime,
         guest_snapshot: JSON.stringify({ name: g.name, email: g.email, phone: g.phone }),
@@ -356,7 +357,7 @@ async function createReservation(req, res, next) {
       data: {
         id: reservation.id,
         status: reservation.status,
-        online_payment_available: onlinePayment && finalTotal >= 0.50,
+        online_payment_available: onlinePayment && cents(finalTotal) >= MIN_ONLINE_CENTS,
         total_amount: finalTotal,
         public_token: token,
         public_url: `${publicUrl(req)}/reserva/${token}`,
