@@ -9,8 +9,18 @@ function businessTimeZone() {
 
 function localDay(date = new Date(), offsetDays = 0) {
   const day = new Intl.DateTimeFormat('en-CA', { timeZone: businessTimeZone(), year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
-  if (!offsetDays) return day;
-  return new Date(Date.parse(`${day}T12:00:00Z`) + offsetDays * 86400000).toISOString().slice(0, 10);
+  return offsetDays ? addDays(day, offsetDays) : day;
 }
 
-module.exports = { businessTimeZone, localDay };
+// Aritmética de dias de calendário (AAAA-MM-DD), feita ao meio-dia UTC para
+// não depender do fuso nem da mudança de hora.
+const DAY_MS = 86400000;
+const noonUtc = day => Date.parse(`${String(day).slice(0, 10)}T12:00:00Z`);
+function addDays(day, days) {
+  return new Date(noonUtc(day) + days * DAY_MS).toISOString().slice(0, 10);
+}
+function daysBetween(from, to) {
+  return Math.round((noonUtc(to) - noonUtc(from)) / DAY_MS);
+}
+
+module.exports = { businessTimeZone, localDay, addDays, daysBetween };

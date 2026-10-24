@@ -1,24 +1,10 @@
 const { db } = require('../config/database');
 
-const DAY_MS = 86400000;
-
 function isoDay(value) {
   return String(value || '').slice(0, 10);
 }
 
-function toDate(value) {
-  return new Date(`${isoDay(value)}T00:00:00Z`);
-}
-
-// Datas em UTC: usar `new Date(ano, mes, dia).toISOString()` devolve o dia
-// anterior em Portugal no horário de verão (meia-noite local = 23h UTC).
-function addDays(value, days) {
-  return new Date(toDate(value).getTime() + days * DAY_MS).toISOString().slice(0, 10);
-}
-
-function daysBetween(start, end) {
-  return Math.round((toDate(end) - toDate(start)) / DAY_MS);
-}
+const { addDays, daysBetween } = require('./dates');
 
 function firstOfMonth(year, month /* 1-12 */) {
   return `${year}-${String(month).padStart(2, '0')}-01`;
@@ -133,7 +119,5 @@ module.exports = {
   expandToUnits,
   getReservationUnits,
   loadAccommodations,
-  addDays,
-  daysBetween,
   firstOfMonth,
 };

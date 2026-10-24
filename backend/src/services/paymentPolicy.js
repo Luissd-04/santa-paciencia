@@ -40,8 +40,8 @@ function dateOnly(value) {
   return value;
 }
 const localDay = (now = new Date()) => require('./dates').localDay(now);
-function daysBetween(from, to) { return Math.round((Date.parse(dateOnly(to)) - Date.parse(dateOnly(from))) / 86400000); }
-function shiftDay(day, delta) { return new Date(Date.parse(dateOnly(day)) + delta * 86400000).toISOString().slice(0, 10); }
+const daysBetween = (from, to) => require('./dates').daysBetween(dateOnly(from), dateOnly(to));
+const shiftDay = (day, delta) => require('./dates').addDays(dateOnly(day), delta);
 function noonLisbon(day) {
   const utc = new Date(dateOnly(day) + 'T12:00:00Z');
   const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Lisbon', hour: '2-digit', hourCycle: 'h23' }).format(utc));

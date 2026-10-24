@@ -91,3 +91,12 @@ test('receita: total das reservas ativas (com taxa turística) e sinal retido da
   const { revenueOf } = require('../services/reportingService');
   assert.deepEqual([{ status: 'confirmada', total_amount: 212 }, { status: 'cancelada', total_amount: 300, amount_paid: 60 }].map(revenueOf), [212, 60]);
 });
+
+test('datas: somar dias e contar noites atravessando a mudança de hora e o fim do mês', () => {
+  const { addDays, daysBetween } = require('../services/dates');
+  assert.equal(addDays('2026-03-28', 2), '2026-03-30');
+  assert.equal(addDays('2026-10-24', 8), '2026-11-01');
+  assert.equal(addDays('2028-03-01', -1), '2028-02-29');
+  assert.equal(daysBetween('2026-03-28', '2026-03-30'), 2);
+  assert.equal(daysBetween('2026-10-30', '2026-10-24'), -6);
+});

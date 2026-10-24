@@ -12,11 +12,7 @@ const DEFAULT_AUTO_TASK_SETTINGS = {
   checkout: true,
 };
 
-function addDays(isoDate, days) {
-  const date = new Date(`${isoDate}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
+const { addDays } = require('./dates');
 
 function isActiveReservation(reservation) {
   return reservation && reservation.status !== 'cancelada';
