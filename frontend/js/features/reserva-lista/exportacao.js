@@ -157,7 +157,7 @@ async function exportReservasPDF() {
       body: data.map(r => [
         r.id, r.guest_name, r.accommodation_name,
         r.check_in, r.check_out, r.nights, r.channel, r.status,
-        '€' + Number(r.total_amount).toFixed(2),
+        ReservationMoney.format(r.total_amount),
       ]),
     });
     doc.save(`reservas_${window.ReservationDates.localIso()}.pdf`);

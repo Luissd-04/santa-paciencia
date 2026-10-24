@@ -79,8 +79,8 @@ function updateWizChildAgeHints() {
     if (!hint) return;
     if (sel.value === '' || !suite) { hint.textContent = ''; return; }
     const age = Number(sel.value);
-    if (age < babyLimit) hint.textContent = babyPrice > 0 ? `Bebé · €${babyPrice.toFixed(2)}/noite` : 'Bebé · sem custo';
-    else if (age < childLimit) hint.textContent = childPrice > 0 ? `Criança · €${childPrice.toFixed(2)}/noite` : 'Criança · sem custo';
+    if (age < babyLimit) hint.textContent = babyPrice > 0 ? `Bebé · ${ReservationMoney.format(babyPrice)}/noite` : 'Bebé · sem custo';
+    else if (age < childLimit) hint.textContent = childPrice > 0 ? `Criança · ${ReservationMoney.format(childPrice)}/noite` : 'Criança · sem custo';
     else hint.textContent = 'Preço de adulto';
   });
 }
@@ -180,7 +180,7 @@ function updateSpecialRateHints() {
       return;
     }
     const applied = guestIndex >= included;
-    el.textContent = `${info.label}${applied ? '' : ' se for hóspede adicional'} · €${info.price.toFixed(2)}/noite`;
+    el.textContent = `${info.label}${applied ? '' : ' se for hóspede adicional'} · ${ReservationMoney.format(info.price)}/noite`;
   };
 
   setHint(

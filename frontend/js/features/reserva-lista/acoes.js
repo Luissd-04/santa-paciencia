@@ -105,7 +105,7 @@ async function cancelarReserva(id) {
   try {
     const { data: reservation } = await AppModules.core.apiGet(`/api/reservations/${id}`);
     const policy = reservation.payment_policy;
-    const message = policy ? `Cancelar esta reserva? Reembolso previsto: €${(policy.refundCents / 100).toFixed(2)} (${policy.refundPercent}% do valor pago), segundo a política da reserva.` : 'Cancelar esta reserva? Será removida do Google Calendar.';
+    const message = policy ? `Cancelar esta reserva? Reembolso previsto: ${ReservationMoney.format(policy.refundCents / 100)} (${policy.refundPercent}% do valor pago), segundo a política da reserva.` : 'Cancelar esta reserva? Será removida do Google Calendar.';
     if (!confirm(message)) return;
     const res = await AppModules.core.apiDelete(`/api/reservations/${id}`, undefined, policy ? { key: policy.consentKey, refundCents: policy.refundCents } : undefined);
     if (res.success) {

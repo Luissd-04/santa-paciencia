@@ -32,7 +32,7 @@ function renderGuestReservationsHistory(g) {
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:12px;color:var(--cinza);">${AppModules.core.formatDate(r.check_in)} → ${AppModules.core.formatDate(r.check_out)}</span>
-          <b>€${Number(r.total_amount||0).toFixed(2)}</b>
+          <b>${ReservationMoney.format(r.total_amount||0)}</b>
           ${AppModules.core.badgeEstado(r.status)}
         </div>
       </div>`).join('')}`;

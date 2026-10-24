@@ -53,7 +53,7 @@ function ptDate(value) {
 }
 
 function fmtCurrency(value) {
-  return `€${Number(value || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${ReservationMoney.format(value || 0)}`;
 }
 
 function nights() {

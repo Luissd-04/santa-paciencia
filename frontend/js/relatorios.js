@@ -37,7 +37,7 @@ const CAT_COLORS = Object.fromEntries(Object.entries(AppModules.despesas.EXPENSE
 const CAT_LABELS = Object.fromEntries(Object.entries(AppModules.despesas.EXPENSE_CATS).map(([k, v]) => [k, v.label]));
 const MARCA = '#843424';
 
-const fmtEur = v => '€' + Number(v || 0).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtEur = v => ReservationMoney.format(v || 0);
 
 // ── TAB SWITCHING ──
 function switchReportTab(tab) {
@@ -201,13 +201,13 @@ function _renderRevenueChart(series, granularity = 'month') {
       plugins: {
         legend: { labels: { color: textColor, font: { size: 11 }, boxWidth: 12, padding: 16 } },
         tooltip: { callbacks: { label: ctx => ctx.datasetIndex === 0
-          ? ` €${Number(ctx.raw).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}`
+          ? ` ${ReservationMoney.format(ctx.raw)}`
           : ` ${ctx.raw}%` } }
       },
       scales: {
         x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 } } },
         y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 },
-          callback: v => '€' + Number(v).toLocaleString('pt-PT') } },
+          callback: v => ReservationMoney.formatShort(v) } },
         ...(hasOccupancy ? { yOcc: { position: 'right', grid: { drawOnChartArea: false }, min: 0, max: 100,
           ticks: { color: 'rgba(74,111,165,.8)', font: { size: 11 }, callback: v => v + '%' } } } : {})
       }
@@ -233,7 +233,7 @@ function _renderChannelChart(channels) {
       responsive: true, maintainAspectRatio: false, cutout: '62%',
       plugins: {
         legend: { position: 'bottom', labels: { color: textColor, font: { size: 11 }, padding: 12, boxWidth: 12 } },
-        tooltip: { callbacks: { label: ctx => ` €${Number(ctx.raw).toLocaleString('pt-PT', { minimumFractionDigits: 2 })} · ${ctx.label}` } }
+        tooltip: { callbacks: { label: ctx => ` ${ReservationMoney.format(ctx.raw)} · ${ctx.label}` } }
       }
     }
   });
@@ -259,10 +259,10 @@ function _renderAccomChart(accoms) {
     options: {
       indexAxis: 'y', responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ` €${Number(ctx.raw).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}` } } },
+        tooltip: { callbacks: { label: ctx => ` ${ReservationMoney.format(ctx.raw)}` } } },
       scales: {
         x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 },
-          callback: v => '€' + Number(v).toLocaleString('pt-PT') } },
+          callback: v => ReservationMoney.formatShort(v) } },
         y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 } } }
       }
     }
@@ -403,12 +403,12 @@ function _renderDespMonthlyChart(series, granularity = 'month') {
       onHover: (evt, els) => { if (evt?.native?.target) evt.native.target.style.cursor = (!isDay && els.length) ? 'pointer' : 'default'; },
       plugins: {
         legend: { labels: { color: textColor, font: { size: 11 }, boxWidth: 12, padding: 16 } },
-        tooltip: { callbacks: { label: ctx => ` €${Number(ctx.raw).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}` } }
+        tooltip: { callbacks: { label: ctx => ` ${ReservationMoney.format(ctx.raw)}` } }
       },
       scales: {
         x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 } } },
         y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 },
-          callback: v => '€' + Number(v).toLocaleString('pt-PT') } }
+          callback: v => ReservationMoney.formatShort(v) } }
       }
     }
   });
@@ -435,7 +435,7 @@ function _renderDespCategoryChart(byCategory) {
       responsive: true, maintainAspectRatio: false, cutout: '62%',
       plugins: {
         legend: { position: 'bottom', labels: { color: textColor, font: { size: 11 }, padding: 12, boxWidth: 12 } },
-        tooltip: { callbacks: { label: ctx => ` €${Number(ctx.raw).toLocaleString('pt-PT', { minimumFractionDigits: 2 })} · ${ctx.label}` } }
+        tooltip: { callbacks: { label: ctx => ` ${ReservationMoney.format(ctx.raw)} · ${ctx.label}` } }
       }
     }
   });
@@ -600,12 +600,12 @@ function _renderLucroChart(fatMonths, despMonths) {
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { labels: { color: textColor, font: { size: 11 }, boxWidth: 12, padding: 16 } },
-        tooltip: { callbacks: { label: ctx => ` €${Number(ctx.raw).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}` } }
+        tooltip: { callbacks: { label: ctx => ` ${ReservationMoney.format(ctx.raw)}` } }
       },
       scales: {
         x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 } } },
         y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 },
-          callback: v => '€' + Number(v).toLocaleString('pt-PT') } }
+          callback: v => ReservationMoney.formatShort(v) } }
       }
     }
   });

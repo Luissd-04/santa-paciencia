@@ -101,7 +101,7 @@ async function openAccommodationPanel(resId, currentAccId, checkIn, checkOut, nu
           </label>
           <div class="rdv2-acc-opt-info">
             <div class="rdv2-acc-opt-name">${acc.name}${isCurrent ? ' <span class="rdv2-badge-current">atual</span>' : ''}${unavail ? ' <span class="rdv2-badge-unavail">ocupado</span>' : ''}</div>
-            <div class="rdv2-acc-opt-meta">${acc.max_guests ? `max ${acc.max_guests} hósp. · ` : ''}Base: €${Number(acc.price_per_night||0).toFixed(0)}/noite</div>
+            <div class="rdv2-acc-opt-meta">${acc.max_guests ? `max ${acc.max_guests} hósp. · ` : ''}Base: ${ReservationMoney.formatShort(Math.round(Number(acc.price_per_night||0)))}/noite</div>
           </div>
           <div class="rdv2-acc-price-edit">
             <input type="number" class="rdv2-acc-priceinput" data-accid="${acc.id}" min="0" step="0.01" value="${customPrice.toFixed(2)}" data-on-input="alojamento-painel-update-acc-panel-total-6ba3e79" autocomplete="off">
@@ -159,7 +159,7 @@ function updateAccPanelTotal() {
       : Math.max(0, base - discVal);
   }
   const el = document.getElementById('rdv2-acc-final-total');
-  if (el) el.textContent = `€${final.toFixed(2)}`;
+  if (el) el.textContent = `${ReservationMoney.format(final)}`;
   panel._baseTotal = base;
   panel._finalTotal = final;
 }
@@ -228,7 +228,7 @@ function startInlinePriceEdit(id, currentTotal) {
     const span = document.createElement('span');
     span.id = 'rdv2-acc-subtot';
     span.className = 'rdv2-amt';
-    span.textContent = `€${Number(val).toFixed(2)}`;
+    span.textContent = `${ReservationMoney.format(val)}`;
     input.replaceWith(span);
     return span;
   };
@@ -251,7 +251,7 @@ function startInlinePriceEdit(id, currentTotal) {
         editedByName: AppModules.reservas._rdv2Current.price_edited_by_name,
       });
       if (!ok) {
-        span.textContent = `€${Number(currentTotal).toFixed(2)}`;
+        span.textContent = `${ReservationMoney.format(currentTotal)}`;
         saving = false;
         return;
       }
@@ -259,15 +259,15 @@ function startInlinePriceEdit(id, currentTotal) {
     try {
       const res = await AppModules.core.apiPut(`/api/reservations/${id}`, { total_amount: newVal });
       if (res.success) {
-        if (totalRowEl) totalRowEl.textContent = `€${newVal.toFixed(2)}`;
+        if (totalRowEl) totalRowEl.textContent = `${ReservationMoney.format(newVal)}`;
         AppModules.core.toast('✅ Preço atualizado', 'success');
         await AppModules.reservas.loadReservas();
       } else {
-        span.textContent = `€${Number(currentTotal).toFixed(2)}`;
+        span.textContent = `${ReservationMoney.format(currentTotal)}`;
         AppModules.core.toast('❌ ' + (res.error || 'Erro ao atualizar'), 'error');
       }
     } catch (e) {
-      span.textContent = `€${Number(currentTotal).toFixed(2)}`;
+      span.textContent = `${ReservationMoney.format(currentTotal)}`;
       AppModules.core.toast('❌ Erro de ligação', 'error');
     }
   };

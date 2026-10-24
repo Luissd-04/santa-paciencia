@@ -78,13 +78,13 @@ async function showDetail(id, opts = {}) {
     const touristTax = Number(r.tourist_tax || 0);
 
     const services = [];
-    if (r.breakfast_included) services.push({ name: 'Pequeno-almoço', formula: `(${r.num_guests}👤 × ${r.nights}🌙 × €${Number(bkfPrice).toFixed(2)})`, total: bkfTotal });
+    if (r.breakfast_included) services.push({ name: 'Pequeno-almoço', formula: `(${r.num_guests}👤 × ${r.nights}🌙 × ${ReservationMoney.format(bkfPrice)})`, total: bkfTotal });
     if (extraOcc > 0) services.push({ name: 'Ocupação extra', formula: `${r.nights}🌙`, total: extraOcc });
 
     const taxes = [];
     if (touristTax > 0) taxes.push({ name: 'Taxa turística', total: touristTax });
 
-    const fmt = v => `€${Number(v).toFixed(2)}`;
+    const fmt = v => `${ReservationMoney.format(v)}`;
     const sd = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
     const calcAge = (birth, ref) => {
       if (!birth || !ref) return null;
@@ -132,14 +132,7 @@ async function showDetail(id, opts = {}) {
     const guestEmail = encodeURIComponent(r.guest_email || '');
     const guestName = encodeURIComponent(r.guest_name || '');
 
-    const statusOptions = [
-      { v: 'pre_reserva', l: 'Pré-reserva' },
-      { v: 'confirmada', l: 'Confirmada' },
-      { v: 'pendente', l: 'Pendente' },
-      { v: 'pre_checkin', l: 'Pre Check-in' },
-      { v: 'aguardar_pagamento', l: 'Aguardar Pagamento' },
-      { v: 'cancelada', l: 'Cancelada' },
-    ];
+    const statusOptions = window.ReservationStatus.options();
 
     // A ficha e o menu mobile partilham ações, dados e permissões.
     const reservationActionsHtml = `
@@ -269,7 +262,7 @@ async function showDetail(id, opts = {}) {
             </div>
             ${accRows.map(row => `
             <div class="rdv2-section-row">
-              <span>${AppModules.core.escapeHtml(row.name || row.accommodation_name || '—')} <span class="rdv2-formula">€${Number(row.price_per_night || 0).toFixed(0)}/noite × ${row.nights || r.nights} noites</span></span>
+              <span>${AppModules.core.escapeHtml(row.name || row.accommodation_name || '—')} <span class="rdv2-formula">${ReservationMoney.formatShort(Math.round(Number(row.price_per_night || 0)))}/noite × ${row.nights || r.nights} noites</span></span>
               <span class="rdv2-amt">${fmt(row.subtotal || (Number(row.price_per_night || 0) * (row.nights || r.nights)))}</span>
             </div>`).join('')}
             <div class="rdv2-section-subtot">

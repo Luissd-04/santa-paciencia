@@ -106,7 +106,7 @@ const ALOJAMENTOS_EXPORT_COLUMNS = [
   { key: 'child_age_limit',  label: 'Crianças abaixo de',  default: true, get: a => String(a.child_age_limit ?? 12) },
   { key: 'child_price',      label: 'Preço criança',       default: true, get: a => String(a.child_price ?? 0) },
   { key: 'extra_occupancy',  label: 'Ocupação adicional',  default: true, get: a => AppModules.alojamentos.normalizeExtraOccupancyOptions(a).length ? 'Sim' : 'Não' },
-  { key: 'extras',           label: 'Extras',              default: true, get: a => AppModules.alojamentos.normalizeExtraOccupancyOptions(a).map(extra => `${extra.type === 'outro' ? (extra.custom_name || 'Outro') : extra.type} (${extra.capacity} hósp., €${extra.price})`).join('; ') },
+  { key: 'extras',           label: 'Extras',              default: true, get: a => AppModules.alojamentos.normalizeExtraOccupancyOptions(a).map(extra => `${extra.type === 'outro' ? (extra.custom_name || 'Outro') : extra.type} (${extra.capacity} hósp., ${ReservationMoney.formatShort(extra.price)})`).join('; ') },
   { key: 'num_rooms',        label: 'Quartos',             default: true, get: a => String(a.num_rooms || '') },
   { key: 'num_bathrooms',    label: 'Casas de banho',      default: true, get: a => String(a.num_bathrooms || '') },
   { key: 'area',             label: 'Área (m²)',           default: true, get: a => String(a.area || '') },

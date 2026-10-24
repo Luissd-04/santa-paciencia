@@ -117,7 +117,7 @@ async function loadDashboardStats() {
         throw AppModules.core.serverUpdateRequiredError();
       }
       _dashAvailability = Array.isArray(s.availability) ? s.availability : [];
-      document.getElementById('kpi-faturado').textContent = '€' + Number(s.totalReserved).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('kpi-faturado').textContent = ReservationMoney.format(s.totalReserved);
       const money = value => Number(value || 0).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
       document.getElementById('kpi-financial-details').textContent = `Com fatura: ${money(s.totalInvoiced)} · Recebido: ${money(s.totalReceived)}`;
       document.getElementById('kpi-ativas').textContent = s.confirmedReservations;
@@ -309,7 +309,7 @@ function renderDashAvailability() {
         ${AppModules.core.escapeHtml(u.name)}
       </div>
       <div class="avail-bar"><div class="avail-fill" style="--fill-pct:${pct}%;background:${cor}"></div></div>
-      <div class="avail-info"><span>${pct}% ocupado · ${u.nights}/${u.days_in_month} noites</span><span>€${u.price_per_night}/noite</span></div>
+      <div class="avail-info"><span>${pct}% ocupado · ${u.nights}/${u.days_in_month} noites</span><span>${ReservationMoney.formatShort(u.price_per_night)}/noite</span></div>
     </div>`;
   }).join('');
 }

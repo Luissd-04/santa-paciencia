@@ -528,9 +528,9 @@ async function main() {
   assert.equal(await page.locator('#despesas-body tr').count(), 51, 'faltam linhas ou a linha de total');
 
   // O "Total do período" tem de somar TODAS as páginas, não só as 50 visíveis.
-  // formatEUR escreve "€10686.00": ponto decimal, sem separador de milhares.
+  // formatEUR escreve "10 686,00 €": vírgula decimal e espaço nos milhares.
   const shownTotal = await page.locator('.despesas-total-row td[data-col="amount"]').textContent();
-  const shownValue = Number(shownTotal.replace(/[^\d.-]/g, ''));
+  const shownValue = Number(shownTotal.replace(/[^\d,-]/g, '').replace(',', '.'));
   assert.equal(Math.round(shownValue), Math.round(global.__expenseTotal),
     `total do período mostra ${shownValue}, esperado ${global.__expenseTotal}`);
 

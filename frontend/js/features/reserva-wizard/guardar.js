@@ -138,7 +138,7 @@ let lastQuote = null;      // { key, data }
 let pendingQuote = null;   // { seq, key, promise }
 
 const quoteKey = payload => JSON.stringify([payload.id, payload.body]);
-const euro = value => `€${Number(value || 0).toFixed(2)}`;
+const euro = value => `${ReservationMoney.format(value || 0)}`;
 
 function setQuoteLine(text, tone = 'info') {
   const line = document.getElementById('resf-voucher-line');

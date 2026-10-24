@@ -206,7 +206,7 @@ function renderAlojamentos() {
       <td style="font-size:12px">${a.max_guests} hósp.</td>
       <td style="font-size:12px">${a.num_rooms || 1}</td>
       <td style="font-size:12px">${a.area ? a.area + ' m²' : '—'}</td>
-      <td><b style="color:var(--azul)">€${a.price_per_night}</b></td>
+      <td><b style="color:var(--azul)">${ReservationMoney.formatShort(a.price_per_night)}</b></td>
       <td style="font-size:11.5px;color:var(--cinza)">${AppModules.core.escapeHtml(a.license_number || '—')}</td>
       <td data-on-click="alojamentos-stop-propagation-22499e1">
         <button class="btn btn-ghost btn-sm" style="font-size:11px;gap:4px;" ${AppActions.attrs("click", "alojamentos-open-aloj-calendar-direct-309a014", [String((a.id) ?? ''), String((a.google_calendar_id || '') ?? ''), String((a.name) ?? '')])}>
@@ -236,7 +236,7 @@ function renderAlojamentosMobileCards(ordered, parentMap, childrenByParent, inFi
           <div class="mac-name">${AppModules.core.escapeHtml(a.name)}${isAlojamento && childCount ? `<span class="aloj-child-count">${childCount} alojamento${childCount !== 1 ? 's' : ''}</span>` : ''}</div>
           ${parentName ? `<div class="mac-sub">${AppModules.core.lcIcon('corner-down-right', 11)} ${AppModules.core.escapeHtml(parentName)}</div>` : (a.city ? `<div class="mac-sub">${AppModules.core.escapeHtml(a.city)}</div>` : '')}
         </div>
-        <span class="mac-price">€${a.price_per_night}</span>
+        <span class="mac-price">${ReservationMoney.formatShort(a.price_per_night)}</span>
       </div>
       <div class="mac-meta">
         <span>${AppModules.core.lcIcon('users', 13)} ${a.max_guests} hósp.</span>

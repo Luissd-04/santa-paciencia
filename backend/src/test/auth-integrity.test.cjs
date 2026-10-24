@@ -152,7 +152,8 @@ test('painel distingue reservas, reservas com fatura e pagamentos recebidos', as
   insert.run('metric-c', metricsOrg.id, 300, 30, 'cancelada', null);
   let result;
   await getDashboardStats({ user: { organization_id: metricsOrg.id } }, { json: body => { result = body; } }, error => { throw error; });
-  assert.equal(result.data.totalReserved, 300);
+  // Decisão 6: o sinal retido na reserva cancelada (30) conta como receita.
+  assert.equal(result.data.totalReserved, 330);
   assert.equal(result.data.totalInvoiced, 200);
   assert.equal(result.data.totalReceived, 280);
 });
