@@ -88,12 +88,7 @@ function attachPolicy(r, now = new Date()) {
   require('../config/database').db.prepare('UPDATE reservations SET payment_policy_json=? WHERE id=? AND organization_id=?')
     .run(JSON.stringify(snapshot), r.id, r.organization_id);
   r.payment_policy_json = JSON.stringify(snapshot);
-  if (r.status !== undefined) {
-    const status = require('./reservationState').statusAfterPayment({ status: r.status, paidCents: cents(r.amount_paid || 0),
-      totalCents: cents(r.total_amount || 0), depositCents: planFor(r, now).depositCents });
-    if (status !== r.status) require('../config/database').db.prepare('UPDATE reservations SET status=? WHERE id=?').run(status, r.id);
-    r.status = status;
-  }
+  // O estado da reserva acerta-se com o sinal em financialLedger.recompute.
 }
 function policyFor(r) { return r.payment_policy_json ? JSON.parse(r.payment_policy_json) : null; }
 function planFor(r, now = new Date()) {

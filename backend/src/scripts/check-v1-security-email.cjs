@@ -65,6 +65,8 @@ async function main() {
 
   policy.savePolicy(org.id, { ...structuredClone(policy.DEFAULT_POLICY), enabled: true });
   policy.attachPolicy(db.prepare("SELECT * FROM reservations WHERE id='booking'").get());
+  // Como na criação: o estado acerta-se com o sinal pelo ledger.
+  require('../services/financialLedger').recompute('booking', org.id);
   db.prepare("UPDATE memberships SET role='staff' WHERE user_id=?").run(user.id);
   response = await fetch(base + '/api/reservations/booking', { method: 'DELETE', headers });
   assert.equal(response.status, 403);
