@@ -24,11 +24,6 @@ function appUrl() {
   return require('../services/publicLinks').origin();
 }
 
-// Emails de conta com o mesmo desenho dos emails aos hóspedes.
-function emailWrap(title, body) {
-  const composer = require('../services/emailComposer');
-  return require('../services/emailService').baseTemplate(`${composer.buildReservationTitle(title, '•')}${body}`);
-}
 const {
   acceptInvitation,
   buildInvitationUrl,
@@ -272,26 +267,7 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
     try {
       const token = createPasswordResetToken(user.id);
       const resetUrl = `${appUrl()}/?reset=${token}`;
-      const { sendMail } = require('../services/emailService');
-      const sender = db.prepare(`SELECT m.organization_id FROM memberships m
-        JOIN google_email_connections c ON c.organization_id = m.organization_id
-        WHERE m.user_id = ? AND m.active = 1 ORDER BY m.created_at LIMIT 1`).get(user.id);
-      if (!sender) throw new Error('Sem remetente de email configurado para recuperação de conta.');
-      const delivery = await sendMail(sender.organization_id, {
-        to: email,
-        subject: 'Recuperar palavra-passe — Santa Paciência',
-        html: emailWrap(
-          'Recuperar palavra-passe',
-          `<p>Olá, ${String(user.name.split(' ')[0]).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]))}.</p>
-           <p>Recebemos um pedido para recuperar a tua palavra-passe.</p>
-           <p style="margin:24px 0;">
-             <a href="${resetUrl}" style="background:#843424;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
-               Definir nova palavra-passe
-             </a>
-           </p>
-           <p style="color:#888;font-size:13px;">Este link expira em 1 hora. Se não pediste a recuperação, ignora este email — a tua conta está segura.</p>`
-        ),
-      });
+      const delivery = await require('../services/accountEmails').sendPasswordReset(user, { to: email, url: resetUrl });
       if (!delivery) throw new Error('Serviço de email não confirmou o envio.');
     } catch (err) {
       console.error('Erro ao enviar email de recuperação:', err.message);
@@ -377,10 +353,9 @@ router.put('/profile', requireAuth, loginLimiter, require('../middleware/rateLim
     const tokenHash = digestToken(token);
     const origin = require('../services/publicOrigin').publicOrigin(req);
     const url = `${origin}/auth/confirm-email?token=${encodeURIComponent(token)}`;
-    const esc = require('../services/emailComposer').escapeHtml;
     db.prepare('INSERT INTO email_changes(token_hash,user_id,old_email,new_email,expires_at) VALUES(?,?,?,?,?)').run(tokenHash, user.id, user.email, newEmail, Date.now() + 30 * 60000);
     try {
-      const sent = await require('../services/emailService').sendMail(req.user.organization_id, { to: newEmail, subject: 'Confirmar alteração de email', html: emailWrap('Confirmar novo endereço', `<p>Confirme a alteração do email da sua conta. O link expira em 30 minutos e exige sessão iniciada na mesma conta.</p><p><a href="${esc(url)}">Confirmar endereço</a></p>`) });
+      const sent = await require('../services/accountEmails').sendEmailChangeConfirmation(req.user.organization_id, { to: newEmail, url });
       if (!sent?.id) throw new Error('O email de confirmação não foi enviado. Ligue o Gmail e tente novamente.');
       // Keep only the most recently delivered verification; the login email is unchanged.
       db.prepare('DELETE FROM email_changes WHERE user_id=? AND token_hash!=?').run(user.id, tokenHash);
@@ -418,7 +393,7 @@ router.post('/confirm-email', requireAuth, loginLimiter, async (req, res) => {
     }).immediate();
   } catch (error) { return res.status(400).send(require('../services/emailComposer').escapeHtml(error.message)); }
   try {
-    await require('../services/emailService').sendMail(req.user.organization_id, { to: previous.old_email, subject: 'Email de acesso alterado', html: emailWrap('Email de acesso alterado', '<p>O email de acesso da sua conta foi alterado após confirmação do novo endereço. Se não reconhece esta alteração, contacte o responsável pela sua organização.</p>') });
+    await require('../services/accountEmails').sendEmailChangedNotice(req.user.organization_id, { to: previous.old_email });
   } catch { console.warn('Notificação de alteração de email pendente de verificação.'); }
   res.send('<html lang="pt"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Email confirmado</title><body><h1>Email confirmado</h1><p>Use o novo endereço no próximo acesso.</p><a href="/">Voltar à aplicação</a></body></html>');
 });

@@ -160,11 +160,7 @@ router.post('/google-email/test', requireAuth, requireRole('manager'), async (re
     const to = info.email || req.user.email;
     if (!to) return res.status(400).json({ success: false, error: 'Sem endereço de destino — desliga e volta a ligar o Gmail.' });
     // Mesmo caminho dos envios reais (remetente, EMAIL_ENABLED, validações).
-    const sent = await require('../services/emailService').sendMail(req.user.organization_id, {
-      to,
-      subject: 'Teste de email - Santa Paciência',
-      html: require('../services/emailService').baseTemplate('<p>O email está a funcionar corretamente a partir do Gmail ligado.</p>'),
-    });
+    const sent = await require('../services/accountEmails').sendGmailTest(req.user.organization_id, { to });
     if (!sent) return res.status(400).json({ success: false, error: 'O envio de email está desativado neste servidor.' });
     res.json({ success: true });
   } catch (err) {

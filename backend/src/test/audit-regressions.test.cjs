@@ -400,7 +400,8 @@ async function main() {
   await check('F05: recuperação usa remetente de organização válida', async () => {
     db.exec("INSERT INTO memberships (id,organization_id,user_id,role) VALUES ('new-member','org-a','audit-user','owner'); INSERT INTO google_email_connections (organization_id,email,tokens) VALUES ('org-a','mail@example.invalid','{}');");
     const { routes, express } = routerDouble(); const calls = [];
-    load('routes/auth.js', { express, '../services/emailService': { sendMail: async (org, message) => calls.push(org), baseTemplate: html => html } });
+    const mail = { sendMail: async org => calls.push(org), baseTemplate: html => html, getEmailSettings: () => ({}) };
+    load('routes/auth.js', { express, '../services/accountEmails': load('services/accountEmails.js', { './emailService': mail }) });
     const handler = routes.find(r => r.method === 'post' && r.route === '/forgot-password').handlers.at(-1);
     await call(handler, request({ email: 'user@example.invalid' }));
     assert.equal(calls.length, 1); assert.equal(calls[0], 'org-a');
