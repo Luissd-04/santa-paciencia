@@ -21,7 +21,7 @@ function load(relative) {
     '../services/emailService': new Proxy({}, { get: () => noop }),
     '../services/calendarService': calendar,
     '../services/operationalTasksService': { syncReservationOperationalTasks() {} },
-    '../services/pushService': { notifyOrganization() {} },
+    '../services/pushService': { async sendToOrganization() { return { total: 0, sent: 0, removed: 0 }; } },
     '../services/turnstileService': { verify: async () => ({ success: true }), getSiteKey: () => '' },
   };
   vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {

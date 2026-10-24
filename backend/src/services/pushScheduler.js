@@ -1,5 +1,4 @@
 const { db } = require('../config/database');
-const { sendToOrganization } = require('./pushService');
 const { localDateIso } = require('./reservationRules');
 
 // Hora local a partir da qual o resumo diário é enviado (0-23).
@@ -55,12 +54,12 @@ async function sendDailySummaries() {
       const parts = [];
       if (checkins) parts.push(`${checkins} check-in${checkins !== 1 ? 's' : ''}`);
       if (checkouts) parts.push(`${checkouts} check-out${checkouts !== 1 ? 's' : ''}`);
-      await sendToOrganization(orgId, {
+      await require('./staffNotifier').push(orgId, 'daily_summary', {
         title: '📅 Resumo do dia',
         body: `Hoje: ${parts.join(' e ')}`,
         url: '/reservas',
         tag: 'sp-daily-summary',
-      }, { type: 'daily_summary' });
+      });
     }
   } catch (err) {
     console.error('Erro no resumo diário push:', err.message);

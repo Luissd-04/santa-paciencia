@@ -32,7 +32,7 @@ const defaultStubs = {
   '../services/emailService': emailStub,
   '../services/calendarService': calendarStub,
   '../services/operationalTasksService': taskStub,
-  '../services/pushService': { notifyOrganization() {} },
+  '../services/pushService': { async sendToOrganization() { return { total: 0, sent: 0, removed: 0 }; } },
   '../services/turnstileService': { verify: async () => ({ success: true }), getSiteKey: () => '' },
 };
 function load(relative, extra = {}) {

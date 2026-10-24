@@ -24,8 +24,6 @@ const emailService = require('../services/emailService');
 for (const name of ['sendConfirmationEmail', 'sendCancellationEmail', 'sendPaymentConfirmationEmail', 'sendPreCheckinEmail', 'sendOwnerNewReservationEmail']) {
   emailService[name] = async (...args) => { sent.push({ name, reservation: args.find(a => a?.check_in)?.id, amount: args.at(-1)?.amount }); return { id: 'mail' }; };
 }
-const pushes = [];
-require('../services/pushService').notifyOrganization = (org, type) => { pushes.push(type); };
 require('../services/operationalTasksService').syncReservationOperationalTasks = () => {};
 require('../services/calendarService').kickCalendarQueue = () => {};
 
@@ -43,7 +41,6 @@ beforeEach(() => {
     INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests)
       VALUES ('unit','${ORG}','Quarto','alojamento',100,4);`);
   sent.length = 0;
-  pushes.length = 0;
 });
 after(() => { db.close(); process.chdir(originalCwd); fs.rmSync(temp, { recursive: true, force: true }); });
 
