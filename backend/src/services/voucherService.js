@@ -4,7 +4,7 @@ const { localDateIso } = require('./reservationRules');
 
 // Utilizações libertadas por cancelamento (released_at) não contam para o limite.
 const USAGE_COUNT_SQL = '(SELECT COUNT(*) FROM voucher_redemptions vr WHERE vr.voucher_id = v.id AND vr.organization_id = v.organization_id AND vr.released_at IS NULL)';
-function voucherError(message, status = 400) { return Object.assign(new Error(message), { status }); }
+const voucherError = (message, status = 400) => require('./httpError').httpError(message, status);
 function getVoucher(organizationId, id) {
   return db.prepare(`SELECT v.*, ${USAGE_COUNT_SQL} AS used_count FROM vouchers v
     WHERE v.id = ? AND v.organization_id = ?`).get(id, organizationId);

@@ -1,4 +1,5 @@
 const { OAuth2Client } = require('google-auth-library');
+const { httpError } = require('../services/httpError');
 const { db } = require('./database');
 const { encodeTokens, decodeTokens } = require('./tokenStorage');
 
@@ -83,7 +84,7 @@ function encodeFromHeader(from) {
 }
 
 async function sendViaGmail(organizationId, { to, subject, html, from, bcc, threadId, inReplyTo, references }) {
-  const invalid = () => { throw Object.assign(new Error('Cabeçalho ou endereço de email inválido.'), { status: 400 }); };
+  const invalid = () => { throw httpError('Cabeçalho ou endereço de email inválido.', 400); };
   for (const value of [to, subject, from, bcc, threadId, inReplyTo, references]) {
     if (value != null && (typeof value !== 'string' || /[\x00-\x1f\x7f]/.test(value))) invalid();
   }

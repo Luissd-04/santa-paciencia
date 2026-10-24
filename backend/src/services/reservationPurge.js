@@ -1,4 +1,5 @@
 const { db } = require('../config/database');
+const { httpError } = require('./httpError');
 const { queueReservationTaskCleanup } = require('./operationalTasksService');
 const { detachReservationEvent, detachOperationalEvent } = require('./calendarService');
 
@@ -11,15 +12,15 @@ function purgeReservations(organizationId, reservationIds) {
   const marks = reservationIds.map(() => '?').join(',');
   if (db.prepare(`SELECT 1 FROM stripe_payment_attempts WHERE organization_id = ? AND reservation_id IN (${marks}) LIMIT 1`)
     .get(organizationId, ...reservationIds)) {
-    throw Object.assign(new Error('Reservas com tentativas Stripe devem ser conservadas para reconciliação e reembolsos.'), { status: 409 });
+    throw httpError('Reservas com tentativas Stripe devem ser conservadas para reconciliação e reembolsos.', 409);
   }
   // Movimentos de pagamento são registo financeiro: uma reserva com qualquer
   // movimento (mesmo com saldo zero) é conservada.
   if (db.prepare(`SELECT 1 FROM reservation_payments WHERE organization_id = ? AND reservation_id IN (${marks}) LIMIT 1`)
     .get(organizationId, ...reservationIds)) {
-    throw Object.assign(new Error(reservationIds.length === 1
+    throw httpError(reservationIds.length === 1
       ? 'Esta reserva tem movimentos de pagamento registados e é conservada como registo financeiro.'
-      : 'Há reservas canceladas com movimentos de pagamento registados; são conservadas como registo financeiro.'), { status: 409 });
+      : 'Há reservas canceladas com movimentos de pagamento registados; são conservadas como registo financeiro.', 409);
   }
   for (const id of reservationIds) {
     // A fila é gravada antes dos eventos locais: os IDs externos sobrevivem

@@ -3,6 +3,7 @@
 // só lista. Apagar exige o número visto na pré-visualização e uma idade mínima
 // (um ficheiro acabado de carregar ainda pode estar a ser associado).
 const fs = require('fs');
+const { httpError } = require('./httpError');
 const path = require('path');
 const { db } = require('../config/database');
 const { UPLOADS_DIR, accommodationUrls, uploadPath } = require('./mediaStorage');
@@ -50,7 +51,7 @@ function findOrphans({ minAgeHours = 24 } = {}) {
 function removeOrphans({ expected, minAgeHours = 24 } = {}) {
   const found = findOrphans({ minAgeHours });
   if (Number(expected) !== found.count) {
-    throw Object.assign(new Error(`Encontrados ${found.count} ficheiros órfãos, não ${expected}. Reveja a lista antes de apagar.`), { status: 409 });
+    throw httpError(`Encontrados ${found.count} ficheiros órfãos, não ${expected}. Reveja a lista antes de apagar.`, 409);
   }
   const referenced = referencedFiles();
   let removed = 0, bytes = 0;

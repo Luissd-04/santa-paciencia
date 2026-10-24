@@ -1,3 +1,5 @@
+const { httpError } = require('./httpError');
+
 function normalizeDateValue(value) {
   const raw = String(value || '').trim();
   let iso = raw;
@@ -9,12 +11,8 @@ function normalizeDateValue(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === iso ? iso : '';
 }
 
-// Data de calendário no fuso do servidor (TZ), não em UTC: em Lisboa, no
-// verão, toISOString() ainda devolve o dia anterior entre as 00h e a 01h.
-function localDateIso(date = new Date(), offsetDays = 0) {
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate() + offsetDays);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+// Data de calendário no fuso do alojamento (ver services/dates.js).
+const localDateIso = (date = new Date(), offsetDays = 0) => require('./dates').localDay(date, offsetDays);
 
 function countNights(checkIn, checkOut) {
   const ci = normalizeDateValue(checkIn);
@@ -182,11 +180,11 @@ function calculateReservationTotals(accommodation, services = [], payload = {}) 
   const checkIn = normalizeDateValue(payload.check_in);
   const checkOut = normalizeDateValue(payload.check_out);
   const guests = Number(payload.num_guests ?? 1);
-  if (!Number.isInteger(guests) || guests < 1) throw Object.assign(new Error('Número de hóspedes inválido.'), { status: 400 });
+  if (!Number.isInteger(guests) || guests < 1) throw httpError('Número de hóspedes inválido.', 400);
   const nights = countNights(checkIn, checkOut);
-  if (!checkIn || !checkOut || nights <= 0 || nights > 366) throw Object.assign(new Error('Datas inválidas ou estadia superior a 366 noites.'), { status: 400 });
+  if (!checkIn || !checkOut || nights <= 0 || nights > 366) throw httpError('Datas inválidas ou estadia superior a 366 noites.', 400);
   if (guests > Number(accommodation?.max_guests || 0)) {
-    throw Object.assign(new Error(`Este alojamento permite no máximo ${accommodation?.max_guests || 0} hóspedes.`), { status: 400 });
+    throw httpError(`Este alojamento permite no máximo ${accommodation?.max_guests || 0} hóspedes.`, 400);
   }
 
   const taxSvc = services.find(s => s.id === 'tourist_tax');

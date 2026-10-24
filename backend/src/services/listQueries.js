@@ -1,9 +1,10 @@
 const { db } = require('../config/database');
+const { httpError } = require('./httpError');
 const { normalizeDateValue } = require('./reservationRules');
 const { snippet } = require('./emailComposer');
 db.function('app_lower', { deterministic: true }, value => String(value ?? '').toLowerCase());
 
-function invalid(message) { return Object.assign(new Error(message), { status: 400 }); }
+function invalid(message) { return httpError(message, 400); }
 function textParam(query, name, max = 200) {
   const value = query[name];
   if (value === undefined || value === '') return '';

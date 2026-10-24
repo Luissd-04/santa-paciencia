@@ -1,11 +1,12 @@
 // Regras monetárias puras em cêntimos; datas de calendário em Europe/Lisbon.
 const { createHash } = require('crypto');
+const { httpError } = require('./httpError');
 const DEFAULT_POLICY = {
   version: 1, enabled: false, refundBasis: 'cancellation', balanceDays: 15, graceHours: 24, automaticCharge: true,
   depositRules: [{ minDays: 0, maxDays: 14, percent: 100 }, { minDays: 15, maxDays: 90, percent: 50 }, { minDays: 91, maxDays: null, percent: 20 }],
   refundRules: [{ minDays: 0, maxDays: 14, percent: 0 }, { minDays: 15, maxDays: 30, percent: 50 }, { minDays: 31, maxDays: null, percent: 100 }],
 };
-const fail = message => { throw Object.assign(new Error(message), { status: 400 }); };
+const fail = message => { throw httpError(message, 400); };
 const { cents } = require('./money');
 function validatePolicy(input) {
   if (!input || typeof input !== 'object') fail('Política inválida.');
@@ -38,7 +39,7 @@ function dateOnly(value) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString().slice(0, 10) !== value) fail('Data inválida.');
   return value;
 }
-function localDay(now = new Date()) { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now); }
+const localDay = (now = new Date()) => require('./dates').localDay(now);
 function daysBetween(from, to) { return Math.round((Date.parse(dateOnly(to)) - Date.parse(dateOnly(from))) / 86400000); }
 function shiftDay(day, delta) { return new Date(Date.parse(dateOnly(day)) + delta * 86400000).toISOString().slice(0, 10); }
 function noonLisbon(day) {
@@ -64,14 +65,13 @@ function calculate(policy, { total, paid = 0, bookedOn, checkIn, cancelOn = book
     refundPercent, refundCents: Math.round(paidCents * refundPercent / 100), refundBasis: p.refundBasis };
 }
 function getPolicy(orgId) {
-  const { db } = require('../config/database');
-  const row = db.prepare("SELECT value FROM organization_settings WHERE organization_id=? AND key='payment_policy'").get(orgId);
-  return row ? validatePolicy(JSON.parse(row.value)) : structuredClone(DEFAULT_POLICY);
+  // Uma política ilegível é um erro, não uma política desativada.
+  const stored = require('./settingsService').get(orgId, 'payment_policy');
+  return stored ? validatePolicy(JSON.parse(stored)) : structuredClone(DEFAULT_POLICY);
 }
 function savePolicy(orgId, input) {
   const policy = validatePolicy(input);
-  require('../config/database').db.prepare("INSERT OR REPLACE INTO organization_settings(organization_id,key,value,updated_at) VALUES (?,'payment_policy',?,datetime('now'))")
-    .run(orgId, JSON.stringify(policy));
+  require('./settingsService').set(orgId, 'payment_policy', policy);
   return policy;
 }
 // Canais em que o alojamento cobra diretamente. Booking, Airbnb e restantes

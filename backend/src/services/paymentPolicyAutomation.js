@@ -1,11 +1,12 @@
 const { randomUUID } = require('crypto');
+const { httpError } = require('./httpError');
 const { db } = require('../config/database');
 const policy = require('./paymentPolicy');
 const payments = require('./stripePayments');
 const { activeCheckout } = require('./stripePaymentGuards');
 const { stripeConfig, stripeEnabled, getStripe } = require('./stripeClient');
 const { withSchedulerLease } = require('./schedulerLease');
-const fail = message => { throw Object.assign(new Error(message), { status: 409 }); };
+const fail = message => { throw httpError(message, 409); };
 const row = id => db.prepare('SELECT * FROM reservations WHERE id=?').get(id);
 
 async function reconcileReservation(id) {

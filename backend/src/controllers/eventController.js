@@ -1,4 +1,5 @@
 const { db } = require('../config/database');
+const { httpError } = require('../services/httpError');
 const { v4: uuidv4 } = require('uuid');
 const {
   getAutoTaskSettings,
@@ -31,10 +32,10 @@ function normalizeTime(value) {
 }
 
 function normalizePayload(body = {}, existing = {}) {
-  for (const key of ['start_time', 'end_time']) if (body[key] && !normalizeTime(body[key])) throw Object.assign(new Error('Hora inválida.'), { status: 400 });
+  for (const key of ['start_time', 'end_time']) if (body[key] && !normalizeTime(body[key])) throw httpError('Hora inválida.', 400);
   const start = body.start_time === undefined ? existing.start_time : body.start_time;
   const end = body.end_time === undefined ? existing.end_time : body.end_time;
-  if (start && end && end <= start) throw Object.assign(new Error('A hora final deve ser posterior à inicial.'), { status: 400 });
+  if (start && end && end <= start) throw httpError('A hora final deve ser posterior à inicial.', 400);
   const status = VALID_STATUS.has(body.status) ? body.status : (existing.status || 'planeado');
   return {
     title: String(body.title ?? existing.title ?? '').trim(),

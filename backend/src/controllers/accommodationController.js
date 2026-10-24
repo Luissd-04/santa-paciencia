@@ -6,9 +6,7 @@ const { flushReservationTaskCleanup } = require('../services/operationalTasksSer
 const { accommodationUrls, removeUnreferencedImage } = require('../services/mediaStorage');
 const { recolorAccommodationCalendar, ensureAllAccommodationCalendars } = require('../services/calendarService');
 
-const INHERITED_FIELDS = ['address','postal_code','city','region','country',
-  'wifi_name','wifi_password','door_code','checkin_time','checkout_time',
-  'social_facebook','social_instagram','social_website','social_tripadvisor','logo_url','email_social_links'];
+const { INHERITED_FIELDS } = require('../services/accommodationInheritance');
 
 // Chaves reconhecidas do bloco "Acompanhe-nos" dos emails — lista fechada
 // para não guardar lixo arbitrário.
@@ -453,12 +451,7 @@ function update(req, res) {
 // ─── UPLOAD COVER IMAGE ────────────────────────────────────
 // ─── SETTINGS (serviços e taxas) ──────────────────────────
 function getSettings(req, res) {
-  const row = db.prepare(`
-    SELECT value FROM organization_settings
-    WHERE organization_id = ? AND key = 'services'
-  `).get(req.user.organization_id);
-  const services = row ? JSON.parse(row.value) : [];
-  res.json({ success: true, data: services });
+  res.json({ success: true, data: require('../services/settingsService').services(req.user.organization_id) });
 }
 
 function saveSettings(req, res) {
@@ -475,10 +468,7 @@ function saveSettings(req, res) {
     active: service.active !== false,
   }));
 
-  db.prepare(`
-    INSERT OR REPLACE INTO organization_settings (organization_id, key, value, updated_at)
-    VALUES (?, 'services', ?, datetime('now'))
-  `).run(req.user.organization_id, JSON.stringify(normalized));
+  require('../services/settingsService').set(req.user.organization_id, 'services', normalized);
   res.json({ success: true, data: normalized });
 }
 
@@ -493,11 +483,7 @@ function parseJson(a) {
     email_social_links: safeJson(a.email_social_links, null),
   };
 }
-function safeJson(v, def) {
-  if (!v) return def;
-  if (typeof v === 'object') return v; // already parsed — don't double-parse
-  try { return JSON.parse(v); } catch { return def; }
-}
+const { safeJson } = require('../services/json');
 
 function normalizeIcalUrl(value) {
   const url = String(value || '').trim();

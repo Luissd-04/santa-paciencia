@@ -1,4 +1,5 @@
 const Stripe = require('stripe');
+const { httpError } = require('./httpError');
 const { configuredOrigin } = require('./publicOrigin');
 
 let client;
@@ -24,7 +25,7 @@ function stripeEnabled(organizationId) {
 }
 function getStripe() {
   const config = stripeConfig();
-  if (!config.ready) throw Object.assign(new Error('Pagamento online indisponível. Contacte o alojamento.'), { status: 503 });
+  if (!config.ready) throw httpError('Pagamento online indisponível. Contacte o alojamento.', 503);
   if (!client || clientKey !== config.key) {
     client = new Stripe(config.key, { maxNetworkRetries: 2, timeout: 15000 });
     clientKey = config.key;

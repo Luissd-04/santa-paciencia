@@ -1,4 +1,5 @@
 const { redeemVoucher, reclaimReleasedVoucher } = require('../services/voucherService');
+const { httpError } = require('../services/httpError');
 const { queueCalendarUpsert, kickCalendarQueue } = require('../services/calendarService');
 const { isAuthenticated: hasGoogleCalendar } = require('../config/google');
 const { recordConsent } = require('../services/rgpdService');
@@ -30,7 +31,7 @@ function createIntent(req) {
   const key = req.body.idempotency_key;
   if (key === undefined) return null;
   if (typeof key !== 'string' || !/^[A-Za-z0-9_-]{16,128}$/.test(key)) {
-    throw Object.assign(new Error('Identificador de pedido inválido.'), { status: 400 });
+    throw httpError('Identificador de pedido inválido.', 400);
   }
   const { idempotency_key: _key, expected_total: _expected, ...payload } = req.body;
   return { key, fingerprint: require('crypto').createHash('sha256').update(JSON.stringify(payload)).digest('hex') };
@@ -39,7 +40,7 @@ function replayedCreate(organizationId, intent) {
   const saved = db.prepare('SELECT * FROM reservation_create_intents WHERE organization_id = ? AND intent_key = ?').get(organizationId, intent.key);
   if (!saved) return null;
   if (saved.fingerprint !== intent.fingerprint) {
-    throw Object.assign(new Error(`A reserva ${saved.reservation_id} já foi criada antes da falha de ligação. Abra-a para aplicar as alterações.`), { status: 409 });
+    throw httpError(`A reserva ${saved.reservation_id} já foi criada antes da falha de ligação. Abra-a para aplicar as alterações.`, 409);
   }
   return db.prepare(`SELECT r.*, g.name AS guest_name, a.name AS accommodation_name FROM reservations r
     JOIN guests g ON g.id = r.guest_id JOIN accommodations a ON a.id = r.accommodation_id
@@ -67,7 +68,7 @@ async function create(req, res, next) {
     const organizationId = req.user.organization_id;
 
     if (!accommodation_id || !check_in || !check_out) {
-      throw Object.assign(new Error(({ error: 'Datas e alojamento são obrigatórios' }).error), { status: 400 });
+      throw httpError('Datas e alojamento são obrigatórios', 400);
     }
 
     // Todos os campos do hóspede são opcionais no backoffice.
@@ -166,18 +167,18 @@ async function update(req, res, next) {
   try {
     const owned = db.prepare('SELECT * FROM reservations WHERE id=? AND organization_id=?').get(req.params.id, req.user.organization_id);
     if (owned?.payment_policy_json && req.body.status === 'cancelada' && owned.status !== 'cancelada') return require('./reservationController').cancel(req, res, next);
-    if (owned?.policy_cancellation_json) throw Object.assign(new Error('Esta reserva tem um cancelamento financeiro registado. Crie uma nova reserva para uma nova estadia.'), { status: 409 });
+    if (owned?.policy_cancellation_json) throw httpError('Esta reserva tem um cancelamento financeiro registado. Crie uma nova reserva para uma nova estadia.', 409);
     validateReservationInput(req.body);
     if (owned && affectsOnlinePayment(req.body, owned)) await require('../services/stripePayments').closeOpenCheckout(owned.id);
     const { updated, accommodation, organizationId, cancelling } = db.transaction(() => {
     const organizationId = req.user.organization_id;
     const existing = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
-    if (!existing) throw Object.assign(new Error(({ error: 'Reserva não encontrada' }).error), { status: 404 });
+    if (!existing) throw httpError('Reserva não encontrada', 404);
     if (affectsOnlinePayment(req.body, existing)) require('../services/stripePaymentGuards').assertNoActiveCheckout(existing.id);
     // Os pagamentos registam-se só no separador Pagamentos (movimento com valor,
     // método e data). A edição não altera o valor pago.
     if (moneyChanged(req.body.amount_paid, existing.amount_paid)) {
-      throw Object.assign(new Error('Registe os pagamentos no separador Pagamentos da reserva.'), { status: 409, code: 'payments_tab' });
+      throw httpError('Registe os pagamentos no separador Pagamentos da reserva.', 409, { code: 'payments_tab' });
     }
 
     const {
@@ -216,7 +217,7 @@ async function update(req, res, next) {
       guests.updateGuest(existing.guest_id, organizationId, guest);
     }
     if (pricing.confirmation) {
-      throw Object.assign(new Error(pricing.confirmation.message), { status: 409, code: pricing.confirmation.code,
+      throw httpError(pricing.confirmation.message, 409, { code: pricing.confirmation.code,
         details: { total_amount: pricing.effectiveTotal } });
     }
     if (redemption && pricing.voucherDiscount != null) {
@@ -332,12 +333,12 @@ function quote(req, res, next) {
     const organizationId = req.user.organization_id;
     if (!req.params.id) {
       if (!req.body.accommodation_id || !req.body.check_in || !req.body.check_out) {
-        throw Object.assign(new Error('Datas e alojamento são obrigatórios'), { status: 400 });
+        throw httpError('Datas e alojamento são obrigatórios', 400);
       }
       return res.json({ success: true, data: createQuote(organizationId, req.body) });
     }
     const existing = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
-    if (!existing) throw Object.assign(new Error('Reserva não encontrada'), { status: 404 });
+    if (!existing) throw httpError('Reserva não encontrada', 404);
     res.json({ success: true, data: updateQuote(organizationId, existing, req.body) });
   } catch (err) {
     next(err);

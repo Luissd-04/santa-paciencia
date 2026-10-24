@@ -1,4 +1,5 @@
 const { db } = require('../config/database');
+const { httpError } = require('./httpError');
 const { getAccommodationScope, getUnavailableAccommodationIds } = require('./availabilityRules');
 const { findBlockConflict, getBlockedAccommodationIds } = require('./accommodationBlockService');
 
@@ -24,7 +25,7 @@ function assertAvailable(org, unit, checkIn, checkOut, excludeId = null, label =
   const message = conflict.kind === 'block'
     ? `${label === 'Este alojamento' ? 'Estas datas estão bloqueadas' : `${label} está bloqueado nessas datas`}${conflict.reason ? ` (${conflict.reason})` : ''}.`
     : `${label} já está ocupado nessas datas (reserva ${conflict.id}).`;
-  throw Object.assign(new Error(message), { status: 409 });
+  throw httpError(message, 409);
 }
 
 function unavailableUnits(org, checkIn, checkOut, excludeId = null) {
@@ -37,15 +38,15 @@ function unavailableUnits(org, checkIn, checkOut, excludeId = null) {
 }
 
 function validateExtraUnits(org, units, mainId, checkIn, checkOut, excludeId) {
-  if (!Array.isArray(units) || units.length > 100) throw Object.assign(new Error('Unidades adicionais inválidas.'), { status: 400 });
+  if (!Array.isArray(units) || units.length > 100) throw httpError('Unidades adicionais inválidas.', 400);
   const all = db.prepare('SELECT id, type, parent_id FROM accommodations WHERE organization_id = ?').all(org);
   const selected = new Set([mainId]);
   for (const unit of units) {
     const id = unit?.accommodation_id;
     if (id === mainId) continue; // payload antigo inclui a unidade principal
-    if (!all.some(a => a.id === id) || selected.has(id)) throw Object.assign(new Error('Alojamento adicional inválido ou repetido.'), { status: 400 });
+    if (!all.some(a => a.id === id) || selected.has(id)) throw httpError('Alojamento adicional inválido ou repetido.', 400);
     if (getAccommodationScope(all, id).some(scope => selected.has(scope)) || findConflict(org, id, checkIn, checkOut, excludeId)) {
-      throw Object.assign(new Error('Alojamento adicional indisponível.'), { status: 409 });
+      throw httpError('Alojamento adicional indisponível.', 409);
     }
     selected.add(id);
   }
