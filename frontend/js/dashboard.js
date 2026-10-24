@@ -118,8 +118,7 @@ async function loadDashboardStats() {
       }
       _dashAvailability = Array.isArray(s.availability) ? s.availability : [];
       document.getElementById('kpi-faturado').textContent = ReservationMoney.format(s.totalReserved);
-      const money = value => Number(value || 0).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
-      document.getElementById('kpi-financial-details').textContent = `Com fatura: ${money(s.totalInvoiced)} · Recebido: ${money(s.totalReceived)}`;
+      document.getElementById('kpi-financial-details').textContent = `Com fatura: ${ReservationMoney.format(s.totalInvoiced)} · Recebido: ${ReservationMoney.format(s.totalReceived)}`;
       document.getElementById('kpi-ativas').textContent = s.confirmedReservations;
       document.getElementById('kpi-noites').textContent = s.nightsThisMonth;
       document.getElementById('kpi-ocup').textContent = s.occupancyRate + '%';

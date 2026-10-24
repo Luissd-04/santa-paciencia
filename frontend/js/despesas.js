@@ -742,7 +742,7 @@ function _renderReceiptReview(data) {
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
       <button class="btn btn-ghost btn-sm" data-on-click="add-receipt-line">${AppModules.core.lcIcon('plus', 13)} Adicionar linha</button>
-      <div style="font-weight:700;">Total: <span id="rl-total">€0.00</span></div>
+      <div style="font-weight:700;">Total: <span id="rl-total">${AppModules.core.formatEUR(0)}</span></div>
     </div>`;
   const saveBtn = document.getElementById('receipt-save-btn');
   if (saveBtn) saveBtn.style.display = '';
