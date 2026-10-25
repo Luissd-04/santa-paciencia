@@ -217,6 +217,7 @@ AppActions.register({
   "index-mobile-step-prev": () => { AppModules.reservas.mobileStepPrev() },
   "index-mobile-stepper": (el) => { AppModules.reservas.stepGuestCount(el.dataset.stepperFor, Number(el.dataset.stepperDelta)) },
   "index-mobile-fold": (el) => { AppModules.reservas.toggleMobileFold(el.dataset.fold) },
+  "index-mobile-canal": (el) => { AppModules.reservas.setMobileCanal(el.dataset.canal) },
   "index-discard-reserva-draft-53f0676": (el, event, args) => { AppModules.reservas.discardReservaDraft() },
   "index-wiz-toggle-extra-rooms-ce30293": (el, event, args) => { AppModules.reservas.wizToggleExtraRooms() },
   "index-apply-nightly-to-all-f99c949": (el, event, args) => { AppModules.reservas.applyNightlyToAll() },
@@ -313,6 +314,8 @@ AppActions.register({
   "index-calc-total-a239bdf": (el, event, args) => { AppModules.reservas.calcTotal() },
   "index-calc-total-8bcd488": (el, event, args) => { AppModules.reservas.calcTotal();AppModules.reservas.updateWizSummary() },
   "index-update-foreign-requirements-2ec6793": (el, event, args) => { AppModules.reservas.updateForeignRequirements() },
+  "index-mobile-breakfast": (el) => { AppModules.reservas.setMobileBreakfast(el.checked) },
+  "index-mobile-canal-change": () => { AppModules.reservas.renderMobileStay() },
 }, "change");
 
 AppActions.register({

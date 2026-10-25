@@ -11,6 +11,9 @@ AppModules.define('reservas', {
   mobileStepPrev: { get: () => mobileStepPrev },
   stepGuestCount: { get: () => stepGuestCount },
   toggleMobileFold: { get: () => toggleMobileFold },
+  setMobileCanal: { get: () => setMobileCanal },
+  setMobileBreakfast: { get: () => setMobileBreakfast },
+  renderMobileStay: { get: () => renderMobileStay },
 });
 
 // ── Nova reserva no telemóvel: três passos sobre o mesmo formulário ──
@@ -19,9 +22,18 @@ AppModules.define('reservas', {
 // acompanhantes ficam recolhidos: o hóspede preenche-os no pré-check-in.
 const MOBILE_STEP_NAMES = ['Estadia', 'Hóspede', 'Preço e confirmação'];
 const SHORT_MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const SHORT_WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+// Canais com botão próprio; os restantes escolhem-se em «Mais…».
+const MAIN_CHANNELS = ['direto', 'booking', 'airbnb'];
 const OPTIONAL_GUEST_FIELDS = ['f-nascimento', 'f-local-nascimento', 'f-doc-tipo', 'f-doc-num', 'f-doc-emissor', 'f-nif', 'f-empresa', 'f-morada', 'f-cp', 'f-cidade'];
 let mobileStep = 1;
-let mobileFolds = { docs: false, extras: false, price: false };
+let mobileFolds = { docs: false, extras: false, price: false, canal: false };
+
+// «3 jul» (com o ano só quando não é o atual).
+function shortDate(iso) {
+  const year = iso.slice(0, 4) === String(new Date().getFullYear()) ? '' : ` ${iso.slice(0, 4)}`;
+  return `${Number(iso.slice(8, 10))} ${SHORT_MONTHS[Number(iso.slice(5, 7)) - 1]}${year}`;
+}
 
 function resetMobileSteps() {
   mobileStep = 1;
@@ -31,7 +43,8 @@ function resetMobileSteps() {
   const priceEdited = Object.keys(AppModules.reservas._nightlyOverrides || {}).length > 0
     || AppModules.reservas._manualTotalOverride != null
     || (parseFloat(document.getElementById('f-discount-val')?.value) || 0) > 0;
-  mobileFolds = { docs: hasDocs, extras: false, price: priceEdited };
+  const canal = document.getElementById('f-canal')?.value;
+  mobileFolds = { docs: hasDocs, extras: false, price: priceEdited, canal: !!canal && !MAIN_CHANNELS.includes(canal) };
   renderMobileSteps();
 }
 
@@ -74,6 +87,55 @@ function toggleMobileFold(name) {
   renderMobileControls();
 }
 
+// Botões de canal: escrevem no mesmo campo do computador; «Mais…» mostra a lista toda.
+function setMobileCanal(value) {
+  const select = document.getElementById('f-canal');
+  if (!select) return;
+  if (!value) {
+    mobileFolds.canal = true;
+  } else {
+    mobileFolds.canal = false;
+    if (select.value !== value) {
+      select.value = value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+  renderMobileStay();
+}
+
+function setMobileBreakfast(included) {
+  const select = document.getElementById('f-breakfast');
+  if (!select) return;
+  select.value = included ? 'true' : 'false';
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+// Cartão das datas («sex, 3 jul»), pequeno-almoço e canal, a partir dos campos do formulário.
+function renderMobileStay() {
+  const value = id => document.getElementById(id)?.value || '';
+  const ci = AppModules.core.normalizeIsoDateValue(value('f-checkin'));
+  const co = AppModules.core.normalizeIsoDateValue(value('f-checkout'));
+  const showDate = (id, iso) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = iso ? `${SHORT_WEEKDAYS[new Date(`${iso}T12:00:00`).getDay()]}, ${shortDate(iso)}` : 'Escolher';
+    el.classList.toggle('empty', !iso);
+  };
+  showDate('resf-checkin-display', ci);
+  showDate('resf-checkout-display', co);
+  const nights = ci && co ? window.ReservationDates.countNights(ci, co) : 0;
+  const pill = document.getElementById('resf-dates-nights');
+  if (pill) pill.textContent = nights > 0 ? `${nights} noite${nights !== 1 ? 's' : ''}` : '→';
+  const breakfast = document.getElementById('resf-breakfast-switch');
+  if (breakfast) breakfast.checked = value('f-breakfast') === 'true';
+  const canal = value('f-canal');
+  const more = mobileFolds.canal || !MAIN_CHANNELS.includes(canal);
+  document.querySelectorAll('#resf-canal-group [data-canal]').forEach(chip => {
+    chip.setAttribute('aria-pressed', String(chip.dataset.canal ? !more && chip.dataset.canal === canal : more));
+  });
+  document.getElementById('resf-canal-group')?.classList.toggle('resf-canal-more', more);
+}
+
 // Contadores no limite e blocos recolhidos (o número de acompanhantes muda
 // com os adultos e crianças).
 function renderMobileControls() {
@@ -97,6 +159,7 @@ function renderMobileControls() {
     const title = document.getElementById('resf-extras-toggle-title');
     if (title) title.textContent = `${extras === 1 ? 'Acompanhante' : 'Acompanhantes'} (${extras})`;
   }
+  renderMobileStay();
 }
 
 function renderMobileSteps() {
@@ -135,9 +198,7 @@ function buildMobileSummary() {
   const children = parseInt(value('f-num-criancas'), 10) || 0;
   const canal = document.getElementById('f-canal');
   const people = [`${adults} adulto${adults !== 1 ? 's' : ''}`, children ? `${children} criança${children !== 1 ? 's' : ''}` : ''].filter(Boolean).join(', ');
-  // «3 jul» (com o ano só quando não é o atual).
-  const date = iso => `${Number(iso.slice(8, 10))} ${SHORT_MONTHS[Number(iso.slice(5, 7)) - 1]}${iso.slice(0, 4) === String(new Date().getFullYear()) ? '' : ` ${iso.slice(0, 4)}`}`;
-  const stay = [ci && co ? `${date(ci)} → ${date(co)}` : '', nights ? `${nights} noite${nights !== 1 ? 's' : ''}` : '', people, canal?.selectedOptions[0]?.textContent || ''].filter(Boolean).join(' · ');
+  const stay = [ci && co ? `${shortDate(ci)} → ${shortDate(co)}` : '', nights ? `${nights} noite${nights !== 1 ? 's' : ''}` : '', people, canal?.selectedOptions[0]?.textContent || ''].filter(Boolean).join(' · ');
   const phone = value('f-tel-num') ? `${value('f-tel-prefix')} ${value('f-tel-num')}`.trim() : '';
   const contact = [AppModules.core.realEmail(value('f-email')), phone].filter(Boolean).join(' · ');
   const row = (title, sub, step) => `<div class="resf-msummary-row">
@@ -189,6 +250,7 @@ function updateWizSummary() {
   set('ws-checkin', ci ? AppModules.core.formatDate(ci) : '—');
   set('ws-nights', nights > 0 ? nights + ' noite' + (nights !== 1 ? 's' : '') : '—');
   set('ws-total', total && Number(total) > 0 ? ReservationMoney.format(total) : '—');
+  renderMobileStay();
 }
 
 function renderSuiteCards() {
@@ -229,14 +291,16 @@ function renderSuiteCards() {
       ${coverUrl
         ? `<img src="${AppModules.core.escapeHtml(AppModules.core.mediaThumb(coverUrl, 480))}" class="suite-card-cover" alt="${AppModules.core.escapeHtml(a.name)}" loading="lazy" decoding="async">`
         : blocked
-          ? `<div style="font-size:16px;margin-bottom:6px;">🔒</div>`
-          : `<div style="width:10px;height:10px;border-radius:50%;background:${cor};margin-bottom:8px;"></div>`}
+          ? `<div class="suite-card-dot" style="font-size:16px;margin-bottom:6px;">🔒</div>`
+          : `<div class="suite-card-dot" style="width:10px;height:10px;border-radius:50%;background:${cor};margin-bottom:8px;"></div>`}
       ${blocked ? `<div class="suite-card-lock">🔒</div>` : ''}
-      <div class="suite-card-name">${AppModules.core.escapeHtml(a.name)}</div>
-      ${blocked
-        ? `${unavail ? `<div class="suite-card-unavail-lbl">Indisponível</div>` : ''}
-           ${overCapacity ? `<div class="suite-card-capacity-lbl">Capacidade máxima: ${maxGuests} hóspede${maxGuests !== 1 ? 's' : ''}</div>` : ''}`
-        : suiteCardPriceHtml(a, ci, co)}
+      <div class="suite-card-body">
+        <div class="suite-card-name">${AppModules.core.escapeHtml(a.name)}</div>
+        ${blocked
+          ? `${unavail ? `<div class="suite-card-unavail-lbl">Indisponível</div>` : ''}
+             ${overCapacity ? `<div class="suite-card-capacity-lbl">Capacidade máxima: ${maxGuests} hóspede${maxGuests !== 1 ? 's' : ''}</div>` : ''}`
+          : suiteCardPriceHtml(a, ci, co)}
+      </div>
     </div>`;
   }).join('');
   if (window.lucide) lucide.createIcons();

@@ -20,7 +20,7 @@ let editBaseline = '';
 // Campos que a app calcula (noites, total, total devolvido pelo servidor): a
 // cotação chega depois de abrir e não é uma alteração. Um total escrito à mão
 // fica em _manualTotalOverride ou nos preços por noite, que contam.
-const DERIVED_FIELDS = new Set(['f-noites', 'f-total', 'f-total-manual']);
+const DERIVED_FIELDS = new Set(['f-noites', 'f-total', 'f-total-manual', 'resf-breakfast-switch']);
 function editSnapshot() {
   const fields = Array.from(document.querySelectorAll('#modal-bg input, #modal-bg select, #modal-bg textarea'))
     .filter(el => !el.closest('.app-select-search') && !el.classList.contains('app-select-search') && !DERIVED_FIELDS.has(el.id))

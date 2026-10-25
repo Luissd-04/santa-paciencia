@@ -186,6 +186,19 @@ async function main() {
   await page.locator('#resf-mstep-next').click();
   await expect(wizard).toHaveAttribute('data-mstep','1');
   await page.evaluate(()=>{for(const [id,value] of [['f-checkin','2035-07-03'],['f-checkout','2035-07-06']]){const input=document.getElementById(id);input.value=value;input.dispatchEvent(new Event('change',{bubbles:true}));}});
+  // Datas num cartão, pequeno-almoço em interruptor, canal em botões e alojamentos em lista.
+  await expect(page.locator('#resf-checkin-display')).toHaveText('ter, 3 jul 2035');
+  await expect(page.locator('#resf-dates-nights')).toHaveText('3 noites');
+  await page.getByRole('switch',{name:'Pequeno-almoço incluído'}).click();
+  await expect(page.locator('#f-breakfast')).toHaveValue('true');
+  await page.getByRole('button',{name:'Booking.com',exact:true}).click();
+  await expect(page.locator('#f-canal')).toHaveValue('booking');
+  await expect(page.locator('#f-canal')).toBeHidden();
+  await page.getByRole('button',{name:'Mais…',exact:true}).click();
+  await expect(page.locator('#f-canal')).toBeVisible();
+  await page.locator('#f-canal').selectOption('whatsapp');
+  await expect(page.getByRole('button',{name:'Mais…',exact:true})).toHaveAttribute('aria-pressed','true');
+  assert.equal(await page.locator('#suite-cards-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),1);
   await page.locator('.suite-card-opt',{hasText:'Unidade UX'}).click();
   await page.getByRole('button',{name:'Mais uma criança'}).click();
   await expect(page.locator('#f-num-criancas')).toHaveValue('1');
