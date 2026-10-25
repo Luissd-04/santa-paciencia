@@ -211,6 +211,12 @@ AppActions.register({
   "index-export-cols-select-all-eeeb75e": (el, event, args) => { AppModules.core._exportColsSelectAll(false) },
   "index-confirm-export-column-picker-6e5e7fe": (el, event, args) => { AppModules.core.confirmExportColumnPicker() },
   "index-request-close-reserva-modal-92eb2a6": (el, event, args) => { AppModules.reservas.requestCloseReservaModal() },
+  // Nova reserva no telemóvel: passos, contadores e blocos opcionais.
+  "index-mobile-step-go": (el) => { AppModules.reservas.goToMobileStep(Number(el.dataset.mstepTab)) },
+  "index-mobile-step-next": () => { AppModules.reservas.mobileStepNext() },
+  "index-mobile-step-prev": () => { AppModules.reservas.mobileStepPrev() },
+  "index-mobile-stepper": (el) => { AppModules.reservas.stepGuestCount(el.dataset.stepperFor, Number(el.dataset.stepperDelta)) },
+  "index-mobile-fold": (el) => { AppModules.reservas.toggleMobileFold(el.dataset.fold) },
   "index-discard-reserva-draft-53f0676": (el, event, args) => { AppModules.reservas.discardReservaDraft() },
   "index-wiz-toggle-extra-rooms-ce30293": (el, event, args) => { AppModules.reservas.wizToggleExtraRooms() },
   "index-apply-nightly-to-all-f99c949": (el, event, args) => { AppModules.reservas.applyNightlyToAll() },

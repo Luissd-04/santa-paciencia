@@ -4,39 +4,147 @@ AppModules.define('reservas', {
   renderSuiteCards: { get: () => renderSuiteCards },
   updateWizSummary: { get: () => updateWizSummary },
   wizGuestSearch: { get: () => wizGuestSearch },
+  resetMobileSteps: { get: () => resetMobileSteps },
+  showMobileStep: { get: () => showMobileStep },
+  goToMobileStep: { get: () => goToMobileStep },
+  mobileStepNext: { get: () => mobileStepNext },
+  mobileStepPrev: { get: () => mobileStepPrev },
+  stepGuestCount: { get: () => stepGuestCount },
+  toggleMobileFold: { get: () => toggleMobileFold },
 });
 
-function updateWizUI() {
-  const total = 3;
-  for (let i = 1; i <= total; i++) {
-    const item = document.getElementById('ws-' + i);
-    if (item) {
-      item.classList.remove('wiz-active', 'wiz-done');
-      if (i === AppModules.reservas.wizStep) item.classList.add('wiz-active');
-      else if (i < AppModules.reservas.wizStep) item.classList.add('wiz-done');
-    }
-    const panel = document.getElementById('wiz-panel-' + i);
-    if (panel) panel.classList.toggle('active', i === AppModules.reservas.wizStep);
-  }
-  const counter = document.getElementById('wiz-step-counter');
-  if (counter) counter.textContent = `Passo ${AppModules.reservas.wizStep} de ${total}`;
-  const numEl = document.getElementById('wiz-step-num');
-  if (numEl) numEl.textContent = AppModules.reservas.wizStep;
+// ── Nova reserva no telemóvel: três passos sobre o mesmo formulário ──
+// Os campos são os mesmos do computador; no telemóvel cada passo mostra só a
+// sua parte (atributos data-mstep, ver views/reservas.css). Documentos e
+// acompanhantes ficam recolhidos: o hóspede preenche-os no pré-check-in.
+const MOBILE_STEP_NAMES = ['Estadia', 'Hóspede', 'Preço e confirmação'];
+const SHORT_MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const OPTIONAL_GUEST_FIELDS = ['f-nascimento', 'f-local-nascimento', 'f-doc-tipo', 'f-doc-num', 'f-doc-emissor', 'f-nif', 'f-empresa', 'f-morada', 'f-cp', 'f-cidade'];
+let mobileStep = 1;
+let mobileFolds = { docs: false, extras: false, price: false };
 
-  const prev = document.getElementById('btn-wiz-prev');
-  const next = document.getElementById('btn-wiz-next');
-  const save = document.getElementById('btn-guardar');
-  if (prev) prev.style.display = AppModules.reservas.wizStep > 1 ? '' : 'none';
-  if (next) next.style.display = AppModules.reservas.wizStep < total ? '' : 'none';
-  if (save) {
-    save.style.display = AppModules.reservas.wizStep === total ? '' : 'none';
-    save.innerHTML = (AppModules.core.editingId
-      ? `<i data-lucide="save" style="width:14px;height:14px;"></i> Atualizar Reserva`
-      : `<i data-lucide="save" style="width:14px;height:14px;"></i> Guardar Reserva`);
+function resetMobileSteps() {
+  mobileStep = 1;
+  // Ao editar uma ficha que já tem documentos, esses campos abrem logo.
+  const hasDocs = OPTIONAL_GUEST_FIELDS.some(id => (document.getElementById(id)?.value || '').trim());
+  // O mesmo para preços por noite, total ou desconto já alterados.
+  const priceEdited = Object.keys(AppModules.reservas._nightlyOverrides || {}).length > 0
+    || AppModules.reservas._manualTotalOverride != null
+    || (parseFloat(document.getElementById('f-discount-val')?.value) || 0) > 0;
+  mobileFolds = { docs: hasDocs, extras: false, price: priceEdited };
+  renderMobileSteps();
+}
+
+// Mostra um passo sem validar (ex.: a gravação encontrou um campo em falta).
+function showMobileStep(step) {
+  if (!(step >= 1 && step <= MOBILE_STEP_NAMES.length)) return;
+  mobileStep = step;
+  renderMobileSteps();
+  const modal = document.querySelector('#modal-bg .resf-modal');
+  if (modal) modal.scrollTop = 0;
+}
+
+// Numa reserva nova, avançar valida os passos pelo caminho; na edição pode
+// ir-se a qualquer passo.
+function goToMobileStep(step) {
+  if (step === mobileStep) return;
+  if (!AppModules.core.editingId) {
+    for (let current = mobileStep; current < step; current++) if (!validateWizStep(current)) return;
   }
-  if (AppModules.reservas.wizStep === 1) { renderSuiteCards(); AppModules.reservas.calcTotal(); }
-  if (AppModules.reservas.wizStep === 3) buildWizConfirm();
-  if (window.lucide) lucide.createIcons();
+  showMobileStep(step);
+}
+const mobileStepNext = () => goToMobileStep(mobileStep + 1);
+const mobileStepPrev = () => goToMobileStep(mobileStep - 1);
+
+function stepGuestCount(inputId, delta) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const min = Number(input.min) || 0;
+  const max = Number(input.max) || 20;
+  const next = Math.min(max, Math.max(min, (parseInt(input.value, 10) || 0) + delta));
+  if (String(next) !== input.value) {
+    input.value = String(next);
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  renderMobileControls();
+}
+
+function toggleMobileFold(name) {
+  mobileFolds[name] = !mobileFolds[name];
+  renderMobileControls();
+}
+
+// Contadores no limite e blocos recolhidos (o número de acompanhantes muda
+// com os adultos e crianças).
+function renderMobileControls() {
+  document.querySelectorAll('#modal-bg [data-stepper-for]').forEach(btn => {
+    const input = document.getElementById(btn.dataset.stepperFor);
+    const value = parseInt(input?.value, 10) || 0;
+    const delta = Number(btn.dataset.stepperDelta);
+    btn.disabled = delta < 0 ? value <= (Number(input?.min) || 0) : value >= (Number(input?.max) || 20);
+  });
+  const section = document.getElementById('resf-guest-section');
+  section?.classList.toggle('resf-docs-shown', mobileFolds.docs);
+  section?.classList.toggle('resf-extras-shown', mobileFolds.extras);
+  document.getElementById('resf-docs-toggle')?.setAttribute('aria-expanded', String(mobileFolds.docs));
+  document.getElementById('modal-bg')?.classList.toggle('resf-price-shown', mobileFolds.price);
+  document.getElementById('resf-price-toggle')?.setAttribute('aria-expanded', String(mobileFolds.price));
+  const extras = document.querySelectorAll('#extra-guests-container .extra-guest-row').length;
+  const extrasToggle = document.getElementById('resf-extras-toggle');
+  if (extrasToggle) {
+    extrasToggle.hidden = !extras;
+    extrasToggle.setAttribute('aria-expanded', String(mobileFolds.extras));
+    const title = document.getElementById('resf-extras-toggle-title');
+    if (title) title.textContent = `${extras === 1 ? 'Acompanhante' : 'Acompanhantes'} (${extras})`;
+  }
+}
+
+function renderMobileSteps() {
+  const bg = document.getElementById('modal-bg');
+  if (!bg) return;
+  const editing = !!AppModules.core.editingId;
+  bg.dataset.mstep = String(mobileStep);
+  bg.classList.toggle('resf-mobile-editing', editing);
+  document.querySelectorAll('#resf-mstepper [data-mstep-tab]').forEach(tab => {
+    const step = Number(tab.dataset.mstepTab);
+    tab.classList.toggle('done', step < mobileStep);
+    if (step === mobileStep) tab.setAttribute('aria-current', 'step');
+    else tab.removeAttribute('aria-current');
+  });
+  const label = document.getElementById('resf-mstepper-label');
+  if (label) label.textContent = `Passo ${mobileStep} de ${MOBILE_STEP_NAMES.length} · ${MOBILE_STEP_NAMES[mobileStep - 1]}`;
+  const prev = document.getElementById('resf-mstep-prev');
+  const next = document.getElementById('resf-mstep-next');
+  if (prev) prev.hidden = editing || mobileStep === 1;
+  if (next) next.hidden = editing || mobileStep === MOBILE_STEP_NAMES.length;
+  if (mobileStep === MOBILE_STEP_NAMES.length) buildMobileSummary();
+  renderMobileControls();
+}
+
+// Resumo do último passo, com atalhos para corrigir a estadia ou o hóspede.
+function buildMobileSummary() {
+  const box = document.getElementById('resf-msummary');
+  if (!box) return;
+  const esc = AppModules.core.escapeHtml;
+  const value = id => (document.getElementById(id)?.value || '').trim();
+  const suite = AppModules.core.accommodations.find(a => a.id === value('f-aloj'));
+  const ci = AppModules.core.normalizeIsoDateValue(value('f-checkin'));
+  const co = AppModules.core.normalizeIsoDateValue(value('f-checkout'));
+  const nights = ci && co ? window.ReservationDates.countNights(ci, co) : 0;
+  const adults = parseInt(value('f-num-adultos'), 10) || 0;
+  const children = parseInt(value('f-num-criancas'), 10) || 0;
+  const canal = document.getElementById('f-canal');
+  const people = [`${adults} adulto${adults !== 1 ? 's' : ''}`, children ? `${children} criança${children !== 1 ? 's' : ''}` : ''].filter(Boolean).join(', ');
+  // «3 jul» (com o ano só quando não é o atual).
+  const date = iso => `${Number(iso.slice(8, 10))} ${SHORT_MONTHS[Number(iso.slice(5, 7)) - 1]}${iso.slice(0, 4) === String(new Date().getFullYear()) ? '' : ` ${iso.slice(0, 4)}`}`;
+  const stay = [ci && co ? `${date(ci)} → ${date(co)}` : '', nights ? `${nights} noite${nights !== 1 ? 's' : ''}` : '', people, canal?.selectedOptions[0]?.textContent || ''].filter(Boolean).join(' · ');
+  const phone = value('f-tel-num') ? `${value('f-tel-prefix')} ${value('f-tel-num')}`.trim() : '';
+  const contact = [AppModules.core.realEmail(value('f-email')), phone].filter(Boolean).join(' · ');
+  const row = (title, sub, step) => `<div class="resf-msummary-row">
+      <div class="resf-msummary-text"><div class="resf-msummary-title">${esc(title)}</div>${sub ? `<div class="resf-msummary-sub">${esc(sub)}</div>` : ''}</div>
+      <button type="button" class="resf-msummary-edit" data-mstep-tab="${step}" data-on-click="index-mobile-step-go">Alterar</button>
+    </div>`;
+  box.innerHTML = row(suite?.name || 'Alojamento por escolher', stay, 1) + row(value('f-nome-completo') || 'Hóspede por indicar', contact, 2);
 }
 
 function validateWizStep(step) {
@@ -64,25 +172,6 @@ function validateWizStep(step) {
     return true;
   }
   return true;
-}
-
-function wizNext() {
-  if (!validateWizStep(AppModules.reservas.wizStep)) return;
-  if (AppModules.reservas.wizStep < 3) {
-    AppModules.reservas.wizStep++;
-    updateWizUI();
-    const body = document.querySelector('.modal-wizard .modal-body');
-    if (body) body.scrollTop = 0;
-  }
-}
-
-function wizPrev() {
-  if (AppModules.reservas.wizStep > 1) {
-    AppModules.reservas.wizStep--;
-    updateWizUI();
-    const body = document.querySelector('.modal-wizard .modal-body');
-    if (body) body.scrollTop = 0;
-  }
 }
 
 function updateWizSummary() {
@@ -202,60 +291,6 @@ function selectSuiteCard(id) {
   if (extraPanel && extraPanel.style.display !== 'none') AppModules.reservas.renderWizExtraRooms();
   renderSuiteCards();
   AppModules.reservas.calcTotal();
-}
-
-function buildWizConfirm() {
-  AppModules.reservas.calcTotal();
-  const nome = (document.getElementById('f-nome-completo')?.value || '').trim();
-  const apelido = '';
-  const email = document.getElementById('f-email')?.value || '';
-  const prefix = document.getElementById('f-tel-prefix')?.value || '';
-  const telNum = document.getElementById('f-tel-num')?.value || '';
-  const pais = document.getElementById('f-pais')?.value || '';
-  const alojId = document.getElementById('f-aloj')?.value;
-  const suite = AppModules.core.accommodations.find(a => a.id === alojId);
-  const cor = suite?.color || 'var(--marca)';
-  const ci = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkin')?.value);
-  const co = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkout')?.value);
-  const nights = ci && co ? Math.max(0, Math.round((new Date(co) - new Date(ci)) / 86400000)) : 0;
-  const canal = document.getElementById('f-canal')?.value || '';
-  const numH = parseInt(document.getElementById('f-num-hospedes')?.value) || 1;
-  const bkf = document.getElementById('f-breakfast')?.value === 'true';
-  const total = parseFloat(document.getElementById('f-total')?.value) || 0;
-  const extraOccupancyCost = AppModules.reservas.getExtraOccupancyCharge(suite, numH, nights, AppModules.reservas.wizEffectiveBirthDates(), ci);
-  const hasPeriods = (AppModules.reservas._cachedPricingPeriods[alojId] || []).length > 0;
-  const hasNightlyEdits = Object.keys(AppModules.reservas._nightlyOverrides).length > 0;
-  const priceLabel = hasNightlyEdits ? 'Preço por noite personalizado' : (hasPeriods ? 'Preço dinâmico' : `${ReservationMoney.formatShort(suite?.price_per_night || 0)}/noite`);
-  const card = document.getElementById('wiz-conf-card');
-  if (!card) return;
-  card.innerHTML = `<div class="wiz-conf-grid">
-    <div class="wiz-conf-cell">
-      <div class="wiz-conf-lbl">Hóspede</div>
-      <div class="wiz-conf-val">${[nome, apelido].filter(Boolean).join(' ') || '—'}</div>
-      <div class="wiz-conf-sub">${email}</div>
-      <div class="wiz-conf-sub">${(prefix + ' ' + telNum).trim()} · ${pais}</div>
-    </div>
-    <div class="wiz-conf-cell">
-      <div class="wiz-conf-lbl">Alojamento</div>
-      <div class="wiz-conf-val" style="display:flex;align-items:center;gap:6px;">
-        <span style="width:8px;height:8px;border-radius:50%;background:${cor};flex-shrink:0;display:inline-block;"></span>
-        ${AppModules.core.escapeHtml(suite?.name || '—')}
-      </div>
-      <div class="wiz-conf-sub">${canal} · ${numH} hóspede${numH !== 1 ? 's' : ''}</div>
-      <div class="wiz-conf-sub">${bkf ? '🥐 Pequeno-almoço incl.' : 'Sem pequeno-almoço'}</div>
-      ${AppModules.reservas._wizExtraRooms.length > 0 ? `<div class="wiz-conf-sub">+ ${AppModules.reservas._wizExtraRooms.length} quarto${AppModules.reservas._wizExtraRooms.length !== 1 ? 's' : ''} extra: ${AppModules.core.escapeHtml(AppModules.reservas._wizExtraRooms.map(r => r.name).join(', '))}</div>` : ''}
-    </div>
-    <div class="wiz-conf-cell">
-      <div class="wiz-conf-lbl">Datas</div>
-      <div class="wiz-conf-val">${ci ? AppModules.core.formatDate(ci) : '—'} → ${co ? AppModules.core.formatDate(co) : '—'}</div>
-      <div class="wiz-conf-sub">${nights} noite${nights !== 1 ? 's' : ''}</div>
-    </div>
-    <div class="wiz-conf-cell accent">
-      <div class="wiz-conf-lbl">Total</div>
-      <div class="wiz-conf-val">${ReservationMoney.format(total)}</div>
-      <div class="wiz-conf-sub">${priceLabel} × ${nights} noites${extraOccupancyCost ? ` · extra ${ReservationMoney.format(extraOccupancyCost)}` : ''}</div>
-    </div>
-  </div>`;
 }
 
 // ── GUEST SEARCH AUTOCOMPLETE ──

@@ -265,9 +265,10 @@ async function saveReserva() {
   const checkout = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkout').value);
   const alojId   = document.getElementById('f-aloj').value;
 
-  if (!nomeCompleto) { AppModules.core.toast('Por favor insira o nome do hóspede.', 'error'); return; }
-  if (!checkin || !checkout) { AppModules.core.toast('Por favor selecione as datas.', 'error'); return; }
-  if (checkin >= checkout) { AppModules.core.toast('O check-out deve ser depois do check-in.', 'error'); return; }
+  // No telemóvel o campo em falta pode estar noutro passo: mostrá-lo.
+  if (!nomeCompleto) { AppModules.reservas.showMobileStep(2); AppModules.core.toast('Por favor insira o nome do hóspede.', 'error'); return; }
+  if (!checkin || !checkout) { AppModules.reservas.showMobileStep(1); AppModules.core.toast('Por favor selecione as datas.', 'error'); return; }
+  if (checkin >= checkout) { AppModules.reservas.showMobileStep(1); AppModules.core.toast('O check-out deve ser depois do check-in.', 'error'); return; }
   const selectedAccommodation = AppModules.core.accommodations.find(a => a.id === alojId);
   const requestedGuests = parseInt(document.getElementById('f-num-hospedes').value) || 1;
   if (selectedAccommodation?.max_guests && requestedGuests > selectedAccommodation.max_guests) {
