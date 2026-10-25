@@ -36,7 +36,8 @@ function cancelApiRequests() {
 }
 // ── API ──
 async function apiRequest(path, options = {}, config = {}) {
-  const headers = { ...(options.headers || {}) };
+  // O separador que faz o pedido (live.js): as suas alterações não lhe recarregam o ecrã.
+  const headers = { ...(AppModules.core.liveClientId ? { 'X-Client-Id': AppModules.core.liveClientId } : {}), ...(options.headers || {}) };
   const request = {
     credentials: 'include',
     ...options,

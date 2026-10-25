@@ -15,10 +15,21 @@ tarefa no Google não muda as datas, pagamentos ou alojamento da reserva.
   são recebidas pela aplicação. Tarefas novas criadas diretamente no Google não são
   importadas. O identificador nas notas permite recuperar uma criação da aplicação
   cuja resposta se tenha perdido por falha de rede.
-- A consulta automática ocorre a cada 60 segundos, com o servidor em funcionamento
-  e a opção de sincronização ativa. `GOOGLE_TASKS_SYNC_INTERVAL_MS` permite mudar
-  o intervalo (mínimo 10 segundos). «Sincronizar agora» consulta os dois sentidos,
-  mesmo com a opção automática desativada.
+- **App → Google**: cada alteração na aplicação envia só os eventos alterados,
+  logo a seguir (sem esperar por nenhuma consulta e sem ler a lista inteira).
+- **Google → app**: o Google Tasks não avisa quando algo muda, por isso a aplicação
+  pergunta a cada 60 segundos, mas só pelas tarefas alteradas desde a última
+  pergunta (`updatedMin`, com 2 minutos de margem); sem novidades, a resposta vem
+  vazia e nada é tocado. Abrir a vista de Eventos pergunta logo (no máximo uma vez
+  a cada 20 s por organização, `POST /api/tasks/refresh`). A primeira consulta
+  depois de arrancar, e depois de hora a hora, é a reconciliação completa, que
+  repete também envios que tenham falhado.
+- Quando chega uma alteração do Google, as páginas abertas atualizam a vista de
+  Eventos e o sino na hora (avisos em direto, `GET /api/live`).
+- A consulta automática corre com o servidor em funcionamento e a opção de
+  sincronização ativa. `GOOGLE_TASKS_SYNC_INTERVAL_MS` permite mudar o intervalo
+  (mínimo 10 segundos). «Sincronizar agora» faz a reconciliação completa nos dois
+  sentidos, mesmo com a opção automática desativada.
 - Apagar um evento na aplicação ou a tarefa ligada no Google apaga a outra cópia.
   Apagar uma tarefa automática explicitamente impede a sua regeneração para a mesma
   reserva/tipo/data/alojamento. Mover a reserva gera tarefas para as novas datas.

@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 45;
+const CACHE_VERSION = 46;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -59,6 +59,7 @@ const STATIC_ASSETS = [
   '/js/auth.js',
   '/js/state.js',
   '/js/helpers.js',
+  '/js/live.js',
   '/js/domain/modules.js',
   '/js/domain/actions.js',
   '/js/index-actions.js',
@@ -207,6 +208,8 @@ self.addEventListener('fetch', (event) => {
 
   /* Ignorar pedidos não-GET e extensões do browser */
   if (request.method !== 'GET') return;
+  /* Avisos em direto (EventSource): ligação aberta, direta ao servidor. */
+  if (url.pathname === '/api/live') return;
   if (url.protocol === 'chrome-extension:') return;
 
   // Dados autenticados, documentos e URLs com tokens nunca vão para a Cache API.

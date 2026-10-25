@@ -155,8 +155,11 @@ function disconnectTasks(organizationId) {
 
 // Inclui eventos passados e distantes: mover uma tarefa para fora de uma janela
 // de datas nunca pode deixar a cópia remota na data/estado anterior.
-function syncOrganizationTasksToGoogleTasks(organizationId) {
-  return withTaskLock(organizationId, () => runOrganizationTaskSync(organizationId));
+// Sem opções: tudo (as tarefas do Google e os eventos). `eventIds`: só esses
+// eventos (alteração feita cá). `changedSince`: só as tarefas alteradas no
+// Google desde essa hora (pergunta periódica; o Google Tasks não avisa).
+function syncOrganizationTasksToGoogleTasks(organizationId, options = {}) {
+  return withTaskLock(organizationId, () => runOrganizationTaskSync(organizationId, options));
 }
 
 function suppressAutoTask(ev) {
@@ -199,11 +202,13 @@ function applyRemoteChanges(ev, remote, state) {
   return { event: next, changed };
 }
 
-async function listRemoteTasks(auth, listId) {
+// `updatedMin`: só as tarefas alteradas (ou apagadas) desde essa hora.
+async function listRemoteTasks(auth, listId, { updatedMin = null } = {}) {
   const tasks = new Map();
   let pageToken = '';
   do {
     const query = new URLSearchParams({ maxResults: '100', showCompleted: 'true', showHidden: 'true', showDeleted: 'true' });
+    if (updatedMin) query.set('updatedMin', updatedMin);
     if (pageToken) query.set('pageToken', pageToken);
     const { data } = await auth.request({ url: `${TASKS_BASE}/lists/${listId}/tasks?${query}` });
     for (const task of data.items || []) tasks.set(task.id, task);
@@ -221,20 +226,35 @@ function saveSyncState(ev, listId, localPayload, remote) {
     .run(ev.id, ev.organization_id, ev.google_task_id, listId, JSON.stringify(localPayload), JSON.stringify(remotePayload(remote)));
 }
 
-async function runOrganizationTaskSync(organizationId) {
+async function runOrganizationTaskSync(organizationId, { eventIds = null, changedSince = null } = {}) {
   if (!getTasksConnectionInfo(organizationId).connected) {
     return { created: 0, updated: 0, imported: 0, deleted: 0, errors: 0, total: 0 };
   }
   const cleanup = await processQueuedTaskDeletions(organizationId);
   const auth = getAuthenticatedTasksClient(organizationId);
   const listId = await getOrCreateTaskList(auth, organizationId);
-  const remoteTasks = await listRemoteTasks(auth, listId);
+  // Uma lista parcial (só alteradas, ou nenhuma para eventIds) chega: uma tarefa
+  // em falta confirma-se uma a uma (abaixo) e a recuperação de um envio perdido
+  // pede a lista completa.
+  let complete = !eventIds && !changedSince;
+  let remoteTasks = eventIds ? new Map() : await listRemoteTasks(auth, listId, { updatedMin: changedSince });
+  const completeRemote = async () => {
+    if (!complete) { remoteTasks = await listRemoteTasks(auth, listId); complete = true; }
+  };
   const readEvent = db.prepare(`SELECT e.*, a.name AS accommodation_name
     FROM operational_events e LEFT JOIN accommodations a ON a.id = e.accommodation_id
       AND a.organization_id = e.organization_id
     WHERE e.organization_id = ? AND e.id = ?`);
-  const events = db.prepare(`SELECT id FROM operational_events
-    WHERE organization_id = ? ORDER BY date, start_time`).all(organizationId);
+  let events;
+  if (eventIds) events = [...new Set(eventIds)].map(id => ({ id }));
+  else if (changedSince) {
+    const changed = [...remoteTasks.keys()];
+    events = changed.length ? db.prepare(`SELECT id FROM operational_events WHERE organization_id = ?
+      AND google_task_id IN (${changed.map(() => '?').join(', ')}) ORDER BY date, start_time`).all(organizationId, ...changed) : [];
+  } else {
+    events = db.prepare(`SELECT id FROM operational_events
+      WHERE organization_id = ? ORDER BY date, start_time`).all(organizationId);
+  }
   let created = 0, updated = 0, imported = 0, deleted = 0, errors = cleanup.errors;
   for (const { id } of events) {
     let ev = readEvent.get(organizationId, id);
@@ -245,6 +265,10 @@ async function runOrganizationTaskSync(organizationId) {
       // Recuperar um POST que chegou ao Google mas cuja resposta se perdeu.
       // O marcador identifica apenas tarefas criadas pela aplicação.
       if (!ev.google_task_id) {
+        // Já houve uma tentativa de criar: pode ter chegado ao Google.
+        if (!complete && db.prepare('SELECT 1 FROM google_task_sync_state WHERE event_id = ? AND organization_id = ?').get(id, organizationId)) {
+          await completeRemote();
+        }
         const matches = [...remoteTasks.values()].filter(task => !task.deleted &&
           (task.notes || '').split('\n').includes(`Evento da aplicação: ${id}`));
         if (matches.length === 1 && !db.prepare(`SELECT 1 FROM google_task_cleanup_queue
@@ -338,15 +362,36 @@ async function runOrganizationTaskSync(organizationId) {
     }
   }
   await processQueuedTaskDeletions(organizationId);
+  // Alterações vindas do Google: as páginas abertas atualizam o sino e os eventos.
+  if (imported || deleted) require('../services/liveUpdates').publish(organizationId, ['events', 'notifications']);
   return { created, updated, imported, deleted, errors, total: events.length };
 }
 
-// Reconciliação após falhas/reinícios e para alterações feitas por outros fluxos.
+// Alterações feitas no Google desde a última pergunta (com 2 minutos de
+// margem para relógios e escritas em curso). A primeira vez, e de hora a hora,
+// a reconciliação completa, que também apanha falhas e reinícios.
+const POLLED_KEY = 'google_tasks_polled_at';
+const FULL_KEY = 'google_tasks_full_sync_at';
+const FULL_SYNC_MS = 60 * 60 * 1000;
+const POLL_MARGIN_MS = 2 * 60 * 1000;
+async function pollOrganizationTaskChanges(organizationId, { full = false } = {}) {
+  const settings = require('../services/settingsService');
+  const startedAt = new Date();
+  const polledAt = Date.parse(settings.get(organizationId, POLLED_KEY) || '');
+  const fullAt = Date.parse(settings.get(organizationId, FULL_KEY) || '');
+  const runFull = full || !Number.isFinite(polledAt) || !Number.isFinite(fullAt) || startedAt - fullAt >= FULL_SYNC_MS;
+  const result = await syncOrganizationTasksToGoogleTasks(organizationId,
+    runFull ? {} : { changedSince: new Date(polledAt - POLL_MARGIN_MS).toISOString() });
+  settings.set(organizationId, POLLED_KEY, startedAt.toISOString());
+  if (runFull) settings.set(organizationId, FULL_KEY, startedAt.toISOString());
+  return { ...result, full: runFull };
+}
+
 async function syncEnabledOrganizationsToGoogleTasks() {
   const enabled = new Set(require('../services/settingsService').organizationsWith('gcal_sync_tasks', '1'));
   const rows = db.prepare('SELECT organization_id FROM google_tasks_connections').all().filter(row => enabled.has(row.organization_id));
   for (const row of rows) {
-    try { await syncOrganizationTasksToGoogleTasks(row.organization_id); }
+    try { await pollOrganizationTaskChanges(row.organization_id); }
     catch (err) { console.error('Erro ao repetir sincronização do Google Tasks:', err.message); }
   }
 }
@@ -473,6 +518,7 @@ module.exports = {
   disconnectTasks,
   syncOrganizationTasksToGoogleTasks,
   syncEnabledOrganizationsToGoogleTasks,
+  pollOrganizationTaskChanges,
   withTaskLock,
   suppressAutoTask,
   deleteSyncedTask,

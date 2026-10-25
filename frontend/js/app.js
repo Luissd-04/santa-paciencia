@@ -135,6 +135,23 @@ async function showView(v, pushState = true) {
   await initView(v);
 }
 
+// Eventos: ao abrir, perguntar ao Google Tasks o que mudou lá (o servidor
+// limita a uma vez a cada 20 s; sem Tasks ligado não faz nada).
+function refreshGoogleTasks() {
+  AppModules.core.apiPost('/api/tasks/refresh', {}).catch(() => {});
+}
+// Alterações feitas noutro separador, por outra pessoa ou no Google Tasks:
+// a vista de Eventos aberta volta a carregar (live.js).
+let liveViewTimer = null;
+AppModules.core.onLive('events', () => {
+  clearTimeout(liveViewTimer);
+  liveViewTimer = setTimeout(() => {
+    if (document.getElementById('view-eventos')?.classList.contains('active') && AppModules.core.isFeatureLoaded?.('eventos')) {
+      AppModules.eventos.refreshEventos();
+    }
+  }, 300);
+});
+
 // Arranque da vista, já com o código dela carregado.
 async function initView(v) {
   if (v === 'dashboard') AppModules.core.renderDashboard();
@@ -144,7 +161,7 @@ async function initView(v) {
     AppModules.reservas.loadReservas();
   }
   if (v === 'calendario') { await AppModules.bloqueios.ensureBlocksLoaded(); AppModules.calendario.renderCalView(); }
-  if (v === 'eventos') AppModules.eventos.loadEventos();
+  if (v === 'eventos') { AppModules.eventos.loadEventos(); refreshGoogleTasks(); }
   if (v === 'hospedes') AppModules.hospedes.loadHospedes();
   if (v === 'notificacoes') { AppModules.core.loadNotifications(); AppModules.core.renderNotificationsPage(); }
   if (v === 'alojamentos') { await AppModules.bloqueios.ensureBlocksLoaded(); AppModules.alojamentos.renderAlojamentos(); AppModules.alojamentos.initAlojDrag(); AppModules.alojamentos.renderServicos(); }

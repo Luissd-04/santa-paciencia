@@ -1,15 +1,40 @@
 const router = require('express').Router();
-router.use(require('../middleware/requireRole')('manager'));
 const { db } = require('../config/database');
 const {
   getAuthenticatedTasksClient,
   getTasksConnectionInfo,
   getOrCreateTaskList,
   syncOrganizationTasksToGoogleTasks,
+  pollOrganizationTaskChanges,
   TASKS_BASE,
   withTaskLock,
   deleteAllSyncedTasks,
 } = require('../config/googleTasks');
+
+/* ── POST /api/tasks/refresh ── (toda a equipa; o resto é só para gestores)
+   Ao abrir Eventos ou o Calendário: as alterações feitas no Google desde a
+   última pergunta (no máximo uma vez a cada 20 s por organização). Se houver,
+   o próprio sync avisa as páginas abertas. */
+const REFRESH_MIN_MS = 20000;
+const lastRefresh = new Map();
+router.post('/refresh', async (req, res) => {
+  const orgId = req.user.organization_id;
+  res.locals.liveQuiet = true;
+  const enabled = require('../services/settingsService').get(orgId, 'gcal_sync_tasks') === '1';
+  if (!enabled || !getTasksConnectionInfo(orgId).connected || Date.now() - (lastRefresh.get(orgId) || 0) < REFRESH_MIN_MS) {
+    return res.json({ success: true, data: { checked: false } });
+  }
+  lastRefresh.set(orgId, Date.now());
+  try {
+    const { imported, deleted } = await pollOrganizationTaskChanges(orgId);
+    res.json({ success: true, data: { checked: true, imported, deleted } });
+  } catch (err) {
+    console.error('Tasks refresh erro:', err.message);
+    res.status(502).json({ success: false, error: 'Não foi possível consultar o Google Tasks.' });
+  }
+});
+
+router.use(require('../middleware/requireRole')('manager'));
 
 /* ── GET /api/tasks/status ── */
 router.get('/status', (req, res) => {

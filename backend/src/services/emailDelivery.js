@@ -37,6 +37,9 @@ async function deliverTemplate({ orgId, slug, reservation: r, to, rendered }, se
     const safeRetry = [400, 401, 403, 429].includes(status);
     db.prepare('UPDATE email_deliveries SET state=?, last_error=?, retry_at=?, updated_at=? WHERE id=?').run(safeRetry ? 'blocked' : 'uncertain', safeRetry ? 'Envio recusado; verificar configuração e destinatário.' : 'Resultado incerto; confirmar no Gmail antes de repetir.', now + 3600000, Date.now(), id);
     throw error;
+  } finally {
+    // Um envio por confirmar ou recusado aparece no sino (e sai dele quando é entregue).
+    require('./liveUpdates').publish(orgId);
   }
 }
 // Resolução manual de um envio incerto, depois de a equipa confirmar no Gmail:

@@ -390,10 +390,22 @@ async function resolveEmailDelivery(reservationId, templateSlug, resolution) {
   }
 }
 
+// O sino atualiza-se quando o servidor avisa (live.js). A pergunta a cada 15
+// minutos é só a rede de segurança para uma ligação que caia sem se notar.
+const NOTIF_FALLBACK_MS = 15 * 60 * 1000;
+let _notifLiveOff = null;
+let _notifReloadTimer = null;
+function scheduleNotificationsReload() {
+  clearTimeout(_notifReloadTimer);
+  _notifReloadTimer = setTimeout(loadNotifications, 200);
+}
 function startNotifPolling() {
   loadNotifications();
   clearInterval(_notifTimer);
-  _notifTimer = setInterval(loadNotifications, 60 * 1000);
+  _notifTimer = setInterval(loadNotifications, NOTIF_FALLBACK_MS);
+  _notifLiveOff?.();
+  _notifLiveOff = AppModules.core.onLive('notifications', scheduleNotificationsReload);
+  AppModules.core.startLiveUpdates();
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -425,6 +437,8 @@ AppActions.register({
 AppModules.onReset('notifications.js', () => {
   _notifications = [];
   clearTimeout(_notifTimer); clearInterval(_notifTimer); _notifTimer = null;
+  clearTimeout(_notifReloadTimer); _notifReloadTimer = null;
+  _notifLiveOff?.(); _notifLiveOff = null;
 });
 
 })();

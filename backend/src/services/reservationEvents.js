@@ -21,6 +21,8 @@ function emit(type, { organizationId, reservationId, actorUserId = null, payload
   const insert = db.prepare('INSERT INTO reservation_event_effects (event_id, effect) VALUES (?, ?)');
   for (const effect of effects) insert.run(id, effect);
   scheduleDispatch();
+  // Pedidos do site, pagamentos online, expirações…: o sino das páginas abertas atualiza-se.
+  require('./liveUpdates').publish(organizationId);
   return id;
 }
 
@@ -78,6 +80,7 @@ async function runPending() {
         .run(failed ? 'failed' : 'pending', String(err.message || err).slice(0, 500),
           `+${BACKOFF_MINUTES[Math.min(attempts - 1, BACKOFF_MINUTES.length - 1)]} minutes`, row.event_id, row.effect);
       console.warn(JSON.stringify({ event: 'reservation_effect_failed', effect: row.effect, bookingId: row.reservation_id, attempts, final: failed }));
+      if (failed) require('./liveUpdates').publish(row.organization_id);
     }
   }
   return done;

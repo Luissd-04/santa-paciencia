@@ -572,7 +572,8 @@ async function syncOperationalEventsToGoogle(tasks, { userId, organizationId }) 
   let tasksCreated = 0, tasksUpdated = 0, tasksErrors = 0;
   if (getOrgSyncSetting(organizationId, GCAL_SYNC_TASKS_KEY) && isTasksAuthenticated(organizationId)) {
     try {
-      const result = await syncOrganizationTasksToGoogleTasks(organizationId);
+      // Só as tarefas alteradas; sem nenhuma indicada (ex.: definições), tudo.
+      const result = await syncOrganizationTasksToGoogleTasks(organizationId, list.length ? { eventIds: list.map(task => task.id) } : {});
       tasksCreated = result.created;
       tasksUpdated = result.updated;
       tasksErrors = result.errors;

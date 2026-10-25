@@ -207,6 +207,10 @@ app.use(['/auth', '/api'], verifyRequestOrigin);
 app.use('/auth', authRoutes);
 app.use('/api/public', publicBookingRoutes);
 app.use('/api', requireAuth, require('./middleware/staffResponse'));
+// Avisos em direto às páginas abertas: a ligação e o aviso depois de cada alteração.
+const liveUpdates = require('./services/liveUpdates');
+app.get('/api/live', liveUpdates.subscribe);
+app.use('/api', liveUpdates.afterWrite);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/accommodations', accommodationRoutes);
 app.use('/api/calendar', calendarRoutes);
