@@ -780,6 +780,11 @@ async function initApp() {
   }
 }
 
+// Backoffice sem zoom de pinça. O Android respeita o maximum-scale do
+// viewport; o Safari do iPhone ignora-o e só deixa de ampliar se o gesto for
+// cancelado. O duplo toque está desligado no CSS (touch-action).
+['gesturestart', 'gesturechange'].forEach(type => document.addEventListener(type, event => event.preventDefault(), { passive: false }));
+
 // Um único controlo para o documento, listas e formulários com scroll próprio.
 function initMobileBackToTop() {
   const button = document.getElementById('mobile-back-to-top');

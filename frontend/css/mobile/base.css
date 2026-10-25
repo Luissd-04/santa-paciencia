@@ -136,6 +136,9 @@
 ────────────────────────────────────────────────────────────── */
 @media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {
 
+  /* Sem zoom por duplo toque (o de pinça é cancelado em app.js). */
+  html { touch-action: manipulation; }
+
   /* Prevenir auto-zoom iOS em inputs (font-size < 16px dispara zoom) */
   input,
   select,
