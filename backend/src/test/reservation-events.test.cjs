@@ -23,7 +23,8 @@ for (const name of ['sendConfirmationEmail', 'sendCancellationEmail', 'sendPayme
   emailService[name] = async () => { log.push(`guest:${name}`.replace('guest:sendOwnerNewReservationEmail', 'staff:email_new_request')); return { id: 'mail' }; };
 }
 const staff = require('../services/staffNotifier');
-staff.push = async (org, type, options) => { log.push(`staff:push:${type}${options.excludeUserId ? `!${options.excludeUserId}` : ''}`); };
+const pushes = [];
+staff.push = async (org, type, options) => { pushes.push(options); log.push(`staff:push:${type}${options.excludeUserId ? `!${options.excludeUserId}` : ''}`); };
 let staffEmailFailures = 0;
 staff.email = async (org, { title }) => {
   if (staffEmailFailures > 0) { staffEmailFailures--; throw new Error('Gmail indisponível'); }
@@ -53,6 +54,7 @@ beforeEach(() => {
     INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests,public_slug)
       VALUES ('unit','${ORG}','Quarto','alojamento',100,4,'quarto');`);
   log.length = 0;
+  pushes.length = 0;
   staffEmailFailures = 0;
 });
 after(() => { db.close(); process.chdir(originalCwd); fs.rmSync(temp, { recursive: true, force: true }); });
@@ -90,6 +92,18 @@ test('pedido do site público: só a equipa é avisada (decisão 2)', async () =
   assert.equal(res.statusCode, 201, JSON.stringify(res.body));
   assert.deepEqual(types(), ['reservation.requested']);
   assert.deepEqual(await effects(), ['staff:email_new_request', 'staff:push:new_reservation']);
+});
+
+test('avisos push: tipo, título direto e datas curtas', async () => {
+  await call(write.create, { accommodation_id: 'unit', check_in: '2035-07-01', check_out: '2035-07-03', num_guests: 2,
+    guest: { name: 'Novo', email: 'novo@example.com' } });
+  await call(publicBooking.createReservation, { accommodation_id: 'unit', check_in: '2035-08-01', check_out: '2035-08-03',
+    num_guests: 1, guest: { name: 'Site', email: 'site@example.com' }, rgpd_consent: true, elapsed_ms: 9000 }, { slug: 'quarto' });
+  await events.dispatchPending();
+  assert.deepEqual(pushes.map(({ kind, title, body }) => ({ kind, title, body })), [
+    { kind: 'reservation', title: 'Nova reserva · Quarto', body: 'Novo · 1 → 3 jul 2035 · 2 noites' },
+    { kind: 'request', title: 'Novo pedido · aguarda aprovação', body: 'Site · Quarto · 1 → 3 ago 2035' },
+  ]);
 });
 
 test('pagamento manual: email ao hóspede, sem push a quem o registou', async () => {
@@ -131,7 +145,7 @@ test('cancelamento pelo hóspede com política: equipa avisada por push e email 
   const quote = automation.cancellationQuote(db.prepare("SELECT * FROM reservations WHERE id='res'").get());
   await automation.cancelByPolicy('res', { reason: 'guest', key: quote.key, expectedRefundCents: quote.refundCents });
   assert.equal(db.prepare("SELECT status FROM reservations WHERE id='res'").get().status, 'cancelada');
-  assert.deepEqual(await effects(), ['staff:email:Cancelada pelo hóspede', 'staff:push:cancellation']);
+  assert.deepEqual(await effects(), ['staff:email:Reserva cancelada pelo hóspede', 'staff:push:cancellation']);
 });
 
 test('alteração desfeita não emite acontecimentos', async () => {

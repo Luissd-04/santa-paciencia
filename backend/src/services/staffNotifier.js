@@ -3,9 +3,29 @@
 // pelos efeitos dos acontecimentos de reserva (reservationEffects).
 const { db } = require('../config/database');
 
-async function push(organizationId, type, { title, body, url = '/', excludeUserId = null, requireInteraction = false, tag = null }) {
+// Aspeto de cada aviso: ícone grande e ícone da barra do Android
+// (frontend/img/push, gerados por scripts/build-icons.cjs) e o botão que abre
+// a página. `type` é a preferência de cada pessoa; `kind`, o aspeto.
+const KINDS = {
+  reservation: { action: 'Ver reserva' },
+  request: { action: 'Ver pedido' },
+  payment: { action: 'Ver reserva' },
+  cancellation: { action: 'Ver reserva' },
+  precheckin: { action: 'Ver reserva' },
+  summary: { action: 'Ver reservas' },
+};
+
+// Sem `kind` (ex.: envio de teste), o logótipo e nenhum botão.
+function pushPayload({ kind = null, title, body, url = '/', tag, requireInteraction = false }) {
+  const look = KINDS[kind];
+  const icon = look ? kind : 'app';
+  return { title, body, url, tag, requireInteraction, icon: `/img/push/${icon}.png`, badge: `/img/push/${icon}-badge.png`,
+    actions: look ? [{ action: 'open', title: look.action }] : [] };
+}
+
+async function push(organizationId, type, { kind = null, title, body, url = '/', excludeUserId = null, requireInteraction = false, tag = null }) {
   return require('./pushService').sendToOrganization(organizationId,
-    { title, body, url, tag: tag || `sp-${type}`, requireInteraction }, { type, excludeUserId });
+    pushPayload({ kind, title, body, url, tag: tag || `sp-${type}`, requireInteraction }), { type, excludeUserId });
 }
 
 function staffEmails(organizationId) {
@@ -42,4 +62,4 @@ async function email(organizationId, { subject, title, rows = [], total = '', ur
   return { sent };
 }
 
-module.exports = { push, email, staffEmails };
+module.exports = { KINDS, pushPayload, push, email, staffEmails };

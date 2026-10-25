@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 43;
+const CACHE_VERSION = 44;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -83,6 +83,14 @@ const STATIC_ASSETS = [
   '/js/domain/table-cols.js',
   '/js/domain/export-columns.js',
   '/favicon.png',
+  // Ícones das notificações: aparecem mesmo com a rede lenta.
+  '/img/push/reservation.png', '/img/push/reservation-badge.png',
+  '/img/push/request.png', '/img/push/request-badge.png',
+  '/img/push/payment.png', '/img/push/payment-badge.png',
+  '/img/push/cancellation.png', '/img/push/cancellation-badge.png',
+  '/img/push/precheckin.png', '/img/push/precheckin-badge.png',
+  '/img/push/summary.png', '/img/push/summary-badge.png',
+  '/img/push/app.png', '/img/push/app-badge.png',
 ];
 
 /* Módulos carregados pela vista que os usa (ver js/domain/features.js).
@@ -267,7 +275,9 @@ async function networkFirst(request) {
   }
 }
 
-/* ─── Push Notifications (preparado para quando o backend enviar) ─── */
+/* ─── Push Notifications ───
+   O servidor (staffNotifier) escolhe o ícone, o ícone da barra do Android e o
+   botão de cada tipo de aviso; sem eles, o logótipo. */
 self.addEventListener('push', (event) => {
   if (!event.data) return;
 
@@ -280,11 +290,12 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body || '',
-    icon: '/favicon.png',
-    badge: '/favicon.png',
+    icon: data.icon || '/img/push/app.png',
+    badge: data.badge || '/img/push/app-badge.png',
     tag: data.tag || 'sp-notification',
     data: { url: data.url || '/' },
     requireInteraction: data.requireInteraction || false,
+    actions: Array.isArray(data.actions) ? data.actions.slice(0, 2) : [],
   };
 
   event.waitUntil(
@@ -292,6 +303,7 @@ self.addEventListener('push', (event) => {
   );
 });
 
+// Tocar na notificação ou no seu botão («Ver reserva») abre o mesmo endereço.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = event.notification.data?.url || '/';
