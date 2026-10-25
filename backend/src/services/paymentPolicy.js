@@ -90,6 +90,19 @@ function attachPolicy(r, now = new Date()) {
   r.payment_policy_json = JSON.stringify(snapshot);
   // O estado da reserva acerta-se com o sinal em financialLedger.recompute.
 }
+// Plataformas que cobram e garantem a reserva: dispensam o sinal.
+const PLATFORM_CHANNELS = ['airbnb', 'booking', 'expedia', 'vrbo'];
+// Sinal que confirma a reserva, em cêntimos (0 nas plataformas e quando não há
+// nada a pagar). Com política contratada vale o sinal dela; sem política, as
+// regras do sinal das definições, contadas a partir do dia da reserva.
+function requiredDepositCents(r, now = new Date()) {
+  const totalCents = cents(r.total_amount || 0);
+  if (PLATFORM_CHANNELS.includes(r.channel) || totalCents <= 0 || !r.check_in) return 0;
+  if (r.payment_policy_json) return planFor(r, now).depositCents;
+  const created = r.created_at ? localDay(new Date(`${String(r.created_at).replace(' ', 'T')}Z`)) : localDay(now);
+  const bookedOn = created > r.check_in ? r.check_in : created;
+  return calculate(getPolicy(r.organization_id), { total: r.total_amount, bookedOn, checkIn: r.check_in }).depositCents;
+}
 function policyFor(r) { return r.payment_policy_json ? JSON.parse(r.payment_policy_json) : null; }
 function planFor(r, now = new Date()) {
   const p = policyFor(r);
@@ -113,6 +126,6 @@ function describe(r, now = new Date()) {
   if (r.policy_cancellation_json) { const c = JSON.parse(r.policy_cancellation_json); cancellation = { amount: c.refundCents / 100, state: c.state, reason: c.reason }; }
   return { policy, ...plan, consentKey: consentKey(r), accepted: Boolean(r.policy_accepted_at),
     automatic: r.policy_auto_consent === '1', balanceNoticeSent: Boolean(r.balance_notice_sent_at), deadline: r.balance_deadline || plan.deadline,
-    cancellation, canCancel: !cancellation && ['pendente','aguardar_pagamento','confirmada','pre_checkin','pre_reserva'].includes(r.status) && localDay(now) <= r.check_in };
+    cancellation, canCancel: !cancellation && ['pendente','aguardar_pagamento','confirmada','pre_reserva'].includes(r.status) && localDay(now) <= r.check_in };
 }
-module.exports = { DEFAULT_POLICY, POLICY_CHANNELS, validatePolicy, calculate, getPolicy, savePolicy, attachPolicy, policyFor, planFor, consentKey, amountDue, describe, localDay, cents };
+module.exports = { DEFAULT_POLICY, POLICY_CHANNELS, PLATFORM_CHANNELS, validatePolicy, calculate, getPolicy, savePolicy, attachPolicy, requiredDepositCents, policyFor, planFor, consentKey, amountDue, describe, localDay, cents };

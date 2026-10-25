@@ -1,9 +1,6 @@
 const { sendPreCheckinEmail } = require('../services/emailService');
 
-const {
-  syncReservationOperationalTasks,
-  flushReservationTaskCleanup,
-} = require('../services/operationalTasksService');
+const { flushReservationTaskCleanup } = require('../services/operationalTasksService');
 const { purgeReservations } = require('../services/reservationPurge');
 
 const { addPayment, deletePayment, saveInvoice } = require('./reservationPaymentsController');
@@ -62,6 +59,11 @@ async function getById(req, res, next) {
     // backoffice precisa também do token público para abrir o pagamento.
     if (req.user.role !== 'staff') ensurePublicToken(reservation);
     reservation.payment_policy = require('../services/paymentPolicy').describe(reservation);
+    // Os três estados e o que a equipa pode fazer a seguir (reservationLifecycle).
+    const lifecycle = require('../services/reservationLifecycle');
+    reservation.precheckin_state = require('../services/reservationState').precheckinState(reservation);
+    reservation.status_options = lifecycle.statusOptions(reservation);
+    reservation.can_pay_online = require('../services/stripePayments').awaitsOnlinePayment(reservation);
 
     reservation.payments = db.prepare(`
       SELECT * FROM reservation_payments
@@ -163,7 +165,7 @@ async function approve(req, res, next) {
 }
 
 // POST /api/reservations/:id/send-precheckin
-// O envio bem-sucedido inicia o pré-check-in de reservas ainda não preenchidas.
+// Envia (ou só gera, com send: false) o link do pré-check-in.
 async function sendPrecheckinLink(req, res, next) {
   try {
     const organizationId = req.user.organization_id;
@@ -196,15 +198,12 @@ async function sendPrecheckinLink(req, res, next) {
       }
     }
 
-    // Revalidar após o envio: entretanto o hóspede pode ter preenchido o
-    // formulário ou a equipa pode ter cancelado/concluído a reserva.
-    const updated = db.transaction(() => {
-      const current = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservation.id, organizationId);
-      if (emailSent) current.status = require('../services/reservationLifecycle').startPrecheckin(current, { actorUserId: req.user.id });
-      return current;
-    })();
-    syncReservationOperationalTasks({ ...updated, guest_name: guest.name, accommodation_name: accommodation.name }, req.user.id);
-    res.json({ success: true, data: { pre_checkin_url: preCheckinUrl, email_sent: emailSent, status: updated.status } });
+    // Um email enviado já conta como enviado (emailService); o link gerado
+    // para a equipa partilhar também.
+    if (!shouldSend) require('../services/reservationLifecycle').markPrecheckinSent(reservation, { actorUserId: req.user.id });
+    const updated = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservation.id, organizationId);
+    res.json({ success: true, data: { pre_checkin_url: preCheckinUrl, email_sent: emailSent, status: updated.status,
+      precheckin_state: require('../services/reservationState').precheckinState(updated) } });
   } catch (err) {
     next(err);
   }

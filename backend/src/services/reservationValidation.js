@@ -3,7 +3,7 @@ const { httpError } = require('./httpError');
 // Limite comum a todos os caminhos monetários (a política de pagamentos e a
 // Stripe trabalham em cêntimos até 99 999 999).
 const MAX_MONEY = 999999.99;
-const STATUSES = ['pre_reserva', 'pendente', 'pre_checkin', 'aguardar_pagamento', 'confirmada', 'check_in', 'check_out', 'cancelada'];
+const { STATUSES } = require('./reservationState');
 function validateReservationInput(body) {
   const fail = message => { throw httpError(message, 400); };
   for (const key of ['total_amount', 'amount_paid', 'expected_total']) if (body[key] !== undefined &&

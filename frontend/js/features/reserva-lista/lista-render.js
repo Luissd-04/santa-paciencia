@@ -94,7 +94,7 @@ async function loadReservas() {
   const mobileSearch = document.getElementById('mobile-search-input');
   if (mobileSearch) mobileSearch.value = document.getElementById('search-input')?.value || '';
   sv('filter-estado', 'res:fe'); sv('filter-suite', 'res:fs');
-  sv('filter-canal', 'res:fc'); sv('filter-pagamento', 'res:fp');
+  sv('filter-canal', 'res:fc'); sv('filter-pagamento', 'res:fp'); sv('filter-precheckin', 'res:fpc');
   sv('filter-date-from', 'res:fd'); sv('filter-date-to', 'res:ft');
   AppUI.refreshDropdowns(document.getElementById('view-reservas'));
   // Cabeçalho da lista: ordem + larguras (auto-fit ao ecrã) + pegas + drag-reorder
@@ -149,6 +149,7 @@ function renderTabela() {
   AppModules.core.SS.set('res:fs', document.getElementById('filter-suite')?.value || '');
   AppModules.core.SS.set('res:fc', document.getElementById('filter-canal')?.value || '');
   AppModules.core.SS.set('res:fp', document.getElementById('filter-pagamento')?.value || '');
+  AppModules.core.SS.set('res:fpc', document.getElementById('filter-precheckin')?.value || '');
   AppModules.core.SS.set('res:fd', AppModules.core.normalizeIsoDateValue(document.getElementById('filter-date-from')?.value || ''));
   AppModules.core.SS.set('res:ft', AppModules.core.normalizeIsoDateValue(document.getElementById('filter-date-to')?.value || ''));
   AppModules.reservas.syncMobileChips(fe);
@@ -201,11 +202,11 @@ function clearReservasFilters() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  ['filter-estado', 'filter-suite', 'filter-canal', 'filter-pagamento'].forEach(id => {
+  ['filter-estado', 'filter-suite', 'filter-canal', 'filter-pagamento', 'filter-precheckin'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  ['res:q', 'res:fe', 'res:fs', 'res:fc', 'res:fp', 'res:fd', 'res:ft', 'res:chip'].forEach(key => AppModules.core.SS.set(key, ''));
+  ['res:q', 'res:fe', 'res:fs', 'res:fc', 'res:fp', 'res:fpc', 'res:fd', 'res:ft', 'res:chip'].forEach(key => AppModules.core.SS.set(key, ''));
   AppModules.reservas.clearResExactDateFilter();
   AppModules.reservas.reservasPeriodScope = 'operational';
   AppModules.core.SS.set('res:period', 'operational');

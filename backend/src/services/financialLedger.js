@@ -52,8 +52,8 @@ function recompute(reservationId, organizationId, { deriveStatus = true, allowDo
   const refunded = Boolean(db.prepare(`SELECT 1 FROM reservation_payments WHERE reservation_id = ? AND organization_id = ?
     AND id LIKE 'stripe-refund-%'`).get(r.id, organizationId));
   const paymentStatus = state.paymentStatusFor({ paidCents, totalCents, current: fallbackPaymentStatus ?? r.payment_status, refunded });
-  const depositCents = r.payment_policy_json ? require('./paymentPolicy').planFor(r).depositCents : null;
-  const status = deriveStatus ? state.statusAfterPayment({ status: r.status, paidCents, totalCents, depositCents, allowDowngrade }) : r.status;
+  const depositCents = require('./paymentPolicy').requiredDepositCents(r);
+  const status = deriveStatus ? state.statusAfterPayment({ status: r.status, paidCents, depositCents, allowDowngrade }) : r.status;
   db.prepare("UPDATE reservations SET amount_paid = ?, payment_status = ?, status = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?")
     .run(paid, paymentStatus, status, r.id, organizationId);
   return { paid, paymentStatus, status, previousStatus: r.status, previousPaymentStatus: r.payment_status };

@@ -168,7 +168,7 @@ const STATUS_PRESENTATION = {
   checkin:            { title: 'Reserva confirmada',            glyph: '✓', message: 'A sua reserva foi confirmada. Aguardamos a sua visita!' },
   checked_in:         { title: 'Reserva confirmada',            glyph: '✓', message: 'A sua reserva foi confirmada. Aguardamos a sua visita!' },
   pendente:           { title: 'Pedido de reserva recebido',    glyph: '•', message: 'Recebemos o seu pedido de reserva. Confirmamos a disponibilidade e entramos em contacto em breve.' },
-  aguardar_pagamento: { title: 'Reserva por confirmar',         glyph: '•', message: 'A sua reserva fica confirmada assim que o pagamento for registado.' },
+  aguardar_pagamento: { title: 'Reserva por confirmar',         glyph: '•', message: 'A sua reserva fica confirmada assim que recebermos o sinal.' },
   cancelada:          { title: 'Reserva cancelada',             glyph: '×', message: 'A sua reserva foi cancelada.' },
 };
 
@@ -440,14 +440,7 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation, extra
   const result = await delivery.deliverTemplate({ orgId, slug, reservation, to, rendered }, () => sendMail(orgId, {
     to, subject: rendered.subject, html: rendered.html, bcc: template.bcc || undefined,
   }));
-  if (result?.id) db.transaction(() => {
-    if (['checkin', 'checkout'].includes(template.timing_event)) {
-      db.prepare('INSERT OR IGNORE INTO organization_email_log (id,organization_id,template_slug,reservation_id) VALUES (?,?,?,?)')
-        .run(crypto.randomUUID(), orgId, slug, reservation.id);
-    }
-    db.prepare('DELETE FROM organization_email_queue WHERE organization_id=? AND template_slug=? AND reservation_id=?')
-      .run(orgId, slug, reservation.id);
-  })();
+  if (result?.id) db.transaction(() => delivery.afterSent({ orgId, reservationId: reservation.id, slug, timingEvent: template.timing_event }))();
   return result;
 }
 

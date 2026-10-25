@@ -5,6 +5,7 @@ const { recordConsent } = require('../services/rgpdService');
 const { syncReservationOperationalTasks } = require('../services/operationalTasksService');
 
 const ledger = require('../services/financialLedger');
+const lifecycle = require('../services/reservationLifecycle');
 const creation = require('../services/reservationCreation');
 const { assertAvailable, validateExtraUnits } = require('../services/reservationAvailability');
 const { validateReservationInput, assertMoneyLimit } = require('../services/reservationValidation');
@@ -63,7 +64,6 @@ async function create(req, res, next) {
       notes, rgpd_consent, rgpd_ip, guests_data,
       amount_paid, payment_date,
     } = req.body;
-    const initialStatus = req.body.status || 'confirmada';
     const extraUnits = req.body.accommodations_data || [];
     const organizationId = req.user.organization_id;
 
@@ -92,6 +92,9 @@ async function create(req, res, next) {
     if (pricing.voucherError) throw pricing.voucherError;
     const appliedVoucherId = pricing.voucher?.id || null;
     assertExpectedTotal(req.body.expected_total, finalTotal);
+    // Reserva (o sinal decide se fica confirmada), pré-reserva ou pedido.
+    const initialStatus = lifecycle.nextStatus(null, req.body.status || 'aguardar_pagamento',
+      { organization_id: organizationId, channel: channel || 'direto', total_amount: finalTotal, check_in: totals.checkIn });
 
     const reservation = creation.create(organizationId, {
       guest_id: guestRecord.id, accommodation_id, check_in: totals.checkIn, check_out: totals.checkOut,
@@ -214,12 +217,16 @@ async function update(req, res, next) {
       }
     }
     const reactivating = existing.status === 'cancelada' && status && status !== 'cancelada';
-    // Estado escolhido pela equipa (ou o anterior ao cancelamento, ao reativar);
-    // sem escolha, o dinheiro recebido decide (reservationState).
-    const chosenStatus = reactivating ? (existing.cancelled_previous_status || status) : status;
+    // Passo escolhido pela equipa, validado pelo ciclo de vida (ao reativar, o
+    // estado anterior ao cancelamento). Entre «aguarda sinal» e «confirmada»
+    // decide o dinheiro recebido, com o total, as datas e o canal novos.
+    const draft = { ...existing, total_amount: effectiveTotal, channel: channel || existing.channel, check_in: totals.checkIn };
+    const chosenStatus = reactivating ? lifecycle.reactivationStatus(existing) : lifecycle.nextStatus(existing, status, draft);
+    const depositMayChange = draft.channel !== existing.channel || draft.check_in !== existing.check_in
+      || cents(effectiveTotal) !== cents(existing.total_amount);
 
     // Cancelamento pela edição do estado: os mesmos efeitos do botão cancelar.
-    if (cancelling) require('../services/reservationLifecycle').markCancelled(existing, { reason: 'staff', actorUserId: req.user.id });
+    if (cancelling) lifecycle.markCancelled(existing, { reason: 'staff', actorUserId: req.user.id });
 
     db.prepare(`
       UPDATE reservations SET
@@ -241,7 +248,7 @@ async function update(req, res, next) {
       pricingChanged ? totals.touristTax : existing.tourist_tax,
       channel || existing.channel,
       payment_method !== undefined ? (payment_method || null) : existing.payment_method,
-      notes !== undefined ? notes : existing.notes, chosenStatus || existing.status,
+      notes !== undefined ? notes : existing.notes, chosenStatus,
       existing.payment_status,
       guests_data !== undefined ? JSON.stringify(guests.upsertAdditionalGuests(guests_data, organizationId, existing.guest_id)) : (existing.guests_data || '[]'),
       newAccData,
@@ -265,7 +272,7 @@ async function update(req, res, next) {
     // Reservas antigas só tinham amount_paid: migrar antes de recalcular a partir do ledger.
     ledger.ensureLegacyPayment(existing);
     // O total pode ter mudado: o estado do pagamento é sempre derivado do ledger.
-    ledger.recompute(existing.id, organizationId, { deriveStatus: !chosenStatus });
+    ledger.recompute(existing.id, organizationId, { deriveStatus: chosenStatus !== existing.status || depositMayChange });
     if (reactivating) reclaimReleasedVoucher(organizationId, existing.id);
     // Google Calendar: cancelar remove o evento (paridade com o DELETE); as
     // restantes alterações atualizam-no. Gravado na mesma transação.

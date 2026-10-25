@@ -137,18 +137,29 @@ test('acompanhantes gravados não se duplicam e não renomeiam o titular', async
   assert.equal(db.prepare('SELECT name FROM guests WHERE id = ?').get(r.guest_id).name, main.name);
 });
 
-test('pré-check-in de reserva sem política confirma; com sinal em falta aguarda pagamento', () => {
-  const { savePrecheckin } = require(path.join(root, 'services/publicGuestService'));
+test('migração: reservas em pré-check-in passam a ativas, com o pré-check-in enviado à parte', () => {
+  const lifecycle = require(path.join(root, 'services/reservationLifecycle'));
+  const { precheckinState } = require(path.join(root, 'services/reservationState'));
   const g = require(path.join(root, 'services/publicGuestService')).createReservationGuest(org.id, { name: 'Arrival', email: 'arrival@example.invalid' });
-  const insert = (id, policyJson) => db.prepare(`INSERT INTO reservations(id, organization_id, guest_id, accommodation_id, check_in, check_out, nights,
-      num_guests, total_amount, status, payment_status, amount_paid, channel, payment_policy_json)
-    VALUES (?, ?, ?, 'a', '2035-07-01', '2035-07-03', 2, 1, 200, 'pre_checkin', 'pendente', 0, 'direto', ?)`).run(id, org.id, g.id, policyJson);
-  insert('PC-NOPOLICY', null);
-  savePrecheckin(row('PC-NOPOLICY'), { name: 'Arrival', email: 'arrival@example.invalid' }, [], '16:00');
-  assert.equal(row('PC-NOPOLICY').status, 'confirmada');
-  insert('PC-POLICY', JSON.stringify({ ...policy.DEFAULT_POLICY, enabled: true, bookedOn: '2035-01-01' }));
-  savePrecheckin(row('PC-POLICY'), { name: 'Arrival', email: 'arrival@example.invalid' }, [], '16:00');
-  assert.equal(row('PC-POLICY').status, 'aguardar_pagamento');
+  const insert = (id, channel, paid, submitted = null) => db.prepare(`INSERT INTO reservations(id, organization_id, guest_id, accommodation_id, check_in, check_out, nights,
+      num_guests, total_amount, status, payment_status, amount_paid, channel, precheckin_submitted_at)
+    VALUES (?, ?, ?, 'a', '2035-07-01', '2035-07-03', 2, 1, 200, 'pre_checkin', 'pendente', ?, ?, ?)`).run(id, org.id, g.id, paid, channel, submitted);
+  insert('PC-DIRECT', 'direto', 0);
+  insert('PC-AIRBNB', 'airbnb', 0, '2035-06-01 10:00:00');
+  insert('PC-DEPOSIT', 'direto', 50);
+  db.exec("DELETE FROM schema_migrations WHERE id IN ('20261025_reservation_states', '20261025_reservation_states_ledger')");
+  require(path.join(root, 'config/migrations')).runMigrations(db);
+  assert.equal(row('PC-DIRECT').status, 'aguardar_pagamento');
+  assert.equal(precheckinState(row('PC-DIRECT')), 'enviado');
+  assert.equal(row('PC-AIRBNB').status, 'confirmada');
+  assert.equal(precheckinState(row('PC-AIRBNB')), 'preenchido');
+  assert.equal(row('PC-DEPOSIT').status, 'aguardar_pagamento');
+  // O sinal já pago (50 de 200, sinal de 20%) confirma no acerto pelo ledger.
+  assert.ok(lifecycle.reconcileLegacyStatuses() >= 2);
+  assert.equal(row('PC-DEPOSIT').status, 'confirmada');
+  assert.equal(row('PC-DEPOSIT').amount_paid, 50);
+  assert.equal(row('PC-DIRECT').status, 'aguardar_pagamento');
+  assert.equal(lifecycle.reconcileLegacyStatuses(), 0);
 });
 
 test('expiração por TTL só cancela pedidos nunca aceites, regista-o e liberta o voucher', async () => {
@@ -158,8 +169,12 @@ test('expiração por TTL só cancela pedidos nunca aceites, regista-o e liberta
   const approved = await create({ status: 'pendente', channel: 'website' });
   assert.equal((await req('POST', `/api/reservations/${approved.id}/approve`, {})).status, 200);
   db.prepare("UPDATE reservations SET status = 'aguardar_pagamento' WHERE id = ?").run(approved.id);
-  db.prepare("UPDATE reservations SET created_at = datetime('now', '-72 hours') WHERE id IN (?, ?)").run(pending.id, approved.id);
+  // Pedido por aprovar a quem a equipa já enviou o link do pré-check-in.
+  const linked = await create({ status: 'pendente', channel: 'website' });
+  assert.equal((await req('POST', `/api/reservations/${linked.id}/send-precheckin`, { send: false })).status, 200);
+  db.prepare("UPDATE reservations SET created_at = datetime('now', '-72 hours') WHERE id IN (?, ?, ?)").run(pending.id, approved.id, linked.id);
   scheduler.expirePendingReservations();
+  assert.equal(row(linked.id).status, 'pendente');
   assert.equal(row(pending.id).status, 'cancelada');
   assert.equal(row(pending.id).cancelled_previous_status, 'pendente');
   assert.equal(row(approved.id).status, 'aguardar_pagamento');

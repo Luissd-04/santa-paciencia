@@ -54,11 +54,11 @@ const history = id => db.prepare('SELECT action, meta FROM reservation_history W
   .map(h => ({ action: h.action, meta: JSON.parse(h.meta || '{}') }));
 const eventTypes = id => db.prepare('SELECT type FROM reservation_events WHERE reservation_id = ?').all(id).map(e => e.type);
 
-test('backoffice: confirmada, um registo de criação, um acontecimento e tarefas sincronizadas', async () => {
+test('backoffice: aguarda o sinal, um registo de criação, um acontecimento e tarefas sincronizadas', async () => {
   const res = await backoffice();
   assert.equal(res.statusCode, 201, JSON.stringify(res.body));
   const r = row(res.body.data.id);
-  assert.equal(r.status, 'confirmada');
+  assert.equal(r.status, 'aguardar_pagamento');
   assert.equal(r.payment_status, 'pendente');
   assert.equal(r.channel, 'direto');
   assert.deepEqual(history(r.id).map(h => h.action), ['created']);
@@ -78,6 +78,7 @@ test('backoffice com valor pago na criação: fica no registo de pagamentos', as
   const r = row((await backoffice({ amount_paid: 200, payment_method: 'MB Way' })).body.data.id);
   assert.equal(r.amount_paid, 200);
   assert.equal(r.payment_status, 'parcial', 'o total inclui a taxa turística');
+  assert.equal(r.status, 'confirmada', 'o valor pago cobre o sinal');
   assert.equal(db.prepare('SELECT SUM(amount) AS s FROM reservation_payments WHERE reservation_id = ?').get(r.id).s, 200);
 });
 

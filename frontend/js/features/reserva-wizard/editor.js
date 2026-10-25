@@ -35,7 +35,8 @@ function openModal(config = {}) {
   AppModules.reservas.updateNumHospedes();
   document.getElementById('f-breakfast').value = 'false';
   document.getElementById('f-canal').value = 'direto';
-  document.getElementById('f-estado').value = 'confirmada';
+  // Reserva nova: o sinal decide; a cotação do servidor traz as restantes opções.
+  window.ReservationStatus.fillSelect(document.getElementById('f-estado'), null, 'aguardar_pagamento');
   document.getElementById('f-noites').value = '';
   document.getElementById('f-total').value = '';
   AppModules.reservas.resetFormDiscount();
@@ -163,7 +164,7 @@ async function openEditModal(id) {
     AppModules.reservas.updateNumHospedes();
     document.getElementById('f-breakfast').value     = r.breakfast_included ? 'true' : 'false';
     document.getElementById('f-canal').value         = r.channel || 'direto';
-    document.getElementById('f-estado').value        = r.status || 'confirmada';
+    window.ReservationStatus.fillSelect(document.getElementById('f-estado'), r.status_options, r.status);
     document.getElementById('f-notas').value         = r.notes || '';
     document.getElementById('f-noites').value        = r.nights || '';
     document.getElementById('f-total').value         = Number(r.total_amount || 0).toFixed(2);

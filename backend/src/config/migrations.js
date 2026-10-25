@@ -56,6 +56,7 @@ function runMigrations(db) {
   migratePolicyChannels(db);
   migrateGoogleCalendarQueue(db);
   migrateReservationEvents(db);
+  migrateReservationStates(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -414,3 +415,27 @@ function migrateReservationEvents(db) {
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }
+
+// Pré-check-in deixa de ser um estado da reserva: passa a «enviado» à parte
+// (precheckin_sent_at) e a reserva volta a ativa. Plataformas, reservas sem
+// nada a pagar e as já pagas ficam confirmadas; as restantes aguardam o sinal
+// até reservationLifecycle.reconcileLegacyStatuses as acertar pelo ledger.
+function migrateReservationStates(db) {
+  const id = '20261025_reservation_states';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    if (!db.pragma('table_info(reservations)').some(c => c.name === 'precheckin_sent_at')) db.exec('ALTER TABLE reservations ADD COLUMN precheckin_sent_at TEXT');
+    db.exec(`UPDATE reservations SET precheckin_sent_at = COALESCE(precheckin_sent_at, precheckin_submitted_at, updated_at, datetime('now'))
+      WHERE status = 'pre_checkin' OR cancelled_previous_status = 'pre_checkin' OR precheckin_submitted_at IS NOT NULL
+        OR EXISTS (SELECT 1 FROM email_deliveries d WHERE d.reservation_id = reservations.id AND d.template_slug = 'pre_checkin' AND d.state = 'sent')`);
+    const platforms = require('../services/paymentPolicy').PLATFORM_CHANNELS.map(channel => `'${channel}'`).join(', ');
+    db.exec(`UPDATE reservations SET status = CASE
+        WHEN channel IN (${platforms}) OR total_amount <= 0
+          OR ROUND(COALESCE(amount_paid, 0) * 100) >= ROUND(total_amount * 100) THEN 'confirmada'
+        ELSE 'aguardar_pagamento' END
+      WHERE status = 'pre_checkin'`);
+    db.exec(`UPDATE reservations SET cancelled_previous_status = 'aguardar_pagamento' WHERE cancelled_previous_status = 'pre_checkin'`);
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+

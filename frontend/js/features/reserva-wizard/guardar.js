@@ -176,6 +176,8 @@ function applyWizQuote(data) {
   }
   const info = describeQuote(data);
   setQuoteLine(info?.text, info?.tone);
+  const estado = document.getElementById('f-estado');
+  if (data.status_options) window.ReservationStatus.fillSelect(estado, data.status_options, estado?.value);
   AppModules.reservas.updateWizSummary();
 }
 

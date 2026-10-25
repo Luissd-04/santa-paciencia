@@ -7,10 +7,11 @@
             <select class="form-control" id="filter-estado" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" data-on-change="index-clear-res-exact-date-filter-097f687">
               <option value="">Todos os estados</option>
               <option value="pre_reserva">Pré-reserva</option>
-              <option value="confirmada">Confirmada</option>
               <option value="pendente">Pendente</option>
-              <option value="pre_checkin">Pre Check-in</option>
-              <option value="aguardar_pagamento">Aguardar Pagamento</option>
+              <option value="aguardar_pagamento">Aguarda sinal</option>
+              <option value="confirmada">Confirmada</option>
+              <option value="check_in">Check-in</option>
+              <option value="check_out">Check-out</option>
               <option value="cancelada">Cancelada</option>
             </select>
             <button type="button" class="btn btn-ghost btn-sm page-filters-toggle" id="reservas-filters-toggle" aria-expanded="false" aria-controls="reservas-filter-panel" data-on-click="index-toggle-page-filters-37b2c92">
@@ -66,6 +67,12 @@
                 <option value="parcial">Parcial</option>
                 <option value="pendente">Não pago</option>
               </select>
+              <select class="form-control" id="filter-precheckin" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter app-select--filter-wide" data-on-change="index-render-tabela-3c1624a">
+                <option value="">Todos os pré-check-ins</option>
+                <option value="nao_enviado">Pré-check-in não enviado</option>
+                <option value="enviado">Pré-check-in enviado</option>
+                <option value="preenchido">Pré-check-in preenchido</option>
+              </select>
               <div class="reservas-date-range" style="display:flex;align-items:center;gap:4px;">
                 <input type="date" class="form-control" id="filter-date-from" title="Check-in a partir de" data-dp-no-button data-on-change="index-clear-res-exact-date-filter-097f687" style="width:auto;" autocomplete="off">
                 <span style="color:var(--cinza);font-size:13px;">→</span>
@@ -102,7 +109,7 @@
               <div class="chip active" data-filter="" data-on-click="index-set-mobile-chip-83728e5">Todas</div>
               <div class="chip" data-filter="confirmada" data-on-click="index-set-mobile-chip-8c8b5fb">Confirmadas</div>
               <div class="chip" data-filter="pendente" data-on-click="index-set-mobile-chip-fe178f2">Pendentes</div>
-              <div class="chip" data-filter="pre_checkin" data-on-click="index-set-mobile-chip-931b8c9">Pre Check-in</div>
+              <div class="chip" data-filter="aguardar_pagamento" data-on-click="index-set-mobile-chip-931b8c9">Aguarda sinal</div>
               <div class="chip" data-filter="cancelada" data-on-click="index-set-mobile-chip-d4ac248">Canceladas</div>
             </div>
             <button class="m-filters-trigger" data-on-click="index-toggle-reservas-filters-sheet-0b7aaa9">

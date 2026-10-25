@@ -22,14 +22,18 @@ test('montantes no formato português, iguais aos dos emails', () => {
 
 test('estados: os mesmos rótulos em todos os ecrãs, incluindo valores antigos', () => {
   const { ReservationStatus: S } = load('reservation-status.js');
-  assert.equal(S.label('pre_checkin'), 'Pré-check-in');
-  assert.equal(S.guestLabel('pre_checkin'), 'Pré-check-in pendente');
+  // O pré-check-in deixou de ser um estado da reserva; só o histórico o mostra.
+  assert.equal(S.label('pre_checkin'), 'Pré-check-in (antigo)');
+  assert.equal(S.label('aguardar_pagamento'), 'Aguarda sinal');
+  assert.equal(S.precheckinLabel('enviado'), 'Enviado');
+  assert.equal(S.precheckinLabel('preenchido'), 'Preenchido');
+  assert.deepEqual(JSON.parse(JSON.stringify(Object.keys(S.PRECHECKIN))), [...require('../services/reservationState').PRECHECKIN_STATES]);
   assert.equal(S.paymentLabel('pago'), 'Pago');
   assert.equal(S.paymentLabel('confirmado'), 'Pago');
   assert.equal(S.label('checked_in'), 'Check-in');
   assert.equal(S.label('desconhecido'), 'Desconhecido');
   // JSON: os arrays vêm de outro contexto (vm).
-  assert.deepEqual(JSON.parse(JSON.stringify(S.options().map(o => o.v))), ['pre_reserva', 'pendente', 'aguardar_pagamento', 'pre_checkin', 'confirmada', 'check_in', 'check_out', 'cancelada']);
+  assert.deepEqual(JSON.parse(JSON.stringify(S.options().map(o => o.v))), ['pre_reserva', 'pendente', 'aguardar_pagamento', 'confirmada', 'check_in', 'check_out', 'cancelada']);
   // A lista do frontend tem os mesmos estados que o servidor aceita.
   assert.deepEqual(JSON.parse(JSON.stringify([...S.SELECTABLE].sort())), [...require('../services/reservationValidation').STATUSES].sort());
 });

@@ -113,7 +113,7 @@ function renderResCardTotal(r) {
     ? `<span style="font-size:11px;color:var(--vermelho);display:block;">falta ${ReservationMoney.format(rem)}</span>`
     : '';
   return `<div class="mrc-total">
-      <span class="mrc-channel">${AppModules.core.escapeHtml(r.channel || '—')} · ${AppModules.core.badgePagamento(r.payment_status)}</span>
+      <span class="mrc-channel">${AppModules.core.escapeHtml(r.channel || '—')} · ${AppModules.core.badgePagamento(r.payment_status)} · ${AppModules.core.badgePrecheckin(r.precheckin_state)}</span>
       <span class="mrc-price">${ReservationMoney.format(total)}${remHtml}</span>
     </div>`;
 }
@@ -146,6 +146,7 @@ function hasActiveReservasFilter() {
     document.getElementById('filter-suite')?.value ||
     document.getElementById('filter-canal')?.value ||
     document.getElementById('filter-pagamento')?.value ||
+    document.getElementById('filter-precheckin')?.value ||
     document.getElementById('filter-date-from')?.value ||
     document.getElementById('filter-date-to')?.value ||
     resExactDateFilter ||

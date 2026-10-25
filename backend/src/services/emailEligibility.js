@@ -1,7 +1,7 @@
 // Reavaliar também à saída da fila: a reserva pode ter sido cancelada entretanto.
 // Mensagens agendadas pela estadia (chegada/saída) só fazem sentido para
 // reservas aceites: um pedido por aprovar ou à espera do sinal não as recebe.
-const STAY_STATUSES = ['confirmada', 'pre_checkin', 'check_in', 'check_out', 'checkin', 'checked_in'];
+const STAY_STATUSES = ['confirmada', 'check_in', 'check_out', 'checkin', 'checked_in'];
 // Modelos que só fazem sentido para uma reserva cancelada.
 const CANCELLATION_TEMPLATES = ['cancelamento', 'cancelamento_politica'];
 function canSendTemplate(template, reservation) {

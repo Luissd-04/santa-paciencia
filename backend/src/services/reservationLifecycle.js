@@ -1,15 +1,15 @@
-// Transições do ciclo de vida de uma reserva: cancelar, aprovar e o
-// pré-check-in. Todos os caminhos (botão, edição do estado, link do hóspede,
-// política de pagamento, expiração) passam por aqui, com os mesmos efeitos.
-// As transições pelo dinheiro recebido estão em reservationState.
+// Transições do ciclo de vida de uma reserva: cancelar, aprovar, os passos
+// escolhidos pela equipa e o envio do pré-check-in. Todos os caminhos (botão,
+// edição do estado, link do hóspede, política de pagamento, expiração) passam
+// por aqui, com os mesmos efeitos. As regras estão em reservationState.
 const { db } = require('../config/database');
 const { httpError } = require('./httpError');
 const { recordHistory } = require('./reservationHistoryService');
 const events = require('./reservationEvents');
+const state = require('./reservationState');
+const { cents } = require('./money');
 
 const CANCEL_REASONS = ['staff', 'guest', 'ttl', 'nonpayment'];
-// Estados a partir dos quais o envio do link inicia o pré-check-in.
-const PRECHECKIN_FROM = ['pre_reserva', 'pendente', 'confirmada', 'aguardar_pagamento'];
 
 const load = (organizationId, id) => db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(id, organizationId);
 
@@ -49,6 +49,7 @@ async function cancel(organizationId, id, { actorUserId = null, key, expectedRef
   const reservation = load(organizationId, id);
   if (!reservation) throw httpError('Reserva não encontrada', 404);
   if (reservation.status === 'cancelada') return { alreadyCancelled: true };
+  nextStatus(reservation, 'cancelada');
   if (reservation.payment_policy_json) {
     await require('./paymentPolicyAutomation').cancelByPolicy(id, { reason: 'staff', userId: actorUserId, key, expectedRefundCents });
     return { policy: true };
@@ -62,19 +63,50 @@ async function cancel(organizationId, id, { actorUserId = null, key, expectedRef
   return { cancelled: true };
 }
 
-// Aprovar um pedido: passa ao pré-check-in e envia o link ao hóspede. Nunca
-// faz recuar uma estadia em curso ou terminada.
+// O que decide os passos de uma reserva: o sinal já recebido (ledger contra
+// paymentPolicy.requiredDepositCents) e o estado do pré-check-in. `r` pode ser
+// um rascunho (ex.: cotação da edição) com o total e o canal novos.
+function context(r) {
+  const paidCents = r.id ? cents(require('./financialLedger').ledgerTotal(r.id, r.organization_id)) : 0;
+  return { depositPaid: paidCents >= require('./paymentPolicy').requiredDepositCents(r), precheckin: state.precheckinState(r) };
+}
+
+// Estado a gravar quando a equipa pede `requested` (indefinido: sem mudança).
+// Recusa com a explicação os passos que o ciclo não permite (ex.: check-in sem
+// sinal ou sem pré-check-in). Entre «aguarda sinal» e «confirmada» decide
+// depois financialLedger.recompute, com o total já atualizado.
+function nextStatus(current, requested, r = current) {
+  if (requested === undefined || requested === null || requested === '') return current?.status ?? 'aguardar_pagamento';
+  if (!state.STATUSES.includes(requested)) throw httpError('Estado de reserva inválido.', 400);
+  const result = state.transition(current?.status ?? null, requested, context(r));
+  if (result.error) throw httpError(result.error, 409, { code: 'status_transition' });
+  return result.status;
+}
+
+// Opções do seletor de estado (ficha e formulário), já resolvidas pelo sinal.
+const statusOptions = r => state.statusOptions(r.id && r.status ? r.status : null, context(r));
+
+// Estado ao reativar uma reserva cancelada: o anterior, com a reserva ativa
+// outra vez decidida pelo sinal.
+function reactivationStatus(existing) {
+  const previous = existing.cancelled_previous_status;
+  if (!previous || state.PAYMENT_DRIVEN_STATUSES.includes(previous)) return 'aguardar_pagamento';
+  return previous;
+}
+
+// Aprovar um pedido: passa a reserva ativa (confirmada se o sinal já estiver
+// pago) e envia o link do pré-check-in ao hóspede.
 function approve(organizationId, id, { actorUserId = null, origin }) {
   const { ensurePublicToken, ensurePrecheckinToken } = require('./reservationSupport');
   const result = db.transaction(() => {
     const reservation = load(organizationId, id);
     if (!reservation) throw httpError('Reserva não encontrada', 404);
-    if (reservation.status === 'cancelada') throw httpError('Reserva cancelada não pode ser aprovada.');
-    if (['check_in', 'check_out'].includes(reservation.status)) throw httpError('A estadia já começou; a reserva não pode voltar ao pré-check-in.', 409);
+    if (reservation.status !== 'pendente') throw httpError('Só um pedido pendente pode ser aprovado.', 409);
     ensurePublicToken(reservation);
     const token = ensurePrecheckinToken(reservation);
     const url = `${origin}/pre-checkin/${token}`;
-    db.prepare("UPDATE reservations SET status = 'pre_checkin', updated_at = datetime('now') WHERE id = ? AND organization_id = ?").run(id, organizationId);
+    db.prepare("UPDATE reservations SET status = 'aguardar_pagamento', updated_at = datetime('now') WHERE id = ? AND organization_id = ?").run(id, organizationId);
+    require('./financialLedger').recompute(id, organizationId);
     recordHistory({ organizationId, reservationId: id, userId: actorUserId, action: 'approved' });
     events.emit('reservation.approved', { organizationId, reservationId: id, actorUserId, payload: { precheckinUrl: url } });
     return { reservation: load(organizationId, id), url };
@@ -85,26 +117,31 @@ function approve(organizationId, id, { actorUserId = null, origin }) {
   return result;
 }
 
-// Envio do link de pré-check-in com sucesso: inicia o pré-check-in das reservas
-// ainda não preenchidas. Chamar dentro de uma transação, com a reserva atual.
-function startPrecheckin(current, { actorUserId = null } = {}) {
-  if (current.precheckin_submitted_at || !PRECHECKIN_FROM.includes(current.status)) return current.status;
-  db.prepare("UPDATE reservations SET status = 'pre_checkin', updated_at = datetime('now') WHERE id = ? AND organization_id = ?")
-    .run(current.id, current.organization_id);
-  recordHistory({ organizationId: current.organization_id, reservationId: current.id, userId: actorUserId, action: 'updated',
-    changes: [{ field: 'status', from: current.status, to: 'pre_checkin' }], meta: { source: 'send_precheckin' } });
-  return 'pre_checkin';
+// O link do pré-check-in chegou ao hóspede (email enviado ou link partilhado
+// pela equipa). Só a primeira vez conta; não mexe no estado da reserva.
+function markPrecheckinSent(reservation, { actorUserId = null } = {}) {
+  const changed = db.prepare(`UPDATE reservations SET precheckin_sent_at = datetime('now')
+    WHERE id = ? AND organization_id = ? AND precheckin_sent_at IS NULL`).run(reservation.id, reservation.organization_id).changes;
+  if (changed) recordHistory({ organizationId: reservation.organization_id, reservationId: reservation.id, userId: actorUserId, action: 'precheckin_sent' });
 }
 
-// Estado depois de o hóspede concluir o pré-check-in: confirmada, salvo se a
-// política de pagamento ainda espera o sinal.
-function statusAfterPrecheckin(current) {
-  if (current.status !== 'pre_checkin') return current.status;
-  const { cents } = require('./money');
-  return require('./reservationState').statusAfterPayment({
-    status: 'confirmada', paidCents: cents(current.amount_paid || 0), totalCents: cents(current.total_amount || 0),
-    depositCents: current.payment_policy_json ? require('./paymentPolicy').planFor(current).depositCents : null,
-  });
+// Uma vez, depois da migração dos estados (20261025_reservation_states): as
+// reservas a aguardar o sinal acertam-se pelo ledger (sinal já pago confirma).
+function reconcileLegacyStatuses() {
+  const id = '20261025_reservation_states_ledger';
+  const done = () => db.prepare('SELECT 1 FROM schema_migrations WHERE id = ?').get(id);
+  if (done()) return 0;
+  const ledger = require('./financialLedger');
+  return db.transaction(() => {
+    if (done()) return 0;
+    const rows = db.prepare("SELECT * FROM reservations WHERE status = 'aguardar_pagamento'").all();
+    for (const r of rows) {
+      ledger.ensureLegacyPayment(r);
+      ledger.recompute(r.id, r.organization_id, { allowDowngrade: false });
+    }
+    db.prepare('INSERT INTO schema_migrations (id) VALUES (?)').run(id);
+    return rows.length;
+  }).immediate();
 }
 
-module.exports = { CANCEL_REASONS, PRECHECKIN_FROM, markCancelled, afterCancel, cancel, approve, startPrecheckin, statusAfterPrecheckin };
+module.exports = { CANCEL_REASONS, markCancelled, afterCancel, cancel, context, nextStatus, statusOptions, reactivationStatus, approve, markPrecheckinSent, reconcileLegacyStatuses };

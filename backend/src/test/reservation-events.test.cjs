@@ -204,15 +204,15 @@ test('cancelamento por política regista o reembolso no mesmo histórico', async
   assert.deepEqual(meta, { reason: 'guest', policy: true, refund: 0, refund_percent: quote.refundPercent });
 });
 
-test('aprovar envia o pré-check-in por acontecimento e nunca recua uma estadia', async () => {
+test('aprovar passa o pedido a aguardar o sinal, envia o pré-check-in por acontecimento e só aprova pedidos', async () => {
   reservation({ status: 'pendente' });
   const res = await call(reservations.approve, {}, { id: 'res' });
   assert.equal(res.statusCode, 200);
-  assert.equal(res.body.data.status, 'pre_checkin');
+  assert.equal(res.body.data.status, 'aguardar_pagamento');
   assert.match(res.body.data.pre_checkin_url, /\/pre-checkin\/[a-f0-9]{64}$/);
   assert.deepEqual(await effects(), ['guest:sendPreCheckinEmail']);
-  db.exec("UPDATE reservations SET status='check_in'");
-  assert.equal((await call(reservations.approve, {}, { id: 'res' })).statusCode, 409);
-  db.exec("UPDATE reservations SET status='cancelada'");
-  assert.equal((await call(reservations.approve, {}, { id: 'res' })).statusCode, 400);
+  for (const status of ['check_in', 'cancelada', 'confirmada']) {
+    db.prepare("UPDATE reservations SET status=?").run(status);
+    assert.equal((await call(reservations.approve, {}, { id: 'res' })).statusCode, 409);
+  }
 });

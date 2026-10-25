@@ -2,6 +2,7 @@ const { db } = require('../config/database');
 const { httpError } = require('./httpError');
 const { normalizeDateValue } = require('./reservationRules');
 const { snippet } = require('./emailComposer');
+const state = require('./reservationState');
 db.function('app_lower', { deterministic: true }, value => String(value ?? '').toLowerCase());
 
 function invalid(message) { return httpError(message, 400); }
@@ -81,6 +82,12 @@ function listReservations(organizationId, query = {}) {
     const value = textParam(query, key);
     if (value) { where += ` AND r.${key} = ?`; params.push(value); }
   }
+  const precheckin = textParam(query, 'precheckin', 20);
+  if (precheckin) {
+    if (!state.PRECHECKIN_STATES.includes(precheckin)) throw invalid('Estado do pré-check-in inválido.');
+    where += ` AND ${state.precheckinStateSql('r')} = ?`;
+    params.push(precheckin);
+  }
   const search = textParam(query, 'search');
   if (search) {
     where += " AND app_lower(g.name || ' ' || r.id || ' ' || COALESCE(g.email,'') || ' ' || a.name) LIKE ? ESCAPE '\\'";
@@ -119,6 +126,7 @@ function listReservations(organizationId, query = {}) {
       : db.prepare('SELECT COUNT(*) AS total' + joined + summaryWhere).get(...summaryParams);
     const total = db.prepare('SELECT COUNT(*) AS total' + joined + where).get(...params).total;
     const data = db.prepare(`SELECT r.*, g.name AS guest_name, g.email AS guest_email, g.phone AS guest_phone, a.name AS accommodation_name,
+      ${state.precheckinStateSql('r')} AS precheckin_state,
       (SELECT oe.status FROM operational_events oe JOIN reservations current ON current.id=oe.reservation_id AND current.organization_id=oe.organization_id
         WHERE oe.organization_id=r.organization_id AND oe.reservation_id=r.id AND oe.auto_kind='checkin'
         ORDER BY (oe.date=current.check_in) DESC, oe.created_at DESC LIMIT 1) AS checkin_task_status,
