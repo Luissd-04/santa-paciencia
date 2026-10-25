@@ -4,6 +4,7 @@ AppModules.define('reservas', {
   _suppressDraftSave: { get: () => _suppressDraftSave, set: value => { _suppressDraftSave = value; } },
   applyReservaDraft: { get: () => applyReservaDraft },
   clearReservaDraft: { get: () => clearReservaDraft },
+  flushReservaDraft: { get: () => flushReservaDraft },
   discardReservaDraft: { get: () => discardReservaDraft },
   loadReservaDraft: { get: () => loadReservaDraft },
   captureReservaEditBaseline: { get: () => captureReservaEditBaseline },
@@ -109,6 +110,14 @@ function scheduleReservaDraftSave() {
   if (_suppressDraftSave || AppModules.core.editingId || !AppModules.core.currentUser) return;
   clearTimeout(_draftSaveTimer);
   _draftSaveTimer = setTimeout(saveReservaDraft, 400);
+}
+
+// Grava já o que estiver por gravar (ao guardar a reserva): se a sessão
+// expirar nesse pedido, a limpeza cancela o temporizador e o rascunho tem de
+// ter tudo o que foi escrito até ao clique.
+function flushReservaDraft() {
+  clearTimeout(_draftSaveTimer);
+  saveReservaDraft();
 }
 
 function clearReservaDraft() {

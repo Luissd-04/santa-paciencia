@@ -278,6 +278,7 @@ async function saveReserva() {
     return;
   }
 
+  AppModules.reservas.flushReservaDraft();
   const btn = document.getElementById('btn-guardar');
   AppUI.setButtonLoading(btn, true, 'A guardar...');
   try {
