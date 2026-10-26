@@ -131,7 +131,7 @@ function confirmPriceChange({ standardTotal, newTotal, editedAt = null, editedBy
   title = 'Alterar valores da estadia?', intro = 'O novo valor difere do preço padrão do calendário dinâmico.',
   standardLabel = 'Padrão (calendário dinâmico)' }) {
   return new Promise(resolve => {
-    const fmt = v => `€${Number(v).toFixed(2)}`;
+    const fmt = v => `${ReservationMoney.format(v)}`;
     const diff = Number(newTotal) - Number(standardTotal);
     const esc = escapeHtml;
     const reference = standardLabel === 'Padrão (calendário dinâmico)' ? 'ao padrão' : 'ao total atual';
@@ -206,31 +206,15 @@ function formatDate(s) {
   return window.ReservationDates?.formatShortPtDate(s) || '—';
 }
 
+// Rótulos e classes em js/domain/reservation-status.js (iguais em todos os ecrãs).
 function badgeEstado(e) {
-  const map = {
-    'pre_reserva': 'badge-prereserva',
-    'confirmada': 'badge-confirmada',
-    'pendente': 'badge-pendente',
-    'pre_checkin': 'badge-pendente',
-    'aguardar_pagamento': 'badge-parcial',
-    'cancelada': 'badge-cancelada'
-  };
-  const labels = {
-    pre_reserva: 'Pré-reserva',
-    confirmada: 'Confirmada',
-    pendente: 'Pendente',
-    pre_checkin: 'Pre Check-in',
-    aguardar_pagamento: 'Aguardar Pagamento',
-    cancelada: 'Cancelada'
-  };
-  const label = labels[e] || (e ? e.charAt(0).toUpperCase() + e.slice(1) : e);
-  return `<span class="badge ${map[e] || ''}">${label}</span>`;
+  const S = window.ReservationStatus;
+  return `<span class="badge ${S.badge(e)}">${escapeHtml(S.label(e))}</span>`;
 }
 
 function badgePagamento(p) {
-  const map = { 'confirmado': 'badge-pago', 'pago': 'badge-pago', 'parcial': 'badge-parcial', 'pendente': 'badge-pendpag' };
-  const labels = { 'confirmado': 'Completo', 'pago': 'Completo', 'parcial': 'Parcial', 'pendente': 'Não pago' };
-  return `<span class="badge ${map[p] || ''}">${labels[p] || (p ? p.charAt(0).toUpperCase() + p.slice(1) : '—')}</span>`;
+  const S = window.ReservationStatus;
+  return `<span class="badge ${S.paymentBadge(p)}">${escapeHtml(S.paymentLabel(p))}</span>`;
 }
 
 function toast(msg, type = 'info', dur = 3500) {
@@ -341,10 +325,9 @@ function inlineArg(value) {
   return escapeHtml(JSON.stringify(String(value ?? '')));
 }
 
-// Montante em euros — formato uniforme "€1234.56". Uma só implementação em vez
-// do `€${Number(x).toFixed(2)}` repetido por várias views.
+// Montante em euros, no formato de js/domain/money.js («1 234,56 €»).
 function formatEUR(value) {
-  return '€' + Number(value || 0).toFixed(2);
+  return ReservationMoney.format(value || 0);
 }
 
 /* ═══════════════════════════════════════════════════════════════

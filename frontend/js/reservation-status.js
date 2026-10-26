@@ -5,12 +5,6 @@
     day: '2-digit', month: 'short', year: 'numeric',
   }) : '—';
   const fmtMoney = value => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(Number(value || 0));
-  const statusLabels = {
-    pre_reserva: 'Pré-reserva', pendente: 'Pedido pendente', confirmada: 'Reserva confirmada',
-    pre_checkin: 'Pré-check-in pendente', aguardar_pagamento: 'A aguardar pagamento',
-    check_in: 'Estadia em curso', check_out: 'Estadia concluída', cancelada: 'Reserva cancelada',
-  };
-  const paymentLabels = { pendente: 'Pagamento pendente', parcial: 'Pagamento parcial', confirmado: 'Pago', pago: 'Pago', reembolsado: 'Reembolsado' };
   const returnState = new URLSearchParams(location.search).get('payment');
   let refreshTimer;
   let refreshCount = 0;
@@ -103,9 +97,10 @@
       if (!response.ok || payload.success === false) throw new Error(payload.error || 'Não foi possível consultar a reserva.');
       const reservation = payload.data;
       $('rs-reference').textContent = `Reserva ${reservation.id}`;
-      $('rs-title').textContent = statusLabels[reservation.status] || 'Estado da reserva';
-      $('rs-status').textContent = statusLabels[reservation.status] || reservation.status;
-      $('rs-payment').textContent = paymentLabels[reservation.payment_status] || reservation.payment_status || 'Pagamento pendente';
+      const S = window.ReservationStatus;
+      $('rs-title').textContent = reservation.status ? S.guestLabel(reservation.status) : 'Estado da reserva';
+      $('rs-status').textContent = S.guestLabel(reservation.status);
+      $('rs-payment').textContent = S.paymentGuestLabel(reservation.payment_status || 'pendente');
       $('rs-accommodation').textContent = reservation.accommodation_name;
       $('rs-checkin').textContent = fmtDate(reservation.check_in);
       $('rs-checkout').textContent = fmtDate(reservation.check_out);

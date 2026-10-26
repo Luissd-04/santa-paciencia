@@ -99,7 +99,7 @@ function updateWizSummary() {
   set('ws-suite', suite?.name || '—');
   set('ws-checkin', ci ? AppModules.core.formatDate(ci) : '—');
   set('ws-nights', nights > 0 ? nights + ' noite' + (nights !== 1 ? 's' : '') : '—');
-  set('ws-total', total && Number(total) > 0 ? '€' + Number(total).toLocaleString('pt-PT', { minimumFractionDigits: 2 }) : '—');
+  set('ws-total', total && Number(total) > 0 ? ReservationMoney.format(total) : '—');
 }
 
 function renderSuiteCards() {
@@ -157,7 +157,7 @@ function renderSuiteCards() {
 // tal como no frontoffice; senão, o preço-base estático.
 function suiteCardPriceHtml(a, ci, co) {
   const datesOk = ci && co && new Date(co) > new Date(ci);
-  const fallback = `<div class="suite-card-price">€${a.price_per_night}<span class="suite-card-sub"> / noite</span></div>`;
+  const fallback = `<div class="suite-card-price">${ReservationMoney.formatShort(a.price_per_night)}<span class="suite-card-sub"> / noite</span></div>`;
   if (!datesOk || !window.ReservationPricing) return fallback;
   const numHospedes = parseInt(document.getElementById('f-num-hospedes')?.value, 10) || 1;
   const totals = window.ReservationPricing.calculateReservationTotal(a, [], {
@@ -171,10 +171,10 @@ function suiteCardPriceHtml(a, ci, co) {
   const avg = totals.baseAmount / totals.nights;
   const grand = totals.baseAmount + (totals.extraOccupancyCost || 0);
   const extra = totals.extraOccupancyCost > 0
-    ? `<div class="suite-card-extra">+ €${totals.extraOccupancyCost.toFixed(2)} ocupação extra</div>`
+    ? `<div class="suite-card-extra">+ ${ReservationMoney.format(totals.extraOccupancyCost)} ocupação extra</div>`
     : '';
-  return `<div class="suite-card-price">€${avg.toFixed(2)}<span class="suite-card-sub"> / noite</span>
-    <div class="suite-card-total">€${grand.toFixed(2)} total</div>${extra}</div>`;
+  return `<div class="suite-card-price">${ReservationMoney.format(avg)}<span class="suite-card-sub"> / noite</span>
+    <div class="suite-card-total">${ReservationMoney.format(grand)} total</div>${extra}</div>`;
 }
 
 function selectSuiteCard(id) {
@@ -225,7 +225,7 @@ function buildWizConfirm() {
   const extraOccupancyCost = AppModules.reservas.getExtraOccupancyCharge(suite, numH, nights, AppModules.reservas.wizEffectiveBirthDates(), ci);
   const hasPeriods = (AppModules.reservas._cachedPricingPeriods[alojId] || []).length > 0;
   const hasNightlyEdits = Object.keys(AppModules.reservas._nightlyOverrides).length > 0;
-  const priceLabel = hasNightlyEdits ? 'Preço por noite personalizado' : (hasPeriods ? 'Preço dinâmico' : `€${suite?.price_per_night || 0}/noite`);
+  const priceLabel = hasNightlyEdits ? 'Preço por noite personalizado' : (hasPeriods ? 'Preço dinâmico' : `${ReservationMoney.formatShort(suite?.price_per_night || 0)}/noite`);
   const card = document.getElementById('wiz-conf-card');
   if (!card) return;
   card.innerHTML = `<div class="wiz-conf-grid">
@@ -252,8 +252,8 @@ function buildWizConfirm() {
     </div>
     <div class="wiz-conf-cell accent">
       <div class="wiz-conf-lbl">Total</div>
-      <div class="wiz-conf-val">€${total.toLocaleString('pt-PT', { minimumFractionDigits: 2 })}</div>
-      <div class="wiz-conf-sub">${priceLabel} × ${nights} noites${extraOccupancyCost ? ` · extra €${extraOccupancyCost.toFixed(2)}` : ''}</div>
+      <div class="wiz-conf-val">${ReservationMoney.format(total)}</div>
+      <div class="wiz-conf-sub">${priceLabel} × ${nights} noites${extraOccupancyCost ? ` · extra ${ReservationMoney.format(extraOccupancyCost)}` : ''}</div>
     </div>
   </div>`;
 }

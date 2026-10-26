@@ -18,7 +18,7 @@ async function getDashboardStats(req, res, next) {
 
     const financial = db.prepare(`
       SELECT
-        COALESCE(SUM(CASE WHEN status != 'cancelada' THEN total_amount ELSE 0 END), 0) AS reserved,
+        COALESCE(SUM(${require('../services/reportingService').revenueSql('reservations')}), 0) AS reserved,
         COALESCE(SUM(CASE WHEN status != 'cancelada' AND trim(COALESCE(invoice_number, '')) != '' THEN total_amount ELSE 0 END), 0) AS invoiced,
         COALESCE(SUM(amount_paid), 0) AS received
       FROM reservations WHERE organization_id = ?
@@ -257,7 +257,7 @@ function getNotifications(req, res, next) {
       notifications.push({
         type: 'unpaid', priority: 'medium', icon: 'circle-alert',
         title: 'Pagamento em falta',
-        subtitle: `${r.guest_name} · €${em.toFixed(2)} por receber`,
+        subtitle: `${r.guest_name} · ${require('../services/money').formatEUR(em)} por receber`,
         reservation_id: r.id,
       });
     });

@@ -299,7 +299,7 @@ const RES_CELL = {
   check_out: r => `<td data-col="check_out">${AppModules.core.formatDate(r.check_out)}</td>`,
   nights: r => `<td data-col="nights">${r.nights}</td>`,
   num_guests: r => `<td data-col="num_guests">${AppModules.reservas.renderGuestsCell(r)}</td>`,
-  total_amount: r => `<td data-col="total_amount"><b>€${Number(r.total_amount || 0).toFixed(2)}</b></td>`,
+  total_amount: r => `<td data-col="total_amount"><b>${ReservationMoney.format(r.total_amount || 0)}</b></td>`,
   channel: r => `<td data-col="channel"><span style="font-size:12px;color:var(--cinza)">${r.channel || ''}</span></td>`,
   status: r => `<td data-col="status">${AppModules.core.badgeEstado(r.status)}</td>`,
   payment_status: r => {
@@ -309,8 +309,8 @@ const RES_CELL = {
     if (paid > 0) {
       const rem = total - paid;
       extra = rem > 0.01
-        ? `<br><span style="font-size:11px;color:var(--vermelho);">€${paid.toFixed(2)} / falta €${rem.toFixed(2)}</span>`
-        : `<br><span style="font-size:11px;color:var(--cinza);">€${paid.toFixed(2)}</span>`;
+        ? `<br><span style="font-size:11px;color:var(--vermelho);">${ReservationMoney.format(paid)} / falta ${ReservationMoney.format(rem)}</span>`
+        : `<br><span style="font-size:11px;color:var(--cinza);">${ReservationMoney.format(paid)}</span>`;
     }
     return `<td data-col="payment_status">${AppModules.core.badgePagamento(r.payment_status)}${extra}</td>`;
   },

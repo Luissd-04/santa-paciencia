@@ -1,5 +1,8 @@
 const { db } = require('../config/database');
 const { getOccupancyStats, occupancyRate } = require('../services/occupancyStats');
+const reporting = require('../services/reportingService');
+const REVENUE = reporting.revenueSql('r');
+const ACTIVE = reporting.activeCountSql('r');
 
 function getFinancialReport(req, res, next) {
   try {
@@ -19,12 +22,13 @@ function getFinancialReport(req, res, next) {
     const accFilter = accommodationId ? ' AND r.accommodation_id = ?' : '';
     if (accommodationId) params.push(accommodationId);
 
-    const baseWhere = `r.organization_id = ? AND r.status != 'cancelada' AND r.check_in >= ? AND r.check_in < ?${accFilter}`;
+    // Receita segundo reportingService: inclui a taxa turística e os sinais retidos em cancelamentos.
+    const baseWhere = `r.organization_id = ? AND ${reporting.reportableSql('r')} AND r.check_in >= ? AND r.check_in < ?${accFilter}`;
 
     const channels = db.prepare(`
       SELECT r.channel,
-             COUNT(*) AS reservations,
-             SUM(r.total_amount) AS revenue
+             ${ACTIVE} AS reservations,
+             SUM(${REVENUE}) AS revenue
       FROM reservations r
       WHERE ${baseWhere}
       GROUP BY r.channel
@@ -33,9 +37,9 @@ function getFinancialReport(req, res, next) {
 
     const accData = db.prepare(`
       SELECT a.id, a.name, a.color,
-             COUNT(*) AS reservations,
-             SUM(r.nights) AS nights,
-             SUM(r.total_amount) AS revenue
+             ${ACTIVE} AS reservations,
+             ${reporting.activeNightsSql('r')} AS nights,
+             SUM(${REVENUE}) AS revenue
       FROM reservations r
       JOIN accommodations a ON a.id = r.accommodation_id
       WHERE ${baseWhere}
@@ -55,7 +59,7 @@ function getFinancialReport(req, res, next) {
     if (isMonth) {
       const dailyRaw = db.prepare(`
         SELECT CAST(strftime('%d', r.check_in) AS INTEGER) AS day,
-               COUNT(*) AS reservations, SUM(r.total_amount) AS revenue
+               ${ACTIVE} AS reservations, SUM(${REVENUE}) AS revenue
         FROM reservations r WHERE ${baseWhere} GROUP BY day ORDER BY day
       `).all(...params);
       const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -74,7 +78,7 @@ function getFinancialReport(req, res, next) {
     } else {
       const monthlyRaw = db.prepare(`
         SELECT CAST(strftime('%m', r.check_in) AS INTEGER) - 1 AS month_idx,
-               COUNT(*) AS reservations, SUM(r.total_amount) AS revenue
+               ${ACTIVE} AS reservations, SUM(${REVENUE}) AS revenue
         FROM reservations r WHERE ${baseWhere} GROUP BY month_idx ORDER BY month_idx
       `).all(...params);
       months = Array.from({ length: 12 }, (_, i) => {

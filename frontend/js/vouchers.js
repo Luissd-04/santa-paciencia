@@ -56,7 +56,7 @@ function isVoucherExpiringSoon(v) {
 
 function formatVoucherValue(v) {
   if (v.type === 'discount_pct')   return v.value + '%';
-  if (v.type === 'discount_fixed') return '€' + Number(v.value).toFixed(2);
+  if (v.type === 'discount_fixed') return ReservationMoney.format(v.value);
   if (v.type === 'credit_stay')    return Number(v.value) + (Number(v.value) === 1 ? ' noite' : ' noites');
   return v.value;
 }

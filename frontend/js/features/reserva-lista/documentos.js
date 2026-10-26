@@ -11,7 +11,7 @@ let statementData = null;
 // ── FICHA DE RESERVA (documento read-only com PDF/XLS) ──
 // Estrutura dos dados do documento, partilhada entre o overlay e os exports.
 function buildReservationSheetData(r) {
-  const fmt = v => `€${Number(v).toFixed(2)}`;
+  const fmt = v => `${ReservationMoney.format(v)}`;
   const sd = d => d ? new Date(d.slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
   const nightly = typeof r.nightly_prices === 'string' ? JSON.parse(r.nightly_prices || '[]') : (r.nightly_prices || []);
   const payments = r.payments || [];
@@ -280,7 +280,7 @@ async function openAccountStatement(resId) {
   const total = Number(r.total_amount || 0);
   const paid = Number(r.amount_paid || 0);
   const remaining = total - paid;
-  const fmt = v => `€${Number(v).toFixed(2)}`;
+  const fmt = v => `${ReservationMoney.format(v)}`;
   const sd = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
   const methodLabel = { transferencia: 'Transferência', mbway: 'MBWay', numerario: 'Numerário', cartao: 'Cartão' };
 
@@ -387,7 +387,7 @@ async function downloadStatementPdf() {
     body: [
       ['Alojamento', r.accommodation_name || '—'],
       ['Estadia', `${sd(r.check_in)} → ${sd(r.check_out)} · ${r.nights} noite${r.nights !== 1 ? 's' : ''}`],
-      ['Total da reserva', `€${total.toFixed(2)}`],
+      ['Total da reserva', `${ReservationMoney.format(total)}`],
     ],
     startY: 28, theme: 'plain', styles: { fontSize: 9, cellPadding: 1.5 },
     columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 } },
@@ -409,7 +409,7 @@ async function downloadStatementPdf() {
   });
 
   doc.autoTable({
-    body: [['Total pago', `€${paid.toFixed(2)}`], ['Em falta', `€${Math.max(0, total - paid).toFixed(2)}`]],
+    body: [['Total pago', `${ReservationMoney.format(paid)}`], ['Em falta', `${ReservationMoney.format(Math.max(0, total - paid))}`]],
     startY: doc.lastAutoTable.finalY + 2, theme: 'plain',
     styles: { fontSize: 10, fontStyle: 'bold', cellPadding: 1.5 },
     columnStyles: { 1: { halign: 'right' } },

@@ -65,3 +65,19 @@ test('JSON guardado: vazio ou ilegível devolve o valor por omissão', () => {
   const value = { a: 1 };
   assert.equal(safeJson(value, null), value);
 });
+
+test('receita: total das reservas ativas (com taxa turística) e sinal retido das canceladas', async () => {
+  db.exec(`INSERT INTO guests(id,organization_id,name,email) VALUES ('g','org-s','G','g@example.com');
+    INSERT INTO reservations(id,organization_id,guest_id,accommodation_id,check_in,check_out,nights,num_guests,total_amount,tourist_tax,amount_paid,status,channel) VALUES
+      ('ativa','org-s','g','casa','2031-05-10','2031-05-12',2,2,212,12,100,'confirmada','direto'),
+      ('retida','org-s','g','casa','2031-05-20','2031-05-22',2,2,300,0,60,'cancelada','direto'),
+      ('sem-dinheiro','org-s','g','casa','2031-05-25','2031-05-27',2,2,500,0,0,'cancelada','direto');`);
+  let body;
+  await require('../controllers/reportController').getFinancialReport(
+    { user: { organization_id: 'org-s' }, query: { year: '2031', month: '5' } }, { json: data => { body = data; } }, error => { throw error; });
+  assert.equal(body.data.totals.revenue, 272);
+  assert.equal(body.data.totals.reservations, 1);
+  assert.deepEqual(body.data.channels.map(c => [c.channel, c.reservations, c.revenue]), [['direto', 1, 272]]);
+  const { revenueOf } = require('../services/reportingService');
+  assert.deepEqual([{ status: 'confirmada', total_amount: 212 }, { status: 'cancelada', total_amount: 300, amount_paid: 60 }].map(revenueOf), [212, 60]);
+});

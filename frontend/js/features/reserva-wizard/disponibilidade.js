@@ -112,7 +112,7 @@ async function renderWizExtraRooms() {
         </label>
         <div class="rdv2-acc-opt-info">
           <div class="rdv2-acc-opt-name">${AppModules.core.escapeHtml(a.name)}${isUnavail ? ' <span class="rdv2-badge-unavail">ocupado</span>' : ''}</div>
-          <div class="rdv2-acc-opt-meta">${a.max_guests ? `max ${a.max_guests} hósp. · ` : ''}Base: €${Number(a.price_per_night || 0).toFixed(0)}/noite</div>
+          <div class="rdv2-acc-opt-meta">${a.max_guests ? `max ${a.max_guests} hósp. · ` : ''}Base: ${ReservationMoney.formatShort(Math.round(Number(a.price_per_night || 0)))}/noite</div>
         </div>
         <div class="rdv2-acc-price-edit">
           <input type="number" class="rdv2-acc-priceinput" data-accid="${a.id}" min="0" step="0.01" value="${price.toFixed(2)}" data-on-input="disponibilidade-on-wiz-extra-room-price-input-cbe0d5d" autocomplete="off">

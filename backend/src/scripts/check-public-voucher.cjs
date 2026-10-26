@@ -119,7 +119,7 @@ async function main() {
   await page.locator('#next-btn').click();
   await expect(page).toHaveURL(`${base}/public-success.html?tipo=reserva`);
   await expect(page.locator('#confirmation-title')).toContainText('Pedido enviado com sucesso');
-  await expect(page.locator('#confirmation-total')).toContainText('€180,00');
+  await expect(page.locator('#confirmation-total')).toContainText(/180,00\s€/);
   await expect(page.locator('#public-booking-form')).toHaveCount(0);
   await page.reload();
   await expect(page.locator('#confirmation-title')).toContainText('Pedido enviado com sucesso');

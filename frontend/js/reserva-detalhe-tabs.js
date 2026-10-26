@@ -205,11 +205,6 @@ const RDV2_FIELD_LABELS = {
   payment_date: 'Data de pagamento',
 };
 
-const RDV2_STATUS_LABELS = {
-  pre_reserva: 'Pré-reserva', confirmada: 'Confirmada', pendente: 'Pendente',
-  pre_checkin: 'Pre Check-in', aguardar_pagamento: 'Aguardar Pagamento', cancelada: 'Cancelada',
-  parcial: 'Parcial', confirmado: 'Completo', pago: 'Completo',
-};
 
 function rdv2FormatFieldValue(field, value) {
   if (value === null || value === undefined || value === '') return '—';
@@ -217,9 +212,10 @@ function rdv2FormatFieldValue(field, value) {
     return AppModules.core.escapeHtml(AppModules.core.accommodations.find(a => a.id === value)?.name || String(value));
   }
   if (field === 'check_in' || field === 'check_out' || field === 'payment_date') return rdv2ShortDate(String(value));
-  if (field === 'total_amount' || field === 'amount_paid') return `€${Number(value).toFixed(2)}`;
+  if (field === 'total_amount' || field === 'amount_paid') return `${ReservationMoney.format(value)}`;
   if (field === 'breakfast_included') return Number(value) ? 'Sim' : 'Não';
-  if (field === 'status' || field === 'payment_status') return RDV2_STATUS_LABELS[value] || AppModules.core.escapeHtml(String(value));
+  if (field === 'status') return AppModules.core.escapeHtml(window.ReservationStatus.label(value));
+  if (field === 'payment_status') return AppModules.core.escapeHtml(window.ReservationStatus.paymentLabel(value));
   return AppModules.core.escapeHtml(String(value));
 }
 
@@ -232,10 +228,10 @@ function rdv2TimelineMetaLine(action, meta) {
     const labels = { pending: 'Pendente', processing: 'Em processamento', paid: 'Pago', failed: 'Falhou',
       expired: 'Sessão expirada', cancelled: 'Cancelado', refunded: 'Reembolsado', partially_refunded: 'Reembolso parcial', review_required: 'Requer verificação' };
     bits.push(labels[meta.status] || AppModules.core.escapeHtml(String(meta.status || '')));
-    if (meta.amount != null) bits.push(`Recebido: €${Number(meta.amount).toFixed(2)}`);
-    if (meta.refunded) bits.push(`Reembolsado: €${Number(meta.refunded).toFixed(2)}`);
+    if (meta.amount != null) bits.push(`Recebido: ${ReservationMoney.format(meta.amount)}`);
+    if (meta.refunded) bits.push(`Reembolsado: ${ReservationMoney.format(meta.refunded)}`);
   } else if (action === 'payment_added' || action === 'payment_deleted') {
-    if (meta.amount != null) bits.push(`€${Number(meta.amount).toFixed(2)}`);
+    if (meta.amount != null) bits.push(`${ReservationMoney.format(meta.amount)}`);
     if (meta.method) bits.push(AppModules.core.escapeHtml(String(meta.method)));
     if (meta.payment_date) bits.push(rdv2ShortDate(String(meta.payment_date)));
   } else if (action === 'invoice_saved') {
@@ -248,12 +244,12 @@ function rdv2TimelineMetaLine(action, meta) {
       ttl: 'Automático — sem pagamento dentro do prazo', nonpayment: 'Automático — restante não pago no prazo' };
     if (reasons[meta.reason]) bits.push(reasons[meta.reason]);
     if (meta.policy || action === 'policy_cancelled') bits.push('segundo a política de pagamento');
-    if (meta.refund != null) bits.push(`Reembolso: €${Number(meta.refund).toFixed(2)}`);
+    if (meta.refund != null) bits.push(`Reembolso: ${ReservationMoney.format(meta.refund)}`);
   } else if (action === 'email_delivery_resolved') {
     bits.push(`${AppModules.core.escapeHtml(String(meta.template_slug || ''))} · ${meta.resolution === 'sent' ? 'confirmado como entregue' : 'nova tentativa autorizada'}`);
   } else if (action === 'created') {
     if (meta.check_in && meta.check_out) bits.push(`${rdv2ShortDate(String(meta.check_in))} → ${rdv2ShortDate(String(meta.check_out))}`);
-    if (meta.total_amount != null) bits.push(`€${Number(meta.total_amount).toFixed(2)}`);
+    if (meta.total_amount != null) bits.push(`${ReservationMoney.format(meta.total_amount)}`);
     if (meta.source === 'public') bits.push('via página de reservas online');
   }
   return bits.length ? `<span class="rdv2-tl-meta">${bits.join(' · ')}</span>` : '';

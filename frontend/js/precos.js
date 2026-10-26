@@ -118,7 +118,7 @@ function _updatePrecosBase() {
   const badge = document.getElementById('precos-base-price-badge');
   const val   = document.getElementById('precos-base-price-val');
   if (badge) badge.style.display = _precosAlojId ? '' : 'none';
-  if (val)   val.textContent = `€${_precosBase.toFixed(2)}`;
+  if (val)   val.textContent = `${ReservationMoney.format(_precosBase)}`;
 }
 
 async function onPrecosAlojChange() {
@@ -295,8 +295,8 @@ function renderPrecosCalendar() {
       ? `<div style="width:4px;height:4px;border-radius:50%;background:${(isStart||isEnd)?'rgba(255,255,255,.7)':'var(--marca)'};margin:0 auto 2px;"></div>`
       : '';
 
-    const tip = period ? ` title="${period.name}: €${price % 1 === 0 ? price : price.toFixed(2)}/noite"` : '';
-    const priceLbl = price % 1 === 0 ? `€${price}` : `€${price.toFixed(2)}`;
+    const tip = period ? ` title="${period.name}: ${ReservationMoney.formatShort(price)}/noite"` : '';
+    const priceLbl = ReservationMoney.formatShort(price);
 
     html += `<div class="precos-day-cell" data-date="${iso}"
       style="position:relative;min-height:64px;border-radius:8px;padding:7px 4px 6px;text-align:center;background:${bg};border:1px solid ${borderColor};cursor:pointer;transition:background .1s,border-color .1s;user-select:none;"
@@ -490,7 +490,7 @@ function renderPrecosPeriods() {
           </td>
           <td style="padding:10px;color:var(--cinza);">${_fmtDisplay(p.start_date)}</td>
           <td style="padding:10px;color:var(--cinza);">${_fmtDisplay(p.end_date)}</td>
-          <td style="padding:10px;text-align:right;font-weight:700;color:${dot};">€${price % 1 === 0 ? price : price.toFixed(2)}</td>
+          <td style="padding:10px;text-align:right;font-weight:700;color:${dot};">${ReservationMoney.formatShort(price)}</td>
           <td style="padding:10px;text-align:right;color:var(--cinza);font-size:12px;">${p.min_nights ?? 1}n</td>
           <td style="padding:10px;text-align:right;white-space:nowrap;">
             <button class="btn btn-ghost btn-sm" style="padding:4px 8px;" ${AppActions.attrs("click", "precos-open-precos-period-modal-9640b4e", [String((p.id) ?? '')])} title="Editar">${AppModules.core.lcIcon('pencil',13)}</button>
@@ -507,7 +507,7 @@ function renderPrecosPeriods() {
     return `<div class="m-period-card" style="border-left-color:${dot}" ${AppActions.attrs("click", "precos-open-precos-period-modal-9640b4e", [String((p.id) ?? '')])}>
       <div class="mpc-top">
         <span class="mpc-name">${AppModules.core.escapeHtml(p.name)}${_dowBadge(p.days_of_week)}</span>
-        <span class="mpc-price" style="color:${dot}">€${price % 1 === 0 ? price : price.toFixed(2)}</span>
+        <span class="mpc-price" style="color:${dot}">${ReservationMoney.formatShort(price)}</span>
       </div>
       <div class="mpc-dates">${_fmtDisplay(p.start_date)} — ${_fmtDisplay(p.end_date)} · min. ${p.min_nights ?? 1}n</div>
       <div class="mpc-actions" data-on-click="precos-stop-propagation-22499e1">

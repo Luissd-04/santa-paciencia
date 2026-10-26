@@ -167,7 +167,7 @@ async function openEditModal(id) {
     document.getElementById('f-noites').value        = r.nights || '';
     document.getElementById('f-total').value         = Number(r.total_amount || 0).toFixed(2);
     const resfBadge = document.getElementById('resf-total-badge');
-    if (resfBadge) resfBadge.textContent = `€${Number(r.total_amount || 0).toFixed(2)}`;
+    if (resfBadge) resfBadge.textContent = `${ReservationMoney.format(r.total_amount || 0)}`;
 
     const rgpd = document.getElementById('f-rgpd-check');
     if (rgpd) { rgpd.checked = true; rgpd.closest('.rgpd-box')?.classList.add('rgpd-accepted'); }

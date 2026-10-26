@@ -86,10 +86,10 @@ async function calcTotal() {
     const extras = (totals.extraOccupancyCost || 0) + (totals.touristTax || 0) + (totals.breakfastCost || 0);
     AppModules.reservas._lastExtrasTotal = extras;
     const baseEl = document.getElementById('resf-nightly-base');
-    if (baseEl) baseEl.textContent = `€${(totals.baseAmount || 0).toFixed(2)}`;
+    if (baseEl) baseEl.textContent = `${ReservationMoney.format(totals.baseAmount || 0)}`;
     const extrasEl = document.getElementById('resf-nightly-extras');
     const extrasWrap = document.getElementById('resf-nightly-extras-wrap');
-    if (extrasEl) extrasEl.textContent = `€${extras.toFixed(2)}`;
+    if (extrasEl) extrasEl.textContent = `${ReservationMoney.format(extras)}`;
     if (extrasWrap) extrasWrap.style.display = extras > 0.005 ? '' : 'none';
 
     const discWrap = document.getElementById('resf-discount-wrap');
@@ -97,7 +97,7 @@ async function calcTotal() {
     const discPreview = document.getElementById('f-discount-preview');
     if (discPreview) {
       const saving = totals.totalAmount - (AppModules.reservas._manualTotalOverride != null ? AppModules.reservas._manualTotalOverride : finalTotal);
-      discPreview.textContent = discVal > 0 && saving > 0.005 ? `Poupança: €${saving.toFixed(2)}` : '';
+      discPreview.textContent = discVal > 0 && saving > 0.005 ? `Poupança: ${ReservationMoney.format(saving)}` : '';
     }
   } else {
     if (!suite) {
@@ -150,7 +150,7 @@ function renderNightlyGrid() {
     const edited = AppModules.reservas._nightlyOverrides[n.date] != null;
     const std = AppModules.reservas._standardNightlyByDate[n.date];
     return `<div class="resf-nightly-row${edited ? ' edited' : ''}" data-date="${n.date}">
-      <span class="resf-nightly-date">${formatNightLabel(n.date)}${edited ? '<span class="resf-nightly-tag">editado</span>' : ''}${std != null ? `<span class="resf-nightly-std">padrão €${Number(std).toFixed(2)}</span>` : ''}</span>
+      <span class="resf-nightly-date">${formatNightLabel(n.date)}${edited ? '<span class="resf-nightly-tag">editado</span>' : ''}${std != null ? `<span class="resf-nightly-std">padrão ${ReservationMoney.format(std)}</span>` : ''}</span>
       <div class="resf-nightly-input">
         <span>€</span>
         <input type="number" min="0" step="0.01" value="${Number(n.price).toFixed(2)}"
@@ -204,7 +204,7 @@ function distributeManualTotal(target) {
   const baseCents = Math.max(0, Math.round((target - extras) * 100));
   if (target > 0 && target < extras && !AppModules.reservas._manualDistribWarned) {
     AppModules.reservas._manualDistribWarned = true;
-    AppModules.core.toast(`O total é inferior aos extras (€${extras.toFixed(2)}) — noites ficam a €0.`, 'info');
+    AppModules.core.toast(`O total é inferior aos extras (${ReservationMoney.format(extras)}) — noites ficam a €0.`, 'info');
   }
   const weights = (AppModules.reservas._manualDistribWeights && AppModules.reservas._manualDistribWeights.length === AppModules.reservas._nightlyPrices.length)
     ? AppModules.reservas._manualDistribWeights

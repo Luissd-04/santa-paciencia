@@ -628,3 +628,36 @@ dinheiro; **Média** = inconsistência com risco ou custo de manutenção releva
 | A20 | Baixa | Rótulos de estado copiados em 6 ou mais ficheiros do frontend, com textos diferentes | §6 |
 | A21 | Baixa | Deteção de "Gmail expirou" copiada 3 vezes; o teste e a pré-visualização chamam `sendViaGmail` diretamente | `routes/emailMessages.js:100`, `:186`, `routes/googleAuth.js:173`, `emailTemplateController.js:247` |
 | A22 | Baixa | `check_in`/`check_out` como estado da reserva separados do "check-in feito" das tarefas | `reservationOperationsController.js:114` |
+
+---
+
+## 11. Implementação (PRs #1 a #7)
+
+Cada passo é um PR que depende do anterior (#1 → #2 → … → #7).
+
+| Passo | PR | Serviços criados |
+|---|---|---|
+| 1. Dinheiro | #1 | `money`, `httpError`, `reservationState`, `financialLedger` |
+| 2. Acontecimentos e avisos | #2 | `reservation_events`, `reservationEvents`, `reservationEffects`, `staffNotifier` |
+| 3. Ciclo de vida | #3 | `reservationLifecycle` |
+| 4. Emails | #4 | modelos `pagamento`, `aviso_restante`, `cancelamento_politica`; `publicLinks`, `googleConnection` |
+| 5. Hóspedes e preços | #5 | `guestService`, `reservationQuote.pricePublic`, `reservationAvailability.assertAvailable` |
+| 6. Definições | #6 | `settingsService`, `dates`, `accommodationInheritance`, `json` |
+| 7. Relatórios e frontend | #7 | `reportingService`; no frontend `js/domain/money.js` e `js/domain/reservation-status.js` |
+
+| Achado | Estado |
+|---|---|
+| A1, A2 (pagamento) | Resolvido (#1, #2): email ao hóspede em cada pagamento, manual ou Stripe; push à equipa nos pagamentos online |
+| A3 | Resolvido (#1): uma regra em `reservationState` |
+| A4 | Resolvido (#1): pagamentos só no separador Pagamentos |
+| A5, A6 | Resolvido (#2, #3): um caminho de cancelamento; equipa avisada por push e email |
+| A7 | Resolvido (#1): o seletor sem efeito foi retirado |
+| A8, A9, A13, A21 | Resolvido (#4) |
+| A10 | Resolvido (#7): receita com taxa turística e sinais retidos (decisão 6) |
+| A11, A12, A15 | Resolvido (#5) |
+| A14 | Por decidir: a política só é automatizada na organização da Stripe |
+| A16, A17 | Resolvido (#1) |
+| A18 | Resolvido (#3) |
+| A19 | Parcial (#7): o frontend lê os valores antigos como os atuais; o servidor continua a aceitá-los |
+| A20 | Resolvido (#7): rótulos e cores num só módulo; montantes no formato «1 234,56 €» |
+| A22 | Em aberto (decisão 7): o seletor de estado passa a ter Check-in/Check-out |

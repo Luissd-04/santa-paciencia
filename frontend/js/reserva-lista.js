@@ -83,14 +83,6 @@ function getFilteredReservas() {
   return AppModules.core.reservas;
 }
 
-const STATUS_COLORS = {
-  pre_reserva: 'var(--roxo)',
-  confirmada: 'var(--marca)',
-  pendente:   'var(--laranja)',
-  pre_checkin: 'var(--dourado)',
-  aguardar_pagamento: 'var(--azul-claro)',
-  cancelada:  'var(--vermelho)',
-};
 
 function preCheckinUrl(token) {
   return token ? `${window.location.origin}/pre-checkin/${encodeURIComponent(token)}` : '';
@@ -118,11 +110,11 @@ function renderResCardTotal(r) {
   const total = Number(r.total_amount || 0);
   const rem   = total - paid;
   const remHtml = paid > 0 && rem > 0.01
-    ? `<span style="font-size:11px;color:var(--vermelho);display:block;">falta €${rem.toFixed(2)}</span>`
+    ? `<span style="font-size:11px;color:var(--vermelho);display:block;">falta ${ReservationMoney.format(rem)}</span>`
     : '';
   return `<div class="mrc-total">
       <span class="mrc-channel">${AppModules.core.escapeHtml(r.channel || '—')} · ${AppModules.core.badgePagamento(r.payment_status)}</span>
-      <span class="mrc-price">€${total.toFixed(2)}${remHtml}</span>
+      <span class="mrc-price">${ReservationMoney.format(total)}${remHtml}</span>
     </div>`;
 }
 
@@ -137,7 +129,7 @@ function renderResCardActions(r) {
 }
 
 function renderResCard(r) {
-  const bc = STATUS_COLORS[r.status] || 'var(--marca)';
+  const bc = window.ReservationStatus.color(r.status);
   return `<div class="m-res-card m-card" style="border-left-color:${bc}" ${AppActions.attrs("click", "reserva-lista-show-detail-3d67b14", [String((r.id) ?? '')])}>
     ${renderResCardHeader(r)}
     ${renderResCardMeta(r)}

@@ -173,7 +173,7 @@
     const value = Number(voucher?.value) || 0;
     if (voucher?.type === 'discount_pct') return `${value}% de desconto`;
     if (voucher?.type === 'credit_stay') return `${value} ${value === 1 ? 'noite oferecida' : 'noites oferecidas'}`;
-    return `€${value.toFixed(2)} de desconto`;
+    return `${ReservationMoney.format(value)} de desconto`;
   }
 
   window.ReservationPricing = {

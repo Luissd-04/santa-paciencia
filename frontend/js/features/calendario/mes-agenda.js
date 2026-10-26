@@ -266,8 +266,6 @@ function renderCalendarAgenda(monthDays, filters = AppModules.calendario.getCale
     .sort((a, b) => a.check_in.localeCompare(b.check_in) || (a.guest_name || '').localeCompare(b.guest_name || ''));
   const firstWeekday = new Date(`${monthDays[0]}T12:00:00`).getDay();
   const dateLabel = new Date(`${selected}T12:00:00`).toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
-  const statusLabels = { pre_reserva: 'Pré-reserva', pendente: 'Pendente', pre_checkin: 'Pré-check-in',
-    aguardar_pagamento: 'Aguardar pagamento', confirmada: 'Confirmada', check_in: 'Check-in', check_out: 'Check-out', cancelada: 'Cancelada' };
   const counts = [
     ['Check-ins', dayReservations.filter(r => r.check_in === selected).length],
     ['Estadias', dayReservations.filter(r => r.check_in < selected && r.check_out > selected).length],
@@ -301,7 +299,7 @@ function renderCalendarAgenda(monthDays, filters = AppModules.calendario.getCale
         const adults = r.num_adults == null ? `${Number(r.num_guests) || 1} hóspedes` : `${Number(r.num_adults)} adulto${Number(r.num_adults) === 1 ? '' : 's'}`;
         const children = Number(r.num_children) ? ` · ${Number(r.num_children)} criança${Number(r.num_children) === 1 ? '' : 's'}` : '';
         return `<button type="button" class="agenda-reservation" style="--agenda-color:${suites[0].color}" ${AppActions.attrs('click', 'mes-agenda-show-detail-3d67b14', [String(r.id)])}>
-          <span class="agenda-reservation-top"><span class="agenda-reservation-status">${esc(statusLabels[r.status] || r.status || 'Reserva')}</span><span>${marker}</span></span>
+          <span class="agenda-reservation-top"><span class="agenda-reservation-status">${esc(r.status ? window.ReservationStatus.label(r.status) : 'Reserva')}</span><span>${marker}</span></span>
           <strong class="agenda-reservation-name">${esc(r.guest_name || 'Reserva')}</strong>
           <span class="agenda-reservation-suites">${esc(suites.map(suite => suite.name).join(' · '))}</span>
           <span class="agenda-reservation-meta">${AppModules.core.lcIcon('calendar-days', 16)} ${AppModules.calendario.shortDatePt(r.check_in)} – ${AppModules.calendario.shortDatePt(r.check_out)}</span>

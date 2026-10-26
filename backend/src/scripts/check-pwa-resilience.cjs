@@ -27,7 +27,7 @@ const reservationsOf = name => db.prepare('SELECT r.id, r.total_amount FROM rese
 async function fillNewReservation(page, name, checkIn, checkOut) {
   await page.evaluate(([ci, co]) => AppModules.reservas.openModal({ checkIn: ci, checkOut: co, accommodationId: 'unit' }), [checkIn, checkOut]);
   await page.locator('#f-nome-completo').fill(name);
-  await expect(page.locator('#resf-total-badge')).toHaveText('€200.00');
+  await expect(page.locator('#resf-total-badge')).toHaveText(/^200,00\s€$/);
 }
 
 async function main() {

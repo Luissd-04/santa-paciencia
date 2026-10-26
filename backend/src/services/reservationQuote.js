@@ -194,7 +194,7 @@ function priceUpdate(organizationId, existing, body) {
 function assertExpectedTotal(expected, total) {
   if (expected === undefined || expected === null) return;
   if (Math.round(Number(expected) * 100) === Math.round(Number(total) * 100)) return;
-  throw httpError(`O total da reserva é agora €${Number(total).toFixed(2)}. Reveja o valor antes de guardar.`, 409,
+  throw httpError(`O total da reserva é agora ${require('./money').formatEUR(total)}. Reveja o valor antes de guardar.`, 409,
     { code: 'total_changed', details: { total_amount: Number(total) } });
 }
 

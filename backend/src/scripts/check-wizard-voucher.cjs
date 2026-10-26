@@ -16,6 +16,7 @@ const app = require('../app');
 const { db } = require('../config/database');
 const auth = require('../services/authService');
 const orgs = require('../services/orgService');
+const euro = value => new RegExp(`^${new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(value).replace(/\s/g, '\\s')}$`);
 
 let server, browser;
 const row = id => db.prepare('SELECT total_amount, price_edited_at, check_in, check_out FROM reservations WHERE id = ?').get(id);
@@ -32,7 +33,7 @@ async function setStay(page, checkIn, checkOut) {
 }
 // Total visível = badge do rodapé e campo «Total final».
 async function expectShownTotal(page, value) {
-  await expect(page.locator('#resf-total-badge')).toHaveText(`€${value.toFixed(2)}`);
+  await expect(page.locator('#resf-total-badge')).toHaveText(euro(value));
   await expect(page.locator('#f-total-manual')).toHaveValue(value.toFixed(2));
 }
 
@@ -99,7 +100,7 @@ async function main() {
   await page.waitForTimeout(1200); // a resposta retida chegaria agora
   await expectShownTotal(page, 270);
   await page.unroute('**/api/reservations/*/quote');
-  await expect(page.locator('#resf-voucher-line')).toContainText('−€30.00');
+  await expect(page.locator('#resf-voucher-line')).toContainText(/−30,00\s€/);
   await page.locator('#btn-guardar').click();
   await expect(page.locator('#modal-bg')).not.toHaveClass(/open/);
   assert.deepEqual(row(moved.id), { total_amount: 270, price_edited_at: null, check_in: '2035-04-01', check_out: '2035-04-04' });
@@ -117,7 +118,7 @@ async function main() {
   await page.locator('#btn-guardar').click();
   const dialog = page.locator('.modal-bg.open .modal').filter({ hasText: 'Confirmar o novo total?' });
   await expect(dialog).toContainText('exige pelo menos 2 noites');
-  await expect(dialog).toContainText('€100.00');
+  await expect(dialog).toContainText(/100,00\s€/);
   await dialog.locator('[data-pc-cancel]').click();
   assert.equal(row(short.id).total_amount, 180, 'cancelar a confirmação não grava');
   await page.locator('#btn-guardar').click();
@@ -134,7 +135,7 @@ async function main() {
   await expectShownTotal(page, 180);
   db.prepare("UPDATE vouchers SET value = 25 WHERE code = 'NOVA10'").run();
   await page.locator('#btn-guardar').click();
-  await expect(page.locator('.toast', { hasText: 'O total da reserva é agora €150.00' })).toBeVisible();
+  await expect(page.locator('.toast', { hasText: /O total da reserva é agora 150,00\s€/ })).toBeVisible();
   await expectShownTotal(page, 150);
   assert.equal(row(stale.id).check_in, '2035-06-01', 'o total antigo não foi gravado');
   await page.locator('#btn-guardar').click();
