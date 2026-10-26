@@ -12,11 +12,12 @@
 const { db } = require('../config/database');
 const staff = require('./staffNotifier');
 
+// Título do aviso de cancelamento à equipa (push e email), pelo motivo.
 const CANCEL_REASONS = {
-  staff: 'Cancelada pela equipa',
-  guest: 'Cancelada pelo hóspede',
+  staff: 'Reserva cancelada pela equipa',
+  guest: 'Reserva cancelada pelo hóspede',
   ttl: 'Pedido expirado sem pagamento nem aprovação',
-  nonpayment: 'Cancelada por falta de pagamento',
+  nonpayment: 'Reserva cancelada por falta de pagamento',
 };
 
 function effectsFor(type, payload = {}) {
@@ -48,8 +49,15 @@ function load(event) {
 }
 
 const money = value => require('./emailComposer').formatCurrency(Number(value) || 0);
-const summary = ({ reservation, guest, accommodation }) =>
-  `${guest.name || 'Hóspede'} · ${accommodation.name || ''} · ${reservation.check_in} → ${reservation.check_out}`;
+// Texto dos avisos push: quem, onde e quando, com datas curtas («3 → 6 jul»).
+const dates = require('./dates');
+const guestName = ({ guest }) => guest.name || 'Hóspede';
+const stay = ({ reservation }) => dates.shortRange(reservation.check_in, reservation.check_out);
+const summary = ctx => [guestName(ctx), ctx.accommodation.name, stay(ctx)].filter(Boolean).join(' · ');
+const nights = ({ reservation }) => {
+  const n = Number(reservation.nights) || dates.daysBetween(reservation.check_in, reservation.check_out);
+  return `${n} noite${n !== 1 ? 's' : ''}`;
+};
 const backofficeUrl = (event, reservation) => {
   const origin = require('./publicOrigin').configuredOrigin() || event.payload.appUrl || '';
   return origin ? `${origin}/reservas?reserva=${encodeURIComponent(reservation.id)}` : '';
@@ -62,20 +70,20 @@ const HANDLERS = {
   guest_payment_email: (ctx, event) => require('./emailService').sendPaymentConfirmationEmail(ctx.guest, ctx.reservation, ctx.accommodation, { amount: event.payload.amount }),
 
   staff_push_new: (ctx, event) => staff.push(event.organizationId, 'new_reservation', {
-    title: '🆕 Nova reserva', body: summary(ctx), url: `/reservas?reserva=${ctx.reservation.id}`, excludeUserId: event.actorUserId,
+    kind: 'reservation', title: ['Nova reserva', ctx.accommodation.name].filter(Boolean).join(' · '),
+    body: `${guestName(ctx)} · ${stay(ctx)} · ${nights(ctx)}`, url: `/reservas?reserva=${ctx.reservation.id}`, excludeUserId: event.actorUserId,
   }),
   staff_push_new_request: (ctx, event) => staff.push(event.organizationId, 'new_reservation', {
-    title: '🟠 Nova reserva pendente',
-    body: `${summary(ctx)} · ${ctx.reservation.status === 'aguardar_pagamento' ? 'A aguardar pagamento' : 'Requer aprovação'}`,
-    url: `/reservas?reserva=${ctx.reservation.id}`, requireInteraction: true, tag: `sp-new_reservation-${ctx.reservation.id}`,
+    kind: 'request', title: ctx.reservation.status === 'aguardar_pagamento' ? 'Novo pedido · aguarda pagamento' : 'Novo pedido · aguarda aprovação',
+    body: summary(ctx), url: `/reservas?reserva=${ctx.reservation.id}`, requireInteraction: true, tag: `sp-new_reservation-${ctx.reservation.id}`,
   }),
   staff_email_new_request: (ctx, event) => require('./emailService').sendOwnerNewReservationEmail(
     event.organizationId, ctx.guest, ctx.reservation, ctx.accommodation, require('./publicOrigin').configuredOrigin() || event.payload.appUrl || ''),
   staff_push_payment: (ctx, event) => staff.push(event.organizationId, 'payment', {
-    title: '💶 Pagamento recebido', body: `${money(event.payload.amount)} · ${summary(ctx)}`, url: `/reservas?reserva=${ctx.reservation.id}`,
+    kind: 'payment', title: `Pagamento recebido · ${money(event.payload.amount)}`, body: summary(ctx), url: `/reservas?reserva=${ctx.reservation.id}`,
   }),
   staff_push_cancelled: (ctx, event) => staff.push(event.organizationId, 'cancellation', {
-    title: '❌ Reserva cancelada', body: `${summary(ctx)} · ${CANCEL_REASONS[event.payload.reason] || ''}`,
+    kind: 'cancellation', title: CANCEL_REASONS[event.payload.reason] || 'Reserva cancelada', body: summary(ctx),
     url: `/reservas?reserva=${ctx.reservation.id}`, excludeUserId: event.actorUserId,
   }),
   staff_email_cancelled: (ctx, event) => staff.email(event.organizationId, {
@@ -93,8 +101,9 @@ const HANDLERS = {
     url: backofficeUrl(event, ctx.reservation),
   }),
   staff_push_precheckin: (ctx, event) => staff.push(event.organizationId, 'precheckin', {
-    title: event.payload.resubmission ? '📝 Pré-check-in alterado pelo hóspede' : '📝 Pré-check-in recebido',
-    body: `${ctx.guest.name || 'Hóspede'} · entrada a ${ctx.reservation.check_in}`, url: `/reservas?reserva=${ctx.reservation.id}`,
+    kind: 'precheckin', title: event.payload.resubmission ? 'Pré-check-in alterado pelo hóspede' : 'Pré-check-in recebido',
+    body: [guestName(ctx), ctx.accommodation.name, `entrada a ${dates.shortDate(ctx.reservation.check_in)}`].filter(Boolean).join(' · '),
+    url: `/reservas?reserva=${ctx.reservation.id}`,
   }),
 };
 
