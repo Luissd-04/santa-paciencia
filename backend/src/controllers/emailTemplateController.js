@@ -250,33 +250,4 @@ async function preview(req, res) {
   }
 }
 
-// POST /api/email-templates/:slug/dark-mode-test — experiência temporária:
-// envia o mesmo email em três versões (services/emailDarkModeTest.js) para a
-// caixa ligada, para escolher no iPhone qual fica bem no modo escuro.
-async function darkModeTest(req, res) {
-  const template = loadTemplate(req);
-  if (!template) return res.status(404).json({ error: 'Template não encontrado' });
-  if (process.env.EMAIL_ENABLED === 'false') return res.status(400).json({ error: 'Email desativado (EMAIL_ENABLED=false)' });
-  const { isEmailAuthenticated, getEmailConnectionInfo } = require('../config/googleEmail');
-  const orgId = req.user.organization_id;
-  const to = getEmailConnectionInfo(orgId).email;
-  if (!to) return res.status(400).json({ error: 'Sem endereço de destino configurado' });
-  if (!isEmailAuthenticated(orgId)) return res.status(400).json({ error: 'Gmail não ligado — liga a conta Google nas definições' });
-
-  const draft = resolveDraft(req, template);
-  const { settings, vars, blocks } = buildPreviewContext(req);
-  const rendered = renderEmail({ subject: draft.subject, body: draft.body, vars, blocks, settings });
-  const { VARIANTS } = require('../services/emailDarkModeTest');
-  try {
-    for (const variant of VARIANTS) {
-      await require('../services/emailService').sendMail(orgId, {
-        to, subject: `[Teste de cores ${variant.key} — ${variant.label}] ${rendered.subject}`, html: variant.transform(rendered.html),
-      });
-    }
-    res.json({ success: true, message: `3 emails de teste (A, B, C) enviados para ${to}` });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-}
-
-module.exports = { getAll, update, getSettings, saveSettings, preview, previewHtml, darkModeTest };
+module.exports = { getAll, update, getSettings, saveSettings, preview, previewHtml };

@@ -76,21 +76,8 @@ async function previewEmail(slug) {
   }
 }
 
-// Experiência temporária: o mesmo email em três versões (A, B, C) para
-// escolher no Gmail do iPhone em modo escuro (emailDarkModeTest.js).
-async function darkModeTest(slug) {
-  try {
-    const data = await AppModules.core.apiPost(`/api/email-templates/${slug}/dark-mode-test`, _previewDraft());
-    if (data.success) AppModules.core.toast(`📧 ${data.message}`, 'success');
-    else AppModules.core.toast('❌ ' + (data.error || 'Erro ao enviar o teste.'), 'error');
-  } catch (e) {
-    AppModules.core.toast('❌ ' + (e.status ? e.message : 'Erro de ligação ao servidor.'), 'error');
-  }
-}
-
 AppActions.register({
   "emails-preview-email-b9e13c6": (el, event, args) => { previewEmail(args[0]) },
-  "emails-dark-mode-test": (el, event, args) => { darkModeTest(args[0]) },
 }, "click");
 
 AppActions.register({

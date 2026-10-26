@@ -1,6 +1,27 @@
 # Emails no Gmail para iPhone
 
-## Decisão de 26 de outubro de 2026: deixar o Gmail inverter tudo
+## Decisão final de 26 de outubro de 2026: cores presas (versão B)
+
+O utilizador comparou no Gmail do iPhone, em modo escuro, três versões do mesmo
+email (botão «Teste de cores», entretanto retirado) e escolheu a B: fica igual
+no modo claro e no modo escuro. Substitui a decisão anterior de deixar o Gmail
+inverter tudo.
+
+Tudo passa por `emailComposer.composeEmail` (`lockColorsForGmail`):
+
+- cada `background-color` ganha `background-image:linear-gradient(c,c)`, que o
+  Gmail não inverte;
+- cada texto fica em `<span class="sp-gs|sp-ge"><span class="sp-gd">…</span></span>`
+  (`sp-gs` sobre fundos escuros/terracota, `sp-ge` sobre fundos claros);
+- as regras `u + .body`, `u ~ .body` e `u + div.body` (só o Gmail as aplica),
+  cada uma no seu próprio `<style>` antes do bloco principal, dão às camadas
+  fundo preto e `mix-blend-mode` screen/exclusion/difference, que anulam a
+  inversão das letras.
+
+Noutros clientes as classes não têm efeito. Corpos extraídos e recompostos não
+ganham camadas duplicadas (teste em `email-composition.test.cjs`).
+
+## Decisão anterior (substituída): deixar o Gmail inverter tudo
 
 Capturas do Gmail do iPhone em modo escuro mostraram, em emails novos e antigos,
 fundos creme e letras invertidas para tons claros: ilegível. As camadas de
