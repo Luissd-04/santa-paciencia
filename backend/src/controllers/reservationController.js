@@ -1,4 +1,3 @@
-const { detachReservationEvent, kickCalendarQueue } = require('../services/calendarService');
 const { sendPreCheckinEmail } = require('../services/emailService');
 
 const {
@@ -111,38 +110,12 @@ async function getById(req, res, next) {
 // POST /api/reservations
 async function cancel(req, res, next) {
   try {
-    const organizationId = req.user.organization_id;
-    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
-    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+    const result = await require('../services/reservationLifecycle').cancel(req.user.organization_id, req.params.id, {
+      actorUserId: req.user.id, key: req.body?.key, expectedRefundCents: req.body?.refundCents,
+    });
     // Repetir o pedido (duplo clique, resposta perdida) não volta a avisar o hóspede.
-    if (reservation.status === 'cancelada') return res.json({ success: true, message: 'A reserva já estava cancelada.' });
-    if (reservation.payment_policy_json) {
-      const automation = require('../services/paymentPolicyAutomation');
-      await automation.cancelByPolicy(reservation.id, { reason: 'staff', userId: req.user.id, key: req.body?.key, expectedRefundCents: req.body?.refundCents });
-      return res.json({ success: true, message: 'Reserva cancelada segundo a política guardada.' });
-    }
-    await require('../services/stripePayments').closeOpenCheckout(reservation.id);
-    db.transaction(() => {
-      require('../services/stripePaymentGuards').assertNoActiveCheckout(reservation.id);
-      db.prepare(`
-      UPDATE reservations SET
-        status = 'cancelada',
-        cancelled_previous_status = CASE WHEN status != 'cancelada' THEN status ELSE cancelled_previous_status END,
-        cancelled_previous_payment_status = payment_status,
-        updated_at = datetime('now')
-      WHERE id = ? AND organization_id = ?
-      `).run(req.params.id, organizationId);
-      require('../services/voucherService').releaseVoucherIfUnpaid(organizationId, reservation.id);
-      detachReservationEvent(organizationId, reservation.id);
-      require('../services/reservationEvents').emit('reservation.cancelled', { organizationId, reservationId: reservation.id, actorUserId: req.user.id, payload: { reason: 'staff', policy: false } });
-    }).immediate();
-    recordHistory({ organizationId, reservationId: req.params.id, userId: req.user.id, action: 'cancelled' });
-    syncReservationOperationalTasks({ ...reservation, status: 'cancelada' }, req.user.id);
-
-    // Remover do Google Calendar (pedido gravado na transação acima)
-    kickCalendarQueue(organizationId);
-
-    res.json({ success: true, message: 'Reserva cancelada' });
+    if (result.alreadyCancelled) return res.json({ success: true, message: 'A reserva já estava cancelada.' });
+    res.json({ success: true, message: result.policy ? 'Reserva cancelada segundo a política guardada.' : 'Reserva cancelada' });
   } catch (err) {
     next(err);
   }
@@ -182,35 +155,8 @@ async function hardDelete(req, res, next) {
 
 async function approve(req, res, next) {
   try {
-    const organizationId = req.user.organization_id;
-    const reservation = db.prepare(`
-      SELECT r.*, g.name as guest_name, g.email as guest_email
-      FROM reservations r
-      JOIN guests g ON r.guest_id = g.id AND r.organization_id = g.organization_id
-      WHERE r.id = ? AND r.organization_id = ?
-    `).get(req.params.id, organizationId);
-    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
-    if (reservation.status === 'cancelada') return res.status(400).json({ error: 'Reserva cancelada não pode ser aprovada.' });
-    // Aprovar é o passo do pedido para o pré-check-in; nunca faz recuar uma
-    // estadia em curso ou terminada.
-    if (['check_in', 'check_out'].includes(reservation.status)) return res.status(409).json({ error: 'A estadia já começou; a reserva não pode voltar ao pré-check-in.' });
-
-    ensurePublicToken(reservation);
-    const precheckinToken = ensurePrecheckinToken(reservation);
-    db.prepare("UPDATE reservations SET status = 'pre_checkin', updated_at = datetime('now') WHERE id = ? AND organization_id = ?")
-      .run(req.params.id, organizationId);
-
-    const updated = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
-    const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(updated.guest_id, organizationId);
-    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(updated.accommodation_id, organizationId);
-    const preCheckinUrl = `${publicUrl(req)}/pre-checkin/${precheckinToken}`;
-
-    recordHistory({ organizationId, reservationId: req.params.id, userId: req.user.id, action: 'approved' });
-    sendPreCheckinEmail(guest, updated, accommodation, preCheckinUrl)
-      .catch(err => console.warn('Email de pre-check-in não enviado:', err.message));
-    syncReservationOperationalTasks({ ...updated, guest_name: guest.name, accommodation_name: accommodation.name }, req.user.id);
-
-    res.json({ success: true, data: { ...updated, pre_checkin_url: preCheckinUrl } });
+    const { reservation, url } = require('../services/reservationLifecycle').approve(req.user.organization_id, req.params.id, { actorUserId: req.user.id, origin: publicUrl(req) });
+    res.json({ success: true, data: { ...reservation, pre_checkin_url: url } });
   } catch (err) {
     next(err);
   }
@@ -254,14 +200,7 @@ async function sendPrecheckinLink(req, res, next) {
     // formulário ou a equipa pode ter cancelado/concluído a reserva.
     const updated = db.transaction(() => {
       const current = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservation.id, organizationId);
-      if (emailSent && !current.precheckin_submitted_at &&
-          ['pre_reserva', 'pendente', 'confirmada', 'aguardar_pagamento'].includes(current.status)) {
-        db.prepare("UPDATE reservations SET status = 'pre_checkin', updated_at = datetime('now') WHERE id = ? AND organization_id = ?")
-          .run(current.id, organizationId);
-        recordHistory({ organizationId, reservationId: current.id, userId: req.user.id, action: 'updated',
-          changes: [{ field: 'status', from: current.status, to: 'pre_checkin' }], meta: { source: 'send_precheckin' } });
-        current.status = 'pre_checkin';
-      }
+      if (emailSent) current.status = require('../services/reservationLifecycle').startPrecheckin(current, { actorUserId: req.user.id });
       return current;
     })();
     syncReservationOperationalTasks({ ...updated, guest_name: guest.name, accommodation_name: accommodation.name }, req.user.id);

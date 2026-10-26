@@ -7,6 +7,7 @@
 //   reservation.requested  pedido do site público { appUrl }
 //   payment.received       { amount, source: 'manual' | 'stripe' | 'automatic' }
 //   reservation.cancelled  { reason: 'staff' | 'guest' | 'ttl' | 'nonpayment', policy }
+//   reservation.approved   { precheckinUrl }
 //   precheckin.submitted   { resubmission }
 const { db } = require('../config/database');
 const staff = require('./staffNotifier');
@@ -32,6 +33,7 @@ function effectsFor(type, payload = {}) {
       'staff_push_cancelled',
       ...(payload.reason === 'staff' ? [] : ['staff_email_cancelled']),
     ];
+    case 'reservation.approved': return ['guest_precheckin_email'];
     case 'precheckin.submitted': return ['staff_push_precheckin'];
     default: throw new Error(`Acontecimento de reserva desconhecido: ${type}`);
   }
@@ -56,6 +58,7 @@ const backofficeUrl = (event, reservation) => {
 const HANDLERS = {
   guest_confirmation_email: (ctx) => require('./emailService').sendConfirmationEmail(ctx.guest, ctx.reservation, ctx.accommodation),
   guest_cancellation_email: (ctx) => require('./emailService').sendCancellationEmail(ctx.guest, ctx.reservation, ctx.accommodation),
+  guest_precheckin_email: (ctx, event) => require('./emailService').sendPreCheckinEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload.precheckinUrl),
   guest_payment_email: (ctx, event) => require('./emailService').sendPaymentConfirmationEmail(ctx.guest, ctx.reservation, ctx.accommodation, { amount: event.payload.amount }),
 
   staff_push_new: (ctx, event) => staff.push(event.organizationId, 'new_reservation', {

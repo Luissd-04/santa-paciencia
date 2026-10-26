@@ -62,11 +62,7 @@ function savePrecheckin(reservation, guest, extraGuests, arrivalTime) {
     // política de pagamento e o sinal ainda não estiver pago (mesma regra dos
     // pagamentos, em reservationState).
     const current = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservation.id, reservation.organization_id);
-    const { cents } = require('./money');
-    const nextStatus = current.status !== 'pre_checkin' ? current.status : require('./reservationState').statusAfterPayment({
-      status: 'confirmada', paidCents: cents(current.amount_paid || 0), totalCents: cents(current.total_amount || 0),
-      depositCents: current.payment_policy_json ? require('./paymentPolicy').planFor(current).depositCents : null,
-    });
+    const nextStatus = require('./reservationLifecycle').statusAfterPrecheckin(current);
     db.prepare(`UPDATE reservations SET guest_id = ?, guest_snapshot = ?, guests_data = ?,
       arrival_time = ?, status = ?, updated_at = datetime('now')
       WHERE id = ? AND organization_id = ?`)

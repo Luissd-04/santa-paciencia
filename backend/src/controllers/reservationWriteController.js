@@ -1,5 +1,5 @@
-const { redeemVoucher, releaseVoucherIfUnpaid, reclaimReleasedVoucher } = require('../services/voucherService');
-const { queueCalendarUpsert, detachReservationEvent, kickCalendarQueue } = require('../services/calendarService');
+const { redeemVoucher, reclaimReleasedVoucher } = require('../services/voucherService');
+const { queueCalendarUpsert, kickCalendarQueue } = require('../services/calendarService');
 const { isAuthenticated: hasGoogleCalendar } = require('../config/google');
 const { recordConsent } = require('../services/rgpdService');
 const { syncReservationOperationalTasks } = require('../services/operationalTasksService');
@@ -325,6 +325,9 @@ async function update(req, res, next) {
     // sem escolha, o dinheiro recebido decide (reservationState).
     const chosenStatus = reactivating ? (existing.cancelled_previous_status || status) : status;
 
+    // Cancelamento pela edição do estado: os mesmos efeitos do botão cancelar.
+    if (cancelling) require('../services/reservationLifecycle').markCancelled(existing, { reason: 'staff', actorUserId: req.user.id });
+
     db.prepare(`
       UPDATE reservations SET
         accommodation_id = ?, check_in = ?, check_out = ?, nights = ?, num_guests = ?,
@@ -370,15 +373,10 @@ async function update(req, res, next) {
     ledger.ensureLegacyPayment(existing);
     // O total pode ter mudado: o estado do pagamento é sempre derivado do ledger.
     ledger.recompute(existing.id, organizationId, { deriveStatus: !chosenStatus });
-    if (cancelling) releaseVoucherIfUnpaid(organizationId, existing.id);
     if (reactivating) reclaimReleasedVoucher(organizationId, existing.id);
     // Google Calendar: cancelar remove o evento (paridade com o DELETE); as
     // restantes alterações atualizam-no. Gravado na mesma transação.
-    if (cancelling) {
-      detachReservationEvent(organizationId, existing.id);
-      require('../services/reservationEvents').emit('reservation.cancelled', { organizationId, reservationId: existing.id, actorUserId: req.user.id, payload: { reason: 'staff', policy: false } });
-    }
-    else if (existing.google_event_id || (reactivating && existing.google_calendar_user_id)) {
+    if (!cancelling && (existing.google_event_id || (reactivating && existing.google_calendar_user_id))) {
       queueCalendarUpsert(organizationId, 'reservation', existing.id, existing.google_calendar_user_id || req.user.id);
     }
     const updated = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
