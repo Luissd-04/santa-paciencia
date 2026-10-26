@@ -43,9 +43,7 @@ const localDay = (now = new Date()) => require('./dates').localDay(now);
 const daysBetween = (from, to) => require('./dates').daysBetween(dateOnly(from), dateOnly(to));
 const shiftDay = (day, delta) => require('./dates').addDays(dateOnly(day), delta);
 function noonLisbon(day) {
-  const utc = new Date(dateOnly(day) + 'T12:00:00Z');
-  const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Lisbon', hour: '2-digit', hourCycle: 'h23' }).format(utc));
-  return new Date(utc.getTime() - (hour - 12) * 3600000).toISOString();
+  return require('./dates').zonedDateTime(dateOnly(day), '12:00').toISOString();
 }
 function percentAt(rules, days) { return rules.find(r => days >= r.minDays && (r.maxDays === null || days <= r.maxDays))?.percent ?? 0; }
 function calculate(policy, { total, paid = 0, bookedOn, checkIn, cancelOn = bookedOn }) {

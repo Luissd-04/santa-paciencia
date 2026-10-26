@@ -4,19 +4,15 @@ const crypto = require('crypto');
 const { canSendTemplate, CANCELLATION_TEMPLATES } = require('./emailEligibility');
 const { withSchedulerLease } = require('./schedulerLease');
 const { localDateIso } = require('./reservationRules');
+const { zonedDateTime } = require('./dates');
 
 function getSendTime(reservation, template, settings) {
   const { timing_offset, timing_unit, timing_direction, timing_event } = template;
+  // Hora do check-in/check-out no fuso do alojamento, não no do servidor.
   let base;
-  if (timing_event === 'checkin') {
-    const [h = '15', m = '00'] = (settings.checkin_time || '15:00').split(':');
-    base = new Date(`${reservation.check_in}T${h.padStart(2,'0')}:${m.padStart(2,'0')}:00`);
-  } else if (timing_event === 'checkout') {
-    const [h = '11', m = '00'] = (settings.checkout_time || '11:00').split(':');
-    base = new Date(`${reservation.check_out}T${h.padStart(2,'0')}:${m.padStart(2,'0')}:00`);
-  } else {
-    return null;
-  }
+  if (timing_event === 'checkin') base = zonedDateTime(reservation.check_in, settings.checkin_time || '15:00');
+  else if (timing_event === 'checkout') base = zonedDateTime(reservation.check_out, settings.checkout_time || '11:00');
+  else return null;
   const ms = (timing_offset || 0) * (timing_unit === 'days' ? 86400000 : 3600000);
   return new Date(timing_direction === 'before' ? base.getTime() - ms : base.getTime() + ms);
 }
@@ -158,4 +154,4 @@ function startScheduler() {
 }
 
 function stopScheduler() { clearInterval(timer); timer = null; }
-module.exports = { startScheduler, stopScheduler, runScheduler };
+module.exports = { startScheduler, stopScheduler, runScheduler, getSendTime };

@@ -12,6 +12,30 @@ function localDay(date = new Date(), offsetDays = 0) {
   return offsetDays ? addDays(day, offsetDays) : day;
 }
 
+// Hora de parede no alojamento ({ hour, minute }), sem depender do fuso do
+// servidor (Date#getHours usa o do processo).
+function localTime(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: businessTimeZone(), hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .formatToParts(date);
+  const get = type => Number(parts.find(p => p.type === type)?.value || 0);
+  return { hour: get('hour'), minute: get('minute') };
+}
+
+// Instante (Date) em que é «HH:MM» do dia AAAA-MM-DD no alojamento — ex.: o
+// check-in às 15:00. Corrige o desvio do fuso nesse dia (hora de verão).
+function zonedDateTime(day, time = '00:00') {
+  const [h = 0, m = 0] = String(time).split(':').map(Number);
+  const wall = Date.UTC(...String(day).slice(0, 10).split('-').map((n, i) => Number(n) - (i === 1 ? 1 : 0)), h || 0, m || 0);
+  const offsetAt = instant => {
+    const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: businessTimeZone(), hourCycle: 'h23',
+      year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+      .formatToParts(new Date(instant)).map(part => [part.type, part.value]));
+    return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - instant;
+  };
+  const guess = wall - offsetAt(wall);
+  return new Date(wall - offsetAt(guess));
+}
+
 // Aritmética de dias de calendário (AAAA-MM-DD), feita ao meio-dia UTC para
 // não depender do fuso nem da mudança de hora.
 const DAY_MS = 86400000;
@@ -38,4 +62,4 @@ function shortRange(from, to, { today = localDay() } = {}) {
   return `${shortDate(from, { year, today })} → ${shortDate(to, { year, today })}`;
 }
 
-module.exports = { businessTimeZone, localDay, addDays, daysBetween, shortDate, shortRange };
+module.exports = { businessTimeZone, localDay, localTime, zonedDateTime, addDays, daysBetween, shortDate, shortRange };

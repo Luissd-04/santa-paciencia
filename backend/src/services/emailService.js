@@ -33,7 +33,8 @@ function isWithinSendWindow(template, now = new Date()) {
   const [sh, sm] = template.window_start.split(':').map(Number);
   const [eh, em] = template.window_end.split(':').map(Number);
   if (Number.isNaN(sh) || Number.isNaN(eh)) return true;
-  const cur = now.getHours() * 60 + now.getMinutes();
+  const { hour, minute } = require('./dates').localTime(now);
+  const cur = hour * 60 + minute;
   const start = sh * 60 + (sm || 0);
   const end = eh * 60 + (em || 0);
   return start <= end ? (cur >= start && cur <= end) : (cur >= start || cur <= end);
@@ -315,10 +316,9 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 // configuradas para o alojamento) — extraído para reutilizar entre a escolha
 // de reserva "ativa" e a nova janela de elegibilidade de templates.
 function computeStayWindow(reservation, settings) {
-  const [ih, im] = String(settings.checkin_time  || '15:00').split(':').map(Number);
-  const [oh, om] = String(settings.checkout_time || '11:00').split(':').map(Number);
-  const checkinDt  = new Date(`${reservation.check_in}T${String(ih || 0).padStart(2, '0')}:${String(im || 0).padStart(2, '0')}:00`);
-  const checkoutDt = new Date(`${reservation.check_out}T${String(oh || 0).padStart(2, '0')}:${String(om || 0).padStart(2, '0')}:00`);
+  const { zonedDateTime } = require('./dates');
+  const checkinDt  = zonedDateTime(reservation.check_in, settings.checkin_time || '15:00');
+  const checkoutDt = zonedDateTime(reservation.check_out, settings.checkout_time || '11:00');
   return { checkinDt, checkoutDt };
 }
 
@@ -477,7 +477,7 @@ function paymentVars(reservation) {
 }
 
 function formatDateTimeLisbon(value) {
-  return new Date(value).toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon', dateStyle: 'long', timeStyle: 'short' });
+  return new Date(value).toLocaleString('pt-PT', { timeZone: require('./dates').businessTimeZone(), dateStyle: 'long', timeStyle: 'short' });
 }
 
 // Enviado em cada pagamento recebido (sinal, restante ou pagamento único);

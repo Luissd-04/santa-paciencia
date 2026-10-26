@@ -54,6 +54,32 @@ test('datas: «hoje» no fuso do alojamento, não em UTC', () => {
   assert.equal(require('../services/reservationRules').localDateIso(new Date('2026-07-10T23:30:00Z')), localDay(new Date('2026-07-10T23:30:00Z')));
 });
 
+test('horas: emails agendados e check-in/check-out no fuso do alojamento, não no do servidor', () => {
+  const { localTime, zonedDateTime } = require('../services/dates');
+  const { getSendTime } = require('../services/emailScheduler');
+  const previous = process.env.TZ;
+  try {
+    // Sem TZ, o servidor fica no fuso do sistema (UTC nos contentores) e o
+    // alojamento em Lisboa: era aqui que as horas saíam uma hora mais tarde.
+    delete process.env.TZ;
+    assert.equal(zonedDateTime('2026-07-03', '15:00').toISOString(), '2026-07-03T14:00:00.000Z'); // verão
+    assert.equal(zonedDateTime('2026-01-03', '15:00').toISOString(), '2026-01-03T15:00:00.000Z'); // inverno
+    assert.equal(zonedDateTime('2026-03-29', '15:00').toISOString(), '2026-03-29T14:00:00.000Z'); // dia da mudança
+    assert.deepEqual(localTime(new Date('2026-07-03T07:30:00Z')), { hour: 8, minute: 30 });
+    assert.deepEqual(localTime(new Date('2026-01-03T23:59:00Z')), { hour: 23, minute: 59 });
+    const sendAt = getSendTime({ check_in: '2026-07-03', check_out: '2026-07-06' },
+      { timing_event: 'checkin', timing_offset: 2, timing_unit: 'hours', timing_direction: 'before' }, { checkin_time: '16:00' });
+    assert.equal(sendAt.toISOString(), '2026-07-03T13:00:00.000Z'); // 14:00 em Lisboa
+    const after = getSendTime({ check_in: '2026-01-03', check_out: '2026-01-06' },
+      { timing_event: 'checkout', timing_offset: 1, timing_unit: 'days', timing_direction: 'after' }, { checkout_time: '11:00' });
+    assert.equal(after.toISOString(), '2026-01-07T11:00:00.000Z');
+    process.env.TZ = 'UTC';
+    assert.equal(zonedDateTime('2026-07-03', '15:00').toISOString(), '2026-07-03T15:00:00.000Z');
+  } finally {
+    if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous;
+  }
+});
+
 test('campos herdados: a unidade usa os do alojamento principal só quando vazios', () => {
   const { withInheritedFields, INHERITED_FIELDS } = require('../services/accommodationInheritance');
   db.exec(`INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests,wifi_name,door_code,city)
