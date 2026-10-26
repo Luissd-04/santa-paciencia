@@ -78,7 +78,7 @@ público.
 
 ```bash
 docker compose build backend && docker compose up -d backend
-docker compose logs --since 5m backend   # migrações e schedulers arrancados
+docker compose logs --since 5m backend   # migrações e tarefas automáticas arrancadas
 ```
 
 ### Depois de publicar
@@ -87,7 +87,9 @@ docker compose logs --since 5m backend   # migrações e schedulers arrancados
    Calendário e Preços no telemóvel.
 2. `SELECT id FROM schema_migrations ORDER BY id` inclui as migrações novas.
 3. `GET /api/ops/status`: filas a zero ou a descer, sem tentativas Stripe
-   paradas, schedulers com `last_ok` recente.
+   paradas, tarefas automáticas (`tasks`) com `last_ok_at` recente e sem
+   `last_error_at` mais recente (também em Definições → Base de dados →
+   «Estado do sistema»).
 4. Estados das integrações (Calendar/Gmail/Tasks ligados como antes); um email
    de teste só se `EMAIL_ENABLED` o permitir e com autorização.
 5. Criar e cancelar uma reserva sintética numa unidade de teste (se existir) e

@@ -1,16 +1,12 @@
 require('dotenv').config();
 const app = require('./app');
-const { startScheduler } = require('./services/reservationScheduler');
-const { startScheduler: startPushScheduler } = require('./services/pushScheduler');
-const { startScheduler: startEmailScheduler } = require('./services/emailScheduler');
+const scheduledTasks = require('./services/scheduledTasks');
 
 const PORT = process.env.PORT || 3001;
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Santa Paciência a correr na porta ${PORT}`);
-  startScheduler();
-  startPushScheduler();
-  startEmailScheduler();
+  scheduledTasks.start();
 });
 
 server.on('error', (error) => {
@@ -22,10 +18,10 @@ let shuttingDown = false;
 function shutdown() {
   if (shuttingDown) return;
   shuttingDown = true;
-  require('./services/reservationScheduler').stopScheduler();
-  require('./services/emailScheduler').stopScheduler();
-  require('./services/pushScheduler').stopScheduler();
-  server.close(() => {
+  // Parar as tarefas automáticas e esperar pelas que estão a meio (até 10 s).
+  const tasksStopped = scheduledTasks.stop(10000);
+  server.close(async () => {
+    await tasksStopped;
     require('./config/database').db.close();
     process.exit(0);
   });

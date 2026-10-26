@@ -1,13 +1,11 @@
+// Manutenção das reservas (de 30 em 30 minutos, pelo executor de tarefas
+// automáticas: scheduledTasks.js).
 const { db } = require('../config/database');
-const { processAllCalendarQueues } = require('./calendarService');
-const { processAllQueuedTaskDeletions, syncEnabledOrganizationsToGoogleTasks } = require('../config/googleTasks');
+const { processAllQueuedTaskDeletions } = require('../config/googleTasks');
 
 // TTL em horas para reservas vindas do motor público (canal != 'direto') que
 // nunca pagaram. Configurável via env.
 const PENDING_TTL_HOURS = Number(process.env.PUBLIC_PENDING_TTL_HOURS) || 48;
-
-// Intervalo entre passagens (ms). 30 minutos por defeito.
-const SCHEDULER_INTERVAL_MS = Number(process.env.PENDING_EXPIRY_INTERVAL_MS) || 30 * 60 * 1000;
 
 /**
  * Marca como `cancelada` qualquer reserva vinda do motor público que continue
@@ -74,74 +72,30 @@ function expirePendingReservations() {
   }
 }
 
-let timer = null;
-let tasksTimer = null;
-let tasksSyncRunning = false;
-const TASKS_SYNC_INTERVAL_MS = Math.max(10000, Number(process.env.GOOGLE_TASKS_SYNC_INTERVAL_MS) || 60000);
-async function reconcileGoogleTasks() {
-  if (tasksSyncRunning) return;
-  tasksSyncRunning = true;
-  const { beat } = require('./opsStatus');
-  try { await syncEnabledOrganizationsToGoogleTasks(); beat('google_tasks'); }
-  catch (err) { beat('google_tasks', err); console.error('Erro na reconciliação do Google Tasks:', err.message); }
-  // Repetições pendentes do Google Calendar (só as que já chegaram à hora).
-  try { await processAllCalendarQueues(); beat('google_calendar_queue'); }
-  catch (err) { beat('google_calendar_queue', err); console.error('Erro ao repetir a fila do Google Calendar:', err.message); }
-  finally { tasksSyncRunning = false; }
-}
-
 function retryPendingGoogleTaskDeletions() {
-  processAllQueuedTaskDeletions()
+  return processAllQueuedTaskDeletions()
     .then(result => {
       if (result.deleted) console.log(`🗑️  ${result.deleted} tarefa(s) pendente(s) removida(s) do Google Tasks`);
     })
     .catch(err => console.error('Erro ao repetir eliminações do Google Tasks:', err.message));
 }
 
-let maintenanceRunning = false;
+// Uma passagem: pagamentos Stripe em aberto, política de pagamento, pedidos
+// expirados, efeitos de acontecimentos (emails, avisos) que falharam ou ficaram
+// a meio e eliminações pendentes no Google Tasks. Um erro fica no estado da
+// tarefa e a passagem seguinte repete.
 async function runMaintenance() {
-  if (maintenanceRunning) return;
-  maintenanceRunning = true;
-  try {
-    await require('./stripePayments').reconcileActiveCheckouts();
-    await require('./paymentPolicyAutomation').runPolicyMaintenance();
-    expirePendingReservations();
-    // Efeitos de acontecimentos (emails, avisos) que falharam ou ficaram a meio.
-    require('./reservationEvents').recoverInterrupted();
-    await require('./reservationEvents').dispatchPending();
-    retryPendingGoogleTaskDeletions();
-    require('./opsStatus').beat('maintenance');
-  } catch (err) { require('./opsStatus').beat('maintenance', err); console.warn('Falha na manutenção das reservas; será repetida.'); }
-  finally { maintenanceRunning = false; }
-}
-
-function startScheduler() {
-  if (timer) return;
-  try { require('./reservationLifecycle').reconcileLegacyStatuses(); }
-  catch (error) { console.error('Acerto dos estados das reservas falhou:', error.message); }
-  runMaintenance();
-  reconcileGoogleTasks();
-  tasksTimer = setInterval(reconcileGoogleTasks, TASKS_SYNC_INTERVAL_MS);
-  if (typeof tasksTimer.unref === 'function') tasksTimer.unref();
-  timer = setInterval(runMaintenance, SCHEDULER_INTERVAL_MS);
-  if (typeof timer.unref === 'function') timer.unref();
-  console.log(`⏰ Reservation scheduler ativo (TTL ${PENDING_TTL_HOURS}h, cada ${Math.round(SCHEDULER_INTERVAL_MS / 60000)}min)`);
-}
-
-function stopScheduler() {
-  if (tasksTimer) { clearInterval(tasksTimer); tasksTimer = null; }
-  if (timer) {
-    clearInterval(timer);
-    timer = null;
-  }
+  await require('./stripePayments').reconcileActiveCheckouts();
+  await require('./paymentPolicyAutomation').runPolicyMaintenance();
+  expirePendingReservations();
+  require('./reservationEvents').recoverInterrupted();
+  await require('./reservationEvents').dispatchPending();
+  await retryPendingGoogleTaskDeletions();
 }
 
 module.exports = {
   expirePendingReservations,
   retryPendingGoogleTaskDeletions,
-  reconcileGoogleTasks,
-  TASKS_SYNC_INTERVAL_MS,
-  startScheduler,
-  stopScheduler,
+  runMaintenance,
   PENDING_TTL_HOURS,
 };
