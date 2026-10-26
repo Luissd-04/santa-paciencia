@@ -27,8 +27,6 @@ AppModules.define('reservas', {
   invalidateWizPricingCache: { get: () => invalidateWizPricingCache },
   loadWizPricingPeriods: { get: () => loadWizPricingPeriods },
   nightlyOverrideArray: { get: () => nightlyOverrideArray },
-  onAmountPaidChange: { get: () => onAmountPaidChange },
-  onPaymentStatusChange: { get: () => onPaymentStatusChange },
   preloadAllPricingPeriods: { get: () => preloadAllPricingPeriods },
   updateForeignRequirements: { get: () => updateForeignRequirements },
   updateNumHospedes: { get: () => updateNumHospedes },
@@ -130,63 +128,6 @@ function _resetGuestFields() {
   const prefix = document.getElementById('f-tel-prefix'); if (prefix) prefix.value = '+351';
   const rgpd = document.getElementById('f-rgpd-check'); if (rgpd) { rgpd.checked = false; rgpd.closest('.rgpd-box')?.classList.remove('rgpd-accepted'); }
   updateForeignRequirements();
-}
-
-function onPaymentStatusChange() {
-  const ps = document.getElementById('f-payment-status').value;
-  document.getElementById('pagamento-metodo-wrap').style.display =
-    (ps === 'confirmado' || ps === 'parcial') ? '' : 'none';
-
-  // Estado -> Valor pago (sentido inverso do onAmountPaidChange). Não chamar
-  // onAmountPaidChange aqui para evitar recursão (ele chama-nos no fim).
-  const paidEl  = document.getElementById('f-amount-paid');
-  const remWrap = document.getElementById('payment-remaining-wrap');
-  const remVal  = document.getElementById('payment-remaining-val');
-  if (!paidEl) return;
-  const total = parseFloat(document.getElementById('f-total').value) || 0;
-
-  if (ps === 'confirmado') {
-    if (total > 0) paidEl.value = total.toFixed(2);
-    if (remWrap) remWrap.style.display = 'none';
-  } else if (ps === 'pendente') {
-    paidEl.value = '';
-    if (remWrap) remWrap.style.display = 'none';
-  } else if (ps === 'parcial') {
-    // Montante parcial é escrito pelo utilizador; mostrar o que falta.
-    const paid = parseFloat(paidEl.value) || 0;
-    if (remWrap && total > 0 && paid > 0 && paid < total) {
-      remWrap.style.display = '';
-      if (remVal) remVal.textContent = '€' + (total - paid).toFixed(2);
-    } else if (remWrap) {
-      remWrap.style.display = 'none';
-    }
-  }
-}
-
-function onAmountPaidChange() {
-  const paid = parseFloat(document.getElementById('f-amount-paid').value) || 0;
-  const total = parseFloat(document.getElementById('f-total').value) || 0;
-  const psEl = document.getElementById('f-payment-status');
-  const remWrap = document.getElementById('payment-remaining-wrap');
-  const remVal = document.getElementById('payment-remaining-val');
-
-  if (paid > 0 && total > 0) {
-    const statusEl = document.getElementById('f-estado');
-    if (statusEl?.value === 'aguardar_pagamento') statusEl.value = 'confirmada';
-    if (paid >= total) {
-      psEl.value = 'confirmado';
-      if (remWrap) remWrap.style.display = 'none';
-    } else {
-      psEl.value = 'parcial';
-      const rem = total - paid;
-      if (remWrap) remWrap.style.display = '';
-      if (remVal) remVal.textContent = '€' + rem.toFixed(2);
-    }
-  } else {
-    psEl.value = 'pendente';
-    if (remWrap) remWrap.style.display = 'none';
-  }
-  onPaymentStatusChange();
 }
 
 // ── WIZARD STATE ──

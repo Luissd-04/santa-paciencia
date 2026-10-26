@@ -6,7 +6,7 @@ const DEFAULT_POLICY = {
   refundRules: [{ minDays: 0, maxDays: 14, percent: 0 }, { minDays: 15, maxDays: 30, percent: 50 }, { minDays: 31, maxDays: null, percent: 100 }],
 };
 const fail = message => { throw Object.assign(new Error(message), { status: 400 }); };
-const cents = value => Math.round(Number(value) * 100);
+const { cents } = require('./money');
 function validatePolicy(input) {
   if (!input || typeof input !== 'object') fail('Política inválida.');
   for (const key of ['enabled', 'automaticCharge']) if (typeof input[key] !== 'boolean') fail('Opção inválida: ' + key);
@@ -88,9 +88,11 @@ function attachPolicy(r, now = new Date()) {
   require('../config/database').db.prepare('UPDATE reservations SET payment_policy_json=? WHERE id=? AND organization_id=?')
     .run(JSON.stringify(snapshot), r.id, r.organization_id);
   r.payment_policy_json = JSON.stringify(snapshot);
-  if (r.status === 'confirmada' && cents(r.amount_paid || 0) < planFor(r, now).depositCents) {
-    require('../config/database').db.prepare("UPDATE reservations SET status='aguardar_pagamento' WHERE id=?").run(r.id);
-    r.status = 'aguardar_pagamento';
+  if (r.status !== undefined) {
+    const status = require('./reservationState').statusAfterPayment({ status: r.status, paidCents: cents(r.amount_paid || 0),
+      totalCents: cents(r.total_amount || 0), depositCents: planFor(r, now).depositCents });
+    if (status !== r.status) require('../config/database').db.prepare('UPDATE reservations SET status=? WHERE id=?').run(status, r.id);
+    r.status = status;
   }
 }
 function policyFor(r) { return r.payment_policy_json ? JSON.parse(r.payment_policy_json) : null; }

@@ -266,7 +266,6 @@ AppActions.register({
   "index-wiz-guest-search-ba4bf00": (el, event, args) => { AppModules.reservas.wizGuestSearch(el.value) },
   "index-update-wiz-summary-35ca320": (el, event, args) => { AppModules.reservas.updateWizSummary() },
   "index-handle-birth-date-input-6742f58": (el, event, args) => { AppModules.reservas.handleBirthDateInput(el) },
-  "index-on-amount-paid-change-104efde": (el, event, args) => { AppModules.reservas.onAmountPaidChange() },
   "index-to-upper-case-da41d26": (el, event, args) => { el.value=el.value.toUpperCase() },
   "index-update-profile-password-visibility-293b4c8": (el, event, args) => { AppModules.core.updateProfilePasswordVisibility() },
 }, "input");
@@ -308,7 +307,6 @@ AppActions.register({
   "index-calc-total-a239bdf": (el, event, args) => { AppModules.reservas.calcTotal() },
   "index-calc-total-8bcd488": (el, event, args) => { AppModules.reservas.calcTotal();AppModules.reservas.updateWizSummary() },
   "index-update-foreign-requirements-2ec6793": (el, event, args) => { AppModules.reservas.updateForeignRequirements() },
-  "index-on-payment-status-change-93354d3": (el, event, args) => { AppModules.reservas.onPaymentStatusChange() },
 }, "change");
 
 AppActions.register({

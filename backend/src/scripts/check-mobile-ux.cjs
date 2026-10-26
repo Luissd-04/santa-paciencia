@@ -63,7 +63,14 @@ async function main() {
   const cell = page.locator('.precos-day-cell[data-date]').nth(3);
   await cell.click();
   // O clique redesenha a grelha: medir sobre a célula atual, não sobre uma já substituída.
-  const box = await cell.evaluate(el=>{const r=el.getBoundingClientRect();return {x:r.left,y:r.top,width:r.width,height:r.height};});
+  // Esperar até a célula estar ligada ao documento, visível e realmente por baixo do
+  // ponto de toque (centrada, para não ficar sob a barra superior fixa). Rolagem
+  // instantânea: o html tem scroll-behavior:smooth e a página ainda deslizava
+  // durante o toque, que acabava noutra semana.
+  let box;
+  await expect.poll(async()=>{box=await cell.evaluate(el=>{el.scrollIntoView({block:'center',inline:'nearest',behavior:'instant'});const r=el.getBoundingClientRect();
+    const x=r.left+r.width/2+1,y=r.top+r.height/2;return {x:r.left,y:r.top,width:r.width,height:r.height,
+      ready:el.isConnected&&r.width>0&&document.elementFromPoint(x,y)?.closest('[data-date]')===el};});return box.ready;}).toBe(true);
   await page.evaluate(()=>{const raf=window.requestAnimationFrame.bind(window);const held=[];window.__heldRaf=true;
     window.requestAnimationFrame=cb=>{if(window.__heldRaf){held.push(cb);return -1;}return raf(cb);};
     document.addEventListener('pointerdown',()=>{window.__heldRaf=false;raf(t=>held.splice(0).forEach(cb=>cb(t)));},{capture:true,once:true});});

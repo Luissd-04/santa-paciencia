@@ -220,14 +220,12 @@ function calculateReservationTotals(accommodation, services = [], payload = {}) 
   };
 }
 
+// Mantido para quem só tem os valores em euros; a regra vive em reservationState.
 function getPaymentStatus(amountPaid, totalAmount, fallback = 'pendente') {
-  const paid = Math.round((Number(amountPaid) || 0) * 100);
-  const total = Math.round((Number(totalAmount) || 0) * 100);
-  if (paid >= total && paid > 0) return 'confirmado';
-  if (paid > 0) return 'parcial';
-  // Nada a pagar (ex.: voucher de 100%): a reserva está liquidada.
-  if (total <= 0 && fallback !== 'reembolsado') return 'confirmado';
-  return fallback === 'reembolsado' ? 'reembolsado' : 'pendente';
+  const { cents } = require('./money');
+  return require('./reservationState').paymentStatusFor({
+    paidCents: cents(Number(amountPaid) || 0), totalCents: cents(Number(totalAmount) || 0), current: fallback,
+  });
 }
 
 module.exports = {

@@ -143,7 +143,15 @@ async function main() {
   db.prepare("UPDATE vouchers SET value = 10 WHERE code = 'NOVA10'").run();
 
   // 4. Nova reserva com código: o desconto aparece antes de gravar.
-  await page.evaluate(() => AppModules.reservas.openModal({ checkIn: '2035-07-01', checkOut: '2035-07-03', accommodationId: 'unit' }));
+  // Quem começa logo a escrever não perde o foco para o próprio formulário no
+  // frame seguinte (no WebKit o nome escrito perdia-se e a gravação parava).
+  const focusedAfterOpen = await page.evaluate(async () => {
+    AppModules.reservas.openModal({ checkIn: '2035-07-01', checkOut: '2035-07-03', accommodationId: 'unit' });
+    document.getElementById('f-nome-completo').focus();
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return document.activeElement?.id;
+  });
+  assert.equal(focusedAfterOpen, 'f-nome-completo');
   await page.locator('#f-nome-completo').fill('Hóspede Novo');
   await expectShownTotal(page, 200);
   await page.locator('#f-voucher-code').evaluate(input => input.removeAttribute('readonly'));

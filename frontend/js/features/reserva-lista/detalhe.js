@@ -140,11 +140,6 @@ async function showDetail(id, opts = {}) {
       { v: 'aguardar_pagamento', l: 'Aguardar Pagamento' },
       { v: 'cancelada', l: 'Cancelada' },
     ];
-    const payOptions = [
-      { v: 'pendente', l: 'Não pago' },
-      { v: 'parcial', l: 'Parcial' },
-      { v: 'confirmado', l: 'Completo' },
-    ];
 
     // A ficha e o menu mobile partilham ações, dados e permissões.
     const reservationActionsHtml = `
@@ -404,9 +399,7 @@ async function showDetail(id, opts = {}) {
             </div>
             <div class="rdv2-status-row">
               <span class="rdv2-status-label">Pagamento</span>
-              <select class="rdv2-status-select" ${AppActions.attrs("change", "detalhe-update-detail-status-280dcae", [String((r.id) ?? '')])}>
-                ${payOptions.map(o => `<option value="${o.v}"${r.payment_status === o.v ? ' selected' : ''}>${o.l}</option>`).join('')}
-              </select>
+              <span>${AppModules.core.badgePagamento(r.payment_status)}</span>
             </div>
           </div>
 
@@ -516,7 +509,6 @@ AppActions.register({
 
 AppActions.register({
   "detalhe-update-detail-status-05d2970": (el, event, args) => { updateDetailStatus(args[0],'status',el.value) },
-  "detalhe-update-detail-status-280dcae": (el, event, args) => { updateDetailStatus(args[0],'payment_status',el.value) },
 }, "change");
 
 AppActions.register({

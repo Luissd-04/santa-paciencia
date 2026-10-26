@@ -475,7 +475,20 @@ async function sendCancellationEmail(guest, reservation, accommodation) {
   return sendTemplatedEmail('cancelamento', guest, reservation, accommodation);
 }
 
-async function sendPaymentConfirmationEmail(guest, reservation, accommodation) {
+// Enviado em cada pagamento recebido (sinal, restante ou pagamento único).
+// `payment.amount` é o valor deste pagamento; o cartão mostra também o total
+// já pago e o que falta.
+function paymentVars(reservation, payment = {}) {
+  const paid = Number(reservation.amount_paid || 0);
+  const missing = Math.max(0, Math.round((Number(reservation.total_amount || 0) - paid) * 100) / 100);
+  return {
+    valor_pagamento: composer.formatCurrency(payment.amount ?? paid),
+    total_pago: composer.formatCurrency(paid),
+    valor_em_falta: composer.formatCurrency(missing),
+  };
+}
+
+async function sendPaymentConfirmationEmail(guest, reservation, accommodation, payment = {}) {
   if (EMAIL_DISABLED || !isDeliverableEmail(guest?.email)) return null;
   const { db } = require('../config/database');
   const orgId = reservation.organization_id || accommodation.organization_id;
@@ -483,15 +496,19 @@ async function sendPaymentConfirmationEmail(guest, reservation, accommodation) {
     ? db.prepare("SELECT * FROM organization_email_templates WHERE organization_id = ? AND slug='pagamento' AND active=1").get(orgId)
     : db.prepare("SELECT * FROM email_templates WHERE slug='pagamento' AND active=1").get();
   if (!template && orgId && db.prepare("SELECT 1 FROM organization_email_templates WHERE organization_id=? AND slug='pagamento'").get(orgId)) return null;
-  if (template) return sendTemplatedEmail('pagamento', guest, reservation, accommodation);
+  const amounts = paymentVars(reservation, payment);
+  if (template) return sendTemplatedEmail('pagamento', guest, reservation, accommodation, amounts);
   accommodation = resolveAccommodationInheritance(accommodation, orgId);
   const settings = getEmailSettings(accommodation, orgId);
-  const content = `${composer.buildReservationTitle('Pagamento confirmado', '✓')}
+  const settled = Number(reservation.amount_paid || 0) >= Number(reservation.total_amount || 0);
+  const content = `${composer.buildReservationTitle(settled ? 'Pagamento confirmado' : 'Pagamento recebido', '✓')}
     <p style="margin:0 0 14px;">Olá <strong>${escapeHtml(guest.first_name || (guest.name || '').split(' ')[0] || guest.name || '')}</strong>,</p>
-    <p style="margin:0 0 6px;">Confirmamos a receção do pagamento da sua reserva em <strong>${escapeHtml(accommodation.name || '')}</strong>.</p>
+    <p style="margin:0 0 6px;">Confirmamos a receção de um pagamento de <strong>${escapeHtml(amounts.valor_pagamento)}</strong> da sua reserva em <strong>${escapeHtml(accommodation.name || '')}</strong>.</p>
     ${composer.buildReservationCard([
       { label: 'Alojamento', value: accommodation.name || '' },
       { label: 'Referência', value: reservation.id || '' },
+      { label: 'Total pago', value: amounts.total_pago },
+      ...(settled ? [] : [{ label: 'Em falta', value: amounts.valor_em_falta }]),
     ], composer.formatCurrency(reservation.total_amount || 0))}`;
   return sendMail(orgId, {
     to: guest.email,

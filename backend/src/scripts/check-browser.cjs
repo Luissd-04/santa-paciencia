@@ -679,7 +679,9 @@ async function main() {
   // Mudar de organização atravessa a limpeza dos módulos e a autenticação real.
   await page.locator('#auth-user-chip').click();
   await page.locator(`#user-menu-orgs button[data-org="${otherOrg.id}"]`).click();
-  await page.waitForFunction(id => AppModules.core.currentUser?.organization_id === id, otherOrg.id);
+  // A troca de organização recarrega a página: até o shell voltar a carregar,
+  // AppModules (constante global, não propriedade de window) ainda não existe.
+  await page.waitForFunction(id => typeof AppModules !== 'undefined' && AppModules.core.currentUser?.organization_id === id, otherOrg.id);
   await expect(page.locator('#auth-user-name')).toHaveText('Teste');
   assert.equal(await page.evaluate(() => AppModules.core.accommodations.length), 0);
   await page.evaluate(() => AppModules.core.showView('reservas'));
