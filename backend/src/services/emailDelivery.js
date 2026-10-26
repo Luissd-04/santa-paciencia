@@ -1,4 +1,5 @@
 const { db } = require('../config/database');
+const { httpError } = require('./httpError');
 const { createHash } = require('crypto');
 // A provider timeout cannot prove non-delivery. Never retry that intent blindly.
 async function deliverTemplate({ orgId, slug, reservation: r, to, rendered }, send) {
@@ -41,11 +42,11 @@ async function deliverTemplate({ orgId, slug, reservation: r, to, rendered }, se
 // Resolução manual de um envio incerto, depois de a equipa confirmar no Gmail:
 // 'sent' regista-o como entregue; 'retry' autoriza uma nova tentativa.
 function resolveDelivery(orgId, reservationId, slug, resolution) {
-  if (!['sent', 'retry'].includes(resolution)) throw Object.assign(new Error('Resolução inválida.'), { status: 400 });
+  if (!['sent', 'retry'].includes(resolution)) throw httpError('Resolução inválida.', 400);
   return db.transaction(() => {
     const rows = db.prepare("SELECT id FROM email_deliveries WHERE organization_id=? AND reservation_id=? AND template_slug=? AND state IN ('uncertain','blocked')")
       .all(orgId, reservationId, slug);
-    if (!rows.length) throw Object.assign(new Error('Não há envios por resolver para esta mensagem.'), { status: 404 });
+    if (!rows.length) throw httpError('Não há envios por resolver para esta mensagem.', 404);
     const now = Date.now();
     for (const row of rows) {
       if (resolution === 'sent') db.prepare("UPDATE email_deliveries SET state='sent', last_error=NULL, updated_at=? WHERE id=?").run(now, row.id);

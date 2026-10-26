@@ -7,17 +7,8 @@ const { queueCalendarUpsert, processCalendarQueue, calendarQueueStatus, cleanDup
 const GCAL_SYNC_CALENDAR_KEY = 'gcal_sync_calendar';
 const GCAL_SYNC_TASKS_KEY = 'gcal_sync_tasks';
 
-function getOrgSetting(orgId, key) {
-  const row = db.prepare('SELECT value FROM organization_settings WHERE organization_id = ? AND key = ?').get(orgId, key);
-  return row?.value ?? null;
-}
-
-function setOrgSetting(orgId, key, value) {
-  db.prepare(`
-    INSERT OR REPLACE INTO organization_settings (organization_id, key, value, updated_at)
-    VALUES (?, ?, ?, datetime('now'))
-  `).run(orgId, key, value);
-}
+const getOrgSetting = (orgId, key) => require('../services/settingsService').get(orgId, key);
+const setOrgSetting = (orgId, key, value) => require('../services/settingsService').set(orgId, key, value);
 
 function getSettings(req, res) {
   const orgId = req.user.organization_id;

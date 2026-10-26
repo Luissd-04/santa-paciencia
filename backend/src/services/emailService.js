@@ -1,6 +1,7 @@
 // Lido em cada envio: desligar o email (EMAIL_ENABLED=false) não exige reiniciar módulos.
 const emailDisabled = () => process.env.EMAIL_ENABLED === 'false';
 const crypto = require('crypto');
+const { httpError } = require('./httpError');
 
 // Lido no momento do envio (e não desestruturado), para a ligação Gmail poder
 // ser substituída nos testes.
@@ -63,7 +64,7 @@ const DEFAULT_LOGO_URL = 'https://santapaciencia.pt/wp-content/uploads/2024/04/c
 const DEFAULT_FACEBOOK_URL = 'https://www.facebook.com/al.santapaciencia/';
 
 // Logótipo configurável por alojamento (herdado pelas suites do principal —
-// ver INHERITABLE_ACCOMMODATION_FIELDS). Guardado como caminho relativo
+// ver services/accommodationInheritance.js). Guardado como caminho relativo
 // (/uploads/...) — resolve para absoluto porque os clientes de email
 // carregam a imagem a partir da internet, não do servidor local. Sem
 // alojamento associado (preview do editor, exports em PDF de todos os
@@ -94,11 +95,9 @@ function getEmailSettings(accommodation, organizationId) {
     const orgId = organizationId || accommodation?.organization_id;
     const keys = ['checkin_time','checkout_time','social_facebook','social_instagram','social_website','social_tripadvisor',
                   'property_name','property_address','license_number','email_contact'];
-    const rows = orgId
-      ? db.prepare(`SELECT key,value FROM organization_settings WHERE organization_id = ? AND key IN (${keys.map(() => '?').join(',')})`).all(orgId, ...keys)
-      : db.prepare(`SELECT key,value FROM settings WHERE key IN (${keys.map(() => '?').join(',')})`).all(...keys);
-    const s = {};
-    rows.forEach(r => s[r.key] = r.value);
+    let s = {};
+    if (orgId) s = require('./settingsService').getMany(orgId, keys);
+    else db.prepare(`SELECT key,value FROM settings WHERE key IN (${keys.map(() => '?').join(',')})`).all(...keys).forEach(r => { s[r.key] = r.value; });
 
     let orgName = s.property_name;
     if (!orgName && orgId) {
@@ -241,7 +240,7 @@ function renderManualEmail({ organizationId, subject, body, context }) {
   const accommodation = context?.accommodation || null;
   const settings = getEmailSettings(accommodation, organizationId);
   if (!require('./emailEligibility').canSendTemplate({ subject, body }, reservation) && /\{\{\s*(codigo_porta|door_code|wifi_password|password_wifi)\s*\}\}/i.test(`${subject} ${body}`)) {
-    throw Object.assign(new Error('Os códigos de acesso só podem ser enviados numa reserva confirmada e integralmente paga.'), { status: 409 });
+    throw httpError('Os códigos de acesso só podem ser enviados numa reserva confirmada e integralmente paga.', 409);
   }
   let vars = { ...(context?.vars || {}) };
   let blocks = {};
@@ -305,37 +304,10 @@ function sanitizeUrlVars(vars) {
   return vars;
 }
 
-const INHERITABLE_ACCOMMODATION_FIELDS = [
-  'address', 'postal_code', 'city', 'region', 'country',
-  'wifi_name', 'wifi_password', 'door_code', 'checkin_time', 'checkout_time',
-  'social_facebook', 'social_instagram', 'social_website', 'social_tripadvisor', 'logo_url',
-  'email_social_links',
-];
-
-// Suites/quartos filhos de um alojamento principal não repetem Wi-Fi/redes
-// sociais/etc — herdam do pai (mesma lógica de accommodationController.js
-// INHERITED_FIELDS). Sem isto, um email para uma reserva numa suite via
-// sendTemplatedEmail() via qualquer valor próprio a null, mesmo que o
-// alojamento principal tenha os dados preenchidos.
-function resolveAccommodationInheritance(accommodation, organizationId) {
-  if (!accommodation?.parent_id) return accommodation;
-  try {
-    const { db } = require('../config/database');
-    const parent = organizationId
-      ? db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(accommodation.parent_id, organizationId)
-      : db.prepare('SELECT * FROM accommodations WHERE id = ?').get(accommodation.parent_id);
-    if (!parent) return accommodation;
-    const resolved = { ...accommodation };
-    for (const field of INHERITABLE_ACCOMMODATION_FIELDS) {
-      if (resolved[field] === null || resolved[field] === undefined || resolved[field] === '') {
-        resolved[field] = parent[field];
-      }
-    }
-    return resolved;
-  } catch {
-    return accommodation;
-  }
-}
+// Suites/quartos filhos herdam Wi-Fi, redes sociais, etc. do alojamento
+// principal (services/accommodationInheritance.js).
+const resolveAccommodationInheritance = (accommodation, organizationId) =>
+  require('./accommodationInheritance').withInheritedFields(accommodation, organizationId);
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 

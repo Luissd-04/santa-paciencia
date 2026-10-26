@@ -12,7 +12,7 @@ const { recordHistory } = require('./reservationHistoryService');
 
 const { cents } = require('./money');
 const objectId = value => typeof value === 'string' ? value : value?.id;
-const fail = (message, status = 409) => { throw Object.assign(new Error(message), { status }); };
+const fail = (message, status = 409) => { throw require('./httpError').httpError(message, status); };
 const SUPPORTED_EVENTS = new Set([
   'checkout.session.completed', 'checkout.session.async_payment_succeeded',
   'checkout.session.async_payment_failed', 'checkout.session.expired',

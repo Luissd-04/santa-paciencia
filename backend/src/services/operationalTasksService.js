@@ -26,16 +26,10 @@ function buildAutoKey(reservationId, kind, date, accommodationId) {
   return `${reservationId}:${kind}:${date}:${accommodationId || 'geral'}`;
 }
 
-function safeJson(value, fallback) {
-  try { return value ? JSON.parse(value) : fallback; } catch { return fallback; }
-}
+const { safeJson } = require('./json');
 
 function getAutoTaskSettings(organizationId) {
-  const row = db.prepare(`
-    SELECT value FROM organization_settings
-    WHERE organization_id = ? AND key = ?
-  `).get(organizationId, AUTO_TASK_SETTINGS_KEY);
-  return { ...DEFAULT_AUTO_TASK_SETTINGS, ...safeJson(row?.value, {}) };
+  return { ...DEFAULT_AUTO_TASK_SETTINGS, ...require('./settingsService').getJson(organizationId, AUTO_TASK_SETTINGS_KEY, {}) };
 }
 
 function saveAutoTaskSettings(organizationId, settings = {}) {
@@ -43,10 +37,7 @@ function saveAutoTaskSettings(organizationId, settings = {}) {
   Object.keys(next).forEach(key => {
     if (settings[key] !== undefined) next[key] = !!settings[key];
   });
-  db.prepare(`
-    INSERT OR REPLACE INTO organization_settings (organization_id, key, value, updated_at)
-    VALUES (?, ?, ?, datetime('now'))
-  `).run(organizationId, AUTO_TASK_SETTINGS_KEY, JSON.stringify(next));
+  require('./settingsService').set(organizationId, AUTO_TASK_SETTINGS_KEY, next);
   return next;
 }
 

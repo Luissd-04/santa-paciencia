@@ -131,22 +131,13 @@ const PUSH_TYPES = ['new_reservation', 'cancellation', 'payment', 'precheckin', 
 const DEFAULT_PUSH_PREFS = Object.fromEntries(PUSH_TYPES.map(t => [t, true]));
 
 function getUserPushPrefs(organizationId, userId) {
-  const row = db.prepare('SELECT value FROM organization_settings WHERE organization_id = ? AND key = ?')
-    .get(organizationId, `push_prefs:${userId}`);
-  try {
-    return { ...DEFAULT_PUSH_PREFS, ...(row ? JSON.parse(row.value) : {}) };
-  } catch {
-    return { ...DEFAULT_PUSH_PREFS };
-  }
+  return { ...DEFAULT_PUSH_PREFS, ...require('./settingsService').getJson(organizationId, `push_prefs:${userId}`, {}) };
 }
 
 function saveUserPushPrefs(organizationId, userId, prefs = {}) {
   const next = { ...DEFAULT_PUSH_PREFS };
   PUSH_TYPES.forEach(t => { if (prefs[t] !== undefined) next[t] = !!prefs[t]; });
-  db.prepare(`
-    INSERT OR REPLACE INTO organization_settings (organization_id, key, value, updated_at)
-    VALUES (?, ?, ?, datetime('now'))
-  `).run(organizationId, `push_prefs:${userId}`, JSON.stringify(next));
+  require('./settingsService').set(organizationId, `push_prefs:${userId}`, next);
   return next;
 }
 

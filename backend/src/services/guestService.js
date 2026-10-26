@@ -2,6 +2,7 @@
 // backoffice, a reserva pública, o pré-check-in e a página de hóspedes usam
 // estas funções em vez de escrever na tabela guests cada um à sua maneira.
 const { randomUUID } = require('crypto');
+const { httpError } = require('./httpError');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
 const { normalizeDateValue } = require('./reservationRules');
@@ -42,27 +43,27 @@ function upsertByEmail(organizationId, guest = {}) {
 const PATCH_FIELDS = ['name', 'first_name', 'last_name', 'email', 'email_personal', 'phone', 'birth_date', 'birth_city', 'birth_country', 'nif', 'nationality', 'country', 'document_type', 'document_number', 'document_issuer_country', 'address', 'postal_code', 'city', 'residence_country', 'company', 'company_nif', 'is_favorite', 'is_vip', 'is_unwanted'];
 function updateGuest(id, organizationId, patch) {
   const existing = db.prepare('SELECT * FROM guests WHERE id=? AND organization_id=?').get(id, organizationId);
-  if (!existing) throw Object.assign(new Error('Hóspede não encontrado'), { status: 404 });
+  if (!existing) throw httpError('Hóspede não encontrado', 404);
   const values = {};
   for (const key of PATCH_FIELDS) {
     if (patch[key] === undefined) continue;
     if (key.startsWith('is_')) {
-      if (![true, false, 0, 1].includes(patch[key])) throw Object.assign(new Error('Classificação inválida'), { status: 400 });
+      if (![true, false, 0, 1].includes(patch[key])) throw httpError('Classificação inválida', 400);
       values[key] = patch[key] ? 1 : 0;
     } else {
-      if (patch[key] !== null && typeof patch[key] !== 'string') throw Object.assign(new Error('Dados de hóspede inválidos'), { status: 400 });
+      if (patch[key] !== null && typeof patch[key] !== 'string') throw httpError('Dados de hóspede inválidos', 400);
       values[key] = patch[key]?.trim() || null;
-      if (values[key]?.length > 2000) throw Object.assign(new Error('Dados demasiado longos'), { status: 400 });
+      if (values[key]?.length > 2000) throw httpError('Dados demasiado longos', 400);
     }
   }
   if ('first_name' in values || 'last_name' in values) {
     const merged = { ...existing, ...values };
     values.name = `${merged.first_name || ''} ${merged.last_name || ''}`.trim();
   }
-  if ('name' in values && !values.name) throw Object.assign(new Error('Nome é obrigatório'), { status: 400 });
+  if ('name' in values && !values.name) throw httpError('Nome é obrigatório', 400);
   if ('email' in values && !values.email) values.email = placeholderEmail(id);
-  for (const key of ['email', 'email_personal']) if (values[key] && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(values[key])) throw Object.assign(new Error('Email inválido'), { status: 400 });
-  if (values.birth_date && !normalizeDateValue(values.birth_date)) throw Object.assign(new Error('Data de nascimento inválida'), { status: 400 });
+  for (const key of ['email', 'email_personal']) if (values[key] && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(values[key])) throw httpError('Email inválido', 400);
+  if (values.birth_date && !normalizeDateValue(values.birth_date)) throw httpError('Data de nascimento inválida', 400);
   const keys = Object.keys(values);
   if (keys.length) db.prepare(`UPDATE guests SET ${keys.map(key => key + '=?').join(',')}, updated_at=datetime('now') WHERE id=? AND organization_id=?`).run(...keys.map(key => values[key]), id, organizationId);
   return db.prepare('SELECT * FROM guests WHERE id=? AND organization_id=?').get(id, organizationId);

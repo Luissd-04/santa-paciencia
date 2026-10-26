@@ -4,11 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { calculateReservationTotals, buildNightlyPrices } = require('./reservationRules');
 const { syncOperationalEventsToGoogle } = require('./calendarService');
 
-function safeJson(value, fallback) {
-  if (!value) return fallback;
-  if (typeof value === 'object') return value;
-  try { return JSON.parse(value); } catch { return fallback; }
-}
+const { safeJson } = require('./json');
 
 // Total padrão do calendário dinâmico. Reservas multi-suite: base = soma, por
 // suite, dos preços/noite dessa suite (períodos dinâmicos próprios); extras
@@ -39,10 +35,7 @@ function computeStandardTotals(organizationId, resLike, primaryAccommodation, pr
   return { ...single, baseAmount: base, totalAmount: base + extras };
 }
 
-function getOrganizationServices(organizationId) {
-  const row = db.prepare("SELECT value FROM organization_settings WHERE organization_id = ? AND key = 'services'").get(organizationId);
-  return row ? safeJson(row.value, []) : [];
-}
+const getOrganizationServices = organizationId => require('./settingsService').services(organizationId);
 
 function publicUrl(req) {
   return publicOrigin(req);

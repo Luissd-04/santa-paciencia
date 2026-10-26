@@ -89,24 +89,13 @@ function update(req, res) {
 
 function getSettings(req, res) {
   const keys = ['checkin_time', 'checkout_time', 'social_facebook', 'social_instagram', 'social_website'];
-  const rows = db.prepare(`
-    SELECT key, value
-    FROM organization_settings
-    WHERE organization_id = ? AND key IN (${keys.map(() => '?').join(',')})
-  `).all(req.user.organization_id, ...keys);
-  const s = {};
-  rows.forEach(r => s[r.key] = r.value);
-  res.json({ success: true, data: s });
+  res.json({ success: true, data: require('../services/settingsService').getMany(req.user.organization_id, keys) });
 }
 
 function saveSettings(req, res) {
   const allowed = ['checkin_time', 'checkout_time', 'social_facebook', 'social_instagram', 'social_website'];
-  const upsert = db.prepare(`
-    INSERT OR REPLACE INTO organization_settings (organization_id, key, value, updated_at)
-    VALUES (?, ?, ?, datetime('now'))
-  `);
   for (const [key, value] of Object.entries(req.body)) {
-    if (allowed.includes(key)) upsert.run(req.user.organization_id, key, value ?? '');
+    if (allowed.includes(key)) require('../services/settingsService').set(req.user.organization_id, key, value ?? '');
   }
   res.json({ success: true });
 }

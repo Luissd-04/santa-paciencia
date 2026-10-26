@@ -6,6 +6,7 @@
 //  - as listas pedem `/uploads/<ficheiro>?w=<largura>` e recebem uma
 //    miniatura WebP gerada uma vez e guardada em disco.
 const fs = require('fs');
+const { httpError } = require('./httpError');
 const path = require('path');
 const sharp = require('sharp');
 const { UPLOADS_DIR, uploadPath } = require('./mediaStorage');
@@ -18,10 +19,10 @@ const THUMBS_DIR = path.join(UPLOADS_DIR, '.thumbs');
 // GIF, sem nova compressão com perdas. Converter WebP/AVIF para PNG porque
 // o mesmo ficheiro é usado pelos clientes de email.
 async function validateImage(buffer) {
-  if (!Buffer.isBuffer(buffer) || buffer.length > 10 * 1024 * 1024) throw Object.assign(new Error('Imagem demasiado grande (máximo 10 MB).'), { status: 400 });
+  if (!Buffer.isBuffer(buffer) || buffer.length > 10 * 1024 * 1024) throw httpError('Imagem demasiado grande (máximo 10 MB).', 400);
   try {
     await sharp(buffer, { failOn: 'warning', limitInputPixels: 40000000 }).resize({ width: 1, height: 1, fit: 'inside' }).png().toBuffer();
-  } catch { throw Object.assign(new Error('Imagem inválida, incompleta ou com dimensões excessivas.'), { status: 400 }); }
+  } catch { throw httpError('Imagem inválida, incompleta ou com dimensões excessivas.', 400); }
 }
 async function optimizeLogoUpload(buffer, ext) {
   await validateImage(buffer);
@@ -49,7 +50,7 @@ async function optimizeUpload(buffer, ext) {
     }
     const larger = (meta.width || 0) > MAX_SIDE || (meta.height || 0) > MAX_SIDE;
     return larger || out.data.length < buffer.length ? out : { data: buffer, ext };
-  } catch { throw Object.assign(new Error('Não foi possível processar a imagem.'), { status: 400 }); }
+  } catch { throw httpError('Não foi possível processar a imagem.', 400); }
 }
 
 function thumbPath(filename, width) {

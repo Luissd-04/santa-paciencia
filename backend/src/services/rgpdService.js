@@ -9,11 +9,7 @@ function getOrgData(orgId) {
   }
   const org = db.prepare('SELECT name FROM organizations WHERE id = ?').get(orgId);
   const keys = ['property_name', 'email_contact'];
-  const rows = db.prepare(
-    `SELECT key, value FROM organization_settings WHERE organization_id = ? AND key IN (${keys.map(() => '?').join(',')})`
-  ).all(orgId, ...keys);
-  const s = {};
-  rows.forEach(r => s[r.key] = r.value);
+  const s = require('./settingsService').getMany(orgId, keys);
   return {
     name:  s.property_name || org?.name || process.env.PROPERTY_NAME || 'Santa Paciência',
     email: s.email_contact || '',

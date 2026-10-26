@@ -1,4 +1,5 @@
 const { db } = require('../config/database');
+const { httpError } = require('../services/httpError');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
@@ -28,7 +29,7 @@ function parseReceiptImage(dataUri) {
 // Guarda a imagem do talão em disco e devolve o URL público, ou null.
 async function saveReceiptImage(dataUri) {
   const parsed = parseReceiptImage(dataUri);
-  if (!parsed) throw Object.assign(new Error('Imagem inválida.'), { status: 400 });
+  if (!parsed) throw httpError('Imagem inválida.', 400);
   await require('../services/imageOptimizer').validateImage(parsed.buffer);
   const filename = `receipt_${uuidv4()}_${Date.now()}.${parsed.ext}`;
   fs.writeFileSync(path.join(RECEIPTS_DIR, filename), parsed.buffer);

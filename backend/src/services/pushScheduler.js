@@ -43,17 +43,12 @@ async function sendDailySummaries() {
     // Só organizações com dispositivos subscritos
     const orgs = db.prepare('SELECT DISTINCT organization_id FROM push_subscriptions').all();
     for (const { organization_id: orgId } of orgs) {
-      const sent = db.prepare('SELECT value FROM organization_settings WHERE organization_id = ? AND key = ?')
-        .get(orgId, SENT_KEY);
-      if (sent?.value === today) continue;
+      if (require('./settingsService').get(orgId, SENT_KEY) === today) continue;
 
       const { checkins, checkouts } = countPendingToday(orgId, today);
 
       // Marcar como enviado mesmo sem nada a reportar — evita reavaliar o dia todo
-      db.prepare(`
-        INSERT OR REPLACE INTO organization_settings (organization_id, key, value, updated_at)
-        VALUES (?, ?, ?, datetime('now'))
-      `).run(orgId, SENT_KEY, today);
+      require('./settingsService').set(orgId, SENT_KEY, today);
 
       if (!checkins && !checkouts) continue;
 

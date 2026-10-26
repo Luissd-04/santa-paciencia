@@ -1,10 +1,11 @@
 const { normalizeDateValue } = require('./reservationRules');
+const { httpError } = require('./httpError');
 // Limite comum a todos os caminhos monetários (a política de pagamentos e a
 // Stripe trabalham em cêntimos até 99 999 999).
 const MAX_MONEY = 999999.99;
 const STATUSES = ['pre_reserva', 'pendente', 'pre_checkin', 'aguardar_pagamento', 'confirmada', 'check_in', 'check_out', 'cancelada'];
 function validateReservationInput(body) {
-  const fail = message => { throw Object.assign(new Error(message), { status: 400 }); };
+  const fail = message => { throw httpError(message, 400); };
   for (const key of ['total_amount', 'amount_paid', 'expected_total']) if (body[key] !== undefined &&
     (body[key] === null || String(body[key]).trim() === '' || !Number.isFinite(Number(body[key])) || Number(body[key]) < 0 || Number(body[key]) > MAX_MONEY)) fail('Valor monetário inválido.');
   for (const key of ['num_guests', 'num_adults', 'num_children']) if (body[key] !== undefined &&
@@ -22,6 +23,6 @@ function validateReservationInput(body) {
   if (typeof body.notes === 'string' && body.notes.length > 10000) fail('Notas demasiado longas.');
 }
 function assertMoneyLimit(value, label = 'O total da reserva') {
-  if (Number(value) > MAX_MONEY) throw Object.assign(new Error(`${label} excede o máximo permitido (999 999,99 €).`), { status: 400 });
+  if (Number(value) > MAX_MONEY) throw httpError(`${label} excede o máximo permitido (999 999,99 €).`, 400);
 }
 module.exports = { validateReservationInput, assertMoneyLimit, STATUSES, MAX_MONEY };

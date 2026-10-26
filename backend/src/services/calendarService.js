@@ -532,8 +532,7 @@ const GCAL_SYNC_CALENDAR_KEY = 'gcal_sync_calendar';
 const GCAL_SYNC_TASKS_KEY = 'gcal_sync_tasks';
 
 function getOrgSyncSetting(organizationId, key) {
-  const row = db.prepare('SELECT value FROM organization_settings WHERE organization_id = ? AND key = ?').get(organizationId, key);
-  return row?.value === '1';
+  return require('./settingsService').get(organizationId, key) === '1';
 }
 
 // Sincroniza eventos operacionais (check-in/check-out/limpeza/tarefas — qualquer

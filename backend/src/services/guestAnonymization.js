@@ -9,7 +9,7 @@ const { recordHistory } = require('./reservationHistoryService');
 const { recordAudit } = require('./auditLog');
 const { safeJson } = require('./reservationSupport');
 
-const fail = (message, status = 409) => { throw Object.assign(new Error(message), { status }); };
+const fail = (message, status = 409) => { throw require('./httpError').httpError(message, status); };
 const REMOVED = '[removido por anonimização]';
 // Campos do hóspede apagados. `country` fica para estatísticas por país
 // (decisão do responsável pelo produto; ver docs/OPERACOES.md).

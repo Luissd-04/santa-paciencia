@@ -1,4 +1,5 @@
 const { normalizeDocumentType } = require('../services/documentType');
+const { httpError } = require('../services/httpError');
 const { findUsableVoucher, redeemVoucher } = require('../services/voucherService');
 const { findConflict } = require('../services/reservationAvailability');
 const { validateReservationInput } = require('../services/reservationValidation');
@@ -22,11 +23,7 @@ const { createReservationGuest, savePrecheckin } = require('../services/publicGu
 
 const COMMON_AREAS_KEY = 'areas_comuns';
 
-function parseJson(value, fallback) {
-  if (!value) return fallback;
-  if (typeof value === 'object') return value;
-  try { return JSON.parse(value); } catch { return fallback; }
-}
+const { safeJson: parseJson } = require('../services/json');
 
 function publicUrl(req) {
   return publicOrigin(req);
@@ -326,7 +323,7 @@ async function createReservation(req, res, next) {
 
     // Transação atómica: guest + reserva + marcar voucher como usado em simultâneo
     const txResult = db.transaction(() => {
-      if (findConflict(parent.organization_id, accommodationId, totals.checkIn, totals.checkOut)) throw Object.assign(new Error('Alojamento indisponível.'), { status: 409 });
+      if (findConflict(parent.organization_id, accommodationId, totals.checkIn, totals.checkOut)) throw httpError('Alojamento indisponível.', 409);
       const g = createReservationGuest(parent.organization_id, {
         ...cleanGuestData(payload.guest), phone: String(payload.guest.phone || '').slice(0, 40),
       });
