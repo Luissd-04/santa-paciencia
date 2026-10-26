@@ -63,7 +63,7 @@ async function cancelByPolicy(id, { reason = 'guest', expectedRefundCents, key, 
   if (r.status !== 'cancelada') return cancellationQuote(r);
   require('./reservationLifecycle').afterCancel(r.organization_id, id);
   await processRefunds(id);
-  await sendNotice(row(id), 'cancelled');
+  await notify(row(id), 'cancelled');
   return cancellationQuote(row(id));
 }
 async function processRefunds(id) {
@@ -97,17 +97,35 @@ async function processRefunds(id) {
 }
 // Avisos da política (restante em falta, cancelamento) pelos modelos
 // «aviso_restante» e «cancelamento_politica», editáveis em Definições → Emails.
-// O prazo adicional só começa depois de um envio confirmado; um envio por
-// fazer volta a ser tentado na próxima manutenção (não fica na fila genérica,
-// que o enviaria sem atualizar o prazo).
+// Saem pela fila de acontecimentos (efeito guest_policy_notice), uma vez por
+// aviso: o restante por cada versão das condições aceites e endereço, o
+// cancelamento por cada cancelamento.
+function emitNotice(r, kind) {
+  if (kind === 'cancelled' ? r.policy_cancel_notice_at : r.balance_notice_sent_at) return null;
+  let snapshot = {}; try { snapshot = JSON.parse(r.guest_snapshot || '{}'); } catch {}
+  const key = kind === 'cancelled'
+    ? `cancelled:${JSON.parse(r.policy_cancellation_json || '{}').requestedAt || ''}`
+    : `balance:${policy.consentKey(r)}:${snapshot.email || ''}`;
+  return require('./reservationEvents').emitOnce('policy.notice_due',
+    { organizationId: r.organization_id, reservationId: r.id, payload: { kind } }, key);
+}
+// Emite o aviso e corre já a fila: quem chama vê o resultado na reserva.
+async function notify(r, kind) {
+  if (emitNotice(r, kind)) await require('./reservationEvents').dispatchPending();
+}
+
+// Envio de um aviso (chamado pelo efeito). O prazo adicional só começa
+// depois de um envio confirmado. Devolve 'sent', 'skip' (já não se aplica:
+// sem endereço, reserva paga ou cancelada, condições mudadas) ou 'retry'.
 async function sendNotice(r, kind) {
   const field = kind === 'cancelled' ? 'policy_cancel_notice_at' : 'balance_notice_sent_at';
-  if (r[field]) return true;
+  if (r[field]) return 'sent';
+  if (kind === 'balance' && (r.status !== 'confirmada' || money.dueCents(r.total_amount, r.amount_paid) < money.MIN_ONLINE_CENTS)) return 'skip';
   const slug = kind === 'cancelled' ? 'cancelamento_politica' : 'aviso_restante';
   const guest = db.prepare('SELECT * FROM guests WHERE id=? AND organization_id=?').get(r.guest_id, r.organization_id) || {};
   let snapshot = {}; try { snapshot = JSON.parse(r.guest_snapshot || '{}'); } catch {}
   const email = snapshot.email || guest.email;
-  if (!require('./emailAddress').isDeliverableEmail(email)) return false;
+  if (!require('./emailAddress').isDeliverableEmail(email)) return 'skip';
   require('./reservationSupport').ensurePublicToken(r);
   const accommodation = db.prepare('SELECT * FROM accommodations WHERE id=? AND organization_id=?').get(r.accommodation_id, r.organization_id) || {};
   const emailService = require('./emailService');
@@ -118,16 +136,13 @@ async function sendNotice(r, kind) {
     extra = { prazo_pagamento: emailService.formatDateTimeLisbon(deadline) };
   }
   const sent = await emailService.sendTemplatedEmail(slug, { ...guest, email }, r, accommodation, extra);
-  if (!sent?.id) {
-    db.prepare('DELETE FROM organization_email_queue WHERE organization_id=? AND template_slug=? AND reservation_id=?').run(r.organization_id, slug, r.id);
-    return false;
-  }
+  if (!sent?.id) return 'retry';
   const current = row(r.id);
   if (!current || (kind === 'balance' && (current.policy_accepted_at !== r.policy_accepted_at
-    || current.status === 'cancelada' || policy.consentKey(current) !== policy.consentKey(r)))) return false;
+    || current.status === 'cancelada' || policy.consentKey(current) !== policy.consentKey(r)))) return 'skip';
   db.prepare(`UPDATE reservations SET ${field}=?, balance_deadline=COALESCE(balance_deadline,?) WHERE id=?`)
     .run(new Date().toISOString(), deadline, r.id);
-  return true;
+  return 'sent';
 }
 async function runPolicyMaintenance() {
   if (!stripeConfig().ready) return;
@@ -137,7 +152,7 @@ async function runPolicyMaintenance() {
     for (let r of rows) {
       assertLease();
       try {
-        if (r.policy_cancellation_json) { await processRefunds(r.id); await sendNotice(row(r.id), 'cancelled'); continue; }
+        if (r.policy_cancellation_json) { await processRefunds(r.id); await notify(row(r.id), 'cancelled'); continue; }
         if (!r.policy_accepted_at || r.status !== 'confirmada' || r.check_in < policy.localDay()) continue;
         let plan = policy.planFor(r);
         if (!plan.balanceCents || Date.now() < Date.parse(plan.dueAt) || money.dueCents(r.total_amount, r.amount_paid) < money.MIN_ONLINE_CENTS) continue;
@@ -155,8 +170,9 @@ async function runPolicyMaintenance() {
         if (active?.kind === 'automatic') await payments.closeOpenCheckout(r.id);
         r = row(r.id);
         if (money.dueCents(r.total_amount, r.amount_paid) < money.MIN_ONLINE_CENTS) continue;
-        if (!await sendNotice(r, 'balance')) continue;
+        await notify(r, 'balance');
         r = row(r.id);
+        if (!r.balance_notice_sent_at) continue;
         if (r.balance_deadline && Date.now() >= Date.parse(r.balance_deadline)) await cancelByPolicy(r.id, { reason: 'nonpayment' });
       } catch (error) {
         // Network failures and pending payments never become automatic forfeitures.
@@ -165,4 +181,4 @@ async function runPolicyMaintenance() {
     }
   });
 }
-module.exports = { cancellationQuote, cancelByPolicy, processRefunds, runPolicyMaintenance, __test: { sendNotice } };
+module.exports = { cancellationQuote, cancelByPolicy, processRefunds, runPolicyMaintenance, sendNotice };

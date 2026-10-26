@@ -711,3 +711,27 @@ pré-check-in «Enviado» (ou «Preenchido»). No arranque, as reservas a aguard
 o sinal acertam-se uma vez pelo ledger. As reservas já confirmadas sem sinal
 registado ficam como estão até mudar o dinheiro, o total, as datas ou o canal.
 
+
+## 13. Todos os envios ao hóspede pela fila de acontecimentos
+
+Os emails agendados pela estadia e os avisos da política deixaram de ser
+enviados diretamente pelos agendadores:
+
+| Quem decide | Acontecimento | Efeito |
+|---|---|---|
+| `emailScheduler` (de hora a hora: modelos antes/depois do check-in/check-out) | `email.due` { slug }, uma vez por modelo e estadia (`reservationEvents.emitOnce`) | `guest_template_email` |
+| `paymentPolicyAutomation` (manutenção e cancelamento pela política) | `policy.notice_due` { kind: `balance` \| `cancelled` }, uma vez por aviso | `guest_policy_notice` |
+
+- Todos os efeitos de email ao hóspede passam por `reservationEffects.guestEmail`.
+  Um envio que tem de esperar (fora da janela do modelo, Gmail indisponível,
+  envio anterior por confirmar) lança `DeferEffect` e volta à fila para essa
+  hora sem gastar tentativas; um erro repete-se com espera crescente e, ao fim
+  das tentativas, aparece no sino («Aviso não entregue»).
+- O aviso do restante só conta como enviado depois de entregue (o prazo
+  adicional começa aí); por enviar é uma falha, não um êxito.
+- A fila `organization_email_queue` deixou de ser usada: o arranque converte
+  as entradas pendentes em `email.due` (`20261026_email_queue_to_events`).
+  «Estado do sistema» conta os envios pendentes e falhados na fila de
+  acontecimentos.
+- O envio manual do link de pré-check-in, pedido pela equipa, não espera pela
+  janela de envio do modelo.

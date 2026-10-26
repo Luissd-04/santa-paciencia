@@ -12,19 +12,20 @@ async function deliverTemplate({ orgId, slug, reservation: r, to, rendered }, se
   // atualizados) é enviada — seria um duplicado.
   const unresolved = db.prepare("SELECT state FROM email_deliveries WHERE organization_id=? AND reservation_id=? AND template_slug=? AND id!=? AND state IN ('uncertain','sending') LIMIT 1")
     .get(orgId, r.id, slug, id);
-  if (unresolved) return { queued: true, delivery_status: unresolved.state };
+  if (unresolved) return { queued: true, delivery_status: unresolved.state, until: new Date(now + 3600000) };
   const claimed = db.prepare(`INSERT INTO email_deliveries(id,organization_id,reservation_id,template_slug,state,attempts,updated_at)
     VALUES(?,?,?,?,'sending',1,?) ON CONFLICT(id) DO UPDATE SET state='sending', attempts=attempts+1, updated_at=excluded.updated_at
     WHERE email_deliveries.state='blocked' AND email_deliveries.retry_at<=?`).run(id, orgId, r.id, slug, now, now).changes;
   if (!claimed) {
     const existing = db.prepare('SELECT * FROM email_deliveries WHERE id=?').get(id);
-    return existing.state === 'sent' ? { id: existing.provider_id } : { queued: true, delivery_status: existing.state };
+    return existing.state === 'sent' ? { id: existing.provider_id }
+      : { queued: true, delivery_status: existing.state, until: new Date(Math.max(Number(existing.retry_at) || 0, now + 3600000)) };
   }
   try {
     const result = await send();
     if (!result?.id) {
       db.prepare("UPDATE email_deliveries SET state='blocked', last_error='Gmail desligado ou envio desativado.', retry_at=?, updated_at=? WHERE id=?").run(now + 60000, Date.now(), id);
-      return { queued: true, delivery_status: 'blocked' };
+      return { queued: true, delivery_status: 'blocked', until: new Date(now + 60000) };
     }
     db.prepare("UPDATE email_deliveries SET state='sent', provider_id=?, last_error=NULL, updated_at=? WHERE id=?").run(result.id, Date.now(), id);
     // Versões anteriores recusadas desta mensagem deixam de estar pendentes.
@@ -63,14 +64,13 @@ function resolveDelivery(orgId, reservationId, slug, resolution) {
   }).immediate();
 }
 // Uma mensagem entregue (envio ou confirmação manual): as agendadas pela
-// estadia não se repetem, sai da fila e o link do pré-check-in conta como
-// enviado. Chamar dentro de uma transação.
+// estadia não se repetem e o link do pré-check-in conta como enviado.
+// Chamar dentro de uma transação.
 function afterSent({ orgId, reservationId, slug, timingEvent }) {
   if (['checkin', 'checkout'].includes(timingEvent)) {
     db.prepare('INSERT OR IGNORE INTO organization_email_log (id,organization_id,template_slug,reservation_id) VALUES (?,?,?,?)')
       .run(require('crypto').randomUUID(), orgId, slug, reservationId);
   }
-  db.prepare('DELETE FROM organization_email_queue WHERE organization_id=? AND template_slug=? AND reservation_id=?').run(orgId, slug, reservationId);
   if (slug === 'pre_checkin') require('./reservationLifecycle').markPrecheckinSent({ id: reservationId, organization_id: orgId });
 }
 module.exports = { deliverTemplate, resolveDelivery, afterSent };

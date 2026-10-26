@@ -4,13 +4,27 @@
 // transação de quem o chama: se a alteração for desfeita, nada é enviado.
 // Depois do commit, dispatchPending() corre cada efeito uma vez; uma falha é
 // repetida mais tarde (também pelo scheduler das reservas) sem repetir os
-// efeitos que já correram.
+// efeitos que já correram. Um efeito que ainda não pode correr (fora da
+// janela de envio do modelo, Gmail desligado) lança DeferEffect e volta à fila
+// para essa hora, sem gastar tentativas.
+//
+// Os agendadores (emails pela estadia, avisos da política) também só emitem
+// acontecimentos: todos os envios ao hóspede saem por aqui, com as mesmas
+// novas tentativas e as falhas no sino.
 const { randomUUID } = require('crypto');
 const { db } = require('../config/database');
 
 const MAX_ATTEMPTS = 6;
 // Espera antes de cada nova tentativa, em minutos.
 const BACKOFF_MINUTES = [1, 5, 30, 120, 360];
+
+class DeferEffect extends Error {
+  constructor(until, reason = 'Adiado') {
+    super(reason);
+    this.until = until instanceof Date ? until : new Date(until);
+  }
+}
+const sqliteTime = date => date.toISOString().replace('T', ' ').slice(0, 19);
 
 function emit(type, { organizationId, reservationId, actorUserId = null, payload = {} }) {
   const effects = require('./reservationEffects').effectsFor(type, payload);
@@ -24,6 +38,16 @@ function emit(type, { organizationId, reservationId, actorUserId = null, payload
   // Pedidos do site, pagamentos online, expirações…: o sino das páginas abertas atualiza-se.
   require('./liveUpdates').publish(organizationId);
   return id;
+}
+
+// Para os agendadores: emite só se ainda não houver um acontecimento deste
+// tipo com a mesma chave para a reserva (em qualquer estado). Uma falha
+// definitiva fica no sino em vez de se repetir a cada passagem.
+function emitOnce(type, { organizationId, reservationId, payload = {} }, key) {
+  const exists = db.prepare(`SELECT 1 FROM reservation_events WHERE organization_id = ? AND reservation_id = ? AND type = ?
+    AND json_extract(payload, '$.key') = ? LIMIT 1`).get(organizationId, reservationId, type, key);
+  if (exists) return null;
+  return emit(type, { organizationId, reservationId, payload: { ...payload, key } });
 }
 
 let scheduled = false;
@@ -73,6 +97,12 @@ async function runPending() {
       done++;
     } catch (err) {
       if (!db.open) break;
+      if (err instanceof DeferEffect) {
+        db.prepare(`UPDATE reservation_event_effects SET state = 'pending', attempts = attempts - 1, last_error = ?,
+          next_attempt_at = ?, updated_at = datetime('now') WHERE event_id = ? AND effect = ?`)
+          .run(String(err.message).slice(0, 500), sqliteTime(err.until), row.event_id, row.effect);
+        continue;
+      }
       const attempts = row.attempts + 1;
       const failed = attempts >= MAX_ATTEMPTS;
       db.prepare(`UPDATE reservation_event_effects SET state = ?, last_error = ?,
@@ -92,4 +122,4 @@ function recoverInterrupted() {
   db.prepare("UPDATE reservation_event_effects SET state = 'pending' WHERE state = 'running' AND updated_at < datetime('now', '-10 minutes')").run();
 }
 
-module.exports = { emit, dispatchPending, recoverInterrupted, MAX_ATTEMPTS };
+module.exports = { emit, emitOnce, dispatchPending, recoverInterrupted, DeferEffect, MAX_ATTEMPTS };

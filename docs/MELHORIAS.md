@@ -128,8 +128,10 @@ manual — devolve a utilização.
   controlado e reinício pelo supervisor. Não manter indefinidamente um processo
   com estado possivelmente inconsistente. No encerramento normal, esperar pelas
   operações em curso dos schedulers, com prazo máximo.
-- A fila `organization_email_queue` repete falhas a cada hora sem limite de
-  tentativas nem registo do último erro.
+- ~~A fila `organization_email_queue` repete falhas a cada hora sem limite de
+  tentativas nem registo do último erro.~~ Resolvido: todos os envios ao
+  hóspede saem pela fila de acontecimentos, com tentativas limitadas, último
+  erro e falhas no sino (auditoria, secção 13).
 - Tentativas Stripe `creating` com mais de 23 horas ficam bloqueadas sem
   ecrã de reconciliação (só via Dashboard).
 

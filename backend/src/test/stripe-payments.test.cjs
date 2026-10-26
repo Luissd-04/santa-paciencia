@@ -495,6 +495,10 @@ test('MB WAY/sem consentimento não guarda cartão nem efetua cobrança automát
   await atDue(r, () => automation.runPolicyMaintenance());
   assert.equal(autoIntents.size, 0); assert.ok(row().balance_notice_sent_at); assert.ok(row().balance_deadline);
   assert.equal(row().status, 'confirmada');
+  // O aviso sai pela fila de acontecimentos, uma só vez.
+  await atDue(r, () => automation.runPolicyMaintenance());
+  const notices = db.prepare("SELECT e.payload, f.state FROM reservation_events e JOIN reservation_event_effects f ON f.event_id = e.id WHERE e.type = 'policy.notice_due' AND e.reservation_id = ?").all(r.id);
+  assert.equal(notices.length, 1); assert.equal(notices[0].state, 'done'); assert.equal(JSON.parse(notices[0].payload).kind, 'balance');
 });
 test('falha do cartão dá 24h e só depois cancela sem devolver o sinal', async () => {
   const r = await deposit(); autoFailure = true;
