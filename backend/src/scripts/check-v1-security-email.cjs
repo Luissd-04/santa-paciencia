@@ -125,9 +125,12 @@ async function main() {
   db.prepare('UPDATE organization_email_templates SET active=0 WHERE organization_id=?').run(org.id);
   db.prepare(`UPDATE organization_email_templates SET active=1,timing_event='manual',window_start=NULL,window_end=NULL,
     body='<p>Cancelada</p>' WHERE organization_id=? AND slug='cancelamento'`).run(org.id);
-  db.prepare("INSERT INTO organization_email_queue(id,organization_id,template_slug,reservation_id) VALUES('stale',?,'cancelamento','booking')").run(org.id);
+  // Um envio de cancelamento que ficou à espera na fila (ex.: fora da janela)
+  // e a reserva foi reativada entretanto: ao sair da fila já não se aplica.
+  const events = require(path.join(root, 'services/reservationEvents'));
+  events.emit('email.due', { organizationId: org.id, reservationId: 'booking', payload: { slug: 'cancelamento' } });
   const beforeStale = sent.length;
-  await scheduler.runScheduler();
+  await events.dispatchPending();
   assert.equal(sent.length - beforeStale, 0);
   assert.equal(db.prepare("SELECT status FROM reservations WHERE id='booking'").get().status, 'confirmada');
   report('V1-10 (M04): a fila não envia cancelamento de uma reserva reativada');

@@ -31,7 +31,13 @@ function opsStatus(organizationId, { includeUploads = false } = {}) {
       // «uncertain»/«blocked»: a equipa decide em Notificações (já entregue / enviar de novo).
       deliveries_needing_decision: one("SELECT COUNT(*) AS n FROM email_deliveries WHERE organization_id = ? AND state IN ('uncertain', 'blocked')", organizationId)?.n ?? null,
       deliveries_failed_retrying: one("SELECT COUNT(*) AS n FROM email_deliveries WHERE organization_id = ? AND state NOT IN ('sent', 'superseded', 'uncertain', 'blocked') AND attempts > 0", organizationId)?.n ?? null,
-      queue: one('SELECT COUNT(*) AS n, MIN(created_at) AS oldest FROM organization_email_queue WHERE organization_id = ?', organizationId),
+      // Envios ao hóspede ainda por fazer na fila de acontecimentos (à espera da
+      // janela do modelo, do Gmail ou de nova tentativa) e os que desistiram.
+      queue: one(`SELECT COUNT(*) AS n, MIN(e.created_at) AS oldest FROM reservation_event_effects f
+        JOIN reservation_events e ON e.id = f.event_id
+        WHERE e.organization_id = ? AND f.effect LIKE 'guest\_%' ESCAPE '\\' AND f.state IN ('pending', 'running')`, organizationId),
+      failed: one(`SELECT COUNT(*) AS n FROM reservation_event_effects f JOIN reservation_events e ON e.id = f.event_id
+        WHERE e.organization_id = ? AND f.state = 'failed'`, organizationId)?.n ?? null,
     },
     google: {
       calendar_queue: one(`SELECT COUNT(*) AS pending, SUM(CASE WHEN attempts > 0 THEN 1 ELSE 0 END) AS failing, MIN(created_at) AS oldest

@@ -1,9 +1,12 @@
 const { db } = require('../config/database');
-const { sendTemplatedEmail, getEmailSettings, resolveAccommodationInheritance } = require('./emailService');
-const crypto = require('crypto');
-const { canSendTemplate, CANCELLATION_TEMPLATES } = require('./emailEligibility');
+// Emails pela estadia (ex.: 1 dia antes do check-in). Este agendador só decide
+// quando estão na hora e emite «email.due»; o envio, as novas tentativas e a
+// espera pela janela de envio do modelo são da fila de acontecimentos.
+const { getEmailSettings, resolveAccommodationInheritance } = require('./emailService');
+const { canSendTemplate } = require('./emailEligibility');
 const { withSchedulerLease } = require('./schedulerLease');
 const { localDateIso } = require('./reservationRules');
+const reservationEvents = require('./reservationEvents');
 const { zonedDateTime } = require('./dates');
 
 function getSendTime(reservation, template, settings) {
@@ -62,87 +65,20 @@ async function runScheduler() {
           if (!sendTime || sendTime > now) continue;
           const already = db.prepare('SELECT 1 FROM organization_email_log WHERE organization_id=? AND template_slug=? AND reservation_id=?').get(org.id, tpl.slug, res.id);
           if (already) continue;
-          try {
-            const guest = { name: res.guest_name, email: res.guest_email, first_name: res.first_name };
-            const accom = effectiveAccommodation;
-            const result = await sendTemplatedEmail(tpl.slug, guest, res, accom);
-            if (!result || result.queued) continue; // adiado para a janela de envio — organization_email_queue trata do reenvio
-            db.prepare('INSERT OR IGNORE INTO organization_email_log (id,organization_id,template_slug,reservation_id) VALUES (?,?,?,?)')
-              .run(crypto.randomUUID(), org.id, tpl.slug, res.id);
-            console.log(`📧 Email ${tpl.slug} → reserva ${res.id} (org ${org.id})`);
-          } catch (e) {
-            console.warn(`⚠️ Falha email ${tpl.slug} → ${res.id}:`, e.message);
-          }
+          // Uma vez por modelo e estadia: mudar as datas pede outro envio.
+          reservationEvents.emitOnce('email.due', { organizationId: org.id, reservationId: res.id, payload: { slug: tpl.slug } },
+            `${tpl.slug}:${res.check_in}:${res.check_out}`);
         }
       }
     }
 
-    await flushQueuedEmails(ensureLease);
+    await reservationEvents.dispatchPending();
     });
     require('./opsStatus').beat('email');
   } catch (e) {
     require('./opsStatus').beat('email', e);
     console.warn('⚠️ Erro email scheduler:', e.message);
   } finally { running = false; }
-}
-
-// Reenvia emails adiados por estarem fora da janela horária configurada,
-// assim que a janela do respetivo template voltar a estar aberta.
-async function flushQueuedEmails(ensureLease) {
-  const pending = db.prepare('SELECT * FROM organization_email_queue').all();
-  for (const q of pending) {
-    ensureLease();
-    try {
-      const res = db.prepare(`
-        SELECT r.*, g.name as guest_name, g.email as guest_email, g.first_name,
-               a.name as accommodation_name, a.wifi_name, a.wifi_password, a.door_code, a.parent_id as accommodation_parent_id,
-               a.social_facebook, a.social_instagram, a.social_website, a.logo_url
-        FROM reservations r
-        JOIN guests g ON r.guest_id = g.id
-        JOIN accommodations a ON r.accommodation_id = a.id
-        WHERE r.id = ? AND r.organization_id = ?
-      `).get(q.reservation_id, q.organization_id);
-
-      if (!res || !res.guest_email || (res.status === 'cancelada' && !CANCELLATION_TEMPLATES.includes(q.template_slug))) {
-        db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id);
-        continue;
-      }
-
-      const guest = { name: res.guest_name, email: res.guest_email, first_name: res.first_name };
-      const accom = resolveAccommodationInheritance(db.prepare('SELECT * FROM accommodations WHERE id=? AND organization_id=?').get(res.accommodation_id, q.organization_id), q.organization_id);
-      const tpl = db.prepare('SELECT * FROM organization_email_templates WHERE organization_id=? AND slug=? AND active=1').get(q.organization_id, q.template_slug);
-      if (!tpl) {
-        // Modelo apagado ou desativado: a entrada nunca seria enviada.
-        db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id);
-        continue;
-      }
-      if (CANCELLATION_TEMPLATES.includes(tpl.slug) && res.status !== 'cancelada') { db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id); continue; }
-      if (!canSendTemplate(tpl, res)) {
-        // Deixou de ser elegível e a estadia já terminou: nunca será enviado.
-        if (res.check_out < localDateIso(new Date(), -1)) db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id);
-        continue;
-      }
-      const sendTime = getSendTime(res, tpl, getEmailSettings(accom, q.organization_id));
-      if (sendTime && sendTime > new Date()) continue;
-      const scheduled = ['checkin', 'checkout'].includes(tpl.timing_event);
-      if (scheduled && db.prepare('SELECT 1 FROM organization_email_log WHERE organization_id=? AND template_slug=? AND reservation_id=?')
-        .get(q.organization_id, q.template_slug, q.reservation_id)) {
-        db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id);
-        continue;
-      }
-      const result = await sendTemplatedEmail(q.template_slug, guest, res, accom);
-      if (result && !result.queued) {
-        db.transaction(() => {
-          if (scheduled) db.prepare('INSERT OR IGNORE INTO organization_email_log (id,organization_id,template_slug,reservation_id) VALUES (?,?,?,?)')
-            .run(crypto.randomUUID(), q.organization_id, q.template_slug, q.reservation_id);
-          db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id);
-        })();
-        if (result) console.log(`📧 Email ${q.template_slug} → reserva ${res.id} (fila, org ${q.organization_id})`);
-      }
-    } catch (e) {
-      console.warn(`⚠️ Falha ao esvaziar fila de email ${q.template_slug} → ${q.reservation_id}:`, e.message);
-    }
-  }
 }
 
 function startScheduler() {

@@ -57,6 +57,7 @@ function runMigrations(db) {
   migrateGoogleCalendarQueue(db);
   migrateReservationEvents(db);
   migrateReservationStates(db);
+  migrateEmailQueueToEvents(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -439,3 +440,25 @@ function migrateReservationStates(db) {
   }).immediate();
 }
 
+
+// Os emails à espera na fila antiga (organization_email_queue: fora da janela
+// de envio ou por repetir) passam para a fila de acontecimentos, que é agora
+// o único caminho dos envios ao hóspede. A tabela fica, vazia, para backups antigos.
+function migrateEmailQueueToEvents(db) {
+  const id = '20261026_email_queue_to_events';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  const { randomUUID } = require('crypto');
+  db.transaction(() => {
+    const rows = db.prepare(`SELECT q.* FROM organization_email_queue q
+      JOIN reservations r ON r.id = q.reservation_id AND r.organization_id = q.organization_id`).all();
+    const event = db.prepare("INSERT INTO reservation_events (id, organization_id, reservation_id, type, payload) VALUES (?, ?, ?, 'email.due', ?)");
+    const effect = db.prepare("INSERT INTO reservation_event_effects (event_id, effect) VALUES (?, 'guest_template_email')");
+    for (const row of rows) {
+      const eventId = randomUUID();
+      event.run(eventId, row.organization_id, row.reservation_id, JSON.stringify({ slug: row.template_slug, key: `queue:${row.id}` }));
+      effect.run(eventId);
+    }
+    db.prepare('DELETE FROM organization_email_queue').run();
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}

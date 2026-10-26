@@ -301,7 +301,8 @@ test('envio incerto bloqueia versões novas da mesma mensagem até ser resolvido
   await assert.rejects(delivery.deliverTemplate({ orgId: org.id, slug: 'pagamento', reservation, to: 'h@example.com', rendered: { subject: 'A', html: 'a' } }, failing));
   const ok = async () => { sends++; return { id: 'gmail-1' }; };
   const blocked = await delivery.deliverTemplate({ orgId: org.id, slug: 'pagamento', reservation: { ...reservation, amount_paid: 50 }, to: 'h@example.com', rendered: { subject: 'B', html: 'b' } }, ok);
-  assert.deepEqual(blocked, { queued: true, delivery_status: 'uncertain' });
+  assert.equal(blocked.queued, true); assert.equal(blocked.delivery_status, 'uncertain');
+  assert.ok(blocked.until > new Date());
   assert.equal(sends, 1);
   const notifications = await req('GET', '/api/reservations/notifications');
   assert.ok(notifications.body.data.notifications.some(n => n.type === 'email_review' && n.template_slug === 'pagamento' && n.reservation_id === r.id));

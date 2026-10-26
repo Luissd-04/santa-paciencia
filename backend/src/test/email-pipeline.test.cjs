@@ -86,8 +86,8 @@ test('aviso do restante sai pelo modelo, com prazo e link da reserva, mesmo fora
   reservation({ check_in: '2035-06-10', status: 'confirmada', policy_accepted_at: new Date().toISOString() });
   policy.attachPolicy({ id: 'res', organization_id: 'org-mail' });
   db.exec("UPDATE reservations SET status = 'confirmada' WHERE id = 'res'");
-  const ok = await automation.__test.sendNotice(db.prepare("SELECT * FROM reservations WHERE id='res'").get(), 'balance');
-  assert.equal(ok, true);
+  const ok = await automation.sendNotice(db.prepare("SELECT * FROM reservations WHERE id='res'").get(), 'balance');
+  assert.equal(ok, 'sent');
   assert.equal(sent.length, 1);
   assert.match(sent[0].subject, /Pagamento do restante — Reserva res/);
   assert.match(sent[0].html, /https:\/\/reservas\.example\.com\/reserva\/a{64}/);
@@ -95,7 +95,6 @@ test('aviso do restante sai pelo modelo, com prazo e link da reserva, mesmo fora
   assert.doesNotMatch(sent[0].html, /\{\{/);
   const row = db.prepare("SELECT balance_notice_sent_at, balance_deadline FROM reservations WHERE id='res'").get();
   assert.ok(row.balance_notice_sent_at && row.balance_deadline);
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM organization_email_queue').get().n, 0);
 });
 
 test('aviso do restante com o modelo desativado não conta como enviado (o prazo não começa)', async () => {
@@ -103,10 +102,9 @@ test('aviso do restante com o modelo desativado não conta como enviado (o prazo
   policy.savePolicy('org-mail', { ...policy.DEFAULT_POLICY, enabled: true });
   reservation({ policy_accepted_at: new Date().toISOString() });
   policy.attachPolicy({ id: 'res', organization_id: 'org-mail' });
-  const ok = await automation.__test.sendNotice(db.prepare("SELECT * FROM reservations WHERE id='res'").get(), 'balance');
-  assert.equal(ok, false);
+  const ok = await automation.sendNotice(db.prepare("SELECT * FROM reservations WHERE id='res'").get(), 'balance');
+  assert.equal(ok, 'retry', 'fica por enviar: a fila repete e, ao fim das tentativas, avisa no sino');
   assert.equal(db.prepare("SELECT balance_notice_sent_at FROM reservations WHERE id='res'").get().balance_notice_sent_at, null);
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM organization_email_queue').get().n, 0);
 });
 
 test('cancelamento com reembolso só segue para reservas canceladas', async () => {

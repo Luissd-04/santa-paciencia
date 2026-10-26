@@ -190,7 +190,8 @@ async function sendPrecheckinLink(req, res, next) {
     if (shouldSend) {
       if (require('../services/emailAddress').isDeliverableEmail(guest.email)) {
         try {
-          const delivery = await sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl);
+          // Pedido pela equipa agora: não espera pela janela de envio do modelo.
+          const delivery = await sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl, { ignoreWindow: true });
           emailSent = Boolean(delivery?.id);
         } catch (err) {
           console.warn('Email de pre-check-in não enviado:', err.message);

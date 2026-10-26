@@ -9,6 +9,8 @@
 //   reservation.cancelled  { reason: 'staff' | 'guest' | 'ttl' | 'nonpayment', policy }
 //   reservation.approved   { precheckinUrl }
 //   precheckin.submitted   { resubmission }
+//   email.due              modelo agendado pela estadia já na hora { slug, key }
+//   policy.notice_due      aviso da política { kind: 'balance' | 'cancelled', key }
 const { db } = require('../config/database');
 const staff = require('./staffNotifier');
 
@@ -36,6 +38,8 @@ function effectsFor(type, payload = {}) {
     ];
     case 'reservation.approved': return ['guest_precheckin_email'];
     case 'precheckin.submitted': return ['staff_push_precheckin'];
+    case 'email.due': return ['guest_template_email'];
+    case 'policy.notice_due': return ['guest_policy_notice'];
     default: throw new Error(`Acontecimento de reserva desconhecido: ${type}`);
   }
 }
@@ -63,11 +67,35 @@ const backofficeUrl = (event, reservation) => {
   return origin ? `${origin}/reservas?reserva=${encodeURIComponent(reservation.id)}` : '';
 };
 
+// Todos os emails ao hóspede passam por aqui. Um envio que tem de esperar
+// (janela do modelo, Gmail indisponível, envio anterior por confirmar) volta
+// à fila para essa hora; depois de a estadia acabar, desiste-se em silêncio.
+async function guestEmail(ctx, send) {
+  const result = await send(require('./emailService'));
+  if (!result?.queued) return;
+  if (ctx.reservation.check_out < dates.localDay(new Date(), -1)) return;
+  const { DeferEffect } = require('./reservationEvents');
+  const reasons = { window: 'Fora da janela de envio do modelo', blocked: 'Gmail indisponível', uncertain: 'Envio anterior por confirmar no Gmail', sending: 'Envio em curso' };
+  throw new DeferEffect(result.until || new Date(Date.now() + 3600000), reasons[result.delivery_status] || 'Envio adiado');
+}
+
 const HANDLERS = {
-  guest_confirmation_email: (ctx) => require('./emailService').sendConfirmationEmail(ctx.guest, ctx.reservation, ctx.accommodation),
-  guest_cancellation_email: (ctx) => require('./emailService').sendCancellationEmail(ctx.guest, ctx.reservation, ctx.accommodation),
-  guest_precheckin_email: (ctx, event) => require('./emailService').sendPreCheckinEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload.precheckinUrl),
-  guest_payment_email: (ctx, event) => require('./emailService').sendPaymentConfirmationEmail(ctx.guest, ctx.reservation, ctx.accommodation, { amount: event.payload.amount }),
+  guest_confirmation_email: (ctx) => guestEmail(ctx, mail => mail.sendConfirmationEmail(ctx.guest, ctx.reservation, ctx.accommodation)),
+  guest_cancellation_email: (ctx) => guestEmail(ctx, mail => mail.sendCancellationEmail(ctx.guest, ctx.reservation, ctx.accommodation)),
+  guest_precheckin_email: (ctx, event) => guestEmail(ctx, mail => mail.sendPreCheckinEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload.precheckinUrl)),
+  guest_payment_email: (ctx, event) => guestEmail(ctx, mail => mail.sendPaymentConfirmationEmail(ctx.guest, ctx.reservation, ctx.accommodation, { amount: event.payload.amount })),
+  guest_template_email: (ctx, event) => guestEmail(ctx, mail => mail.sendTemplatedEmail(event.payload.slug, ctx.guest, ctx.reservation, ctx.accommodation)),
+  // O prazo do restante só começa com o aviso entregue: um aviso por enviar é
+  // uma falha (repetida e, ao fim das tentativas, no sino), não um êxito.
+  guest_policy_notice: async (ctx, event) => {
+    const result = await require('./paymentPolicyAutomation').sendNotice(ctx.reservation, event.payload.kind);
+    if (result !== 'retry') return;
+    // Envios desligados de propósito (EMAIL_ENABLED=false): esperar, não falhar.
+    if (require('./emailService').emailDisabled()) {
+      throw new (require('./reservationEvents').DeferEffect)(new Date(Date.now() + 3600000), 'Envio de emails desligado');
+    }
+    throw new Error(event.payload.kind === 'cancelled' ? 'Aviso de cancelamento por enviar' : 'Aviso do restante por enviar');
+  },
 
   staff_push_new: (ctx, event) => staff.push(event.organizationId, 'new_reservation', {
     kind: 'reservation', title: ['Nova reserva', ctx.accommodation.name].filter(Boolean).join(' · '),

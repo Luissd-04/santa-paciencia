@@ -62,7 +62,9 @@ test('autorização revogada: envio recusado (não incerto), sem chamar o Gmail;
   assert.equal(state().state, 'blocked', 'falha conhecida antes do envio: não fica como incerta');
   assert.match(state().last_error, /verificar configuração/);
   // Repetir de imediato não envia (espera ou decisão da equipa).
-  assert.deepEqual(await send(), { queued: true, delivery_status: 'blocked' });
+  const waiting = await send();
+  assert.equal(waiting.queued, true); assert.equal(waiting.delivery_status, 'blocked');
+  assert.ok(waiting.until > new Date(), 'a fila de acontecimentos volta a tentar mais tarde');
   // A equipa volta a ligar o Gmail e autoriza nova tentativa.
   tokenResponse = () => json(200, { access_token: 'fresh', expires_in: 3600, token_type: 'Bearer' });
   delivery.resolveDelivery(org.id, 'r', 'pagamento', 'retry');

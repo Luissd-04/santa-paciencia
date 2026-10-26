@@ -445,46 +445,62 @@ async function main() {
     try { await scheduler.runScheduler(); } finally { process.env.EMAIL_ENABLED = 'false'; }
     assert.equal(calls.some(([slug, guest, res, acc]) => slug === 'codigo_porta' && res.status === 'pendente' && acc.door_code === 'FAKE-CODE'), false);
   });
-  await check('F07 falha de envio é repetida; envio confirmado é registado uma vez', async () => {
+  await check('F07 email agendado: um acontecimento por estadia; falha repetida pela fila; envio registado uma vez', async () => {
+    const mail = require(path.join(backend, 'services/emailService'));
+    const deliveryService = require(path.join(backend, 'services/emailDelivery'));
+    const original = mail.sendTemplatedEmail;
     const calls = [];
     let delivered = false;
     db.exec("UPDATE reservations SET status='confirmada', amount_paid=100 WHERE id='scheduler-res'");
-    const scheduler = load('services/emailScheduler.js', { './emailService': {
-      getEmailSettings: () => ({}),
-      resolveAccommodationInheritance: a => a,
-      sendTemplatedEmail: async (...args) => { calls.push(args); return delivered ? { id: 'synthetic-delivery' } : null; },
-    } });
+    mail.sendTemplatedEmail = async (slug, guest, res) => {
+      calls.push(slug);
+      if (!delivered) throw new Error('Gmail indisponível');
+      db.transaction(() => deliveryService.afterSent({ orgId: 'org-a', reservationId: res.id, slug, timingEvent: 'checkin' }))();
+      return { id: 'synthetic-delivery' };
+    };
+    const scheduler = load('services/emailScheduler.js');
     const logCount = () => db.prepare("SELECT count(*) AS n FROM organization_email_log WHERE reservation_id='scheduler-res' AND template_slug='codigo_porta'").get().n;
+    const events = () => db.prepare("SELECT count(*) AS n FROM reservation_events WHERE reservation_id='scheduler-res' AND type='email.due'").get().n;
     process.env.EMAIL_ENABLED = 'true';
     try {
       await scheduler.runScheduler(); assert.equal(calls.length, 1); assert.equal(logCount(), 0);
+      await scheduler.runScheduler(); assert.equal(calls.length, 1, 'a nova tentativa é da fila, com espera');
+      assert.equal(events(), 1, 'o agendador não repete o acontecimento');
+      const effect = db.prepare("SELECT f.* FROM reservation_event_effects f JOIN reservation_events e ON e.id=f.event_id WHERE e.reservation_id='scheduler-res'").get();
+      assert.equal(effect.state, 'pending'); assert.match(effect.last_error, /Gmail/);
+      db.exec("UPDATE reservation_event_effects SET next_attempt_at = datetime('now')");
       delivered = true;
       await scheduler.runScheduler(); assert.equal(calls.length, 2); assert.equal(logCount(), 1);
-      await scheduler.runScheduler(); assert.equal(calls.length, 2); assert.equal(logCount(), 1);
-    } finally { process.env.EMAIL_ENABLED = 'false'; }
+      await scheduler.runScheduler(); assert.equal(calls.length, 2); assert.equal(logCount(), 1); assert.equal(events(), 1);
+    } finally { process.env.EMAIL_ENABLED = 'false'; mail.sendTemplatedEmail = original; }
   });
-  await check('Email agendado enviado pela fila fica registado e não se repete', async () => {
+  await check('Fora da janela de envio: o efeito espera pela abertura sem gastar tentativas', async () => {
+    const mail = require(path.join(backend, 'services/emailService'));
+    const events = require(path.join(backend, 'services/reservationEvents'));
+    const original = mail.sendTemplatedEmail;
+    const until = new Date(Date.now() + 6 * 3600000);
+    mail.sendTemplatedEmail = async () => ({ queued: true, delivery_status: 'window', until });
+    reservation('window-res', 'scheduler-unit', '[]', 200);
+    db.prepare("UPDATE reservations SET status='confirmada', check_in='2099-01-01', check_out='2099-01-03' WHERE id='window-res'").run();
+    try {
+      events.emit('email.due', { organizationId: 'org-a', reservationId: 'window-res', payload: { slug: 'codigo_porta' } });
+      await events.dispatchPending();
+      const effect = db.prepare("SELECT f.* FROM reservation_event_effects f JOIN reservation_events e ON e.id=f.event_id WHERE e.reservation_id='window-res'").get();
+      assert.equal(effect.state, 'pending'); assert.equal(effect.attempts, 0);
+      assert.equal(effect.next_attempt_at, until.toISOString().replace('T', ' ').slice(0, 19));
+      assert.match(effect.last_error, /janela/);
+    } finally { mail.sendTemplatedEmail = original; }
+  });
+  await check('Emails à espera na fila antiga passam para a fila de acontecimentos', async () => {
     reservation('queued-scheduled', 'scheduler-unit', '[]', 200);
-    db.prepare('UPDATE reservations SET check_in=?, check_out=? WHERE id=?').run(new Date().toISOString().slice(0,10), new Date().toISOString().slice(0,10), 'queued-scheduled');
     db.prepare('INSERT INTO organization_email_queue(id,organization_id,template_slug,reservation_id) VALUES(?,?,?,?)')
       .run('queued-id', 'org-a', 'codigo_porta', 'queued-scheduled');
-    let sends = 0;
-    const scheduler = load('services/emailScheduler.js', { './emailService': {
-      getEmailSettings: () => ({}),
-      resolveAccommodationInheritance: a => a,
-      sendTemplatedEmail: async () => { sends++; return { id: 'synthetic-queued' }; },
-    } });
-    process.env.EMAIL_ENABLED = 'true';
-    try {
-      await scheduler.runScheduler();
-      assert.equal(sends, 1);
-      assert(db.prepare('SELECT 1 FROM organization_email_log WHERE reservation_id=?').get('queued-scheduled'));
-      assert.equal(db.prepare('SELECT 1 FROM organization_email_queue WHERE id=?').get('queued-id'), undefined);
-      const today = new Date().toISOString().slice(0, 10);
-      db.prepare('UPDATE reservations SET check_in=?,check_out=? WHERE id=?').run(today, today, 'queued-scheduled');
-      await scheduler.runScheduler();
-      assert.equal(sends, 1);
-    } finally { process.env.EMAIL_ENABLED = 'false'; }
+    db.prepare("DELETE FROM schema_migrations WHERE id='20261026_email_queue_to_events'").run();
+    require(path.join(backend, 'config/migrations')).runMigrations(db);
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM organization_email_queue').get().n, 0);
+    const event = db.prepare("SELECT * FROM reservation_events WHERE reservation_id='queued-scheduled' AND type='email.due'").get();
+    assert.equal(JSON.parse(event.payload).slug, 'codigo_porta');
+    assert.equal(db.prepare('SELECT effect FROM reservation_event_effects WHERE event_id=?').get(event.id).effect, 'guest_template_email');
   });
   await check('S06: cache não guarda respostas privadas', async () => {
     const entries = new Map(); let online = true; const listeners = {};

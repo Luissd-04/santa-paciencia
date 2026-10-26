@@ -1,6 +1,5 @@
 // Lido em cada envio: desligar o email (EMAIL_ENABLED=false) não exige reiniciar módulos.
 const emailDisabled = () => process.env.EMAIL_ENABLED === 'false';
-const crypto = require('crypto');
 const { httpError } = require('./httpError');
 
 // Lido no momento do envio (e não desestruturado), para a ligação Gmail poder
@@ -38,6 +37,14 @@ function isWithinSendWindow(template, now = new Date()) {
   const start = sh * 60 + (sm || 0);
   const end = eh * 60 + (em || 0);
   return start <= end ? (cur >= start && cur <= end) : (cur >= start || cur <= end);
+}
+
+// Próxima abertura da janela de envio do modelo (no fuso do alojamento).
+function nextWindowStart(template, now = new Date()) {
+  const dates = require('./dates');
+  const today = dates.localDay(now);
+  const start = dates.zonedDateTime(today, template.window_start);
+  return start > now ? start : dates.zonedDateTime(dates.addDays(today, 1), template.window_start);
 }
 
 const BRAND_COLOR = composer.PALETTE.brand;
@@ -396,7 +403,11 @@ function formatDate(dateStr) {
 // Avisos com prazo (política de pagamento): a janela horária não os adia.
 const IMMEDIATE_TEMPLATES = new Set(['aviso_restante', 'cancelamento_politica']);
 
-async function sendTemplatedEmail(slug, guest, reservation, accommodation, extraVars) {
+// Devolve { id } quando enviado, null quando não se aplica, ou { queued, until }
+// quando tem de esperar (janela de envio, Gmail indisponível, envio por
+// confirmar): a fila de acontecimentos volta a tentar a essa hora.
+// `ignoreWindow`: envio pedido pela equipa nesse momento.
+async function sendTemplatedEmail(slug, guest, reservation, accommodation, extraVars, { ignoreWindow = false } = {}) {
   if (emailDisabled()) { console.log(`Email ${slug} ignorado (EMAIL_ENABLED=false)`); return null; }
   const { db } = require('../config/database');
   const orgId = reservation.organization_id || accommodation.organization_id;
@@ -413,15 +424,11 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation, extra
 
   accommodation = resolveAccommodationInheritance(accommodation, orgId);
 
-  // Fora da janela de envio configurada para este template: adia para a
-  // próxima passagem do scheduler em vez de enviar já (ver flushQueuedEmails).
-  if (orgId && !IMMEDIATE_TEMPLATES.has(slug) && !isWithinSendWindow(template)) {
-    db.prepare(`
-      INSERT OR IGNORE INTO organization_email_queue (id, organization_id, template_slug, reservation_id)
-      VALUES (?, ?, ?, ?)
-    `).run(crypto.randomUUID(), orgId, slug, reservation.id);
+  // Fora da janela de envio configurada para este template: espera pela
+  // próxima abertura (a fila de acontecimentos repete-o a essa hora).
+  if (orgId && !ignoreWindow && !IMMEDIATE_TEMPLATES.has(slug) && !isWithinSendWindow(template)) {
     console.log(`📧 Email ${slug} → reserva ${reservation.id} adiado (fora da janela de envio)`);
-    return { queued: true };
+    return { queued: true, delivery_status: 'window', until: nextWindowStart(template) };
   }
 
   let vars_extra = extraVars || {};
@@ -433,9 +440,6 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation, extra
   const vars = sanitizeUrlVars(buildVars(guest, reservation, accommodation, settings, vars_extra));
   const blocks = buildBlocks(vars, settings, reservation);
   const rendered = renderEmail({ subject: template.subject, body: template.body, vars, blocks, settings });
-  // A intenção de envio sobrevive a falhas de rede e reinícios.
-  db.prepare(`INSERT OR IGNORE INTO organization_email_queue (id, organization_id, template_slug, reservation_id)
-    VALUES (?, ?, ?, ?)`).run(crypto.randomUUID(), orgId, slug, reservation.id);
   const delivery = require('./emailDelivery');
   const result = await delivery.deliverTemplate({ orgId, slug, reservation, to, rendered }, () => sendMail(orgId, {
     to, subject: rendered.subject, html: rendered.html, bcc: template.bcc || undefined,
@@ -487,8 +491,8 @@ async function sendPaymentConfirmationEmail(guest, reservation, accommodation, p
   return sendTemplatedEmail('pagamento', guest, reservation, accommodation, extra);
 }
 
-async function sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl) {
-  return sendTemplatedEmail('pre_checkin', guest, reservation, accommodation, preCheckinUrl ? { link_pre_checkin: preCheckinUrl } : {});
+async function sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl, options) {
+  return sendTemplatedEmail('pre_checkin', guest, reservation, accommodation, preCheckinUrl ? { link_pre_checkin: preCheckinUrl } : {}, options);
 }
 
 async function sendReservationRequestApprovedEmail(guest, reservation, accommodation, preCheckinUrl) {
@@ -517,6 +521,7 @@ async function sendOwnerNewReservationEmail(organizationId, guest, reservation, 
 }
 
 module.exports = {
+  emailDisabled,
   isDeliverableEmail,
   sendMail,
   sendConfirmationEmail,
