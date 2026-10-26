@@ -20,7 +20,7 @@ function drawCal() {
   const daysInM  = new Date(AppModules.core.calYear, AppModules.core.calMonth + 1, 0).getDate();
   const prevDays = new Date(AppModules.core.calYear, AppModules.core.calMonth, 0).getDate();
   const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const todayStr = window.ReservationDates.localIso(now);
 
   const grid = document.getElementById('cal-grid');
 
@@ -255,7 +255,7 @@ function renderCalendarAgenda(monthDays, filters = AppModules.calendario.getCale
   if (!agenda || !monthDays.length) return;
   const esc = AppModules.core.escapeHtml;
   const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const today = window.ReservationDates.localIso(now);
   if (!monthDays.includes(calAgendaSelectedDate)) {
     calAgendaSelectedDate = monthDays.includes(today) ? today : monthDays[0];
   }

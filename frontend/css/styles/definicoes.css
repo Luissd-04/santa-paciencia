@@ -1,47 +1,103 @@
-/* ── Definições ── */
+/* ── Definições ──
+   Lista de secções por assunto (.settings-nav) e a secção escolhida.
+   Computador: lista numa coluna à esquerda. Telemóvel: a lista é a página
+   inicial e a secção abre no ecrã inteiro (.is-section-open, app.js). */
 .settings-shell {
   display: grid;
-  gap: 18px;
+  grid-template-columns: 260px minmax(0, 1fr);
+  align-items: start;
+  gap: 18px 24px;
   min-width: 0;
 }
-
-.settings-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
+.settings-shell > :not(.settings-nav) { grid-column: 2; }
+.settings-nav {
+  grid-column: 1;
+  grid-row: 1 / span 20;
+  display: grid;
+  gap: 18px;
 }
-
-.settings-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid var(--border-soft);
-  background: var(--surface-panel);
-  color: var(--text-muted);
-  border-radius: 8px;
-  padding: 9px 13px;
-  font-size: 13px;
+.settings-nav-group { display: grid; gap: 4px; }
+.settings-nav-title {
+  padding: 0 10px 4px;
+  font-size: 11px;
   font-weight: 700;
-  cursor: pointer;
-  transition: background .18s, color .18s, border-color .18s, box-shadow .18s;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
-
-.settings-tab:hover {
+.settings-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
   color: var(--text-main);
-  border-color: rgba(132, 52, 36, .22);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background .18s, border-color .18s;
 }
-
+.settings-tab:hover { background: color-mix(in srgb, var(--marca) 6%, transparent); }
+.settings-tab:focus-visible { outline: 3px solid color-mix(in srgb, var(--marca) 28%, transparent); outline-offset: 1px; }
 .settings-tab.active {
-  background: var(--marca);
-  color: #fff;
-  border-color: var(--marca);
-  box-shadow: var(--shadow-soft);
+  background: color-mix(in srgb, var(--marca) 10%, var(--surface-panel));
+  border-color: color-mix(in srgb, var(--marca) 20%, transparent);
+  color: var(--marca);
 }
+.settings-tab > svg, .settings-tab > i { width: 18px; height: 18px; flex-shrink: 0; }
+.settings-tab-text { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.settings-tab-text strong { font-size: 13.5px; font-weight: 700; }
+.settings-tab-text small { font-size: 12px; color: var(--text-muted); }
+.settings-tab .settings-tab-chevron { display: none; }
+.settings-back { display: none; }
 
-.settings-tab i[data-lucide] {
-  width: 14px;
-  height: 14px;
+@media (max-width: 767px) {
+  .settings-shell { grid-template-columns: minmax(0, 1fr); }
+  .settings-shell > :not(.settings-nav), .settings-nav { grid-column: 1; grid-row: auto; }
+  .settings-shell:not(.is-section-open) > :not(.settings-nav) { display: none !important; }
+  .settings-shell.is-section-open > .settings-nav { display: none; }
+
+  /* A lista como cartões agrupados, uma linha por secção. */
+  .settings-nav-group { gap: 0; }
+  .settings-nav-group .settings-tab {
+    min-height: 60px;
+    padding: 10px 14px;
+    border-radius: 0;
+    background: var(--surface-panel);
+    border: 1px solid var(--border-soft);
+    border-top-width: 0;
+    color: var(--text-main);
+  }
+  .settings-nav-group .settings-tab.active { background: var(--surface-panel); border-color: var(--border-soft); color: var(--text-main); }
+  .settings-nav-title + .settings-tab { border-top-width: 1px; border-radius: 14px 14px 0 0; }
+  .settings-nav-group .settings-tab:last-child { border-radius: 0 0 14px 14px; }
+  .settings-nav-title + .settings-tab:last-child { border-radius: 14px; }
+  /* Sem a Equipa (não proprietário), a primeira linha visível é a seguinte. */
+  body:not(.role-owner) .settings-nav-title + [data-owner-only] + .settings-tab { border-top-width: 1px; border-radius: 14px 14px 0 0; }
+  .settings-tab > svg:first-child, .settings-tab > i:first-child { color: var(--marca); }
+  .settings-tab .settings-tab-chevron { display: block; color: var(--text-muted); }
+
+  .settings-shell.is-section-open > .settings-back {
+    display: inline-flex;
+    justify-self: start;
+    align-items: center;
+    gap: 4px;
+    min-height: 44px;
+    padding: 0 12px 0 6px;
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    background: var(--surface-panel);
+    color: var(--marca);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .settings-back > svg, .settings-back > i { width: 18px; height: 18px; }
 }
 
 .settings-panel {

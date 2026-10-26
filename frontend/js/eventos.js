@@ -64,7 +64,7 @@ let eventosRenderVersion = 0;
 // Horizonte desenhado por cada modo, com folga para os dias adjacentes que o
 // calendário mostra fora do mês.
 function eventosPeriod() {
-  const iso = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const iso = window.ReservationDates.localIso;
   if (eventosView !== 'list' && eventosMode === 'timeline') {
     const start = new Date();
     start.setDate(start.getDate() - 1);
@@ -127,7 +127,7 @@ function getEventosListQuery() {
   const accommodation = document.getElementById('eventos-list-acc-filter')?.value || '';
   const status = document.getElementById('eventos-list-status-filter')?.value || '';
   const range = document.getElementById('eventos-list-date-filter')?.value || '';
-  const iso = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const iso = window.ReservationDates.localIso;
   const today = new Date();
   const todayStr = iso(today);
 
@@ -138,8 +138,7 @@ function getEventosListQuery() {
   if (eventosTypeFilters.size) query.types = [...eventosTypeFilters].join(',');
   if (range === 'today') { query.from = todayStr; query.to = todayStr; }
   else if (range === 'week') {
-    const end = new Date(today); end.setDate(today.getDate() + 7);
-    query.from = todayStr; query.to = iso(end);
+    query.from = todayStr; query.to = window.ReservationDates.localIso(today, 7);
   } else if (range === 'month') {
     query.from = iso(new Date(today.getFullYear(), today.getMonth(), 1));
     query.to = iso(new Date(today.getFullYear(), today.getMonth() + 1, 0));
@@ -516,7 +515,7 @@ function renderEventosTimeline(autoScroll = true) {
   let dayCells = '';
   for (let i = 0; i < totalDays; i++) {
     const d  = new Date(year, 0, 1 + i);
-    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const ds = window.ReservationDates.localIso(d);
     const isToday      = ds === todayStr;
     const isWeekend    = d.getDay() === 0 || d.getDay() === 6;
     const isMonthStart = d.getDate() === 1 && i > 0;
@@ -532,7 +531,7 @@ function renderEventosTimeline(autoScroll = true) {
         let cellHtml = '';
         for (let i = 0; i < totalDays; i++) {
           const d  = new Date(year, 0, 1 + i);
-          const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const ds = window.ReservationDates.localIso(d);
           const isMonthStart = d.getDate() === 1 && i > 0;
           cellHtml += `<div class="tl-cell${ds === todayStr ? ' tl-today-col' : ''}${isMonthStart ? ' tl-month-start' : ''}"></div>`;
         }
@@ -727,7 +726,7 @@ function eventosTimelineDblClick(e) {
   const dayIdx = Math.floor((e.clientX - rect.left) / dayW);
   if (dayIdx < 0) return;
   const d = new Date(year, 0, 1 + dayIdx);
-  const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const dateStr = window.ReservationDates.localIso(d);
   openEventoModal(null, dateStr, row.dataset.accId || null);
 }
 

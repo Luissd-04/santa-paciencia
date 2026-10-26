@@ -142,6 +142,6 @@
    (tabelas, nomes com nowrap) e a vista sai do ecrã no telemóvel. */
 .dashboard-shell, .dashboard-mobile-layout, .m-arrivals-list,
 .reservas-shell, .despesas-shell, .hospedes-shell, .vouchers-shell,
-.notifications-page-shell, .settings-shell {
+.notifications-page-shell {
   grid-template-columns: minmax(0, 1fr);
 }

@@ -164,6 +164,9 @@ function toggleNotif(e) {
   if (!dropdown) return;
   if (_notifOpen) {
     renderNotifDropdown();
+    // Ao abrir pede de novo: os avisos em direto cobrem quase tudo, isto
+    // cobre uma ligação que tenha caído sem se notar (era o «Atualizar»).
+    loadNotifications();
     dropdown.style.display = '';
     requestAnimationFrame(() => dropdown.classList.add('open'));
   } else {
@@ -218,9 +221,9 @@ function renderNotifDropdown() {
       <span class="notif-count">${_notifications.length}</span>
     </div>
     <div class="notif-list">${items}</div>
-    <div class="notif-footer" data-on-click="notifications-load-notifications-449f209">
-      <i data-lucide="refresh-cw" style="width:13px;height:13px;"></i> Atualizar
-    </div>`;
+    <button type="button" class="notif-footer" data-on-click="notifications-close-notif-0782c93">
+      Ver todas as notificações <i data-lucide="arrow-right" style="width:13px;height:13px;"></i>
+    </button>`;
   if (window.lucide) lucide.createIcons();
 }
 
@@ -421,7 +424,6 @@ document.addEventListener('click', e => {
 });
 
 AppActions.register({
-  "notifications-load-notifications-449f209": (el, event, args) => { loadNotifications() },
   "notifications-close-notif-0782c93": (el, event, args) => { closeNotif();AppModules.core.showView('notificacoes') },
 }, "click");
 

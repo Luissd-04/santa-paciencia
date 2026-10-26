@@ -279,13 +279,7 @@ function rdv2RenderTimeline(entries) {
   const panel = document.getElementById('rdv2-panel-timeline');
   if (!panel) return;
 
-  const fmtWhen = iso => {
-    if (!iso) return '—';
-    // created_at vem em UTC ("YYYY-MM-DD HH:MM:SS") — apresentar em hora local.
-    const d = new Date(iso.includes('T') ? iso : iso.replace(' ', 'T') + 'Z');
-    return isNaN(d) ? iso : d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' })
-      + ' ' + d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-  };
+  const fmtWhen = iso => window.ReservationDates.formatDateTime(iso);
 
   const items = entries.map(h => {
     const meta = RDV2_ACTION_META[h.action] || { icon: 'circle-dot', label: AppModules.core.escapeHtml(h.action || '—') };

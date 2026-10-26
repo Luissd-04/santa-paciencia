@@ -179,6 +179,8 @@ test('calendário carrega o intervalo visível e ignora a resposta de um mês an
     setCalCount() {}, drawCal() {}, drawTimeline() {},
     apiGetAllPages: (url, query, options) => new Promise(resolve => requests.push({ url, query, options, resolve })),
   });
+  context.window = context;
+  runFrontend(fs.readFileSync(path.join(frontend, 'js/domain/dates.js'), 'utf8'), context);
   runFrontend(fs.readFileSync(path.join(frontend, 'js/features/calendario/dados.js'), 'utf8'), context);
   const january = vm.runInContext('renderCal()', context);
   assert.equal(requests[0].query.overlap_from, '2029-12-30');

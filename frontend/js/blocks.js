@@ -35,12 +35,6 @@ async function ensureBlocksLoaded() {
   return loadBlocks();
 }
 
-function blkAddDays(iso, n) {
-  const d = new Date(`${iso}T12:00:00`);
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-
 function blkFmt(iso) {
   const d = new Date(`${iso}T12:00:00`);
   return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -90,7 +84,7 @@ function blockBandsHtml(accId, yearStart, totalDays, dayW) {
   const totalWidth = totalDays * dayW;
   return effectiveBlocksForAccommodation(accId).map(b => {
     const start = new Date(b.start_date + 'T00:00:00');
-    const endExclusive = new Date(blkAddDays(b.end_date, 1) + 'T00:00:00');
+    const endExclusive = new Date(window.ReservationDates.addDays(b.end_date, 1) + 'T00:00:00');
     const offset = Math.round((start - yearStart) / 86400000);
     const days = Math.round((endExclusive - start) / 86400000);
     const left = Math.max(0, offset * dayW);

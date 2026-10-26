@@ -56,6 +56,9 @@ const VIEW_TITLES = {
 async function showView(v, pushState = true) {
   AppUI.closeSheets();
   AppUI.closeDialogs();
+  // Entrar nas Definições pelo menu abre a lista de secções (telemóvel);
+  // os atalhos abaixo (gcal, equipa, emails) abrem logo a secção.
+  if (v === 'definicoes') settingsSectionOpen = false;
   if (v === 'gcal') {
     switchSettingsTab('gcal', false);
     v = 'definicoes';
@@ -315,24 +318,42 @@ document.addEventListener('click', event => {
 // ── SETTINGS ──
 let settingsTab = AppModules.core.SS.get('settings:tab', 'gcal');
 
+// No telemóvel as Definições abrem na lista de secções; escolher uma secção
+// mostra-a no ecrã inteiro (CSS: .settings-shell.is-section-open). No
+// computador a lista é uma coluna ao lado e esta marca não muda nada.
+let settingsSectionOpen = false;
+
 function switchSettingsTab(tab, render = true) {
   if (tab === 'equipa' && AppModules.core.currentUser?.role !== 'owner') tab = 'gcal';
   settingsTab = ['gcal', 'database', 'operations', 'emails', 'fornecedores', 'push', 'equipa', 'payments'].includes(tab) ? tab : 'gcal';
   AppModules.core.SS.set('settings:tab', settingsTab);
+  settingsSectionOpen = true;
+  applySettingsTab();
+  if (render) {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    renderSettingsView();
+  }
+}
 
+function openSettingsIndex() {
+  settingsSectionOpen = false;
+  applySettingsTab();
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function applySettingsTab() {
   document.querySelectorAll('[data-settings-tab]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.settingsTab === settingsTab);
   });
   document.querySelectorAll('.settings-panel').forEach(panel => {
     panel.classList.toggle('active', panel.id === 'settings-' + settingsTab);
   });
-
-  if (render) renderSettingsView();
+  document.querySelector('.settings-shell')?.classList.toggle('is-section-open', settingsSectionOpen);
 }
 
 function renderSettingsView() {
   if (settingsTab === 'equipa' && AppModules.core.currentUser?.role !== 'owner') settingsTab = 'gcal';
-  switchSettingsTab(settingsTab, false);
+  applySettingsTab();
   AppUI.enhanceSelects(document.getElementById('view-definicoes'));
   AppUI.refreshDropdowns(document.getElementById('view-definicoes'));
   if (settingsTab === 'payments') AppModules.definicoes.loadPaymentPolicy();
@@ -904,5 +925,9 @@ if ('serviceWorker' in navigator) {
     if (e.data?.type === 'sp-navigate' && e.data.url) handleDeepLinkUrl(e.data.url);
   });
 }
+
+AppActions.register({
+  "settings-open-index": () => openSettingsIndex(),
+}, "click");
 
 })();

@@ -11,7 +11,7 @@
   let openingCheckout = false;
   let currentPolicy = null;
   let cancelling = false;
-  const fmtDeadline = value => new Date(value).toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });
+  const fmtDeadline = value => window.ReservationDates.formatDateTime(value);
   function renderPolicy(payment) {
     const p = payment.policy;
     currentPolicy = p;

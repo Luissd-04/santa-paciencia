@@ -20,7 +20,6 @@ AppModules.define('reservas', {
   _wizHadMultiSuiteOnLoad: { get: () => _wizHadMultiSuiteOnLoad, set: value => { _wizHadMultiSuiteOnLoad = value; } },
   _wizMultiSuite: { get: () => _wizMultiSuite, set: value => { _wizMultiSuite = value; } },
   _wizVoucherManaged: { get: () => _wizVoucherManaged, set: value => { _wizVoucherManaged = value; } },
-  addDaysToIsoDate: { get: () => addDaysToIsoDate },
   buildCountrySelects: { get: () => buildCountrySelects },
   DIAL_COUNTRIES: { get: () => DIAL_COUNTRIES },
   enhanceReservationSelects: { get: () => enhanceReservationSelects },
@@ -183,12 +182,6 @@ function nightlyOverrideArray() {
 function invalidateWizPricingCache(alojId) {
   if (alojId) delete _cachedPricingPeriods[alojId];
   else _cachedPricingPeriods = {};
-}
-
-function addDaysToIsoDate(dateStr, days = 1) {
-  const d = new Date(`${dateStr}T12:00:00`);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
 }
 
 function updateNumHospedes() {

@@ -63,6 +63,8 @@ test('calendário permite repetir após incompatibilidade ou timeout e recupera 
     Object.assign(ctx, { calYear: 2030, calMonth: 0, calMode: 'calendar', drawCal() {}, drawTimeline() {} });
     const messages = [];
     ctx.captureMessage = (text, retry) => messages.push({ text, retry });
+    ctx.window = ctx;
+    runFrontend(fs.readFileSync(path.join(frontend, 'js/domain/dates.js'), 'utf8'), ctx);
     runFrontend(fs.readFileSync(path.join(frontend, 'js/features/calendario/dados.js'), 'utf8'), ctx);
     vm.runInContext('calendarLoadMessage = captureMessage; function renderCalView() { return renderCal(); }', ctx);
     await vm.runInContext('renderCal()', ctx);

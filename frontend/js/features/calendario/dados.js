@@ -14,7 +14,7 @@ let calendarDataKey = '', calendarPendingKey = '', calendarPending = null;
 let calendarController = null, calendarGeneration = 0;
 
 function calendarPeriod(mode) {
-  const iso = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const iso = window.ReservationDates.localIso;
   if (mode === 'timeline') {
     const year = new Date().getFullYear();
     return { overlap_from: `${year}-01-01`, overlap_to: `${year}-12-31` };

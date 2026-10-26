@@ -85,12 +85,10 @@
     if (!nights) return 0;
     const sorted = [...periods].sort((a, b) => a.start_date.localeCompare(b.start_date));
     let total = 0;
-    const d = new Date(`${checkIn}T12:00:00`);
     for (let i = 0; i < nights; i++) {
-      const iso = d.toISOString().slice(0, 10);
+      const iso = window.ReservationDates.addDays(checkIn, i);
       const period = sorted.find(p => periodMatchesDay(p, iso));
       total += period ? Number(period.price_per_night) : basePrice;
-      d.setDate(d.getDate() + 1);
     }
     return total;
   }
@@ -110,9 +108,8 @@
       });
     }
     const result = [];
-    const d = new Date(`${checkIn}T12:00:00`);
     for (let i = 0; i < nights; i++) {
-      const iso = d.toISOString().slice(0, 10);
+      const iso = window.ReservationDates.addDays(checkIn, i);
       let price;
       if (overrideMap[iso] != null) {
         price = overrideMap[iso];
@@ -121,7 +118,6 @@
         price = period ? Number(period.price_per_night) : Number(basePrice);
       }
       result.push({ date: iso, price: Math.max(0, Number(price) || 0) });
-      d.setDate(d.getDate() + 1);
     }
     return result;
   }
