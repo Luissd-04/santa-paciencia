@@ -136,3 +136,12 @@
     display: none;
   }
 }
+
+/* Grelhas de uma coluna das vistas: a coluna fica presa à largura disponível.
+   Sem isto a coluna implícita (auto) cresce até ao conteúdo mais largo
+   (tabelas, nomes com nowrap) e a vista sai do ecrã no telemóvel. */
+.dashboard-shell, .dashboard-mobile-layout, .m-arrivals-list,
+.reservas-shell, .despesas-shell, .hospedes-shell, .vouchers-shell,
+.notifications-page-shell, .settings-shell {
+  grid-template-columns: minmax(0, 1fr);
+}

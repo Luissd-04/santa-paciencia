@@ -10,7 +10,11 @@
   border-radius: 999px; font-size: 13px; font-weight: 700;
   background: rgba(132, 52, 36, .1); color: var(--brand);
 }
-.rs-payment { background: rgba(18, 97, 73, .1); color: #126149; }
+/* Cor pelo estado do pagamento (ReservationStatus.paymentGuestChip). */
+.rs-payment { background: rgba(92, 84, 78, .1); color: #5c544e; }
+.rs-payment[data-tone="warn"] { background: rgba(176, 106, 0, .12); color: #8a5300; }
+.rs-payment[data-tone="info"] { background: rgba(47, 95, 134, .12); color: #2f5f86; }
+.rs-payment[data-tone="ok"] { background: rgba(18, 97, 73, .1); color: #126149; }
 .reservation-status-card h2 { margin: 0 0 24px; color: var(--brand); font-size: clamp(24px, 5vw, 34px); }
 .rs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; }
 .rs-grid div { padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }

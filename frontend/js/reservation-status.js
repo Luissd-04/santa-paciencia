@@ -100,7 +100,10 @@
       const S = window.ReservationStatus;
       $('rs-title').textContent = reservation.status ? S.guestLabel(reservation.status) : 'Estado da reserva';
       $('rs-status').textContent = S.guestLabel(reservation.status);
-      $('rs-payment').textContent = S.paymentGuestLabel(reservation.payment_status || 'pendente');
+      const chip = S.paymentGuestChip(reservation.status, reservation.payment_status);
+      $('rs-payment').hidden = !chip;
+      $('rs-payment').textContent = chip?.label || '';
+      $('rs-payment').dataset.tone = chip?.tone || '';
       $('rs-accommodation').textContent = reservation.accommodation_name;
       $('rs-checkin').textContent = fmtDate(reservation.check_in);
       $('rs-checkout').textContent = fmtDate(reservation.check_out);

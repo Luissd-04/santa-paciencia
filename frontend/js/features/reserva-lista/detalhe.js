@@ -155,7 +155,7 @@ async function showDetail(id, opts = {}) {
       <div class="rdv2-header">
         <button class="btn btn-ghost btn-sm" data-on-click="detalhe-show-reservas-list-3f01da3">${AppModules.core.lcIcon('arrow-left', 13)} Voltar</button>
         <div class="rdv2-title-area">
-          <span class="rdv2-subtitle">Editar reserva</span>
+          <span class="rdv2-subtitle">Ficha da reserva</span>
           <span class="rdv2-id-pill">${r.id}</span>
         </div>
         <div class="rdv2-header-actions">

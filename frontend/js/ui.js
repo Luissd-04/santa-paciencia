@@ -371,6 +371,51 @@
     deactivateModal(modal);
   }
 
+  // Janelas criadas na hora (formulários curtos, confirmações): usam a mesma
+  // moldura .modal-bg/.modal das janelas fixas, por isso têm Escape, foco
+  // preso, página presa por trás e fecho ao tocar fora — no telemóvel abrem
+  // como folha a partir de baixo. Ao fechar saem do DOM e chamam onClose.
+  // `title`, `body` e `footer` são HTML (quem chama escapa o que vem de dados).
+  const dialogClosers = new WeakMap();
+  function openDialog({ id, title, body, footer = '', className = '', onClose = null }) {
+    if (id) closeDialog(id);
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-bg';
+    if (id) overlay.id = id;
+    overlay.dataset.dialog = '';
+    overlay.innerHTML = `<div class="modal app-dialog ${className}">
+      <div class="modal-header">
+        <h3 class="modal-title">${title}</h3>
+        <button type="button" class="modal-close" data-dialog-close aria-label="Fechar"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">${body}</div>
+      ${footer ? `<div class="modal-footer">${footer}</div>` : ''}
+    </div>`;
+    dialogClosers.set(overlay, onClose);
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay || event.target.closest('[data-dialog-close]')) closeDialog(overlay);
+    });
+    document.body.appendChild(overlay);
+    openModal(overlay);
+    if (window.lucide) lucide.createIcons();
+    return overlay;
+  }
+
+  function closeDialog(target, result) {
+    const overlay = typeof target === 'string' ? document.getElementById(target) : target?.closest?.('[data-dialog]');
+    if (!overlay?.hasAttribute('data-dialog')) return;
+    const onClose = dialogClosers.get(overlay);
+    dialogClosers.delete(overlay);
+    closeModal(overlay);
+    overlay.remove();
+    if (typeof onClose === 'function') onClose(result);
+  }
+
+  // Mudar de vista fecha as janelas criadas na hora (ficavam por cima da nova vista).
+  function closeDialogs() {
+    document.querySelectorAll('[data-dialog]').forEach(overlay => closeDialog(overlay));
+  }
+
   const sheets = new Map();
   const sheetMedia = matchMedia('(max-width: 600px), (max-height: 500px) and (orientation: landscape)');
   function setSheetOpen(panelId, backdropId, open, openClass = 'm-sheet-open') {
@@ -466,6 +511,8 @@
         // O modal de reservas gere o seu próprio fecho (confirmação + rascunho).
         if (openModalEl.id === 'modal-bg' && typeof AppModules.reservas.requestCloseReservaModal === 'function') {
           AppModules.reservas.requestCloseReservaModal();
+        } else if (openModalEl.hasAttribute('data-dialog')) {
+          closeDialog(openModalEl);
         } else {
           closeModal(openModalEl);
         }
@@ -498,6 +545,9 @@
     refreshDropdowns,
     openModal,
     closeModal,
+    openDialog,
+    closeDialog,
+    closeDialogs,
   };
 })();
 

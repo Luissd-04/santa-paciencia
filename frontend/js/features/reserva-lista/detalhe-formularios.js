@@ -14,39 +14,31 @@ function readPendingPayment(id) {
 }
 function openPaymentForm(reservationId, currentPaid, total) {
   const remaining = Math.max(0, total - currentPaid).toFixed(2);
-  const html = `
-    <div id="rdv2-pay-form" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;display:flex;align-items:center;justify-content:center;" data-on-click="detalhe-formularios-if-ba44ff2">
-      <div style="background:var(--surface-card);border-radius:16px;padding:24px;width:min(360px,92vw);box-shadow:0 8px 40px rgba(0,0,0,.22);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-          <span style="font-size:15px;font-weight:700;color:var(--text-main);">Registar Pagamento</span>
-          <button data-on-click="detalhe-formularios-get-element-by-id-15c078a" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;">×</button>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:12px;">
-          <div>
-            <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Valor (€)</label>
-            <input id="pf-amount" type="number" min="0" step="0.01" value="${remaining}" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);" autocomplete="off">
-          </div>
-          <div>
-            <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Método</label>
-            <select id="pf-method" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);">
-              <option value="transferencia">Transferência</option>
-              <option value="mbway">MBWay</option>
-              <option value="numerario">Numerário</option>
-              <option value="cartao">Cartão</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Data</label>
-            <input id="pf-date" type="date" value="${window.ReservationDates.localIso()}" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);" autocomplete="off">
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
-          <button data-on-click="detalhe-formularios-get-element-by-id-15c078a" style="padding:8px 16px;border:1px solid var(--border-soft);border-radius:8px;background:none;color:var(--text-muted);cursor:pointer;font-size:13px;">Cancelar</button>
-          <button id="pf-save-btn" ${AppActions.attrs("click", "detalhe-formularios-save-payment-form-7b64f33", [String((reservationId) ?? '')])} style="padding:8px 18px;border:none;border-radius:8px;background:var(--brand-shell);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>
-        </div>
+  AppUI.openDialog({
+    id: 'rdv2-pay-form',
+    title: 'Registar pagamento',
+    body: `
+      <div class="form-group">
+        <label class="form-label" for="pf-amount">Valor (€)</label>
+        <input id="pf-amount" class="form-control" type="number" inputmode="decimal" min="0" step="0.01" value="${remaining}" autocomplete="off">
       </div>
-    </div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
+      <div class="form-group">
+        <label class="form-label" for="pf-method">Método</label>
+        <select id="pf-method" class="form-control">
+          <option value="transferencia">Transferência</option>
+          <option value="mbway">MBWay</option>
+          <option value="numerario">Numerário</option>
+          <option value="cartao">Cartão</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="pf-date">Data</label>
+        <input id="pf-date" class="form-control" type="date" value="${window.ReservationDates.localIso()}" autocomplete="off">
+      </div>`,
+    footer: `
+      <button type="button" class="btn btn-ghost" data-dialog-close>Cancelar</button>
+      <button type="button" class="btn btn-primary" id="pf-save-btn" ${AppActions.attrs("click", "detalhe-formularios-save-payment-form-7b64f33", [String((reservationId) ?? '')])}>Guardar</button>`,
+  });
   const pending = readPendingPayment(reservationId);
   if (pending) {
     document.getElementById('pf-amount').value = pending.payload.amount;
@@ -77,7 +69,7 @@ async function savePaymentForm(reservationId) {
     const res = await AppModules.core.apiPost(`/api/reservations/${reservationId}/payments`, { ...payload, idempotency_key: pending.key });
     if (res.success) {
       sessionStorage.removeItem(pendingPaymentKey(reservationId));
-      document.getElementById('rdv2-pay-form')?.remove();
+      AppUI.closeDialog('rdv2-pay-form');
       AppModules.core.toast('✅ Pagamento registado', 'success');
       await AppModules.reservas.loadReservas();
       AppModules.reservas.showDetail(reservationId);
@@ -93,34 +85,26 @@ async function savePaymentForm(reservationId) {
 }
 
 function openAddGuestForm(reservationId) {
-  const html = `
-    <div id="rdv2-addguest-form" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;display:flex;align-items:center;justify-content:center;" data-on-click="detalhe-formularios-if-ba44ff2">
-      <div style="background:var(--surface-card);border-radius:16px;padding:24px;width:min(360px,92vw);box-shadow:0 8px 40px rgba(0,0,0,.22);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-          <span style="font-size:15px;font-weight:700;color:var(--text-main);">Adicionar Hóspede</span>
-          <button data-on-click="detalhe-formularios-get-element-by-id-58a19ae" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;">×</button>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:12px;">
-          <div>
-            <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Nome *</label>
-            <input id="ag-name" type="text" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);" autocomplete="off">
-          </div>
-          <div>
-            <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Email (opcional)</label>
-            <input id="ag-email" type="email" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);" autocomplete="off">
-          </div>
-          <div>
-            <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Telefone (opcional)</label>
-            <input id="ag-phone" type="text" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);" autocomplete="off">
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
-          <button data-on-click="detalhe-formularios-get-element-by-id-58a19ae" style="padding:8px 16px;border:1px solid var(--border-soft);border-radius:8px;background:none;color:var(--text-muted);cursor:pointer;font-size:13px;">Cancelar</button>
-          <button id="ag-save-btn" ${AppActions.attrs("click", "detalhe-formularios-save-add-guest-form-daaa6ec", [String((reservationId) ?? '')])} style="padding:8px 18px;border:none;border-radius:8px;background:var(--brand-shell);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>
-        </div>
+  AppUI.openDialog({
+    id: 'rdv2-addguest-form',
+    title: 'Adicionar hóspede',
+    body: `
+      <div class="form-group">
+        <label class="form-label" for="ag-name">Nome *</label>
+        <input id="ag-name" class="form-control" type="text" autocomplete="off">
       </div>
-    </div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
+      <div class="form-group">
+        <label class="form-label" for="ag-email">Email (opcional)</label>
+        <input id="ag-email" class="form-control" type="email" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="ag-phone">Telefone (opcional)</label>
+        <input id="ag-phone" class="form-control" type="tel" autocomplete="off">
+      </div>`,
+    footer: `
+      <button type="button" class="btn btn-ghost" data-dialog-close>Cancelar</button>
+      <button type="button" class="btn btn-primary" id="ag-save-btn" ${AppActions.attrs("click", "detalhe-formularios-save-add-guest-form-daaa6ec", [String((reservationId) ?? '')])}>Guardar</button>`,
+  });
   document.getElementById('ag-name')?.focus();
 }
 
@@ -143,7 +127,7 @@ async function saveAddGuestForm(reservationId) {
       num_adults: (r.num_adults || 1) + 1,
     });
     if (res.success) {
-      document.getElementById('rdv2-addguest-form')?.remove();
+      AppUI.closeDialog('rdv2-addguest-form');
       AppModules.core.toast('✅ Hóspede adicionado', 'success');
       await AppModules.reservas.loadReservas();
       AppModules.reservas.showDetail(reservationId);
@@ -168,44 +152,34 @@ function openInvoiceFormFromBtn(reservationId, btn) {
 }
 
 function openInvoiceForm(reservationId, inv = {}) {
-  const inp = 'width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);';
-  const lbl = 'font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;';
   const methods = [['whatsapp', 'WhatsApp'], ['email', 'Email'], ['winmax', 'Winmax'], ['outro', 'Outro']];
   const opts = methods.map(([v, l]) => `<option value="${v}"${inv.m === v ? ' selected' : ''}>${l}</option>`).join('');
-  const html = `
-    <div id="rdv2-inv-form" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;display:flex;align-items:center;justify-content:center;" data-on-click="detalhe-formularios-if-ba44ff2">
-      <div style="background:var(--surface-card);border-radius:16px;padding:24px;width:min(380px,92vw);box-shadow:0 8px 40px rgba(0,0,0,.22);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-          <span style="font-size:15px;font-weight:700;color:var(--text-main);">Registar Fatura</span>
-          <button data-on-click="detalhe-formularios-get-element-by-id-588783e" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;">×</button>
+  AppUI.openDialog({
+    id: 'rdv2-inv-form',
+    title: 'Registar fatura',
+    body: `
+      <div class="form-group">
+        <label class="form-label" for="if-number">Nº fatura</label>
+        <input id="if-number" class="form-control" type="text" value="${AppModules.core.escapeHtml(inv.n || '')}" placeholder="Ex.: FT 2026/123" autocomplete="off">
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label" for="if-date">Data fatura</label>
+          <input id="if-date" class="form-control" type="date" value="${inv.d || ''}" autocomplete="off">
         </div>
-        <div style="display:flex;flex-direction:column;gap:12px;">
-          <div>
-            <label style="${lbl}">Nº Fatura</label>
-            <input id="if-number" type="text" value="${AppModules.core.escapeHtml(inv.n || '')}" placeholder="Ex.: FT 2026/123" style="${inp}" autocomplete="off">
-          </div>
-          <div style="display:flex;gap:10px;">
-            <div style="flex:1;">
-              <label style="${lbl}">Data Fatura</label>
-              <input id="if-date" type="date" value="${inv.d || ''}" style="${inp}" autocomplete="off">
-            </div>
-            <div style="flex:1;">
-              <label style="${lbl}">Data Envio</label>
-              <input id="if-sent-date" type="date" value="${inv.sd || ''}" style="${inp}" autocomplete="off">
-            </div>
-          </div>
-          <div>
-            <label style="${lbl}">Método de Envio</label>
-            <select id="if-method" style="${inp}">${opts}</select>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
-          <button data-on-click="detalhe-formularios-get-element-by-id-588783e" style="padding:8px 16px;border:1px solid var(--border-soft);border-radius:8px;background:none;color:var(--text-muted);cursor:pointer;font-size:13px;">Cancelar</button>
-          <button id="if-save-btn" ${AppActions.attrs("click", "detalhe-formularios-save-invoice-form-a8900b2", [String((reservationId) ?? '')])} style="padding:8px 18px;border:none;border-radius:8px;background:var(--brand-shell);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>
+        <div class="form-group">
+          <label class="form-label" for="if-sent-date">Data envio</label>
+          <input id="if-sent-date" class="form-control" type="date" value="${inv.sd || ''}" autocomplete="off">
         </div>
       </div>
-    </div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
+      <div class="form-group">
+        <label class="form-label" for="if-method">Método de envio</label>
+        <select id="if-method" class="form-control">${opts}</select>
+      </div>`,
+    footer: `
+      <button type="button" class="btn btn-ghost" data-dialog-close>Cancelar</button>
+      <button type="button" class="btn btn-primary" id="if-save-btn" ${AppActions.attrs("click", "detalhe-formularios-save-invoice-form-a8900b2", [String((reservationId) ?? '')])}>Guardar</button>`,
+  });
   document.getElementById('if-number')?.focus();
 }
 
@@ -221,7 +195,7 @@ async function saveInvoiceForm(reservationId) {
       invoice_number, invoice_date, invoice_sent_date, invoice_sent_method,
     });
     if (res.success) {
-      document.getElementById('rdv2-inv-form')?.remove();
+      AppUI.closeDialog('rdv2-inv-form');
       AppModules.core.toast('✅ Fatura registada', 'success');
       await AppModules.reservas.loadReservas();
       AppModules.reservas.showDetail(reservationId);
@@ -253,12 +227,8 @@ async function deletePaymentEntry(reservationId, paymentId) {
 
 
 AppActions.register({
-  "detalhe-formularios-if-ba44ff2": (el, event, args) => { if(event.target===el)el.remove() },
-  "detalhe-formularios-get-element-by-id-588783e": (el, event, args) => { document.getElementById('rdv2-inv-form').remove() },
   "detalhe-formularios-save-invoice-form-a8900b2": (el, event, args) => { saveInvoiceForm(args[0]) },
-  "detalhe-formularios-get-element-by-id-58a19ae": (el, event, args) => { document.getElementById('rdv2-addguest-form').remove() },
   "detalhe-formularios-save-add-guest-form-daaa6ec": (el, event, args) => { saveAddGuestForm(args[0]) },
-  "detalhe-formularios-get-element-by-id-15c078a": (el, event, args) => { document.getElementById('rdv2-pay-form').remove() },
   "detalhe-formularios-save-payment-form-7b64f33": (el, event, args) => { savePaymentForm(args[0]) },
 }, "click");
 

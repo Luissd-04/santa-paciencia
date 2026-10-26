@@ -55,6 +55,7 @@ const VIEW_TITLES = {
 // inicialização, para que uma ligação lenta não deixe o ecrã parado.
 async function showView(v, pushState = true) {
   AppUI.closeSheets();
+  AppUI.closeDialogs();
   if (v === 'gcal') {
     switchSettingsTab('gcal', false);
     v = 'definicoes';

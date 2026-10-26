@@ -854,7 +854,13 @@
   /* Hide desktop elements */
   #dash-desktop     { display: none !important; }
   #reservas-desktop { display: none !important; }
-  .topbar-actions   { display: none !important; }
+  /* Do cabeçalho de secretária, no mobile só fica o sino; conta e ação
+     rápida estão no menu lateral e no botão "+". */
+  .topbar-actions   { gap: 0; margin-left: 10px; }
+  .topbar-actions > :not(.notif-wrap) { display: none !important; }
+  /* O sino fica junto à margem direita: a lista ocupa a largura do ecrã
+     menos as margens, alinhada à direita do sino. */
+  .notif-dropdown { width: min(360px, calc(100vw - 24px)); }
 
   /* Push content above bottom nav */
   .main { padding-bottom: 80px; }

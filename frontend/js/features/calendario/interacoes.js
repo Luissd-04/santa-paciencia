@@ -382,22 +382,22 @@ function tlToDateStr(d)  {
 }
 
 function tlShowConfirm(msgHtml, onConfirm, onCancel, isOverbooking = false) {
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
-  const actions = isOverbooking
-    ? `<button class="btn btn-ghost btn-sm" id="_tl-cancel">Cancelar</button>`
-    : `<button class="btn btn-ghost btn-sm" id="_tl-cancel">Cancelar</button>
-       <button class="btn btn-primary btn-sm" id="_tl-confirm">Confirmar alteração</button>`;
-  overlay.innerHTML = `
-    <div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:420px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,.18);">
-      <div style="font-size:14.5px;color:var(--azul);line-height:1.6;margin-bottom:22px;">${msgHtml}</div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;">${actions}</div>
-    </div>`;
-  document.body.appendChild(overlay);
-  const dismiss = cb => { overlay.remove(); cb?.(); };
-  overlay.querySelector('#_tl-cancel').onclick  = () => dismiss(onCancel);
-  overlay.querySelector('#_tl-confirm')?.addEventListener('click', () => { overlay.remove(); onConfirm(); });
-  overlay.onclick = e => { if (e.target === overlay) dismiss(onCancel); };
+  // Cancelar, tocar fora, Escape ou mudar de vista repõem a grelha (onCancel).
+  let confirmed = false;
+  const overlay = AppUI.openDialog({
+    title: isOverbooking ? 'Não é possível mover' : 'Mover reserva?',
+    body: `<div style="font-size:14.5px;color:var(--azul);line-height:1.6;">${msgHtml}</div>`,
+    footer: isOverbooking
+      ? '<button type="button" class="btn btn-ghost" data-dialog-close>Fechar</button>'
+      : `<button type="button" class="btn btn-ghost" data-dialog-close>Cancelar</button>
+         <button type="button" class="btn btn-primary" id="_tl-confirm">Confirmar alteração</button>`,
+    onClose: () => { if (!confirmed) onCancel?.(); },
+  });
+  overlay.querySelector('#_tl-confirm')?.addEventListener('click', () => {
+    confirmed = true;
+    AppUI.closeDialog(overlay);
+    onConfirm();
+  });
 }
 
 })();

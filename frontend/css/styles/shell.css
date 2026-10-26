@@ -483,6 +483,11 @@ tbody td { padding: 12px 14px; color: var(--texto); white-space:nowrap; }
 
 .modal-body { padding: 24px 28px; }
 .modal-footer { padding: 16px 28px 24px; display:flex; gap:12px; justify-content:flex-end; border-top:1px solid var(--cinza-claro); }
+/* Janelas criadas na hora (AppUI.openDialog): mais estreitas que as fixas. */
+.modal-bg[data-dialog] { z-index: 450; } /* abrem sempre por cima de outra janela ou folha */
+.app-dialog { width: min(460px, 95vw); }
+.app-dialog .modal-body { display: grid; gap: 14px; }
+.app-dialog .modal-body > p { margin: 0; font-size: 13px; color: var(--cinza); }
 
 .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 .form-full { grid-column: 1/-1; }

@@ -68,35 +68,31 @@ async function addFornecedor() {
 function editFornecedor(id) {
   const f = fornecedoresData.find(x => x.id === id);
   if (!f) return;
-  const html = `
-    <div id="fornecedor-edit-form" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1200;display:flex;align-items:center;justify-content:center;" data-on-click="fornecedores-if-ba44ff2">
-      <div style="background:var(--surface-card);border-radius:16px;padding:24px;width:min(360px,92vw);box-shadow:0 8px 40px rgba(0,0,0,.22);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
-          <span style="font-size:15px;font-weight:700;color:var(--text-main);">Editar Fornecedor</span>
-          <button data-on-click="fornecedores-get-element-by-id-bd1b3ba" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;">×</button>
-        </div>
-        <label style="font-size:11.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;">Nome</label>
-        <input id="fed-name" type="text" value="${AppModules.core.escapeHtml(f.name)}" style="width:100%;padding:8px 10px;border:1px solid var(--border-soft);border-radius:8px;font-size:14px;background:var(--surface-muted);color:var(--text-main);" autocomplete="off">
-        <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
-          <button data-on-click="fornecedores-get-element-by-id-bd1b3ba" style="padding:8px 16px;border:1px solid var(--border-soft);border-radius:8px;background:none;color:var(--text-muted);cursor:pointer;font-size:13px;">Cancelar</button>
-          <button id="fed-save-btn" ${AppActions.attrs("click", "fornecedores-save-fornecedor-edit-e532f73", [String((id) ?? '')])} style="padding:8px 18px;border:none;border-radius:8px;background:var(--brand-shell);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>
-        </div>
-      </div>
-    </div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
+  AppUI.openDialog({
+    id: 'fornecedor-edit-form',
+    title: 'Editar fornecedor',
+    body: `
+      <div class="form-group">
+        <label class="form-label" for="fed-name">Nome</label>
+        <input id="fed-name" class="form-control" type="text" value="${AppModules.core.escapeHtml(f.name)}" autocomplete="off">
+      </div>`,
+    footer: `
+      <button type="button" class="btn btn-ghost" data-dialog-close>Cancelar</button>
+      <button type="button" class="btn btn-primary" id="fed-save-btn" ${AppActions.attrs("click", "fornecedores-save-fornecedor-edit-e532f73", [String((id) ?? '')])}>Guardar</button>`,
+  });
   document.getElementById('fed-name')?.focus();
 }
 
 async function saveFornecedorEdit(id) {
   const f = fornecedoresData.find(x => x.id === id);
   const trimmed = (document.getElementById('fed-name')?.value || '').trim();
-  if (!trimmed || trimmed === f?.name) { document.getElementById('fornecedor-edit-form')?.remove(); return; }
+  if (!trimmed || trimmed === f?.name) { AppUI.closeDialog('fornecedor-edit-form'); return; }
   const btn = document.getElementById('fed-save-btn');
   if (btn) btn.disabled = true;
   try {
     const res = await AppModules.core.apiPut(`/api/suppliers/${id}`, { name: trimmed });
     if (res.success) {
-      document.getElementById('fornecedor-edit-form')?.remove();
+      AppUI.closeDialog('fornecedor-edit-form');
       AppModules.core.toast('✅ Fornecedor atualizado.', 'success');
       await loadFornecedores();
     } else {
@@ -141,8 +137,6 @@ async function seedFornecedores() {
 }
 
 AppActions.register({
-  "fornecedores-if-ba44ff2": (el, event, args) => { if(event.target===el)el.remove() },
-  "fornecedores-get-element-by-id-bd1b3ba": (el, event, args) => { document.getElementById('fornecedor-edit-form').remove() },
   "fornecedores-save-fornecedor-edit-e532f73": (el, event, args) => { saveFornecedorEdit(args[0]) },
 }, "click");
 

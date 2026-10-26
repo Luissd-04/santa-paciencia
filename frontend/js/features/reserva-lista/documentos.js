@@ -91,17 +91,11 @@ async function openReservationSheet(resId) {
         </tr>`).join('')
     : `<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:12px;">Sem pagamentos registados</td></tr>`;
 
-  const html = `
-    <div id="sheet-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1300;display:flex;align-items:center;justify-content:center;padding:16px;" data-on-click="documentos-if-ba44ff2">
-      <div class="stmt-modal" style="max-height:92vh;overflow:auto;">
-        <div class="stmt-header">
-          <div>
-            <div class="stmt-title">Ficha de Reserva</div>
-            <div class="stmt-subtitle">${AppModules.core.escapeHtml(r.id)} · ${AppModules.core.escapeHtml(r.guest_name)}</div>
-          </div>
-          <button data-on-click="documentos-get-element-by-id-5484869" class="stmt-close">×</button>
-        </div>
-
+  AppUI.openDialog({
+    id: 'sheet-overlay',
+    className: 'stmt-dialog',
+    title: `Ficha de reserva<span class="stmt-subtitle">${AppModules.core.escapeHtml(r.id)} · ${AppModules.core.escapeHtml(r.guest_name)}</span>`,
+    body: `
         <div class="stmt-summary">
           <div class="stmt-sum-row"><span>Hóspede</span><span>${AppModules.core.escapeHtml(r.guest_name)}${r.guest_company ? ` · ${AppModules.core.escapeHtml(r.guest_company)}` : ''}</span></div>
           ${AppModules.core.realEmail(r.guest_email) ? `<div class="stmt-sum-row"><span>Email</span><span>${AppModules.core.escapeHtml(AppModules.core.realEmail(r.guest_email))}</span></div>` : ''}
@@ -137,19 +131,11 @@ async function openReservationSheet(resId) {
           ${d.remaining > 0.01
             ? `<div class="stmt-foot-row"><span>Em falta</span><span style="color:#b03030;font-weight:700;">${fmt(d.remaining)}</span></div>`
             : `<div class="stmt-foot-row"><span style="color:#2e7d52;">✓ Pago na totalidade</span><span></span></div>`}
-        </div>
-
-        <div class="stmt-actions">
-          <button class="btn btn-ghost btn-sm" data-on-click="documentos-get-element-by-id-5484869">Fechar</button>
+        </div>`,
+    footer: `          <button type="button" class="btn btn-ghost btn-sm" data-dialog-close>Fechar</button>
           <button class="btn btn-outline btn-sm" data-on-click="documentos-download-reservation-sheet-xls-dd4a6e6">${AppModules.core.lcIcon('file-spreadsheet', 13)} XLS</button>
-          <button class="btn btn-primary btn-sm" data-on-click="documentos-download-reservation-sheet-pdf-abf137c">${AppModules.core.lcIcon('file-down', 13)} PDF</button>
-        </div>
-      </div>
-    </div>`;
-
-  document.getElementById('sheet-overlay')?.remove();
-  document.body.insertAdjacentHTML('beforeend', html);
-  if (window.lucide) lucide.createIcons();
+          <button class="btn btn-primary btn-sm" data-on-click="documentos-download-reservation-sheet-pdf-abf137c">${AppModules.core.lcIcon('file-down', 13)} PDF</button>`,
+  });
   sheetData = d;
 }
 
@@ -300,17 +286,11 @@ async function openAccountStatement(resId) {
       }).join('')
     : `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:16px;">Sem pagamentos registados</td></tr>`;
 
-  const html = `
-    <div id="stmt-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1300;display:flex;align-items:center;justify-content:center;padding:16px;" data-on-click="documentos-if-ba44ff2">
-      <div class="stmt-modal">
-        <div class="stmt-header">
-          <div>
-            <div class="stmt-title">Conta Corrente</div>
-            <div class="stmt-subtitle">${AppModules.core.escapeHtml(r.id)} · ${AppModules.core.escapeHtml(r.guest_name)}</div>
-          </div>
-          <button data-on-click="documentos-get-element-by-id-a761b2c" class="stmt-close">×</button>
-        </div>
-
+  AppUI.openDialog({
+    id: 'stmt-overlay',
+    className: 'stmt-dialog',
+    title: `Conta corrente<span class="stmt-subtitle">${AppModules.core.escapeHtml(r.id)} · ${AppModules.core.escapeHtml(r.guest_name)}</span>`,
+    body: `
         <div class="stmt-summary">
           <div class="stmt-sum-row">
             <span>Alojamento</span><span>${AppModules.core.escapeHtml(r.accommodation_name || '—')}</span>
@@ -347,19 +327,12 @@ async function openAccountStatement(resId) {
             <span>Em falta</span>
             <span style="color:#b03030;font-weight:700;">${fmt(remaining)}</span>
           </div>` : `<div class="stmt-foot-row"><span style="color:#2e7d52;">✓ Pago na totalidade</span><span></span></div>`}
-        </div>
-
-        <div class="stmt-actions">
-          <button class="btn btn-ghost btn-sm" data-on-click="documentos-get-element-by-id-a761b2c">Fechar</button>
+        </div>`,
+    footer: `          <button type="button" class="btn btn-ghost btn-sm" data-dialog-close>Fechar</button>
           <button class="btn btn-outline btn-sm" ${AppActions.attrs("click", "documentos-download-statement-csv-b298717", [String((resId) ?? '')])}>CSV</button>
           <button class="btn btn-outline btn-sm" data-on-click="documentos-download-statement-xls-6ad222b">${AppModules.core.lcIcon('file-spreadsheet', 13)} XLS</button>
-          <button class="btn btn-primary btn-sm" data-on-click="documentos-download-statement-pdf-c84c920">${AppModules.core.lcIcon('file-down', 13)} PDF</button>
-        </div>
-      </div>
-    </div>`;
-
-  document.getElementById('stmt-overlay')?.remove();
-  document.body.insertAdjacentHTML('beforeend', html);
+          <button class="btn btn-primary btn-sm" data-on-click="documentos-download-statement-pdf-c84c920">${AppModules.core.lcIcon('file-down', 13)} PDF</button>`,
+  });
   if (window.lucide) lucide.createIcons();
 
   // Store data for CSV/XLS/PDF download
@@ -489,12 +462,9 @@ async function openGuestCard(guestId, reservationId) {
 
 
 AppActions.register({
-  "documentos-if-ba44ff2": (el, event, args) => { if(event.target===el)el.remove() },
-  "documentos-get-element-by-id-a761b2c": (el, event, args) => { document.getElementById('stmt-overlay').remove() },
   "documentos-download-statement-csv-b298717": (el, event, args) => { downloadStatementCsv(args[0]) },
   "documentos-download-statement-xls-6ad222b": (el, event, args) => { downloadStatementXls() },
   "documentos-download-statement-pdf-c84c920": (el, event, args) => { downloadStatementPdf() },
-  "documentos-get-element-by-id-5484869": (el, event, args) => { document.getElementById('sheet-overlay').remove() },
   "documentos-download-reservation-sheet-xls-dd4a6e6": (el, event, args) => { downloadReservationSheetXls() },
   "documentos-download-reservation-sheet-pdf-abf137c": (el, event, args) => { downloadReservationSheetPdf() },
 }, "click");

@@ -16,10 +16,10 @@ const RESERVATION = {
   cancelada:          { label: 'Cancelada',            guestLabel: 'Reserva cancelada',      badge: 'badge-cancelada',  color: 'var(--vermelho)' },
 };
 const PAYMENT = {
-  pendente:    { label: 'Não pago',    guestLabel: 'Pagamento pendente', badge: 'badge-pendpag' },
-  parcial:     { label: 'Parcial',     guestLabel: 'Pagamento parcial',  badge: 'badge-parcial' },
-  confirmado:  { label: 'Pago',        guestLabel: 'Pago',               badge: 'badge-pago' },
-  reembolsado: { label: 'Reembolsado', guestLabel: 'Reembolsado',        badge: '' },
+  pendente:    { label: 'Não pago',    guestLabel: 'Pagamento pendente', badge: 'badge-pendpag', tone: 'warn' },
+  parcial:     { label: 'Parcial',     guestLabel: 'Pagamento parcial',  badge: 'badge-parcial', tone: 'info' },
+  confirmado:  { label: 'Pago',        guestLabel: 'Pago',               badge: 'badge-pago',    tone: 'ok' },
+  reembolsado: { label: 'Reembolsado', guestLabel: 'Reembolsado',        badge: '',              tone: 'neutral' },
 };
 const PRECHECKIN = {
   nao_enviado: { label: 'Não enviado', badge: 'badge-pendpag' },
@@ -40,6 +40,14 @@ const label = value => reservation(value)?.label || capitalize(value);
 // `undo`: o estado para onde volta «desfazer o último passo» (status_undo do
 // servidor), mostrado como tal em vez do nome do estado.
 const UNDO_LABELS = { check_in: '↩ Desfazer check-in', check_out: '↩ Desfazer check-out' };
+// Distintivo de pagamento na página do hóspede: numa reserva cancelada sem
+// nada pago não há pagamento a pedir, por isso não se mostra.
+function paymentGuestChip(status, paymentStatus) {
+  const value = normalize(paymentStatus || 'pendente');
+  if (normalize(status) === 'cancelada' && value === 'pendente') return null;
+  return { label: payment(value)?.guestLabel || capitalize(value), tone: payment(value)?.tone || 'neutral' };
+}
+
 function fillSelect(select, values, current, undo = null) {
   if (!select) return;
   const list = Array.isArray(values) && values.length ? values : [current].filter(Boolean);
@@ -49,12 +57,11 @@ function fillSelect(select, values, current, undo = null) {
 }
 
 window.ReservationStatus = Object.freeze({
-  RESERVATION, PAYMENT, PRECHECKIN, SELECTABLE, normalize, label, fillSelect,
+  RESERVATION, PAYMENT, PRECHECKIN, SELECTABLE, normalize, label, fillSelect, paymentGuestChip,
   guestLabel: value => reservation(value)?.guestLabel || capitalize(value),
   badge: value => reservation(value)?.badge || '',
   color: value => reservation(value)?.color || 'var(--cinza)',
   paymentLabel: value => payment(value)?.label || capitalize(value),
-  paymentGuestLabel: value => payment(value)?.guestLabel || capitalize(value),
   paymentBadge: value => payment(value)?.badge || '',
   precheckinLabel: value => PRECHECKIN[value]?.label || '—',
   precheckinBadge: value => PRECHECKIN[value]?.badge || '',
