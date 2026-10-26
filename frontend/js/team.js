@@ -3,7 +3,32 @@
 AppModules.define('definicoes', {
   inviteTeamMember: { get: () => inviteTeamMember },
   loadTeamOverview: { get: () => loadTeamOverview },
+  loadSystemStatus: { get: () => loadSystemStatus },
 });
+
+// ── Estado do sistema (proprietário): tarefas automáticas e envios pendentes ──
+const formatWhen = value => (value ? new Date(value).toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' }) : '—');
+const every = ms => (ms >= 3600000 ? `${Math.round(ms / 3600000)} h` : `${Math.round(ms / 60000)} min`);
+async function loadSystemStatus() {
+  const box = document.getElementById('system-status');
+  if (!box) return;
+  try {
+    const { data } = await AppModules.core.apiGet('/api/ops/status');
+    const esc = AppModules.core.escapeHtml;
+    const rows = (data.tasks || []).map(task => {
+      const failed = task.last_error_at && (!task.last_ok_at || task.last_error_at > task.last_ok_at);
+      const result = task.running ? 'A correr' : failed ? `Falhou: ${esc(task.last_error || '')}` : task.last_ok_at ? 'OK' : '—';
+      return `<tr><td>${esc(task.label)}</td><td>cada ${every(task.interval_ms)}</td><td>${formatWhen(task.last_finished_at)}</td>
+        <td style="color:${failed ? 'var(--vermelho)' : 'inherit'};">${result}</td><td>${formatWhen(task.next_run_at)}</td></tr>`;
+    }).join('');
+    const queue = data.email?.queue?.n ?? 0, failedNotices = data.email?.failed ?? 0;
+    box.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Tarefa</th><th>Intervalo</th><th>Última execução</th><th>Resultado</th><th>Próxima</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+      <p style="margin:12px 0 0;">Envios ao hóspede por fazer: <strong>${queue}</strong> · Avisos que falharam: <strong style="color:${failedNotices ? 'var(--vermelho)' : 'inherit'};">${failedNotices}</strong></p>`;
+  } catch {
+    box.innerHTML = '<div style="color:var(--vermelho);">Não foi possível carregar o estado do sistema.</div>';
+  }
+}
 
 async function loadTeamOverview() {
   try {
@@ -139,5 +164,9 @@ AppActions.register({
 AppActions.register({
   "team-update-team-role-1918006": (el, event, args) => { updateTeamRole(args[0], el.value) },
 }, "change");
+
+AppActions.register({
+  "team-load-system-status": () => { loadSystemStatus(); },
+}, "click");
 
 })();

@@ -14,7 +14,7 @@ Cloudflare Tunnel
 Express 5 ── páginas públicas e SPA
     ├── API autenticada
     ├── SQLite + uploads privados
-    ├── schedulers de reservas, email e push
+    ├── tarefas automáticas (executor único)
     └── Google Calendar, Gmail, Tasks, Stripe, Anthropic e Web Push
 ```
 
@@ -25,7 +25,7 @@ Express serve ambos. Não existe um passo de compilação do frontend.
 
 Pontos principais:
 
-- `server.js`: arranque HTTP, schedulers e encerramento controlado;
+- `server.js`: arranque HTTP, tarefas automáticas e encerramento controlado;
 - `app.js`: middleware, ficheiros estáticos, rotas, health check e erros;
 - `routes/`: contrato HTTP e autorização por recurso;
 - `controllers/`: validação e orquestração dos casos de uso;
@@ -80,17 +80,23 @@ serve para orientar a arquitetura e evita duplicar contratos sujeitos a mudança
 
 ## Processos em segundo plano
 
-O servidor inicia três schedulers:
+As tarefas automáticas estão listadas num só sítio (`services/scheduledTasks.js`)
+e correm pelo executor único (`services/taskRunner.js`):
 
-- reservas: reconciliação de tentativas Stripe abertas, expiração de pedidos
-  públicos pendentes e limpeza/repetição de operações associadas, incluindo a
-  fila de remoção de Google Tasks e a sincronização bidirecional com o Tasks;
-- email: envio das mensagens automáticas elegíveis;
-- push: resumos e notificações operacionais.
+| Tarefa | Intervalo | O quê |
+|---|---|---|
+| `maintenance` | 30 min | Stripe em aberto, política de pagamento, pedidos expirados, efeitos de acontecimentos por repetir, eliminações no Google Tasks |
+| `google_tasks` | 1 min | Alterações do Google Tasks desde a última pergunta; completa de hora a hora |
+| `google_calendar` | 1 min | Repetições pendentes do Google Calendar |
+| `email` | 1 h | Emails pela estadia na hora: emite `email.due` |
+| `daily_summary` | 15 min | Resumo diário por push, uma vez por dia |
 
-Os schedulers são parados em `SIGTERM` e `SIGINT`. A solução atual assume uma
-instância principal; qualquer evolução para várias réplicas deve preservar os
-leases e a idempotência de cada tarefa.
+Cada execução usa reserva de execução (`scheduler_leases`, `task:<nome>`): com
+mais do que uma instância sobre a mesma base, só uma corre a tarefa e as outras
+saltam a passagem. O resultado (início, fim, êxito, erro, salto, duração) fica
+em `scheduled_task_runs` e aparece em Definições → Base de dados → «Estado do
+sistema» (proprietário; `GET /api/ops/status`, campo `tasks`). Em `SIGTERM` e
+`SIGINT` o executor para os temporizadores e espera até 10 s pelas tarefas a meio.
 
 ## Avisos em direto
 

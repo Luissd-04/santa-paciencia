@@ -1,15 +1,8 @@
-// Estado operacional para o proprietário: filas, falhas pendentes e últimos
-// ciclos dos schedulers. Só contagens e datas — sem dados pessoais nem segredos.
+// Estado operacional para o proprietário: filas, falhas pendentes e o estado
+// das tarefas automáticas. Só contagens e datas — sem dados pessoais nem segredos.
 const fs = require('fs');
 const path = require('path');
 const { db } = require('../config/database');
-
-// Último ciclo de cada scheduler neste processo (reinicia com o servidor).
-const beats = {};
-function beat(name, error = null) {
-  const now = new Date().toISOString();
-  beats[name] = { ...beats[name], last_run: now, ...(error ? { last_error_at: now, last_error: String(error.message || error).slice(0, 200) } : { last_ok: now }) };
-}
 
 function one(sql, ...params) {
   try { return db.prepare(sql).get(...params); } catch { return null; }
@@ -26,7 +19,8 @@ function opsStatus(organizationId, { includeUploads = false } = {}) {
     generated_at: new Date().toISOString(),
     process: { uptime_seconds: Math.round(process.uptime()), node: process.version, app_build: require('./appBuild').value },
     storage: { database_bytes: dbPath ? size(dbPath) + size(`${dbPath}-wal`) : null, disk },
-    schedulers: beats,
+    // Tarefas automáticas (scheduledTasks): intervalo, próxima passagem e último resultado.
+    tasks: require('./scheduledTasks').status(),
     email: {
       // «uncertain»/«blocked»: a equipa decide em Notificações (já entregue / enviar de novo).
       deliveries_needing_decision: one("SELECT COUNT(*) AS n FROM email_deliveries WHERE organization_id = ? AND state IN ('uncertain', 'blocked')", organizationId)?.n ?? null,
@@ -58,4 +52,4 @@ function opsStatus(organizationId, { includeUploads = false } = {}) {
   return status;
 }
 
-module.exports = { beat, opsStatus };
+module.exports = { opsStatus };

@@ -58,6 +58,7 @@ function runMigrations(db) {
   migrateReservationEvents(db);
   migrateReservationStates(db);
   migrateEmailQueueToEvents(db);
+  migrateScheduledTaskRuns(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -459,6 +460,21 @@ function migrateEmailQueueToEvents(db) {
       effect.run(eventId);
     }
     db.prepare('DELETE FROM organization_email_queue').run();
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Último resultado de cada tarefa automática (taskRunner), partilhado por todas
+// as instâncias do servidor que usam a mesma base.
+function migrateScheduledTaskRuns(db) {
+  const id = '20261026_scheduled_task_runs';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`CREATE TABLE IF NOT EXISTS scheduled_task_runs (
+      name TEXT PRIMARY KEY,
+      last_started_at TEXT, last_finished_at TEXT, last_ok_at TEXT,
+      last_error_at TEXT, last_error TEXT, last_skipped_at TEXT, last_duration_ms INTEGER
+    )`);
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }

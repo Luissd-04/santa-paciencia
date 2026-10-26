@@ -338,6 +338,7 @@ function renderSettingsView() {
   if (settingsTab === 'gcal') { loadCalendarStatus(); loadGmailStatus(); loadGoogleTasksStatus(); }
   if (settingsTab === 'database') {
     if (typeof AppModules.core.initExportReminderControls === 'function') AppModules.core.initExportReminderControls();
+    if (AppModules.core.currentUser?.role === 'owner' && typeof AppModules.definicoes.loadSystemStatus === 'function') AppModules.definicoes.loadSystemStatus();
   }
   if (settingsTab === 'operations' && typeof AppModules.core.loadAutoTaskSettings === 'function') AppModules.core.loadAutoTaskSettings();
   if (settingsTab === 'emails' && typeof AppModules.definicoes.loadEmailTemplates === 'function') AppModules.definicoes.loadEmailTemplates();

@@ -7,7 +7,6 @@ const SUMMARY_HOUR = process.env.PUSH_SUMMARY_HOUR !== undefined
   : 8;
 
 // Intervalo entre passagens (ms). 15 minutos por defeito.
-const SCHEDULER_INTERVAL_MS = Number(process.env.PUSH_SUMMARY_INTERVAL_MS) || 15 * 60 * 1000;
 
 const SENT_KEY = 'push_daily_summary_sent';
 
@@ -49,48 +48,29 @@ function summaryMessage({ checkins, checkouts }) {
   return { title: `Hoje: ${title}`, body };
 }
 
+// Uma passagem (de 15 em 15 minutos, pelo executor de tarefas automáticas):
+// a partir da hora do resumo, uma vez por dia e organização.
 async function sendDailySummaries() {
-  try {
-    // Hora no fuso do alojamento: num servidor em UTC, no verão, saía uma hora depois.
-    if (require('./dates').localTime().hour < SUMMARY_HOUR) return;
-    const today = localDateIso();
+  // Hora no fuso do alojamento: num servidor em UTC, no verão, saía uma hora depois.
+  if (require('./dates').localTime().hour < SUMMARY_HOUR) return;
+  const today = localDateIso();
 
-    // Só organizações com dispositivos subscritos
-    const orgs = db.prepare('SELECT DISTINCT organization_id FROM push_subscriptions').all();
-    for (const { organization_id: orgId } of orgs) {
-      if (require('./settingsService').get(orgId, SENT_KEY) === today) continue;
+  // Só organizações com dispositivos subscritos
+  const orgs = db.prepare('SELECT DISTINCT organization_id FROM push_subscriptions').all();
+  for (const { organization_id: orgId } of orgs) {
+    if (require('./settingsService').get(orgId, SENT_KEY) === today) continue;
 
-      const pending = pendingToday(orgId, today);
+    const pending = pendingToday(orgId, today);
 
-      // Marcar como enviado mesmo sem nada a reportar — evita reavaliar o dia todo
-      require('./settingsService').set(orgId, SENT_KEY, today);
+    // Marcar como enviado mesmo sem nada a reportar — evita reavaliar o dia todo
+    require('./settingsService').set(orgId, SENT_KEY, today);
 
-      if (!pending.checkins.length && !pending.checkouts.length) continue;
+    if (!pending.checkins.length && !pending.checkouts.length) continue;
 
-      await require('./staffNotifier').push(orgId, 'daily_summary', {
-        kind: 'summary', ...summaryMessage(pending), url: '/reservas', tag: 'sp-daily-summary',
-      });
-    }
-  } catch (err) {
-    console.error('Erro no resumo diário push:', err.message);
+    await require('./staffNotifier').push(orgId, 'daily_summary', {
+      kind: 'summary', ...summaryMessage(pending), url: '/reservas', tag: 'sp-daily-summary',
+    });
   }
 }
 
-let timer = null;
-
-function startScheduler() {
-  if (timer) return;
-  sendDailySummaries();
-  timer = setInterval(sendDailySummaries, SCHEDULER_INTERVAL_MS);
-  if (typeof timer.unref === 'function') timer.unref();
-  console.log(`⏰ Push scheduler ativo (resumo diário a partir das ${SUMMARY_HOUR}h, cada ${Math.round(SCHEDULER_INTERVAL_MS / 60000)}min)`);
-}
-
-function stopScheduler() {
-  if (timer) {
-    clearInterval(timer);
-    timer = null;
-  }
-}
-
-module.exports = { sendDailySummaries, summaryMessage, startScheduler, stopScheduler };
+module.exports = { sendDailySummaries, summaryMessage };
