@@ -175,7 +175,8 @@ async function rdv2DeleteTarefa(resId, id) {
 const RDV2_ACTION_META = {
   created:         { icon: 'plus-circle',  label: 'Reserva criada' },
   updated:         { icon: 'pencil',       label: 'Reserva alterada' },
-  approved:        { icon: 'check-circle', label: 'Reserva aprovada — pre check-in enviado' },
+  approved:        { icon: 'check-circle', label: 'Pedido aprovado' },
+  precheckin_sent: { icon: 'send',         label: 'Pré-check-in enviado ao hóspede' },
   cancelled:       { icon: 'x-circle',     label: 'Reserva cancelada' },
   payment_added:   { icon: 'credit-card',  label: 'Pagamento registado' },
   payment_deleted: { icon: 'trash-2',      label: 'Pagamento removido' },

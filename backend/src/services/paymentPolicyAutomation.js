@@ -138,7 +138,7 @@ async function runPolicyMaintenance() {
       assertLease();
       try {
         if (r.policy_cancellation_json) { await processRefunds(r.id); await sendNotice(row(r.id), 'cancelled'); continue; }
-        if (!r.policy_accepted_at || !['confirmada','pre_checkin'].includes(r.status) || r.check_in < policy.localDay()) continue;
+        if (!r.policy_accepted_at || r.status !== 'confirmada' || r.check_in < policy.localDay()) continue;
         let plan = policy.planFor(r);
         if (!plan.balanceCents || Date.now() < Date.parse(plan.dueAt) || money.dueCents(r.total_amount, r.amount_paid) < money.MIN_ONLINE_CENTS) continue;
         await reconcileReservation(r.id);

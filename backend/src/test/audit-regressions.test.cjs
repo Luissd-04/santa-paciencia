@@ -179,46 +179,34 @@ async function main() {
       db.prepare('UPDATE reservations SET num_guests=?, num_adults=? WHERE id=?').run(row.num_guests, row.num_adults, row.id);
     }
   });
-  await check('Envio de pré-check-in atualiza estado apenas com entrega e sem recuar reservas', async () => {
+  await check('Envio de pré-check-in não muda o estado da reserva; entregue ou partilhado conta como enviado', async () => {
     reservation('send-precheckin');
     let deliveries = 0;
-    let delivery = { id: 'synthetic-delivery' };
     const ctrl = load('controllers/reservationController.js', {
-      '../services/emailService': { ...emailStub, sendPreCheckinEmail: async () => {
-        deliveries++;
-        if (delivery instanceof Error) throw delivery;
-        return delivery;
-      } },
+      '../services/emailService': { ...emailStub, sendPreCheckinEmail: async () => { deliveries++; return { id: 'synthetic-delivery' }; } },
     });
     const send = body => call(ctrl.sendPrecheckinLink, request(body, { id: 'send-precheckin' }));
-    const status = () => db.prepare("SELECT status FROM reservations WHERE id='send-precheckin'").get().status;
-    for (const original of ['pre_reserva', 'pendente', 'confirmada', 'aguardar_pagamento']) {
+    const current = () => db.prepare("SELECT status, precheckin_sent_at FROM reservations WHERE id='send-precheckin'").get();
+    for (const original of ['pre_reserva', 'pendente', 'aguardar_pagamento', 'confirmada', 'check_in', 'check_out']) {
       db.prepare("UPDATE reservations SET status=? WHERE id='send-precheckin'").run(original);
       const result = await send({ send: true });
       assert.equal(result.body.data.email_sent, true);
-      assert.equal(result.body.data.status, 'pre_checkin');
-      assert.equal(status(), 'pre_checkin');
+      assert.equal(result.body.data.status, original);
+      assert.equal(current().status, original);
     }
-    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM reservation_history WHERE reservation_id='send-precheckin' AND action='updated'").get().n, 4);
-    for (const original of ['pre_checkin', 'check_in', 'check_out', 'cancelada']) {
-      db.prepare("UPDATE reservations SET status=? WHERE id='send-precheckin'").run(original);
-      await send({ send: true });
-      assert.equal(status(), original);
-    }
-    db.exec("UPDATE reservations SET status='confirmada' WHERE id='send-precheckin'");
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM reservation_history WHERE reservation_id='send-precheckin' AND action='updated'").get().n, 0);
+    // O email entregue marca o envio no fim do circuito dos emails (emailDelivery.afterSent).
+    assert.equal(current().precheckin_sent_at, null);
     const before = deliveries;
-    await send({ send: false });
+    const shared = await send({ send: false });
     assert.equal(deliveries, before);
-    assert.equal(status(), 'confirmada');
-    for (const result of [null, new Error('Falha de envio sintética')]) {
-      delivery = result;
-      assert.equal((await send({ send: true })).body.data.email_sent, false);
-      assert.equal(status(), 'confirmada');
-    }
-    delivery = { id: 'synthetic-delivery' };
-    db.exec("UPDATE reservations SET precheckin_submitted_at=datetime('now') WHERE id='send-precheckin'");
-    await send({ send: true });
-    assert.equal(status(), 'confirmada');
+    assert.equal(shared.body.data.precheckin_state, 'enviado');
+    db.exec("UPDATE reservations SET precheckin_sent_at=NULL WHERE id='send-precheckin'");
+    const row = db.prepare("SELECT organization_id FROM reservations WHERE id='send-precheckin'").get();
+    db.transaction(() => require('../services/emailDelivery').afterSent({ orgId: row.organization_id, reservationId: 'send-precheckin', slug: 'pre_checkin' }))();
+    assert.ok(current().precheckin_sent_at);
+    db.exec("UPDATE reservations SET status='cancelada' WHERE id='send-precheckin'");
+    assert.equal((await send({ send: true })).statusCode, 400);
   });
   await check('Tipo de documento: aliases antigos persistem como valores do backoffice', async () => {
     const row = db.prepare('SELECT id FROM reservations WHERE precheckin_token=?').get(publicToken);

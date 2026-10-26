@@ -133,7 +133,9 @@ function applyReservaDraft(draft) {
   try {
     Object.entries(draft.fields || {}).forEach(([id, value]) => {
       const el = document.getElementById(id);
-      if (el) el.value = value;
+      // As opções do estado chegam com a cotação; até lá fica o valor do rascunho.
+      if (id === 'f-estado') window.ReservationStatus.fillSelect(el, [value], value);
+      else if (el) el.value = value;
     });
     AppModules.reservas.updateNumHospedes();
     if (draft.discountType) AppModules.reservas.setFormDiscountType(draft.discountType);

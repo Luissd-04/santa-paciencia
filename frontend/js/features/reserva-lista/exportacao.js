@@ -64,9 +64,9 @@ async function importReservasXLS(input) {
       };
       const normalizeStatus = value => {
         const v = String(value || '').toLowerCase();
+        // Reserva ativa: o servidor decide entre «aguarda sinal» e «confirmada».
         if (v.includes('cancel')) return 'cancelada';
-        if (v.includes('pre')) return 'pre_checkin';
-        if (v.includes('pagamento')) return 'aguardar_pagamento';
+        if (/pr[eé].?reserva/.test(v)) return 'pre_reserva';
         if (v.includes('pend')) return 'pendente';
         return 'confirmada';
       };

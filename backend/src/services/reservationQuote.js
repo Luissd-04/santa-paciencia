@@ -219,6 +219,8 @@ function createQuote(organizationId, body) {
         : (manual ? { code: 'manual_total', message: 'O total manual substitui o desconto do voucher.' } : null),
     } : null,
     confirmation: null,
+    status_options: require('./reservationLifecycle').statusOptions({ organization_id: organizationId,
+      channel: body.channel || 'direto', total_amount: pricing.finalTotal, check_in: pricing.totals.checkIn }),
   };
 }
 function updateQuote(organizationId, existing, body) {
@@ -237,6 +239,8 @@ function updateQuote(organizationId, existing, body) {
       issue: pricing.voucherIssue,
     } : null,
     confirmation: body.total_amount === undefined ? pricing.confirmation : null,
+    status_options: require('./reservationLifecycle').statusOptions({ ...existing,
+      channel: body.channel || existing.channel, total_amount: pricing.effectiveTotal, check_in: pricing.totals.checkIn }),
   };
 }
 

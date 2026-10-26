@@ -47,16 +47,12 @@ function savePrecheckin(reservation, guest, extraGuests, arrivalTime) {
       isolated.company_nif = null;
     }
 
-    // Concluído o pré-check-in, a reserva fica confirmada, salvo se tiver
-    // política de pagamento e o sinal ainda não estiver pago (mesma regra dos
-    // pagamentos, em reservationState).
-    const current = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservation.id, reservation.organization_id);
-    const nextStatus = require('./reservationLifecycle').statusAfterPrecheckin(current);
+    // O pré-check-in preenchido não muda o estado da reserva (reservationState).
     db.prepare(`UPDATE reservations SET guest_id = ?, guest_snapshot = ?, guests_data = ?,
-      arrival_time = ?, status = ?, updated_at = datetime('now')
+      arrival_time = ?, updated_at = datetime('now')
       WHERE id = ? AND organization_id = ?`)
       .run(isolated.id, JSON.stringify({ name: guest.name, email: guest.email, phone: isolated.phone }),
-        JSON.stringify(extraGuests), arrivalTime, nextStatus, reservation.id, reservation.organization_id);
+        JSON.stringify(extraGuests), arrivalTime, reservation.id, reservation.organization_id);
     return isolated;
   })();
 }

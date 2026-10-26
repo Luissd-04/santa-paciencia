@@ -18,7 +18,8 @@ const SCHEDULER_INTERVAL_MS = Number(process.env.PENDING_EXPIRY_INTERVAL_MS) || 
 // Só pedidos que a equipa nunca aceitou: uma reserva aprovada (ou a quem foi
 // enviado o pré-check-in) deixou de ser um bloqueio especulativo de datas.
 // O hóspede preencher o pré-check-in de um pedido por aprovar não conta.
-const NEVER_PROGRESSED_SQL = `NOT EXISTS (SELECT 1 FROM reservation_history h
+// (Antes de precheckin_sent_at, o envio ficava só no histórico.)
+const NEVER_PROGRESSED_SQL = `reservations.precheckin_sent_at IS NULL AND NOT EXISTS (SELECT 1 FROM reservation_history h
           WHERE h.reservation_id = reservations.id AND h.organization_id = reservations.organization_id
             AND (h.action = 'approved' OR CASE WHEN json_valid(h.meta) THEN json_extract(h.meta, '$.source') END = 'send_precheckin'))`;
 
@@ -116,6 +117,8 @@ async function runMaintenance() {
 
 function startScheduler() {
   if (timer) return;
+  try { require('./reservationLifecycle').reconcileLegacyStatuses(); }
+  catch (error) { console.error('Acerto dos estados das reservas falhou:', error.message); }
   runMaintenance();
   reconcileGoogleTasks();
   tasksTimer = setInterval(reconcileGoogleTasks, TASKS_SYNC_INTERVAL_MS);

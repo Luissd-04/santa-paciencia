@@ -24,6 +24,7 @@ const RES_COLUMNS = [
   { key: 'channel',            label: 'Canal',      sort: 'channel' },
   { key: 'status',             label: 'Estado',     sort: 'status' },
   { key: 'payment_status',     label: 'Pagamento',  sort: 'payment_status' },
+  { key: 'precheckin_state',   label: 'Pré-check-in', sort: null },
   { key: 'actions',            label: 'Ações',      sort: null },
 ];
 const RES_COL_META = Object.fromEntries(RES_COLUMNS.map(c => [c.key, c]));
@@ -33,7 +34,7 @@ const RES_COL_FLEX = ['guest_name', 'accommodation_name', 'channel', 'status', '
 const RES_COL_DEFAULT_W = {
   id: 96, created_at: 96, guest_name: 190, accommodation_name: 160,
   check_in: 96, check_out: 96, nights: 62, num_guests: 84,
-  total_amount: 88, channel: 92, status: 112, payment_status: 120, actions: 132,
+  total_amount: 88, channel: 92, status: 112, payment_status: 120, precheckin_state: 112, actions: 132,
 };
 const RES_COL_MIN_W = 52;
 const RES_COL_MAX_W = 640;
@@ -314,6 +315,7 @@ const RES_CELL = {
     }
     return `<td data-col="payment_status">${AppModules.core.badgePagamento(r.payment_status)}${extra}</td>`;
   },
+  precheckin_state: r => `<td data-col="precheckin_state">${AppModules.core.badgePrecheckin(r.precheckin_state)}</td>`,
   actions: r => `<td data-col="actions" data-on-click="lista-colunas-stop-propagation-22499e1" style="white-space:nowrap"><div class="res-actions">${resActionButtons(r)}</div></td>`,
 };
 

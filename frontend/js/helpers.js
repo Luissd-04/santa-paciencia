@@ -11,6 +11,7 @@ AppModules.define('core', {
   appUpdateAvailable: { get: () => appUpdateAvailable },
   badgeEstado: { get: () => badgeEstado },
   badgePagamento: { get: () => badgePagamento },
+  badgePrecheckin: { get: () => badgePrecheckin },
   cancelApiRequests: { get: () => cancelApiRequests },
   confirmPriceChange: { get: () => confirmPriceChange },
   escapeHtml: { get: () => escapeHtml },
@@ -215,6 +216,11 @@ function badgeEstado(e) {
 function badgePagamento(p) {
   const S = window.ReservationStatus;
   return `<span class="badge ${S.paymentBadge(p)}">${escapeHtml(S.paymentLabel(p))}</span>`;
+}
+
+function badgePrecheckin(p) {
+  const S = window.ReservationStatus;
+  return `<span class="badge ${S.precheckinBadge(p)}">${escapeHtml(S.precheckinLabel(p))}</span>`;
 }
 
 function toast(msg, type = 'info', dur = 3500) {

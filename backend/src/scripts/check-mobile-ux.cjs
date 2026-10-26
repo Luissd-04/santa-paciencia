@@ -217,9 +217,12 @@ async function main() {
   await expect(wizard).toHaveAttribute('data-mstep','3');
   await expect(page.locator('#resf-msummary')).toContainText('Hóspede Passos');
   await expect(page.locator('#resf-nightly-grid')).toBeHidden();
+  // Estado de uma reserva nova: as opções vêm da cotação; o sinal decide.
+  await expect.poll(()=>page.locator('#f-estado option').evaluateAll(options=>options.map(option=>option.value))).toEqual(['aguardar_pagamento','pre_reserva','pendente']);
   await page.locator('#btn-guardar').click();
   await expect(wizard).not.toHaveClass(/open/);
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM reservations r JOIN guests g ON g.id=r.guest_id WHERE g.name='Hóspede Passos'").get().n,1);
+  assert.equal(db.prepare("SELECT r.status FROM reservations r JOIN guests g ON g.id=r.guest_id WHERE g.name='Hóspede Passos'").get().status,'aguardar_pagamento');
   // Na edição, Guardar está em todos os passos; fechar sem alterações não pergunta nada,
   // mesmo depois de chegar a cotação do servidor.
   await page.evaluate(()=>AppModules.reservas.openEditModal('res'));
@@ -228,6 +231,17 @@ async function main() {
   await expect(page.locator('#f-total-manual')).not.toHaveValue('');
   await page.keyboard.press('Escape');
   await expect(wizard).not.toHaveClass(/open/);
+  // Ficha: o seletor só mostra os passos possíveis (servidor); check-in sem
+  // pré-check-in é recusado com a explicação e a reserva fica como estava.
+  await page.evaluate(()=>AppModules.reservas.showDetail('res'));
+  const statusSelect=page.locator('#rdv2-status-select');
+  await expect(statusSelect).toHaveValue('confirmada');
+  assert.deepEqual(await statusSelect.locator('option').evaluateAll(options=>options.map(option=>option.value)),['confirmada','check_in','cancelada']);
+  await expect(page.locator('.rdv2-status-row',{hasText:'Pré-check-in'})).toContainText('Não enviado');
+  await statusSelect.selectOption('check_in');
+  await expect(page.locator('.toast',{hasText:'o pré-check-in ainda não foi preenchido'})).toBeVisible();
+  await expect(statusSelect).toHaveValue('confirmada');
+  assert.equal(db.prepare("SELECT status FROM reservations WHERE id='res'").get().status,'confirmada');
   // Backoffice sem zoom.
   assert.match(await page.locator('meta[name="viewport"]').getAttribute('content'),/maximum-scale=1/);
   await page.emulateMedia({reducedMotion:'reduce'});
@@ -236,7 +250,7 @@ async function main() {
   assert(await page.locator('#despesas-filter-panel').evaluate(el=>parseFloat(getComputedStyle(el).transitionDuration)<.001));
   await page.keyboard.press('Escape');
   assert.deepEqual(errors,[]);
-  console.log('OK: mobile UX — login, first prices load, overflow, lazy loading, sheets 320/375/600, rotation, menu, event validation, dirty edit, date picker, reduced motion, tap during late repaint, rotation while the calendar loads, new reservation in three steps and no zoom.');
+  console.log('OK: mobile UX — login, first prices load, overflow, lazy loading, sheets 320/375/600, rotation, menu, event validation, dirty edit, date picker, reduced motion, tap during late repaint, rotation while the calendar loads, new reservation in three steps, status steps from the server and no zoom.');
   await context.close();
 }
 main().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{

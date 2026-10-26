@@ -126,13 +126,10 @@ async function showDetail(id, opts = {}) {
     const preCheckinToken = r.precheckin_token || r.public_token;
     const preCheckinUrl = preCheckinToken ? `${window.location.origin}/pre-checkin/${preCheckinToken}` : null;
     const paymentPageUrl = r.public_token ? `${window.location.origin}/reserva/${r.public_token}` : null;
-    const canOpenOnlinePayment = paymentPageUrl
-      && ['aguardar_pagamento', 'confirmada', 'pre_checkin'].includes(r.status)
-      && r.payment_status !== 'confirmado' && total - paid >= 0.5;
+    const canOpenOnlinePayment = paymentPageUrl && r.can_pay_online;
     const guestEmail = encodeURIComponent(r.guest_email || '');
     const guestName = encodeURIComponent(r.guest_name || '');
 
-    const statusOptions = window.ReservationStatus.options();
 
     // A ficha e o menu mobile partilham ações, dados e permissões.
     const reservationActionsHtml = `
@@ -386,13 +383,15 @@ async function showDetail(id, opts = {}) {
             })[r.online_payment_status] || r.online_payment_status)}</p>` : ''}
             <div class="rdv2-status-row">
               <span class="rdv2-status-label">Reserva</span>
-              <select class="rdv2-status-select" ${AppActions.attrs("change", "detalhe-update-detail-status-05d2970", [String((r.id) ?? '')])}>
-                ${statusOptions.map(o => `<option value="${o.v}"${r.status === o.v ? ' selected' : ''}>${o.l}</option>`).join('')}
-              </select>
+              <select class="rdv2-status-select" id="rdv2-status-select" aria-label="Estado da reserva" ${AppActions.attrs("change", "detalhe-update-detail-status-05d2970", [String((r.id) ?? '')])}></select>
             </div>
             <div class="rdv2-status-row">
               <span class="rdv2-status-label">Pagamento</span>
               <span>${AppModules.core.badgePagamento(r.payment_status)}</span>
+            </div>
+            <div class="rdv2-status-row">
+              <span class="rdv2-status-label">Pré-check-in</span>
+              <span>${AppModules.core.badgePrecheckin(r.precheckin_state)}</span>
             </div>
           </div>
 
@@ -422,7 +421,7 @@ async function showDetail(id, opts = {}) {
               <button class="rdv2-icon-btn" ${AppActions.attrs("click", "detalhe-write-text-8f51584", [String((preCheckinUrl) ?? '')])} title="Copiar">${AppModules.core.lcIcon('copy', 12)}</button>
             </div>
             <div class="rdv2-concierge-btns">
-              <button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-open-7fd73a2", [String((preCheckinUrl) ?? '')])} title="Abrir pre check-in">${AppModules.core.lcIcon('arrow-right', 13)} Abrir</button>
+              <button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-open-7fd73a2", [String((preCheckinUrl) ?? '')])} title="Abrir o formulário do pré-check-in para o preencher com o hóspede">${AppModules.core.lcIcon('arrow-right', 13)} ${r.precheckin_state === 'preenchido' ? 'Abrir' : 'Preencher agora'}</button>
               <button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-enviar-link-precheckin-ae74bc8", [String((r.id) ?? '')])} title="Enviar link de pré-checkin">${AppModules.core.lcIcon('send', 13)} Enviar pré-checkin</button>
               ${r.guest_email ? `<button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-abrir-mensagens-da-reserva-8cd7ba1", [String((r.id) ?? ''), String((guestEmail) ?? ''), String((guestName) ?? '')])} title="Enviar email">${AppModules.core.lcIcon('mail', 13)} Email</button>` : ''}
             </div>
@@ -451,6 +450,7 @@ async function showDetail(id, opts = {}) {
       <div id="rdv2-panel-tarefas" style="display:none;"></div>
       <div id="rdv2-panel-timeline" style="display:none;"></div>
     `;
+    window.ReservationStatus.fillSelect(document.getElementById('rdv2-status-select'), r.status_options, r.status);
     const actionsMenu = document.getElementById('rdv2-actions-menu');
     const actionsTrigger = document.getElementById('rdv2-actions-trigger');
     actionsMenu.addEventListener('toggle', event => {
@@ -469,6 +469,8 @@ async function showDetail(id, opts = {}) {
   }
 }
 
+// O servidor valida o passo (ex.: check-in sem sinal ou sem pré-check-in) e
+// explica a recusa; a ficha volta a mostrar o estado e as opções atuais.
 async function updateDetailStatus(id, field, value) {
   try {
     const res = await AppModules.core.apiPut(`/api/reservations/${id}`, { [field]: value });
@@ -479,8 +481,9 @@ async function updateDetailStatus(id, field, value) {
       AppModules.core.toast('❌ ' + (res.error || 'Erro ao atualizar'), 'error');
     }
   } catch (e) {
-    AppModules.core.toast('❌ Erro de ligação', 'error');
+    AppModules.core.toast('❌ ' + (e?.payload?.error || 'Erro de ligação'), 'error');
   }
+  AppModules.reservas.showDetail(id);
 }
 
 

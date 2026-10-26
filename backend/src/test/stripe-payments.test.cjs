@@ -396,7 +396,6 @@ test('backup conserva o histórico Stripe e impede restauros desatualizados ou e
 test('pré-check-in posterior ao pagamento não repõe a reserva em aguardar pagamento', async () => {
   const session = await start(); succeed(session);
   await service.processWebhook(event(session));
-  db.prepare("UPDATE reservations SET status='pre_checkin'").run();
   require('../services/publicGuestService').savePrecheckin(row(), { name: 'Synthetic Guest', email: 'guest@example.invalid' }, [], null);
   assert.equal(row().status, 'confirmada');
   assert.equal(row().payment_status, 'confirmado');
@@ -601,7 +600,6 @@ test('pagamentos manuais só confirmam quando atingem o sinal contratado', async
 
 test('pré-check-in preserva a confirmação pelo sinal, mesmo com restante por pagar', async () => {
   await deposit();
-  db.prepare("UPDATE reservations SET status='pre_checkin'").run();
   require('../services/publicGuestService').savePrecheckin(row(), { name: 'Synthetic Guest', email: 'guest@example.invalid' }, [], null);
   assert.equal(row().status, 'confirmada');
   assert.equal(row().payment_status, 'parcial');

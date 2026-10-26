@@ -589,7 +589,27 @@ mudou sem querer.
 | 4 | Cancelamento pelo hóspede, expiração por TTL e cancelamento por falta de pagamento avisam a equipa **por push e por email**. |
 | 5 | Os pagamentos passam a ser registados **apenas no separador Pagamentos**. O campo "valor pago" do assistente deixa de criar movimentos. |
 | 6 | Nos relatórios, a taxa turística e o sinal retido em cancelamentos contam como receita. |
-| 7 | Em aberto: o estado `pre_checkin` será redesenhado mais tarde. |
+| 7 | Decidido a 25 de outubro (ver abaixo): o pré-check-in deixa de ser um estado da reserva. |
+
+### Decisões tomadas (25 de outubro de 2026): três estados
+
+Uma reserva tem três estados independentes:
+
+| Estado | Valores | Quem o muda |
+|---|---|---|
+| Reserva | Pré-reserva / Pendente → Aguarda sinal → Confirmada → Check-in → Check-out; Cancelada antes do check-out | A equipa (passos validados) e o sinal recebido (Aguarda sinal ⇄ Confirmada) |
+| Pagamento | Não pago · Parcial · Pago · Reembolsado | Só os pagamentos (ledger) |
+| Pré-check-in | Não enviado · Enviado · Preenchido | O envio do link (email entregue ou link partilhado) e o formulário |
+
+| # | Decisão |
+|---|---|
+| 7.1 | Uma reserva só fica **Confirmada** com o sinal recebido. «Aguarda sinal» é um estado da reserva. |
+| 7.2 | As regras do sinal das definições aplicam-se sempre às reservas diretas, do site e de contactos (WhatsApp, Instagram, outro), com ou sem política ativa e com ou sem Stripe. Os pagamentos manuais contam da mesma forma. |
+| 7.3 | Airbnb, Booking.com, Expedia e VRBO cobram e garantem a reserva: ficam **Confirmada** logo ao serem criadas. Uma reserva sem nada a pagar também. |
+| 7.4 | O ciclo só avança. A única descida é Confirmada → Aguarda sinal, quando a equipa apaga um pagamento e o pago fica abaixo do sinal; a Stripe nunca faz recuar. |
+| 7.5 | O **check-in** só se faz com a reserva Confirmada e o pré-check-in Preenchido. Caso contrário é recusado com a explicação. |
+| 7.6 | A equipa pode preencher o pré-check-in pelo mesmo formulário do hóspede («Preencher agora» na ficha). «Preenchido» chega; não há passo de revisão. |
+| 7.7 | A pré-reserva é o bloqueio temporário de datas do proprietário e continua a expirar. |
 
 O email ao hóspede só é enviado quando o modelo `pagamento` está ativo e a
 reserva tem um email real. Com estas decisões, A1, A2 (parte do pagamento), A4
@@ -661,10 +681,33 @@ Cada passo é um PR que depende do anterior (#1 → #2 → … → #7).
 | A18 | Resolvido (#3) |
 | A19 | Parcial (#7): o frontend lê os valores antigos como os atuais; o servidor continua a aceitá-los |
 | A20 | Resolvido (#7): rótulos e cores num só módulo; montantes no formato «1 234,56 €» |
-| A22 | Em aberto (decisão 7): o seletor de estado passa a ter Check-in/Check-out |
+| A22 | Resolvido (#10): o seletor mostra só os passos possíveis, enviados pelo servidor (`status_options`) |
 
 ### Passo 8: o que ficou fora dos serviços e porquê
 
 - A edição de uma reserva pela equipa grava o estado escolhido junto com os restantes campos, com o histórico das diferenças; o cancelamento passa sempre por `reservationLifecycle` e o estado derivado do dinheiro por `financialLedger.recompute`.
-- O pré-check-in do hóspede grava o estado calculado por `reservationLifecycle.statusAfterPrecheckin` junto com os dados do hóspede.
+- O pré-check-in do hóspede grava só os dados do hóspede; não muda o estado da reserva (decisão 7).
 - As mensagens escritas à mão (Mensagens) e a pré-visualização de modelos usam diretamente `emailService.sendMail`, que é o envio comum.
+
+## 12. Três estados da reserva (PR #10)
+
+As regras estão num só sítio e todos os caminhos as chamam:
+
+| O quê | Onde | Quem chama |
+|---|---|---|
+| Estados, passos permitidos, opções do seletor, pré-check-in (também em SQL) | `services/reservationState.js` (puro) | `reservationLifecycle`, `financialLedger`, `listQueries` |
+| Sinal que confirma | `paymentPolicy.requiredDepositCents` | `financialLedger.recompute`, `reservationLifecycle.context` |
+| Aplicar um passo, opções de uma reserva, aprovar, marcar o pré-check-in enviado | `services/reservationLifecycle.js` | Criação, edição, cancelamento, aprovação, ficha, cotação, envio do link, circuito dos emails |
+| Aguarda sinal ⇄ Confirmada pelo dinheiro | `financialLedger.recompute` | Pagamentos manuais, Stripe, edição, aprovação, criação |
+| Email entregue (envio ou confirmação manual) | `emailDelivery.afterSent` | `emailService.sendTemplatedEmail`, `emailDelivery.resolveDelivery` |
+| Rótulos e distintivos dos três estados; preencher um seletor | `frontend/js/domain/reservation-status.js` | Lista, cartões, ficha, formulário, histórico |
+
+O frontend não decide passos: mostra as opções que o servidor envia na ficha
+(`status_options`) e na cotação do formulário.
+
+Migração (`20261025_reservation_states`): as reservas em `pre_checkin` passam
+a Confirmada (plataformas, sem valor ou já pagas) ou Aguarda sinal, com o
+pré-check-in «Enviado» (ou «Preenchido»). No arranque, as reservas a aguardar
+o sinal acertam-se uma vez pelo ledger. As reservas já confirmadas sem sinal
+registado ficam como estão até mudar o dinheiro, o total, as datas ou o canal.
+

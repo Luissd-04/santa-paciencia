@@ -52,7 +52,7 @@ AppActions.register({
   "index-set-mobile-chip-83728e5": (el, event, args) => { AppModules.reservas.setMobileChip(el,'') },
   "index-set-mobile-chip-8c8b5fb": (el, event, args) => { AppModules.reservas.setMobileChip(el,'confirmada') },
   "index-set-mobile-chip-fe178f2": (el, event, args) => { AppModules.reservas.setMobileChip(el,'pendente') },
-  "index-set-mobile-chip-931b8c9": (el, event, args) => { AppModules.reservas.setMobileChip(el,'pre_checkin') },
+  "index-set-mobile-chip-931b8c9": (el, event, args) => { AppModules.reservas.setMobileChip(el,'aguardar_pagamento') },
   "index-set-mobile-chip-d4ac248": (el, event, args) => { AppModules.reservas.setMobileChip(el,'cancelada') },
   "index-toggle-reservas-filters-sheet-0b7aaa9": (el, event, args) => { AppModules.reservas.toggleReservasFiltersSheet(true, el) },
   "index-sort-tabela-5568488": (el, event, args) => { AppModules.reservas.sortTabela('id') },

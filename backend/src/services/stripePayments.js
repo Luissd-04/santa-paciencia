@@ -35,11 +35,16 @@ function lookup(token) {
   if (!r) fail('Reserva não encontrada.', 404);
   return r;
 }
-function payable(r) {
-  return !r.policy_cancellation_json && stripeEnabled(r.organization_id) && ['aguardar_pagamento', 'confirmada', 'pre_checkin'].includes(r.status)
+// A reserva tem valor por pagar que o hóspede pode pagar online (a ficha
+// mostra o link da página de pagamento); `payable` exige também a Stripe ativa.
+function awaitsOnlinePayment(r) {
+  return !r.policy_cancellation_json && require('./reservationState').PAYMENT_DRIVEN_STATUSES.includes(r.status)
     && r.payment_status !== 'reembolsado' && !['refunded', 'partially_refunded', 'review_required'].includes(r.online_payment_status)
     && r.check_out >= localDateIso()
     && dueCents(r.total_amount, r.amount_paid) >= MIN_ONLINE_CENTS;
+}
+function payable(r) {
+  return stripeEnabled(r.organization_id) && awaitsOnlinePayment(r);
 }
 function paymentSummary(r) {
   const attempt = activeCheckout(r.id);
@@ -421,4 +426,4 @@ async function chargeBalance(reservationId) {
   await createAutomaticIntent(attempt, stripe);
   await reconcileAttempt(db.prepare('SELECT * FROM stripe_payment_attempts WHERE id=?').get(attempt.id), stripe);
 }
-module.exports = { chargeBalance, reconcileAttempt, lookup, createCheckout, processWebhook, paymentSummary, closeOpenCheckout, reconcileActiveCheckouts, SUPPORTED_EVENTS };
+module.exports = { awaitsOnlinePayment, chargeBalance, reconcileAttempt, lookup, createCheckout, processWebhook, paymentSummary, closeOpenCheckout, reconcileActiveCheckouts, SUPPORTED_EVENTS };

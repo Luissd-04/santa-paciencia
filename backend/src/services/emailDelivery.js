@@ -54,13 +54,20 @@ function resolveDelivery(orgId, reservationId, slug, resolution) {
     }
     if (resolution === 'sent') {
       const template = db.prepare('SELECT timing_event FROM organization_email_templates WHERE organization_id=? AND slug=?').get(orgId, slug);
-      if (['checkin', 'checkout'].includes(template?.timing_event)) {
-        db.prepare('INSERT OR IGNORE INTO organization_email_log (id,organization_id,template_slug,reservation_id) VALUES (?,?,?,?)')
-          .run(require('crypto').randomUUID(), orgId, slug, reservationId);
-      }
-      db.prepare('DELETE FROM organization_email_queue WHERE organization_id=? AND template_slug=? AND reservation_id=?').run(orgId, slug, reservationId);
+      afterSent({ orgId, reservationId, slug, timingEvent: template?.timing_event });
     }
     return rows.length;
   }).immediate();
 }
-module.exports = { deliverTemplate, resolveDelivery };
+// Uma mensagem entregue (envio ou confirmação manual): as agendadas pela
+// estadia não se repetem, sai da fila e o link do pré-check-in conta como
+// enviado. Chamar dentro de uma transação.
+function afterSent({ orgId, reservationId, slug, timingEvent }) {
+  if (['checkin', 'checkout'].includes(timingEvent)) {
+    db.prepare('INSERT OR IGNORE INTO organization_email_log (id,organization_id,template_slug,reservation_id) VALUES (?,?,?,?)')
+      .run(require('crypto').randomUUID(), orgId, slug, reservationId);
+  }
+  db.prepare('DELETE FROM organization_email_queue WHERE organization_id=? AND template_slug=? AND reservation_id=?').run(orgId, slug, reservationId);
+  if (slug === 'pre_checkin') require('./reservationLifecycle').markPrecheckinSent({ id: reservationId, organization_id: orgId });
+}
+module.exports = { deliverTemplate, resolveDelivery, afterSent };

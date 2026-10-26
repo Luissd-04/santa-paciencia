@@ -75,7 +75,7 @@ function getReservasQuery() {
   const query = {
     search: value('search-input') || value('mobile-search-input'),
     status: value('filter-estado'), accommodation_id: value('filter-suite'),
-    channel: value('filter-canal'), payment_status: value('filter-pagamento'),
+    channel: value('filter-canal'), payment_status: value('filter-pagamento'), precheckin: value('filter-precheckin'),
     from: AppModules.core.normalizeIsoDateValue(value('filter-date-from')), to: AppModules.core.normalizeIsoDateValue(value('filter-date-to')),
     scope: getEffectiveReservasPeriod(), today: reservasTodayIso(),
     sort: AppModules.reservas.sortCol, direction: AppModules.reservas.sortAsc ? 'asc' : 'desc',

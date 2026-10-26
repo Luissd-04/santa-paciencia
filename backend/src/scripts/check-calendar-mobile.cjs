@@ -23,7 +23,7 @@ async function main() {
   db.prepare('INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests) VALUES(?,?,?,?,?,?)').run('unit', org.id, 'Suite Oliveira', 'alojamento', 100, 4);
   const fixtures = [
     ['arrival', 'Marta Silva', '2030-07-06', '2030-07-08', 'confirmada'],
-    ['stay', 'João Fernandes', '2030-07-05', '2030-07-09', 'pre_checkin'],
+    ['stay', 'João Fernandes', '2030-07-05', '2030-07-09', 'aguardar_pagamento'],
     ['departure', 'Ana Costa', '2030-07-04', '2030-07-06', 'confirmada'],
     ['cancelled', 'Cancelada Teste', '2030-07-06', '2030-07-08', 'cancelada'],
   ];

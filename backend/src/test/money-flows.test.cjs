@@ -171,28 +171,43 @@ test('cada pagamento no separador Pagamentos pede o email de pagamento, sem repe
   assert.deepEqual(sent.map(s => [s.name, s.amount]), [['sendPaymentConfirmationEmail', 50], ['sendPaymentConfirmationEmail', 150]]);
 });
 
-// Regra única (reservationState): sem política, o pagamento integral confirma,
-// seja manual ou pela Stripe. Antes, só a Stripe e a edição confirmavam.
-test('pagamento manual sem política: o pagamento integral confirma, o parcial não', async () => {
+// Regra única (reservationState + paymentPolicy.requiredDepositCents): uma
+// reserva direta só fica confirmada com o sinal, mesmo sem política ativa. As
+// regras do sinal das definições (por omissão 20% a mais de 90 dias) contam.
+test('pagamento manual sem política: o sinal das definições confirma, menos não', async () => {
   reservation({ status: 'aguardar_pagamento' });
-  await call(payments.addPayment, { amount: 50 }, { id: 'res' });
+  await call(payments.addPayment, { amount: 30 }, { id: 'res' });
   assert.equal(row().status, 'aguardar_pagamento');
-  await call(payments.addPayment, { amount: 150 }, { id: 'res' });
-  assert.equal(row().payment_status, 'confirmado');
+  await call(payments.addPayment, { amount: 10 }, { id: 'res' });
+  assert.equal(row().payment_status, 'parcial');
   assert.equal(row().status, 'confirmada');
 });
 
-test('pré-check-in concluído confirma, salvo sinal da política por pagar', () => {
-  const { savePrecheckin } = require('../services/publicGuestService');
-  reservation({ status: 'pre_checkin' });
-  savePrecheckin(row(), { name: 'Hóspede', email: 'hospede@example.com' }, [], null);
+test('apagar o pagamento que fazia o sinal volta a aguardar o sinal', async () => {
+  reservation({ status: 'aguardar_pagamento' });
+  const added = await call(payments.addPayment, { amount: 40 }, { id: 'res' });
   assert.equal(row().status, 'confirmada');
-  db.exec("DELETE FROM reservations");
-  enablePolicy();
-  reservation({ status: 'pre_checkin' });
-  policy.attachPolicy({ id: 'res', organization_id: ORG });
+  await call(payments.deletePayment, {}, { id: 'res', paymentId: added.body.data.id });
+  assert.equal(row().status, 'aguardar_pagamento');
+});
+
+test('plataformas e reservas sem nada a pagar ficam confirmadas sem sinal', async () => {
+  const created = await call(write.create, { accommodation_id: 'unit', check_in: '2035-06-01', check_out: '2035-06-03',
+    num_adults: 2, channel: 'airbnb', guest: { name: 'Plataforma', email: 'p@example.com' } });
+  assert.equal(created.body.data.status, 'confirmada');
+  const direct = await call(write.create, { accommodation_id: 'unit', check_in: '2035-07-01', check_out: '2035-07-03',
+    num_adults: 2, channel: 'direto', status: 'confirmada', guest: { name: 'Direto', email: 'd@example.com' } });
+  assert.equal(direct.body.data.status, 'aguardar_pagamento');
+});
+
+test('pré-check-in preenchido não muda o estado da reserva', () => {
+  const { savePrecheckin } = require('../services/publicGuestService');
+  const { precheckinState } = require('../services/reservationState');
+  reservation({ status: 'aguardar_pagamento', precheckin_sent_at: '2035-01-01 10:00:00' });
+  assert.equal(precheckinState(row()), 'enviado');
   savePrecheckin(row(), { name: 'Hóspede', email: 'hospede@example.com' }, [], null);
   assert.equal(row().status, 'aguardar_pagamento');
+  assert.equal(precheckinState(row()), 'preenchido');
 });
 
 test('dinheiro: saldo em falta, arredondamento e mínimo online em cêntimos', () => {
