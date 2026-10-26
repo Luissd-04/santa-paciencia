@@ -216,6 +216,7 @@
 }
 .emed-body-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
@@ -224,9 +225,12 @@
 }
 .emed-body-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
   margin-left: auto;
 }
+.emed-body-actions .btn { white-space: nowrap; }
 
 .email-editor-body {
   padding: 24px 28px;
