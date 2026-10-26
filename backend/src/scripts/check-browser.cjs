@@ -509,6 +509,28 @@ async function main() {
   await page.locator('#eventos-search').fill('');
   await expect(page.locator('#eventos-list-pagination')).toContainText('1–50 de 137');
 
+  // Avisos em direto (/api/live): uma tarefa criada noutro lado aparece sem
+  // recarregar e o sino volta a perguntar; uma criada neste separador não lhe
+  // recarrega o ecrã. Nada disto espera pela pergunta periódica (15 min).
+  const liveHeaders = { Cookie: `${auth.SESSION_COOKIE}=${session}`, 'Content-Type': 'application/json' };
+  const bellReload = page.waitForRequest(request => request.url().includes('/api/reservations/notifications'), { timeout: 5000 });
+  let live = await fetch(base + '/api/events', { method: 'POST', headers: { ...liveHeaders, 'X-Client-Id': 'outro-separador' },
+    body: JSON.stringify({ title: 'Evento em direto', date: today }) });
+  assert.equal(live.status, 201);
+  const liveId = (await live.json()).data.id;
+  await expect(page.locator('#eventos-list-pagination')).toContainText('1–50 de 138', { timeout: 5000 });
+  await bellReload;
+  const before = eventRequests.length;
+  await page.evaluate(date => AppModules.core.apiPost('/api/events', { title: 'Evento deste separador', date }), today);
+  await page.waitForRequest(request => request.url().includes('/api/reservations/notifications'), { timeout: 5000 });
+  await page.waitForTimeout(600);
+  assert.equal(eventRequests.length, before, 'a alteração do próprio separador recarregou o ecrã');
+  db.prepare("DELETE FROM operational_events WHERE title = 'Evento deste separador'").run();
+  live = await fetch(base + '/api/events/' + liveId, { method: 'DELETE', headers: liveHeaders });
+  assert.equal(live.status, 200);
+  await expect(page.locator('#eventos-list-pagination')).toContainText('1–50 de 137');
+  console.log('OK: sino e eventos atualizam-se com avisos em direto.');
+
   // O calendário pede um intervalo, nunca a coleção inteira.
   await page.evaluate(() => { AppModules.eventos.setEventosMode('calendar'); AppModules.eventos.setEventosView('calendar'); });
   await expect(page.locator('#eventos-cal-grid')).not.toBeEmpty();

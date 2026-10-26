@@ -11,6 +11,7 @@ AppModules.define('eventos', {
   invalidateEventosRange: { get: () => invalidateEventosRange },
   loadEventos: { get: () => loadEventos },
   openEventoModal: { get: () => openEventoModal },
+  refreshEventos: { get: () => refreshEventos },
   saveEvento: { get: () => saveEvento },
   setEventosMode: { get: () => setEventosMode },
   setEventosTimelineRange: { get: () => setEventosTimelineRange },

@@ -43,6 +43,26 @@ async function main() {
   assert.equal('_parent' in catalog.data[0], false);
   r = await fetch(base + '/api/accommodations', { method: 'POST', headers, body: '{}' }); assert.equal(r.status, 403);
   console.log('OK: autenticação, consulta de alojamentos e permissões de staff.');
+  // Avisos em direto: só com sessão, sem compressão, e a alteração chega às
+  // páginas da organização com o separador de origem (não às de outra).
+  r = await fetch(base + '/api/live'); assert.equal(r.status, 401);
+  const otherUser = auth.createUser({ name: 'HTTP Other', email: 'other@example.invalid', password: 'SyntheticAudit123!' });
+  orgs.createMembership({ organizationId: other.id, userId: otherUser.id, role: 'staff' });
+  const otherCookie = `${auth.SESSION_COOKIE}=${auth.createSession(otherUser.id, other.id).sessionId}`;
+  const live = await openLive(base, { Cookie: headers.Cookie, 'Accept-Encoding': 'gzip' });
+  const otherLive = await openLive(base, { Cookie: otherCookie });
+  assert.match(live.response.headers.get('content-type'), /text\/event-stream/);
+  assert.equal(live.response.headers.get('content-encoding'), null);
+  assert.match(await live.next('ready'), /notifications/);
+  await otherLive.next('ready');
+  r = await fetch(base + '/api/events', { method: 'POST', headers: { ...headers, 'X-Client-Id': 'tab-123456' },
+    body: JSON.stringify({ title: 'Synthetic task', date: '2030-01-02' }) });
+  assert.equal(r.status, 201);
+  const change = JSON.parse(await live.next('change'));
+  assert.deepEqual(change, { topics: ['notifications', 'events'], origins: ['tab-123456'] });
+  assert.equal(await otherLive.next('change', 600), null);
+  live.close(); otherLive.close();
+  console.log('OK: avisos em direto por organização (/api/live).');
   const receipt = path.join(temp, 'data/uploads/receipts/synthetic.png');
   fs.mkdirSync(path.dirname(receipt), { recursive: true }); fs.writeFileSync(receipt, 'SYNTHETIC');
   db.prepare('INSERT INTO expenses (id,organization_id,date,description,amount,receipt_image) VALUES (?,?,?,?,?,?)')
@@ -75,6 +95,34 @@ async function main() {
   assert.equal((await r.json()).data.current, true);
   r = await fetch(base + '/auth/me', { headers }); assert.equal(r.status, 401);
   console.log('OK: API de Mensagens, no-store e revogação de sessões.');
+}
+// Lê o fluxo de /api/live; `next(event)` devolve os dados do próximo aviso desse tipo.
+async function openLive(base, headers) {
+  const controller = new AbortController();
+  const response = await fetch(base + '/api/live', { headers, signal: controller.signal });
+  assert.equal(response.status, 200);
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  async function next(event, timeoutMs = 3000) {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      let index;
+      while ((index = buffer.indexOf('\n\n')) >= 0) {
+        const block = buffer.slice(0, index); buffer = buffer.slice(index + 2);
+        if (block.includes(`event: ${event}\n`)) return block.split('\n').find(line => line.startsWith('data: ')).slice(6);
+      }
+      const left = deadline - Date.now();
+      if (left <= 0) return null;
+      let timer;
+      const chunk = await Promise.race([reader.read(), new Promise(resolve => { timer = setTimeout(() => resolve(null), left); })]);
+      clearTimeout(timer);
+      if (!chunk) return null;
+      if (chunk.done) throw new Error('Ligação em direto fechada');
+      buffer += decoder.decode(chunk.value, { stream: true });
+    }
+  }
+  return { response, next, close: () => controller.abort() };
 }
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
   if (server) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

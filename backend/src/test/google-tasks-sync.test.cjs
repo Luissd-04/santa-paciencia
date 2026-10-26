@@ -21,7 +21,7 @@ function load(relative, stubs = {}) {
   }, { filename });
   return module.exports;
 }
-let api, tasks, operations, remote, calls, hook, nextId, calendarCalls;
+let api, tasks, operations, remote, calls, hook, nextId, calendarCalls, published;
 const calendar = {
   async syncOperationalEventsToGoogle(rows, context) { calendarCalls.push({ rows, context }); },
   detachOperationalEvent() { return false; }, kickCalendarQueue() {}, queueCalendarUpsert() {},
@@ -37,7 +37,7 @@ beforeEach(() => {
       VALUES ('unit','org','Suite','suite',100,2);
     INSERT INTO reservations(id,organization_id,guest_id,accommodation_id,check_in,check_out,nights,num_guests,total_amount,status,breakfast_included)
       VALUES ('reservation','org','guest','unit','2035-01-01','2035-01-03',2,1,200,'confirmada',1);`);
-  remote = new Map(); calls = []; hook = null; nextId = 0; calendarCalls = [];
+  remote = new Map(); calls = []; hook = null; nextId = 0; calendarCalls = []; published = [];
   class FakeOAuth {
     setCredentials() {} on() {}
     async request(options) {
@@ -70,6 +70,7 @@ beforeEach(() => {
     'google-auth-library': { OAuth2Client: FakeOAuth },
     './tokenStorage': { decodeTokens: () => ({ access_token: 'test' }), encodeTokens: x => x },
     '../services/calendarService': calendar,
+    '../services/liveUpdates': { publish: (...args) => published.push(args) },
   });
   tasks = load('../services/operationalTasksService.js', {
     '../config/googleTasks': api, './calendarService': calendar,
@@ -335,4 +336,62 @@ test('migração estabelece base que protege edições locais antes da primeira 
   await sync();
   assert.equal(read().title, 'Edição após upgrade'); assert.equal(read().status, 'concluido');
   assert.equal(read().notes, 'Notas'); assert.equal(linked().title, '[Suite] Edição após upgrade');
+});
+
+const listCalls = () => calls.filter(x => !x.method && new URL(x.url).pathname.endsWith('/tasks'));
+
+test('alteração feita cá sincroniza só esses eventos, sem ler a lista inteira', async () => {
+  event(); event('second'); await sync();
+  db.prepare("UPDATE operational_events SET title='Só este' WHERE id IN ('event','second')").run();
+  const count = calls.length;
+  const result = await api.syncOrganizationTasksToGoogleTasks('org', { eventIds: ['event'] });
+  assert.equal(result.updated, 1); assert.equal(result.total, 1);
+  assert.equal(listCalls().length, 1, 'só a lista da primeira sincronização completa');
+  assert.equal(linked().title, 'Só este'); assert.equal(linked('second').title, 'Limpeza');
+  assert.ok(calls.slice(count).every(x => !x.url.includes(read('second').google_task_id)));
+});
+
+test('envio perdido de um evento novo é recuperado mesmo numa sincronização só desse evento', async () => {
+  event(); hook = async options => {
+    if (options.method === 'POST') { remote.set('accepted', { ...options.data, id: 'accepted' }); throw fail(504); }
+  };
+  assert.equal((await api.syncOrganizationTasksToGoogleTasks('org', { eventIds: ['event'] })).errors, 1);
+  hook = null; await api.syncOrganizationTasksToGoogleTasks('org', { eventIds: ['event'] });
+  assert.equal(remote.size, 1); assert.equal(read().google_task_id, 'accepted');
+});
+
+test('pergunta periódica lê só as tarefas alteradas no Google e avisa as páginas', async () => {
+  event(); event('second'); await sync();
+  linked().title = 'Mudou no Google'; linked().updated = '2035-01-01T00:00:00.000Z';
+  hook = async options => {
+    const url = new URL(options.url);
+    if (!options.method && url.pathname.endsWith('/tasks') && url.searchParams.has('updatedMin')) {
+      const since = url.searchParams.get('updatedMin');
+      return { data: { items: [...remote.values()].filter(task => (task.updated || '') >= since) } };
+    }
+  };
+  const count = calls.length;
+  const result = await api.syncOrganizationTasksToGoogleTasks('org', { changedSince: '2030-01-01T00:00:00.000Z' });
+  assert.equal(result.imported, 1); assert.equal(result.total, 1);
+  assert.equal(read().title, 'Mudou no Google'); assert.equal(read('second').title, 'Limpeza');
+  assert.equal(calls.slice(count).filter(x => x.method === 'PATCH' || /\/tasks\/[^/]+$/.test(new URL(x.url).pathname)).length, 0);
+  assert.equal(JSON.stringify(published.at(-1)), JSON.stringify(['org', ['events', 'notifications']]));
+  published = [];
+  assert.equal((await api.syncOrganizationTasksToGoogleTasks('org', { changedSince: '2036-01-01T00:00:00.000Z' })).total, 0);
+  assert.equal(published.length, 0, 'sem novidades, sem aviso');
+});
+
+test('agendador: completa na primeira vez e de hora a hora; entretanto só as alterações', async () => {
+  const settings = require('../services/settingsService');
+  event(); db.prepare("INSERT INTO organization_settings VALUES ('org','gcal_sync_tasks','1',datetime('now'))").run();
+  const updatedMin = () => listCalls().map(x => new URL(x.url).searchParams.get('updatedMin'));
+  await api.syncEnabledOrganizationsToGoogleTasks();
+  assert.deepEqual(updatedMin(), [null]); assert.equal(remote.size, 1);
+  const polledAt = Date.parse(settings.get('org', 'google_tasks_polled_at'));
+  await api.syncEnabledOrganizationsToGoogleTasks();
+  assert.equal(updatedMin().length, 2);
+  assert.equal(Date.parse(updatedMin()[1]), polledAt - 2 * 60 * 1000);
+  settings.set('org', 'google_tasks_full_sync_at', new Date(Date.now() - 61 * 60 * 1000).toISOString());
+  await api.syncEnabledOrganizationsToGoogleTasks();
+  assert.equal(updatedMin()[2], null);
 });

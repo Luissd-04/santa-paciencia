@@ -92,6 +92,25 @@ Os schedulers são parados em `SIGTERM` e `SIGINT`. A solução atual assume uma
 instância principal; qualquer evolução para várias réplicas deve preservar os
 leases e a idempotência de cada tarefa.
 
+## Avisos em direto
+
+`GET /api/live` (Server-Sent Events, `services/liveUpdates.js`) mantém uma
+ligação aberta por separador. O servidor não envia dados, só «isto mudou» com o
+tópico (`notifications` para o sino, `events` para a vista de Eventos); a página
+volta a pedir o que precisa pela API de sempre (`frontend/js/live.js`). Avisa:
+
+- depois de qualquer pedido de alteração da equipa que correu bem (middleware
+  `afterWrite`), com o separador de origem (`X-Client-Id`) para esse separador
+  não recarregar o ecrã onde está;
+- em cada acontecimento de reserva (`reservationEvents.emit`: pedidos do site,
+  pagamentos online, expirações), em envios de email por confirmar ou recusados
+  e em efeitos que falharam de vez;
+- quando o Google Tasks traz alterações;
+- à meia-noite e de hora a hora (alertas que dependem só do tempo).
+
+O sino pergunta ainda a cada 15 minutos, como rede de segurança. Os avisos vivem
+num só processo, como o resto da instância.
+
 ## Modelo de segurança
 
 - sessões em cookie, permissões por organização e por papel;
