@@ -192,6 +192,9 @@ function selectTemplate(slug) {
               <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "emails-preview-email-b9e13c6", [String((slug) ?? '')])}>
                 ${AppModules.core.lcIcon('send', 13)} Enviar preview
               </button>
+              <button class="btn btn-ghost btn-sm" title="Envia 3 versões deste email para comparar no Gmail do iPhone em modo escuro" ${AppActions.attrs("click", "emails-dark-mode-test", [String((slug) ?? '')])}>
+                ${AppModules.core.lcIcon('moon', 13)} Teste de cores
+              </button>
               <button class="btn btn-primary btn-sm" ${AppActions.attrs("click", "emails-save-template-a1efa8c", [String((slug) ?? '')])}>
                 ${AppModules.core.lcIcon('save', 14)} Guardar
               </button>
