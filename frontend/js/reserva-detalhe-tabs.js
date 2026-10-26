@@ -185,6 +185,7 @@ const RDV2_ACTION_META = {
   task_status:     { icon: 'list-checks',  label: 'Tarefa atualizada' },
   policy_cancelled: { icon: 'x-circle',    label: 'Reserva cancelada segundo a política' },
   email_delivery_resolved: { icon: 'mail', label: 'Envio de email resolvido' },
+  status_undone:   { icon: 'undo-2',       label: 'Passo desfeito' },
 };
 
 const RDV2_FIELD_LABELS = {
@@ -248,6 +249,8 @@ function rdv2TimelineMetaLine(action, meta) {
     if (meta.refund != null) bits.push(`Reembolso: ${ReservationMoney.format(meta.refund)}`);
   } else if (action === 'email_delivery_resolved') {
     bits.push(`${AppModules.core.escapeHtml(String(meta.template_slug || ''))} · ${meta.resolution === 'sent' ? 'confirmado como entregue' : 'nova tentativa autorizada'}`);
+  } else if (action === 'status_undone') {
+    bits.push(`${window.ReservationStatus.label(meta.from)} → ${window.ReservationStatus.label(meta.to)}`);
   } else if (action === 'created') {
     if (meta.check_in && meta.check_out) bits.push(`${rdv2ShortDate(String(meta.check_in))} → ${rdv2ShortDate(String(meta.check_out))}`);
     if (meta.total_amount != null) bits.push(`${ReservationMoney.format(meta.total_amount)}`);

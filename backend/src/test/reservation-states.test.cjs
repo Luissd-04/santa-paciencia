@@ -35,9 +35,9 @@ beforeEach(() => {
 });
 after(() => { db.close(); process.chdir(originalCwd); fs.rmSync(temp, { recursive: true, force: true }); });
 
-async function call(fn, body = {}, params = {}) {
+async function call(fn, body = {}, params = {}, role = 'manager') {
   const req = { body, params, query: {}, ip: '127.0.0.1', protocol: 'http', get: () => 'test.invalid',
-    user: { id: 'manager', role: 'manager', organization_id: ORG } };
+    user: { id: role, role, organization_id: ORG } };
   const res = { statusCode: 200, status(n) { this.statusCode = n; return this; }, json(data) { this.body = data; return this; } };
   await fn(req, res, error => { res.status(error.status || 500).json({ error: error.message, code: error.code }); });
   return res;
@@ -92,10 +92,39 @@ test('check-in pela edição: recusado sem sinal ou sem pré-check-in, com a exp
   res = await call(write.update, { status: 'check_in' }, { id: 'res' });
   assert.equal(res.statusCode, 200, JSON.stringify(res.body));
   assert.equal(row().status, 'check_in');
-  assert.equal((await call(write.update, { status: 'confirmada' }, { id: 'res' })).statusCode, 409);
+  const staffUndo = await call(write.update, { status: 'confirmada' }, { id: 'res' }, 'staff');
+  assert.equal(staffUndo.statusCode, 409);
+  assert.match(staffUndo.body.error, /Só a gestão pode desfazer/);
   assert.equal((await call(write.update, { status: 'check_out' }, { id: 'res' })).statusCode, 200);
   assert.equal((await call(reservations.cancel, {}, { id: 'res' })).statusCode, 409);
   assert.equal(row().status, 'check_out');
+});
+
+test('desfazer: a gestão volta do check-out à estadia e do check-in à reserva confirmada, com histórico', async () => {
+  db.exec(`INSERT OR IGNORE INTO users(id,name,email,password_hash) VALUES ('manager','Gestão','gestao@example.invalid','x'),
+    ('staff','Equipa','equipa@example.invalid','x')`);
+  reservation({ status: 'check_out', precheckin_submitted_at: '2035-05-01 10:00:00' });
+  await call(payments.addPayment, { amount: 200 }, { id: 'res' });
+  assert.equal(row().status, 'check_out', 'o pagamento não muda uma estadia concluída');
+  let detail = (await call(reservations.getById, {}, { id: 'res' })).body.data;
+  assert.deepEqual(detail.status_options, ['check_out', 'check_in']);
+  assert.equal(detail.status_undo, 'check_in');
+  const staffDetail = (await call(reservations.getById, {}, { id: 'res' }, 'staff')).body.data;
+  assert.deepEqual(staffDetail.status_options, ['check_out']);
+  assert.equal(staffDetail.status_undo, null);
+  assert.equal((await call(write.update, { status: 'check_in' }, { id: 'res' })).statusCode, 200);
+  assert.equal(row().status, 'check_in');
+  detail = (await call(reservations.getById, {}, { id: 'res' })).body.data;
+  assert.equal(detail.status_undo, 'confirmada');
+  assert.equal((await call(write.update, { status: 'confirmada' }, { id: 'res' })).statusCode, 200);
+  assert.equal(row().status, 'confirmada', 'volta a ativa, decidida pelo sinal já pago');
+  assert.equal((await call(write.update, { status: 'check_in' }, { id: 'res' })).statusCode, 200, 'e pode voltar a fazer o check-in');
+  const undone = db.prepare("SELECT meta FROM reservation_history WHERE reservation_id='res' AND action='status_undone' ORDER BY rowid").all()
+    .map(h => JSON.parse(h.meta));
+  assert.deepEqual(undone, [{ from: 'check_out', to: 'check_in' }, { from: 'check_in', to: 'confirmada' }]);
+  // Só se desfaz o último passo: de uma reserva confirmada não se volta ao pedido.
+  assert.equal(state.undoStatus('confirmada', { canUndo: true }), null);
+  assert.equal(state.undoStatus('cancelada', { canUndo: true }), null);
 });
 
 test('editar sem mudar o estado nem o dinheiro mantém uma reserva já confirmada', async () => {

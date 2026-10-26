@@ -24,6 +24,17 @@ const NEXT = {
   cancelada: [],
 };
 
+// Desfazer o último passo marcado por engano (só a gestão: `ctx.canUndo`): o
+// check-in volta à reserva ativa (decidida pelo sinal) e o check-out à estadia.
+const UNDO = { check_in: 'ativa', check_out: 'check_in' };
+function undoStatus(from, ctx = {}) {
+  const step = ctx.canUndo && UNDO[from];
+  if (!step) return null;
+  return step === 'ativa' ? (ctx.depositPaid ? 'confirmada' : 'aguardar_pagamento') : step;
+}
+// Se ir de `from` para `to` é desfazer o último passo.
+const isUndo = (from, to) => Boolean(UNDO[from]) && (to === UNDO[from] || (UNDO[from] === 'ativa' && PAYMENT_DRIVEN_STATUSES.includes(to)));
+
 // Estado do pagamento a partir do valor líquido recebido. `refunded` indica
 // que o ledger tem reembolsos: liquidado a zero por reembolso não é "pendente".
 function paymentStatusFor({ paidCents, totalCents, current = 'pendente', refunded = false }) {
@@ -59,12 +70,16 @@ const precheckinStateSql = (alias = 'r') => `CASE WHEN ${alias}.precheckin_submi
 const LABELS = { aguardar_pagamento: 'aguarda sinal', confirmada: 'confirmada', check_in: 'em estadia', check_out: 'concluída',
   cancelada: 'cancelada', pendente: 'pendente', pre_reserva: 'pré-reserva' };
 
-// Verifica um passo pedido pela equipa. `ctx`: { depositPaid, precheckin }.
+// Verifica um passo pedido pela equipa. `ctx`: { depositPaid, precheckin, canUndo }.
 // Devolve { status } (o estado a gravar) ou { error } com a explicação.
 function transition(from, to, ctx = {}) {
   const current = from || 'new';
   // Entre «aguarda sinal» e «confirmada» decide o dinheiro, não a escolha.
   if (to === from || (PAYMENT_DRIVEN_STATUSES.includes(from) && PAYMENT_DRIVEN_STATUSES.includes(to))) return { status: from };
+  if (isUndo(from, to)) {
+    const status = undoStatus(from, ctx);
+    return status ? { status } : { error: 'Só a gestão pode desfazer o check-in ou o check-out.' };
+  }
   const allowed = NEXT[current] || [];
   const target = PAYMENT_DRIVEN_STATUSES.includes(to) ? 'ativa' : to;
   if (to === 'check_in' && allowed.includes('check_in')) {
@@ -84,12 +99,14 @@ function transition(from, to, ctx = {}) {
 }
 
 // Estados que o seletor mostra: o atual (ou o de uma reserva nova) e os
-// passos seguintes, com a reserva ativa já resolvida pelo sinal.
+// passos seguintes, com a reserva ativa já resolvida pelo sinal, e o passo
+// para desfazer, quando permitido.
 function statusOptions(from, ctx = {}) {
   const active = ctx.depositPaid ? 'confirmada' : 'aguardar_pagamento';
   const next = (NEXT[from || 'new'] || []).map(step => (step === 'ativa' ? active : step));
-  return [...new Set([...(from ? [from] : []), ...next])];
+  const undo = undoStatus(from, ctx);
+  return [...new Set([...(from ? [from] : []), ...next, ...(undo ? [undo] : [])])];
 }
 
 module.exports = { STATUSES, PAYMENT_DRIVEN_STATUSES, PRECHECKIN_STATES, paymentStatusFor, statusAfterPayment,
-  precheckinState, precheckinStateSql, transition, statusOptions };
+  precheckinState, precheckinStateSql, transition, statusOptions, undoStatus, isUndo };

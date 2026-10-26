@@ -37,10 +37,14 @@ const payment = value => PAYMENT[normalize(value)] || null;
 const label = value => reservation(value)?.label || capitalize(value);
 
 // Preenche um seletor de estado com as opções que o servidor devolveu.
-function fillSelect(select, values, current) {
+// `undo`: o estado para onde volta «desfazer o último passo» (status_undo do
+// servidor), mostrado como tal em vez do nome do estado.
+const UNDO_LABELS = { check_in: '↩ Desfazer check-in', check_out: '↩ Desfazer check-out' };
+function fillSelect(select, values, current, undo = null) {
   if (!select) return;
   const list = Array.isArray(values) && values.length ? values : [current].filter(Boolean);
-  select.innerHTML = list.map(value => `<option value="${value}">${label(value)}</option>`).join('');
+  const text = value => (undo && value === undo && UNDO_LABELS[current]) || label(value);
+  select.innerHTML = list.map(value => `<option value="${value}">${text(value)}</option>`).join('');
   select.value = list.includes(current) ? current : list[0] || '';
 }
 

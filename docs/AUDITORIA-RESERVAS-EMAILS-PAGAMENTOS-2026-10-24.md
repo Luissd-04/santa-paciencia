@@ -735,3 +735,13 @@ enviados diretamente pelos agendadores:
   acontecimentos.
 - O envio manual do link de pré-check-in, pedido pela equipa, não espera pela
   janela de envio do modelo.
+
+## 14. Desfazer o check-in ou o check-out
+
+A gestão (gestor ou dono) pode desfazer o último passo marcado por engano, no
+seletor de estado da ficha («↩ Desfazer check-in/check-out»): o check-out volta
+à estadia e o check-in volta à reserva ativa (confirmada ou a aguardar o sinal,
+decidido pelo dinheiro). A regra está em `reservationState.undoStatus`/`isUndo`;
+quem pede entra em `reservationLifecycle.context(r, actor)`. A equipa recebe a
+explicação «Só a gestão pode desfazer…». Cada desfazer fica no histórico como
+«Passo desfeito» (`status_undone`, com o estado de origem e o de destino).

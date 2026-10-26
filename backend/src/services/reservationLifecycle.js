@@ -64,27 +64,31 @@ async function cancel(organizationId, id, { actorUserId = null, key, expectedRef
 }
 
 // O que decide os passos de uma reserva: o sinal já recebido (ledger contra
-// paymentPolicy.requiredDepositCents) e o estado do pré-check-in. `r` pode ser
-// um rascunho (ex.: cotação da edição) com o total e o canal novos.
-function context(r) {
+// paymentPolicy.requiredDepositCents), o estado do pré-check-in e quem pede
+// (`actor`: só a gestão desfaz o check-in/check-out). `r` pode ser um rascunho
+// (ex.: cotação da edição) com o total e o canal novos.
+function context(r, actor = null) {
   const paidCents = r.id ? cents(require('./financialLedger').ledgerTotal(r.id, r.organization_id)) : 0;
-  return { depositPaid: paidCents >= require('./paymentPolicy').requiredDepositCents(r), precheckin: state.precheckinState(r) };
+  return { depositPaid: paidCents >= require('./paymentPolicy').requiredDepositCents(r), precheckin: state.precheckinState(r),
+    canUndo: require('../middleware/requireRole').atLeast(actor, 'manager') };
 }
 
 // Estado a gravar quando a equipa pede `requested` (indefinido: sem mudança).
 // Recusa com a explicação os passos que o ciclo não permite (ex.: check-in sem
 // sinal ou sem pré-check-in). Entre «aguarda sinal» e «confirmada» decide
 // depois financialLedger.recompute, com o total já atualizado.
-function nextStatus(current, requested, r = current) {
+function nextStatus(current, requested, r = current, actor = null) {
   if (requested === undefined || requested === null || requested === '') return current?.status ?? 'aguardar_pagamento';
   if (!state.STATUSES.includes(requested)) throw httpError('Estado de reserva inválido.', 400);
-  const result = state.transition(current?.status ?? null, requested, context(r));
+  const result = state.transition(current?.status ?? null, requested, context(r, actor));
   if (result.error) throw httpError(result.error, 409, { code: 'status_transition' });
   return result.status;
 }
 
 // Opções do seletor de estado (ficha e formulário), já resolvidas pelo sinal.
-const statusOptions = r => state.statusOptions(r.id && r.status ? r.status : null, context(r));
+const statusOptions = (r, actor = null) => state.statusOptions(r.id && r.status ? r.status : null, context(r, actor));
+// Estado para onde voltaria «desfazer o último passo» (null se não houver ou não for permitido).
+const undoStatus = (r, actor = null) => state.undoStatus(r.status, context(r, actor));
 
 // Estado ao reativar uma reserva cancelada: o anterior, com a reserva ativa
 // outra vez decidida pelo sinal.
@@ -144,4 +148,4 @@ function reconcileLegacyStatuses() {
   }).immediate();
 }
 
-module.exports = { CANCEL_REASONS, markCancelled, afterCancel, cancel, context, nextStatus, statusOptions, reactivationStatus, approve, markPrecheckinSent, reconcileLegacyStatuses };
+module.exports = { CANCEL_REASONS, markCancelled, afterCancel, cancel, context, nextStatus, statusOptions, undoStatus, reactivationStatus, approve, markPrecheckinSent, reconcileLegacyStatuses };

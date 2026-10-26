@@ -221,7 +221,8 @@ async function update(req, res, next) {
     // estado anterior ao cancelamento). Entre «aguarda sinal» e «confirmada»
     // decide o dinheiro recebido, com o total, as datas e o canal novos.
     const draft = { ...existing, total_amount: effectiveTotal, channel: channel || existing.channel, check_in: totals.checkIn };
-    const chosenStatus = reactivating ? lifecycle.reactivationStatus(existing) : lifecycle.nextStatus(existing, status, draft);
+    const chosenStatus = reactivating ? lifecycle.reactivationStatus(existing) : lifecycle.nextStatus(existing, status, draft, req.user);
+    const undone = require('../services/reservationState').isUndo(existing.status, chosenStatus);
     const depositMayChange = draft.channel !== existing.channel || draft.check_in !== existing.check_in
       || cents(effectiveTotal) !== cents(existing.total_amount);
 
@@ -280,6 +281,9 @@ async function update(req, res, next) {
       queueCalendarUpsert(organizationId, 'reservation', existing.id, existing.google_calendar_user_id || req.user.id);
     }
     const updated = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
+    // Desfazer o check-in/check-out fica no histórico como passo próprio.
+    if (undone) recordHistory({ organizationId, reservationId: req.params.id, userId: req.user.id, action: 'status_undone',
+      meta: { from: existing.status, to: updated.status } });
     const historyChanges = diffReservationFields(existing, updated);
     if (historyChanges.length) {
       recordHistory({
