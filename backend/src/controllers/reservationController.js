@@ -62,7 +62,8 @@ async function getById(req, res, next) {
     // Os três estados e o que a equipa pode fazer a seguir (reservationLifecycle).
     const lifecycle = require('../services/reservationLifecycle');
     reservation.precheckin_state = require('../services/reservationState').precheckinState(reservation);
-    reservation.status_options = lifecycle.statusOptions(reservation);
+    reservation.status_options = lifecycle.statusOptions(reservation, req.user);
+    reservation.status_undo = lifecycle.undoStatus(reservation, req.user);
     reservation.can_pay_online = require('../services/stripePayments').awaitsOnlinePayment(reservation);
 
     reservation.payments = db.prepare(`

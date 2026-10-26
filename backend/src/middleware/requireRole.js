@@ -15,4 +15,7 @@ function requireRole(...roles) {
   };
 }
 
+// O utilizador tem pelo menos este papel (para regras dentro dos serviços).
+requireRole.atLeast = (user, role) => (ROLE_RANK[user?.role] || 0) >= (ROLE_RANK[role] || 0);
+
 module.exports = requireRole;

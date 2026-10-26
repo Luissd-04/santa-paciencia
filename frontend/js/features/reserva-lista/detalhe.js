@@ -450,7 +450,7 @@ async function showDetail(id, opts = {}) {
       <div id="rdv2-panel-tarefas" style="display:none;"></div>
       <div id="rdv2-panel-timeline" style="display:none;"></div>
     `;
-    window.ReservationStatus.fillSelect(document.getElementById('rdv2-status-select'), r.status_options, r.status);
+    window.ReservationStatus.fillSelect(document.getElementById('rdv2-status-select'), r.status_options, r.status, r.status_undo);
     const actionsMenu = document.getElementById('rdv2-actions-menu');
     const actionsTrigger = document.getElementById('rdv2-actions-trigger');
     actionsMenu.addEventListener('toggle', event => {
