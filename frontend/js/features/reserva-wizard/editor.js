@@ -83,7 +83,7 @@ function openModalFromCalendar(checkIn, accommodationId = '') {
   if (!checkIn) return;
   openModal({
     checkIn,
-    checkOut: AppModules.reservas.addDaysToIsoDate(checkIn, 1),
+    checkOut: window.ReservationDates.addDays(checkIn, 1),
     accommodationId,
     step: 1
   });

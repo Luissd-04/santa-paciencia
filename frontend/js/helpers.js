@@ -143,17 +143,15 @@ function confirmPriceChange({ standardTotal, newTotal, editedAt = null, editedBy
         : `<span style="color:#e8710a;font-weight:600;">Acréscimo de ${fmt(diff)} face ${reference}</span>`)
       : '';
     const editedWarn = editedAt ? `
-      <div style="background:#fdf3e2;border:1px solid #f0d9a8;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#8a6d1d;margin-top:12px;">
+      <div style="background:#fdf3e2;border:1px solid #f0d9a8;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#8a6d1d;">
         ⚠️ Esta reserva já foi editada manualmente em ${new Date(editedAt).toLocaleDateString('pt-PT')}${editedByName ? ` por ${editedByName}` : ''}.
       </div>` : '';
 
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-bg open';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:10000;';
-    overlay.innerHTML = `
-      <div class="modal" style="background:#fff;border-radius:14px;padding:26px 28px;max-width:440px;width:94%;box-shadow:0 8px 32px rgba(0,0,0,.18);">
-        <h3 style="margin:0 0 6px;font-size:17px;color:var(--azul);">${esc(title)}</h3>
-        <p style="margin:0 0 16px;font-size:13px;color:var(--cinza);">${esc(intro)}</p>
+    let confirmed = false;
+    const overlay = AppUI.openDialog({
+      title: esc(title),
+      body: `
+        <p>${esc(intro)}</p>
         <div style="display:flex;flex-direction:column;gap:8px;font-size:13.5px;">
           <div style="display:flex;justify-content:space-between;color:var(--cinza);">
             <span>${esc(standardLabel)}</span><span style="font-size:12.5px;">${fmt(standardTotal)}</span>
@@ -163,18 +161,13 @@ function confirmPriceChange({ standardTotal, newTotal, editedAt = null, editedBy
           </div>
           ${diffLine ? `<div style="font-size:12.5px;">${diffLine}</div>` : ''}
         </div>
-        ${editedWarn}
-        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
-          <button class="btn btn-ghost btn-sm" data-pc-cancel>Cancelar</button>
-          <button class="btn btn-primary btn-sm" data-pc-confirm>Confirmar alteração</button>
-        </div>
-      </div>`;
-    document.body.appendChild(overlay);
-
-    const close = ok => { overlay.remove(); resolve(ok); };
-    overlay.querySelector('[data-pc-cancel]').onclick = () => close(false);
-    overlay.querySelector('[data-pc-confirm]').onclick = () => close(true);
-    overlay.onclick = e => { if (e.target === overlay) close(false); };
+        ${editedWarn}`,
+      footer: `
+        <button type="button" class="btn btn-ghost" data-pc-cancel data-dialog-close>Cancelar</button>
+        <button type="button" class="btn btn-primary" data-pc-confirm>Confirmar alteração</button>`,
+      onClose: () => resolve(confirmed),
+    });
+    overlay.querySelector('[data-pc-confirm]').onclick = () => { confirmed = true; AppUI.closeDialog(overlay); };
   });
 }
 

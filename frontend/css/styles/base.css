@@ -35,6 +35,9 @@ body.auth-locked {
   background: #2a1810;
 }
 
+/* Só o proprietário vê o que tem data-owner-only (classe posta em js/auth.js). */
+body:not(.role-owner) [data-owner-only="true"] { display: none !important; }
+
 .bg-pattern {
   position: fixed;
   inset: 0;

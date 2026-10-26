@@ -756,3 +756,25 @@ reserva e logo cancelada por `reservationLifecycle.markCancelled` (`quiet`,
 `meta.imported`), por isso o cancelamento fica como passo no histórico; não
 ocupa as datas e não tem evento no calendário. Fora da importação, uma
 reserva nova continua a não poder começar cancelada.
+
+## 16. Correções do telemóvel (auditoria de 26/10/2026)
+
+- Dashboard, definições e relatórios deixavam conteúdo fora do ecrã: as
+  grelhas de uma coluna das vistas ficam presas à largura disponível.
+- Sino visível no cabeçalho do telemóvel; abre a lista e pede os avisos de
+  novo ao abrir. O «Atualizar» deu lugar a «Ver todas as notificações».
+- Definições por assunto (Reservas, Ligações, Gestão): coluna à esquerda no
+  computador; no telemóvel, lista inicial e cada secção no ecrã inteiro com
+  «Definições» para voltar.
+- O separador Equipa e o «Estado do sistema» aparecem ao proprietário.
+- Nove janelas feitas à mão passam a `AppUI.openDialog`.
+- Página do hóspede: o selo do pagamento tem cor pelo estado e não aparece
+  numa reserva cancelada sem pagamentos.
+- Mensagens no telemóvel: paginação no fim, lista sem caixa de scroll, sem
+  painel vazio.
+- Somar dias e escrever datas AAAA-MM-DD (cópias no calendário, eventos,
+  bloqueios, preços, seletor de datas e assistente) passam a
+  `ReservationDates.addDays`/`localIso`; mostrar data e hora (6 cópias) passa a
+  `ReservationDates.formatDateTime`.
+- Fica para a V2: botão + flutuante, letras de 9–10 px, tabela do estado do
+  sistema no telemóvel e o «Seguinte» no topo da página pública.

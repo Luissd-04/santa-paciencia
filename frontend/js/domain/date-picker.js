@@ -20,12 +20,9 @@
   const RD = () => window.ReservationDates;
   function isoVal(v) { return RD() ? RD().normalizeIsoDate(v) : ''; }
   function ptVal(v) { return RD() ? RD().formatPtDate(v) : ''; }
-  function isoOf(y, m, d) { return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`; }
-  function todayIso() { const d = new Date(); return isoOf(d.getFullYear(), d.getMonth(), d.getDate()); }
-  function addDaysIso(iso, n) {
-    const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + n);
-    return isoOf(d.getFullYear(), d.getMonth(), d.getDate());
-  }
+  function isoOf(y, m, d) { return RD().localIso(new Date(y, m, d)); }
+  function todayIso() { return RD().localIso(); }
+  function addDaysIso(iso, n) { return RD().addDays(iso, n); }
   function addMonthsIso(iso, n) {
     const d = new Date(`${iso}T12:00:00`);
     const day = d.getDate();

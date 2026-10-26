@@ -35,12 +35,6 @@ async function ensureBlocksLoaded() {
   return loadBlocks();
 }
 
-function blkAddDays(iso, n) {
-  const d = new Date(`${iso}T12:00:00`);
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-
 function blkFmt(iso) {
   const d = new Date(`${iso}T12:00:00`);
   return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -90,7 +84,7 @@ function blockBandsHtml(accId, yearStart, totalDays, dayW) {
   const totalWidth = totalDays * dayW;
   return effectiveBlocksForAccommodation(accId).map(b => {
     const start = new Date(b.start_date + 'T00:00:00');
-    const endExclusive = new Date(blkAddDays(b.end_date, 1) + 'T00:00:00');
+    const endExclusive = new Date(window.ReservationDates.addDays(b.end_date, 1) + 'T00:00:00');
     const offset = Math.round((start - yearStart) / 86400000);
     const days = Math.round((endExclusive - start) / 86400000);
     const left = Math.max(0, offset * dayW);
@@ -125,38 +119,33 @@ function openBlockModal(prefillAccId = '', prefillStart = '') {
     .map(a => `<option value="${a.id}"${a.id === prefillAccId ? ' selected' : ''}>${AppModules.core.escapeHtml(a.name)}</option>`)
     .join('');
 
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-bg open';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
-  overlay.innerHTML = `
-    <div class="modal" style="background:#fff;border-radius:14px;padding:26px 28px;max-width:460px;width:94%;box-shadow:0 8px 32px rgba(0,0,0,.18);">
-      <h3 style="margin:0 0 6px;font-size:18px;color:var(--azul);display:flex;align-items:center;gap:8px;"><i data-lucide="lock"></i> Bloquear datas</h3>
-      <p style="margin:0 0 18px;font-size:13px;color:var(--cinza);">Nenhuma reserva poderá ser criada nestas datas para o alojamento escolhido.</p>
-      <label class="form-label">Alojamento</label>
-      <select class="form-control" id="blk-acc">${opts}</select>
-      <div style="display:flex;gap:12px;margin-top:14px;">
-        <div style="flex:1;">
-          <label class="form-label">De</label>
+  const overlay = AppUI.openDialog({
+    title: 'Bloquear datas',
+    body: `
+      <p>Nenhuma reserva poderá ser criada nestas datas para o alojamento escolhido.</p>
+      <div class="form-group">
+        <label class="form-label" for="blk-acc">Alojamento</label>
+        <select class="form-control" id="blk-acc">${opts}</select>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label" for="blk-start">De</label>
           <input type="date" class="form-control" id="blk-start" value="${prefillStart}" autocomplete="off">
         </div>
-        <div style="flex:1;">
-          <label class="form-label">Até (inclusive)</label>
+        <div class="form-group">
+          <label class="form-label" for="blk-end">Até (inclusive)</label>
           <input type="date" class="form-control" id="blk-end" value="${prefillStart}" autocomplete="off">
         </div>
       </div>
-      <label class="form-label" style="margin-top:14px;">Motivo (opcional)</label>
-      <input type="text" class="form-control" id="blk-reason" placeholder="Ex.: manutenção, uso pessoal" autocomplete="off" maxlength="120">
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:22px;">
-        <button class="btn btn-ghost btn-sm" id="blk-cancel">Cancelar</button>
-        <button class="btn btn-primary btn-sm" id="blk-save">Bloquear</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  if (window.lucide) lucide.createIcons();
-
-  const close = () => overlay.remove();
-  overlay.querySelector('#blk-cancel').onclick = close;
-  overlay.onclick = e => { if (e.target === overlay) close(); };
+      <div class="form-group">
+        <label class="form-label" for="blk-reason">Motivo (opcional)</label>
+        <input type="text" class="form-control" id="blk-reason" placeholder="Ex.: manutenção, uso pessoal" autocomplete="off" maxlength="120">
+      </div>`,
+    footer: `
+      <button type="button" class="btn btn-ghost" data-dialog-close>Cancelar</button>
+      <button type="button" class="btn btn-primary" id="blk-save">Bloquear</button>`,
+  });
+  const close = () => AppUI.closeDialog(overlay);
   overlay.querySelector('#blk-save').onclick = async () => {
     const accId = overlay.querySelector('#blk-acc').value;
     const start = overlay.querySelector('#blk-start').value;
@@ -190,39 +179,30 @@ function openBlockEditModal(blockId) {
     || (typeof AppModules.core.accommodations !== 'undefined' ? AppModules.core.accommodations.find(a => a.id === b.accommodation_id)?.name : '')
     || 'Alojamento';
 
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-bg open';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
-  overlay.innerHTML = `
-    <div class="modal" style="background:#fff;border-radius:14px;padding:26px 28px;max-width:460px;width:94%;box-shadow:0 8px 32px rgba(0,0,0,.18);">
-      <h3 style="margin:0 0 6px;font-size:18px;color:var(--azul);display:flex;align-items:center;gap:8px;"><i data-lucide="lock"></i> Editar bloqueio</h3>
-      <p style="margin:0 0 16px;font-size:13px;color:var(--cinza);">${AppModules.core.escapeHtml(accName)}</p>
-      <div style="display:flex;gap:12px;">
-        <div style="flex:1;">
-          <label class="form-label">De</label>
+  const overlay = AppUI.openDialog({
+    title: 'Editar bloqueio',
+    body: `
+      <p>${AppModules.core.escapeHtml(accName)}</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label" for="blk-edit-start">De</label>
           <input type="date" class="form-control" id="blk-edit-start" value="${b.start_date}" autocomplete="off">
         </div>
-        <div style="flex:1;">
-          <label class="form-label">Até (inclusive)</label>
+        <div class="form-group">
+          <label class="form-label" for="blk-edit-end">Até (inclusive)</label>
           <input type="date" class="form-control" id="blk-edit-end" value="${b.end_date}" autocomplete="off">
         </div>
       </div>
-      <label class="form-label" style="margin-top:14px;">Motivo (opcional)</label>
-      <input type="text" class="form-control" id="blk-edit-reason" value="${AppModules.core.escapeHtml(b.reason || '')}" placeholder="Ex.: manutenção, uso pessoal" autocomplete="off" maxlength="120">
-      <div style="display:flex;gap:10px;justify-content:space-between;align-items:center;margin-top:22px;">
-        <button class="btn btn-ghost btn-sm" id="blk-edit-delete" style="color:var(--vermelho);"><i data-lucide="trash-2"></i> Eliminar</button>
-        <div style="display:flex;gap:10px;">
-          <button class="btn btn-ghost btn-sm" id="blk-edit-cancel">Cancelar</button>
-          <button class="btn btn-primary btn-sm" id="blk-edit-save">Guardar</button>
-        </div>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  if (window.lucide) lucide.createIcons();
-
-  const close = () => overlay.remove();
-  overlay.querySelector('#blk-edit-cancel').onclick = close;
-  overlay.onclick = e => { if (e.target === overlay) close(); };
+      <div class="form-group">
+        <label class="form-label" for="blk-edit-reason">Motivo (opcional)</label>
+        <input type="text" class="form-control" id="blk-edit-reason" value="${AppModules.core.escapeHtml(b.reason || '')}" placeholder="Ex.: manutenção, uso pessoal" autocomplete="off" maxlength="120">
+      </div>`,
+    footer: `
+      <button type="button" class="btn btn-ghost" id="blk-edit-delete" style="color:var(--vermelho);margin-right:auto;"><i data-lucide="trash-2"></i> Eliminar</button>
+      <button type="button" class="btn btn-ghost" data-dialog-close>Cancelar</button>
+      <button type="button" class="btn btn-primary" id="blk-edit-save">Guardar</button>`,
+  });
+  const close = () => AppUI.closeDialog(overlay);
   overlay.querySelector('#blk-edit-delete').onclick = () => { close(); confirmDeleteBlock(blockId); };
   overlay.querySelector('#blk-edit-save').onclick = async () => {
     const start = overlay.querySelector('#blk-edit-start').value;

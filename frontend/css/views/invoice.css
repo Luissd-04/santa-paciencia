@@ -642,15 +642,19 @@
     height: auto;
   }
 
+  /* A lista corre com a página (sem caixa com scroll própria) e o detalhe só
+     aparece quando há uma conversa aberta (invoice.js leva o ecrã até ele). */
   .invoice-thread-list {
     border-right: none;
     border-bottom: 1px solid var(--border, #e8ddd0);
-    max-height: 40vh;
+    max-height: none;
   }
 
   .invoice-thread-detail {
-    min-height: 50vh;
+    min-height: 0;
   }
+
+  .invoice-thread-detail:has(> .invoice-detail-empty) { display: none; }
 
   .invoice-detail-header {
     flex-direction: column;

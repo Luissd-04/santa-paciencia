@@ -7,7 +7,7 @@ AppModules.define('definicoes', {
 });
 
 // ── Estado do sistema (proprietário): tarefas automáticas e envios pendentes ──
-const formatWhen = value => (value ? new Date(value).toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' }) : '—');
+const formatWhen = value => window.ReservationDates.formatDateTime(value);
 const every = ms => (ms >= 3600000 ? `${Math.round(ms / 3600000)} h` : `${Math.round(ms / 60000)} min`);
 async function loadSystemStatus() {
   const box = document.getElementById('system-status');

@@ -54,7 +54,7 @@ function drawTimeline(autoScroll = true) {
   let dayCells = '';
   for (let i = 0; i < totalDays; i++) {
     const d  = new Date(year, 0, 1 + i);
-    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const ds = window.ReservationDates.localIso(d);
     const isToday      = ds === todayStr;
     const isWeekend    = d.getDay() === 0 || d.getDay() === 6;
     const isMonthStart = d.getDate() === 1 && i > 0;
@@ -70,7 +70,7 @@ function drawTimeline(autoScroll = true) {
         let cellHtml = '';
         for (let i = 0; i < totalDays; i++) {
           const d  = new Date(year, 0, 1 + i);
-          const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const ds = window.ReservationDates.localIso(d);
           const isMonthStart = d.getDate() === 1 && i > 0;
           cellHtml += `<div class="tl-cell${ds === todayStr ? ' tl-today-col' : ''}${isMonthStart ? ' tl-month-start' : ''}" ${AppActions.attrs("click", "timeline-open-modal-from-calendar-7ae6ef8", [String((ds) ?? ''), String((a.id) ?? '')])}></div>`;
         }

@@ -245,11 +245,24 @@ function renderInvoiceThreadList(threads, opts = {}) {
         </div>
       </div>
     `;
-    el.addEventListener('click', () => AppModules.invoice.openInvoiceThread(t, detailId));
-    list.appendChild(el);
+    el.addEventListener('click', () => {
+      AppModules.invoice.openInvoiceThread(t, detailId);
+      revealThreadDetail(detailId);
+    });
+    // Antes da paginação, que fica no fim da lista.
+    list.insertBefore(el, list.querySelector('.table-pagination'));
   });
 
   if (window.lucide) lucide.createIcons();
+}
+
+// Com lista e detalhe numa só coluna (telemóvel), o detalhe fica por baixo da
+// lista: ao abrir uma conversa, leva-se o ecrã até ele.
+function revealThreadDetail(detailId) {
+  const detail = document.getElementById(detailId);
+  const layout = detail?.closest('.invoice-inbox-layout');
+  if (!layout || getComputedStyle(layout).gridTemplateColumns.trim().split(/\s+/).length > 1) return;
+  detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 /* ── Abrir detalhe de uma thread ── */

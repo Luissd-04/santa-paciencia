@@ -49,6 +49,22 @@ runtime. O registo em `frontend/js/features/manifest.json` agrupa módulos como:
 - hóspedes e comunicações por email;
 - documentos e histórico de faturas.
 
+Peças partilhadas que cada ecrã usa em vez de ter a sua cópia:
+
+- `AppUI.openDialog` / `closeDialog` (`js/ui.js`): janelas criadas na hora
+  (formulários curtos, confirmações) com a moldura comum — Escape, foco preso,
+  página parada por trás e fecho ao mudar de vista;
+- `ReservationDates` (`js/domain/dates.js`): `localIso`, `addDays` e
+  `formatDateTime` (instantes na hora do alojamento; lê o formato UTC do
+  SQLite);
+- `ReservationStatus` (`js/domain/reservation-status.js`): rótulos, cores e
+  distintivos dos estados da reserva, do pagamento e do pré-check-in;
+- `[data-owner-only]`: visível só com a classe `role-owner` no `<body>`
+  (`js/auth.js`), por isso vale também para vistas carregadas depois;
+- grelhas de uma coluna das vistas presas à largura do ecrã numa só regra
+  (`css/layout.css`); `scripts/check-mobile-ux.cjs` falha se alguma vista
+  passar da margem direita a 320 ou 390 px.
+
 Existem páginas independentes para reserva pública, estado da reserva,
 pré-check-in e teste de reserva. O service worker dá suporte à instalação como
 PWA e à cache controlada de recursos estáticos.

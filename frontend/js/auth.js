@@ -84,10 +84,11 @@ function clearFieldErrors() {
   });
 }
 
+// A visibilidade de [data-owner-only] vem do CSS (css/styles/base.css), a
+// partir desta classe no <body>: assim também vale para a marcação das vistas
+// que só chega depois, quando a vista abre (domain/features.js).
 function updateOwnerUiVisibility() {
-  document.querySelectorAll('[data-owner-only="true"]').forEach(el => {
-    el.style.display = AppModules.core.currentUser?.role === 'owner' ? '' : 'none';
-  });
+  document.body.classList.toggle('role-owner', AppModules.core.currentUser?.role === 'owner');
 }
 
 // ── Contas guardadas neste dispositivo ──

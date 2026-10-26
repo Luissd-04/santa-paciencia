@@ -155,7 +155,7 @@ async function showDetail(id, opts = {}) {
       <div class="rdv2-header">
         <button class="btn btn-ghost btn-sm" data-on-click="detalhe-show-reservas-list-3f01da3">${AppModules.core.lcIcon('arrow-left', 13)} Voltar</button>
         <div class="rdv2-title-area">
-          <span class="rdv2-subtitle">Editar reserva</span>
+          <span class="rdv2-subtitle">Ficha da reserva</span>
           <span class="rdv2-id-pill">${r.id}</span>
         </div>
         <div class="rdv2-header-actions">
@@ -398,10 +398,10 @@ async function showDetail(id, opts = {}) {
           ${r.payment_policy ? `<div class="rdv2-widget">
             <div class="rdv2-widget-title">${AppModules.core.lcIcon('credit-card', 18)} Política de pagamento</div>
             <p>Inicial: <strong>${fmt(r.payment_policy.depositCents / 100)}</strong> · Restante previsto: <strong>${fmt(r.payment_policy.balanceCents / 100)}</strong></p>
-            ${r.payment_policy.balanceCents ? `<p>Vencimento: ${AppModules.core.escapeHtml(new Date(r.payment_policy.dueAt).toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' }))} (Lisboa)</p>` : ''}
+            ${r.payment_policy.balanceCents ? `<p>Vencimento: ${AppModules.core.escapeHtml(window.ReservationDates.formatDateTime(r.payment_policy.dueAt))} (Lisboa)</p>` : ''}
             <p>${r.payment_policy.accepted ? 'Condições aceites pelo hóspede.' : 'A aguardar aceitação das condições pelo hóspede.'}</p>
             ${r.payment_policy.cancellation ? `<p>Reembolso previsto no cancelamento: ${fmt(r.payment_policy.cancellation.amount)}.</p>` : `<p>Reembolso se cancelar agora: ${fmt(r.payment_policy.refundCents / 100)} (${r.payment_policy.refundPercent}%).</p>`}
-            ${r.balance_deadline ? `<p>Prazo adicional: ${AppModules.core.escapeHtml(new Date(r.balance_deadline).toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' }))}.</p>` : ''}
+            ${r.balance_deadline ? `<p>Prazo adicional: ${AppModules.core.escapeHtml(window.ReservationDates.formatDateTime(r.balance_deadline))}.</p>` : ''}
             ${r.payment_policy.cancellation ? `<p>Cancelamento: ${r.payment_policy.cancellation.state === 'complete' ? 'processamento concluído' : r.payment_policy.cancellation.state === 'manual_review' ? 'reembolso precisa de revisão manual' : 'reembolso em processamento'}.</p>` : ''}
             ${paymentPageUrl ? `<button class="rdv2-action-link" ${AppActions.attrs('click', 'detalhe-write-text-8f51584', [paymentPageUrl])}>${AppModules.core.lcIcon('copy', 12)} Copiar link da reserva e pagamento</button>` : ''}
           </div>` : ''}

@@ -1,28 +1,61 @@
         <section class="settings-shell">
-          <div class="settings-tabs">
-            <button class="settings-tab active" data-settings-tab="gcal" data-on-click="index-switch-settings-tab-9fb9b21">
-              <i data-lucide="blocks"></i> Google
-            </button>
-            <button class="settings-tab" data-settings-tab="database" data-on-click="index-switch-settings-tab-7a90904">
-              <i data-lucide="database"></i> Base de dados
-            </button>
-            <button class="settings-tab" data-settings-tab="operations" data-on-click="index-switch-settings-tab-4789cef">
-              <i data-lucide="list-checks"></i> Tarefas
-            </button>
-            <button class="settings-tab" data-settings-tab="emails" data-on-click="index-switch-settings-tab-cb9fcd7">
-              <i data-lucide="mail"></i> Emails
-            </button>
-            <button class="settings-tab" data-settings-tab="fornecedores" data-on-click="index-switch-settings-tab-a97cb74">
-              <i data-lucide="truck"></i> Fornecedores
-            </button>
-            <button class="settings-tab" data-settings-tab="push" data-on-click="index-switch-settings-tab-9100a42">
-              <i data-lucide="bell-ring"></i> Notificações
-            </button>
-            <button class="settings-tab" data-settings-tab="equipa" data-owner-only="true" style="display:none;" data-on-click="index-switch-settings-tab-e9ee807">
-              <i data-lucide="users-round"></i> Equipa
-            </button>
-            <button class="settings-tab" data-settings-tab="payments" data-on-click="payment-policy-open"><i data-lucide="credit-card"></i> Pagamentos e cancelamentos</button>
-          </div>
+          <!-- Secções por assunto. No computador é uma coluna à esquerda; no
+               telemóvel é a página inicial das Definições e cada secção abre
+               no ecrã inteiro, com «Definições» para voltar (app.js). -->
+          <nav class="settings-nav" aria-label="Secções das definições">
+            <div class="settings-nav-group">
+              <span class="settings-nav-title">Reservas</span>
+              <button type="button" class="settings-tab" data-settings-tab="payments" data-on-click="payment-policy-open">
+                <i data-lucide="credit-card"></i>
+                <span class="settings-tab-text"><strong>Pagamentos e cancelamentos</strong><small>Sinal, prazos e reembolsos</small></span>
+                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
+              </button>
+              <button type="button" class="settings-tab" data-settings-tab="emails" data-on-click="index-switch-settings-tab-cb9fcd7">
+                <i data-lucide="mail"></i>
+                <span class="settings-tab-text"><strong>Emails aos hóspedes</strong><small>Modelos e envios automáticos</small></span>
+                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
+              </button>
+              <button type="button" class="settings-tab" data-settings-tab="operations" data-on-click="index-switch-settings-tab-4789cef">
+                <i data-lucide="list-checks"></i>
+                <span class="settings-tab-text"><strong>Tarefas automáticas</strong><small>Tarefas criadas pelas reservas</small></span>
+                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
+              </button>
+            </div>
+            <div class="settings-nav-group">
+              <span class="settings-nav-title">Ligações</span>
+              <button type="button" class="settings-tab" data-settings-tab="gcal" data-on-click="index-switch-settings-tab-9fb9b21">
+                <i data-lucide="blocks"></i>
+                <span class="settings-tab-text"><strong>Google</strong><small>Gmail, Calendar e Tasks</small></span>
+                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
+              </button>
+              <button type="button" class="settings-tab" data-settings-tab="push" data-on-click="index-switch-settings-tab-9100a42">
+                <i data-lucide="bell-ring"></i>
+                <span class="settings-tab-text"><strong>Notificações push</strong><small>Avisos no telemóvel e no computador</small></span>
+                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
+              </button>
+            </div>
+            <div class="settings-nav-group">
+              <span class="settings-nav-title">Gestão</span>
+              <button type="button" class="settings-tab" data-settings-tab="equipa" data-owner-only="true" data-on-click="index-switch-settings-tab-e9ee807">
+                <i data-lucide="users-round"></i>
+                <span class="settings-tab-text"><strong>Equipa</strong><small>Membros, funções e convites</small></span>
+                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
+              </button>
+              <button type="button" class="settings-tab" data-settings-tab="fornecedores" data-on-click="index-switch-settings-tab-a97cb74">
+                <i data-lucide="truck"></i>
+                <span class="settings-tab-text"><strong>Fornecedores</strong><small>Lista usada nas despesas</small></span>
+                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
+              </button>
+              <button type="button" class="settings-tab" data-settings-tab="database" data-on-click="index-switch-settings-tab-7a90904">
+                <i data-lucide="database"></i>
+                <span class="settings-tab-text"><strong>Dados e cópias de segurança</strong><small>Exportar, importar e estado do sistema</small></span>
+                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
+              </button>
+            </div>
+          </nav>
+          <button type="button" class="settings-back" data-on-click="settings-open-index">
+            <i data-lucide="chevron-left"></i> Definições
+          </button>
 
           <div class="settings-panel" id="settings-payments"><div id="pp-content"></div></div>
           <div class="settings-panel active" id="settings-gcal">
@@ -291,7 +324,7 @@
               </div>
             </div>
             <!-- Estado do sistema: tarefas automáticas e filas (só o proprietário; /api/ops/status). -->
-            <div class="card settings-db-card settings-db-card-full" data-owner-only="true" style="display:none;margin-top:16px;">
+            <div class="card settings-db-card settings-db-card-full" data-owner-only="true" style="margin-top:16px;">
               <div class="card-header">
                 <span class="card-title"><i data-lucide="activity"></i> Estado do sistema</span>
                 <button type="button" class="btn btn-ghost btn-sm" data-on-click="team-load-system-status"><i data-lucide="refresh-cw"></i> Atualizar</button>
@@ -501,7 +534,7 @@
             </div>
           </div>
 
-          <div class="settings-panel" id="settings-equipa" data-owner-only="true" style="display:none;">
+          <div class="settings-panel" id="settings-equipa" data-owner-only="true">
             <div class="card" style="margin-bottom:24px;">
               <div class="card-header">
                 <span class="card-title"><i data-lucide="users-round"></i> Equipa</span>

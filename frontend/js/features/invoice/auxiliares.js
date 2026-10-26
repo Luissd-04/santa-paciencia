@@ -93,8 +93,7 @@ function fmtDate(d) {
 }
 
 function fmtDateTime(d) {
-  if (!d) return '—';
-  return new Date(d).toLocaleString('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return window.ReservationDates.formatDateTime(d, 'compact');
 }
 
 function formatMoney(v) {

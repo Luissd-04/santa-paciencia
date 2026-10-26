@@ -245,10 +245,17 @@
     min-width: 0;
   }
 
+  .reservas-period-count { flex-shrink: 0; }
+
   .reservas-period-context {
     padding: 0 5px 2px;
     text-align: left;
   }
+}
+
+/* Ecrãs muito estreitos (320px): sem o ícone, texto e contagem cabem sem se sobrepor. */
+@media (max-width: 360px) {
+  .reservas-period-btn > svg, .reservas-period-btn > i { display: none; }
 }
 
 /* ══════════════════════════════════════════════════════════════

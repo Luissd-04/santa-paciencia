@@ -73,6 +73,8 @@
   margin-bottom: 14px;
 }
 .report-chart-wrap { margin-bottom: 14px; }
+/* Antes do gráfico desenhar (ou sem a biblioteca), o canvas tem 300 px fixos. */
+.report-chart-wrap canvas { max-width: 100%; }
 .report-loading {
   display: flex;
   align-items: center;

@@ -23,6 +23,11 @@ async function main() {
   db.prepare('INSERT INTO guests(id,organization_id,name,email) VALUES(?,?,?,?)').run('guest',org.id,'Hóspede UX','guest@example.invalid');
   db.prepare(`INSERT INTO reservations(id,organization_id,guest_id,accommodation_id,check_in,check_out,nights,num_guests,num_adults,total_amount,status)
     VALUES('res',?,'guest','unit','2030-07-06','2030-07-08',2,1,1,200,'confirmada')`).run(org.id);
+  // Nomes compridos: fazem crescer as listas que não estejam presas à largura do ecrã.
+  db.prepare('INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests) VALUES(?,?,?,?,?,?)').run('unit-long', org.id, 'Suite Familiar com Varanda e Vista sobre a Praça Velha', 'alojamento', 160, 4);
+  db.prepare('INSERT INTO guests(id,organization_id,name,email) VALUES(?,?,?,?)').run('guest-long',org.id,'María Ángeles de Oliveira Gonçalves-Schäfer Vasconcelos','long@example.invalid');
+  db.prepare(`INSERT INTO reservations(id,organization_id,guest_id,accommodation_id,check_in,check_out,nights,num_guests,num_adults,total_amount,status)
+    VALUES('res-long',?,'guest-long','unit-long','2031-03-02','2031-03-16',14,2,2,2240,'pendente')`).run(org.id);
   server = app.listen(0, '127.0.0.1');
   await new Promise((resolve,reject)=>{server.once('listening',resolve);server.once('error',reject);});
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -263,6 +268,39 @@ async function main() {
   await expect(page.locator('.toast',{hasText:'o pré-check-in ainda não foi preenchido'})).toBeVisible();
   await expect(statusSelect).toHaveValue('confirmada');
   assert.equal(db.prepare("SELECT status FROM reservations WHERE id='res'").get().status,'confirmada');
+  // Nenhuma vista mais larga do que o ecrã. .main não faz scroll lateral, por
+  // isso o que passasse ficava cortado sem se notar (dashboard a 420 px num
+  // ecrã de 390; tabela do estado do sistema nas definições).
+  // Ecrã tátil, como no iPhone: as regras para dedo (pointer: coarse) também contam.
+  const touch=await browser.newContext({viewport:{width:390,height:812},isMobile:true,hasTouch:true,serviceWorkers:'block'});
+  await touch.route('https://**/*', route => route.abort());
+  await touch.addCookies([{name:auth.SESSION_COOKIE,value:session,url:base}]);
+  const tpage=await touch.newPage();tpage.on('pageerror',e=>errors.push(e.message));
+  await tpage.goto(base);
+  await expect(tpage.locator('body')).toHaveClass(/auth-ready/);
+  const views=['dashboard','reservas','calendario','eventos','hospedes','alojamentos','despesas','relatorios','vouchers','precos','invoice','notificacoes','definicoes'];
+  for (const width of [320,390]) {
+    await tpage.setViewportSize({width,height:812});
+    for (const view of views) {
+      await tpage.evaluate(v=>AppModules.core.showView(v),view);
+      if (view==='definicoes') await tpage.evaluate(()=>AppModules.core.switchSettingsTab('database'));
+      await expect(tpage.locator(`#view-${view} .view-loading`)).toHaveCount(0);
+      await tpage.waitForTimeout(400); // listas que chegam da API depois da vista
+      // Elementos visíveis que passam da margem direita, fora de uma faixa com
+      // scroll lateral própria (separadores, tabelas): esses ficam cortados.
+      const culprits=await tpage.locator('.main').evaluate(main=>{
+        const right=main.getBoundingClientRect().right;
+        const scrolls=el=>{for(let p=el.parentElement;p&&p!==main;p=p.parentElement){const o=getComputedStyle(p).overflowX;if(o==='auto'||o==='scroll')return true;}return false;};
+        const out=[...main.querySelectorAll('.view.active *')].filter(el=>{
+          const r=el.getBoundingClientRect(),cs=getComputedStyle(el);
+          return r.width>0&&r.height>0&&r.right>right+1&&cs.visibility!=='hidden'&&cs.position!=='fixed'&&!scrolls(el);
+        });
+        return out.filter(el=>!out.includes(el.parentElement)).slice(0,3).map(el=>`${el.tagName.toLowerCase()}.${[...el.classList].join('.')}`);
+      });
+      assert.deepEqual(culprits,[],`${view} a ${width}px: conteúdo fora do ecrã`);
+    }
+  }
+  await touch.close();
   // Backoffice sem zoom.
   assert.match(await page.locator('meta[name="viewport"]').getAttribute('content'),/maximum-scale=1/);
   await page.emulateMedia({reducedMotion:'reduce'});
@@ -271,7 +309,7 @@ async function main() {
   assert(await page.locator('#despesas-filter-panel').evaluate(el=>parseFloat(getComputedStyle(el).transitionDuration)<.001));
   await page.keyboard.press('Escape');
   assert.deepEqual(errors,[]);
-  console.log('OK: mobile UX — login, first prices load, overflow, lazy loading, sheets 320/375/600, rotation, menu, event validation, dirty edit, date picker, reduced motion, tap during late repaint, rotation while the calendar loads, new reservation in three steps, status steps from the server and no zoom.');
+  console.log('OK: mobile UX — login, first prices load, overflow, lazy loading, sheets 320/375/600, rotation, menu, event validation, dirty edit, date picker, reduced motion, tap during late repaint, rotation while the calendar loads, new reservation in three steps, status steps from the server, no view wider than the screen and no zoom.');
   await context.close();
 }
 main().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{

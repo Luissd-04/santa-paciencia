@@ -154,14 +154,15 @@ function tlOnPointerMove(e) {
 
   const dayDelta = Math.round(dx / d.dayW);
   const snapDx   = dayDelta * d.dayW;
-  const origCi   = new Date(d.origCheckIn  + 'T12:00:00');
-  const origCo   = new Date(d.origCheckOut + 'T12:00:00');
+  const { addDays, countNights } = window.ReservationDates;
+  const origCi   = d.origCheckIn;
+  const origCo   = d.origCheckOut;
 
   let newCi, newCo;
 
   if (d.type === 'move') {
-    newCi = tlAddDays(origCi, dayDelta);
-    newCo = tlAddDays(origCo, dayDelta);
+    newCi = addDays(origCi, dayDelta);
+    newCo = addDays(origCo, dayDelta);
     const ghostLeft = Math.max(0, d.origLeft + snapDx);
 
     // Detectar row alvo (esconder bloco para não interferir com elementFromPoint)
@@ -187,7 +188,7 @@ function tlOnPointerMove(e) {
 
   } else {
     // Resize: mover o próprio bloco
-    const origNights = Math.round((origCo - origCi) / 86400000);
+    const origNights = countNights(origCi, origCo);
     let newLeft  = d.origLeft;
     let newWidth = d.origWidth;
 
@@ -195,21 +196,21 @@ function tlOnPointerMove(e) {
       const clampedDelta = Math.min(dayDelta, origNights - 1);
       newLeft  = d.origLeft  + clampedDelta * d.dayW;
       newWidth = d.origWidth - clampedDelta * d.dayW;
-      newCi    = tlAddDays(origCi, clampedDelta);
+      newCi    = addDays(origCi, clampedDelta);
       newCo    = origCo;
     } else {
       const clampedDelta = Math.max(dayDelta, -(origNights - 1));
       newWidth = d.origWidth + clampedDelta * d.dayW;
       newCi    = origCi;
-      newCo    = tlAddDays(origCo, clampedDelta);
+      newCo    = addDays(origCo, clampedDelta);
     }
 
     d.blockEl.style.left  = Math.max(0, newLeft)  + 'px';
     d.blockEl.style.width = Math.max(d.dayW, newWidth) + 'px';
   }
 
-  d.newCheckIn  = tlToDateStr(newCi);
-  d.newCheckOut = tlToDateStr(newCo);
+  d.newCheckIn  = newCi;
+  d.newCheckOut = newCo;
 
   // Detetar conflito para feedback visual imediato
   const checkAcc    = d.targetAccId || d.origAccId;
@@ -234,7 +235,7 @@ function tlOnPointerMove(e) {
   d.hasConflict = directConflict || childConflict;
   if (d.ghost) d.ghost.classList.toggle('tl-drop-ghost-conflict', d.hasConflict);
 
-  const fmt = dt => `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
+  const fmt = iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
   const label = d.targetAccId ? `${d.targetAccName} · ` : '';
   d.tooltip.textContent   = (d.hasConflict ? '⚠ ' : '') + label + `${fmt(newCi)} → ${fmt(newCo)}`;
   d.tooltip.style.left    = (e.clientX + 14) + 'px';
@@ -376,28 +377,23 @@ if (window.PubSub) {
   });
 }
 
-function tlAddDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
-function tlToDateStr(d)  {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
 function tlShowConfirm(msgHtml, onConfirm, onCancel, isOverbooking = false) {
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999;';
-  const actions = isOverbooking
-    ? `<button class="btn btn-ghost btn-sm" id="_tl-cancel">Cancelar</button>`
-    : `<button class="btn btn-ghost btn-sm" id="_tl-cancel">Cancelar</button>
-       <button class="btn btn-primary btn-sm" id="_tl-confirm">Confirmar alteração</button>`;
-  overlay.innerHTML = `
-    <div style="background:#fff;border-radius:14px;padding:28px 32px;max-width:420px;width:92%;box-shadow:0 8px 32px rgba(0,0,0,.18);">
-      <div style="font-size:14.5px;color:var(--azul);line-height:1.6;margin-bottom:22px;">${msgHtml}</div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;">${actions}</div>
-    </div>`;
-  document.body.appendChild(overlay);
-  const dismiss = cb => { overlay.remove(); cb?.(); };
-  overlay.querySelector('#_tl-cancel').onclick  = () => dismiss(onCancel);
-  overlay.querySelector('#_tl-confirm')?.addEventListener('click', () => { overlay.remove(); onConfirm(); });
-  overlay.onclick = e => { if (e.target === overlay) dismiss(onCancel); };
+  // Cancelar, tocar fora, Escape ou mudar de vista repõem a grelha (onCancel).
+  let confirmed = false;
+  const overlay = AppUI.openDialog({
+    title: isOverbooking ? 'Não é possível mover' : 'Mover reserva?',
+    body: `<div style="font-size:14.5px;color:var(--azul);line-height:1.6;">${msgHtml}</div>`,
+    footer: isOverbooking
+      ? '<button type="button" class="btn btn-ghost" data-dialog-close>Fechar</button>'
+      : `<button type="button" class="btn btn-ghost" data-dialog-close>Cancelar</button>
+         <button type="button" class="btn btn-primary" id="_tl-confirm">Confirmar alteração</button>`,
+    onClose: () => { if (!confirmed) onCancel?.(); },
+  });
+  overlay.querySelector('#_tl-confirm')?.addEventListener('click', () => {
+    confirmed = true;
+    AppUI.closeDialog(overlay);
+    onConfirm();
+  });
 }
 
 })();

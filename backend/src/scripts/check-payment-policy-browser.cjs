@@ -63,7 +63,7 @@ async function main() {
 
   fs.mkdirSync(artifacts,{recursive:true});
   await page.goto(base+'/definicoes',{waitUntil:'networkidle'});
-  await page.getByRole('button',{name:'Pagamentos e cancelamentos',exact:true}).click();
+  await page.getByRole('button',{name:/^Pagamentos e cancelamentos/}).click();
   await expect(page.locator('#pp-form')).toBeVisible();
   await expect(page.locator('#pp-enabled')).not.toBeChecked();
   // O seletor de datas próprio torna estes campos readonly assim que se anexa;
