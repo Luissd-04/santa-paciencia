@@ -24,9 +24,16 @@ let server, browser;
 const PASSWORD = 'SyntheticPwa123!';
 const reservationsOf = name => db.prepare('SELECT r.id, r.total_amount FROM reservations r JOIN guests g ON g.id = r.guest_id WHERE g.name = ?').all(name);
 
+// No telemóvel a reserva nova tem três passos: o nome está no 2.º e Guardar no 3.º.
+async function nextStep(page) {
+  const next = page.locator('#resf-mstep-next');
+  if (await next.isVisible()) await next.click();
+}
 async function fillNewReservation(page, name, checkIn, checkOut) {
   await page.evaluate(([ci, co]) => AppModules.reservas.openModal({ checkIn: ci, checkOut: co, accommodationId: 'unit' }), [checkIn, checkOut]);
+  await nextStep(page);
   await page.locator('#f-nome-completo').fill(name);
+  await nextStep(page);
   await expect(page.locator('#resf-total-badge')).toHaveText(/^200,00\s€$/);
 }
 
@@ -106,6 +113,8 @@ async function main() {
   await page.evaluate(() => AppModules.reservas.openModal());
   await expect(page.locator('#f-nome-completo')).toHaveValue('Hóspede Sessão');
   await expect(page.locator('#f-notas')).toHaveValue('Chegada tardia');
+  await nextStep(page);
+  await nextStep(page);
   await page.locator('#btn-guardar').click();
   await expect(page.locator('#modal-bg')).not.toHaveClass(/open/);
   assert.equal(reservationsOf('Hóspede Sessão').length, 1);
@@ -120,6 +129,7 @@ async function main() {
   await expect(page.locator('#app-update-banner')).toContainText('versão nova');
   // Com alterações por guardar, o aviso do browser pode cancelar o recarregamento.
   await page.evaluate(id => AppModules.reservas.openEditModal(id), reservationsOf('Hóspede Sessão')[0].id);
+  await page.getByRole('button', { name: 'Preço', exact: true }).click();
   await page.locator('#f-notas').fill('');
   await page.locator('#f-notas').click();               // interação real: o browser só avisa com ela
   await page.keyboard.type('Alteração por guardar');

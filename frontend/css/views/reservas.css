@@ -1370,3 +1370,318 @@
 .resf-nightly-row.edited .resf-nightly-std {
   display: inline;
 }
+
+/* ══ Nova reserva no telemóvel: três passos (passos.js) ══
+   O formulário é o mesmo do computador. No telemóvel cada passo mostra a sua
+   parte (data-mstep) e os campos opcionais do hóspede ficam recolhidos. */
+.resf-mobile-only { display: none; }
+.resf-dates { display: contents; }
+
+@media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {
+  .resf-desktop-only { display: none !important; }
+
+  /* Só a parte do passo atual. */
+  #modal-bg[data-mstep="1"] [data-mstep]:not([data-mstep="1"]),
+  #modal-bg[data-mstep="2"] [data-mstep]:not([data-mstep="2"]),
+  #modal-bg[data-mstep="3"] [data-mstep]:not([data-mstep="3"]) { display: none !important; }
+  #modal-bg[data-mstep="2"] .resf-section:not([data-mstep]) { display: none; }
+
+  /* Altura fixa: a folha não salta ao mudar de passo e o rodapé fica no fundo. */
+  #modal-bg:not(.resf-page-mode) .resf-modal { height: 92dvh; }
+  #modal-bg .resf-modal { display: flex; flex-direction: column; }
+  #modal-bg .resf-body { flex: 1 0 auto; }
+
+  /* Barra de passos: cada passo é um botão (na edição, salta para lá). */
+  #resf-mstepper {
+    display: flex;
+    flex-direction: column;
+    padding: 0 16px 10px;
+    border-bottom: 1px solid var(--cinza-claro);
+    background: var(--branco);
+  }
+  .resf-mstepper-bars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .resf-mstep-tab {
+    min-height: 40px;
+    padding: 8px 0 0;
+    border: 0;
+    border-top: 4px solid var(--border-strong);
+    background: none;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+  }
+  .resf-mstep-tab.done,
+  .resf-mstep-tab[aria-current="step"] { border-top-color: var(--marca); color: var(--text-main); }
+  .resf-mstep-tab:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+  .resf-mstepper-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* Passo 1: datas, contadores, pequeno-almoço e canal lado a lado. */
+  .resf-stay-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .resf-stay-grid .form-full { grid-column: 1 / -1; }
+  .resf-stepper { display: flex; align-items: center; gap: 6px; }
+  .resf-stepper input { flex: 1; min-width: 0; padding-inline: 4px; text-align: center; -moz-appearance: textfield; appearance: textfield; }
+  .resf-stepper input::-webkit-inner-spin-button,
+  .resf-stepper input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .resf-stepper-btn {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--border-strong);
+    background: var(--branco);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 22px;
+    line-height: 1;
+    touch-action: manipulation;
+  }
+  .resf-stepper-btn:disabled { opacity: .4; }
+
+  /* Passo 1: datas num só cartão (Entrada · noites · Saída). O campo de data
+     fica invisível por cima do texto: tocar abre o seletor de sempre. */
+  .resf-dates {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: 14px;
+    background: var(--branco);
+  }
+  .resf-date-cell { position: relative; margin: 0; min-width: 0; }
+  .resf-date-cell .form-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .resf-date-cell:last-child { text-align: right; }
+  .resf-date-display { display: flex; flex-direction: column; gap: 2px; }
+  .resf-date-caption { font-size: 12px; color: var(--text-muted); }
+  .resf-date-value { font-size: 17px; font-weight: 600; color: var(--text-main); }
+  .resf-date-value.empty { color: var(--marca); }
+  .resf-date-cell .birth-date-control,
+  .resf-date-cell input.form-control {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .resf-date-cell .birth-date-picker-btn { display: none; }
+  .resf-date-cell:focus-within { outline: 2px solid var(--marca); outline-offset: 4px; border-radius: 6px; }
+  .resf-dates-nights {
+    display: block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(139,58,36,.09);
+    color: var(--marca);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  #wiz-nights-badge-wrap { display: none !important; }
+
+  /* Pequeno-almoço como interruptor e canal em botões. */
+  .resf-switch-row {
+    display: flex;
+    grid-column: 1 / -1;
+    align-items: center;
+    gap: 12px;
+    min-height: 52px;
+    padding: 0 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: 14px;
+    background: var(--branco);
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .resf-switch-row span { flex: 1; }
+  .resf-switch-row input {
+    -webkit-appearance: none;
+    appearance: none;
+    position: relative;
+    flex: none;
+    width: 44px;
+    height: 26px;
+    margin: 0;
+    border-radius: 13px;
+    background: rgba(138,130,120,.45);
+    cursor: pointer;
+    transition: background var(--motion-press) ease;
+  }
+  .resf-switch-row input::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,.2);
+    transition: transform var(--motion-press) ease;
+  }
+  .resf-switch-row input:checked { background: var(--marca); }
+  .resf-switch-row input:checked::after { transform: translateX(18px); }
+  .resf-switch-row input:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
+  #resf-canal-group { grid-column: 1 / -1; }
+  .resf-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .resf-chip {
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 20px;
+    background: var(--branco);
+    color: var(--text-main);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .resf-chip[aria-pressed="true"] { border-color: var(--marca); background: var(--marca); color: #fff; font-weight: 600; }
+  #resf-canal-group:not(.resf-canal-more) #f-canal { display: none; }
+  #resf-canal-group.resf-canal-more #f-canal { margin-top: 10px; }
+
+  /* Alojamentos em lista, com a fotografia à esquerda. */
+  #suite-cards-grid { grid-template-columns: 1fr; gap: 8px; }
+  #suite-cards-grid .suite-card-opt {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 76px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: var(--branco);
+  }
+  #suite-cards-grid .suite-card-cover,
+  #suite-cards-grid .suite-card-dot {
+    flex: none;
+    width: 64px !important;
+    height: 64px !important;
+    margin: 0 !important;
+    border-radius: 10px !important;
+    object-fit: cover;
+  }
+  #suite-cards-grid .suite-card-dot { display: grid; place-items: center; font-size: 20px !important; }
+  #suite-cards-grid .unavailable .suite-card-dot { background: var(--cinza-claro); }
+  #suite-cards-grid .suite-card-body { flex: 1; min-width: 0; }
+  #suite-cards-grid .suite-card-name { font-size: 16px; margin-bottom: 2px; overflow-wrap: anywhere; }
+  #suite-cards-grid .suite-card-price { font-size: 15px; }
+  #suite-cards-grid .suite-card-lock { display: none; }
+  #suite-cards-grid .suite-check {
+    order: 1;
+    position: static;
+    display: flex;
+    flex: none;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border-strong);
+    background: transparent;
+  }
+  #suite-cards-grid .selected .suite-check { border-color: var(--marca); background: var(--marca); }
+  #suite-cards-grid .unavailable .suite-check { visibility: hidden; }
+
+  /* Passo 2: pesquisa de hóspede com lupa, depois o hóspede novo. */
+  #resf-guest-search-group > .form-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .resf-search-icon {
+    display: block;
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    width: 20px;
+    height: 20px;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+  #wiz-guest-search { min-height: 52px; padding-left: 44px; border-radius: 14px; }
+  .resf-or-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: -2px 0 14px;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .resf-or-divider::before,
+  .resf-or-divider::after { content: ""; flex: 1; height: 1px; background: var(--border-strong); }
+
+  /* Passo 2: documentos e acompanhantes recolhidos. */
+  .form-group.resf-mobile-only { display: block; }
+  .resf-fold:not([hidden]) {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 56px;
+    padding: 10px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    background: var(--branco);
+    color: var(--text-main);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .resf-fold-text { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
+  .resf-fold-title { font-size: 15px; font-weight: 600; }
+  .resf-fold-hint { font-size: 12px; color: var(--text-muted); }
+  .resf-fold-icon { flex: none; width: 18px; height: 18px; transition: transform var(--motion-press) ease; }
+  .resf-fold[aria-expanded="true"] .resf-fold-icon { transform: rotate(180deg); }
+  #resf-extras-toggle { margin-top: 14px; }
+  #resf-guest-section:not(.resf-docs-shown) .resf-optional-field { display: none !important; }
+  #resf-guest-section:not(.resf-extras-shown) #extra-guests-wrap { display: none !important; }
+
+  /* Passo 3: preço por noite e desconto recolhidos; voucher junto ao preço. */
+  #resf-price-toggle { margin-top: 16px; }
+  #modal-bg:not(.resf-price-shown) #resf-nightly-wrap .resf-nightly-head,
+  #modal-bg:not(.resf-price-shown) #resf-nightly-grid,
+  #modal-bg:not(.resf-price-shown) #resf-discount-wrap { display: none !important; }
+  #resf-voucher-wrap { order: -1; }
+  .resf-section[data-mstep="3"] > .resf-section-title { display: none; }
+
+  /* Passo 3: resumo com atalhos para corrigir. */
+  #resf-msummary:not(:empty) {
+    display: flex;
+    flex-direction: column;
+    margin: 16px 16px 0;
+    border: 1px solid var(--border-strong);
+    border-radius: 14px;
+    background: var(--branco);
+  }
+  .resf-msummary-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; }
+  .resf-msummary-row + .resf-msummary-row { border-top: 1px solid var(--cinza-claro); }
+  .resf-msummary-text { flex: 1; min-width: 0; }
+  .resf-msummary-title { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+  .resf-msummary-sub { font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
+  .resf-msummary-edit {
+    flex: none;
+    min-height: 44px;
+    padding: 0 4px;
+    border: 0;
+    background: none;
+    color: var(--marca);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  /* Rodapé: Voltar / total / Seguinte; Guardar só no último passo (sempre na edição). */
+  .resf-footer { gap: 10px; }
+  .resf-footer .resf-footer-main { flex: 1; justify-content: flex-end; }
+  #resf-mstep-prev:not([hidden]),
+  #resf-mstep-next:not([hidden]) { display: inline-flex; }
+  #modal-bg:not(.resf-mobile-editing):not([data-mstep="3"]) #btn-guardar { display: none; }
+
+  /* O botão «voltar ao topo» ficava por cima dos campos do formulário. */
+  body.modal-open .mobile-back-to-top { display: none !important; }
+}

@@ -157,6 +157,8 @@ async function main() {
   await expect(page.locator('#modal-bg')).not.toHaveClass(/open/);
   assert.equal(confirmations,0);
   await page.evaluate(()=>AppModules.reservas.openEditModal('res'));
+  // No telemóvel as notas estão no passo «Preço»; na edição salta-se diretamente.
+  await page.getByRole('button',{name:'Preço',exact:true}).click();
   await page.locator('#f-notas').fill('Alteração por guardar');
   await page.keyboard.press('Escape');
   await expect.poll(()=>confirmations).toBe(1);
@@ -164,6 +166,7 @@ async function main() {
   await expect(page.locator('#f-notas')).toHaveValue('Alteração por guardar');
   page.off('dialog',dismiss);
   // Fine pointer date picker stays in the viewport; Escape closes only the picker.
+  await page.getByRole('button',{name:'Estadia',exact:true}).click();
   await page.locator('#f-checkin').click();
   await expect(page.locator('.date-pop')).toBeVisible();
   assert(await page.locator('.date-pop').evaluate(el=>{const r=el.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth;}));
@@ -173,13 +176,67 @@ async function main() {
   page.once('dialog',dialog=>dialog.accept());
   await page.keyboard.press('Escape');
   await expect(page.locator('#modal-bg')).not.toHaveClass(/open/);
+  // Nova reserva em três passos: cada passo só com a sua parte; avança só com
+  // o anterior completo; documentos e acompanhantes recolhidos.
+  await page.evaluate(()=>AppModules.reservas.openModal());
+  const wizard=page.locator('#modal-bg');
+  await expect(wizard).toHaveAttribute('data-mstep','1');
+  await expect(page.locator('#f-nome-completo')).toBeHidden();
+  await expect(page.locator('#btn-guardar')).toBeHidden();
+  await page.locator('#resf-mstep-next').click();
+  await expect(wizard).toHaveAttribute('data-mstep','1');
+  await page.evaluate(()=>{for(const [id,value] of [['f-checkin','2035-07-03'],['f-checkout','2035-07-06']]){const input=document.getElementById(id);input.value=value;input.dispatchEvent(new Event('change',{bubbles:true}));}});
+  // Datas num cartão, pequeno-almoço em interruptor, canal em botões e alojamentos em lista.
+  await expect(page.locator('#resf-checkin-display')).toHaveText('ter, 3 jul 2035');
+  await expect(page.locator('#resf-dates-nights')).toHaveText('3 noites');
+  await page.getByRole('switch',{name:'Pequeno-almoço incluído'}).click();
+  await expect(page.locator('#f-breakfast')).toHaveValue('true');
+  await page.getByRole('button',{name:'Booking.com',exact:true}).click();
+  await expect(page.locator('#f-canal')).toHaveValue('booking');
+  await expect(page.locator('#f-canal')).toBeHidden();
+  await page.getByRole('button',{name:'Mais…',exact:true}).click();
+  await expect(page.locator('#f-canal')).toBeVisible();
+  await page.locator('#f-canal').selectOption('whatsapp');
+  await expect(page.getByRole('button',{name:'Mais…',exact:true})).toHaveAttribute('aria-pressed','true');
+  assert.equal(await page.locator('#suite-cards-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),1);
+  await page.locator('.suite-card-opt',{hasText:'Unidade UX'}).click();
+  await page.getByRole('button',{name:'Mais uma criança'}).click();
+  await expect(page.locator('#f-num-criancas')).toHaveValue('1');
+  await page.getByRole('button',{name:'Menos uma criança'}).click();
+  await expect(page.getByRole('button',{name:'Menos uma criança'})).toBeDisabled();
+  await page.locator('#resf-mstep-next').click();
+  await expect(wizard).toHaveAttribute('data-mstep','2');
+  await expect(page.locator('#f-doc-num')).toBeHidden();
+  await page.locator('#resf-docs-toggle').click();
+  await expect(page.locator('#f-doc-num')).toBeVisible();
+  await expect(page.locator('#resf-extras-toggle')).toContainText('Acompanhante (1)');
+  await page.locator('#resf-mstep-next').click();
+  await expect(wizard).toHaveAttribute('data-mstep','2');
+  await page.locator('#f-nome-completo').fill('Hóspede Passos');
+  await page.locator('#resf-mstep-next').click();
+  await expect(wizard).toHaveAttribute('data-mstep','3');
+  await expect(page.locator('#resf-msummary')).toContainText('Hóspede Passos');
+  await expect(page.locator('#resf-nightly-grid')).toBeHidden();
+  await page.locator('#btn-guardar').click();
+  await expect(wizard).not.toHaveClass(/open/);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM reservations r JOIN guests g ON g.id=r.guest_id WHERE g.name='Hóspede Passos'").get().n,1);
+  // Na edição, Guardar está em todos os passos; fechar sem alterações não pergunta nada,
+  // mesmo depois de chegar a cotação do servidor.
+  await page.evaluate(()=>AppModules.reservas.openEditModal('res'));
+  await expect(page.locator('#btn-guardar')).toBeVisible();
+  await expect(page.locator('#resf-mstep-next')).toBeHidden();
+  await expect(page.locator('#f-total-manual')).not.toHaveValue('');
+  await page.keyboard.press('Escape');
+  await expect(wizard).not.toHaveClass(/open/);
+  // Backoffice sem zoom.
+  assert.match(await page.locator('meta[name="viewport"]').getAttribute('content'),/maximum-scale=1/);
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.locator('#bn-despesas').click();
   await page.getByRole('button',{name:'Filtros',exact:true}).click();
   assert(await page.locator('#despesas-filter-panel').evaluate(el=>parseFloat(getComputedStyle(el).transitionDuration)<.001));
   await page.keyboard.press('Escape');
   assert.deepEqual(errors,[]);
-  console.log('OK: mobile UX — login, first prices load, overflow, lazy loading, sheets 320/375/600, rotation, menu, event validation, dirty edit, date picker, reduced motion, tap during late repaint and rotation while the calendar loads.');
+  console.log('OK: mobile UX — login, first prices load, overflow, lazy loading, sheets 320/375/600, rotation, menu, event validation, dirty edit, date picker, reduced motion, tap during late repaint, rotation while the calendar loads, new reservation in three steps and no zoom.');
   await context.close();
 }
 main().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{

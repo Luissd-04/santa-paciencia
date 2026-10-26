@@ -75,6 +75,7 @@ function openModal(config = {}) {
   AppModules.reservas.calcTotal();
   AppModules.reservas.updateWizSummary();
   AppUI.refreshDropdowns(document.getElementById('modal-bg'));
+  AppModules.reservas.resetMobileSteps();
   AppUI.openModal('modal-bg');
 }
 
@@ -254,6 +255,7 @@ async function openEditModal(id) {
     AppUI.refreshDropdowns(document.getElementById('modal-bg'));
     document.getElementById('modal-bg').classList.toggle('resf-page-mode', AppModules.reservas._wizardPageMode);
     AppModules.reservas.captureReservaEditBaseline();
+    AppModules.reservas.resetMobileSteps();
     AppUI.openModal('modal-bg');
   } catch (e) {
     AppModules.core.toast('❌ Erro ao carregar reserva.', 'error');

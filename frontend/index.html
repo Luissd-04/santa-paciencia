@@ -2,7 +2,8 @@
 <html lang="pt">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- Backoffice: sem zoom (a app adapta-se ao ecrã). As páginas dos hóspedes mantêm o zoom. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <title>Santa Paciência</title>
 
 <!-- PWA manifest -->
@@ -704,10 +705,20 @@
         <i data-lucide="arrow-left" style="width:15px;height:15px;"></i> Voltar à reserva
       </button>
       <span class="modal-title" id="modal-title">Nova Reserva</span>
-      <button class="modal-close" data-on-click="index-request-close-reserva-modal-92eb2a6">
+      <button class="modal-close" data-on-click="index-request-close-reserva-modal-92eb2a6" aria-label="Fechar">
         <i data-lucide="x" style="width:20px;height:20px;"></i>
       </button>
     </div>
+
+    <!-- Telemóvel: a reserva em três passos (passos.js). -->
+    <nav class="resf-mstepper resf-mobile-only" id="resf-mstepper" aria-label="Passos da reserva">
+      <div class="resf-mstepper-bars">
+        <button type="button" class="resf-mstep-tab" data-mstep-tab="1" data-on-click="index-mobile-step-go">Estadia</button>
+        <button type="button" class="resf-mstep-tab" data-mstep-tab="2" data-on-click="index-mobile-step-go">Hóspede</button>
+        <button type="button" class="resf-mstep-tab" data-mstep-tab="3" data-on-click="index-mobile-step-go">Preço</button>
+      </div>
+      <div class="resf-mstepper-label" id="resf-mstepper-label" aria-live="polite"></div>
+    </nav>
 
     <div class="modal-body resf-body">
 
@@ -728,18 +739,24 @@
       <span id="ws-nights" style="display:none;"></span>
       <span id="ws-total" style="display:none;"></span>
       <span id="wiz-conf-card" style="display:none;"></span>
+      <div id="resf-msummary" class="resf-msummary resf-mobile-only" data-mstep="3"></div>
 
       <!-- ── SECÇÃO 1: DATAS & ALOJAMENTO ── -->
       <div class="resf-section">
-        <div class="resf-section-title"><i data-lucide="calendar" style="width:14px;height:14px;"></i> Datas & Alojamento</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="f-checkin" class="form-label">Check-in <span class="req-star">*</span></label>
-            <input class="form-control" id="f-checkin" type="date" data-on-change="index-calc-total-a1c3bab" autocomplete="off">
-          </div>
-          <div class="form-group">
-            <label for="f-checkout" class="form-label">Check-out <span class="req-star">*</span></label>
-            <input class="form-control" id="f-checkout" type="date" data-dp-range-end="f-checkin" data-on-change="index-calc-total-a1c3bab" autocomplete="off">
+        <div class="resf-section-title" data-mstep="1"><i data-lucide="calendar" style="width:14px;height:14px;"></i> Datas & Alojamento</div>
+        <div class="form-grid resf-stay-grid" data-mstep="1">
+          <div class="resf-dates">
+            <div class="form-group resf-date-cell">
+              <label for="f-checkin" class="form-label">Check-in <span class="req-star">*</span></label>
+              <span class="resf-date-display resf-mobile-only" aria-hidden="true"><span class="resf-date-caption">Entrada</span><span class="resf-date-value" id="resf-checkin-display">Escolher</span></span>
+              <input class="form-control" id="f-checkin" type="date" data-on-change="index-calc-total-a1c3bab" autocomplete="off">
+            </div>
+            <span class="resf-dates-nights resf-mobile-only" id="resf-dates-nights" aria-hidden="true"></span>
+            <div class="form-group resf-date-cell">
+              <label for="f-checkout" class="form-label">Check-out <span class="req-star">*</span></label>
+              <span class="resf-date-display resf-mobile-only" aria-hidden="true"><span class="resf-date-caption">Saída</span><span class="resf-date-value" id="resf-checkout-display">Escolher</span></span>
+              <input class="form-control" id="f-checkout" type="date" data-dp-range-end="f-checkin" data-on-change="index-calc-total-a1c3bab" autocomplete="off">
+            </div>
           </div>
           <div class="form-group form-full" id="wiz-nights-badge-wrap" style="display:none;">
             <div class="wiz-nights-badge">
@@ -752,24 +769,42 @@
           </div>
           <div class="form-group">
             <label for="f-num-adultos" class="form-label">Adultos <span class="req-star">*</span></label>
-            <input class="form-control" id="f-num-adultos" type="number" min="1" max="20" value="2" data-on-change="index-update-num-hospedes-ef410f4" autocomplete="off">
+            <div class="resf-stepper">
+              <button type="button" class="resf-stepper-btn resf-mobile-only" data-stepper-for="f-num-adultos" data-stepper-delta="-1" data-on-click="index-mobile-stepper" aria-label="Menos um adulto">−</button>
+              <input class="form-control" id="f-num-adultos" type="number" min="1" max="20" value="2" data-on-change="index-update-num-hospedes-ef410f4" autocomplete="off">
+              <button type="button" class="resf-stepper-btn resf-mobile-only" data-stepper-for="f-num-adultos" data-stepper-delta="1" data-on-click="index-mobile-stepper" aria-label="Mais um adulto">+</button>
+            </div>
           </div>
           <div class="form-group">
             <label for="f-num-criancas" class="form-label">Crianças</label>
-            <input class="form-control" id="f-num-criancas" type="number" min="0" max="20" value="0" data-on-change="index-update-num-hospedes-ef410f4" autocomplete="off">
+            <div class="resf-stepper">
+              <button type="button" class="resf-stepper-btn resf-mobile-only" data-stepper-for="f-num-criancas" data-stepper-delta="-1" data-on-click="index-mobile-stepper" aria-label="Menos uma criança">−</button>
+              <input class="form-control" id="f-num-criancas" type="number" min="0" max="20" value="0" data-on-change="index-update-num-hospedes-ef410f4" autocomplete="off">
+              <button type="button" class="resf-stepper-btn resf-mobile-only" data-stepper-for="f-num-criancas" data-stepper-delta="1" data-on-click="index-mobile-stepper" aria-label="Mais uma criança">+</button>
+            </div>
           </div>
           <div class="form-group form-full" id="resf-child-ages" style="display:none;"></div>
           <input type="hidden" id="f-num-hospedes" value="2">
-          <div class="form-group">
+          <div class="form-group resf-desktop-only">
             <label for="f-breakfast" class="form-label">Pequeno-almoço</label>
             <select class="form-control" id="f-breakfast" data-on-change="index-calc-total-a239bdf">
               <option value="false">Não incluído</option>
               <option value="true">Incluído</option>
             </select>
           </div>
-          <div class="form-group">
+          <label class="resf-switch-row resf-mobile-only" for="resf-breakfast-switch">
+            <span>Pequeno-almoço incluído</span>
+            <input type="checkbox" role="switch" id="resf-breakfast-switch" data-on-change="index-mobile-breakfast">
+          </label>
+          <div class="form-group" id="resf-canal-group">
             <label for="f-canal" class="form-label">Canal</label>
-            <select class="form-control" id="f-canal">
+            <div class="resf-chips resf-mobile-only" role="group" aria-label="Canal">
+              <button type="button" class="resf-chip" data-canal="direto" data-on-click="index-mobile-canal" aria-pressed="false">Direto</button>
+              <button type="button" class="resf-chip" data-canal="booking" data-on-click="index-mobile-canal" aria-pressed="false">Booking.com</button>
+              <button type="button" class="resf-chip" data-canal="airbnb" data-on-click="index-mobile-canal" aria-pressed="false">Airbnb</button>
+              <button type="button" class="resf-chip" data-canal="" data-on-click="index-mobile-canal" aria-pressed="false">Mais…</button>
+            </div>
+            <select class="form-control" id="f-canal" data-on-change="index-mobile-canal-change">
               <option value="airbnb">Airbnb</option>
               <option value="booking">Booking.com</option>
               <option value="direto">Direto</option>
@@ -781,23 +816,28 @@
             </select>
           </div>
         </div>
-        <div style="margin-top:16px;">
+        <div style="margin-top:16px;" data-mstep="1">
           <label for="f-aloj" class="form-label">Alojamento <span class="req-star">*</span></label>
           <select id="f-aloj" style="display:none;" data-on-change="index-calc-total-8bcd488"></select>
           <div class="suite-cards" id="suite-cards-grid"></div>
         </div>
 
         <!-- ── Adicionar quartos extra à mesma reserva (multi-suite) ── -->
-        <div class="form-group form-full" id="wiz-extra-rooms-toggle-wrap" style="margin-top:10px;">
+        <div class="form-group form-full" id="wiz-extra-rooms-toggle-wrap" style="margin-top:10px;" data-mstep="1">
           <button type="button" class="btn btn-ghost btn-sm" data-on-click="index-wiz-toggle-extra-rooms-ce30293">
             <i data-lucide="plus" style="width:14px;height:14px;"></i>
             <span id="wiz-extra-rooms-toggle-label">Adicionar outro quarto</span>
           </button>
         </div>
-        <div class="form-group form-full" id="wiz-extra-rooms-panel" style="display:none;margin-top:10px;"></div>
+        <div class="form-group form-full" id="wiz-extra-rooms-panel" style="display:none;margin-top:10px;" data-mstep="1"></div>
 
         <!-- ── Preço por noite (editável, noite a noite) ── -->
-        <div id="resf-nightly-wrap" class="resf-nightly" style="margin-top:16px;display:none;">
+        <button type="button" class="resf-fold resf-mobile-only" id="resf-price-toggle" data-fold="price" data-on-click="index-mobile-fold" aria-expanded="false" aria-controls="resf-nightly-wrap" data-mstep="3">
+          <span class="resf-fold-text"><span class="resf-fold-title">Ajustar preço por noite ou desconto</span>
+          <span class="resf-fold-hint">O total já inclui as taxas e o voucher</span></span>
+          <i data-lucide="chevron-down" class="resf-fold-icon"></i>
+        </button>
+        <div id="resf-nightly-wrap" class="resf-nightly" style="margin-top:16px;display:none;" data-mstep="3">
           <div class="resf-nightly-head">
             <label class="form-label" style="margin:0;">Preço por noite <span style="font-weight:400;text-transform:none;letter-spacing:0;">(cobrado ao hóspede)</span></label>
             <div class="resf-nightly-apply">
@@ -824,9 +864,9 @@
           </div>
         </div>
 
-        <div id="resf-voucher-line" class="resf-voucher-line" role="status" aria-live="polite" hidden></div>
+        <div id="resf-voucher-line" class="resf-voucher-line" role="status" aria-live="polite" hidden data-mstep="3"></div>
 
-        <div id="resf-discount-wrap" style="margin-top:16px;display:none;">
+        <div id="resf-discount-wrap" style="margin-top:16px;display:none;" data-mstep="3">
           <label class="form-label" style="margin-bottom:6px;">Desconto <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label>
           <div class="resf-discount-row">
             <div class="resf-disc-toggle">
@@ -841,16 +881,18 @@
       </div>
 
       <!-- ── SECÇÃO 2: HÓSPEDE ── -->
-      <div class="resf-section">
+      <div class="resf-section" id="resf-guest-section" data-mstep="2">
         <div class="resf-section-title"><i data-lucide="user" style="width:14px;height:14px;"></i> Hóspede Principal</div>
 
-        <div class="form-group form-full" style="margin-bottom:14px;">
+        <div class="form-group form-full" id="resf-guest-search-group" style="margin-bottom:14px;">
           <label for="wiz-guest-search" class="form-label">Pesquisa rápida (hóspede existente)</label>
           <div class="guest-search-wrap">
-            <input class="form-control" id="wiz-guest-search" placeholder="Nome, email ou telefone…" autocomplete="off" data-on-input="index-wiz-guest-search-ba4bf00">
+            <i data-lucide="search" class="resf-search-icon resf-mobile-only"></i>
+            <input class="form-control" id="wiz-guest-search" placeholder="Procurar hóspede (nome, email, telefone)" autocomplete="off" data-on-input="index-wiz-guest-search-ba4bf00">
             <div class="guest-drop" id="wiz-guest-drop"></div>
           </div>
         </div>
+        <div class="resf-or-divider resf-mobile-only"><span>ou um hóspede novo</span></div>
 
         <div class="form-grid">
           <div class="form-group form-full">
@@ -872,7 +914,14 @@
             <label for="f-pais" class="form-label">País</label>
             <select class="form-control" id="f-pais" data-on-change="index-update-foreign-requirements-2ec6793"></select>
           </div>
-          <div class="form-group">
+          <div class="form-group form-full resf-mobile-only">
+            <button type="button" class="resf-fold" id="resf-docs-toggle" data-fold="docs" data-on-click="index-mobile-fold" aria-expanded="false" aria-controls="resf-guest-section">
+              <span class="resf-fold-text"><span class="resf-fold-title">Documento, NIF e morada</span>
+              <span class="resf-fold-hint">Opcional · o hóspede preenche no pré-check-in</span></span>
+              <i data-lucide="chevron-down" class="resf-fold-icon"></i>
+            </button>
+          </div>
+          <div class="form-group resf-optional-field">
             <label for="f-nascimento" class="form-label">Data de Nascimento</label>
             <div class="birth-date-control">
               <input class="form-control birth-date-input" id="f-nascimento" type="text" inputmode="numeric" maxlength="10" placeholder="dd-mm-aaaa" data-date-format="pt" data-on-input="index-handle-birth-date-input-6742f58" data-on-blur="index-normalize-birth-date-input-19ea83e" autocomplete="off">
@@ -882,11 +931,11 @@
             </div>
             <div class="guest-rate-hint" id="f-nascimento-rate-hint"></div>
           </div>
-          <div class="form-group">
+          <div class="form-group resf-optional-field">
             <label for="f-local-nascimento" class="form-label">Local de Nascimento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
             <input class="form-control" id="f-local-nascimento" placeholder="Cidade de nascimento" autocomplete="off">
           </div>
-          <div class="form-group">
+          <div class="form-group resf-optional-field">
             <label for="f-doc-tipo" class="form-label">Tipo de Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
             <select class="form-control" id="f-doc-tipo">
               <option value="">— Selecionar —</option>
@@ -897,36 +946,41 @@
               <option value="outro">Outro</option>
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group resf-optional-field">
             <label for="f-doc-num" class="form-label">Nº de Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
             <input class="form-control" id="f-doc-num" placeholder="XX000000" autocomplete="off">
           </div>
-          <div class="form-group">
+          <div class="form-group resf-optional-field">
             <label for="f-doc-emissor" class="form-label">País Emissor do Documento <span class="req-foreign" style="display:none;color:var(--vermelho)">*</span></label>
             <select class="form-control" id="f-doc-emissor"></select>
           </div>
-          <div class="form-group">
+          <div class="form-group resf-optional-field">
             <label for="f-nif" class="form-label">NIF</label>
             <input class="form-control" id="f-nif" placeholder="000 000 000" autocomplete="off">
           </div>
-          <div class="form-group">
+          <div class="form-group resf-optional-field">
             <label for="f-empresa" class="form-label">Empresa</label>
             <input class="form-control" id="f-empresa" placeholder="Nome da empresa (opcional)" autocomplete="off">
           </div>
-          <div class="form-group form-full">
+          <div class="form-group form-full resf-optional-field">
             <label for="f-morada" class="form-label">Morada</label>
             <input class="form-control" id="f-morada" placeholder="Rua, nº" autocomplete="off">
           </div>
-          <div class="form-group">
+          <div class="form-group resf-optional-field">
             <label for="f-cp" class="form-label">Código Postal</label>
             <input class="form-control" id="f-cp" placeholder="0000-000" autocomplete="off">
           </div>
-          <div class="form-group">
+          <div class="form-group resf-optional-field">
             <label for="f-cidade" class="form-label">Localidade</label>
             <input class="form-control" id="f-cidade" placeholder="Lisboa" autocomplete="off">
           </div>
         </div>
 
+        <button type="button" class="resf-fold resf-mobile-only" id="resf-extras-toggle" data-fold="extras" data-on-click="index-mobile-fold" aria-expanded="false" aria-controls="extra-guests-wrap" hidden>
+          <span class="resf-fold-text"><span class="resf-fold-title" id="resf-extras-toggle-title">Acompanhantes</span>
+          <span class="resf-fold-hint">Opcional · também no pré-check-in</span></span>
+          <i data-lucide="chevron-down" class="resf-fold-icon"></i>
+        </button>
         <div id="extra-guests-wrap" style="display:none;" class="form-full">
           <div class="section-divider"></div>
           <div class="section-subtitle form-full">
@@ -937,7 +991,7 @@
       </div>
 
       <!-- ── SECÇÃO 3: PAGAMENTO & ESTADO ── -->
-      <div class="resf-section">
+      <div class="resf-section" data-mstep="3">
         <div class="resf-section-title"><i data-lucide="credit-card" style="width:14px;height:14px;"></i> Estado</div>
         <div class="form-grid">
           <div class="form-group">
@@ -979,10 +1033,12 @@
 
     </div><!-- /modal-body -->
 
-    <div class="modal-footer">
-      <button class="btn btn-ghost" data-on-click="index-request-close-reserva-modal-92eb2a6">Cancelar</button>
-      <div style="display:flex;align-items:center;gap:6px;">
+    <div class="modal-footer resf-footer">
+      <button class="btn btn-ghost resf-desktop-only" data-on-click="index-request-close-reserva-modal-92eb2a6">Cancelar</button>
+      <button type="button" class="btn btn-ghost resf-mobile-only" id="resf-mstep-prev" data-on-click="index-mobile-step-prev">Voltar</button>
+      <div class="resf-footer-main" style="display:flex;align-items:center;gap:6px;">
         <span id="resf-total-badge" style="font-size:13px;font-weight:700;color:var(--azul);font-family:'Playfair Display',serif;"></span>
+        <button type="button" class="btn btn-primary resf-mobile-only" id="resf-mstep-next" data-on-click="index-mobile-step-next">Seguinte</button>
         <button class="btn btn-primary" id="btn-guardar" data-on-click="index-save-reserva-0326a52">
           <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar Reserva
         </button>
