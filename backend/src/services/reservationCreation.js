@@ -19,6 +19,8 @@ const SOURCES = {
   backoffice: { event: 'reservation.created', deriveStatus: true },
   // Um pedido do site só muda de estado com a aprovação ou com o pagamento.
   public: { event: 'reservation.requested', deriveStatus: false },
+  // Importada de um ficheiro: histórico de outro sistema, sem emails nem avisos.
+  import: { event: null, deriveStatus: true },
 };
 
 const newReservationId = () => `SP-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
@@ -50,13 +52,13 @@ function create(organizationId, fields, { source, actorUserId = null, voucher = 
   const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(id, organizationId);
   recordHistory({ organizationId, reservationId: id, userId: actorUserId, action: 'created', meta: {
     check_in: reservation.check_in, check_out: reservation.check_out, accommodation_id: reservation.accommodation_id,
-    total_amount: reservation.total_amount, ...(source === 'public' ? { source } : {}),
+    total_amount: reservation.total_amount, ...(source !== 'backoffice' ? { source } : {}),
   } });
   // Google Calendar: a intenção fica gravada com a reserva; a fila cria o evento.
   if (calendarUserId && require('../config/google').isAuthenticated(calendarUserId, organizationId)) {
     require('./calendarService').queueCalendarUpsert(organizationId, 'reservation', id, calendarUserId);
   }
-  events.emit(config.event, { organizationId, reservationId: id, actorUserId, payload: eventPayload });
+  if (config.event) events.emit(config.event, { organizationId, reservationId: id, actorUserId, payload: eventPayload });
   return reservation;
 }
 

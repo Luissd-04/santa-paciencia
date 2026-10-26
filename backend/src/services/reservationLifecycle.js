@@ -15,9 +15,10 @@ const load = (organizationId, id) => db.prepare('SELECT * FROM reservations WHER
 
 // Chamar dentro da transação de quem cancela. Grava o estado e os efeitos
 // comuns a todos os cancelamentos: voucher não pago libertado, evento do
-// calendário removido, histórico e acontecimento (emails e avisos). Devolve
-// false se a reserva já estava cancelada.
-function markCancelled(reservation, { reason, actorUserId = null, policy = false, meta = {}, note = null }) {
+// calendário removido, histórico e acontecimento (emails e avisos; `quiet`:
+// sem acontecimento, para uma importação). Devolve false se a reserva já
+// estava cancelada.
+function markCancelled(reservation, { reason, actorUserId = null, policy = false, meta = {}, note = null, quiet = false }) {
   if (!CANCEL_REASONS.includes(reason)) throw new Error(`Motivo de cancelamento inválido: ${reason}`);
   const { id, organization_id: organizationId } = reservation;
   const changed = db.prepare(`UPDATE reservations SET status = 'cancelada',
@@ -29,7 +30,7 @@ function markCancelled(reservation, { reason, actorUserId = null, policy = false
   require('./voucherService').releaseVoucherIfUnpaid(organizationId, id);
   require('./calendarService').detachReservationEvent(organizationId, id);
   recordHistory({ organizationId, reservationId: id, userId: actorUserId, action: 'cancelled', meta: { reason, ...(policy ? { policy: true } : {}), ...meta } });
-  events.emit('reservation.cancelled', { organizationId, reservationId: id, actorUserId, payload: { reason, policy } });
+  if (!quiet) events.emit('reservation.cancelled', { organizationId, reservationId: id, actorUserId, payload: { reason, policy } });
   return true;
 }
 
