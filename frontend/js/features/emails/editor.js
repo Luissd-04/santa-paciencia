@@ -156,7 +156,7 @@ function selectTemplate(slug) {
       <div class="emed-timing-card">
         <div class="emed-section-label">${AppModules.core.lcIcon('clock-3', 13)} Momento de envio</div>
         ${timingHtml}
-        <label class="email-active-toggle" style="margin-top:4px;">
+        ${AppModules.definicoes.IMMEDIATE_TEMPLATES.includes(slug) ? `<div class="email-timing-fixed" style="font-size:12px;color:var(--cinza);">Enviado logo: o prazo do pagamento conta a partir do envio, por isso não há janela horária.</div>` : `<label class="email-active-toggle" style="margin-top:4px;">
           <input type="checkbox" id="et-window-toggle" ${t.window_start ? 'checked' : ''} data-on-change="emails-toggle-email-window-90fd802">
           <span class="gtt-switch"></span>
           <span class="gtt-label">Restringir a uma janela horária</span>
@@ -166,7 +166,7 @@ function selectTemplate(slug) {
           <input type="time" class="form-control" id="et-window-start" value="${t.window_start || '09:00'}">
           <span>e as</span>
           <input type="time" class="form-control" id="et-window-end" value="${t.window_end || '20:00'}">
-        </div>
+        </div>`}
       </div>
     </div>
 

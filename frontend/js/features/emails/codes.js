@@ -39,9 +39,20 @@ const TEMPLATE_VAR_CATS = [
     ]
   },
   {
+    label: 'Pagamentos',
+    vars: [
+      { key: 'valor_pagamento', label: 'Valor deste pagamento' },
+      { key: 'total_pago',      label: 'Total já pago' },
+      { key: 'valor_em_falta',  label: 'Valor em falta' },
+      { key: 'prazo_pagamento', label: 'Prazo para pagar o restante' },
+      { key: 'valor_reembolso', label: 'Reembolso aplicável' },
+    ]
+  },
+  {
     label: 'Ligações',
     vars: [
       { key: 'link_pre_checkin', label: 'Botão — completar pré check-in' },
+      { key: 'link_reserva',     label: 'Link — página da reserva e pagamento' },
     ]
   },
   {
@@ -58,6 +69,10 @@ const TEMPLATE_VAR_CATS = [
       { key: 'cartao_reserva_sem_total', label: 'Cartão de detalhes sem total' },
       { key: 'botao_alojamento',         label: 'Botão — conhecer o alojamento' },
       { key: 'acompanhe_nos',            label: 'Redes sociais — acompanhe-nos' },
+      { key: 'titulo_pagamento',         label: 'Título do pagamento (recebido / confirmado)' },
+      { key: 'titulo_aviso_pagamento',   label: 'Título — pagamento em falta' },
+      { key: 'cartao_pagamento',         label: 'Cartão do pagamento (total pago e em falta)' },
+      { key: 'botao_reserva',            label: 'Botão — consultar reserva e pagamento' },
       { key: 'localidade',               label: 'Localidade do alojamento' },
     ]
   },

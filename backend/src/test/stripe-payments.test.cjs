@@ -83,6 +83,9 @@ beforeEach(() => {
       VALUES ('unit','stripe-org','Synthetic room','alojamento',100,2);`);
   sessions.clear(); requests.clear(); refunds.clear(); autoIntents.clear(); refundRequests.clear(); autoFailure = false; createCalls = 0;
   require('../services/emailService').sendMail = async () => ({ id: 'mail_synthetic' });
+  // Os avisos da política usam os modelos; aqui o envio resume-se a sendMail.
+  require('../services/emailService').sendTemplatedEmail = async (slug, guest, r) =>
+    require('../services/emailService').sendMail(r.organization_id, { to: guest.email, subject: slug, html: '' });
 });
 after(() => { db.close(); process.chdir(originalCwd); fs.rmSync(temp, { recursive: true, force: true }); });
 function booking(overrides = {}) {

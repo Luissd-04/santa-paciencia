@@ -1,25 +1,28 @@
-const EMAIL_DISABLED = process.env.EMAIL_ENABLED === 'false';
+// Lido em cada envio: desligar o email (EMAIL_ENABLED=false) não exige reiniciar módulos.
+const emailDisabled = () => process.env.EMAIL_ENABLED === 'false';
 const crypto = require('crypto');
 
-const { isEmailAuthenticated, sendViaGmail, getEmailConnectionInfo } = require('../config/googleEmail');
+// Lido no momento do envio (e não desestruturado), para a ligação Gmail poder
+// ser substituída nos testes.
+const googleEmail = require('../config/googleEmail');
 const composer = require('./emailComposer');
 
 const { isDeliverableEmail, isPlaceholderEmail } = require('./emailAddress');
 
 async function sendMail(organizationId, { to, subject, html, bcc, threadId, inReplyTo, references }) {
-  if (EMAIL_DISABLED) return null;
+  if (emailDisabled()) return null;
   if (isPlaceholderEmail(to)) {
     console.warn('⚠️ Email não enviado: destinatário sem endereço real');
     return null;
   }
-  if (!organizationId || !isEmailAuthenticated(organizationId)) {
+  if (!organizationId || !googleEmail.isEmailAuthenticated(organizationId)) {
     console.warn('⚠️ Email não enviado: Gmail não ligado para a organização', organizationId || '(sem organização)');
     return null;
   }
-  const info = getEmailConnectionInfo(organizationId);
+  const info = googleEmail.getEmailConnectionInfo(organizationId);
   const fromName = getEmailSettings(null, organizationId).property_name;
   const from = info.email ? `${fromName} <${info.email}>` : fromName;
-  return sendViaGmail(organizationId, { to, subject, html, from, bcc: bcc || undefined, threadId, inReplyTo, references });
+  return googleEmail.sendViaGmail(organizationId, { to, subject, html, from, bcc: bcc || undefined, threadId, inReplyTo, references });
 }
 
 // Janela horária de envio de um template (ex.: só entre as 09:00 e as 20:00).
@@ -70,8 +73,7 @@ const DEFAULT_FACEBOOK_URL = 'https://www.facebook.com/al.santapaciencia/';
 function resolveLogoUrl(value) {
   if (!value) return DEFAULT_LOGO_URL;
   if (/^https?:\/\//i.test(value)) return value;
-  const base = (process.env.PUBLIC_APP_URL || process.env.FRONTEND_PUBLIC_URL || 'http://localhost:3001').replace(/\/$/, '');
-  return `${base}${value.startsWith('/') ? '' : '/'}${value}`;
+  try { return require('./publicLinks').absoluteUrl(value); } catch { return DEFAULT_LOGO_URL; }
 }
 
 // Aceita string JSON crua (linha da base) ou já em array (chamadas em teste).
@@ -201,6 +203,16 @@ function buildBlocks(vars, settings, reservation) {
     botao_alojamento: composer.buildCtaBlock(s.website, 'Conhecer o alojamento'),
     botao_pre_checkin: composer.buildCtaBlock(vars.link_pre_checkin, 'Completar pré check-in'),
     acompanhe_nos: composer.buildSocialBlock(s),
+    // Pagamentos e política de pagamento.
+    titulo_pagamento: composer.buildReservationTitle(vars.pagamento_liquidado ? 'Pagamento confirmado' : 'Pagamento recebido', '✓'),
+    titulo_aviso_pagamento: composer.buildReservationTitle('Pagamento em falta', '•'),
+    cartao_pagamento: composer.buildReservationCard([
+      { label: 'Alojamento', value: vars.alojamento },
+      { label: 'Referência', value: vars.referencia },
+      { label: 'Total pago', value: vars.total_pago },
+      ...(vars.pagamento_liquidado ? [] : [{ label: 'Em falta', value: vars.valor_em_falta }]),
+    ], vars.total),
+    botao_reserva: composer.buildCtaBlock(vars.link_reserva, 'Consultar reserva e pagamento'),
   };
 }
 
@@ -236,10 +248,7 @@ function renderManualEmail({ organizationId, subject, body, context }) {
 
   if (guest && reservation && accommodation) {
     const extra = {};
-    if (reservation.precheckin_token) {
-      const base = (process.env.PUBLIC_APP_URL || process.env.FRONTEND_PUBLIC_URL || 'http://localhost:3001').replace(/\/$/, '');
-      extra.link_pre_checkin = `${base}/pre-checkin/${encodeURIComponent(reservation.precheckin_token)}`;
-    }
+    if (reservation.precheckin_token) extra.link_pre_checkin = require('./publicLinks').precheckinUrl(reservation);
     vars = sanitizeUrlVars(buildVars(guest, reservation, accommodation, settings, extra));
     blocks = buildBlocks(vars, settings, reservation);
   }
@@ -277,6 +286,7 @@ function buildVars(guest, reservation, accommodation, settings, extra) {
     // Estado real da reserva, em texto — para o assunto, que não aceita blocos.
     titulo_estado: statusPresentation(reservation).title,
     mensagem_estado: statusPresentation(reservation).message,
+    ...paymentVars(reservation),
     wifi_nome: accommodation.wifi_name || '—',
     wifi_password: require('./emailEligibility').canSendTemplate({ slug: 'codigo_porta' }, reservation) ? (accommodation.wifi_password || '—') : '',
     codigo_porta: require('./emailEligibility').canSendTemplate({ slug: 'codigo_porta' }, reservation) ? (accommodation.door_code || '—') : '',
@@ -287,7 +297,7 @@ function buildVars(guest, reservation, accommodation, settings, extra) {
 // Variáveis cujo valor acaba num href têm de passar pelo filtro de protocolos
 // antes de chegar ao template — o sanitizador do corpo deixa passar o
 // marcador {{...}} intacto, por isso a validação tem de ser feita no valor.
-const URL_VARS = ['link_pre_checkin'];
+const URL_VARS = ['link_pre_checkin', 'link_reserva'];
 function sanitizeUrlVars(vars) {
   for (const key of URL_VARS) {
     if (vars[key] !== undefined) vars[key] = composer.safeUrl(vars[key]);
@@ -411,8 +421,11 @@ function formatDate(dateStr) {
   });
 }
 
+// Avisos com prazo (política de pagamento): a janela horária não os adia.
+const IMMEDIATE_TEMPLATES = new Set(['aviso_restante', 'cancelamento_politica']);
+
 async function sendTemplatedEmail(slug, guest, reservation, accommodation, extraVars) {
-  if (EMAIL_DISABLED) { console.log(`Email ${slug} ignorado (EMAIL_ENABLED=false)`); return null; }
+  if (emailDisabled()) { console.log(`Email ${slug} ignorado (EMAIL_ENABLED=false)`); return null; }
   const { db } = require('../config/database');
   const orgId = reservation.organization_id || accommodation.organization_id;
   const template = orgId
@@ -430,7 +443,7 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation, extra
 
   // Fora da janela de envio configurada para este template: adia para a
   // próxima passagem do scheduler em vez de enviar já (ver flushQueuedEmails).
-  if (orgId && !isWithinSendWindow(template)) {
+  if (orgId && !IMMEDIATE_TEMPLATES.has(slug) && !isWithinSendWindow(template)) {
     db.prepare(`
       INSERT OR IGNORE INTO organization_email_queue (id, organization_id, template_slug, reservation_id)
       VALUES (?, ?, ?, ?)
@@ -441,8 +454,7 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation, extra
 
   let vars_extra = extraVars || {};
   if (slug === 'pre_checkin' && !vars_extra.link_pre_checkin && reservation.precheckin_token) {
-    const base = (process.env.PUBLIC_APP_URL || process.env.FRONTEND_PUBLIC_URL || 'http://localhost:3001').replace(/\/$/, '');
-    vars_extra = { ...vars_extra, link_pre_checkin: `${base}/pre-checkin/${reservation.precheckin_token}` };
+    vars_extra = { ...vars_extra, link_pre_checkin: require('./publicLinks').precheckinUrl(reservation) };
   }
 
   const settings = getEmailSettings(accommodation, orgId);
@@ -475,71 +487,43 @@ async function sendCancellationEmail(guest, reservation, accommodation) {
   return sendTemplatedEmail('cancelamento', guest, reservation, accommodation);
 }
 
-// Enviado em cada pagamento recebido (sinal, restante ou pagamento único).
-// `payment.amount` é o valor deste pagamento; o cartão mostra também o total
-// já pago e o que falta.
-function paymentVars(reservation, payment = {}) {
-  const paid = Number(reservation.amount_paid || 0);
-  const missing = Math.max(0, Math.round((Number(reservation.total_amount || 0) - paid) * 100) / 100);
+// Valores de pagamento e da política, calculados a partir da reserva, para
+// que um envio repetido mais tarde (fila) mostre os mesmos dados.
+function paymentVars(reservation) {
+  const { cents } = require('./money');
+  const paidCents = cents(reservation.amount_paid || 0);
+  const missingCents = Math.max(0, cents(reservation.total_amount || 0) - paidCents);
+  let refund = '';
+  try {
+    const cancellation = reservation.policy_cancellation_json && JSON.parse(reservation.policy_cancellation_json);
+    if (cancellation) refund = composer.formatCurrency(cancellation.refundCents / 100);
+  } catch { /* sem cancelamento por política */ }
+  let link = '';
+  try { link = require('./publicLinks').reservationPageUrl(reservation); } catch { /* origem por configurar */ }
   return {
-    valor_pagamento: composer.formatCurrency(payment.amount ?? paid),
-    total_pago: composer.formatCurrency(paid),
-    valor_em_falta: composer.formatCurrency(missing),
+    total_pago: composer.formatCurrency(paidCents / 100),
+    valor_pagamento: composer.formatCurrency(paidCents / 100),
+    valor_em_falta: composer.formatCurrency(missingCents / 100),
+    pagamento_liquidado: missingCents === 0 ? '1' : '',
+    prazo_pagamento: reservation.balance_deadline ? formatDateTimeLisbon(reservation.balance_deadline) : '',
+    valor_reembolso: refund,
+    link_reserva: link,
   };
 }
 
+function formatDateTimeLisbon(value) {
+  return new Date(value).toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon', dateStyle: 'long', timeStyle: 'short' });
+}
+
+// Enviado em cada pagamento recebido (sinal, restante ou pagamento único);
+// `payment.amount` é o valor deste pagamento.
 async function sendPaymentConfirmationEmail(guest, reservation, accommodation, payment = {}) {
-  if (EMAIL_DISABLED || !isDeliverableEmail(guest?.email)) return null;
-  const { db } = require('../config/database');
-  const orgId = reservation.organization_id || accommodation.organization_id;
-  const template = orgId
-    ? db.prepare("SELECT * FROM organization_email_templates WHERE organization_id = ? AND slug='pagamento' AND active=1").get(orgId)
-    : db.prepare("SELECT * FROM email_templates WHERE slug='pagamento' AND active=1").get();
-  if (!template && orgId && db.prepare("SELECT 1 FROM organization_email_templates WHERE organization_id=? AND slug='pagamento'").get(orgId)) return null;
-  const amounts = paymentVars(reservation, payment);
-  if (template) return sendTemplatedEmail('pagamento', guest, reservation, accommodation, amounts);
-  accommodation = resolveAccommodationInheritance(accommodation, orgId);
-  const settings = getEmailSettings(accommodation, orgId);
-  const settled = Number(reservation.amount_paid || 0) >= Number(reservation.total_amount || 0);
-  const content = `${composer.buildReservationTitle(settled ? 'Pagamento confirmado' : 'Pagamento recebido', '✓')}
-    <p style="margin:0 0 14px;">Olá <strong>${escapeHtml(guest.first_name || (guest.name || '').split(' ')[0] || guest.name || '')}</strong>,</p>
-    <p style="margin:0 0 6px;">Confirmamos a receção de um pagamento de <strong>${escapeHtml(amounts.valor_pagamento)}</strong> da sua reserva em <strong>${escapeHtml(accommodation.name || '')}</strong>.</p>
-    ${composer.buildReservationCard([
-      { label: 'Alojamento', value: accommodation.name || '' },
-      { label: 'Referência', value: reservation.id || '' },
-      { label: 'Total pago', value: amounts.total_pago },
-      ...(settled ? [] : [{ label: 'Em falta', value: amounts.valor_em_falta }]),
-    ], composer.formatCurrency(reservation.total_amount || 0))}`;
-  return sendMail(orgId, {
-    to: guest.email,
-    subject: `Pagamento confirmado — ${settings.property_name}`,
-    html: baseTemplate(content, settings),
-  });
+  const extra = payment.amount != null ? { valor_pagamento: composer.formatCurrency(Number(payment.amount)) } : {};
+  return sendTemplatedEmail('pagamento', guest, reservation, accommodation, extra);
 }
 
 async function sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl) {
-  if (EMAIL_DISABLED || !isDeliverableEmail(guest?.email)) return null;
-  const { db } = require('../config/database');
-  const orgId = reservation.organization_id || accommodation.organization_id;
-  const template = orgId
-    ? db.prepare("SELECT 1 FROM organization_email_templates WHERE organization_id = ? AND slug='pre_checkin' AND active=1").get(orgId)
-    : null;
-  if (!template && orgId && db.prepare("SELECT 1 FROM organization_email_templates WHERE organization_id=? AND slug='pre_checkin'").get(orgId)) return null;
-  if (template) {
-    return sendTemplatedEmail('pre_checkin', guest, reservation, accommodation, { link_pre_checkin: preCheckinUrl });
-  }
-  accommodation = resolveAccommodationInheritance(accommodation, orgId);
-  const settings = getEmailSettings(accommodation, orgId);
-  const content = `${composer.buildReservationTitle('Pré check-in', '•')}
-    <p style="margin:0 0 14px;">Olá <strong>${escapeHtml(guest.first_name || (guest.name || '').split(' ')[0] || guest.name || '')}</strong>,</p>
-    <p style="margin:0 0 6px;">A sua reserva em <strong>${escapeHtml(accommodation.name || '')}</strong> foi aprovada. Para prepararmos a chegada, pedimos que complete o pré check-in com a hora prevista de chegada e os dados legais dos hóspedes.</p>
-    ${composer.buildCtaBlock(preCheckinUrl, 'Completar pré check-in')}
-    <p style="font-size:13.5px;color:${composer.PALETTE.muted};margin:18px 0 0;">Referência da reserva: <strong>${escapeHtml(reservation.id)}</strong></p>`;
-  return sendMail(orgId, {
-    to: guest.email,
-    subject: `Pré check-in da sua reserva — ${settings.property_name}`,
-    html: baseTemplate(content, settings),
-  });
+  return sendTemplatedEmail('pre_checkin', guest, reservation, accommodation, preCheckinUrl ? { link_pre_checkin: preCheckinUrl } : {});
 }
 
 async function sendReservationRequestApprovedEmail(guest, reservation, accommodation, preCheckinUrl) {
@@ -548,7 +532,7 @@ async function sendReservationRequestApprovedEmail(guest, reservation, accommoda
 
 // Aviso à equipa de um pedido novo do site público (staffNotifier).
 async function sendOwnerNewReservationEmail(organizationId, guest, reservation, accommodation, appUrl) {
-  if (EMAIL_DISABLED) return null;
+  if (emailDisabled()) return null;
   return require('./staffNotifier').email(organizationId, {
     subject: `Nova reserva — ${guest.name} · ${reservation.id}`,
     title: 'Nova reserva recebida',
@@ -589,6 +573,8 @@ module.exports = {
   escapeVars,
   getEmailSettings,
   formatDate,
+  formatDateTimeLisbon,
+  paymentVars,
   resolveAccommodationInheritance,
   findGuestEmailContext,
 };

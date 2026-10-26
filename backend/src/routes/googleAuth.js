@@ -155,24 +155,21 @@ router.delete('/google-email', requireAuth, requireRole('manager'), (req, res) =
 
 router.post('/google-email/test', requireAuth, requireRole('manager'), async (req, res) => {
   try {
-    const { sendViaGmail } = require('../config/googleEmail');
     const info = getEmailConnectionInfo(req.user.organization_id);
     if (!info.connected) return res.status(400).json({ success: false, error: 'Gmail não ligado' });
     const to = info.email || req.user.email;
     if (!to) return res.status(400).json({ success: false, error: 'Sem endereço de destino — desliga e volta a ligar o Gmail.' });
-    await sendViaGmail(req.user.organization_id, {
+    // Mesmo caminho dos envios reais (remetente, EMAIL_ENABLED, validações).
+    const sent = await require('../services/emailService').sendMail(req.user.organization_id, {
       to,
-      subject: 'Teste de email - Santa Paciencia',
-      html: '<p>O email esta a funcionar correctamente a partir do Gmail ligado.</p>',
+      subject: 'Teste de email - Santa Paciência',
+      html: require('../services/emailService').baseTemplate('<p>O email está a funcionar corretamente a partir do Gmail ligado.</p>'),
     });
+    if (!sent) return res.status(400).json({ success: false, error: 'O envio de email está desativado neste servidor.' });
     res.json({ success: true });
   } catch (err) {
     console.error('Gmail test error:', { type: err.name, status: err.status || err.response?.status });
-    const errMsg = err.message || '';
-    const errData = err.response?.data?.error || '';
-    const isAuthError = errMsg.includes('invalid_grant') || errMsg.includes('Login Required')
-      || errMsg.includes('Token has been expired') || errMsg.includes('Invalid Credentials')
-      || errData === 'invalid_grant' || err.status === 401 || err.code === 401;
+    const isAuthError = require('../services/googleConnection').isAuthExpiredError(err);
     if (isAuthError) deleteEmailTokens(req.user.organization_id);
     res.status(isAuthError ? 401 : 500).json({
       success: false,

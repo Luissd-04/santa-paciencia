@@ -2,9 +2,11 @@
 // Mensagens agendadas pela estadia (chegada/saída) só fazem sentido para
 // reservas aceites: um pedido por aprovar ou à espera do sinal não as recebe.
 const STAY_STATUSES = ['confirmada', 'pre_checkin', 'check_in', 'check_out', 'checkin', 'checked_in'];
+// Modelos que só fazem sentido para uma reserva cancelada.
+const CANCELLATION_TEMPLATES = ['cancelamento', 'cancelamento_politica'];
 function canSendTemplate(template, reservation) {
   if (!reservation) return false;
-  if (template.slug === 'cancelamento') return reservation.status === 'cancelada';
+  if (CANCELLATION_TEMPLATES.includes(template.slug)) return reservation.status === 'cancelada';
   if (reservation.status === 'cancelada') return false;
   if (['checkin', 'checkout'].includes(template.timing_event) && !STAY_STATUSES.includes(reservation.status)) return false;
   const sensitive = template.slug === 'codigo_porta' ||
@@ -14,4 +16,4 @@ function canSendTemplate(template, reservation) {
     Math.round(Number(reservation.amount_paid || 0) * 100) >= Math.round(Number(reservation.total_amount || 0) * 100);
 }
 
-module.exports = { canSendTemplate, STAY_STATUSES };
+module.exports = { canSendTemplate, STAY_STATUSES, CANCELLATION_TEMPLATES };

@@ -63,14 +63,12 @@ async function invite(req, res) {
     const emailResult = await sendMail(organizationId, {
       to: email,
       subject: `Convite para a equipa ${req.user.organization_name} — Santa Paciência`,
-      html: `
-        <div style="font-family:Arial,sans-serif;padding:24px;color:#2a2520;">
-          <h2>Foste convidado para ${escapeHtml(req.user.organization_name)}</h2>
-          <p>O teu papel será <strong>${escapeHtml(role)}</strong>.</p>
-          <p><a href="${escapeHtml(inviteUrl)}">Aceitar convite</a></p>
-          <p>Este link expira em 7 dias.</p>
-        </div>
-      `
+      html: require('../services/emailService').baseTemplate(`
+        ${require('../services/emailComposer').buildReservationTitle(`Foste convidado para ${req.user.organization_name}`, '•')}
+        <p>O teu papel será <strong>${escapeHtml(role)}</strong>.</p>
+        ${require('../services/emailComposer').buildCtaBlock(inviteUrl, 'Aceitar convite')}
+        <p>Este link expira em 7 dias.</p>
+      `, require('../services/emailService').getEmailSettings(null, organizationId)),
     });
     const emailSent = !!emailResult;
 

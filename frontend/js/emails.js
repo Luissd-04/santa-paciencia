@@ -8,6 +8,7 @@ AppModules.define('definicoes', {
   LANGS: { get: () => LANGS },
   TEMPLATE_META: { get: () => TEMPLATE_META },
   FIXED_TIMING_EVENTS: { get: () => FIXED_TIMING_EVENTS },
+  IMMEDIATE_TEMPLATES: { get: () => IMMEDIATE_TEMPLATES },
   langField: { get: () => langField },
   emailTemplates: { get: () => emailTemplates, set: value => { emailTemplates = value; } },
   emailSettings: { get: () => emailSettings, set: value => { emailSettings = value; } },
@@ -43,9 +44,14 @@ const TEMPLATE_META = {
   antes_checkout: { icon: '🌅', label: 'Antes do check-out',           eventLabel: 'Antes do check-out' },
   obrigado:       { icon: '⭐', label: 'Obrigado pela estadia',        eventLabel: 'Após check-out' },
   cancelamento:   { icon: '❌', label: 'Cancelamento da reserva',      eventLabel: 'Imediatamente ao cancelar' },
+  pagamento:      { icon: '💶', label: 'Pagamento recebido',           eventLabel: 'Em cada pagamento recebido (manual ou online)' },
+  aviso_restante: { icon: '⏰', label: 'Pagamento do restante',        eventLabel: 'Quando o restante vence sem pagamento (política de pagamento)' },
+  cancelamento_politica: { icon: '↩️', label: 'Cancelamento com reembolso', eventLabel: 'Ao cancelar uma reserva com política de pagamento' },
 };
 
-const FIXED_TIMING_EVENTS = ['booking', 'cancellation', 'approval'];
+const FIXED_TIMING_EVENTS = ['booking', 'cancellation', 'approval', 'payment', 'balance_notice', 'policy_cancellation'];
+// Avisos com prazo: enviados logo, sem janela horária.
+const IMMEDIATE_TEMPLATES = ['aviso_restante', 'cancelamento_politica'];
 
 function langField(lang, field) {
   return lang === 'pt' ? field : `${field}_${lang}`;

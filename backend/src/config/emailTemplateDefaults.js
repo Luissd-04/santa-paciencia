@@ -133,6 +133,48 @@ const TEMPLATES = {
     ].join(''),
   },
 
+  // Enviado em cada pagamento recebido (manual ou Stripe): sinal, restante ou
+  // pagamento único. O cartão mostra o total pago e o que falta.
+  pagamento: {
+    name: 'Pagamento recebido',
+    subject: 'Pagamento recebido — {{alojamento}}',
+    body: [
+      '{{titulo_pagamento}}',
+      p('Olá <strong>{{primeiro_nome}}</strong>,'),
+      p('Confirmamos a receção de um pagamento de <strong>{{valor_pagamento}}</strong> da sua reserva em <strong>{{alojamento}}</strong>.'),
+      '{{cartao_pagamento}}',
+      p('Obrigado. Se tiver alguma questão, não hesite em contactar-nos.'),
+    ].join(''),
+  },
+
+  // Política de pagamento: aviso do restante em falta, com o prazo a partir do
+  // qual a reserva é cancelada sem devolução. Enviado logo (sem janela horária).
+  aviso_restante: {
+    name: 'Pagamento do restante',
+    subject: 'Pagamento do restante — Reserva {{referencia}}',
+    body: [
+      '{{titulo_aviso_pagamento}}',
+      p('Olá <strong>{{primeiro_nome}}</strong>,'),
+      p('Falta concluir o pagamento de <strong>{{valor_em_falta}}</strong> da sua reserva em <strong>{{alojamento}}</strong>. Pague até <strong>{{prazo_pagamento}}</strong> (hora de Lisboa). Após este prazo, a reserva será cancelada sem devolução dos montantes já pagos.'),
+      p('Se tentou pagar por cartão, poderá ser necessária uma nova autorização do banco.'),
+      '{{botao_reserva}}',
+    ].join(''),
+  },
+
+  // Política de pagamento: cancelamento (pelo hóspede, pela equipa ou por falta
+  // de pagamento) com o reembolso contratado. Enviado logo.
+  cancelamento_politica: {
+    name: 'Cancelamento com reembolso',
+    subject: 'Cancelamento — Reserva {{referencia}}',
+    body: [
+      '{{titulo_reserva}}',
+      p('Olá <strong>{{primeiro_nome}}</strong>,'),
+      p('A sua reserva em <strong>{{alojamento}}</strong> foi cancelada. Reembolso aplicável: <strong>{{valor_reembolso}}</strong>.'),
+      p('Pode consultar o estado do reembolso no link abaixo.'),
+      '{{botao_reserva}}',
+    ].join(''),
+  },
+
   obrigado: {
     name: 'Obrigado pela estadia',
     subject: 'Obrigado pela sua visita — {{alojamento}}',
@@ -146,8 +188,9 @@ const TEMPLATES = {
   },
 };
 
-// Momento de envio por omissão. Mantém exatamente o que já estava configurado —
-// esta etapa não altera gatilhos nem cria envios automáticos novos.
+// Momento de envio por omissão. Os acontecimentos fixos (reserva, aprovação,
+// cancelamento, pagamento e avisos da política) enviam no momento em que
+// acontecem; checkin/checkout são agendados pelo emailScheduler.
 const TIMING = {
   confirmacao:    { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'booking' },
   cancelamento:   { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'cancellation' },
@@ -156,6 +199,9 @@ const TIMING = {
   apos_checkin:   { timing_offset: 2, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'checkin' },
   antes_checkout: { timing_offset: 1, timing_unit: 'days',  timing_direction: 'before', timing_event: 'checkout' },
   obrigado:       { timing_offset: 2, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'checkout' },
+  pagamento:      { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'payment' },
+  aviso_restante: { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'balance_notice' },
+  cancelamento_politica: { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after', timing_event: 'policy_cancellation' },
 };
 
 function defaultsList() {

@@ -1,7 +1,7 @@
 const { db } = require('../config/database');
 const { sendTemplatedEmail, getEmailSettings, resolveAccommodationInheritance } = require('./emailService');
 const crypto = require('crypto');
-const { canSendTemplate } = require('./emailEligibility');
+const { canSendTemplate, CANCELLATION_TEMPLATES } = require('./emailEligibility');
 const { withSchedulerLease } = require('./schedulerLease');
 const { localDateIso } = require('./reservationRules');
 
@@ -107,7 +107,7 @@ async function flushQueuedEmails(ensureLease) {
         WHERE r.id = ? AND r.organization_id = ?
       `).get(q.reservation_id, q.organization_id);
 
-      if (!res || !res.guest_email || (res.status === 'cancelada' && q.template_slug !== 'cancelamento')) {
+      if (!res || !res.guest_email || (res.status === 'cancelada' && !CANCELLATION_TEMPLATES.includes(q.template_slug))) {
         db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id);
         continue;
       }
@@ -120,7 +120,7 @@ async function flushQueuedEmails(ensureLease) {
         db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id);
         continue;
       }
-      if (tpl.slug === 'cancelamento' && res.status !== 'cancelada') { db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id); continue; }
+      if (CANCELLATION_TEMPLATES.includes(tpl.slug) && res.status !== 'cancelada') { db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id); continue; }
       if (!canSendTemplate(tpl, res)) {
         // Deixou de ser elegível e a estadia já terminou: nunca será enviado.
         if (res.check_out < localDateIso(new Date(), -1)) db.prepare('DELETE FROM organization_email_queue WHERE id=?').run(q.id);
