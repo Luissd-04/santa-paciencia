@@ -5,7 +5,7 @@ const { recordConsent } = require('../services/rgpdService');
 const { syncReservationOperationalTasks } = require('../services/operationalTasksService');
 
 const ledger = require('../services/financialLedger');
-const { findConflict, validateExtraUnits } = require('../services/reservationAvailability');
+const { assertAvailable, validateExtraUnits } = require('../services/reservationAvailability');
 const { validateReservationInput, assertMoneyLimit } = require('../services/reservationValidation');
 const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
@@ -19,10 +19,10 @@ function affectsOnlinePayment(body, existing) {
     || (body.status !== undefined && body.status !== existing.status);
 }
 
-const { findBlockConflict } = require('../services/accommodationBlockService');
 const { recordHistory, diffReservationFields } = require('../services/reservationHistoryService');
 
-const { safeJson, upsertAdditionalGuests } = require('../services/reservationSupport');
+const { safeJson } = require('../services/reservationSupport');
+const guests = require('../services/guestService');
 
 // Repetir a criação depois de perder a resposta (rede instável) devolve a
 // reserva já criada em vez de um conflito de datas ou de um duplicado.
@@ -70,58 +70,8 @@ async function create(req, res, next) {
       throw Object.assign(new Error(({ error: 'Datas e alojamento são obrigatórios' }).error), { status: 400 });
     }
 
-    // Normalizar dados do hóspede — todos os campos são opcionais no backoffice
-    const guestName  = guest?.name?.trim()  || 'Hóspede';
-    const guestEmail = guest?.email?.trim() || `sp-interno-${uuidv4()}@reserva.local`;
-
-    // Criar ou actualizar hóspede
-    let guestRecord = db.prepare('SELECT * FROM guests WHERE email = ? AND organization_id = ?').get(guestEmail, organizationId);
-
-    if (!guestRecord) {
-      const guestId = uuidv4();
-      db.prepare(`
-        INSERT INTO guests (id, name, email, phone, document_type, document_number, document_issuer_country,
-          nationality, first_name, last_name, birth_date, birth_city, birth_country, nif, country,
-          address, postal_code, city, residence_country, company, company_nif, organization_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(guestId, guestName, guestEmail, guest?.phone || null,
-             guest?.document_type || null, guest?.document_number || null,
-             guest?.document_issuer_country || null, guest?.nationality || null,
-             guest?.first_name || null, guest?.last_name || null, guest?.birth_date || null,
-             guest?.birth_city || null, guest?.birth_country || null,
-             guest?.nif || null, guest?.country || null,
-             guest?.address || null, guest?.postal_code || null, guest?.city || null,
-             guest?.residence_country || null,
-             guest?.company || null, guest?.company_nif || null, organizationId);
-      guestRecord = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(guestId, organizationId);
-    } else {
-      db.prepare(`UPDATE guests SET
-        name = COALESCE(?, name), phone = COALESCE(?, phone),
-        document_type = COALESCE(?, document_type), document_number = COALESCE(?, document_number),
-        document_issuer_country = COALESCE(?, document_issuer_country),
-        nationality = COALESCE(?, nationality), first_name = COALESCE(?, first_name),
-        last_name = COALESCE(?, last_name), birth_date = COALESCE(?, birth_date),
-        birth_city = COALESCE(?, birth_city), birth_country = COALESCE(?, birth_country),
-        nif = COALESCE(?, nif), country = COALESCE(?, country),
-        address = COALESCE(?, address), postal_code = COALESCE(?, postal_code), city = COALESCE(?, city),
-        residence_country = COALESCE(?, residence_country),
-        company = COALESCE(?, company), company_nif = COALESCE(?, company_nif)
-        WHERE id = ? AND organization_id = ?`).run(
-        guest?.name || null, guest?.phone || null,
-        guest?.document_type || null, guest?.document_number || null,
-        guest?.document_issuer_country || null,
-        guest?.nationality || null, guest?.first_name || null,
-        guest?.last_name || null, guest?.birth_date || null,
-        guest?.birth_city || null, guest?.birth_country || null,
-        guest?.nif || null, guest?.country || null,
-        guest?.address || null, guest?.postal_code || null, guest?.city || null,
-        guest?.residence_country || null,
-        guest?.company || null, guest?.company_nif || null,
-        guestRecord.id,
-        organizationId
-      );
-      guestRecord = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(guestRecord.id, organizationId);
-    }
+    // Todos os campos do hóspede são opcionais no backoffice.
+    const guestRecord = guests.upsertByEmail(organizationId, guest || {});
 
     // Registar consentimento RGPD
     if (rgpd_consent) {
@@ -132,21 +82,8 @@ async function create(req, res, next) {
     const pricing = priceCreate(organizationId, req.body);
     const { accommodation, totals, finalTotal, priceEdited, voucherDiscount } = pricing;
 
-    // Verificar disponibilidade (anti double-booking)
-    const conflict = findConflict(organizationId, accommodation_id, totals.checkIn, totals.checkOut, null);
-    if (conflict) {
-      throw Object.assign(new Error(({
-        error: `Este alojamento já está ocupado nessas datas (reserva ${conflict.id}).`
-      }).error), { status: 409 });
-    }
-
-    // Verificar bloqueios manuais (manutenção, uso pessoal, etc.)
-    const block = findBlockConflict(organizationId, accommodation_id, totals.checkIn, totals.checkOut);
-    if (block) {
-      throw Object.assign(new Error(({
-        error: `Estas datas estão bloqueadas${block.reason ? ` (${block.reason})` : ''}.`
-      }).error), { status: 409 });
-    }
+    // Disponibilidade (anti double-booking), incluindo bloqueios manuais.
+    assertAvailable(organizationId, accommodation_id, totals.checkIn, totals.checkOut, null);
 
     validateExtraUnits(organizationId, extraUnits, accommodation_id, totals.checkIn, totals.checkOut, null);
 
@@ -175,7 +112,7 @@ async function create(req, res, next) {
       finalTotal, totals.breakfastIncluded,
       totals.touristTax, channel || 'direto', payment_method || null,
       notes || null, accommodation.license_number,
-      JSON.stringify(upsertAdditionalGuests(guests_data, organizationId, guestRecord.id)),
+      JSON.stringify(guests.upsertAdditionalGuests(guests_data, organizationId, guestRecord.id)),
       paidAmt, payment_date || null, reqPaymentStatus || 'pendente',
       JSON.stringify(totals.nightlyPrices || []),
       priceEdited ? new Date().toISOString() : null,
@@ -257,13 +194,8 @@ async function update(req, res, next) {
 
     // Cancelar nunca deve falhar por disponibilidade — saltar as verificações.
     if (!cancelling) {
-      // Verificar disponibilidade (excluir a própria reserva)
-      const conflict2 = findConflict(organizationId, newAccommodationId, totals.checkIn, totals.checkOut, req.params.id);
-      if (conflict2) {
-        throw Object.assign(new Error(({
-          error: `Este alojamento já está ocupado nessas datas (reserva ${conflict2.id}).`
-        }).error), { status: 409 });
-      }
+      // Disponibilidade (excluir a própria reserva), incluindo bloqueios manuais.
+      assertAvailable(organizationId, newAccommodationId, totals.checkIn, totals.checkOut, req.params.id);
 
       // Multi-suite: verificar também os quartos adicionais (não só a suite
       // principal) — sem isto seria possível fazer double-booking de um quarto
@@ -271,21 +203,9 @@ async function update(req, res, next) {
       if (Array.isArray(accommodations_data)) {
         for (const item of accommodations_data) {
           if (!item?.accommodation_id || item.accommodation_id === newAccommodationId) continue;
-          const extraConflict = findConflict(organizationId, item.accommodation_id, totals.checkIn, totals.checkOut, req.params.id);
-          if (extraConflict) {
-            throw Object.assign(new Error(({
-              error: `O alojamento adicional "${item.name || item.accommodation_id}" já está ocupado nessas datas (reserva ${extraConflict.id}).`
-            }).error), { status: 409 });
-          }
+          assertAvailable(organizationId, item.accommodation_id, totals.checkIn, totals.checkOut, req.params.id,
+            `O alojamento adicional "${item.name || item.accommodation_id}"`);
         }
-      }
-
-      // Verificar bloqueios manuais
-      const block2 = findBlockConflict(organizationId, newAccommodationId, totals.checkIn, totals.checkOut);
-      if (block2) {
-        throw Object.assign(new Error(({
-          error: `Estas datas estão bloqueadas${block2.reason ? ` (${block2.reason})` : ''}.`
-        }).error), { status: 409 });
       }
     }
 
@@ -293,7 +213,7 @@ async function update(req, res, next) {
 
     // Actualizar dados do hóspede se fornecidos
     if (guest) {
-      require('../services/guestPatch').updateGuest(existing.guest_id, organizationId, guest);
+      guests.updateGuest(existing.guest_id, organizationId, guest);
     }
     if (pricing.confirmation) {
       throw Object.assign(new Error(pricing.confirmation.message), { status: 409, code: pricing.confirmation.code,
@@ -350,7 +270,7 @@ async function update(req, res, next) {
       payment_method !== undefined ? (payment_method || null) : existing.payment_method,
       notes !== undefined ? notes : existing.notes, chosenStatus || existing.status,
       existing.payment_status,
-      guests_data !== undefined ? JSON.stringify(upsertAdditionalGuests(guests_data, organizationId, existing.guest_id)) : (existing.guests_data || '[]'),
+      guests_data !== undefined ? JSON.stringify(guests.upsertAdditionalGuests(guests_data, organizationId, existing.guest_id)) : (existing.guests_data || '[]'),
       newAccData,
       existing.amount_paid || 0,
       payment_date !== undefined ? (payment_date || null) : existing.payment_date,

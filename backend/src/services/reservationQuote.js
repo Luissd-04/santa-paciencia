@@ -67,8 +67,7 @@ function priceCreate(organizationId, body) {
   let voucher = null, voucherError = null, discount = 0;
   if (voucher_code) {
     try {
-      voucher = findUsableVoucher(organizationId, voucher_code, { nights: totals.nights, accommodation_id, parent_id: accommodation.parent_id });
-      discount = calculateVoucherDiscount(voucher, totals.totalAmount, totals.nightlyPrices);
+      ({ voucher, discount } = applyVoucher(organizationId, voucher_code, totals, accommodation));
     } catch (error) {
       if (!error.status) throw error;
       voucherError = error;
@@ -90,6 +89,34 @@ function priceCreate(organizationId, body) {
     accommodation, totals, totalGuests, voucher, voucherError, voucherDiscount: discount, finalTotal, standardTotal,
     priceEdited: standardTotal != null && Math.abs(finalTotal - standardTotal) > 0.01,
   };
+}
+
+// Voucher sobre uma estadia: a mesma validação (noites, alojamento, estado,
+// validade) na criação no backoffice e no pedido público.
+function applyVoucher(organizationId, code, totals, accommodation) {
+  const voucher = findUsableVoucher(organizationId, code, { nights: totals.nights, accommodation_id: accommodation.id, parent_id: accommodation.parent_id });
+  return { voucher, discount: calculateVoucherDiscount(voucher, totals.totalAmount, totals.nightlyPrices) };
+}
+
+// Pedido do site público: o preço vem só das tarifas (sem preços por noite nem
+// total manual, que o hóspede não pode impor) e um voucher inválido recusa o
+// pedido. Chamar também dentro da transação, para revalidar o voucher.
+function pricePublic(organizationId, accommodation, payload) {
+  const periods = db.prepare('SELECT * FROM pricing_periods WHERE accommodation_id = ? AND organization_id = ? ORDER BY start_date ASC')
+    .all(accommodation.id, organizationId);
+  const totals = calculateReservationTotals(accommodation, getOrganizationServices(organizationId), {
+    check_in: payload.check_in, check_out: payload.check_out, num_guests: payload.num_guests, breakfast_included: payload.breakfast_included,
+    guest: payload.guest, guests_data: payload.guests_data, pricing_periods: periods,
+  });
+  let voucher = null, discount = 0, voucherCode = null;
+  if (payload.voucher_code) {
+    voucherCode = String(payload.voucher_code).toUpperCase().trim();
+    if (!/^[A-Z0-9]{3,20}$/.test(voucherCode)) throw httpError('Formato de código de voucher inválido.');
+    ({ voucher, discount } = applyVoucher(organizationId, voucherCode, totals, accommodation));
+  }
+  const finalTotal = Math.max(0, totals.totalAmount - discount);
+  assertMoneyLimit(finalTotal);
+  return { totals, voucher, voucherCode, voucherDiscount: discount, finalTotal };
 }
 
 // Alteração de uma reserva existente. `confirmation` indica que a nova estadia
@@ -213,4 +240,4 @@ function updateQuote(organizationId, existing, body) {
   };
 }
 
-module.exports = { stayChanged, priceCreate, priceUpdate, assertExpectedTotal, createQuote, updateQuote };
+module.exports = { stayChanged, priceCreate, pricePublic, priceUpdate, assertExpectedTotal, createQuote, updateQuote };

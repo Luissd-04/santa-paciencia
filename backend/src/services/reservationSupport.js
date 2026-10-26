@@ -1,7 +1,6 @@
 const { db } = require('../config/database');
 const { publicOrigin } = require('./publicOrigin');
 const { v4: uuidv4 } = require('uuid');
-const { randomUUID } = require('crypto');
 const { calculateReservationTotals, buildNightlyPrices } = require('./reservationRules');
 const { syncOperationalEventsToGoogle } = require('./calendarService');
 
@@ -40,53 +39,6 @@ function computeStandardTotals(organizationId, resLike, primaryAccommodation, pr
   return { ...single, baseAmount: base, totalAmount: base + extras };
 }
 
-// Acompanhantes: a ficha é reencontrada pelo id devolvido na gravação anterior
-// e, só depois, por um email real. O email do hóspede principal (comum em
-// famílias) nunca identifica um acompanhante — atualizá-lo renomearia o titular.
-function upsertAdditionalGuests(guestsData, organizationId, mainGuestId = null) {
-  if (!Array.isArray(guestsData) || !guestsData.length) return guestsData || [];
-  return guestsData.map(g => {
-    if (!g?.name) return g;
-    const realEmail = g.email?.trim() || null;
-    let existing = g.id && g.id !== mainGuestId
-      ? db.prepare('SELECT id FROM guests WHERE id = ? AND organization_id = ?').get(g.id, organizationId)
-      : null;
-    if (!existing && realEmail) {
-      existing = db.prepare('SELECT id FROM guests WHERE email = ? AND organization_id = ? AND id != ?').get(realEmail, organizationId, mainGuestId || '');
-    }
-    const email = realEmail || `guest_${randomUUID()}@sem-email.local`;
-    if (existing) {
-      db.prepare(`UPDATE guests SET
-        name = COALESCE(?, name), phone = COALESCE(?, phone),
-        nationality = COALESCE(?, nationality), country = COALESCE(?, country),
-        birth_date = COALESCE(?, birth_date), birth_city = COALESCE(?, birth_city),
-        document_type = COALESCE(?, document_type), document_number = COALESCE(?, document_number),
-        document_issuer_country = COALESCE(?, document_issuer_country),
-        nif = COALESCE(?, nif), updated_at = datetime('now')
-        WHERE id = ? AND organization_id = ?
-      `).run(g.name || null, g.phone || null, g.nationality || null, g.country || null,
-             g.birth_date || null, g.birth_city || null, g.document_type || null,
-             g.document_number || null, g.document_issuer_country || null, g.nif || null,
-             existing.id, organizationId);
-      return { ...g, id: existing.id };
-    }
-    const newId = uuidv4();
-    const nameParts = (g.name || '').split(/\s+/);
-    db.prepare(`INSERT INTO guests
-      (id, organization_id, name, first_name, last_name, email, phone,
-       nationality, country, birth_date, birth_city,
-       document_type, document_number, document_issuer_country, nif)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(newId, organizationId, g.name,
-           g.first_name || nameParts[0] || '', g.last_name || nameParts.slice(1).join(' ') || '',
-           email, g.phone || null,
-           g.nationality || null, g.country || null, g.birth_date || null, g.birth_city || null,
-           g.document_type || null, g.document_number || null, g.document_issuer_country || null,
-           g.nif || null);
-    return { ...g, id: newId };
-  });
-}
-
 function getOrganizationServices(organizationId) {
   const row = db.prepare("SELECT value FROM organization_settings WHERE organization_id = ? AND key = 'services'").get(organizationId);
   return row ? safeJson(row.value, []) : [];
@@ -98,7 +50,7 @@ function publicUrl(req) {
 
 function ensurePublicToken(reservation) {
   if (reservation.public_token) return reservation.public_token;
-  const token = uuidv4().replace(/-/g, '') + uuidv4().replace(/-/g, '');
+  const token = require('./publicLinks').newToken();
   db.prepare("UPDATE reservations SET public_token = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?")
     .run(token, reservation.id, reservation.organization_id);
   reservation.public_token = token;
@@ -107,7 +59,7 @@ function ensurePublicToken(reservation) {
 
 function ensurePrecheckinToken(reservation) {
   if (reservation.precheckin_token) return reservation.precheckin_token;
-  const token = uuidv4().replace(/-/g, '') + uuidv4().replace(/-/g, '');
+  const token = require('./publicLinks').newToken();
   const expiresAt = reservation.check_out || null;
   db.prepare("UPDATE reservations SET precheckin_token = ?, precheckin_token_expires_at = ?, updated_at = datetime('now') WHERE id = ? AND organization_id = ?")
     .run(token, expiresAt, reservation.id, reservation.organization_id);
@@ -129,4 +81,4 @@ function syncReservationTasksToGoogle(reservationId, organizationId, userId) {
     .catch(err => console.error('Erro ao sincronizar tarefas da reserva:', err.message));
 }
 
-module.exports = { safeJson, computeStandardTotals, upsertAdditionalGuests, getOrganizationServices, publicUrl, ensurePublicToken, ensurePrecheckinToken, syncReservationTasksToGoogle };
+module.exports = { safeJson, computeStandardTotals, getOrganizationServices, publicUrl, ensurePublicToken, ensurePrecheckinToken, syncReservationTasksToGoogle };
