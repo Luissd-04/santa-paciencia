@@ -1,5 +1,25 @@
 # Emails no Gmail para iPhone
 
+## Decisão de 26 de outubro de 2026: deixar o Gmail inverter tudo
+
+Capturas do Gmail do iPhone em modo escuro mostraram, em emails novos e antigos,
+fundos creme e letras invertidas para tons claros: ilegível. As camadas de
+mistura (`u + .body`, `mix-blend-mode`) não estavam a ser aplicadas e os
+gradientes/texturas que prendiam os fundos faziam o Gmail inverter só as letras.
+O HTML gerado era o mesmo antes e depois da atualização de 25/10.
+
+O compositor passou a usar apenas cores simples (`background-color`, `color`):
+sem gradientes, texturas no atributo `background`, `-webkit-text-fill-color`
+nem camadas de mistura; o sanitizador retira-os também dos modelos guardados.
+No modo escuro do Gmail móvel o email aparece em tons escuros, mas fundo e texto
+invertem juntos e continua legível. Modo claro, Apple Mail e Outlook mantêm a
+paleta (`color-scheme: light` e regras `data-ogsc`). Os PNG `/img/email/bg-*.png`
+ficam no servidor para os emails já enviados que ainda os referem.
+`render-email-samples.cjs` gera `*-gmail-dark-simulation.png`, uma aproximação
+da inversão completa (não o motor real do Gmail).
+
+As secções seguintes descrevem as tentativas anteriores.
+
 Atualização de 27 de setembro de 2026. O utilizador confirmou que os fundos
 estão corretos, mas a captura de pré-check-in mostra texto claro sobre creme
 e letras escuras no botão terracota. Correção de legibilidade preparada
