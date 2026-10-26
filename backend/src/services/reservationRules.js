@@ -82,6 +82,9 @@ function getExtraOccupancyCharge(accommodation, guests, nights, birthDates = [],
   if (!accommodation) return 0;
   const options = normalizeExtraOccupancyOptions(accommodation);
   const maxGuests = Number(accommodation.max_guests) || guests;
+  // Com vários quartos, o principal leva até à sua lotação; os restantes
+  // hóspedes ficam nos quartos extra, que têm o seu próprio preço.
+  guests = Math.min(Number(guests || 0), maxGuests);
   const included = Math.max(1, Math.min(
     Number(accommodation.base_guests_included) || Math.min(maxGuests, 2),
     maxGuests
@@ -183,8 +186,11 @@ function calculateReservationTotals(accommodation, services = [], payload = {}) 
   if (!Number.isInteger(guests) || guests < 1) throw httpError('Número de hóspedes inválido.', 400);
   const nights = countNights(checkIn, checkOut);
   if (!checkIn || !checkOut || nights <= 0 || nights > 366) throw httpError('Datas inválidas ou estadia superior a 366 noites.', 400);
-  if (guests > Number(accommodation?.max_guests || 0)) {
-    throw httpError(`Este alojamento permite no máximo ${accommodation?.max_guests || 0} hóspedes.`, 400);
+  // Lotação: a do alojamento ou, com vários quartos, a soma de todos
+  // (reservationSupport.stayCapacity, passada em `capacity`).
+  const capacity = Number(payload.capacity ?? accommodation?.max_guests ?? 0);
+  if (guests > capacity) {
+    throw httpError(`${Number(payload.room_count) > 1 ? 'Os quartos escolhidos permitem' : 'Este alojamento permite'} no máximo ${capacity} hóspedes.`, 400);
   }
 
   const taxSvc = services.find(s => s.id === 'tourist_tax');

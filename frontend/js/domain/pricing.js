@@ -48,6 +48,9 @@
     if (!accommodation) return 0;
     const options = normalizeExtraOccupancyOptions(accommodation);
     const maxGuests = Number(accommodation.max_guests) || guests;
+    // Como no servidor: com vários quartos, o principal leva até à sua
+    // lotação e os restantes hóspedes ficam nos quartos extra.
+    guests = Math.min(Number(guests || 0), maxGuests);
     const included = Math.max(1, Math.min(
       Number(accommodation.base_guests_included) || Math.min(maxGuests, 2),
       maxGuests

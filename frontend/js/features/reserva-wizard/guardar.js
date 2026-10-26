@@ -271,10 +271,11 @@ async function saveReserva() {
   if (!nomeCompleto) { AppModules.reservas.showMobileStep(2); AppModules.core.toast('Por favor insira o nome do hóspede.', 'error'); return; }
   if (!checkin || !checkout) { AppModules.reservas.showMobileStep(1); AppModules.core.toast('Por favor selecione as datas.', 'error'); return; }
   if (checkin >= checkout) { AppModules.reservas.showMobileStep(1); AppModules.core.toast('O check-out deve ser depois do check-in.', 'error'); return; }
-  const selectedAccommodation = AppModules.core.accommodations.find(a => a.id === alojId);
   const requestedGuests = parseInt(document.getElementById('f-num-hospedes').value) || 1;
-  if (selectedAccommodation?.max_guests && requestedGuests > selectedAccommodation.max_guests) {
-    AppModules.core.toast(`Este alojamento permite no máximo ${selectedAccommodation.max_guests} hóspede${selectedAccommodation.max_guests !== 1 ? 's' : ''}.`, 'error');
+  const room = AppModules.reservas.wizardCapacity();
+  if (room.capacity > 0 && requestedGuests > room.capacity) {
+    AppModules.reservas.showMobileStep(1);
+    AppModules.core.toast(AppModules.reservas.capacityMessage(room), 'error');
     return;
   }
 

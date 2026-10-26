@@ -6,6 +6,23 @@ const { syncOperationalEventsToGoogle } = require('./calendarService');
 
 const { safeJson } = require('./json');
 
+// Lotação de uma estadia: a soma da lotação de cada quarto (o principal e os
+// extra de accommodations_data). Ids desconhecidos ou repetidos não contam;
+// a gravação recusa-os em validateExtraUnits.
+function stayCapacity(organizationId, primaryAccommodation, units) {
+  const ids = new Set([primaryAccommodation.id]);
+  let capacity = Number(primaryAccommodation.max_guests) || 0;
+  for (const unit of (Array.isArray(units) ? units : safeJson(units, []))) {
+    const id = unit?.accommodation_id;
+    if (!id || ids.has(id)) continue;
+    const acc = db.prepare('SELECT max_guests FROM accommodations WHERE id = ? AND organization_id = ?').get(id, organizationId);
+    if (!acc) continue;
+    ids.add(id);
+    capacity += Number(acc.max_guests) || 0;
+  }
+  return { capacity, room_count: ids.size };
+}
+
 // Total padrão do calendário dinâmico. Reservas multi-suite: base = soma, por
 // suite, dos preços/noite dessa suite (períodos dinâmicos próprios); extras
 // (taxa turística, pequeno-almoço, ocupação extra) contam uma única vez.
@@ -17,6 +34,7 @@ function computeStandardTotals(organizationId, resLike, primaryAccommodation, pr
     breakfast_included: resLike.breakfast_included,
     birth_dates: birthDates,
     pricing_periods: primaryPeriods,
+    ...stayCapacity(organizationId, primaryAccommodation, resLike.accommodations_data),
   });
   const accsData = safeJson(resLike.accommodations_data, []);
   if (!Array.isArray(accsData) || accsData.length <= 1) return single;
@@ -74,4 +92,4 @@ function syncReservationTasksToGoogle(reservationId, organizationId, userId) {
     .catch(err => console.error('Erro ao sincronizar tarefas da reserva:', err.message));
 }
 
-module.exports = { safeJson, computeStandardTotals, getOrganizationServices, publicUrl, ensurePublicToken, ensurePrecheckinToken, syncReservationTasksToGoogle };
+module.exports = { safeJson, stayCapacity, computeStandardTotals, getOrganizationServices, publicUrl, ensurePublicToken, ensurePrecheckinToken, syncReservationTasksToGoogle };

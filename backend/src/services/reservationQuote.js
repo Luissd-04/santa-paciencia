@@ -5,7 +5,7 @@ const { db } = require('../config/database');
 const { calculateReservationTotals, getReservationBirthDates, normalizeDateValue } = require('./reservationRules');
 const { findUsableVoucher, voucherDiscount: calculateVoucherDiscount, activeRedemption } = require('./voucherService');
 const { assertMoneyLimit } = require('./reservationValidation');
-const { safeJson, computeStandardTotals, getOrganizationServices } = require('./reservationSupport');
+const { safeJson, stayCapacity, computeStandardTotals, getOrganizationServices } = require('./reservationSupport');
 
 const { httpError } = require('./httpError');
 
@@ -51,18 +51,16 @@ function totalsOrBadRequest(...args) {
 // depois das verificações de disponibilidade e a pré-visualização explica-o.
 function priceCreate(organizationId, body) {
   const { accommodation_id, check_in, check_out, num_guests, num_adults, num_children, breakfast_included,
-    guest, guests_data, voucher_code, total_amount: manualTotal, nightly_prices } = body;
+    guest, guests_data, voucher_code, total_amount: manualTotal, nightly_prices, accommodations_data } = body;
   const totalGuests = (num_adults != null || num_children != null)
     ? (Number(num_adults ?? 1) + Number(num_children ?? 0))
     : (num_guests || 1);
   const { accommodation, periods } = loadAccommodation(organizationId, accommodation_id);
-  if (totalGuests > Number(accommodation.max_guests || 0)) {
-    throw httpError(`Este alojamento permite no máximo ${accommodation.max_guests} hóspedes.`, 400);
-  }
+  const room = stayCapacity(organizationId, accommodation, accommodations_data);
   const services = getOrganizationServices(organizationId);
   const totals = totalsOrBadRequest(accommodation, services, {
     check_in, check_out, num_guests: totalGuests, pricing_periods: periods, breakfast_included,
-    guest, guests_data: guests_data || [], nightly_prices,
+    guest, guests_data: guests_data || [], nightly_prices, ...room,
   });
   let voucher = null, voucherError = null, discount = 0;
   if (voucher_code) {
@@ -81,7 +79,7 @@ function priceCreate(organizationId, body) {
   try {
     const standard = calculateReservationTotals(accommodation, services, {
       check_in, check_out, num_guests: totalGuests, pricing_periods: periods, breakfast_included,
-      guest, guests_data: guests_data || [],
+      guest, guests_data: guests_data || [], ...room,
     });
     standardTotal = Math.max(0, standard.totalAmount - discount);
   } catch { /* referência indisponível — não marcar */ }
@@ -139,7 +137,8 @@ function priceUpdate(organizationId, existing, body) {
   const existingGuest = db.prepare('SELECT birth_date FROM guests WHERE id = ? AND organization_id = ?').get(existing.guest_id, organizationId) || {};
   const birthDates = getReservationBirthDates({ ...existingGuest, ...guest }, incomingGuestsData);
   const services = getOrganizationServices(organizationId);
-  const stay = { check_in: newCheckIn, check_out: newCheckOut, num_guests: guests, breakfast_included: breakfast, birth_dates: birthDates, pricing_periods: periods };
+  const room = stayCapacity(organizationId, accommodation, accommodations_data !== undefined ? accommodations_data : existing.accommodations_data);
+  const stay = { check_in: newCheckIn, check_out: newCheckOut, num_guests: guests, breakfast_included: breakfast, birth_dates: birthDates, pricing_periods: periods, ...room };
   // Preço por noite: usa o enviado; senão preserva o guardado (reconciliado por data).
   let totals = totalsOrBadRequest(accommodation, services, {
     ...stay, nightly_prices: nightlyPricesUpdate !== undefined ? nightlyPricesUpdate : safeJson(existing.nightly_prices, []),

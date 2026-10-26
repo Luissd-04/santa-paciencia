@@ -14,7 +14,22 @@ AppModules.define('reservas', {
   setMobileCanal: { get: () => setMobileCanal },
   setMobileBreakfast: { get: () => setMobileBreakfast },
   renderMobileStay: { get: () => renderMobileStay },
+  wizardCapacity: { get: () => wizardCapacity },
+  capacityMessage: { get: () => capacityMessage },
 });
+
+// Lotação da reserva: a soma da lotação do quarto principal e dos quartos
+// extra (como o servidor, em reservationSupport.stayCapacity).
+function wizardCapacity() {
+  const ids = [document.getElementById('f-aloj')?.value, ...AppModules.reservas._wizExtraRooms.map(r => r.accommodation_id)];
+  const rooms = [...new Set(ids.filter(Boolean))].map(id => AppModules.core.accommodations.find(a => a.id === id)).filter(Boolean);
+  return { capacity: rooms.reduce((sum, a) => sum + (Number(a.max_guests) || 0), 0), rooms: rooms.length };
+}
+function capacityMessage({ capacity, rooms }) {
+  return rooms > 1
+    ? `Os quartos escolhidos levam no máximo ${capacity} hóspedes. Junte outro quarto ou reduza os hóspedes.`
+    : `Este alojamento leva no máximo ${capacity} hóspede${capacity !== 1 ? 's' : ''}. Junte outro quarto ou reduza os hóspedes.`;
+}
 
 // ── Nova reserva no telemóvel: três passos sobre o mesmo formulário ──
 // Os campos são os mesmos do computador; no telemóvel cada passo mostra só a
@@ -217,11 +232,10 @@ function validateWizStep(step) {
     const alojVal = document.getElementById('f-aloj').value;
     if (!alojVal) { AppModules.core.toast('⚠️ Seleciona um alojamento.', 'error'); return false; }
     if (AppModules.reservas._unavailableSuites.has(alojVal)) { AppModules.core.toast('⚠️ Este alojamento está ocupado nas datas selecionadas.', 'error'); return false; }
-    const suite = AppModules.core.accommodations.find(a => a.id === alojVal);
     const requestedGuests = parseInt(document.getElementById('f-num-hospedes')?.value, 10) || 1;
-    const maxGuests = Number(suite?.max_guests) || 0;
-    if (maxGuests > 0 && requestedGuests > maxGuests) {
-      AppModules.core.toast(`⚠️ Capacidade máxima: ${maxGuests} hóspede${maxGuests !== 1 ? 's' : ''}.`, 'error');
+    const room = wizardCapacity();
+    if (room.capacity > 0 && requestedGuests > room.capacity) {
+      AppModules.core.toast(`⚠️ ${capacityMessage(room)}`, 'error');
       return false;
     }
     return true;
@@ -260,41 +274,29 @@ function renderSuiteCards() {
   const grid = document.getElementById('suite-cards-grid');
   if (!grid) return;
   const alojEl = document.getElementById('f-aloj');
-  let currentAlojId = alojEl?.value;
+  const currentAlojId = alojEl?.value;
   const ci = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkin')?.value);
   const co = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkout')?.value);
-  const requestedGuests = parseInt(document.getElementById('f-num-hospedes')?.value, 10) || 1;
   const datesSet = !!(ci && co && new Date(co) > new Date(ci));
   if (!AppModules.core.accommodations.length) {
     grid.innerHTML = '<p style="font-size:13px;color:var(--cinza);">Nenhum alojamento disponível.</p>';
     return;
   }
   // Vários quartos na mesma reserva: o primeiro escolhido é o principal (preço
-  // noite a noite e hóspedes); os outros tocados na lista são quartos extra.
+  // noite a noite); os outros tocados na lista são quartos extra. A lotação é
+  // a soma de todos, por isso nenhum quarto fica bloqueado pelos hóspedes.
   const extras = new Map(AppModules.reservas._wizExtraRooms.map(r => [r.accommodation_id, r]));
-  const currentSuite = AppModules.core.accommodations.find(a => a.id === currentAlojId);
-  const currentMaxGuests = Number(currentSuite?.max_guests) || 0;
-  if (currentMaxGuests > 0 && requestedGuests > currentMaxGuests) {
-    if (alojEl) alojEl.value = '';
-    currentAlojId = '';
-    updateWizSummary();
-  }
   const focused = grid.contains(document.activeElement) ? document.activeElement : null;
   const focusedRoom = focused?.getAttribute('data-args-input');
   grid.innerHTML = AppModules.core.accommodations.map(a => {
     const cor = a.color || 'var(--marca)';
-    const maxGuests = Number(a.max_guests) || 0;
     const unavail = datesSet && AppModules.reservas._unavailableSuites.has(a.id);
-    // A capacidade conta para o quarto principal; um quarto extra não leva hóspedes.
-    const overCapacity = maxGuests > 0 && requestedGuests > maxGuests && !currentAlojId;
-    const blocked = unavail || overCapacity;
+    const blocked = unavail;
     const isPrimary = !blocked && currentAlojId === a.id;
     const extra = !blocked && extras.get(a.id);
-    const cls = `suite-card-opt${isPrimary || extra ? ' selected' : ''}${blocked ? ' unavailable' : ''}${overCapacity ? ' capacity-blocked' : ''}`;
+    const cls = `suite-card-opt${isPrimary || extra ? ' selected' : ''}${blocked ? ' unavailable' : ''}`;
     const click = blocked ? '' : `${AppActions.attrs("click", "passos-select-suite-card-069e405", [String((a.id) ?? '')])}`;
-    const title = overCapacity
-      ? `Capacidade máxima: ${maxGuests} hóspede${maxGuests !== 1 ? 's' : ''}`
-      : (unavail ? 'Indisponível nas datas selecionadas' : a.name);
+    const title = unavail ? 'Indisponível nas datas selecionadas' : a.name;
     const coverUrl = a.cover_image ? (a.cover_image.startsWith('http') ? a.cover_image : AppModules.core.API_BASE + a.cover_image) : '';
     return `<div class="${cls}" ${click} title="${title}">
       <div class="suite-check"><i data-lucide="check" style="width:10px;height:10px;color:#fff;"></i></div>
@@ -307,8 +309,7 @@ function renderSuiteCards() {
       <div class="suite-card-body">
         <div class="suite-card-name">${AppModules.core.escapeHtml(a.name)}${isPrimary && extras.size ? ' <span class="suite-card-role">Principal</span>' : ''}</div>
         ${blocked
-          ? `${unavail ? `<div class="suite-card-unavail-lbl">Indisponível</div>` : ''}
-             ${overCapacity ? `<div class="suite-card-capacity-lbl">Capacidade máxima: ${maxGuests} hóspede${maxGuests !== 1 ? 's' : ''}</div>` : ''}`
+          ? '<div class="suite-card-unavail-lbl">Indisponível</div>'
           : extra ? extraRoomPriceHtml(a, extra) : suiteCardPriceHtml(a, ci, co)}
       </div>
     </div>`;
@@ -401,10 +402,6 @@ function selectSuiteCard(id) {
   const previous = sel?.value;
   if (id) {
     if (AppModules.reservas._unavailableSuites.has(id)) return;
-    const suite = AppModules.core.accommodations.find(a => a.id === id);
-    const requestedGuests = parseInt(document.getElementById('f-num-hospedes')?.value, 10) || 1;
-    const maxGuests = Number(suite?.max_guests) || 0;
-    if (maxGuests > 0 && requestedGuests > maxGuests) return;
     delete AppModules.reservas._cachedPricingPeriods[id]; // force refresh on next calcTotal
   }
   if (sel) sel.value = id;
