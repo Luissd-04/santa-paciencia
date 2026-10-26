@@ -51,7 +51,8 @@ function summaryMessage({ checkins, checkouts }) {
 
 async function sendDailySummaries() {
   try {
-    if (new Date().getHours() < SUMMARY_HOUR) return;
+    // Hora no fuso do alojamento: num servidor em UTC, no verão, saía uma hora depois.
+    if (require('./dates').localTime().hour < SUMMARY_HOUR) return;
     const today = localDateIso();
 
     // Só organizações com dispositivos subscritos

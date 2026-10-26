@@ -126,7 +126,7 @@ function periodMatchesDay(period, iso) {
   const dow = typeof period.days_of_week === 'string'
     ? JSON.parse(period.days_of_week)
     : (period.days_of_week || []);
-  return dow.includes(new Date(iso + 'T12:00:00').getDay());
+  return dow.includes(new Date(iso + 'T12:00:00Z').getUTCDay());
 }
 
 function calcBaseAmountWithPeriods(basePrice, checkIn, checkOut, periods = []) {

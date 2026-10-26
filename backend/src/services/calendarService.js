@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const { getAuthenticatedClient, isAuthenticated } = require('../config/google');
 const { db } = require('../config/database');
+const { businessTimeZone, addDays } = require('./dates');
 const { isTasksAuthenticated, syncOrganizationTasksToGoogleTasks } = require('../config/googleTasks');
 
 const CAL_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
@@ -46,8 +47,8 @@ function reservationEventBody(reservation, guest, accommodation) {
       `Pagamento: ${reservation.payment_status}`,
       reservation.notes ? `Notas: ${reservation.notes}` : ''
     ].filter(Boolean).join('\n'),
-    start: { date: reservation.check_in, timeZone: 'Europe/Lisbon' },
-    end: { date: reservation.check_out, timeZone: 'Europe/Lisbon' },
+    start: { date: reservation.check_in, timeZone: businessTimeZone() },
+    end: { date: reservation.check_out, timeZone: businessTimeZone() },
     reminders: {
       useDefault: false,
       overrides: [
@@ -181,7 +182,7 @@ async function ensureAccommodationCalendar(auth, accommodation, organizationId) 
     const { data } = await auth.request({
       url: CAL_BASE,
       method: 'POST',
-      data: { summary: accommodation.name, timeZone: 'Europe/Lisbon' },
+      data: { summary: accommodation.name, timeZone: businessTimeZone() },
     });
     const calendarId = data.id;
 
@@ -326,13 +327,11 @@ function taskEventBody(task, accommodation) {
   let start, end;
   if (task.start_time) {
     const endTime = task.end_time || addOneHour(task.start_time);
-    start = { dateTime: `${task.date}T${task.start_time}:00`, timeZone: 'Europe/Lisbon' };
-    end   = { dateTime: `${task.date}T${endTime}:00`,         timeZone: 'Europe/Lisbon' };
+    start = { dateTime: `${task.date}T${task.start_time}:00`, timeZone: businessTimeZone() };
+    end   = { dateTime: `${task.date}T${endTime}:00`,         timeZone: businessTimeZone() };
   } else {
-    const nextDay = new Date(task.date + 'T12:00:00');
-    nextDay.setDate(nextDay.getDate() + 1);
     start = { date: task.date };
-    end   = { date: nextDay.toISOString().slice(0, 10) };
+    end   = { date: addDays(task.date, 1) };
   }
   return {
     summary: `${icon} ${task.title}${accommodation ? ' — ' + accommodation.name : ''}`,
