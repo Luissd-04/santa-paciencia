@@ -38,12 +38,9 @@ const SERIF = "Georgia, 'Times New Roman', Times, serif";
 
 const MAX_WIDTH = 600;
 
-// Cores simples, sem fundos presos por gradientes/imagens nem
-// -webkit-text-fill-color. O Gmail do iPhone em modo escuro inverte as cores
-// por conta própria: se os fundos ficam presos em creme, inverte só as letras
-// e o texto fica claro sobre claro. Com cores simples inverte tudo junto e o
-// email continua legível (em tons escuros). Os outros clientes respeitam
-// color-scheme: light e mostram a paleta tal como está.
+// Cores simples nos blocos; a proteção contra o modo escuro do Gmail é
+// acrescentada ao email já composto, num só passo (lockColorsForGmail).
+// Os outros clientes respeitam color-scheme: light.
 function backgroundStyle(color) {
   return `background-color:${color};`;
 }
@@ -418,6 +415,74 @@ function buildReservationCard(rows, total) {
   </table>`;
 }
 
+// ── Modo escuro do Gmail do iPhone ─────────────────────────────────────────
+// O Gmail inverte as cores do email por conta própria (ignora color-scheme).
+// Para o email ficar igual ao modo claro (confirmado no iPhone a 26/10/2026,
+// versão B do teste de cores):
+//  1. cada fundo leva um gradiente da mesma cor, em que o Gmail não mexe;
+//  2. cada texto vai em duas camadas de mistura que só o Gmail ativa
+//     (u + .body): no Gmail invertido, «difference» repõe o branco e
+//     «screen»/«exclusion» devolvem letra clara sobre terracota ou escura
+//     sobre creme. Nos outros clientes as camadas não têm estilo;
+//  3. estas regras vão em blocos <style> próprios, sem nada que o Gmail
+//     possa recusar, para não dependerem do bloco principal.
+// Fonte: hteumeuleu.com/2021/fixing-gmail-dark-mode-css-blend-modes/
+const LIGHT_TEXT = /\bsp-(?:brand-on-text|brand-subtext)\b/;
+const DARK_TEXT = /\bsp-(?:text|text-soft|muted-text|brand-text|brand-soft-text)\b/;
+const LIGHT_SURFACE = /\bsp-(?:surface|card|card-alt|page|divider)-bg\b/;
+
+const GMAIL_BLEND_STYLES = ['u + .body', 'u ~ .body', 'u + div.body']
+  .map(scope => `<style>
+${scope} .sp-gs { background:#000; mix-blend-mode:screen; }
+${scope} .sp-ge { background:#000; mix-blend-mode:exclusion; }
+${scope} .sp-gd { background:#000; mix-blend-mode:difference; color:#fff; }
+</style>`).join('\n');
+
+function lockBackgrounds(html) {
+  return html.replace(/style="([^"]*)"/g, (whole, style) => {
+    const bg = style.match(/background-color:\s*(#[0-9a-fA-F]{6})/);
+    if (!bg || /background-image/i.test(style)) return whole;
+    return `style="${style}${style.trim().endsWith(';') || !style.trim() ? '' : ';'}background-image:linear-gradient(${bg[1]},${bg[1]});"`;
+  });
+}
+
+function blendText(inner) {
+  const frames = [];
+  return sanitizeHtml(inner.replace(BODY_START, '<sp-body-start></sp-body-start>').replace(BODY_END, '<sp-body-end></sp-body-end>'), {
+    allowedTags: false,
+    allowedAttributes: false,
+    allowVulnerableTags: true,
+    onOpenTag(tag, attribs) {
+      const parent = frames.at(-1) || { light: false, done: false };
+      const classes = String(attribs.class || '');
+      let light = parent.light;
+      if (/\bsp-brand-bg\b/.test(classes)) light = true;
+      if (LIGHT_SURFACE.test(classes) || DARK_TEXT.test(classes)) light = false;
+      if (LIGHT_TEXT.test(classes)) light = true;
+      // Texto já protegido (ex.: corpo de um email anterior) não leva outra camada.
+      frames.push({ light, done: parent.done || /\bsp-gd\b/.test(classes) || tag === 'style' || tag === 'title' });
+    },
+    onCloseTag() { frames.pop(); },
+    textFilter(text) {
+      const frame = frames.at(-1);
+      if (!frame || frame.done || !text.replace(/&(?:nbsp|#160);/g, '').trim()) return text;
+      return `<span class="sp-g${frame.light ? 's' : 'e'}"><span class="sp-gd">${text}</span></span>`;
+    },
+  })
+    // O parser pode separar entidades do resto do mesmo nó de texto.
+    .replace(/<\/span><\/span><span class="sp-g[se]"><span class="sp-gd">/g, '')
+    .replace('<sp-body-start></sp-body-start>', BODY_START)
+    .replace('<sp-body-end></sp-body-end>', BODY_END);
+}
+
+function lockColorsForGmail(html) {
+  const locked = lockBackgrounds(html);
+  const match = locked.match(/(<body\b[^>]*>)([\s\S]*)(<\/body>)/);
+  if (!match) return locked;
+  const head = locked.slice(0, match.index).replace('<style>', `${GMAIL_BLEND_STYLES}\n<style>`);
+  return `${head}${match[1]}${blendText(match[2])}${match[3]}${locked.slice(match.index + match[0].length)}`;
+}
+
 // ── Documento completo ─────────────────────────────────────────────────────
 
 function normalizeBodyParagraph(bodyHtml) {
@@ -441,7 +506,7 @@ function composeEmail(bodyHtml, settings, options = {}) {
   const s = settings || {};
   const title = escapeHtml(options.title || s.property_name || 'Santa Paciência');
   bodyHtml = normalizeBodyParagraph(bodyHtml);
-  return `<!DOCTYPE html>
+  return lockColorsForGmail(`<!DOCTYPE html>
 <html lang="pt" class="sp-email-root" style="color-scheme:light only;supported-color-schemes:light;">
 <head>
 <meta charset="UTF-8" />
@@ -454,8 +519,8 @@ function composeEmail(bodyHtml, settings, options = {}) {
   .sp-email-root, .sp-email { color-scheme: light only !important; supported-color-schemes: light !important; }
 
   /* Mantém a paleta clara nos clientes que respeitam color-scheme (Apple
-     Mail) e no Outlook (data-ogsc/data-ogsb). O Gmail móvel ignora-o e inverte
-     as cores por inteiro: por isso nada aqui prende fundos (ver backgroundStyle). */
+     Mail) e no Outlook (data-ogsc/data-ogsb). O Gmail móvel ignora-o: ver
+     lockColorsForGmail. */
   .sp-page-bg { ${backgroundRule(PALETTE.pageBg)} }
   .sp-surface-bg { ${backgroundRule(PALETTE.surface)} }
   .sp-card-bg { ${backgroundRule(PALETTE.cardBg)} }
@@ -515,7 +580,7 @@ function composeEmail(bodyHtml, settings, options = {}) {
   </td></tr>
 </table>
 </body>
-</html>`;
+</html>`);
 }
 
 module.exports = {

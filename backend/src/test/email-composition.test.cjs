@@ -42,6 +42,11 @@ const SETTINGS = {
 const GUEST = { name: 'Rui Marques', first_name: 'Rui', email: 'rui@exemplo.invalid' };
 const ACCOMMODATION = { name: 'Suite Mezzanine Deluxe', city: 'Reguengos de Monsaraz' };
 
+// Tira as camadas de mistura do Gmail para comparar a marcação que o modelo escreveu.
+function unblend(html) {
+  return html.replace(/<span class="sp-g[se]"><span class="sp-gd">([^<]*)<\/span><\/span>/g, '$1');
+}
+
 function reservation(status = 'confirmada', extra = {}) {
   return {
     id: 'SP-1', status, check_in: '2026-05-29', check_out: '2026-05-31',
@@ -281,17 +286,28 @@ test('a composição inclui os recursos de cor; o resultado no Gmail exige teste
   assert.match(legacy, /background-color:#fcf9f3/);
 });
 
-// Gmail do iPhone em modo escuro: com fundos presos em creme (gradientes,
-// texturas) invertia só as letras e o texto ficava claro sobre claro. Sem
-// nada preso, inverte fundo e texto juntos e o email continua legível.
-test('nada prende os fundos claros nem a cor das letras contra o modo escuro do Gmail', () => {
+// Gmail do iPhone em modo escuro: o email fica igual ao modo claro (versão B
+// do teste de cores, confirmada no iPhone a 26/10/2026). Fundos presos por
+// gradiente, texto em camadas de mistura só ativas no Gmail, regras do Gmail
+// em blocos <style> próprios.
+test('todos os emails prendem as cores contra o modo escuro do Gmail', () => {
   const examples = [emailService.baseTemplate('<p>teste</p>', SETTINGS),
     ...Object.keys(TEMPLATES).map(slug => render(slug).html)];
   for (const html of examples) {
-    assert.doesNotMatch(html, /linear-gradient|background-image|-webkit-text-fill-color|mix-blend-mode|sp-gmail-|sp-ink/);
-    assert.doesNotMatch(html, /\sbackground="/, 'sem texturas no atributo background');
+    assert.match(html, /background-color:#faf5ec;[^"]*background-image:linear-gradient\(#faf5ec,#faf5ec\)/, 'fundo creme preso');
+    assert.match(html, /<style>\nu \+ \.body \.sp-gs \{ background:#000; mix-blend-mode:screen; \}/, 'regras do Gmail no seu bloco');
+    assert.ok(html.indexOf('u + .body .sp-gd') < html.indexOf(':root { color-scheme'), 'antes do bloco principal');
+    assert.match(html, /class="sp-ge"><span class="sp-gd">/, 'texto escuro sobre creme');
+    assert.doesNotMatch(html, /<span class="sp-g[se]"><span class="sp-gd"><span class="sp-g/, 'sem camadas duplicadas');
+    assert.doesNotMatch(html, /-webkit-text-fill-color|\sbackground="/, 'sem as proteções antigas');
   }
-  // Modelos guardados por versões anteriores perdem as proteções antigas.
+  const header = emailService.baseTemplate('<p>x</p>', SETTINGS);
+  assert.match(header, /class="sp-gs"><span class="sp-gd">ALOJAMENTO LOCAL<\/span><\/span>/, 'texto claro sobre terracota');
+  // Um corpo que já traz camadas (ex.: email anterior) não leva outra.
+  const twice = emailService.baseTemplate(composer.extractBody(header), SETTINGS);
+  assert.doesNotMatch(twice, /sp-gd">[^<]*<span class="sp-g/);
+  // Modelos guardados por versões anteriores perdem as proteções antigas no
+  // corpo; a proteção atual é acrescentada ao email composto.
   const legacy = composer.sanitizeBodyHtml('<table background="https://exemplo.invalid/img/email/bg-surface.png"><tr>'
     + '<td bgcolor="#faf5ec" class="sp-surface-bg sp-ink" style="background-color:#faf5ec;background-image:linear-gradient(#faf5ec,#faf5ec);'
     + 'color:#5d554c;-webkit-text-fill-color:#5d554c">Texto</td></tr></table>', { placeholders: false });
@@ -327,7 +343,7 @@ test('a composição conserva texto selecionável, entidades, resumo e modelos a
   const plain = backendRequire('sanitize-html')(extracted, { allowedTags: [], allowedAttributes: {} });
   assert.equal(plain, 'Texto solto &amp; acentos: Olá Luis.Detalhes aqui.Continuar');
   assert.doesNotMatch(extracted, /ALOJAMENTO LOCAL|ACOMPANHE-NOS/);
-  assert.match(extracted, /<a[^>]*>Continuar<\/a>/);
+  assert.match(unblend(extracted), /<a[^>]*>Continuar<\/a>/);
   assert.doesNotMatch(html, /<sp-body-(?:start|end)/);
 });
 
@@ -585,7 +601,7 @@ test('o modelo de boas-vindas tem título, botão e redes, como o print', () => 
 });
 
 test('o modelo de confirmação tem o cartão com todas as linhas e o total', () => {
-  const { html } = render('confirmacao');
+  const html = unblend(render('confirmacao').html);
   for (const label of ['Alojamento', 'Check-in', 'Check-out', 'Noites', 'Hóspedes', 'Referência', 'Total']) {
     assert.ok(html.includes(`>${label}</div>`) || html.includes(`>${label}</td>`), `falta a linha ${label}`);
   }

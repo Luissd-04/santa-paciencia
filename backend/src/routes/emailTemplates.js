@@ -8,7 +8,6 @@ router.get('/email-settings', ctrl.getSettings);
 router.put('/email-settings', ctrl.saveSettings);
 router.put('/:slug', ctrl.update);
 router.post('/:slug/preview', ctrl.preview);
-router.post('/:slug/dark-mode-test', ctrl.darkModeTest);
 // Compõe o HTML da pré-visualização sem enviar email. Mesma permissão
 // (manager) e mesmo isolamento por organização do resto do módulo.
 router.post('/:slug/preview-html', ctrl.previewHtml);
