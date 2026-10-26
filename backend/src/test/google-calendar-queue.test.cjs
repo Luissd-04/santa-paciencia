@@ -143,7 +143,7 @@ test('alteração falhada é repetida com o estado atual da reserva', async () =
   db.prepare("UPDATE reservations SET total_amount = 260 WHERE id = 'r1'").run();
   boot(); makeDue();
   assert.equal((await service.processCalendarQueue('org'))[0].outcome, 'updated');
-  assert.match(live('cal-a')[0].description, /Total: €260/);
+  assert.match(live('cal-a')[0].description, /Total: 260,00\s€/);
   assert.match(live('cal-a')[0].description, /Chegada tardia/);
 });
 

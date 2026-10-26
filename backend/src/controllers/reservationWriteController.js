@@ -1,18 +1,18 @@
-const { redeemVoucher, reclaimReleasedVoucher } = require('../services/voucherService');
+const { reclaimReleasedVoucher } = require('../services/voucherService');
 const { httpError } = require('../services/httpError');
 const { queueCalendarUpsert, kickCalendarQueue } = require('../services/calendarService');
-const { isAuthenticated: hasGoogleCalendar } = require('../config/google');
 const { recordConsent } = require('../services/rgpdService');
 const { syncReservationOperationalTasks } = require('../services/operationalTasksService');
 
 const ledger = require('../services/financialLedger');
+const creation = require('../services/reservationCreation');
 const { assertAvailable, validateExtraUnits } = require('../services/reservationAvailability');
 const { validateReservationInput, assertMoneyLimit } = require('../services/reservationValidation');
-const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
 
 const { stayChanged, priceCreate, priceUpdate, assertExpectedTotal, createQuote, updateQuote } = require('../services/reservationQuote');
-const moneyChanged = (value, current) => value !== undefined && Math.round(Number(value) * 100) !== Math.round(Number(current || 0) * 100);
+const { cents } = require('../services/money');
+const moneyChanged = (value, current) => value !== undefined && cents(value) !== cents(current || 0);
 // Só estas alterações afetam um pagamento online em curso (montante, estadia
 // ou estado). Notas, hora de chegada e dados de contacto não o interrompem.
 function affectsOnlinePayment(body, existing) {
@@ -61,7 +61,7 @@ async function create(req, res, next) {
       guest, accommodation_id, check_in, check_out,
       num_adults, num_children, channel, payment_method,
       notes, rgpd_consent, rgpd_ip, guests_data,
-      amount_paid, payment_date, payment_status: reqPaymentStatus,
+      amount_paid, payment_date,
     } = req.body;
     const initialStatus = req.body.status || 'confirmada';
     const extraUnits = req.body.accommodations_data || [];
@@ -93,53 +93,25 @@ async function create(req, res, next) {
     const appliedVoucherId = pricing.voucher?.id || null;
     assertExpectedTotal(req.body.expected_total, finalTotal);
 
-    const paidAmt = Number(amount_paid) || 0;
-
-    // Criar reserva
-    const reservationId = `SP-${uuidv4().slice(0, 8).toUpperCase()}`;
-    db.prepare(`
-      INSERT INTO reservations (
-        id, organization_id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
-        num_adults, num_children,
-        total_amount, breakfast_included, tourist_tax, channel, payment_method,
-        notes, license_number, guests_data, amount_paid, payment_date, payment_status, nightly_prices,
-        price_edited_at, price_edited_by_user_id, status, accommodations_data
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      reservationId, organizationId, guestRecord.id, accommodation_id, totals.checkIn, totals.checkOut,
-      totals.nights, totals.guests,
-      num_adults != null ? Number(num_adults) : totals.guests,
-      num_children != null ? Number(num_children) : 0,
-      finalTotal, totals.breakfastIncluded,
-      totals.touristTax, channel || 'direto', payment_method || null,
-      notes || null, accommodation.license_number,
-      JSON.stringify(guests.upsertAdditionalGuests(guests_data, organizationId, guestRecord.id)),
-      paidAmt, payment_date || null, reqPaymentStatus || 'pendente',
-      JSON.stringify(totals.nightlyPrices || []),
-      priceEdited ? new Date().toISOString() : null,
-      priceEdited ? req.user.id : null, initialStatus, JSON.stringify(extraUnits)
-    );
-    if (appliedVoucherId) redeemVoucher(organizationId, appliedVoucherId, reservationId, voucherDiscount);
-
-    require('../services/paymentPolicy').attachPolicy({ id: reservationId, organization_id: organizationId, check_in: totals.checkIn, channel: channel || 'direto' });
-    ledger.ensureLegacyPayment({ id: reservationId, organization_id: organizationId, amount_paid: paidAmt,
-      payment_method: payment_method || null, payment_date: payment_date || null }, 'Pagamento registado na criação da reserva');
-    ledger.recompute(reservationId, organizationId);
-    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservationId, organizationId);
-    recordHistory({
-      organizationId, reservationId, userId: req.user.id, action: 'created',
-      meta: { check_in: reservation.check_in, check_out: reservation.check_out, accommodation_id: reservation.accommodation_id, total_amount: reservation.total_amount },
+    const reservation = creation.create(organizationId, {
+      guest_id: guestRecord.id, accommodation_id, check_in: totals.checkIn, check_out: totals.checkOut,
+      nights: totals.nights, num_guests: totals.guests,
+      num_adults: num_adults != null ? Number(num_adults) : totals.guests,
+      num_children: num_children != null ? Number(num_children) : 0,
+      total_amount: finalTotal, breakfast_included: totals.breakfastIncluded, tourist_tax: totals.touristTax,
+      channel: channel || 'direto', payment_method: payment_method || null, payment_date: payment_date || null,
+      notes: notes || null, license_number: accommodation.license_number,
+      guests_data: JSON.stringify(guests.upsertAdditionalGuests(guests_data, organizationId, guestRecord.id)),
+      nightly_prices: JSON.stringify(totals.nightlyPrices || []),
+      price_edited_at: priceEdited ? new Date().toISOString() : null,
+      price_edited_by_user_id: priceEdited ? req.user.id : null,
+      status: initialStatus, accommodations_data: JSON.stringify(extraUnits),
+    }, {
+      source: 'backoffice', actorUserId: req.user.id, calendarUserId: req.user.id,
+      voucher: appliedVoucherId ? { id: appliedVoucherId, discount: voucherDiscount } : null,
+      initialPayment: { amount: Number(amount_paid) || 0, method: payment_method, date: payment_date },
     });
-    syncReservationOperationalTasks({
-      ...reservation,
-      guest_name: guestRecord.name,
-      accommodation_name: accommodation.name,
-    }, req.user.id);
-
-    // Google Calendar: intenção gravada com a reserva; a fila cria o evento.
-    if (hasGoogleCalendar(req.user.id, organizationId)) queueCalendarUpsert(organizationId, 'reservation', reservationId, req.user.id);
-
-    require('../services/reservationEvents').emit('reservation.created', { organizationId, reservationId, actorUserId: req.user.id });
+    const reservationId = reservation.id;
 
     if (intent) {
       db.prepare('INSERT INTO reservation_create_intents (organization_id, intent_key, fingerprint, reservation_id) VALUES (?, ?, ?, ?)')
@@ -149,8 +121,8 @@ async function create(req, res, next) {
       return { reservation, reservationId, guestRecord, accommodation, organizationId };
     }).immediate();
     if (!created) return res.json({ success: true, replayed: true, data: replay });
-    const { reservation, guestRecord, accommodation, organizationId } = created;
-    kickCalendarQueue(organizationId);
+    const { reservation, guestRecord, accommodation } = created;
+    creation.afterCreate(reservation, { guestName: guestRecord.name, accommodationName: accommodation.name, actorUserId: req.user.id });
 
     res.status(201).json({
       success: true,

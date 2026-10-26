@@ -30,7 +30,20 @@ function set(organizationId, key, value) {
   return value;
 }
 
+// Organização nova: copia os valores por omissão (tabela settings) sem
+// substituir os que já existam.
+function seedDefaults(organizationId) {
+  db.prepare(`INSERT OR IGNORE INTO organization_settings (organization_id, key, value, updated_at)
+    SELECT ?, key, value, datetime('now') FROM settings`).run(organizationId);
+}
+
+// Organizações em que a definição `key` tem o valor `value`.
+function organizationsWith(key, value) {
+  return db.prepare('SELECT organization_id FROM organization_settings WHERE key = ? AND value = ?')
+    .all(key, String(value)).map(row => row.organization_id);
+}
+
 // Serviços extra (taxa turística, pequeno-almoço, ...), usados nos preços.
 const services = organizationId => getJson(organizationId, 'services', []);
 
-module.exports = { get, getJson, getMany, set, services };
+module.exports = { get, getJson, getMany, set, seedDefaults, organizationsWith, services };

@@ -404,7 +404,6 @@ test('pré-check-in posterior ao pagamento não repõe a reserva em aguardar pag
 
 test('HTTP: reserva pública, checkout, assinatura raw e consulta segura do estado', async () => {
   require('../services/emailService').sendOwnerNewReservationEmail = async () => {};
-  require('../services/pushService').notifyOrganization = () => {};
   const app = require('../app');
   db.prepare(`INSERT INTO organization_settings(organization_id,key,value) VALUES('stripe-org','services','[{"id":"tourist_tax","active":false}]')
     ON CONFLICT(organization_id,key) DO UPDATE SET value=excluded.value`).run();

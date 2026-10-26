@@ -4,7 +4,7 @@
   const fmtDate = value => value ? new Date(`${value}T12:00:00`).toLocaleDateString('pt-PT', {
     day: '2-digit', month: 'short', year: 'numeric',
   }) : '—';
-  const fmtMoney = value => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(Number(value || 0));
+  const fmtMoney = ReservationMoney.format;
   const returnState = new URLSearchParams(location.search).get('payment');
   let refreshTimer;
   let refreshCount = 0;

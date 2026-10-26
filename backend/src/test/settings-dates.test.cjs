@@ -26,6 +26,16 @@ test('definições: texto, JSON, várias chaves e valores por omissão', () => {
   assert.deepEqual(settings.services('org-s'), []);
 });
 
+test('definições: organização nova recebe os valores por omissão sem perder os seus', () => {
+  const settings = require('../services/settingsService');
+  db.exec("INSERT INTO organizations(id,name,slug) VALUES ('org-new','N','n'); INSERT OR REPLACE INTO settings(key,value) VALUES ('teste_omissao','sim'), ('gcal_sync_tasks','0')");
+  settings.set('org-new', 'gcal_sync_tasks', '1');
+  settings.seedDefaults('org-new');
+  assert.equal(settings.get('org-new', 'teste_omissao'), 'sim');
+  assert.equal(settings.get('org-new', 'gcal_sync_tasks'), '1');
+  assert.deepEqual(settings.organizationsWith('gcal_sync_tasks', 1), ['org-new']);
+});
+
 test('datas: «hoje» no fuso do alojamento, não em UTC', () => {
   const { localDay } = require('../services/dates');
   const previous = process.env.TZ;
@@ -80,4 +90,13 @@ test('receita: total das reservas ativas (com taxa turística) e sinal retido da
   assert.deepEqual(body.data.channels.map(c => [c.channel, c.reservations, c.revenue]), [['direto', 1, 272]]);
   const { revenueOf } = require('../services/reportingService');
   assert.deepEqual([{ status: 'confirmada', total_amount: 212 }, { status: 'cancelada', total_amount: 300, amount_paid: 60 }].map(revenueOf), [212, 60]);
+});
+
+test('datas: somar dias e contar noites atravessando a mudança de hora e o fim do mês', () => {
+  const { addDays, daysBetween } = require('../services/dates');
+  assert.equal(addDays('2026-03-28', 2), '2026-03-30');
+  assert.equal(addDays('2026-10-24', 8), '2026-11-01');
+  assert.equal(addDays('2028-03-01', -1), '2028-02-29');
+  assert.equal(daysBetween('2026-03-28', '2026-03-30'), 2);
+  assert.equal(daysBetween('2026-10-30', '2026-10-24'), -6);
 });

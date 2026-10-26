@@ -98,13 +98,12 @@ function fmtDateTime(d) {
 }
 
 function formatMoney(v) {
-  if (v == null) return '';
-  return Number(v).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+  return v == null ? '' : ReservationMoney.format(v);
 }
 
+// Estado da reserva associada à conversa (mesmos rótulos da lista de reservas).
 function labelStatus(s) {
-  const m = { confirmed:'Confirmada', pending:'Pendente', cancelled:'Cancelada', checked_in:'Check-in', checked_out:'Check-out' };
-  return m[s] || s || '—';
+  return s ? ReservationStatus.label(s) : '—';
 }
 
 AppActions.register({

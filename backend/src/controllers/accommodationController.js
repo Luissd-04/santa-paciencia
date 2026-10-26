@@ -648,11 +648,7 @@ function bulkCreatePricingPeriods(req, res) {
 // com as reservas (check_in inclusivo / check_out exclusivo).
 const { getAccommodationScope } = require('../services/availabilityRules');
 
-function addDays(iso, n) {
-  const d = new Date(`${iso}T12:00:00`);
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
-}
+const { addDays } = require('../services/dates');
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 

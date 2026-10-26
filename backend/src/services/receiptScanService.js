@@ -101,7 +101,7 @@ async function scanReceipt({ base64, mediaType }) {
       const amount = Number(String(it.amount).toString().replace(',', '.')) || 0;
       const category = VALID_CATEGORIES.includes(it.category) ? it.category : 'outro';
       const description = String(it.description || '').trim();
-      return { description, amount: Math.round(amount * 100) / 100, category };
+      return { description, amount: require('./money').roundEUR(amount), category };
     })
     .filter(it => it.description && it.amount > 0);
 

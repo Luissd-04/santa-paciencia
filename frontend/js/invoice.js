@@ -112,7 +112,7 @@ function getInvoiceThreadQuery(archived) {
 
 // O servidor devolve colunas da base; a vista usa os nomes que já tinha.
 function _threadFromRow(row) {
-  const activeStatuses = new Set(['confirmed', 'checked_in']);
+  const activeStatuses = new Set(['confirmada', 'check_in']);
   const alojNome = row.alojamento || '';
   return {
     id: row.id,
@@ -124,7 +124,7 @@ function _threadFromRow(row) {
     alojamento: alojNome,
     total: row.total_amount,
     _standalone: !!row.standalone,
-    _alojInitials: activeStatuses.has(row.status) && alojNome
+    _alojInitials: activeStatuses.has(ReservationStatus.normalize(row.status)) && alojNome
       ? alojNome.split(' ').filter(w => w.length > 2).map(w => w[0].toUpperCase()).join('').slice(0, 3)
       : null,
     _lastDate: row.last_sent_at || null,

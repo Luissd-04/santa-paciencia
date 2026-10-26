@@ -45,7 +45,7 @@ function voucherDiscount(voucher, total, nightlyPrices = []) {
   else if (voucher.type === 'credit_stay') {
     discount = (Array.isArray(nightlyPrices) ? nightlyPrices : []).slice(0, Math.max(0, Math.floor(value)))
       .reduce((sum, night) => sum + Math.round((Number(night?.price) || 0) * 100), 0) / 100;
-  } else discount = Math.round(value * 100) / 100;
+  } else discount = require('./money').roundEUR(value);
   return Math.max(0, Math.min(total, discount));
 }
 

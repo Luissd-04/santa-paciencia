@@ -94,7 +94,7 @@ async function simulate() {
       bookedOn: $('pp-sim-booked').value, checkIn: $('pp-sim-checkin').value, cancelOn: $('pp-sim-cancel').value,
     } });
     const p = result.data;
-    const money = cents => (cents / 100).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+    const money = cents => ReservationMoney.format(cents / 100);
     const date = value => new Date(value).toLocaleString('pt-PT', { timeZone: 'Europe/Lisbon' });
     $('pp-sim-result').innerHTML = `<dl class="pp-simulation"><div><dt>Pagamento inicial</dt><dd>${money(p.depositCents)} (${p.depositPercent}%${p.depositAdjusted ? ', ajustado ao mínimo de 0,50 € por pagamento' : ''})</dd></div>
       <div><dt>Restante</dt><dd>${money(p.balanceCents)}${p.balanceCents ? ` até ${date(p.dueAt)}` : ''}</dd></div>

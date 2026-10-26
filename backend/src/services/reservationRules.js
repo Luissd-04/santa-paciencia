@@ -18,7 +18,7 @@ function countNights(checkIn, checkOut) {
   const ci = normalizeDateValue(checkIn);
   const co = normalizeDateValue(checkOut);
   if (!ci || !co) return 0;
-  return Math.round((new Date(`${co}T12:00:00Z`) - new Date(`${ci}T12:00:00Z`)) / 86400000);
+  return require('./dates').daysBetween(ci, co);
 }
 
 function getAgeAtDate(birthDate, refDate) {

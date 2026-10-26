@@ -631,7 +631,7 @@ dinheiro; **Média** = inconsistência com risco ou custo de manutenção releva
 
 ---
 
-## 11. Implementação (PRs #1 a #7)
+## 11. Implementação (PRs #1 a #8)
 
 Cada passo é um PR que depende do anterior (#1 → #2 → … → #7).
 
@@ -644,6 +644,7 @@ Cada passo é um PR que depende do anterior (#1 → #2 → … → #7).
 | 5. Hóspedes e preços | #5 | `guestService`, `reservationQuote.pricePublic`, `reservationAvailability.assertAvailable` |
 | 6. Definições | #6 | `settingsService`, `dates`, `accommodationInheritance`, `json` |
 | 7. Relatórios e frontend | #7 | `reportingService`; no frontend `js/domain/money.js` e `js/domain/reservation-status.js` |
+| 8. Acabamentos | #8 | `reservationCreation`, `accountEmails`; `staffNotifier` para todos os push; `settingsService.seedDefaults`; `money.dueCents`/`isUnderpaid`/`MIN_ONLINE_CENTS`; `dates.addDays`/`daysBetween` |
 
 | Achado | Estado |
 |---|---|
@@ -661,3 +662,9 @@ Cada passo é um PR que depende do anterior (#1 → #2 → … → #7).
 | A19 | Parcial (#7): o frontend lê os valores antigos como os atuais; o servidor continua a aceitá-los |
 | A20 | Resolvido (#7): rótulos e cores num só módulo; montantes no formato «1 234,56 €» |
 | A22 | Em aberto (decisão 7): o seletor de estado passa a ter Check-in/Check-out |
+
+### Passo 8: o que ficou fora dos serviços e porquê
+
+- A edição de uma reserva pela equipa grava o estado escolhido junto com os restantes campos, com o histórico das diferenças; o cancelamento passa sempre por `reservationLifecycle` e o estado derivado do dinheiro por `financialLedger.recompute`.
+- O pré-check-in do hóspede grava o estado calculado por `reservationLifecycle.statusAfterPrecheckin` junto com os dados do hóspede.
+- As mensagens escritas à mão (Mensagens) e a pré-visualização de modelos usam diretamente `emailService.sendMail`, que é o envio comum.

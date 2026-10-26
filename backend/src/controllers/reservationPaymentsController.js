@@ -30,7 +30,8 @@ async function addPayment(req, res, next) {
     const { amount, method, payment_date, notes } = req.body;
 
     if (payment_date && !require('../services/reservationRules').normalizeDateValue(payment_date)) throw httpError('Data de pagamento inválida.');
-    const numAmount = Math.round(Number(amount) * 100) / 100;
+    const money = require('../services/money');
+    const numAmount = money.roundEUR(amount);
     if (!Number.isFinite(numAmount) || numAmount <= 0) throw httpError('Montante inválido');
 
     const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(id, organizationId);
@@ -38,7 +39,7 @@ async function addPayment(req, res, next) {
     require('../services/stripePaymentGuards').assertNoActiveCheckout(reservation.id);
 
     const { MAX_MONEY } = require('../services/reservationValidation');
-    if (numAmount > MAX_MONEY || Math.round((Number(reservation.amount_paid || 0) + numAmount) * 100) > Math.round(MAX_MONEY * 100)) {
+    if (numAmount > MAX_MONEY || money.cents(reservation.amount_paid || 0) + money.cents(numAmount) > money.cents(MAX_MONEY)) {
       throw httpError('Montante excessivo (máximo permitido: 999 999,99 € por reserva).');
     }
 

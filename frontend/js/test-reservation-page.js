@@ -64,7 +64,7 @@ AppModules.define('demo', {
               <h4>${unit.name}</h4>
               <p>${unit.max_guests} hóspedes</p>
             </div>
-            <div class="unit-price">€${unit.price_per_night}<small>/ noite</small></div>
+            <div class="unit-price">${ReservationMoney.formatShort(unit.price_per_night)}<small>/ noite</small></div>
           </div>`).join('');
       }
       console.log('Unidades renderizadas');

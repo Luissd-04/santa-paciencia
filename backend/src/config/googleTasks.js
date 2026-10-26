@@ -145,8 +145,7 @@ function deleteAllSyncedTasks(organizationId) {
 
 function disconnectTasks(organizationId) {
   return withTaskLock(organizationId, async () => {
-    db.prepare(`INSERT INTO organization_settings (organization_id, key, value)
-      VALUES (?, 'gcal_sync_tasks', '0') ON CONFLICT(organization_id, key) DO UPDATE SET value = '0'`).run(organizationId);
+    require('../services/settingsService').set(organizationId, 'gcal_sync_tasks', '0');
     const removed = await clearSyncedTasks(organizationId);
     await revokeTasksTokens(organizationId);
     deleteTasksTokens(organizationId);
@@ -344,9 +343,8 @@ async function runOrganizationTaskSync(organizationId) {
 
 // Reconciliação após falhas/reinícios e para alterações feitas por outros fluxos.
 async function syncEnabledOrganizationsToGoogleTasks() {
-  const rows = db.prepare(`SELECT c.organization_id FROM google_tasks_connections c
-    JOIN organization_settings s ON s.organization_id = c.organization_id
-    WHERE s.key = 'gcal_sync_tasks' AND s.value = '1'`).all();
+  const enabled = new Set(require('../services/settingsService').organizationsWith('gcal_sync_tasks', '1'));
+  const rows = db.prepare('SELECT organization_id FROM google_tasks_connections').all().filter(row => enabled.has(row.organization_id));
   for (const row of rows) {
     try { await syncOrganizationTasksToGoogleTasks(row.organization_id); }
     catch (err) { console.error('Erro ao repetir sincronização do Google Tasks:', err.message); }

@@ -62,7 +62,8 @@ router.post('/test', async (req, res, next) => {
     if (!message) return res.status(400).json({ success: false, error: 'Escreva uma mensagem.' });
     if (message.length > 500) return res.status(400).json({ success: false, error: 'Mensagem demasiado longa (máx. 500).' });
 
-    const result = await push.sendToOrganization(req.user.organization_id, {
+    // Sem tipo: o teste chega a todos os dispositivos, sejam quais forem as preferências.
+    const result = await require('../services/staffNotifier').push(req.user.organization_id, null, {
       title: 'Santa Paciência',
       body: message,
       tag: 'sp-test',

@@ -42,7 +42,7 @@ function reservationEventBody(reservation, guest, accommodation) {
       `Telemóvel: ${guest.phone || 'N/A'}`,
       `Hóspedes: ${reservation.num_guests}`,
       `Canal: ${reservation.channel}`,
-      `Total: €${reservation.total_amount}`,
+      `Total: ${require('./money').formatEUR(reservation.total_amount)}`,
       `Pagamento: ${reservation.payment_status}`,
       reservation.notes ? `Notas: ${reservation.notes}` : ''
     ].filter(Boolean).join('\n'),

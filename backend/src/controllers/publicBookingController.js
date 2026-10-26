@@ -1,18 +1,14 @@
 const { normalizeDocumentType } = require('../services/documentType');
 const { httpError } = require('../services/httpError');
-const { findUsableVoucher, redeemVoucher } = require('../services/voucherService');
+const { findUsableVoucher } = require('../services/voucherService');
 const { findConflict } = require('../services/reservationAvailability');
 const { validateReservationInput } = require('../services/reservationValidation');
-const crypto = require('crypto');
-const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
 const { recordConsent } = require('../services/rgpdService');
-const { syncReservationOperationalTasks } = require('../services/operationalTasksService');
+const creation = require('../services/reservationCreation');
 const { getEmailSettings, resolveAccommodationInheritance } = require('../services/emailService');
-const {
-  getPaymentStatus,
-  normalizeDateValue,
-} = require('../services/reservationRules');
+const { normalizeDateValue } = require('../services/reservationRules');
+const { cents, MIN_ONLINE_CENTS } = require('../services/money');
 const turnstile = require('../services/turnstileService');
 const { recordHistory } = require('../services/reservationHistoryService');
 const { publicOrigin } = require('../services/publicOrigin');
@@ -303,8 +299,6 @@ async function createReservation(req, res, next) {
     let { finalTotal, voucherDiscount } = pricing;
     const onlinePayment = stripeEnabled(parent.organization_id);
 
-    // ID único sem colisão por concorrência
-    const reservationId = `SP-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
     const { newToken } = require('../services/publicLinks');
     const token = newToken();
     // Token distinto para pre-checkin (S2): TTL = check_out (deixa de funcionar
@@ -337,51 +331,33 @@ async function createReservation(req, res, next) {
         ({ voucherDiscount, finalTotal } = locked);
       }
 
-      // Inserir reserva
-      db.prepare(`
-        INSERT INTO reservations (
-          id, organization_id, guest_id, accommodation_id, check_in, check_out, nights, num_guests,
-          total_amount, breakfast_included, tourist_tax, channel, payment_method, notes, license_number, status,
-          guests_data, amount_paid, payment_status, public_token, precheckin_token, precheckin_token_expires_at, arrival_time, guest_snapshot
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', ?, 0, ?, ?, ?, ?, ?, ?)
-      `).run(
-        reservationId, parent.organization_id, g.id, accommodationId,
-        totals.checkIn, totals.checkOut, totals.nights, totals.guests,
-        finalTotal, payload.breakfast_included ? 1 : 0, totals.touristTax,
-        'website', null, payload.notes || null, licenseNumber,
-        JSON.stringify(normalizedGuestsData), getPaymentStatus(0, finalTotal), token, precheckinToken, precheckinExpiresAt, arrivalTime, JSON.stringify({ name: g.name, email: g.email, phone: g.phone })
-      );
-
-      require('../services/paymentPolicy').attachPolicy({ id: reservationId, organization_id: parent.organization_id });
-      if (confirmedVoucherId) redeemVoucher(parent.organization_id, confirmedVoucherId, reservationId, voucherDiscount);
-      if (onlinePayment && finalTotal >= 0.50) {
-        db.prepare("UPDATE reservations SET status='aguardar_pagamento' WHERE id=?").run(reservationId);
-      }
-      require('../services/reservationEvents').emit('reservation.requested', { organizationId: parent.organization_id, reservationId,
-        payload: { appUrl: publicUrl(req) } });
-      return g;
+      const reservation = creation.create(parent.organization_id, {
+        guest_id: g.id, accommodation_id: accommodationId, check_in: totals.checkIn, check_out: totals.checkOut,
+        nights: totals.nights, num_guests: totals.guests, total_amount: finalTotal,
+        breakfast_included: payload.breakfast_included ? 1 : 0, tourist_tax: totals.touristTax,
+        channel: 'website', payment_method: null, notes: payload.notes || null, license_number: licenseNumber,
+        // Com pagamento online o pedido aguarda o pagamento; sem ele, a aprovação da equipa.
+        status: onlinePayment && cents(finalTotal) >= MIN_ONLINE_CENTS ? 'aguardar_pagamento' : 'pendente',
+        guests_data: JSON.stringify(normalizedGuestsData), public_token: token, precheckin_token: precheckinToken,
+        precheckin_token_expires_at: precheckinExpiresAt, arrival_time: arrivalTime,
+        guest_snapshot: JSON.stringify({ name: g.name, email: g.email, phone: g.phone }),
+      }, {
+        source: 'public', voucher: confirmedVoucherId ? { id: confirmedVoucherId, discount: voucherDiscount } : null,
+        eventPayload: { appUrl: publicUrl(req) },
+      });
+      return { guest: g, reservation };
     }).immediate();
 
-    recordConsent(txResult.id, req.ip, parent.organization_id);
-
-    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?')
-      .get(reservationId, parent.organization_id);
-    recordHistory({
-      organizationId: parent.organization_id, reservationId, userId: null, action: 'created',
-      meta: { check_in: reservation.check_in, check_out: reservation.check_out, accommodation_id: reservation.accommodation_id, total_amount: reservation.total_amount, source: 'public' },
-    });
-    syncReservationOperationalTasks({
-      ...reservation,
-      guest_name: txResult.name,
-      accommodation_name: accommodationName,
-    }, null);
+    recordConsent(txResult.guest.id, req.ip, parent.organization_id);
+    const { reservation } = txResult;
+    creation.afterCreate(reservation, { guestName: txResult.guest.name, accommodationName });
 
     res.status(201).json({
       success: true,
       data: {
-        id: reservationId,
+        id: reservation.id,
         status: reservation.status,
-        online_payment_available: onlinePayment && finalTotal >= 0.50,
+        online_payment_available: onlinePayment && cents(finalTotal) >= MIN_ONLINE_CENTS,
         total_amount: finalTotal,
         public_token: token,
         public_url: `${publicUrl(req)}/reserva/${token}`,

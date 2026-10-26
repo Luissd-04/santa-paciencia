@@ -1,8 +1,6 @@
 const { db } = require('../config/database');
-const { sendMail } = require('../services/emailService');
 const { buildInvitationUrl, createInvitation, ensureRole, listInvitations, listMembers } = require('../services/orgService');
 const { getUserByEmail, isValidEmail } = require('../services/authService');
-const { escapeHtml } = require('../services/emailComposer');
 const { recordAudit } = require('../services/auditLog');
 
 function getOverview(req, res) {
@@ -60,15 +58,8 @@ async function invite(req, res) {
     const inviteUrl = buildInvitationUrl(invitation.token);
     recordAudit({ organizationId, userId: req.user.id, action: 'team.invited', targetType: 'invitation', targetId: invitation.id, meta: { role } });
 
-    const emailResult = await sendMail(organizationId, {
-      to: email,
-      subject: `Convite para a equipa ${req.user.organization_name} — Santa Paciência`,
-      html: require('../services/emailService').baseTemplate(`
-        ${require('../services/emailComposer').buildReservationTitle(`Foste convidado para ${req.user.organization_name}`, '•')}
-        <p>O teu papel será <strong>${escapeHtml(role)}</strong>.</p>
-        ${require('../services/emailComposer').buildCtaBlock(inviteUrl, 'Aceitar convite')}
-        <p>Este link expira em 7 dias.</p>
-      `, require('../services/emailService').getEmailSettings(null, organizationId)),
+    const emailResult = await require('../services/accountEmails').sendTeamInvitation(organizationId, {
+      to: email, organizationName: req.user.organization_name, role, url: inviteUrl,
     });
     const emailSent = !!emailResult;
 

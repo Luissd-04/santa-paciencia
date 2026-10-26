@@ -30,12 +30,7 @@ function generateUniqueSlug(name) {
 }
 
 function seedOrganizationSettings(organizationId) {
-  const defaults = db.prepare('SELECT key, value FROM settings').all();
-  const stmt = db.prepare(`
-    INSERT OR IGNORE INTO organization_settings (organization_id, key, value, updated_at)
-    VALUES (?, ?, ?, datetime('now'))
-  `);
-  defaults.forEach(row => stmt.run(organizationId, row.key, row.value));
+  require('./settingsService').seedDefaults(organizationId);
 }
 
 function seedOrganizationEmailTemplates(organizationId) {

@@ -24,8 +24,6 @@ const emailService = require('../services/emailService');
 for (const name of ['sendConfirmationEmail', 'sendCancellationEmail', 'sendPaymentConfirmationEmail', 'sendPreCheckinEmail', 'sendOwnerNewReservationEmail']) {
   emailService[name] = async (...args) => { sent.push({ name, reservation: args.find(a => a?.check_in)?.id, amount: args.at(-1)?.amount }); return { id: 'mail' }; };
 }
-const pushes = [];
-require('../services/pushService').notifyOrganization = (org, type) => { pushes.push(type); };
 require('../services/operationalTasksService').syncReservationOperationalTasks = () => {};
 require('../services/calendarService').kickCalendarQueue = () => {};
 
@@ -43,7 +41,6 @@ beforeEach(() => {
     INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests)
       VALUES ('unit','${ORG}','Quarto','alojamento',100,4);`);
   sent.length = 0;
-  pushes.length = 0;
 });
 after(() => { db.close(); process.chdir(originalCwd); fs.rmSync(temp, { recursive: true, force: true }); });
 
@@ -196,4 +193,14 @@ test('pré-check-in concluído confirma, salvo sinal da política por pagar', ()
   policy.attachPolicy({ id: 'res', organization_id: ORG });
   savePrecheckin(row(), { name: 'Hóspede', email: 'hospede@example.com' }, [], null);
   assert.equal(row().status, 'aguardar_pagamento');
+});
+
+test('dinheiro: saldo em falta, arredondamento e mínimo online em cêntimos', () => {
+  const money = require('../services/money');
+  assert.equal(money.dueCents(0.3, 0.1 + 0.2), 0);
+  assert.equal(money.isUnderpaid(0.1 + 0.2, 0.3), false);
+  assert.equal(money.isUnderpaid(99.99, 100), true);
+  assert.equal(money.dueCents(100, null), 10000);
+  assert.equal(money.roundEUR(10.005), 10.01);
+  assert.equal(money.MIN_ONLINE_CENTS, 50);
 });
