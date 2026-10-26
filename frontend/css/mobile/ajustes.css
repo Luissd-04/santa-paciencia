@@ -184,6 +184,9 @@
 /* Mobile audit: keep scrolling, touch controls and overlays predictable. */
 body.modal-open { overflow: hidden; }
 body.modal-open .main { overflow: hidden; }
+/* Página presa por trás de uma janela aberta (ui.js: lockPageScroll). */
+body.page-scroll-locked { position: fixed; top: var(--page-lock-top, 0); left: 0; right: 0; width: 100%; }
+.modal-bg, .modal { overscroll-behavior: contain; }
 body:not(.auth-ready) .bottom-nav-bar,
 body:not(.auth-ready) #mobile-fab { display: none !important; }
 .aloj-tabs { min-width: 0; max-width: 100%; overflow-x: auto; }

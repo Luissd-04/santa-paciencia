@@ -298,6 +298,25 @@
     }
   }
 
+  // No iPhone, overflow:hidden no body não chega: quando a janela não tem nada
+  // para deslizar, o Safari passa o gesto para a página por trás. Enquanto há
+  // uma janela aberta, a página fica presa na posição atual e volta lá ao fechar.
+  let lockedScrollY = null;
+  function lockPageScroll() {
+    if (lockedScrollY !== null) return;
+    lockedScrollY = window.scrollY;
+    document.body.style.setProperty('--page-lock-top', `-${lockedScrollY}px`);
+    document.body.classList.add('page-scroll-locked');
+  }
+  function unlockPageScroll() {
+    if (lockedScrollY === null) return;
+    const y = lockedScrollY;
+    lockedScrollY = null;
+    document.body.classList.remove('page-scroll-locked');
+    document.body.style.removeProperty('--page-lock-top');
+    window.scrollTo({ top: y, behavior: 'instant' });
+  }
+
   function activateModal(modal, backdrop) {
     if (!modal || modalState.has(modal)) return;
     prepareModal(modal);
@@ -308,6 +327,7 @@
     });
     activeModals.push(modal);
     document.body.classList.add('modal-open');
+    lockPageScroll();
     // Só quando o foco ainda está fora: quem já está a escrever num campo do
     // diálogo não o perde no frame seguinte (o texto escrito perdia-se).
     const focus = () => {
@@ -326,6 +346,7 @@
     const index = activeModals.lastIndexOf(modal);
     if (index >= 0) activeModals.splice(index, 1);
     document.body.classList.toggle('modal-open', activeModals.length > 0);
+    if (!activeModals.length) unlockPageScroll();
     if (state.previousFocus?.isConnected && typeof state.previousFocus.focus === 'function') {
       state.previousFocus.focus({ preventScroll: true });
     }

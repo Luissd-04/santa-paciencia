@@ -818,18 +818,10 @@
         </div>
         <div style="margin-top:16px;" data-mstep="1">
           <label for="f-aloj" class="form-label">Alojamento <span class="req-star">*</span></label>
+          <p class="suite-cards-hint">Escolhe mais do que um para juntar vários quartos à mesma reserva.</p>
           <select id="f-aloj" style="display:none;" data-on-change="index-calc-total-8bcd488"></select>
           <div class="suite-cards" id="suite-cards-grid"></div>
         </div>
-
-        <!-- ── Adicionar quartos extra à mesma reserva (multi-suite) ── -->
-        <div class="form-group form-full" id="wiz-extra-rooms-toggle-wrap" style="margin-top:10px;" data-mstep="1">
-          <button type="button" class="btn btn-ghost btn-sm" data-on-click="index-wiz-toggle-extra-rooms-ce30293">
-            <i data-lucide="plus" style="width:14px;height:14px;"></i>
-            <span id="wiz-extra-rooms-toggle-label">Adicionar outro quarto</span>
-          </button>
-        </div>
-        <div class="form-group form-full" id="wiz-extra-rooms-panel" style="display:none;margin-top:10px;" data-mstep="1"></div>
 
         <!-- ── Preço por noite (editável, noite a noite) ── -->
         <button type="button" class="resf-fold resf-mobile-only" id="resf-price-toggle" data-fold="price" data-on-click="index-mobile-fold" aria-expanded="false" aria-controls="resf-nightly-wrap" data-mstep="3">

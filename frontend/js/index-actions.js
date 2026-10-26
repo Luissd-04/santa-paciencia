@@ -219,7 +219,6 @@ AppActions.register({
   "index-mobile-fold": (el) => { AppModules.reservas.toggleMobileFold(el.dataset.fold) },
   "index-mobile-canal": (el) => { AppModules.reservas.setMobileCanal(el.dataset.canal) },
   "index-discard-reserva-draft-53f0676": (el, event, args) => { AppModules.reservas.discardReservaDraft() },
-  "index-wiz-toggle-extra-rooms-ce30293": (el, event, args) => { AppModules.reservas.wizToggleExtraRooms() },
   "index-apply-nightly-to-all-f99c949": (el, event, args) => { AppModules.reservas.applyNightlyToAll() },
   "index-reset-nightly-overrides-1d673fa": (el, event, args) => { AppModules.reservas.resetNightlyOverrides() },
   "index-set-form-discount-type-be84a88": (el, event, args) => { AppModules.reservas.setFormDiscountType('pct') },

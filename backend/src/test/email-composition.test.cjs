@@ -269,17 +269,35 @@ test('a composição inclui os recursos de cor; o resultado no Gmail exige teste
   assert.ok(html.includes('color-scheme:light only'), 'bloqueio do esquema também fica inline');
   assert.ok(html.includes('@media (prefers-color-scheme: dark)'), 'clientes com media query recebem a paleta clara');
   assert.ok(html.includes('[data-ogsc] .sp-brand-bg'), 'Outlook recebe a correção de modo escuro');
-  assert.ok(html.includes('background-image:linear-gradient(#843424,#843424)'), 'o fundo de marca resiste à inversão do Gmail móvel');
-  assert.ok(html.includes('-webkit-text-fill-color:#fbf3ea'), 'o texto sobre a marca mantém a cor clara');
+  assert.ok(html.includes('background-color:#843424'), 'cabeçalho e total com o terracota da marca');
 
   // Modelos antigos já guardados também são decorados durante a composição.
   const legacy = composer.sanitizeBodyHtml(
     '<p style="color:#5d554c">Texto</p><table><tr><td bgcolor="#fcf9f3" style="background:#fcf9f3">Linha</td></tr></table>',
     { placeholders: false },
   );
-  assert.match(legacy, /class="sp-text-soft sp-ink"/);
+  assert.match(legacy, /class="sp-text-soft"/);
   assert.match(legacy, /class="sp-card-bg"/);
-  assert.match(legacy, /background-image:linear-gradient\(#fcf9f3,#fcf9f3\)/);
+  assert.match(legacy, /background-color:#fcf9f3/);
+});
+
+// Gmail do iPhone em modo escuro: com fundos presos em creme (gradientes,
+// texturas) invertia só as letras e o texto ficava claro sobre claro. Sem
+// nada preso, inverte fundo e texto juntos e o email continua legível.
+test('nada prende os fundos claros nem a cor das letras contra o modo escuro do Gmail', () => {
+  const examples = [emailService.baseTemplate('<p>teste</p>', SETTINGS),
+    ...Object.keys(TEMPLATES).map(slug => render(slug).html)];
+  for (const html of examples) {
+    assert.doesNotMatch(html, /linear-gradient|background-image|-webkit-text-fill-color|mix-blend-mode|sp-gmail-|sp-ink/);
+    assert.doesNotMatch(html, /\sbackground="/, 'sem texturas no atributo background');
+  }
+  // Modelos guardados por versões anteriores perdem as proteções antigas.
+  const legacy = composer.sanitizeBodyHtml('<table background="https://exemplo.invalid/img/email/bg-surface.png"><tr>'
+    + '<td bgcolor="#faf5ec" class="sp-surface-bg sp-ink" style="background-color:#faf5ec;background-image:linear-gradient(#faf5ec,#faf5ec);'
+    + 'color:#5d554c;-webkit-text-fill-color:#5d554c">Texto</td></tr></table>', { placeholders: false });
+  assert.doesNotMatch(legacy, /background=|linear-gradient|text-fill|sp-ink/);
+  assert.match(legacy, /background-color:#faf5ec/);
+  assert.match(legacy, /color:#5d554c/);
 });
 
 test('fundos da moldura e dos modelos não dependem de url() no CSS', () => {
@@ -290,35 +308,17 @@ test('fundos da moldura e dos modelos não dependem de url() no CSS', () => {
       assert.doesNotMatch(css[1] || css[2], /url\s*\(/i,
         'uma imagem não deve fazer o Gmail descartar os estilos essenciais');
     }
-    for (const name of ['surface', 'brand']) {
-      assert.ok(html.includes(`background="https://exemplo.invalid/img/email/bg-${name}.png"`));
-    }
     const shell = html.match(/<body\b[^>]*>/)[0];
     assert.doesNotMatch(shell, /bgcolor=|background=|sp-page-bg/);
     assert.match(shell, /background-color:transparent/);
     const styledTags = [...html.matchAll(/<(?:body|table|td|th|a|p|div|span)\b[^>]*>/g)].map(m => m[0]);
     for (const tag of styledTags.filter(t => /class="[^"]*sp-(?:page|surface|card|card-alt|brand)-bg/.test(t))) {
-      assert.match(tag, /background-color:#[0-9a-f]{6}/, 'cor de recurso mesmo sem imagens/CSS do head');
-      assert.match(tag, /background-image:linear-gradient\(/, 'gradiente inline também no corpo sanitizado');
-      assert.doesNotMatch(tag, /class="[^"]*\bsp-ink\b/, 'pintar o texto não pode apagar o fundo');
+      assert.match(tag, /background-color:#[0-9a-f]{6}/, 'cor de recurso mesmo sem o CSS do head');
     }
   }
 });
 
-test('pré-checkin protege título, texto, negritos e botão sem recortar os fundos', () => {
-  const { html } = render('pre_checkin', { status: 'aguardar_pagamento' });
-  const dark = '<span class="sp-gmail-exclusion"><span class="sp-gmail-difference">';
-  const light = '<span class="sp-gmail-screen"><span class="sp-gmail-difference">';
-  assert.ok(html.includes(`${dark}Reserva por confirmar</span></span>`));
-  assert.ok(html.includes(`<strong>${dark}Rui</span></span></strong>`));
-  assert.ok(html.includes(`${light}COMPLETAR PRÉ CHECK-IN</span></span></a>`));
-  assert.ok(html.includes(`${light}ALOJAMENTO LOCAL</span></span>`));
-  assert.doesNotMatch(html, /background-clip:|(?:[;{]|\s)color:transparent/);
-  assert.match(html, /href="https:\/\/exemplo.invalid\/pre-checkin\/abc"/);
-  assert.doesNotMatch(html, /sp-gmail-difference">\s*<(?:img|table|td)/);
-});
-
-test('proteção conserva texto selecionável, entidades, resumo e modelos antigos', () => {
+test('a composição conserva texto selecionável, entidades, resumo e modelos antigos', () => {
   const body = 'Texto solto &amp; acentos: Olá <strong>Luis</strong>.'
     + '<p style="color:#5d554c">Detalhes <a href="https://exemplo.invalid">aqui</a>.</p>'
     + '<a style="background:#843424;color:#fbf3ea" href="https://exemplo.invalid">Continuar</a>';
@@ -327,7 +327,7 @@ test('proteção conserva texto selecionável, entidades, resumo e modelos antig
   const plain = backendRequire('sanitize-html')(extracted, { allowedTags: [], allowedAttributes: {} });
   assert.equal(plain, 'Texto solto &amp; acentos: Olá Luis.Detalhes aqui.Continuar');
   assert.doesNotMatch(extracted, /ALOJAMENTO LOCAL|ACOMPANHE-NOS/);
-  assert.match(extracted, /sp-gmail-screen"><span class="sp-gmail-difference">Continuar/);
+  assert.match(extracted, /<a[^>]*>Continuar<\/a>/);
   assert.doesNotMatch(html, /<sp-body-(?:start|end)/);
 });
 
@@ -338,20 +338,11 @@ test('modelos guardados conservam fundo creme e cor de recurso após sanitizaç�
     html = composer.sanitizeBodyHtml(html, { placeholders: false });
     const cell = html.match(/<td\b[^>]*>/)[0];
     assert.match(cell, /background-color:#faf5ec/);
-    assert.match(cell, /background-image:linear-gradient\(#faf5ec,#faf5ec\)/);
-    assert.match(cell, /background="https:\/\/exemplo.invalid\/img\/email\/bg-surface.png"/);
     assert.doesNotMatch(cell, /\bsp-ink\b/);
   }
   const classOnly = composer.sanitizeBodyHtml('<p class="sp-surface-bg sp-text-soft sp-ink">Teste</p>');
   assert.match(classOnly, /background-color:#faf5ec/);
-  assert.doesNotMatch(classOnly, /\bsp-ink\b/, 'classes de fundo também excluem recorte de texto');
-});
-
-test('texturas HTML só podem ser escolhidas pelo compositor', () => {
-  const html = composer.sanitizeBodyHtml('<table background="https://untrusted.invalid/image"><tr>'
-    + '<td bgcolor="#faf5ec" background="javascript:alert(1)">Teste</td></tr></table>');
-  assert.doesNotMatch(html, /untrusted|javascript:/);
-  assert.match(html, /background="https:\/\/exemplo.invalid\/img\/email\/bg-surface.png"/);
+  assert.doesNotMatch(classOnly, /\bsp-ink\b/);
 });
 
 test('os ícones vêm de imagens HTTPS e o rótulo continua legível sem elas', () => {
@@ -401,8 +392,7 @@ test('texto simples de Mensagens recebe um parágrafo com a cor dos modelos', ()
   for (const body of ['teste', 'Olá <strong>Rui</strong>,<br />até breve &amp; obrigado']) {
     const { html } = emailService.renderManualEmail({ organizationId: null, subject: 'teste', body, context: null });
     const content = composer.extractBody(html);
-    assert.match(content, /^<p class="sp-text-soft sp-ink" style="[^"]*color:#5d554c/);
-    assert.match(content, /<span class="sp-gmail-exclusion"><span class="sp-gmail-difference">/);
+    assert.match(content, /^<p class="sp-text-soft" style="[^"]*color:#5d554c/);
     assert.match(content, /<\/p>$/);
     const textOnly = value => backendRequire('sanitize-html')(value, { allowedTags: [], allowedAttributes: {} });
     assert.equal(textOnly(content), textOnly(body));
@@ -597,7 +587,7 @@ test('o modelo de boas-vindas tem título, botão e redes, como o print', () => 
 test('o modelo de confirmação tem o cartão com todas as linhas e o total', () => {
   const { html } = render('confirmacao');
   for (const label of ['Alojamento', 'Check-in', 'Check-out', 'Noites', 'Hóspedes', 'Referência', 'Total']) {
-    assert.ok(html.includes(`>${label}</span></span></div>`) || html.includes(`>${label}</span></span></td>`), `falta a linha ${label}`);
+    assert.ok(html.includes(`>${label}</div>`) || html.includes(`>${label}</td>`), `falta a linha ${label}`);
   }
   assert.ok(html.includes('SP-1'), 'referência dinâmica');
   assert.ok(html.includes('Suite Mezzanine Deluxe'), 'alojamento dinâmico');
@@ -610,13 +600,13 @@ test('o nome configurado da organização manda no título de boas-vindas', () =
   assert.ok(!html.includes('Bem-vindo à Santa Paciência'));
 });
 
-test('um botão terracota no corpo não recebe o recorte de texto que apaga o fundo', () => {
+test('um botão terracota no corpo conserva o fundo e a cor do texto', () => {
   const html = composer.sanitizeBodyHtml(
     '<a href="https://x.pt" style="background:#843424;color:#fbf3ea">Reservar</a>',
     { placeholders: false },
   );
-  // A classe de texto pintaria a cor com background-clip:text e tapava o fundo.
   assert.match(html, /class="sp-brand-bg"/);
   assert.doesNotMatch(html, /sp-brand-on-text/);
-  assert.match(html, /-webkit-text-fill-color:#fbf3ea/);
+  assert.match(html, /color:#fbf3ea/);
+  assert.match(html, /background-color:#843424/);
 });
