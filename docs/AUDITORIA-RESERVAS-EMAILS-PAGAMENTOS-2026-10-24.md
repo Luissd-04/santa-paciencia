@@ -745,3 +745,14 @@ decidido pelo dinheiro). A regra está em `reservationState.undoStatus`/`isUndo`
 quem pede entra em `reservationLifecycle.context(r, actor)`. A equipa recebe a
 explicação «Só a gestão pode desfazer…». Cada desfazer fica no histórico como
 «Passo desfeito» (`status_undone`, com o estado de origem e o de destino).
+
+## 15. Importar reservas de um ficheiro (XLS)
+
+A importação (Reservas → Importar) cria as reservas com `import: true`:
+origem `import` em `reservationCreation` (histórico «importada de um ficheiro»),
+sem acontecimento — nem confirmação ao hóspede nem aviso à equipa, porque são
+reservas de outro sistema. Uma linha cancelada no ficheiro é gravada como
+reserva e logo cancelada por `reservationLifecycle.markCancelled` (`quiet`,
+`meta.imported`), por isso o cancelamento fica como passo no histórico; não
+ocupa as datas e não tem evento no calendário. Fora da importação, uma
+reserva nova continua a não poder começar cancelada.

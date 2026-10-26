@@ -244,7 +244,8 @@ function rdv2TimelineMetaLine(action, meta) {
   } else if (action === 'cancelled' || action === 'policy_cancelled') {
     const reasons = { staff: 'Pela equipa', guest: 'Pelo hóspede, no link da reserva',
       ttl: 'Automático — sem pagamento dentro do prazo', nonpayment: 'Automático — restante não pago no prazo' };
-    if (reasons[meta.reason]) bits.push(reasons[meta.reason]);
+    if (meta.imported) bits.push('Cancelada no ficheiro importado');
+    else if (reasons[meta.reason]) bits.push(reasons[meta.reason]);
     if (meta.policy || action === 'policy_cancelled') bits.push('segundo a política de pagamento');
     if (meta.refund != null) bits.push(`Reembolso: ${ReservationMoney.format(meta.refund)}`);
   } else if (action === 'email_delivery_resolved') {
@@ -255,6 +256,7 @@ function rdv2TimelineMetaLine(action, meta) {
     if (meta.check_in && meta.check_out) bits.push(`${rdv2ShortDate(String(meta.check_in))} → ${rdv2ShortDate(String(meta.check_out))}`);
     if (meta.total_amount != null) bits.push(`${ReservationMoney.format(meta.total_amount)}`);
     if (meta.source === 'public') bits.push('via página de reservas online');
+    if (meta.source === 'import') bits.push('importada de um ficheiro');
   }
   return bits.length ? `<span class="rdv2-tl-meta">${bits.join(' · ')}</span>` : '';
 }

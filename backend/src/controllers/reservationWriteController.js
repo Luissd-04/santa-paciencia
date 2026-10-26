@@ -66,6 +66,11 @@ async function create(req, res, next) {
     } = req.body;
     const extraUnits = req.body.accommodations_data || [];
     const organizationId = req.user.organization_id;
+    // Importação de um ficheiro: sem emails ao hóspede nem avisos à equipa. Uma
+    // reserva cancelada no ficheiro é gravada como reserva e logo cancelada
+    // (o cancelamento fica como passo), sem ocupar as datas.
+    const importing = req.body.import === true;
+    const importCancelled = importing && req.body.status === 'cancelada';
 
     if (!accommodation_id || !check_in || !check_out) {
       throw httpError('Datas e alojamento são obrigatórios', 400);
@@ -84,19 +89,20 @@ async function create(req, res, next) {
     const { accommodation, totals, finalTotal, priceEdited, voucherDiscount } = pricing;
 
     // Disponibilidade (anti double-booking), incluindo bloqueios manuais.
-    assertAvailable(organizationId, accommodation_id, totals.checkIn, totals.checkOut, null);
-
-    validateExtraUnits(organizationId, extraUnits, accommodation_id, totals.checkIn, totals.checkOut, null);
+    if (!importCancelled) {
+      assertAvailable(organizationId, accommodation_id, totals.checkIn, totals.checkOut, null);
+      validateExtraUnits(organizationId, extraUnits, accommodation_id, totals.checkIn, totals.checkOut, null);
+    }
 
     // Voucher inválido ou esgotado: recusar em vez de criar sem desconto.
     if (pricing.voucherError) throw pricing.voucherError;
     const appliedVoucherId = pricing.voucher?.id || null;
     assertExpectedTotal(req.body.expected_total, finalTotal);
     // Reserva (o sinal decide se fica confirmada), pré-reserva ou pedido.
-    const initialStatus = lifecycle.nextStatus(null, req.body.status || 'aguardar_pagamento',
+    const initialStatus = lifecycle.nextStatus(null, importCancelled ? 'aguardar_pagamento' : (req.body.status || 'aguardar_pagamento'),
       { organization_id: organizationId, channel: channel || 'direto', total_amount: finalTotal, check_in: totals.checkIn });
 
-    const reservation = creation.create(organizationId, {
+    let reservation = creation.create(organizationId, {
       guest_id: guestRecord.id, accommodation_id, check_in: totals.checkIn, check_out: totals.checkOut,
       nights: totals.nights, num_guests: totals.guests,
       num_adults: num_adults != null ? Number(num_adults) : totals.guests,
@@ -110,11 +116,15 @@ async function create(req, res, next) {
       price_edited_by_user_id: priceEdited ? req.user.id : null,
       status: initialStatus, accommodations_data: JSON.stringify(extraUnits),
     }, {
-      source: 'backoffice', actorUserId: req.user.id, calendarUserId: req.user.id,
+      source: importing ? 'import' : 'backoffice', actorUserId: req.user.id, calendarUserId: importCancelled ? null : req.user.id,
       voucher: appliedVoucherId ? { id: appliedVoucherId, discount: voucherDiscount } : null,
       initialPayment: { amount: Number(amount_paid) || 0, method: payment_method, date: payment_date },
     });
     const reservationId = reservation.id;
+    if (importCancelled) {
+      lifecycle.markCancelled(reservation, { reason: 'staff', actorUserId: req.user.id, quiet: true, meta: { imported: true } });
+      reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservationId, organizationId);
+    }
 
     if (intent) {
       db.prepare('INSERT INTO reservation_create_intents (organization_id, intent_key, fingerprint, reservation_id) VALUES (?, ?, ?, ?)')

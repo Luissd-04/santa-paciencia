@@ -144,3 +144,23 @@ test('ficha e cotação devolvem os três estados e as opções do seletor', asy
     num_adults: 2, channel: 'airbnb' })).body.data;
   assert.deepEqual(quote.status_options, ['confirmada', 'pre_reserva', 'pendente']);
 });
+
+test('importação: sem emails nem avisos; uma cancelada fica gravada com o cancelamento e não ocupa as datas', async () => {
+  db.exec("INSERT OR IGNORE INTO users(id,name,email,password_hash) VALUES ('manager','Gestão','gestao@example.invalid','x')");
+  reservation({ status: 'confirmada', check_in: '2035-07-01', check_out: '2035-07-05' });
+  const body = (overrides = {}) => ({ import: true, guest: { name: 'Importado', email: 'importado@example.com' }, accommodation_id: 'unit',
+    check_in: '2035-07-02', check_out: '2035-07-04', num_guests: 2, channel: 'booking', rgpd_consent: true, ...overrides });
+  const cancelled = await call(write.create, body({ status: 'cancelada' }));
+  assert.equal(cancelled.statusCode, 201, JSON.stringify(cancelled.body));
+  assert.equal(cancelled.body.data.status, 'cancelada', 'as datas já ocupadas não impedem importar uma cancelada');
+  const history = db.prepare('SELECT action, meta FROM reservation_history WHERE reservation_id = ? ORDER BY rowid').all(cancelled.body.data.id)
+    .map(h => [h.action, JSON.parse(h.meta || '{}')]);
+  assert.deepEqual(history.map(([action]) => action), ['created', 'cancelled']);
+  assert.equal(history[0][1].source, 'import'); assert.equal(history[1][1].imported, true);
+  const active = await call(write.create, body({ status: 'confirmada', check_in: '2035-08-01', check_out: '2035-08-03' }));
+  assert.equal(active.statusCode, 201);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM reservation_events WHERE reservation_id IN (?, ?)').get(cancelled.body.data.id, active.body.data.id).n, 0,
+    'sem confirmação ao hóspede, cancelamento nem push à equipa');
+  // Fora da importação, uma reserva nova continua a não poder começar cancelada.
+  assert.equal((await call(write.create, { ...body({ status: 'cancelada' }), import: undefined })).statusCode, 409);
+});

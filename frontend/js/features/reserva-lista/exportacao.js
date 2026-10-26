@@ -86,7 +86,7 @@ async function importReservasXLS(input) {
       };
       const asAmount = value => parseFloat(String(value || '').replace(',', '.')) || 0;
 
-      let created = 0, skipped = 0;
+      let created = 0, skipped = 0, cancelled = 0;
       for (const row of rows) {
         const guestName = pick(row, 'Hóspede', 'Hospede', 'guest_name', 'Nome');
         const guestEmail = pick(row, 'Email', 'guest_email') || `reserva_${Date.now()}_${created}@sem-email.local`;
@@ -98,8 +98,12 @@ async function importReservasXLS(input) {
 
         const parts = guestName.split(' ');
         const amountPaid = asAmount(pick(row, 'Pago (€)', 'Pago', 'amount_paid'));
+        const status = normalizeStatus(pick(row, 'Estado', 'status'));
         try {
+          // Importação: sem emails ao hóspede nem avisos à equipa; as canceladas
+          // ficam gravadas com o cancelamento no histórico.
           await AppModules.core.apiPost('/api/reservations', {
+            import: true,
             guest: {
               name: guestName,
               first_name: parts[0] || guestName,
@@ -115,7 +119,7 @@ async function importReservasXLS(input) {
             num_guests: parseInt(pick(row, 'Hóspedes', 'Hospedes', 'num_guests'), 10) || 1,
             breakfast_included: false,
             channel: pick(row, 'Canal', 'channel') || 'direto',
-            status: normalizeStatus(pick(row, 'Estado', 'status')),
+            status,
             payment_status: normalizePayment(pick(row, 'Pagamento', 'payment_status')),
             payment_method: pick(row, 'Método pagamento', 'Metodo pagamento', 'payment_method') || null,
             amount_paid: amountPaid,
@@ -124,11 +128,12 @@ async function importReservasXLS(input) {
             guests_data: [],
           });
           created++;
+          if (status === 'cancelada') cancelled++;
         } catch {
           skipped++;
         }
       }
-      AppModules.core.toast(`✅ ${created} reservas importadas${skipped ? `, ${skipped} ignoradas` : ''}.`, 'success');
+      AppModules.core.toast(`✅ ${created} reservas importadas${cancelled ? ` (${cancelled} canceladas)` : ''}${skipped ? `, ${skipped} ignoradas` : ''}.`, 'success');
       await AppModules.reservas.loadReservas();
       if (typeof AppModules.calendario.renderCalView === 'function') AppModules.calendario.renderCalView();
       if (typeof AppModules.core.renderDashboard === 'function') AppModules.core.renderDashboard();
