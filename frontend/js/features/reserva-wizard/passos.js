@@ -190,7 +190,6 @@ function buildMobileSummary() {
   if (!box) return;
   const esc = AppModules.core.escapeHtml;
   const value = id => (document.getElementById(id)?.value || '').trim();
-  const suite = AppModules.core.accommodations.find(a => a.id === value('f-aloj'));
   const ci = AppModules.core.normalizeIsoDateValue(value('f-checkin'));
   const co = AppModules.core.normalizeIsoDateValue(value('f-checkout'));
   const nights = ci && co ? window.ReservationDates.countNights(ci, co) : 0;
@@ -205,7 +204,7 @@ function buildMobileSummary() {
       <div class="resf-msummary-text"><div class="resf-msummary-title">${esc(title)}</div>${sub ? `<div class="resf-msummary-sub">${esc(sub)}</div>` : ''}</div>
       <button type="button" class="resf-msummary-edit" data-mstep-tab="${step}" data-on-click="index-mobile-step-go">Alterar</button>
     </div>`;
-  box.innerHTML = row(suite?.name || 'Alojamento por escolher', stay, 1) + row(value('f-nome-completo') || 'Hóspede por indicar', contact, 2);
+  box.innerHTML = row(selectedRoomNames() || 'Alojamento por escolher', stay, 1) + row(value('f-nome-completo') || 'Hóspede por indicar', contact, 2);
 }
 
 function validateWizStep(step) {
@@ -238,19 +237,23 @@ function validateWizStep(step) {
 function updateWizSummary() {
   const nome = (document.getElementById('f-nome-completo')?.value || '').trim();
   const apelido = '';
-  const alojId = document.getElementById('f-aloj')?.value;
-  const suite = AppModules.core.accommodations.find(a => a.id === alojId);
   const ci = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkin')?.value);
   const co = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkout')?.value);
   const nights = ci && co ? Math.max(0, Math.round((new Date(co) - new Date(ci)) / 86400000)) : 0;
   const total = document.getElementById('f-total')?.value;
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   set('ws-guest', [nome, apelido].filter(Boolean).join(' ') || '—');
-  set('ws-suite', suite?.name || '—');
+  set('ws-suite', selectedRoomNames() || '—');
   set('ws-checkin', ci ? AppModules.core.formatDate(ci) : '—');
   set('ws-nights', nights > 0 ? nights + ' noite' + (nights !== 1 ? 's' : '') : '—');
   set('ws-total', total && Number(total) > 0 ? ReservationMoney.format(total) : '—');
   renderMobileStay();
+}
+
+// Nomes dos quartos escolhidos (principal primeiro), para os resumos.
+function selectedRoomNames() {
+  const primary = AppModules.core.accommodations.find(a => a.id === document.getElementById('f-aloj')?.value);
+  return [primary?.name, ...AppModules.reservas._wizExtraRooms.map(r => r.name)].filter(Boolean).join(' + ');
 }
 
 function renderSuiteCards() {
@@ -266,6 +269,9 @@ function renderSuiteCards() {
     grid.innerHTML = '<p style="font-size:13px;color:var(--cinza);">Nenhum alojamento disponível.</p>';
     return;
   }
+  // Vários quartos na mesma reserva: o primeiro escolhido é o principal (preço
+  // noite a noite e hóspedes); os outros tocados na lista são quartos extra.
+  const extras = new Map(AppModules.reservas._wizExtraRooms.map(r => [r.accommodation_id, r]));
   const currentSuite = AppModules.core.accommodations.find(a => a.id === currentAlojId);
   const currentMaxGuests = Number(currentSuite?.max_guests) || 0;
   if (currentMaxGuests > 0 && requestedGuests > currentMaxGuests) {
@@ -273,14 +279,18 @@ function renderSuiteCards() {
     currentAlojId = '';
     updateWizSummary();
   }
+  const focused = grid.contains(document.activeElement) ? document.activeElement : null;
+  const focusedRoom = focused?.getAttribute('data-args-input');
   grid.innerHTML = AppModules.core.accommodations.map(a => {
     const cor = a.color || 'var(--marca)';
     const maxGuests = Number(a.max_guests) || 0;
     const unavail = datesSet && AppModules.reservas._unavailableSuites.has(a.id);
-    const overCapacity = maxGuests > 0 && requestedGuests > maxGuests;
+    // A capacidade conta para o quarto principal; um quarto extra não leva hóspedes.
+    const overCapacity = maxGuests > 0 && requestedGuests > maxGuests && !currentAlojId;
     const blocked = unavail || overCapacity;
-    const sel = !blocked && currentAlojId === a.id ? 'selected' : '';
-    const cls = `suite-card-opt${sel ? ' selected' : ''}${blocked ? ' unavailable' : ''}${overCapacity ? ' capacity-blocked' : ''}`;
+    const isPrimary = !blocked && currentAlojId === a.id;
+    const extra = !blocked && extras.get(a.id);
+    const cls = `suite-card-opt${isPrimary || extra ? ' selected' : ''}${blocked ? ' unavailable' : ''}${overCapacity ? ' capacity-blocked' : ''}`;
     const click = blocked ? '' : `${AppActions.attrs("click", "passos-select-suite-card-069e405", [String((a.id) ?? '')])}`;
     const title = overCapacity
       ? `Capacidade máxima: ${maxGuests} hóspede${maxGuests !== 1 ? 's' : ''}`
@@ -295,32 +305,27 @@ function renderSuiteCards() {
           : `<div class="suite-card-dot" style="width:10px;height:10px;border-radius:50%;background:${cor};margin-bottom:8px;"></div>`}
       ${blocked ? `<div class="suite-card-lock">🔒</div>` : ''}
       <div class="suite-card-body">
-        <div class="suite-card-name">${AppModules.core.escapeHtml(a.name)}</div>
+        <div class="suite-card-name">${AppModules.core.escapeHtml(a.name)}${isPrimary && extras.size ? ' <span class="suite-card-role">Principal</span>' : ''}</div>
         ${blocked
           ? `${unavail ? `<div class="suite-card-unavail-lbl">Indisponível</div>` : ''}
              ${overCapacity ? `<div class="suite-card-capacity-lbl">Capacidade máxima: ${maxGuests} hóspede${maxGuests !== 1 ? 's' : ''}</div>` : ''}`
-          : suiteCardPriceHtml(a, ci, co)}
+          : extra ? extraRoomPriceHtml(a, extra) : suiteCardPriceHtml(a, ci, co)}
       </div>
     </div>`;
   }).join('');
+  // O recálculo do total volta a desenhar a lista: quem está a escrever o preço
+  // de um quarto extra continua no mesmo campo.
+  const refocus = focusedRoom && grid.querySelector(`input[data-args-input='${CSS.escape(focusedRoom)}']`);
+  if (refocus) { refocus.value = focused.value; refocus.focus(); }
   if (window.lucide) lucide.createIcons();
 }
 
 // Preço do cartão: dinâmico (média/noite + total + ocupação extra) quando há datas,
 // tal como no frontoffice; senão, o preço-base estático.
 function suiteCardPriceHtml(a, ci, co) {
-  const datesOk = ci && co && new Date(co) > new Date(ci);
   const fallback = `<div class="suite-card-price">${ReservationMoney.formatShort(a.price_per_night)}<span class="suite-card-sub"> / noite</span></div>`;
-  if (!datesOk || !window.ReservationPricing) return fallback;
-  const numHospedes = parseInt(document.getElementById('f-num-hospedes')?.value, 10) || 1;
-  const totals = window.ReservationPricing.calculateReservationTotal(a, [], {
-    check_in: ci,
-    check_out: co,
-    num_guests: numHospedes,
-    birth_dates: AppModules.reservas.wizEffectiveBirthDates(),
-    pricing_periods: AppModules.reservas._cachedPricingPeriods[a.id] || [],
-  });
-  if (!totals || !totals.baseAmount || !totals.nights) return fallback;
+  const totals = suiteStayTotals(a, ci, co);
+  if (!totals) return fallback;
   const avg = totals.baseAmount / totals.nights;
   const grand = totals.baseAmount + (totals.extraOccupancyCost || 0);
   const extra = totals.extraOccupancyCost > 0
@@ -330,16 +335,79 @@ function suiteCardPriceHtml(a, ci, co) {
     <div class="suite-card-total">${ReservationMoney.format(grand)} total</div>${extra}</div>`;
 }
 
-function selectSuiteCard(id) {
+// Preço da estadia num alojamento com as datas e hóspedes do formulário (o
+// mesmo cálculo do frontoffice); null sem datas válidas.
+function suiteStayTotals(a, ci, co) {
+  if (!(ci && co && new Date(co) > new Date(ci)) || !window.ReservationPricing) return null;
+  const numHospedes = parseInt(document.getElementById('f-num-hospedes')?.value, 10) || 1;
+  const totals = window.ReservationPricing.calculateReservationTotal(a, [], {
+    check_in: ci,
+    check_out: co,
+    num_guests: numHospedes,
+    birth_dates: AppModules.reservas.wizEffectiveBirthDates(),
+    pricing_periods: AppModules.reservas._cachedPricingPeriods[a.id] || [],
+  });
+  return totals && totals.baseAmount && totals.nights ? totals : null;
+}
+
+// Quarto extra: preço por noite editável no próprio cartão (tocar no campo
+// não desmarca o quarto, ver data-stop).
+function extraRoomPriceHtml(a, room) {
+  return `<label class="suite-card-extra-price" data-stop>
+      <input type="number" class="form-control" min="0" step="0.01" inputmode="decimal" value="${Number(room.price_per_night || 0).toFixed(2)}"
+        aria-label="Preço por noite de ${AppModules.core.escapeHtml(a.name)}" ${AppActions.attrs("input", "passos-extra-room-price-5d1c2a7", [String(a.id)])} autocomplete="off">
+      <span class="suite-card-sub">€ / noite</span>
+    </label>`;
+}
+
+// Tocar num alojamento: sem principal, passa a principal; com principal,
+// junta-o (ou retira-o) como quarto extra. Tocar no principal retira-o e o
+// primeiro extra, se houver, passa a principal.
+function toggleSuiteCard(id) {
   if (AppModules.reservas._unavailableSuites.has(id)) return;
-  const suite = AppModules.core.accommodations.find(a => a.id === id);
-  const requestedGuests = parseInt(document.getElementById('f-num-hospedes')?.value, 10) || 1;
-  const maxGuests = Number(suite?.max_guests) || 0;
-  if (maxGuests > 0 && requestedGuests > maxGuests) return;
+  const primaryId = document.getElementById('f-aloj')?.value;
+  const rooms = AppModules.reservas._wizExtraRooms;
+  if (id === primaryId) {
+    const [next, ...rest] = rooms;
+    AppModules.reservas._wizExtraRooms = rest;
+    return selectSuiteCard(next ? next.accommodation_id : '');
+  }
+  if (!primaryId) return selectSuiteCard(id);
+  if (rooms.some(r => r.accommodation_id === id)) {
+    AppModules.reservas._wizExtraRooms = rooms.filter(r => r.accommodation_id !== id);
+  } else {
+    const suite = AppModules.core.accommodations.find(a => a.id === id);
+    const ci = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkin')?.value);
+    const co = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkout')?.value);
+    const totals = suite && suiteStayTotals(suite, ci, co);
+    const pricePerNight = totals ? totals.baseAmount / totals.nights : Number(suite?.price_per_night || 0);
+    AppModules.reservas._wizExtraRooms = [...rooms, { accommodation_id: id, name: suite?.name || '', price_per_night: Math.round(pricePerNight * 100) / 100 }];
+  }
+  AppModules.reservas._manualTotalOverride = null;
+  renderSuiteCards();
+  AppModules.reservas.calcTotal();
+}
+
+function setExtraRoomPrice(id, value) {
+  const room = AppModules.reservas._wizExtraRooms.find(r => r.accommodation_id === id);
+  if (!room) return;
+  room.price_per_night = Math.max(0, parseFloat(value) || 0);
+  AppModules.reservas._manualTotalOverride = null;
+  AppModules.reservas.calcTotal();
+}
+
+function selectSuiteCard(id) {
   const sel = document.getElementById('f-aloj');
   const previous = sel?.value;
+  if (id) {
+    if (AppModules.reservas._unavailableSuites.has(id)) return;
+    const suite = AppModules.core.accommodations.find(a => a.id === id);
+    const requestedGuests = parseInt(document.getElementById('f-num-hospedes')?.value, 10) || 1;
+    const maxGuests = Number(suite?.max_guests) || 0;
+    if (maxGuests > 0 && requestedGuests > maxGuests) return;
+    delete AppModules.reservas._cachedPricingPeriods[id]; // force refresh on next calcTotal
+  }
   if (sel) sel.value = id;
-  delete AppModules.reservas._cachedPricingPeriods[id]; // force refresh on next calcTotal
   // Trocar de alojamento parte de preços novos (os overrides eram do anterior).
   if (previous !== id) {
     AppModules.reservas._nightlyOverrides = {};
@@ -348,12 +416,9 @@ function selectSuiteCard(id) {
     const allInp = document.getElementById('resf-nightly-all-val'); if (allInp) allInp.value = '';
   }
   // A nova suite principal não pode continuar também na lista de quartos extra.
-  if (AppModules.reservas._wizExtraRooms.some(r => r.accommodation_id === id)) {
-    AppModules.reservas._wizExtraRooms = AppModules.reservas._wizExtraRooms.filter(r => r.accommodation_id !== id);
-  }
-  const extraPanel = document.getElementById('wiz-extra-rooms-panel');
-  if (extraPanel && extraPanel.style.display !== 'none') AppModules.reservas.renderWizExtraRooms();
+  AppModules.reservas._wizExtraRooms = AppModules.reservas._wizExtraRooms.filter(r => r.accommodation_id !== id);
   renderSuiteCards();
+  updateWizSummary();
   AppModules.reservas.calcTotal();
 }
 
@@ -442,8 +507,12 @@ document.addEventListener('click', function(e) {
 
 AppActions.register({
   "passos-wiz-select-guest-40ccb6d": (el, event, args) => { wizSelectGuest(args[0]) },
-  "passos-select-suite-card-069e405": (el, event, args) => { selectSuiteCard(args[0]) },
+  "passos-select-suite-card-069e405": (el, event, args) => { toggleSuiteCard(args[0]) },
 }, "click");
+
+AppActions.register({
+  "passos-extra-room-price-5d1c2a7": (el, event, args) => { setExtraRoomPrice(args[0], el.value) },
+}, "input");
 
 // Limpeza da funcionalidade ao sair ou trocar de organização.
 AppModules.onReset('features/reserva-wizard/passos.js', () => {

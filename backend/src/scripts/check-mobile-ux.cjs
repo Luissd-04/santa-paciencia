@@ -19,6 +19,7 @@ async function main() {
   orgs.createMembership({ organizationId: org.id, userId: user.id, role: 'owner' });
   const session = auth.createSession(user.id, org.id).sessionId;
   db.prepare('INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests) VALUES(?,?,?,?,?,?)').run('unit', org.id, 'Unidade UX', 'alojamento', 100, 4);
+  db.prepare('INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests) VALUES(?,?,?,?,?,?)').run('unit2', org.id, 'Quarto Extra UX', 'alojamento', 80, 2);
   db.prepare('INSERT INTO guests(id,organization_id,name,email) VALUES(?,?,?,?)').run('guest',org.id,'Hóspede UX','guest@example.invalid');
   db.prepare(`INSERT INTO reservations(id,organization_id,guest_id,accommodation_id,check_in,check_out,nights,num_guests,num_adults,total_amount,status)
     VALUES('res',?,'guest','unit','2030-07-06','2030-07-08',2,1,1,200,'confirmada')`).run(org.id);
@@ -200,6 +201,23 @@ async function main() {
   await expect(page.getByRole('button',{name:'Mais…',exact:true})).toHaveAttribute('aria-pressed','true');
   assert.equal(await page.locator('#suite-cards-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),1);
   await page.locator('.suite-card-opt',{hasText:'Unidade UX'}).click();
+  // Vários quartos na própria lista: o segundo tocado entra como quarto extra,
+  // com o preço por noite no cartão; tocar no preço não o desmarca.
+  const extraCard=page.locator('.suite-card-opt',{hasText:'Quarto Extra UX'});
+  await extraCard.click();
+  await expect(extraCard).toHaveClass(/selected/);
+  await expect(page.locator('.suite-card-opt.selected')).toHaveCount(2);
+  await expect(page.locator('.suite-card-opt',{hasText:'Unidade UX'}).locator('.suite-card-role')).toHaveText('Principal');
+  const extraPrice=extraCard.getByRole('spinbutton',{name:'Preço por noite de Quarto Extra UX'});
+  await expect(extraPrice).toHaveValue('80.00');
+  await extraPrice.fill('90');
+  await expect(extraCard).toHaveClass(/selected/);
+  await expect(extraPrice).toBeFocused();
+  await extraCard.locator('.suite-card-name').click();
+  await expect(page.locator('.suite-card-opt.selected')).toHaveCount(1);
+  await extraCard.locator('.suite-card-name').click();
+  await extraCard.getByRole('spinbutton').fill('90');
+  await expect(page.locator('#wiz-extra-rooms-toggle-wrap')).toHaveCount(0);
   await page.getByRole('button',{name:'Mais uma criança'}).click();
   await expect(page.locator('#f-num-criancas')).toHaveValue('1');
   await page.getByRole('button',{name:'Menos uma criança'}).click();
@@ -216,6 +234,7 @@ async function main() {
   await page.locator('#resf-mstep-next').click();
   await expect(wizard).toHaveAttribute('data-mstep','3');
   await expect(page.locator('#resf-msummary')).toContainText('Hóspede Passos');
+  await expect(page.locator('#resf-msummary')).toContainText('Unidade UX + Quarto Extra UX');
   await expect(page.locator('#resf-nightly-grid')).toBeHidden();
   // Estado de uma reserva nova: as opções vêm da cotação; o sinal decide.
   await expect.poll(()=>page.locator('#f-estado option').evaluateAll(options=>options.map(option=>option.value))).toEqual(['aguardar_pagamento','pre_reserva','pendente']);
@@ -223,6 +242,8 @@ async function main() {
   await expect(wizard).not.toHaveClass(/open/);
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM reservations r JOIN guests g ON g.id=r.guest_id WHERE g.name='Hóspede Passos'").get().n,1);
   assert.equal(db.prepare("SELECT r.status FROM reservations r JOIN guests g ON g.id=r.guest_id WHERE g.name='Hóspede Passos'").get().status,'aguardar_pagamento');
+  const rooms=JSON.parse(db.prepare("SELECT r.accommodations_data FROM reservations r JOIN guests g ON g.id=r.guest_id WHERE g.name='Hóspede Passos'").get().accommodations_data);
+  assert.deepEqual(rooms.map(room=>[room.accommodation_id,room.subtotal]),[['unit',300],['unit2',270]]);
   // Na edição, Guardar está em todos os passos; fechar sem alterações não pergunta nada,
   // mesmo depois de chegar a cotação do servidor.
   await page.evaluate(()=>AppModules.reservas.openEditModal('res'));

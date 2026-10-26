@@ -20,7 +20,6 @@ function openModal(config = {}) {
   AppModules.reservas._wizMultiSuite = false;
   AppModules.reservas._wizExtraRooms = [];
   AppModules.reservas._wizHadMultiSuiteOnLoad = false;
-  AppModules.reservas._wizResetExtraRoomsPanel();
   document.getElementById('modal-bg')?.classList.remove('resf-page-mode');
   const titleEl = document.getElementById('modal-title');
   if (titleEl) titleEl.textContent = 'Nova Reserva';
@@ -113,7 +112,6 @@ async function openEditModal(id) {
     // e o servidor recalcula o voucher quando a estadia muda.
     AppModules.reservas._wizVoucherManaged = !!r.voucher && !r.price_edited_at;
     AppModules.reservas._wizExtraRooms = [];
-    AppModules.reservas._wizResetExtraRoomsPanel();
     document.getElementById('modal-title').textContent = 'Editar Reserva — ' + id;
     document.getElementById('btn-guardar').textContent = 'Atualizar Reserva';
     AppModules.reservas.buildCountrySelects();
@@ -225,8 +223,8 @@ async function openEditModal(id) {
     AppModules.reservas._wizMultiSuite = Array.isArray(accsData) && accsData.length > 1;
     AppModules.reservas._wizHadMultiSuiteOnLoad = AppModules.reservas._wizMultiSuite;
     if (AppModules.reservas._wizMultiSuite) AppModules.reservas._wizVoucherManaged = false;
-    // Suites adicionais (além da principal) — preenchem o painel "Adicionar outro
-    // quarto" para poderem ser vistas/editadas também a partir do wizard.
+    // Suites adicionais (além da principal) — aparecem marcadas na lista de
+    // alojamentos, com o preço por noite editável.
     AppModules.reservas._wizExtraRooms = (Array.isArray(accsData) ? accsData : [])
       .filter(item => item.accommodation_id !== r.accommodation_id)
       .map(item => ({
@@ -244,13 +242,6 @@ async function openEditModal(id) {
       }
     }
     await AppModules.reservas.calcTotal();
-    if (AppModules.reservas._wizExtraRooms.length > 0) {
-      const extraPanel = document.getElementById('wiz-extra-rooms-panel');
-      const extraLabel = document.getElementById('wiz-extra-rooms-toggle-label');
-      if (extraPanel) extraPanel.style.display = '';
-      if (extraLabel) extraLabel.textContent = 'Esconder quartos extra';
-      AppModules.reservas.renderWizExtraRooms();
-    }
     AppModules.reservas.renderSuiteCards();
     AppModules.reservas.updateWizSummary();
     AppUI.refreshDropdowns(document.getElementById('modal-bg'));
