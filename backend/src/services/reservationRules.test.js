@@ -93,3 +93,17 @@ test('getPaymentStatus derives payment state from paid amount', () => {
   assert.equal(getPaymentStatus(40, 100), 'parcial');
   assert.equal(getPaymentStatus(100, 100), 'confirmado');
 });
+
+test('com vários quartos, a ocupação extra só conta os hóspedes do quarto principal', () => {
+  const accommodation = {
+    price_per_night: 100, max_guests: 4, base_guests_included: 2,
+    extra_occupancy_options: [{ capacity: 4, price: 15, charge_type: 'per_guest_night' }],
+  };
+  const stay = { check_in: '2026-06-01', check_out: '2026-06-03' };
+  const four = calculateReservationTotals(accommodation, [], { ...stay, num_guests: 4 });
+  const six = calculateReservationTotals(accommodation, [], { ...stay, num_guests: 6, capacity: 6, room_count: 2 });
+  assert.equal(four.extraOccupancyCost, 60); // 2 hóspedes extra × 15 € × 2 noites
+  assert.equal(six.extraOccupancyCost, 60);  // os outros 2 ficam no segundo quarto
+  assert.throws(() => calculateReservationTotals(accommodation, [], { ...stay, num_guests: 7, capacity: 6, room_count: 2 }),
+    /Os quartos escolhidos permitem no máximo 6 hóspedes/);
+});

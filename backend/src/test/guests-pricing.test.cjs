@@ -103,3 +103,26 @@ test('pedido público cria sempre uma ficha nova, mesmo com email já conhecido'
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM guests WHERE email = 'site@example.com'").get().n, 2);
   assert.match(res.body.data.public_token, /^[a-f0-9]{64}$/);
 });
+
+test('com vários quartos, a lotação é a soma dos quartos escolhidos', async () => {
+  db.exec(`INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests)
+    VALUES ('quarto','${ORG}','Quarto','alojamento',80,2)`);
+  const rooms = [{ accommodation_id: 'casa', name: 'Casa', price_per_night: 120 }, { accommodation_id: 'quarto', name: 'Quarto', price_per_night: 80 }];
+  const base = { accommodation_id: 'casa', check_in: '2035-09-10', check_out: '2035-09-12', guest: { name: 'Família' } };
+  // Só a casa: 4 lugares.
+  const alone = await call(write.quote, { ...base, num_adults: 5 });
+  assert.equal(alone.statusCode, 400);
+  assert.match(alone.body.error, /Este alojamento permite no máximo 4 hóspedes/);
+  // Casa (4) + quarto (2): 6 lugares; 7 é demais.
+  const quote = await call(write.quote, { ...base, num_adults: 6, accommodations_data: rooms });
+  assert.equal(quote.statusCode, 200, JSON.stringify(quote.body));
+  const tooMany = await call(write.quote, { ...base, num_adults: 7, accommodations_data: rooms });
+  assert.equal(tooMany.statusCode, 400);
+  assert.match(tooMany.body.error, /Os quartos escolhidos permitem no máximo 6 hóspedes/);
+  const created = await call(write.create, { ...base, num_adults: 6, accommodations_data: rooms, total_amount: quote.body.data.total_amount });
+  assert.equal(created.statusCode, 201, JSON.stringify(created.body));
+  assert.equal(created.body.data.num_guests, 6);
+  // Editar a mesma reserva também conta com os dois quartos.
+  const edited = await call(write.update, { num_adults: 5, total_amount: created.body.data.total_amount }, { id: created.body.data.id });
+  assert.equal(edited.statusCode, 200, JSON.stringify(edited.body));
+});

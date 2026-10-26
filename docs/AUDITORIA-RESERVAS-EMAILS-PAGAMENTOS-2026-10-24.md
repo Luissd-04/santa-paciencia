@@ -778,3 +778,15 @@ reserva nova continua a não poder começar cancelada.
   `ReservationDates.formatDateTime`.
 - Fica para a V2: botão + flutuante, letras de 9–10 px, tabela do estado do
   sistema no telemóvel e o «Seguinte» no topo da página pública.
+
+## 17. Lotação de uma reserva com vários quartos
+
+A lotação é a soma da lotação de cada quarto escolhido (o principal e os de
+`accommodations_data`), calculada em `reservationSupport.stayCapacity` e
+verificada uma só vez em `calculateReservationTotals` (criação, edição,
+pré-visualização e total padrão). No assistente, `wizardCapacity()` faz a mesma
+soma e nenhum quarto fica bloqueado pelo número de hóspedes: escolher mais
+quartos aumenta a lotação. O preço de ocupação extra conta só os hóspedes do
+quarto principal, até à sua lotação; os restantes ficam nos quartos extra, que
+têm o seu próprio preço.
+
