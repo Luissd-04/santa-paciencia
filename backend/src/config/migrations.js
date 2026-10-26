@@ -55,6 +55,7 @@ function runMigrations(db) {
   migrateVoucherRelease(db);
   migratePolicyChannels(db);
   migrateGoogleCalendarQueue(db);
+  migrateReservationEvents(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -378,6 +379,38 @@ function migrateGoogleCalendarQueue(db) {
         db.exec(`ALTER TABLE ${table} ADD COLUMN google_event_calendar_id TEXT`);
       }
     }
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Acontecimentos de uma reserva gravados na mesma transação da alteração, e
+// os efeitos (emails, avisos à equipa) que cada um pede. Os efeitos correm
+// depois do commit e são repetidos após falha ou reinício.
+function migrateReservationEvents(db) {
+  const id = '20261025_reservation_events';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`CREATE TABLE IF NOT EXISTS reservation_events (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      reservation_id TEXT NOT NULL REFERENCES reservations(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      actor_user_id TEXT,
+      payload TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_res_events_reservation ON reservation_events(organization_id, reservation_id, created_at);
+    CREATE TABLE IF NOT EXISTS reservation_event_effects (
+      event_id TEXT NOT NULL REFERENCES reservation_events(id) ON DELETE CASCADE,
+      effect TEXT NOT NULL,
+      state TEXT NOT NULL DEFAULT 'pending' CHECK(state IN ('pending', 'running', 'done', 'failed')),
+      attempts INTEGER NOT NULL DEFAULT 0,
+      last_error TEXT,
+      next_attempt_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY(event_id, effect)
+    );
+    CREATE INDEX IF NOT EXISTS idx_res_effects_due ON reservation_event_effects(state, next_attempt_at);`);
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }

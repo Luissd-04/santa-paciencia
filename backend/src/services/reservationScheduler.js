@@ -66,12 +66,13 @@ function expirePendingReservations() {
         detachReservationEvent(reservation.organization_id, reservation.id);
         recordHistory({ organizationId: reservation.organization_id, reservationId: reservation.id, userId: null, action: 'cancelled',
           meta: { reason: 'ttl', hours: PENDING_TTL_HOURS } });
+        require('./reservationEvents').emit('reservation.cancelled', { organizationId: reservation.organization_id, reservationId: reservation.id,
+          payload: { reason: 'ttl', policy: Boolean(reservation.payment_policy_json) } });
         return true;
       }).immediate();
       if (!changed) continue;
       expired++;
       const cancelled = { ...reservation, status: 'cancelada' };
-      notifyGuestOfExpiry(cancelled);
       syncReservationOperationalTasks(cancelled);
       kickCalendarQueue(cancelled.organization_id);
     }
@@ -81,20 +82,6 @@ function expirePendingReservations() {
   } catch (err) {
     console.error('Erro ao expirar reservas pendentes:', err.message);
     return 0;
-  }
-}
-
-// O hóspede é avisado de que o pedido expirou (modelo «cancelamento»,
-// respeitando a ativação do modelo e a janela de envio).
-function notifyGuestOfExpiry(reservation) {
-  try {
-    const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(reservation.guest_id, reservation.organization_id);
-    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(reservation.accommodation_id, reservation.organization_id);
-    if (!guest || !accommodation) return;
-    require('./emailService').sendCancellationEmail(guest, reservation, accommodation)
-      .catch(err => console.warn('Email de expiração não enviado:', err.message));
-  } catch (err) {
-    console.warn('Email de expiração não enviado:', err.message);
   }
 }
 
@@ -130,6 +117,9 @@ async function runMaintenance() {
     await require('./stripePayments').reconcileActiveCheckouts();
     await require('./paymentPolicyAutomation').runPolicyMaintenance();
     expirePendingReservations();
+    // Efeitos de acontecimentos (emails, avisos) que falharam ou ficaram a meio.
+    require('./reservationEvents').recoverInterrupted();
+    await require('./reservationEvents').dispatchPending();
     retryPendingGoogleTaskDeletions();
     require('./opsStatus').beat('maintenance');
   } catch (err) { require('./opsStatus').beat('maintenance', err); console.warn('Falha na manutenção das reservas; será repetida.'); }

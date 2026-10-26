@@ -59,6 +59,7 @@ async function cancelByPolicy(id, { reason = 'guest', expectedRefundCents, key, 
     require('./voucherService').releaseVoucherIfUnpaid(r.organization_id, id);
     require('./calendarService').detachReservationEvent(r.organization_id, id);
     recordHistory({ organizationId: r.organization_id, reservationId: id, userId, action: 'policy_cancelled', meta: { reason, refund: refundCents / 100, refund_percent: cancellation.refundPercent } });
+    require('./reservationEvents').emit('reservation.cancelled', { organizationId: r.organization_id, reservationId: id, actorUserId: userId, payload: { reason, policy: true } });
   }).immediate();
   r = row(id);
   if (r.status !== 'cancelada') return cancellationQuote(r);

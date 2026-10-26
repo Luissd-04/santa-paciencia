@@ -1,5 +1,5 @@
 const { detachReservationEvent, kickCalendarQueue } = require('../services/calendarService');
-const { sendCancellationEmail, sendPreCheckinEmail } = require('../services/emailService');
+const { sendPreCheckinEmail } = require('../services/emailService');
 
 const {
   syncReservationOperationalTasks,
@@ -14,7 +14,6 @@ const { unavailableUnits } = require('../services/reservationAvailability');
 const { db } = require('../config/database');
 const { getReservationBirthDates } = require('../services/reservationRules');
 
-const { notifyOrganization } = require('../services/pushService');
 const { recordHistory } = require('../services/reservationHistoryService');
 
 const { safeJson, computeStandardTotals, getOrganizationServices, publicUrl, ensurePublicToken, ensurePrecheckinToken } = require('../services/reservationSupport');
@@ -135,26 +134,13 @@ async function cancel(req, res, next) {
       `).run(req.params.id, organizationId);
       require('../services/voucherService').releaseVoucherIfUnpaid(organizationId, reservation.id);
       detachReservationEvent(organizationId, reservation.id);
+      require('../services/reservationEvents').emit('reservation.cancelled', { organizationId, reservationId: reservation.id, actorUserId: req.user.id, payload: { reason: 'staff', policy: false } });
     }).immediate();
     recordHistory({ organizationId, reservationId: req.params.id, userId: req.user.id, action: 'cancelled' });
     syncReservationOperationalTasks({ ...reservation, status: 'cancelada' }, req.user.id);
 
     // Remover do Google Calendar (pedido gravado na transação acima)
     kickCalendarQueue(organizationId);
-
-    // Email de cancelamento
-    const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(reservation.guest_id, organizationId);
-    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?')
-      .get(reservation.accommodation_id, organizationId);
-    sendCancellationEmail(guest, reservation, accommodation)
-      .catch(err => console.warn('Email não enviado:', err.message));
-
-    notifyOrganization(organizationId, 'cancellation', {
-      title: '❌ Reserva cancelada',
-      body: `${guest?.name || 'Hóspede'} · ${accommodation?.name || ''} · ${reservation.check_in} → ${reservation.check_out}`,
-      url: `/reservas?reserva=${req.params.id}`,
-      excludeUserId: req.user.id,
-    });
 
     res.json({ success: true, message: 'Reserva cancelada' });
   } catch (err) {

@@ -7,8 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 const { db } = require('../config/database');
 const { recordConsent } = require('../services/rgpdService');
 const { syncReservationOperationalTasks } = require('../services/operationalTasksService');
-const { sendOwnerNewReservationEmail, getEmailSettings, resolveAccommodationInheritance } = require('../services/emailService');
-const { notifyOrganization } = require('../services/pushService');
+const { getEmailSettings, resolveAccommodationInheritance } = require('../services/emailService');
 const {
   calculateReservationTotals,
   getPaymentStatus,
@@ -385,6 +384,8 @@ async function createReservation(req, res, next) {
       if (onlinePayment && finalTotal >= 0.50) {
         db.prepare("UPDATE reservations SET status='aguardar_pagamento' WHERE id=?").run(reservationId);
       }
+      require('../services/reservationEvents').emit('reservation.requested', { organizationId: parent.organization_id, reservationId,
+        payload: { appUrl: publicUrl(req) } });
       return g;
     }).immediate();
 
@@ -401,23 +402,6 @@ async function createReservation(req, res, next) {
       guest_name: txResult.name,
       accommodation_name: accommodationName,
     }, null);
-
-    // Fire-and-forget — não bloqueia a resposta
-    sendOwnerNewReservationEmail(
-      parent.organization_id,
-      txResult,
-      reservation,
-      unit,
-      publicUrl(req)
-    ).catch(() => {});
-
-    notifyOrganization(parent.organization_id, 'new_reservation', {
-      title: '🟠 Nova reserva pendente',
-      body: `${txResult.name} · ${accommodationName} · ${reservation.check_in} → ${reservation.check_out} · ${reservation.status === 'aguardar_pagamento' ? 'A aguardar pagamento' : 'Requer aprovação'}`,
-      url: `/reservas?reserva=${reservationId}`,
-      requireInteraction: true,
-      tag: `sp-new_reservation-${reservationId}`,
-    });
 
     res.status(201).json({
       success: true,
@@ -665,11 +649,8 @@ function submitPreCheckin(req, res) {
     meta: { source: 'public_link', guest_count: allGuests.length, resubmission: isResubmission },
   });
 
-  notifyOrganization(reservation.organization_id, 'precheckin', {
-    title: isResubmission ? '📝 Pré-check-in alterado pelo hóspede' : '📝 Pré-check-in recebido',
-    body: `${mainGuest.name} · entrada a ${reservation.check_in}`,
-    url: `/reservas?reserva=${reservation.id}`,
-  });
+  require('../services/reservationEvents').emit('precheckin.submitted', { organizationId: reservation.organization_id,
+    reservationId: reservation.id, payload: { resubmission: isResubmission } });
 
   res.json({ success: true, data: { resubmission: isResubmission } });
 }

@@ -127,7 +127,7 @@ function deleteDeviceById(organizationId, id) {
 
 // ── Preferências por tipo (switches nas Definições, guardadas por utilizador) ──
 
-const PUSH_TYPES = ['new_reservation', 'cancellation', 'precheckin', 'daily_summary'];
+const PUSH_TYPES = ['new_reservation', 'cancellation', 'payment', 'precheckin', 'daily_summary'];
 const DEFAULT_PUSH_PREFS = Object.fromEntries(PUSH_TYPES.map(t => [t, true]));
 
 function getUserPushPrefs(organizationId, userId) {
