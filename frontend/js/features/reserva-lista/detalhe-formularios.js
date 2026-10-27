@@ -121,11 +121,12 @@ async function saveAddGuestForm(reservationId) {
     const r = current.data;
     const guestsData = typeof r.guests_data === 'string' ? JSON.parse(r.guests_data || '[]') : (r.guests_data || []);
     guestsData.push({ name, email: email || undefined, phone: phone || undefined });
-    const res = await AppModules.core.apiPut(`/api/reservations/${reservationId}`, {
+    const res = await AppModules.core.putReservationConfirmingTotal(reservationId, {
       guests_data: guestsData,
       num_guests: (r.num_guests || 1) + 1,
       num_adults: (r.num_adults || 1) + 1,
-    });
+    }, r.total_amount);
+    if (!res) { if (btn) btn.disabled = false; return; }
     if (res.success) {
       AppUI.closeDialog('rdv2-addguest-form');
       AppModules.core.toast('✅ Hóspede adicionado', 'success');
@@ -136,7 +137,7 @@ async function saveAddGuestForm(reservationId) {
       if (btn) btn.disabled = false;
     }
   } catch (e) {
-    AppModules.core.toast('❌ Erro de ligação', 'error');
+    AppModules.core.toast('❌ ' + (e?.payload?.error || 'Erro de ligação'), 'error');
     if (btn) btn.disabled = false;
   }
 }

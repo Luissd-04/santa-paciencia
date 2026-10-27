@@ -336,13 +336,14 @@ function tlOnPointerUp() {
     msgBody,
     async () => {
       try {
-        const res = await AppModules.core.apiPut(`/api/reservations/${resId}`, updates);
+        const res = await AppModules.core.putReservationConfirmingTotal(resId, updates, r?.total_amount);
+        if (!res) { AppModules.calendario.renderTimeline(false); return; }
         if (res.success) {
           AppModules.core.toast('✅ Reserva atualizada!', 'success');
           await AppModules.reservas.loadReservas();
           AppModules.calendario.renderTimeline(false);
         } else { AppModules.core.toast('❌ ' + (res.error || 'Erro.'), 'error'); AppModules.calendario.renderTimeline(false); }
-      } catch { AppModules.core.toast('❌ Erro de ligação.', 'error'); AppModules.calendario.renderTimeline(false); }
+      } catch (error) { AppModules.core.toast('❌ ' + (error?.payload?.error || 'Erro de ligação.'), 'error'); AppModules.calendario.renderTimeline(false); }
     },
     () => AppModules.calendario.renderTimeline(false),
     hasBlocker
