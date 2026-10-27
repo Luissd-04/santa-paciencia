@@ -296,6 +296,17 @@ async function main() {
   // isso o que passasse ficava cortado sem se notar (dashboard a 420 px num
   // ecrã de 390; tabela do estado do sistema nas definições).
   // Ecrã tátil, como no iPhone: as regras para dedo (pointer: coarse) também contam.
+  // Login no iPhone: só email e password no formulário (o Keychain trata-o como
+  // login simples) e nenhum campo focado pelo código, para o toque mostrar a
+  // sugestão da password guardada.
+  const signedOut=await browser.newContext({viewport:{width:390,height:812},isMobile:true,hasTouch:true,serviceWorkers:'block'});
+  await signedOut.route('https://**/*', route => route.abort());
+  const lpage=await signedOut.newPage();lpage.on('pageerror',e=>errors.push(e.message));
+  await lpage.goto(base);
+  await expect(lpage.locator('#login-email')).toBeVisible();
+  assert.deepEqual(await lpage.locator('#login-form input').evaluateAll(els=>els.filter(el=>!el.disabled&&el.offsetParent).map(el=>el.autocomplete)),['username','current-password']);
+  assert.equal(await lpage.evaluate(()=>document.activeElement?.tagName),'BODY','no ecrã tátil o login não foca nenhum campo');
+  await signedOut.close();
   const touch=await browser.newContext({viewport:{width:390,height:812},isMobile:true,hasTouch:true,serviceWorkers:'block'});
   await touch.route('https://**/*', route => route.abort());
   await touch.addCookies([{name:auth.SESSION_COOKIE,value:session,url:base}]);

@@ -114,12 +114,20 @@ function rememberAccount(user) {
   setSavedAccounts([{ email, name: user.name || '' }, ...getSavedAccounts().filter(a => a.email !== email)]);
 }
 
+// Foco sem toque do utilizador. No iPhone, um campo focado pelo código fica
+// focado sem teclado e o toque seguinte já não mostra a sugestão do Keychain
+// (email e palavra-passe guardados); por isso nos ecrãs táteis não se foca.
+function focusAuthField(input) {
+  if (!input || window.matchMedia?.('(pointer: coarse)').matches) return;
+  input.focus();
+}
+
 function forgetSavedAccount(email) {
   setSavedAccounts(getSavedAccounts().filter(a => a.email !== email));
   const input = document.getElementById('login-email');
   if (input && input.value.trim().toLowerCase() === email) input.value = '';
   renderSavedAccounts();
-  input?.focus();
+  focusAuthField(input);
 }
 
 function pickSavedAccount(email) {
@@ -166,7 +174,7 @@ function prefillLastAccount() {
   if (input && last && !inviteToken && !resetToken) {
     input.value = last.email;
     renderSavedAccounts();
-    pw?.focus();
+    focusAuthField(pw);
   } else {
     renderSavedAccounts();
   }
@@ -290,7 +298,7 @@ function setAuthMode(mode) {
   if (confirmInput)  confirmInput.required = isRegister || isNewInvite;
   if (nameInput)     nameInput.required = isRegister || isNewInvite;
   if (orgInput)      orgInput.required = isRegister;
-  if (emailInput)    { emailInput.readOnly = isInvite; if (!emailHidden) emailInput.focus(); }
+  if (emailInput)    { emailInput.readOnly = isInvite; if (!emailHidden) focusAuthField(emailInput); }
 
   if (isForgot && !isReset) {
     const backBtn = document.getElementById('auth-back-btn');
@@ -526,7 +534,7 @@ async function switchAccount() {
   if (input) input.value = '';
   renderSavedAccounts();
   setAuthScreenMessage(getSavedAccounts().length ? 'Escolhe uma conta ou escreve outro email.' : '', 'info');
-  input?.focus();
+  focusAuthField(input);
 }
 
 async function handleUnauthorized() {
