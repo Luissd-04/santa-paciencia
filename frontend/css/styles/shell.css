@@ -228,6 +228,14 @@ i[data-lucide] { display:inline-flex; align-items:center; justify-content:center
   color: var(--marca, #843424);
   padding: 2px 7px; border-radius: 999px;
 }
+.notif-header-end { display: flex; align-items: center; gap: 8px; }
+.notif-sound {
+  width: 30px; height: 30px; border-radius: 8px;
+  display: inline-grid; place-items: center;
+  border: 1px solid var(--borda, rgba(0,0,0,.08)); background: transparent;
+  color: var(--marca, #843424); cursor: pointer;
+}
+.notif-sound[aria-pressed="false"] { color: var(--cinza, #8a8278); }
 .notif-list { max-height: 360px; overflow-y: auto; }
 
 .notif-item {
