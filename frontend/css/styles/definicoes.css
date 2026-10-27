@@ -17,6 +17,8 @@
   gap: 18px;
 }
 .settings-nav-group { display: grid; gap: 4px; }
+/* O menu editável só existe no telemóvel. */
+@media (min-width: 601px) { .settings-nav-phone { display: none; } }
 .settings-nav-title {
   padding: 0 10px 4px;
   font-size: 11px;
