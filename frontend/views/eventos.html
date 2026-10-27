@@ -22,6 +22,18 @@
               <button class="btn btn-ghost btn-sm" data-on-click="index-eventos-next-30dc29c">
                 Próximo <i data-lucide="chevron-right"></i>
               </button>
+              <button class="m-filters-trigger" data-on-click="eventos-toggle-filters-sheet" data-args-click='["open"]'>
+                <i data-lucide="sliders-horizontal"></i> Filtros
+              </button>
+              <div class="eventos-filter-panel m-sheet" id="eventos-filter-panel">
+                <div class="m-sheet-header">
+                  <span>Tipos de evento</span>
+                  <button class="m-sheet-close" data-on-click="eventos-toggle-filters-sheet" data-args-click='["close"]' aria-label="Fechar">
+                    <i data-lucide="x"></i>
+                  </button>
+                </div>
+                <div class="eventos-type-chips-row eventos-sheet-chips"></div>
+              </div>
               <span class="page-toolbar-count">
                 <strong id="eventos-results-total">0</strong>
                 <span id="eventos-results-detail">eventos</span>
@@ -47,6 +59,7 @@
               </div>
             </div>
 
+            <div class="m-sheet-backdrop" id="eventos-filters-backdrop" data-on-click="eventos-toggle-filters-sheet" data-args-click='["close"]'></div>
             <div class="eventos-type-chips-row" id="eventos-cal-chips-row"></div>
 
             <div class="section-card section-card-calendar section-card-eventos">

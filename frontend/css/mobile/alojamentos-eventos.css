@@ -130,8 +130,8 @@
 }
 
 /* ══════════════════════════════════════════════════════════════
-   EVENTOS — mobile (Calendário/Timeline dão lugar a uma agenda
-   dia-a-dia, mais fácil de ler e tocar num telemóvel)
+   EVENTOS — mobile (Calendário/Timeline dão lugar ao mês com o dia
+   escolhido por baixo, como o Calendário de reservas)
 ══════════════════════════════════════════════════════════════ */
 
 #eventos-mobile-fab { display: none; }
@@ -142,7 +142,6 @@
   #view-eventos #eventos-cal-wrap,
   #view-eventos #eventos-timeline-wrap,
   #eventos-panel-calendar .view-toolbar-actions,
-  #eventos-panel-calendar .calendar-toolbar,
   #view-eventos #eventos-cal-chips-row,
   #view-eventos .eventos-add-btn,
   #view-eventos #eventos-panel-list,
@@ -170,6 +169,10 @@
   #view-eventos #eventos-agenda-mobile {
     display: grid;
   }
+
+  .eventos-sheet-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  /* Só oito botões: a folha fica à medida, não ocupa o ecrã todo. */
+  #view-eventos .eventos-filter-panel.m-sheet { top: auto; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }
 
   /* Tarefa concluída — só na agenda mobile, não mexe nas pastilhas de desktop */
   .agenda-item.eventos-pill-done {

@@ -263,14 +263,16 @@
    um botão "Filtros" (mesmo mecanismo de .reservas-filter-panel)
 ══════════════════════════════════════════════════════════════ */
 @media (max-width: 600px) {
-  #view-calendario.m-sheet-ancestor-fix {
+  #view-calendario.m-sheet-ancestor-fix,
+  #view-eventos.m-sheet-ancestor-fix {
     transform: none !important;
   }
 
   /* .calendario-filter-panel já é .m-sheet (ver components/sheet.css)
      e em desktop é a 2ª linha inline do toolbar (ver operations.css);
      aqui vira a folha propriamente dita. */
-  .calendario-filter-panel.m-sheet {
+  .calendario-filter-panel.m-sheet,
+  .eventos-filter-panel.m-sheet {
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -281,7 +283,8 @@
     height: auto;
     max-height: none;
   }
-  .calendario-filter-panel .m-sheet-header {
+  .calendario-filter-panel .m-sheet-header,
+  .eventos-filter-panel .m-sheet-header {
     display: flex;
     margin: -16px -16px 4px;
     width: calc(100% + 32px);

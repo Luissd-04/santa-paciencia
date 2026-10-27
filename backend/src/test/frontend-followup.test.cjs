@@ -24,12 +24,15 @@ test('Despesas recupera de uma ordenação antiga e preserva uma ordenação vá
     assert.equal(stored['desp:asc'], storedSort === 'amount');
   }
 });
-test('Eventos mantém o mês histórico separado do intervalo atual da agenda', () => {
+test('Eventos pede o mês escolhido; no telemóvel é sempre o mês, mesmo com a timeline guardada', () => {
   const ctx = context();
   const month = vm.runInContext("eventosYear=2021; eventosMonth=0; eventosMode='calendar'; eventosPeriod()", ctx);
   assert.deepEqual(JSON.parse(JSON.stringify(month)), { from: '2020-12-27', to: '2021-02-06' });
-  const agenda = vm.runInContext('eventosAgendaPeriod()', ctx);
-  assert.equal((new Date(agenda.to) - new Date(agenda.from)) / 86400000, 20);
+  const desktopTimeline = vm.runInContext("eventosMode='timeline'; eventosPeriod()", ctx);
+  assert.notDeepEqual(JSON.parse(JSON.stringify(desktopTimeline)), JSON.parse(JSON.stringify(month)));
+  ctx.window.matchMedia = query => ({ matches: query === '(max-width: 600px)' });
+  const phone = vm.runInContext("eventosMode='timeline'; eventosPeriod()", ctx);
+  assert.deepEqual(JSON.parse(JSON.stringify(phone)), JSON.parse(JSON.stringify(month)));
 });
 test('intervalos independentes descartam respostas antigas e limpam dados ao terminar sessão', async () => {
   const ctx = context();

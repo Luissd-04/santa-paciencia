@@ -264,35 +264,22 @@ function renderCalendarAgenda(monthDays, filters = AppModules.calendario.getCale
     .filter(r => AppModules.calendario.reservationMatchesCalendarFilters(r, filters));
   const dayReservations = reservations.filter(r => r.check_in <= selected && r.check_out >= selected)
     .sort((a, b) => a.check_in.localeCompare(b.check_in) || (a.guest_name || '').localeCompare(b.guest_name || ''));
-  const firstWeekday = new Date(`${monthDays[0]}T12:00:00`).getDay();
-  const dateLabel = new Date(`${selected}T12:00:00`).toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
   const counts = [
     ['Check-ins', dayReservations.filter(r => r.check_in === selected).length],
     ['Estadias', dayReservations.filter(r => r.check_in < selected && r.check_out > selected).length],
     ['Check-outs', dayReservations.filter(r => r.check_out === selected).length],
   ];
-  agenda.innerHTML = `
-    <div class="agenda-month" role="group" aria-label="Selecionar dia do mês">
-      <div class="agenda-month-weekdays" aria-hidden="true">${['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => `<span>${day}</span>`).join('')}</div>
-      <div class="agenda-month-days">
-        ${'<span aria-hidden="true"></span>'.repeat(firstWeekday)}
-        ${monthDays.map(date => {
-          const count = reservations.filter(r => r.check_in <= date && r.check_out >= date).length;
-          const label = new Date(`${date}T12:00:00`).toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' });
-          return `<button type="button" class="agenda-date${date === today ? ' is-today' : ''}" data-agenda-date="${date}"
-            aria-pressed="${date === selected}" ${date === today ? 'aria-current="date"' : ''}
-            aria-label="${esc(label)}, ${count} reserva${count === 1 ? '' : 's'}" ${AppActions.attrs('click', 'mes-agenda-select-date', [date])}>
-            <span>${Number(date.slice(-2))}</span><span class="agenda-date-dot${count ? ' has-reservations' : ''}" aria-hidden="true"></span>
-          </button>`;
-        }).join('')}
-      </div>
-    </div>
-    <div class="agenda-selected-heading">
-      <h4>${esc(dateLabel)}</h4>
-    </div>
-    <div class="agenda-day-results" aria-live="polite" aria-atomic="true">
-      <div class="agenda-day-summary">${counts.map(([label, count]) => `<div><span>${label}</span><strong>${count}</strong></div>`).join('')}</div>
-      <div class="agenda-reservation-list">${dayReservations.map(r => {
+  agenda.innerHTML = AppModules.core.monthAgendaHtml({
+    days: monthDays,
+    selected,
+    dayAttrs: date => AppActions.attrs('click', 'mes-agenda-select-date', [date]),
+    info: date => {
+      const count = reservations.filter(r => r.check_in <= date && r.check_out >= date).length;
+      const label = new Date(`${date}T12:00:00`).toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' });
+      return { label: `${label}, ${count} reserva${count === 1 ? '' : 's'}`, dots: count ? ['currentColor'] : [] };
+    },
+    summary: counts,
+    listHtml: dayReservations.map(r => {
         const suites = AppModules.calendario.calReservationSuiteInfo(r);
         const taskMarks = AppModules.calendario.calTaskMarkLabels(r);
         const marker = r.check_in === selected && r.check_out === selected ? 'Check-in e check-out' : r.check_in === selected ? 'Check-in' : r.check_out === selected ? 'Check-out' : 'Estadia';
@@ -308,8 +295,9 @@ function renderCalendarAgenda(monthDays, filters = AppModules.calendario.getCale
           <span class="agenda-reservation-meta">${AppModules.core.lcIcon('moon', 16)} ${nights} noite${nights === 1 ? '' : 's'}</span>
           <span class="agenda-reservation-meta">${AppModules.core.lcIcon('users', 16)} ${adults}${children}</span>
         </button>`;
-      }).join('') || '<p class="agenda-day-empty">Sem reservas visíveis neste dia.</p>'}</div>
-    </div>`;
+      }).join(''),
+    emptyText: 'Sem reservas visíveis neste dia.',
+  });
   if (window.lucide) lucide.createIcons();
 }
 
