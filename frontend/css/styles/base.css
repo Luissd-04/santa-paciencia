@@ -275,6 +275,8 @@ body:not(.role-owner) [data-owner-only="true"] { display: none !important; }
   transform: translateY(-8px);
   margin: 0;
   pointer-events: none;
+  /* Fora do formulário para o Keychain: um login simples, só email e password. */
+  display: none;
 }
 
 .form-input {
