@@ -206,22 +206,17 @@ async function main() {
   await expect(page.getByRole('button',{name:'Mais…',exact:true})).toHaveAttribute('aria-pressed','true');
   assert.equal(await page.locator('#suite-cards-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),1);
   await page.locator('.suite-card-opt',{hasText:'Unidade UX'}).click();
-  // Vários quartos na própria lista: o segundo tocado entra como quarto extra,
-  // com o preço por noite no cartão; tocar no preço não o desmarca.
+  // Vários quartos na própria lista: o segundo tocado entra como quarto extra;
+  // o preço edita-se só no passo do preço, por isso o cartão não tem campo.
   const extraCard=page.locator('.suite-card-opt',{hasText:'Quarto Extra UX'});
   await extraCard.click();
   await expect(extraCard).toHaveClass(/selected/);
   await expect(page.locator('.suite-card-opt.selected')).toHaveCount(2);
   await expect(page.locator('.suite-card-opt',{hasText:'Unidade UX'}).locator('.suite-card-role')).toHaveText('Principal');
-  const extraPrice=extraCard.getByRole('spinbutton',{name:'Preço por noite de Quarto Extra UX'});
-  await expect(extraPrice).toHaveValue('80.00');
-  await extraPrice.fill('90');
-  await expect(extraCard).toHaveClass(/selected/);
-  await expect(extraPrice).toBeFocused();
+  await expect(extraCard.getByRole('spinbutton')).toHaveCount(0);
   await extraCard.locator('.suite-card-name').click();
   await expect(page.locator('.suite-card-opt.selected')).toHaveCount(1);
   await extraCard.locator('.suite-card-name').click();
-  await extraCard.getByRole('spinbutton').fill('90');
   await expect(page.locator('#wiz-extra-rooms-toggle-wrap')).toHaveCount(0);
   await page.getByRole('button',{name:'Mais uma criança'}).click();
   await expect(page.locator('#f-num-criancas')).toHaveValue('1');
@@ -241,6 +236,28 @@ async function main() {
   await expect(page.locator('#resf-msummary')).toContainText('Hóspede Passos');
   await expect(page.locator('#resf-msummary')).toContainText('Unidade UX + Quarto Extra UX');
   await expect(page.locator('#resf-nightly-grid')).toBeHidden();
+  // Preço por quarto: um bloco por quarto com miniatura, noites e subtotal; o
+  // resumo soma os dois quartos e o voucher fica no fim do passo.
+  await page.locator('#resf-price-toggle').click();
+  const roomBlocks=page.locator('#resf-nightly-grid .resf-room-price');
+  await expect(roomBlocks).toHaveCount(2);
+  await expect(roomBlocks.nth(0)).toHaveAttribute('open','');
+  await expect(roomBlocks.nth(0).locator('.resf-room-name b')).toHaveText('Unidade UX');
+  await expect(roomBlocks.nth(1).locator('.resf-room-name b')).toHaveText('Quarto Extra UX');
+  await expect(roomBlocks.nth(1).locator('.resf-room-sub')).toHaveText('240,00 €');
+  await roomBlocks.nth(1).locator('.resf-room-all').fill('90');
+  await roomBlocks.nth(1).getByRole('button',{name:'Aplicar às 3 noites'}).click();
+  await expect(roomBlocks.nth(1).locator('.resf-room-sub')).toHaveText('270,00 €');
+  await expect(roomBlocks.nth(1).locator('.resf-nightly-row.edited')).toHaveCount(3);
+  const lastNight=roomBlocks.nth(1).getByRole('spinbutton',{name:/Quarto Extra UX, /}).last();
+  await lastNight.fill('100');
+  await expect(lastNight).toBeFocused();
+  await expect(roomBlocks.nth(1).locator('.resf-room-sub')).toHaveText('280,00 €');
+  await lastNight.fill('90');
+  await expect(roomBlocks.nth(1).locator('.resf-room-sub')).toHaveText('270,00 €');
+  await expect(page.locator('#resf-nightly-base-label')).toHaveText('2 quartos');
+  await expect(page.locator('#resf-nightly-base')).toHaveText('570,00 €');
+  assert(await page.locator('#resf-voucher-wrap').evaluate(el=>{const all=[...el.parentElement.children].filter(c=>getComputedStyle(c).display!=='none');return all[all.length-1]===el;}));
   // Estado de uma reserva nova: as opções vêm da cotação; o sinal decide.
   await expect.poll(()=>page.locator('#f-estado option').evaluateAll(options=>options.map(option=>option.value))).toEqual(['aguardar_pagamento','pre_reserva','pendente']);
   await page.locator('#btn-guardar').click();
@@ -249,6 +266,7 @@ async function main() {
   assert.equal(db.prepare("SELECT r.status FROM reservations r JOIN guests g ON g.id=r.guest_id WHERE g.name='Hóspede Passos'").get().status,'aguardar_pagamento');
   const rooms=JSON.parse(db.prepare("SELECT r.accommodations_data FROM reservations r JOIN guests g ON g.id=r.guest_id WHERE g.name='Hóspede Passos'").get().accommodations_data);
   assert.deepEqual(rooms.map(room=>[room.accommodation_id,room.subtotal]),[['unit',300],['unit2',270]]);
+  assert.deepEqual(rooms[1].nightly_prices.map(n=>n.price),[90,90,90]);
   // Na edição, Guardar está em todos os passos; fechar sem alterações não pergunta nada,
   // mesmo depois de chegar a cotação do servidor.
   await page.evaluate(()=>AppModules.reservas.openEditModal('res'));

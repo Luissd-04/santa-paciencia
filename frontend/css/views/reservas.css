@@ -1002,6 +1002,86 @@
   padding: 8px;
 }
 
+/* Um bloco por quarto: miniatura, nome, noites e subtotal; abre a grelha. */
+.resf-room-prices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.resf-room-price {
+  border: 1px solid var(--cinza-claro);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.resf-room-head {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto 18px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.resf-room-head::-webkit-details-marker { display: none; }
+
+.resf-room-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
+}
+
+.resf-room-thumb-dot { opacity: .85; }
+
+.resf-room-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--azul);
+}
+
+.resf-room-name b { overflow-wrap: anywhere; }
+.resf-room-name small { flex-basis: 100%; font-size: 12px; color: var(--cinza); }
+
+.resf-room-sub {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--azul);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.resf-room-chev {
+  width: 18px;
+  height: 18px;
+  color: var(--cinza);
+  transition: transform var(--motion-press) ease;
+}
+
+.resf-room-price[open] .resf-room-chev { transform: rotate(180deg); }
+
+.resf-room-body {
+  border-top: 1px solid var(--cinza-claro);
+  padding: 10px 12px 12px;
+  display: grid;
+  gap: 10px;
+  background: var(--surface-muted);
+}
+
+.resf-room-body .resf-nightly-apply { flex-wrap: wrap; }
+.resf-room-body .resf-nightly-date { flex-direction: column; align-items: flex-start; gap: 2px; }
+.resf-nightly-day { white-space: nowrap; }
+.resf-nightly-note { display: flex; align-items: center; gap: 6px; }
+.resf-room-body .resf-nightly-grid { max-height: none; background: #fff; }
+
 .resf-nightly-row {
   display: flex;
   align-items: center;
@@ -1615,12 +1695,11 @@
   #resf-guest-section:not(.resf-docs-shown) .resf-optional-field { display: none !important; }
   #resf-guest-section:not(.resf-extras-shown) #extra-guests-wrap { display: none !important; }
 
-  /* Passo 3: preço por noite e desconto recolhidos; voucher junto ao preço. */
+  /* Passo 3: preço por noite e desconto recolhidos; voucher no fim. */
   #resf-price-toggle { margin-top: 16px; }
   #modal-bg:not(.resf-price-shown) #resf-nightly-wrap .resf-nightly-head,
   #modal-bg:not(.resf-price-shown) #resf-nightly-grid,
   #modal-bg:not(.resf-price-shown) #resf-discount-wrap { display: none !important; }
-  #resf-voucher-wrap { order: -1; }
   .resf-section[data-mstep="3"] > .resf-section-title { display: none; }
 
   /* Passo 3: resumo com atalhos para corrigir. */

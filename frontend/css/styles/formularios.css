@@ -658,8 +658,6 @@
   background: rgba(139,58,36,.1); color: var(--marca);
   font-size: 10px; font-weight: 700; letter-spacing: .3px; vertical-align: middle;
 }
-.suite-card-extra-price { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 4px; cursor: text; }
-.suite-card-extra-price .form-control { width: 92px; padding: 6px 8px; font-size: 14px; }
 
 .guest-rate-hint {
   display: none;

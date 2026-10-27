@@ -219,8 +219,6 @@ AppActions.register({
   "index-mobile-fold": (el) => { AppModules.reservas.toggleMobileFold(el.dataset.fold) },
   "index-mobile-canal": (el) => { AppModules.reservas.setMobileCanal(el.dataset.canal) },
   "index-discard-reserva-draft-53f0676": (el, event, args) => { AppModules.reservas.discardReservaDraft() },
-  "index-apply-nightly-to-all-f99c949": (el, event, args) => { AppModules.reservas.applyNightlyToAll() },
-  "index-reset-nightly-overrides-1d673fa": (el, event, args) => { AppModules.reservas.resetNightlyOverrides() },
   "index-set-form-discount-type-be84a88": (el, event, args) => { AppModules.reservas.setFormDiscountType('pct') },
   "index-set-form-discount-type-a4a7670": (el, event, args) => { AppModules.reservas.setFormDiscountType('eur') },
   "index-open-05fd9c5": (el, event, args) => { AppDatePicker.open(document.getElementById('f-nascimento'),{isBirthDate:true}) },

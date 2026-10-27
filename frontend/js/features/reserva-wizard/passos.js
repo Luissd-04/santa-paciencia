@@ -310,7 +310,7 @@ function renderSuiteCards() {
         <div class="suite-card-name">${AppModules.core.escapeHtml(a.name)}${isPrimary && extras.size ? ' <span class="suite-card-role">Principal</span>' : ''}</div>
         ${blocked
           ? '<div class="suite-card-unavail-lbl">Indisponível</div>'
-          : extra ? extraRoomPriceHtml(a, extra) : suiteCardPriceHtml(a, ci, co)}
+          : suiteCardPriceHtml(a, ci, co)}
       </div>
     </div>`;
   }).join('');
@@ -351,16 +351,6 @@ function suiteStayTotals(a, ci, co) {
   return totals && totals.baseAmount && totals.nights ? totals : null;
 }
 
-// Quarto extra: preço por noite editável no próprio cartão (tocar no campo
-// não desmarca o quarto, ver data-stop).
-function extraRoomPriceHtml(a, room) {
-  return `<label class="suite-card-extra-price" data-stop>
-      <input type="number" class="form-control" min="0" step="0.01" inputmode="decimal" value="${Number(room.price_per_night || 0).toFixed(2)}"
-        aria-label="Preço por noite de ${AppModules.core.escapeHtml(a.name)}" ${AppActions.attrs("input", "passos-extra-room-price-5d1c2a7", [String(a.id)])} autocomplete="off">
-      <span class="suite-card-sub">€ / noite</span>
-    </label>`;
-}
-
 // Tocar num alojamento: sem principal, passa a principal; com principal,
 // junta-o (ou retira-o) como quarto extra. Tocar no principal retira-o e o
 // primeiro extra, se houver, passa a principal.
@@ -378,22 +368,10 @@ function toggleSuiteCard(id) {
     AppModules.reservas._wizExtraRooms = rooms.filter(r => r.accommodation_id !== id);
   } else {
     const suite = AppModules.core.accommodations.find(a => a.id === id);
-    const ci = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkin')?.value);
-    const co = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkout')?.value);
-    const totals = suite && suiteStayTotals(suite, ci, co);
-    const pricePerNight = totals ? totals.baseAmount / totals.nights : Number(suite?.price_per_night || 0);
-    AppModules.reservas._wizExtraRooms = [...rooms, { accommodation_id: id, name: suite?.name || '', price_per_night: Math.round(pricePerNight * 100) / 100 }];
+    AppModules.reservas._wizExtraRooms = [...rooms, AppModules.reservas.wizExtraRoom({ accommodation_id: id, name: suite?.name || '' })];
   }
   AppModules.reservas._manualTotalOverride = null;
   renderSuiteCards();
-  AppModules.reservas.calcTotal();
-}
-
-function setExtraRoomPrice(id, value) {
-  const room = AppModules.reservas._wizExtraRooms.find(r => r.accommodation_id === id);
-  if (!room) return;
-  room.price_per_night = Math.max(0, parseFloat(value) || 0);
-  AppModules.reservas._manualTotalOverride = null;
   AppModules.reservas.calcTotal();
 }
 
@@ -410,7 +388,6 @@ function selectSuiteCard(id) {
     AppModules.reservas._nightlyOverrides = {};
     AppModules.reservas._manualTotalOverride = null;
     AppModules.reservas._nightlyGridSig = '';
-    const allInp = document.getElementById('resf-nightly-all-val'); if (allInp) allInp.value = '';
   }
   // A nova suite principal não pode continuar também na lista de quartos extra.
   AppModules.reservas._wizExtraRooms = AppModules.reservas._wizExtraRooms.filter(r => r.accommodation_id !== id);
@@ -506,10 +483,6 @@ AppActions.register({
   "passos-wiz-select-guest-40ccb6d": (el, event, args) => { wizSelectGuest(args[0]) },
   "passos-select-suite-card-069e405": (el, event, args) => { toggleSuiteCard(args[0]) },
 }, "click");
-
-AppActions.register({
-  "passos-extra-room-price-5d1c2a7": (el, event, args) => { setExtraRoomPrice(args[0], el.value) },
-}, "input");
 
 // Limpeza da funcionalidade ao sair ou trocar de organização.
 AppModules.onReset('features/reserva-wizard/passos.js', () => {

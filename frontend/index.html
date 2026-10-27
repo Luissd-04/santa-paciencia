@@ -823,7 +823,7 @@
           <div class="suite-cards" id="suite-cards-grid"></div>
         </div>
 
-        <!-- ── Preço por noite (editável, noite a noite) ── -->
+        <!-- ── Preço por quarto e por noite (editável, noite a noite) ── -->
         <button type="button" class="resf-fold resf-mobile-only" id="resf-price-toggle" data-fold="price" data-on-click="index-mobile-fold" aria-expanded="false" aria-controls="resf-nightly-wrap" data-mstep="3">
           <span class="resf-fold-text"><span class="resf-fold-title">Ajustar preço por noite ou desconto</span>
           <span class="resf-fold-hint">O total já inclui as taxas e o voucher</span></span>
@@ -831,20 +831,12 @@
         </button>
         <div id="resf-nightly-wrap" class="resf-nightly" style="margin-top:16px;display:none;" data-mstep="3">
           <div class="resf-nightly-head">
-            <label class="form-label" style="margin:0;">Preço por noite <span style="font-weight:400;text-transform:none;letter-spacing:0;">(cobrado ao hóspede)</span></label>
-            <div class="resf-nightly-apply">
-              <div class="resf-nightly-input">
-                <span>€</span>
-                <input type="number" id="resf-nightly-all-val" min="0" step="0.01" placeholder="0.00" autocomplete="off">
-              </div>
-              <button type="button" class="resf-nightly-btn" data-on-click="index-apply-nightly-to-all-f99c949">Aplicar a todas</button>
-              <button type="button" class="resf-nightly-reset" data-on-click="index-reset-nightly-overrides-1d673fa">Repor</button>
-            </div>
+            <label class="form-label" style="margin:0;">Preço por quarto e por noite <span style="font-weight:400;text-transform:none;letter-spacing:0;">(cobrado ao hóspede)</span></label>
           </div>
-          <div id="resf-nightly-grid" class="resf-nightly-grid"></div>
+          <div id="resf-nightly-grid" class="resf-room-prices"></div>
           <div class="resf-nightly-summary">
             <div class="resf-nightly-breakdown">
-              Alojamento <b id="resf-nightly-base">€0.00</b><span id="resf-nightly-extras-wrap"> · Extras <b id="resf-nightly-extras">€0.00</b></span>
+              <span id="resf-nightly-base-label">Alojamento</span> <b id="resf-nightly-base">€0.00</b><span id="resf-nightly-extras-wrap"> · Extras <b id="resf-nightly-extras">€0.00</b></span>
             </div>
             <div class="resf-total-edit">
               <label>Total final</label>
