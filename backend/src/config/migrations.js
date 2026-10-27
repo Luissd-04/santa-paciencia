@@ -59,6 +59,7 @@ function runMigrations(db) {
   migrateReservationStates(db);
   migrateEmailQueueToEvents(db);
   migrateScheduledTaskRuns(db);
+  migrateMenuPrefs(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -75,6 +76,16 @@ function runMigrations(db) {
     PRIMARY KEY(organization_id, intent_key)
   )`);
   if (!db.pragma('table_info(stripe_payment_attempts)').some(c => c.name === 'last_reconciled_at')) db.exec('ALTER TABLE stripe_payment_attempts ADD COLUMN last_reconciled_at TEXT');
+}
+// Menu do telemóvel de cada pessoa em cada organização (ordem, escondidos e
+// atalhos da barra de baixo), em JSON validado por services/menuPrefs.js.
+function migrateMenuPrefs(db) {
+  const id = '20261027_menu_prefs';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    if (!db.pragma('table_info(memberships)').some(c => c.name === 'menu_prefs')) db.exec('ALTER TABLE memberships ADD COLUMN menu_prefs TEXT');
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
 }
 function migratePaymentPolicy(db) {
   const id = '20261006_payment_policy';

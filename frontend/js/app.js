@@ -85,24 +85,8 @@ async function showView(v, pushState = true) {
   nextView.addEventListener('animationend', () => {
     nextView.classList.remove('view-entering');
   }, { once: true });
-  // x.dataset.view === v é sempre um booleano real: getAttribute('onclick')
-  // já não existe desde a migração para data-on-click, e
-  // classList.toggle('active', undefined) não remove a classe — alterna-a a
-  // cada chamada, como se o segundo argumento não tivesse sido passado.
-  // Isso acumulava "active" em quase todos os itens ao longo da sessão.
-  document.querySelectorAll('.nav-item').forEach(x => {
-    const active = x.dataset.view === v;
-    x.classList.toggle('active', active);
-    if (active) x.setAttribute('aria-current', 'page');
-    else x.removeAttribute('aria-current');
-  });
-  document.querySelectorAll('.side-drawer-item[data-view]').forEach(x => {
-    const active = x.dataset.view === v;
-    if (active) x.setAttribute('aria-current', 'page');
-    else x.removeAttribute('aria-current');
-  });
+  AppModules.core.markActiveNavigation(v);
   document.getElementById('topbar-title').textContent = VIEW_TITLES[v] || v;
-  setActiveBN(v);
   document.body.classList.toggle('view-eventos-active', v === 'eventos');
   document.body.classList.toggle('view-calendario-active', v === 'calendario');
   document.body.classList.toggle('view-despesas-active', v === 'despesas');
@@ -227,21 +211,7 @@ async function abrirMensagensDaReserva(reservationId, guestEmail, guestName) {
   await AppModules.core.featureAction('openInvoiceForReservation', reservationId, guestEmail, guestName);
 }
 
-// ── MOBILE BOTTOM NAV ──
-const BOTTOM_NAV_VIEWS = ['dashboard', 'reservas', 'calendario', 'eventos', 'despesas'];
 let sideDrawerPreviousFocus = null;
-
-function setActiveBN(v) {
-  BOTTOM_NAV_VIEWS.forEach(name => {
-    const el = document.getElementById('bn-' + name);
-    if (el) {
-      const active = name === v;
-      el.classList.toggle('active', active);
-      if (active) el.setAttribute('aria-current', 'page');
-      else el.removeAttribute('aria-current');
-    }
-  });
-}
 
 function openSideDrawer() {
   const drawer = document.getElementById('side-drawer');
@@ -259,6 +229,7 @@ function openSideDrawer() {
 function closeSideDrawer() {
   const drawer = document.getElementById('side-drawer');
   drawer.classList.remove('open');
+  AppModules.core.closeDrawerAccount();
   drawer.setAttribute('aria-hidden', 'true');
   document.getElementById('mobile-menu-trigger')?.setAttribute('aria-expanded', 'false');
   document.getElementById('side-drawer-overlay').classList.remove('active');
