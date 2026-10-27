@@ -301,7 +301,7 @@ const RES_CELL = {
   nights: r => `<td data-col="nights">${r.nights}</td>`,
   num_guests: r => `<td data-col="num_guests">${AppModules.reservas.renderGuestsCell(r)}</td>`,
   total_amount: r => `<td data-col="total_amount"><b>${ReservationMoney.format(r.total_amount || 0)}</b></td>`,
-  channel: r => `<td data-col="channel"><span style="font-size:12px;color:var(--cinza)">${r.channel || ''}</span></td>`,
+  channel: r => `<td data-col="channel"><span style="font-size:12px;color:var(--cinza)">${AppModules.core.escapeHtml(AppModules.core.channelLabel(r.channel))}</span></td>`,
   status: r => `<td data-col="status">${AppModules.core.badgeEstado(r.status)}</td>`,
   payment_status: r => {
     const paid = Number(r.amount_paid || 0);

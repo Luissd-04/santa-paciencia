@@ -80,8 +80,6 @@ async function openGuestEdit(id) {
     document.getElementById('gedit-email-personal').value = g.email_personal || '';
     document.getElementById('gedit-birth-date').value  = AppModules.core.formatDateForStandardInput(g.birth_date || '');
     document.getElementById('gedit-nif').value          = g.nif || '';
-    document.getElementById('gedit-address').value      = g.address || '';
-    document.getElementById('gedit-postal-code').value  = g.postal_code || '';
     document.getElementById('gedit-city').value         = g.city || '';
     const setValue = (id, value) => {
       const el = document.getElementById(id);
@@ -221,8 +219,6 @@ async function saveGuestEdit() {
       country: country || null,
       birth_city:      document.getElementById('gedit-birth-city')?.value.trim()    || null,
       birth_country:   document.getElementById('gedit-birth-country')?.value       || null,
-      address:         document.getElementById('gedit-address').value.trim()     || null,
-      postal_code:     document.getElementById('gedit-postal-code').value.trim() || null,
       city:            document.getElementById('gedit-city').value.trim()        || null,
       residence_country: document.getElementById('gedit-residence-country')?.value || null,
       company:         document.getElementById('gedit-company')?.value.trim() || null,

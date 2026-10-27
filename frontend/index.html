@@ -759,22 +759,9 @@
           </label>
           <div class="form-group" id="resf-canal-group">
             <label for="f-canal" class="form-label">Canal</label>
-            <div class="resf-chips resf-mobile-only" role="group" aria-label="Canal">
-              <button type="button" class="resf-chip" data-canal="direto" data-on-click="index-mobile-canal" aria-pressed="false">Direto</button>
-              <button type="button" class="resf-chip" data-canal="booking" data-on-click="index-mobile-canal" aria-pressed="false">Booking.com</button>
-              <button type="button" class="resf-chip" data-canal="airbnb" data-on-click="index-mobile-canal" aria-pressed="false">Airbnb</button>
-              <button type="button" class="resf-chip" data-canal="" data-on-click="index-mobile-canal" aria-pressed="false">Mais…</button>
-            </div>
-            <select class="form-control" id="f-canal" data-on-change="index-mobile-canal-change">
-              <option value="airbnb">Airbnb</option>
-              <option value="booking">Booking.com</option>
-              <option value="direto">Direto</option>
-              <option value="whatsapp">WhatsApp</option>
-              <option value="instagram">Instagram</option>
-              <option value="expedia">Expedia</option>
-              <option value="vrbo">VRBO</option>
-              <option value="outro">Outro</option>
-            </select>
+            <!-- Botões e opções a partir de js/domain/channels.js. -->
+            <div class="resf-chips resf-mobile-only" role="group" aria-label="Canal" data-channel-chips></div>
+            <select class="form-control" id="f-canal" data-channel-options data-on-change="index-mobile-canal-change"></select>
           </div>
         </div>
         <div style="margin-top:16px;" data-mstep="1">
@@ -861,7 +848,7 @@
           </div>
           <div class="form-group form-full resf-mobile-only">
             <button type="button" class="resf-fold" id="resf-docs-toggle" data-fold="docs" data-on-click="index-mobile-fold" aria-expanded="false" aria-controls="resf-guest-section">
-              <span class="resf-fold-text"><span class="resf-fold-title">Documento, NIF e morada</span>
+              <span class="resf-fold-text"><span class="resf-fold-title">Identificação</span>
               <span class="resf-fold-hint">Opcional · o hóspede preenche no pré-check-in</span></span>
               <i data-lucide="chevron-down" class="resf-fold-icon"></i>
             </button>
@@ -906,14 +893,6 @@
           <div class="form-group resf-optional-field">
             <label for="f-empresa" class="form-label">Empresa</label>
             <input class="form-control" id="f-empresa" placeholder="Nome da empresa (opcional)" autocomplete="off">
-          </div>
-          <div class="form-group form-full resf-optional-field">
-            <label for="f-morada" class="form-label">Morada</label>
-            <input class="form-control" id="f-morada" placeholder="Rua, nº" autocomplete="off">
-          </div>
-          <div class="form-group resf-optional-field">
-            <label for="f-cp" class="form-label">Código Postal</label>
-            <input class="form-control" id="f-cp" placeholder="0000-000" autocomplete="off">
           </div>
           <div class="form-group resf-optional-field">
             <label for="f-cidade" class="form-label">Localidade</label>
@@ -1089,6 +1068,7 @@
 <script src="js/domain/libraries.js"></script>
 <script src="js/domain/pagination.js"></script>
 <script src="js/domain/event-types.js"></script>
+<script src="js/domain/channels.js"></script>
 <script src="js/domain/features.js?v=v1-20261024-2"></script>
 <script src="js/ui.js"></script>
 <script src="js/ui-blocks.js"></script>

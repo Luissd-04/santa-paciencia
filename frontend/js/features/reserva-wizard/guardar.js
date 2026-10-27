@@ -52,8 +52,6 @@ function guestPayload() {
     birth_city:               document.getElementById('f-local-nascimento')?.value  || null,
     nif:                      document.getElementById('f-nif')?.value               || null,
     company:                  document.getElementById('f-empresa')?.value           || null,
-    address:                  document.getElementById('f-morada')?.value            || null,
-    postal_code:              document.getElementById('f-cp')?.value                || null,
     city:                     document.getElementById('f-cidade')?.value            || null,
   };
 }

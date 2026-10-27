@@ -113,7 +113,7 @@ function renderResCardTotal(r) {
     ? `<span style="font-size:11px;color:var(--vermelho);display:block;">falta ${ReservationMoney.format(rem)}</span>`
     : '';
   return `<div class="mrc-total">
-      <span class="mrc-channel">${AppModules.core.escapeHtml(r.channel || '—')} · ${AppModules.core.badgePagamento(r.payment_status)} · ${AppModules.core.badgePrecheckin(r.precheckin_state)}</span>
+      <span class="mrc-channel">${AppModules.core.escapeHtml(AppModules.core.channelLabel(r.channel) || '—')} · ${AppModules.core.badgePagamento(r.payment_status)} · ${AppModules.core.badgePrecheckin(r.precheckin_state)}</span>
       <span class="mrc-price">${ReservationMoney.format(total)}${remHtml}</span>
     </div>`;
 }

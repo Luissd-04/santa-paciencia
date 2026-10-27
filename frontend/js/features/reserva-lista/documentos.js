@@ -104,7 +104,7 @@ async function openReservationSheet(resId) {
           <div class="stmt-sum-row"><span>${d.accRows.length > 1 ? 'Alojamentos' : 'Alojamento'}</span><span>${AppModules.core.escapeHtml(d.roomNames || r.accommodation_name || '—')}</span></div>
           <div class="stmt-sum-row"><span>Estadia</span><span>${sd(r.check_in)} → ${sd(r.check_out)} · ${r.nights} noite${r.nights !== 1 ? 's' : ''}</span></div>
           <div class="stmt-sum-row"><span>Ocupação</span><span>${r.num_adults || r.num_guests || 1} adulto${(r.num_adults || r.num_guests || 1) !== 1 ? 's' : ''}${r.num_children ? ` · ${r.num_children} criança${r.num_children !== 1 ? 's' : ''}` : ''}</span></div>
-          <div class="stmt-sum-row"><span>Canal · Estado</span><span>${AppModules.core.escapeHtml(r.channel || '—')} · ${AppModules.core.escapeHtml(r.status || '—')}</span></div>
+          <div class="stmt-sum-row"><span>Canal · Estado</span><span>${AppModules.core.escapeHtml(AppModules.core.channelLabel(r.channel) || '—')} · ${AppModules.core.escapeHtml(r.status || '—')}</span></div>
         </div>
 
         <table class="stmt-table">
@@ -172,7 +172,7 @@ async function downloadReservationSheetPdf() {
     [d.accRows.length > 1 ? 'Alojamentos' : 'Alojamento', d.roomNames || r.accommodation_name || '—'],
     ['Estadia', `${sd(r.check_in)} → ${sd(r.check_out)} · ${r.nights} noite${r.nights !== 1 ? 's' : ''}`],
     ['Ocupação', `${r.num_adults || r.num_guests || 1} adultos${r.num_children ? ` · ${r.num_children} crianças` : ''}`],
-    ['Canal · Estado', `${r.channel || '—'} · ${r.status || '—'}`],
+    ['Canal · Estado', `${AppModules.core.channelLabel(r.channel) || '—'} · ${r.status || '—'}`],
   ];
   doc.autoTable({ body: info, startY: 28, theme: 'plain', styles: { fontSize: 9, cellPadding: 1.5 }, columnStyles: { 0: { fontStyle: 'bold', cellWidth: 40 } } });
 

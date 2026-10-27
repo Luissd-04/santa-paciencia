@@ -44,7 +44,7 @@ const RESERVA_DRAFT_FIELDS = [
   'f-checkin', 'f-checkout', 'f-num-adultos', 'f-num-criancas', 'f-breakfast',
   'f-canal', 'f-aloj', 'f-nome-completo', 'f-email', 'f-tel-prefix', 'f-tel-num',
   'f-pais', 'f-doc-tipo', 'f-doc-num', 'f-doc-emissor', 'f-nascimento',
-  'f-local-nascimento', 'f-nif', 'f-morada', 'f-cp', 'f-cidade', 'f-notas',
+  'f-local-nascimento', 'f-nif', 'f-cidade', 'f-notas',
   'f-estado',
   'f-discount-type', 'f-discount-val', 'f-total', 'f-noites',
 ];
@@ -54,7 +54,7 @@ function reservaFormHasData() {
   const val = id => (document.getElementById(id)?.value || '').trim();
   if (val('f-nome-completo') || val('f-email') || val('f-tel-num') ||
       val('f-notas') || val('f-aloj') || val('f-discount-val') ||
-      val('f-doc-num') || val('f-nif') || val('f-morada')) {
+      val('f-doc-num') || val('f-nif') || val('f-cidade')) {
     return true;
   }
   const extras = AppModules.reservas.collectExtraGuests();

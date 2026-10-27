@@ -321,6 +321,7 @@ function ensureViewMarkup(feature) {
       // deste fragmento existir. Sem isto, os <select data-enhance-select>
       // da vista ficavam por transformar (largura nativa, sem o dropdown
       // customizado) até algo mais os voltar a tocar.
+      AppModules.core.fillChannelControls(container);
       if (window.AppUI) AppUI.enhanceSelects(container);
     })).then(() => { if (window.lucide) lucide.createIcons(); });
     viewMarkupRequests.set(feature, request);
