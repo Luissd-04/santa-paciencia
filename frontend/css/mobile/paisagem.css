@@ -272,18 +272,9 @@
     z-index: 2;
   }
 
-  .cll-booking.cll-booking-checked-out { padding-right: 12px; }
-  .cll-booking.cll-booking-checked-out::after {
-    content: '';
-    position: absolute;
-    right: 3px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: #c0392b;
-  }
+  .cll-booking { --cal-mark-size: 5px; --cal-mark-inset: 3px; }
+  .cll-booking.cal-mark-in { padding-left: 12px; }
+  .cll-booking.cal-mark-out { padding-right: 12px; }
 
   .cll-span-round-left { border-radius: 4px 0 0 4px; }
   .cll-span-round-right { border-radius: 0 4px 4px 0; }

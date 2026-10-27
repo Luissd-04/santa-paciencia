@@ -96,8 +96,8 @@ function drawTimeline(autoScroll = true) {
           const width = Math.max(AppModules.calendario.CAL.tlBlockMinW, right - left - AppModules.calendario.CAL.tlBlockInset);
           if (right <= 0 || left >= totalWidth || width <= 0) return '';
           const bg = AppModules.calendario.calAccColor(r.accommodation_id);
-          const checkoutCls = r.task_status?.checkout_done ? ' tl-block-checked-out' : '';
-          return `<div class="tl-block tl-block-${r.status}${checkoutCls}" style="left:${left}px;width:${width}px;--tl-color:${bg};background:${bg}${AppModules.calendario.CAL.alpha.tlFill};border-color:${bg}${AppModules.calendario.CAL.alpha.tlBorder};"
+          const markCls = AppModules.calendario.calTaskMarkCls(r);
+          return `<div class="tl-block tl-block-${r.status}${markCls}" style="left:${left}px;width:${width}px;--tl-color:${bg};background:${bg}${AppModules.calendario.CAL.alpha.tlFill};border-color:${bg}${AppModules.calendario.CAL.alpha.tlBorder};"
                        data-res-id="${r.id}"
                        data-acc-id="${r.accommodation_id}"
                        ${AppActions.attrs("pointerdown", "timeline-tl-pointer-down-e17f561", [r.id])}

@@ -32,6 +32,11 @@ async function main() {
     db.prepare(`INSERT INTO reservations(id,organization_id,guest_id,accommodation_id,check_in,check_out,nights,num_guests,num_adults,num_children,total_amount,status)
       VALUES(?,?,?,'unit',?,?,2,3,2,1,200,?)`).run(id, org.id, id, start, end, status);
   }
+  // Check-in feito da Marta e check-out feito da Ana: bolas e etiquetas.
+  const task = db.prepare(`INSERT INTO operational_events(id,organization_id,title,type,date,accommodation_id,status,reservation_id,created_by_user_id,auto_kind)
+    VALUES(?,?,?,?,?,'unit','concluido',?,?,?)`);
+  task.run('t-in', org.id, 'Check-in', 'checkin', '2030-07-06', 'arrival', user.id, 'checkin');
+  task.run('t-out', org.id, 'Check-out', 'checkout', '2030-07-06', 'departure', user.id, 'checkout');
   server = app.listen(0, '127.0.0.1');
   await new Promise((resolve, reject) => { server.once('listening', resolve); server.once('error', reject); });
   browser = await chromium.launch({ headless: true });
@@ -55,6 +60,9 @@ async function main() {
   await expect(page.locator('.agenda-reservation')).toHaveCount(3);
   assert.deepEqual(await page.locator('.agenda-day-summary strong').allTextContents(), ['1', '1', '1']);
   await expect(page.locator('.agenda-reservation').filter({ hasText: 'Marta Silva' })).toContainText('2 adultos · 1 criança');
+  await expect(page.locator('.agenda-reservation').filter({ hasText: 'Marta Silva' }).locator('.agenda-task-mark-in')).toHaveText('Check-in feito');
+  await expect(page.locator('.agenda-reservation').filter({ hasText: 'Ana Costa' }).locator('.agenda-task-mark-out')).toHaveText('Check-out feito');
+  await expect(page.locator('.agenda-reservation').filter({ hasText: 'João Fernandes' }).locator('.agenda-task-mark')).toHaveCount(0);
   await page.screenshot({ path: path.join(temp, 'calendar-mobile.png') });
   await page.locator('.agenda-reservation').first().scrollIntoViewIfNeeded();
   await page.screenshot({ path: path.join(temp, 'calendar-reservations.png') });

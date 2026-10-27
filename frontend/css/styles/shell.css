@@ -611,18 +611,25 @@ select.form-control { cursor:pointer; }
 .cal-span-round-left.cal-span-round-right { border-radius:4px; }
 .cal-span-text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
 .cal-event-span.cal-event-multi { padding:0; }
-.cal-event-span.cal-event-checked-out { padding-right: 14px; }
-.cal-event-span.cal-event-checked-out::after {
+/* Check-in e check-out feitos (calTaskMarkCls): bola verde no início e
+   vermelha no fim da barra. Cada vista acerta tamanho e margem nas variáveis. */
+.cal-mark-in::before,
+.cal-mark-out::after {
   content: '';
   position: absolute;
-  right: 4px;
   top: 50%;
   transform: translateY(-50%);
-  width: 6px;
-  height: 6px;
+  width: var(--cal-mark-size, 6px);
+  height: var(--cal-mark-size, 6px);
   border-radius: 50%;
-  background: #c0392b;
+  z-index: 3;
+  pointer-events: none;
 }
+.cal-mark-in::before { left: var(--cal-mark-inset, 4px); background: var(--verde); }
+.cal-mark-out::after { right: var(--cal-mark-inset, 4px); background: #c0392b; }
+.cal-event-span.cal-mark-in { padding-left: 14px; }
+.cal-event-span.cal-mark-out { padding-right: 14px; }
+.cal-event-span.cal-event-multi.cal-mark-in .cal-span-row { padding-left: 14px; }
 .cal-span-row { position:absolute; left:0; right:0; display:flex; align-items:center; padding:0 6px; overflow:hidden; box-sizing:border-box; }
 .cal-day-click-area { position:absolute; top:0; bottom:0; cursor:pointer; }
 .cal-overflow-btn {

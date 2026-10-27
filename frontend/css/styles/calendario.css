@@ -142,18 +142,8 @@
 }
 .tl-block:hover { opacity: .85; transform: translateY(-1px); }
 .tl-block.tl-dragging { opacity: .75; cursor: grabbing; transition: none; z-index: 10; transform: none; }
-.tl-block.tl-block-checked-out::after {
-  content: '';
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #c0392b;
-  z-index: 3;
-}
+.tl-block { --cal-mark-size: 7px; --cal-mark-inset: 12px; }
+.tl-block.cal-mark-in { padding-left: 26px; }
 
 /* Faixa de bloqueio (datas indisponíveis) na timeline */
 .tl-block-blocked {

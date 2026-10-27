@@ -137,11 +137,11 @@ function drawCal() {
       for (const { r, effStart, effEnd } of lanes[l]) {
         const color      = AppModules.calendario.calAccColor(r.accommodation_id);
         const statusCls  = r.status === 'pendente' ? 'cal-event-pending' : 'cal-event-confirmed';
-        const checkoutCls = r.task_status?.checkout_done ? ' cal-event-checked-out' : '';
         const col0       = week.findIndex(d => d.dateStr === effStart); // 0-indexed
         const col1       = week.findIndex(d => d.dateStr === effEnd);   // 0-indexed
         const startsHere = r.check_in  >= weekStart;
         const endsHere   = r.check_out <= weekEnd;
+        const markCls = AppModules.calendario.calTaskMarkCls(r, { start: startsHere, end: endsHere });
         const sameDay    = col0 === col1 && startsHere && endsHere;
         // Bar starts at midpoint of check-in column, ends at midpoint of check-out column.
         // For same-day bookings fall back to a full column.
@@ -163,7 +163,7 @@ function drawCal() {
               </div>`;
             }).join('')
           : `<span class="cal-span-text">${firstName} · ${AppModules.core.escapeHtml(r.accommodation_name.replace('Suite ',''))}</span>`;
-        eventHtml += `<div class="cal-event-span ${statusCls}${checkoutCls} ${roundCls}${isMulti ? ' cal-event-multi' : ''}"
+        eventHtml += `<div class="cal-event-span ${statusCls}${markCls} ${roundCls}${isMulti ? ' cal-event-multi' : ''}"
           style="left:${leftPct.toFixed(2)}%;width:${widthPct.toFixed(2)}%;top:${topPx}px;height:${barH}px;${isMulti ? '' : `background:${color}${AppModules.calendario.CAL.alpha.gridFill};color:${color};border-left:${borderLeft};`}"
           ${AppActions.attrs("click", "mes-agenda-stop-propagation-eb43f3e", [String((r.id) ?? '')])}
           title="${AppModules.core.escapeHtml(r.guest_name)} — ${AppModules.core.escapeHtml(suiteInfos.map(s => s.name).join(' + '))}">
@@ -294,12 +294,14 @@ function renderCalendarAgenda(monthDays, filters = AppModules.calendario.getCale
       <div class="agenda-day-summary">${counts.map(([label, count]) => `<div><span>${label}</span><strong>${count}</strong></div>`).join('')}</div>
       <div class="agenda-reservation-list">${dayReservations.map(r => {
         const suites = AppModules.calendario.calReservationSuiteInfo(r);
+        const taskMarks = AppModules.calendario.calTaskMarkLabels(r);
         const marker = r.check_in === selected && r.check_out === selected ? 'Check-in e check-out' : r.check_in === selected ? 'Check-in' : r.check_out === selected ? 'Check-out' : 'Estadia';
         const nights = Number(r.nights) || Math.round((new Date(`${r.check_out}T12:00:00Z`) - new Date(`${r.check_in}T12:00:00Z`)) / 86400000);
         const adults = r.num_adults == null ? `${Number(r.num_guests) || 1} hóspedes` : `${Number(r.num_adults)} adulto${Number(r.num_adults) === 1 ? '' : 's'}`;
         const children = Number(r.num_children) ? ` · ${Number(r.num_children)} criança${Number(r.num_children) === 1 ? '' : 's'}` : '';
         return `<button type="button" class="agenda-reservation" style="--agenda-color:${suites[0].color}" ${AppActions.attrs('click', 'mes-agenda-show-detail-3d67b14', [String(r.id)])}>
           <span class="agenda-reservation-top"><span class="agenda-reservation-status">${esc(r.status ? window.ReservationStatus.label(r.status) : 'Reserva')}</span><span>${marker}</span></span>
+          ${taskMarks.length ? `<span class="agenda-task-marks">${taskMarks.map(([kind, label]) => `<span class="agenda-task-mark agenda-task-mark-${kind}">${label}</span>`).join('')}</span>` : ''}
           <strong class="agenda-reservation-name">${esc(r.guest_name || 'Reserva')}</strong>
           <span class="agenda-reservation-suites">${esc(suites.map(suite => suite.name).join(' · '))}</span>
           <span class="agenda-reservation-meta">${AppModules.core.lcIcon('calendar-days', 16)} ${AppModules.calendario.shortDatePt(r.check_in)} – ${AppModules.calendario.shortDatePt(r.check_out)}</span>

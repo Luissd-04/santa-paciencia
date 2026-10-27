@@ -156,6 +156,15 @@
 }
 .agenda-reservation-top { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--text-muted); }
 .agenda-reservation-status { color: var(--text-main); font-weight: 700; }
+.legend-mark { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.legend-mark::before { content: ''; width: 7px; height: 7px; border-radius: 50%; }
+.legend-mark-in::before { background: var(--verde); }
+.legend-mark-out::before { background: #c0392b; }
+.agenda-task-marks { display: flex; flex-wrap: wrap; gap: 6px; }
+.agenda-task-mark { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; }
+.agenda-task-mark::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.agenda-task-mark-in { color: var(--verde); background: color-mix(in srgb, var(--verde) 12%, white); }
+.agenda-task-mark-out { color: #c0392b; background: color-mix(in srgb, #c0392b 10%, white); }
 .agenda-reservation-name { font-size: 17px; line-height: 1.4; }
 .agenda-reservation-suites { color: var(--text-muted); font-size: 13px; margin-bottom: 4px; }
 .agenda-reservation-meta { display: flex; align-items: center; gap: 8px; font-size: 14px; }
