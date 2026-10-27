@@ -132,6 +132,7 @@ async function loadNotifications() {
     _notifications = [...(data?.data?.notifications || []), ...getExportReminderNotifications()].sort(
       (a, b) => NOTIF_PRIORITY_ORDER[a.priority] - NOTIF_PRIORITY_ORDER[b.priority]
     );
+    announceNewNotifications(_notifications);
   } catch (_) {
     _notifications = getExportReminderNotifications();
   }
@@ -182,13 +183,84 @@ function closeNotif() {
   setTimeout(() => { if (!_notifOpen) dropdown.style.display = 'none'; }, 200);
 }
 
+// ── Som de avisos novos ──
+// Toca quando chega ao sino um aviso que ainda lá não estava, com a app aberta
+// (com a app fechada avisa a notificação push). Cada aparelho escolhe se quer
+// som. O iPhone só deixa tocar depois de um toque na app e não toca em
+// silêncio. As chaves vistas ficam na sessão: recarregar a página não toca.
+const NOTIF_SOUND_KEY = 'sp:notif-sound';
+let _notifAudio = null;
+let _seenNotifKeys = null; // null até à primeira carga desta sessão
+
+function notifSoundOn() {
+  try { return localStorage.getItem(NOTIF_SOUND_KEY) !== 'off'; } catch { return true; }
+}
+
+function toggleNotifSound() {
+  const on = !notifSoundOn();
+  try { localStorage.setItem(NOTIF_SOUND_KEY, on ? 'on' : 'off'); } catch {}
+  renderNotifDropdown();
+  if (on) playNotifSound();
+}
+
+function notifSoundButtonHtml() {
+  const on = notifSoundOn();
+  return `<button type="button" class="notif-sound" aria-pressed="${on}" title="${on ? 'Som dos avisos ligado' : 'Som dos avisos desligado'}"
+    aria-label="Som dos avisos" data-on-click="notifications-toggle-sound"><i data-lucide="${on ? 'volume-2' : 'volume-x'}" style="width:15px;height:15px;"></i></button>`;
+}
+
+// O contexto de áudio tem de nascer (ou retomar) dentro de um toque.
+function unlockNotifAudio() {
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
+  try {
+    _notifAudio = _notifAudio || new Ctx();
+    if (_notifAudio.state === 'suspended') _notifAudio.resume().catch(() => {});
+  } catch { _notifAudio = null; }
+}
+['pointerdown', 'keydown'].forEach(type => document.addEventListener(type, unlockNotifAudio, { capture: true, passive: true }));
+
+// Duas notas curtas, geradas no browser (sem ficheiro de som).
+function playNotifSound() {
+  if (!_notifAudio || _notifAudio.state !== 'running') return;
+  const now = _notifAudio.currentTime;
+  [[880, 0], [1320, 0.13]].forEach(([freq, delay]) => {
+    const osc = _notifAudio.createOscillator();
+    const gain = _notifAudio.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, now + delay);
+    gain.gain.exponentialRampToValueAtTime(0.25, now + delay + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.28);
+    osc.connect(gain).connect(_notifAudio.destination);
+    osc.start(now + delay);
+    osc.stop(now + delay + 0.3);
+  });
+}
+
+const notifKey = n => [n.type, n.reservation_id || '', n.event_id || '', n.template_slug || ''].join('|');
+const seenNotifStorageKey = () => `sp:notif-seen:${AppModules.core.currentUser?.id || ''}:${AppModules.core.currentUser?.organization_id || ''}`;
+
+function announceNewNotifications(list) {
+  const keys = new Set(list.map(notifKey));
+  if (_seenNotifKeys === null) {
+    let stored = null;
+    try { stored = JSON.parse(sessionStorage.getItem(seenNotifStorageKey()) || 'null'); } catch {}
+    _seenNotifKeys = Array.isArray(stored) ? new Set(stored) : keys;
+  }
+  const fresh = [...keys].some(key => !_seenNotifKeys.has(key));
+  _seenNotifKeys = keys;
+  try { sessionStorage.setItem(seenNotifStorageKey(), JSON.stringify([...keys])); } catch {}
+  if (fresh && notifSoundOn()) playNotifSound();
+}
+
 function renderNotifDropdown() {
   const dropdown = document.getElementById('notif-dropdown');
   if (!dropdown) return;
 
   if (_notifications.length === 0) {
     dropdown.innerHTML = `
-      <div class="notif-header">Notificações</div>
+      <div class="notif-header"><span>Notificações</span>${notifSoundButtonHtml()}</div>
       <div class="notif-empty">
         <i data-lucide="bell-off" style="width:28px;height:28px;opacity:.3;"></i>
         <span>Sem notificações de momento</span>
@@ -218,7 +290,7 @@ function renderNotifDropdown() {
   dropdown.innerHTML = `
     <div class="notif-header">
       <span>Notificações</span>
-      <span class="notif-count">${_notifications.length}</span>
+      <span class="notif-header-end">${notifSoundButtonHtml()}<span class="notif-count">${_notifications.length}</span></span>
     </div>
     <div class="notif-list">${items}</div>
     <button type="button" class="notif-footer" data-on-click="notifications-close-notif-0782c93">
@@ -425,6 +497,7 @@ document.addEventListener('click', e => {
 
 AppActions.register({
   "notifications-close-notif-0782c93": (el, event, args) => { closeNotif();AppModules.core.showView('notificacoes') },
+  "notifications-toggle-sound": (el, event, args) => { event.stopPropagation(); toggleNotifSound() },
 }, "click");
 
 AppActions.register({
@@ -441,6 +514,7 @@ AppModules.onReset('notifications.js', () => {
   clearTimeout(_notifTimer); clearInterval(_notifTimer); _notifTimer = null;
   clearTimeout(_notifReloadTimer); _notifReloadTimer = null;
   _notifLiveOff?.(); _notifLiveOff = null;
+  _seenNotifKeys = null;
 });
 
 })();
