@@ -38,11 +38,9 @@ function capacityMessage({ capacity, rooms }) {
 const MOBILE_STEP_NAMES = ['Estadia', 'Hóspede', 'Preço e confirmação'];
 const SHORT_MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const SHORT_WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
-// Canais com botão próprio; os restantes escolhem-se em «Mais…».
-const MAIN_CHANNELS = ['direto', 'booking', 'airbnb'];
-const OPTIONAL_GUEST_FIELDS = ['f-nascimento', 'f-local-nascimento', 'f-doc-tipo', 'f-doc-num', 'f-doc-emissor', 'f-nif', 'f-empresa', 'f-morada', 'f-cp', 'f-cidade'];
+const OPTIONAL_GUEST_FIELDS = ['f-nascimento', 'f-local-nascimento', 'f-doc-tipo', 'f-doc-num', 'f-doc-emissor', 'f-nif', 'f-empresa', 'f-cidade'];
 let mobileStep = 1;
-let mobileFolds = { docs: false, extras: false, price: false, canal: false };
+let mobileFolds = { docs: false, extras: false, price: false };
 
 // «3 jul» (com o ano só quando não é o atual).
 function shortDate(iso) {
@@ -58,8 +56,7 @@ function resetMobileSteps() {
   const priceEdited = Object.keys(AppModules.reservas._nightlyOverrides || {}).length > 0
     || AppModules.reservas._manualTotalOverride != null
     || (parseFloat(document.getElementById('f-discount-val')?.value) || 0) > 0;
-  const canal = document.getElementById('f-canal')?.value;
-  mobileFolds = { docs: hasDocs, extras: false, price: priceEdited, canal: !!canal && !MAIN_CHANNELS.includes(canal) };
+  mobileFolds = { docs: hasDocs, extras: false, price: priceEdited };
   renderMobileSteps();
 }
 
@@ -102,18 +99,13 @@ function toggleMobileFold(name) {
   renderMobileControls();
 }
 
-// Botões de canal: escrevem no mesmo campo do computador; «Mais…» mostra a lista toda.
+// Botões de canal (uma linha que desliza): escrevem no mesmo campo do computador.
 function setMobileCanal(value) {
   const select = document.getElementById('f-canal');
-  if (!select) return;
-  if (!value) {
-    mobileFolds.canal = true;
-  } else {
-    mobileFolds.canal = false;
-    if (select.value !== value) {
-      select.value = value;
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-    }
+  if (!select || !value) return;
+  if (select.value !== value) {
+    select.value = value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
   }
   renderMobileStay();
 }
@@ -144,11 +136,14 @@ function renderMobileStay() {
   const breakfast = document.getElementById('resf-breakfast-switch');
   if (breakfast) breakfast.checked = value('f-breakfast') === 'true';
   const canal = value('f-canal');
-  const more = mobileFolds.canal || !MAIN_CHANNELS.includes(canal);
   document.querySelectorAll('#resf-canal-group [data-canal]').forEach(chip => {
-    chip.setAttribute('aria-pressed', String(chip.dataset.canal ? !more && chip.dataset.canal === canal : more));
+    const selected = chip.dataset.canal === canal;
+    chip.setAttribute('aria-pressed', String(selected));
+    // Ao editar uma reserva de um canal mais à direita, o botão fica à vista.
+    const row = chip.parentElement.getBoundingClientRect();
+    const box = chip.getBoundingClientRect();
+    if (selected && row.width && (box.left < row.left || box.right > row.right)) chip.parentElement.scrollLeft += box.left - row.left - 16;
   });
-  document.getElementById('resf-canal-group')?.classList.toggle('resf-canal-more', more);
 }
 
 // Contadores no limite e blocos recolhidos (o número de acompanhantes muda
@@ -448,8 +443,6 @@ function wizSelectGuest(idx) {
   document.getElementById('f-local-nascimento').value = g.birth_city || '';
   document.getElementById('f-nif').value = g.nif || '';
   document.getElementById('f-empresa').value = g.company || '';
-  document.getElementById('f-morada').value = g.address || '';
-  document.getElementById('f-cp').value = g.postal_code || '';
   document.getElementById('f-cidade').value = g.city || '';
   AppModules.reservas.updateForeignRequirements();
   AppModules.reservas.calcTotal();

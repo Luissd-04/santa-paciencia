@@ -31,7 +31,8 @@ let _chartLucro        = null;
 
 const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MONTH_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-const CHANNEL_COLORS = { airbnb:'#FF5A5F', booking:'#003580', direto:'#843424', expedia:'#FFC72C', vrbo:'#195ABA', outro:'#8a8278' };
+// Cores dos canais em js/domain/channels.js — fonte única de canais.
+const CHANNEL_COLORS = Object.fromEntries(AppModules.core.CHANNELS.map(c => [c.id, c.color]));
 // Derivados de EXPENSE_CATS (despesas.js, carregado antes) — fonte única de categorias.
 const CAT_COLORS = Object.fromEntries(Object.entries(AppModules.despesas.EXPENSE_CATS).map(([k, v]) => [k, v.color]));
 const CAT_LABELS = Object.fromEntries(Object.entries(AppModules.despesas.EXPENSE_CATS).map(([k, v]) => [k, v.label]));
@@ -222,9 +223,10 @@ function _renderChannelChart(channels) {
   if (!channels.length) { canvas.parentElement.innerHTML += '<div class="report-empty">Sem dados de canais.</div>'; return; }
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const textColor = isDark ? '#aaa' : '#8a8278';
-  const labels = channels.map(c => c.channel || 'outro');
+  const ids = channels.map(c => c.channel || 'outro');
+  const labels = ids.map(AppModules.core.channelLabel);
   const values = channels.map(c => c.revenue || 0);
-  const colors = labels.map(c => CHANNEL_COLORS[c] || CHANNEL_COLORS.outro);
+  const colors = ids.map(c => CHANNEL_COLORS[c] || CHANNEL_COLORS.outro);
   _chartChannel = new Chart(canvas, {
     type: 'doughnut',
     data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2,

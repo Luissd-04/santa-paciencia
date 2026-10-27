@@ -1588,8 +1588,16 @@
   .resf-switch-row input:checked::after { transform: translateX(18px); }
   .resf-switch-row input:focus-visible { outline: 2px solid var(--marca); outline-offset: 2px; }
   #resf-canal-group { grid-column: 1 / -1; }
-  .resf-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  /* Uma linha que desliza para os lados, a encostar às margens do ecrã. */
+  .resf-chips {
+    display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
+    margin: 0 -16px; padding: 0 16px 2px; scroll-padding-inline: 16px;
+    -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
+  }
+  .resf-chips::-webkit-scrollbar { display: none; }
   .resf-chip {
+    flex: none;
+    white-space: nowrap;
     height: 40px;
     padding: 0 12px;
     border: 1px solid var(--border-strong);
@@ -1602,8 +1610,7 @@
     touch-action: manipulation;
   }
   .resf-chip[aria-pressed="true"] { border-color: var(--marca); background: var(--marca); color: #fff; font-weight: 600; }
-  #resf-canal-group:not(.resf-canal-more) #f-canal { display: none; }
-  #resf-canal-group.resf-canal-more #f-canal { margin-top: 10px; }
+  #resf-canal-group #f-canal { display: none; }
 
   /* Alojamentos em lista, com a fotografia à esquerda. */
   #suite-cards-grid { grid-template-columns: 1fr; gap: 8px; }

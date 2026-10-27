@@ -118,7 +118,7 @@ function updateForeignRequirements() {
 
 function _resetGuestFields() {
   ['f-nome-completo','f-email','f-tel-num',
-   'f-doc-num','f-local-nascimento','f-nascimento','f-nif','f-empresa','f-morada','f-cp','f-cidade','f-notas'].forEach(id => {
+   'f-doc-num','f-local-nascimento','f-nascimento','f-nif','f-empresa','f-cidade','f-notas'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   const docTipo = document.getElementById('f-doc-tipo'); if (docTipo) docTipo.value = '';

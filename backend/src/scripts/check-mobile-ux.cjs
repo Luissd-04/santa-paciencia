@@ -200,10 +200,16 @@ async function main() {
   await page.getByRole('button',{name:'Booking.com',exact:true}).click();
   await expect(page.locator('#f-canal')).toHaveValue('booking');
   await expect(page.locator('#f-canal')).toBeHidden();
-  await page.getByRole('button',{name:'Mais…',exact:true}).click();
-  await expect(page.locator('#f-canal')).toBeVisible();
-  await page.locator('#f-canal').selectOption('whatsapp');
-  await expect(page.getByRole('button',{name:'Mais…',exact:true})).toHaveAttribute('aria-pressed','true');
+  // Todos os canais numa linha que desliza; o último fica fora do ecrã até deslizar.
+  const chips=page.locator('#resf-canal-group .resf-chips');
+  assert.ok(await chips.evaluate(el=>el.scrollWidth>el.clientWidth),'a linha de canais desliza');
+  assert.equal(await chips.evaluate(el=>new Set([...el.children].map(c=>c.offsetTop)).size),1,'canais numa só linha');
+  await page.getByRole('button',{name:'SecretPlaces',exact:true}).click();
+  await expect(page.locator('#f-canal')).toHaveValue('secretplaces');
+  await expect(page.getByRole('button',{name:'SecretPlaces',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(page.getByRole('button',{name:'Booking.com',exact:true})).toHaveAttribute('aria-pressed','false');
+  await page.getByRole('button',{name:'Longaventura',exact:true}).click();
+  await expect(page.locator('#f-canal')).toHaveValue('longaventura');
   assert.equal(await page.locator('#suite-cards-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),1);
   await page.locator('.suite-card-opt',{hasText:'Unidade UX'}).click();
   // Vários quartos na própria lista: o segundo tocado entra como quarto extra;

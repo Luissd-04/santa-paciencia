@@ -14,8 +14,6 @@ const HOSPEDES_EXPORT_COLUMNS = [
   { key: 'phone',               label: 'Telefone',        default: true,  get: g => g.phone || '' },
   { key: 'country',            label: 'País',            default: true,  get: g => g.country || g.nationality || '' },
   { key: 'nif',                 label: 'NIF',              default: true,  get: g => g.nif || '' },
-  { key: 'address',            label: 'Morada',          default: true,  get: g => g.address || '' },
-  { key: 'postal_code',        label: 'CP',               default: true,  get: g => g.postal_code || '' },
   { key: 'city',                label: 'Localidade',      default: true,  get: g => g.city || '' },
   { key: 'reservation_count',  label: 'Reservas',         default: true,  get: g => String(g.reservation_count || 0) },
   { key: 'last_check_in',      label: 'Última visita',    default: true,  get: g => g.last_check_in ? new Date(g.last_check_in + 'T12:00:00').toLocaleDateString('pt-PT') : '' },
@@ -69,8 +67,6 @@ async function importHospedesXLS(input) {
         telefone:  ['Telefone', 'Phone', 'telefone'],
         pais:      ['País', 'Pais', 'Country', 'Nationality'],
         nif:       ['NIF', 'nif'],
-        morada:    ['Morada', 'Address', 'morada'],
-        cp:        ['CP', 'Postal Code', 'postal_code'],
         cidade:    ['Localidade', 'City', 'cidade'],
       };
       const pick = (row, keys) => { for (const k of keys) if (row[k] !== undefined && row[k] !== '') return String(row[k]); return ''; };
@@ -90,8 +86,6 @@ async function importHospedesXLS(input) {
             phone:      pick(row, COL.telefone),
             country:    pick(row, COL.pais),
             nif:        pick(row, COL.nif),
-            address:    pick(row, COL.morada),
-            postal_code:pick(row, COL.cp),
             city:       pick(row, COL.cidade),
           });
           created++;

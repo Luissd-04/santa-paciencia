@@ -149,8 +149,6 @@ async function openEditModal(id) {
     AppModules.reservas.updateForeignRequirements();
     document.getElementById('f-nif').value            = guestFull.nif || '';
     document.getElementById('f-empresa').value        = guestFull.company || '';
-    document.getElementById('f-morada').value         = guestFull.address || '';
-    document.getElementById('f-cp').value             = guestFull.postal_code || '';
     document.getElementById('f-cidade').value         = guestFull.city || '';
 
     document.getElementById('f-checkin').value       = AppModules.core.formatDateForStandardInput(r.check_in || '');

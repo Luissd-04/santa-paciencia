@@ -234,7 +234,7 @@ async function showDetail(id, opts = {}) {
           <div class="rdv2-canal-bar">
             <div class="rdv2-info-field">
               <span class="rdv2-if-label">Canal</span>
-              <span class="rdv2-if-val">${AppModules.core.escapeHtml(r.channel || '—')}</span>
+              <span class="rdv2-if-val">${AppModules.core.escapeHtml(AppModules.core.channelLabel(r.channel) || '—')}</span>
             </div>
             ${r.guest_email ? `<div class="rdv2-info-field">
               <span class="rdv2-if-label">Email</span>
