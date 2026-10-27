@@ -224,15 +224,10 @@ async function openEditModal(id) {
     AppModules.reservas._wizHadMultiSuiteOnLoad = AppModules.reservas._wizMultiSuite;
     if (AppModules.reservas._wizMultiSuite) AppModules.reservas._wizVoucherManaged = false;
     // Suites adicionais (além da principal) — aparecem marcadas na lista de
-    // alojamentos, com o preço por noite editável.
+    // alojamentos; o preço de cada noite edita-se no passo do preço.
     AppModules.reservas._wizExtraRooms = (Array.isArray(accsData) ? accsData : [])
       .filter(item => item.accommodation_id !== r.accommodation_id)
-      .map(item => ({
-        accommodation_id: item.accommodation_id,
-        name: item.name || '',
-        price_per_night: Number(item.price_per_night || 0),
-        subtotal: Number(item.subtotal || 0),
-      }));
+      .map(AppModules.reservas.wizExtraRoom);
     if (!AppModules.reservas._wizVoucherManaged && !isNaN(storedTotal) && !isNaN(recomputed) && Math.abs(storedTotal - recomputed) > 0.01) {
       if (AppModules.reservas._wizMultiSuite) {
         AppModules.reservas._manualTotalOverride = storedTotal;
