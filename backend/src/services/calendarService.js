@@ -33,22 +33,41 @@ async function insertOrAdopt(auth, calendarId, eventId, body) {
   }
 }
 
+// Marca dos eventos criados pela app (a limpeza de duplicados só lhes toca).
+const APP_EVENT_MARK = { private: { santaPaciencia: '1' } };
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const pax = reservation => Number(reservation.num_guests) || (Number(reservation.num_adults) || 0) + (Number(reservation.num_children) || 0) || 1;
+
+// Títulos sem ícones: o calendário já é o do alojamento, por isso o título
+// diz quem vem, quantos são e por onde reservaram.
 function reservationEventBody(reservation, guest, accommodation) {
+  const { formatEUR } = require('./money');
+  const { channelLabel } = require('../config/channels');
+  const { isPlaceholderEmail } = require('./emailAddress');
+  const { shortRange } = require('./dates');
+  const adults = Number(reservation.num_adults ?? reservation.num_guests) || 0;
+  const children = Number(reservation.num_children) || 0;
+  const total = Number(reservation.total_amount) || 0;
+  const paid = Number(reservation.amount_paid) || 0;
+  const rooms = (() => { try { return JSON.parse(reservation.accommodations_data || '[]'); } catch { return []; } })();
+  const nights = Number(reservation.nights) || 0;
   return {
-    summary: `🏨 ${accommodation.name} — ${guest.name}`,
+    summary: `${guest.name} · ${pax(reservation)} pax · ${channelLabel(reservation.channel || 'direto')}`,
     description: [
-      `Reserva ID: ${reservation.id}`,
-      `Hóspede: ${guest.name}`,
-      `Email: ${guest.email}`,
-      `Telemóvel: ${guest.phone || 'N/A'}`,
-      `Hóspedes: ${reservation.num_guests}`,
-      `Canal: ${reservation.channel}`,
-      `Total: ${require('./money').formatEUR(reservation.total_amount)}`,
-      `Pagamento: ${reservation.payment_status}`,
-      reservation.notes ? `Notas: ${reservation.notes}` : ''
+      `${guest.name} · ${plural(adults, 'adulto', 'adultos')}${children ? ` + ${plural(children, 'criança', 'crianças')}` : ''}`,
+      `${shortRange(reservation.check_in, reservation.check_out)} · ${plural(nights, 'noite', 'noites')}${reservation.arrival_time ? ` · chegada ${reservation.arrival_time}` : ''}`,
+      rooms.length > 1 ? `Quartos: ${rooms.map(r => r.name || r.accommodation_id).join(', ')}` : '',
+      guest.phone ? `Telemóvel: ${guest.phone}` : '',
+      guest.email && !isPlaceholderEmail(guest.email) ? `Email: ${guest.email}` : '',
+      `Canal: ${channelLabel(reservation.channel || 'direto')}`,
+      `Total ${formatEUR(total)}${paid > 0.005 ? ` · pago ${formatEUR(paid)}` : ''}${total - paid > 0.005 ? ` · falta ${formatEUR(total - paid)}` : ' · pago'}`,
+      `Pré-check-in: ${reservation.precheckin_submitted_at ? 'feito' : 'por fazer'}`,
+      reservation.notes ? `Notas: ${reservation.notes}` : '',
+      `Abrir na app: ${require('./publicLinks').backofficeReservationUrl(reservation.id)}`,
     ].filter(Boolean).join('\n'),
     start: { date: reservation.check_in, timeZone: businessTimeZone() },
     end: { date: reservation.check_out, timeZone: businessTimeZone() },
+    extendedProperties: APP_EVENT_MARK,
     reminders: {
       useDefault: false,
       overrides: [
@@ -293,7 +312,10 @@ function addOneHour(time) {
   return `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-const { EVENT_TYPE_EMOJIS: TASK_TYPE_ICONS, EVENT_TYPE_COLORS } = require('../config/eventTypes');
+const { EVENT_TYPE_EMOJIS, EVENT_TYPE_COLORS } = require('../config/eventTypes');
+// Ícones dos títulos antigos: só servem para reconhecer eventos da app criados
+// antes da marca APP_EVENT_MARK (limpeza de duplicados).
+const LEGACY_TITLE_ICONS = Object.values(EVENT_TYPE_EMOJIS).concat(['🏨']);
 
 // Paleta fixa de cores de EVENTO da Calendar API (colorId 1-11) — não aceita hex livre,
 // ao contrário da cor do calendário em si (ver ensureAccommodationCalendar acima).
@@ -322,8 +344,18 @@ function nearestGoogleColorId(hex) {
   return best;
 }
 
-function taskEventBody(task, accommodation) {
-  const icon = TASK_TYPE_ICONS[task.type] || '📋';
+// Tarefas criadas por uma reserva dizem o hóspede (e, no pequeno-almoço,
+// quantas pessoas); as outras ficam com o título da tarefa. Sem ícones.
+function taskSummary(task, reservation) {
+  if (!task.auto_generated || !reservation) return task.title;
+  const guest = reservation.guest_name || 'hóspede';
+  if (task.auto_kind === 'checkin') return `Check-in · ${guest} (${pax(reservation)})`;
+  if (task.auto_kind === 'checkout') return `Check-out · ${guest}`;
+  if (task.auto_kind === 'breakfast') return `Pequeno-almoço · ${plural(pax(reservation), 'pessoa', 'pessoas')} · ${guest}`;
+  return task.title;
+}
+
+function taskEventBody(task, accommodation, reservation = null) {
   let start, end;
   if (task.start_time) {
     const endTime = task.end_time || addOneHour(task.start_time);
@@ -334,9 +366,14 @@ function taskEventBody(task, accommodation) {
     end   = { date: addDays(task.date, 1) };
   }
   return {
-    summary: `${icon} ${task.title}${accommodation ? ' — ' + accommodation.name : ''}`,
-    description: [task.notes, task.responsible ? `Responsável: ${task.responsible}` : null].filter(Boolean).join('\n'),
+    summary: taskSummary(task, reservation),
+    description: [
+      task.notes,
+      reservation?.arrival_time && task.auto_kind === 'checkin' ? `Chegada prevista: ${reservation.arrival_time}` : null,
+      task.responsible ? `Responsável: ${task.responsible}` : null,
+    ].filter(Boolean).join('\n'),
     start, end,
+    extendedProperties: APP_EVENT_MARK,
     // Sem alojamento não há calendário próprio a colorir — aproxima a cor do tipo
     // de evento (já usada na app) à cor de evento fixa mais próxima da API.
     colorId: accommodation ? undefined : nearestGoogleColorId(EVENT_TYPE_COLORS[task.type]),
@@ -354,7 +391,11 @@ async function upsertQueuedOperationalEvent(job) {
     ? db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(task.accommodation_id, organizationId)
     : null;
   const target = accommodation ? await ensureAccommodationCalendar(auth, accommodation, organizationId) : 'primary';
-  const body = taskEventBody(task, accommodation);
+  const reservation = task.reservation_id
+    ? db.prepare(`SELECT r.*, g.name AS guest_name FROM reservations r LEFT JOIN guests g ON g.id = r.guest_id AND g.organization_id = r.organization_id
+        WHERE r.id = ? AND r.organization_id = ?`).get(task.reservation_id, organizationId)
+    : null;
+  const body = taskEventBody(task, accommodation, reservation);
   if (task.google_event_id) {
     const current = task.google_event_calendar_id || accommodation?.google_calendar_id || 'primary';
     if (current === target) {
@@ -443,7 +484,7 @@ function calendarQueueStatus(organizationId) {
 
 // Remove eventos duplicados criados pela app (mesmo título + início), mantendo um.
 // Usado pela ação manual "Limpar duplicados" para corrigir os órfãos deixados pelo
-// bug antigo (apagar+recriar). Seguro: só toca em eventos com prefixo de ícone da app
+// bug antigo (apagar+recriar). Seguro: só toca em eventos marcados pela app (ou com o ícone dos títulos antigos)
 // e só apaga duplicados EXATOS, preferindo manter o que está ligado localmente.
 // Pré-visualização obrigatória: `preview` só lista; apagar exige `expected` igual
 // ao número de duplicados encontrados nesse momento (senão nada é apagado).
@@ -452,7 +493,6 @@ async function cleanDuplicateAppEvents(userId, organizationId, { preview = true,
     return { deleted: 0, error: 'Google Calendar não está ligado.' };
   }
   const auth = getAuthenticatedClient(userId, organizationId);
-  const APP_ICONS = Object.values(TASK_TYPE_ICONS).concat(['🏨']); // ícones de tarefas + reserva
 
   const accCals = db.prepare(`
     SELECT DISTINCT google_calendar_id FROM accommodations
@@ -484,7 +524,8 @@ async function cleanDuplicateAppEvents(userId, organizationId, { preview = true,
         const resp = await auth.request({ url, method: 'GET' });
         for (const ev of (resp.data.items || [])) {
           const summary = ev.summary || '';
-          if (!APP_ICONS.some(ic => summary.startsWith(ic))) continue;
+          const fromApp = ev.extendedProperties?.private?.santaPaciencia === '1' || LEGACY_TITLE_ICONS.some(ic => summary.startsWith(ic));
+          if (!fromApp) continue;
           const start = ev.start?.dateTime || ev.start?.date || '';
           const key = `${summary}|${start}`;
           if (!groups.has(key)) groups.set(key, []);

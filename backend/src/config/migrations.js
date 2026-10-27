@@ -60,6 +60,7 @@ function runMigrations(db) {
   migrateEmailQueueToEvents(db);
   migrateScheduledTaskRuns(db);
   migrateMenuPrefs(db);
+  migrateCalendarTitles(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -84,6 +85,23 @@ function migrateMenuPrefs(db) {
   if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
   db.transaction(() => {
     if (!db.pragma('table_info(memberships)').some(c => c.name === 'menu_prefs')) db.exec('ALTER TABLE memberships ADD COLUMN menu_prefs TEXT');
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+// Títulos do Google Calendar sem ícones: os eventos já sincronizados (estadias
+// e tarefas de hoje em diante) voltam à fila para serem atualizados.
+function migrateCalendarTitles(db) {
+  const id = '20261028_gcal_titles';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`INSERT INTO google_calendar_queue (organization_id, action, entity_type, entity_id, user_id)
+        SELECT organization_id, 'upsert', 'reservation', id, google_calendar_user_id FROM reservations
+        WHERE google_event_id IS NOT NULL AND status != 'cancelada' AND check_out >= date('now')
+        ON CONFLICT(organization_id, entity_type, entity_id) WHERE action = 'upsert' DO NOTHING;
+      INSERT INTO google_calendar_queue (organization_id, action, entity_type, entity_id, user_id)
+        SELECT organization_id, 'upsert', 'event', id, google_calendar_user_id FROM operational_events
+        WHERE google_event_id IS NOT NULL AND date >= date('now')
+        ON CONFLICT(organization_id, entity_type, entity_id) WHERE action = 'upsert' DO NOTHING;`);
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }
