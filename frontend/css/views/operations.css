@@ -1408,64 +1408,6 @@ body.tl-is-panning * {
     cursor: pointer;
   }
 
-  .eventos-agenda-day-empty {
-    padding: 10px 12px;
-    border: 1px dashed var(--border-soft);
-    border-radius: var(--mobile-radius, 16px);
-    color: var(--text-muted);
-    font-size: 12.5px;
-    text-align: center;
-  }
-
-  /* Tira de datas — navegação/scroll-to sobre a lista multi-dia abaixo */
-  .eventos-date-strip {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-x: contain;
-  }
-  .eventos-date-strip::-webkit-scrollbar { display: none; }
-
-  .eds-day {
-    flex-shrink: 0;
-    display: grid;
-    justify-items: center;
-    gap: 2px;
-    min-width: 42px;
-    padding: 6px 4px;
-    border-radius: 12px;
-    border: 1px solid transparent;
-    background: transparent;
-    color: var(--text-main);
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s, transform 120ms ease;
-  }
-  .eds-day-name {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: .04em;
-    color: var(--text-muted);
-  }
-  .eds-day-num {
-    font-size: 14px;
-    font-weight: 700;
-  }
-  .eds-day.is-today {
-    border-color: rgba(43, 24, 16, .14);
-  }
-  .eds-day.active {
-    background: var(--marca);
-    color: #fff;
-  }
-  .eds-day.active .eds-day-name {
-    color: rgba(255, 255, 255, .8);
-  }
-  .eds-day:active {
-    transform: scale(0.97);
-  }
-
   /* Chips de categoria em scroll horizontal só em mobile (desktop mantém wrap) */
   .eventos-type-chips-row {
     flex-wrap: nowrap;
@@ -1474,6 +1416,7 @@ body.tl-is-panning * {
     overscroll-behavior-x: contain;
   }
   .eventos-type-chips-row::-webkit-scrollbar { display: none; }
+  .eventos-type-chips-row.eventos-sheet-chips { flex-wrap: wrap; overflow: visible; }
 
   #timeline-wrap,
   #eventos-timeline-wrap {

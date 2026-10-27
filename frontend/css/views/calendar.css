@@ -22,6 +22,9 @@
   #calendario-filter-panel > .m-sheet-header {
     display: none;
   }
+  /* Nos Eventos os tipos já estão na barra de botões do ecrã grande. */
+  #eventos-filter-panel,
+  #eventos-filters-backdrop { display: none; }
 }
 
 @media (max-width: 600px) {
@@ -82,7 +85,9 @@
 }
 
 /* Calendário vertical: mês compacto seguido das reservas do dia escolhido. */
-#calendar-agenda-mobile { gap: 16px; }
+#calendar-agenda-mobile,
+#eventos-agenda-mobile { gap: 16px; }
+.agenda-date-dots { display: flex; gap: 3px; justify-content: center; }
 .agenda-month-weekdays,
 .agenda-month-days {
   display: grid;
@@ -172,14 +177,21 @@
 .agenda-day-empty { text-align: center; color: var(--text-muted); padding: 20px 8px; margin: 0; }
 @media (max-width: 600px) {
   #view-calendario .calendar-legend { display: none; }
-  #view-calendario .section-card-head { padding-bottom: 4px; }
-  #view-calendario .calendar-toolbar {
+  #view-calendario .section-card-head,
+  #view-eventos .section-card-head { padding-bottom: 4px; }
+  /* Calendário e Eventos: a mesma barra no telemóvel. */
+  #view-calendario .calendar-toolbar,
+  #view-eventos .calendar-toolbar {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
   }
-  #view-calendario .calendar-toolbar > .btn { min-height: 44px; padding: 8px; }
-  #view-calendario .calendar-toolbar .m-filters-trigger { order: 4; }
+  #view-calendario .calendar-toolbar > .btn,
+  #view-eventos .calendar-toolbar > .btn { min-height: 44px; padding: 8px; }
+  #view-calendario .calendar-toolbar .m-filters-trigger,
+  #view-eventos .calendar-toolbar .m-filters-trigger { order: 4; }
+  #view-eventos .calendar-toolbar .m-filters-trigger { margin-bottom: 0; min-height: 44px; }
+  #view-eventos .calendar-toolbar .page-toolbar-count { order: 5; grid-column: span 2; align-self: center; font-size: 11px; }
   #view-calendario .calendar-toolbar .view-toolbar-actions {
     order: 5;
     display: flex;

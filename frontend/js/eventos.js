@@ -58,14 +58,19 @@ function setEventosCount(n) {
 // Antes, ambos partilhavam um único GET /api/events sem limites, que trazia a
 // coleção inteira para memória.
 const eventosCalendarRange = AppModules.core.createRangeCollection('/api/events');
-const eventosAgendaRange = AppModules.core.createRangeCollection('/api/events');
 let eventosRenderVersion = 0;
+let eventosAgendaSelected = null;   // dia escolhido no mês do telemóvel
+
+// No telemóvel em pé só há o mês (com o dia escolhido por baixo), como no
+// Calendário de reservas: a timeline guardada fica para o ecrã grande.
+const eventosPhone = () => Boolean(window.matchMedia?.('(max-width: 600px)').matches);
+const activeEventosMode = () => (eventosPhone() ? 'calendar' : eventosMode);
 
 // Horizonte desenhado por cada modo, com folga para os dias adjacentes que o
 // calendário mostra fora do mês.
 function eventosPeriod() {
   const iso = window.ReservationDates.localIso;
-  if (eventosView !== 'list' && eventosMode === 'timeline') {
+  if (eventosView !== 'list' && activeEventosMode() === 'timeline') {
     const start = new Date();
     start.setDate(start.getDate() - 1);
     const end = new Date(start);
@@ -79,16 +84,8 @@ function eventosPeriod() {
   return { from: iso(monthStart), to: iso(monthEnd) };
 }
 
-function eventosAgendaPeriod() {
-  const today = new Date();
-  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 20);
-  return { from: isoDate(today.getFullYear(), today.getMonth(), today.getDate()),
-    to: isoDate(end.getFullYear(), end.getMonth(), end.getDate()) };
-}
-
 function invalidateEventosRange() {
   eventosCalendarRange.reset();
-  eventosAgendaRange.reset();
 }
 
 function eventosRangeMessage(ids, message, retry = null) {
@@ -188,67 +185,58 @@ async function renderEventosView() {
   if (eventosView === 'list') {
     eventosListQueryChanged({ immediate: true });
   } else {
-    // A agenda não estende o mês selecionado até hoje. Cada consumidor
-    // tem a sua coleção e pode recuperar de uma falha independentemente.
-    await Promise.all([
-      ensureEventosRange(eventosCalendarRange, eventosPeriod(), ['eventos-cal-grid', 'eventos-timeline-wrap'],
-        () => eventosMode === 'timeline' ? renderEventosTimeline() : renderEventosCalendar(), isCurrent),
-      ensureEventosRange(eventosAgendaRange, eventosAgendaPeriod(), ['eventos-agenda-mobile'], renderEventosAgendaMobile, isCurrent),
-    ]);
+    // O mês do ecrã grande e o do telemóvel desenham o mesmo intervalo.
+    await ensureEventosRange(eventosCalendarRange, eventosPeriod(), ['eventos-cal-grid', 'eventos-timeline-wrap', 'eventos-agenda-mobile'],
+      () => {
+        if (activeEventosMode() === 'timeline') renderEventosTimeline();
+        else renderEventosCalendar();
+        renderEventosAgendaMobile();
+      }, isCurrent);
   }
   if (window.lucide) lucide.createIcons();
 }
 
-const EVENTOS_AGENDA_DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-
-// No mobile, Calendário/Timeline dão lugar a uma agenda dia-a-dia
-// (mesmo padrão de #calendar-agenda-mobile usado no calendário de reservas).
-// Ordem: tira de datas (navegação/scroll-to) → chips de categoria → agenda
-// multi-dia (todos os dias do horizonte, incl. estado vazio por dia).
+// No telemóvel: o mês com pontos da cor de cada tipo de evento e, por baixo,
+// o dia escolhido — o mesmo componente do Calendário de reservas.
 function renderEventosAgendaMobile() {
   const wrap = document.getElementById('eventos-agenda-mobile');
   if (!wrap) return;
-  const today = new Date();
-  const todayStr = isoDate(today.getFullYear(), today.getMonth(), today.getDate());
-  const horizonDays = 21;
-  const dates = [];
-  for (let i = 0; i < horizonDays; i++) {
-    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
-    dates.push(isoDate(d.getFullYear(), d.getMonth(), d.getDate()));
-  }
-  const events = filteredEventos(eventosAgendaRange.state.rows);
-
-  const stripHtml = dates.map(dateStr => {
-    const d = new Date(dateStr + 'T12:00:00');
-    const isToday = dateStr === todayStr;
-    return `<button type="button" class="eds-day${isToday ? ' is-today active' : ''}" data-date="${dateStr}" ${AppActions.attrs("click", "eventos-scroll-to-eventos-agenda-day-a78e6ec", [String((dateStr) ?? '')])}>
-      <span class="eds-day-name">${EVENTOS_AGENDA_DAY_NAMES[d.getDay()]}</span>
-      <span class="eds-day-num">${d.getDate()}</span>
-    </button>`;
-  }).join('');
-
-  const daySections = dates.map(dateStr => {
-    const dayEvents = events.filter(e => e.date === dateStr)
-      .sort((a, b) => (a.start_time || '99:99').localeCompare(b.start_time || '99:99'));
-    const d = new Date(dateStr + 'T12:00:00');
-    let dayLabel = d.toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: 'short' });
-    if (dateStr === todayStr) dayLabel = 'Hoje · ' + dayLabel;
-    const body = dayEvents.length
-      ? `<div class="agenda-day-list">${dayEvents.map(renderEventoTaskCard).join('')}</div>`
-      : `<div class="eventos-agenda-day-empty">Sem eventos neste dia</div>`;
-    return `<section class="agenda-day" id="eventos-agenda-day-${dateStr}">
-      <div class="agenda-day-title">${dayLabel}</div>
-      ${body}
-    </section>`;
+  const daysInMonth = new Date(eventosYear, eventosMonth + 1, 0).getDate();
+  const days = Array.from({ length: daysInMonth }, (_, i) => isoDate(eventosYear, eventosMonth, i + 1));
+  const today = window.ReservationDates.localIso(new Date());
+  if (!days.includes(eventosAgendaSelected)) eventosAgendaSelected = days.includes(today) ? today : days[0];
+  const selected = eventosAgendaSelected;
+  const events = filteredEventos();
+  const byTime = (a, b) => (a.start_time || '99:99').localeCompare(b.start_time || '99:99');
+  const dayEvents = events.filter(e => e.date === selected).sort(byTime);
+  const done = dayEvents.filter(e => e.status === 'concluido').length;
+  wrap.innerHTML = AppModules.core.monthAgendaHtml({
+    days,
+    selected,
+    dayAttrs: date => AppActions.attrs('click', 'eventos-select-agenda-date', [date]),
+    info: date => {
+      const list = events.filter(e => e.date === date);
+      const colors = [...new Set(list.map(e => getEventoType(e.type).color))];
+      const label = new Date(`${date}T12:00:00`).toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' });
+      return { label: `${label}, ${list.length} evento${list.length === 1 ? '' : 's'}`, dots: colors };
+    },
+    summary: [['Eventos', dayEvents.length], ['Por fazer', dayEvents.length - done], ['Concluídos', done]],
+    listHtml: dayEvents.map(renderEventoTaskCard).join(''),
+    emptyText: 'Sem eventos neste dia.',
   });
-
-  wrap.innerHTML = `
-    <div class="eventos-date-strip" id="eventos-date-strip">${stripHtml}</div>
-    <div class="eventos-type-chips-row"></div>
-    <div class="eventos-agenda-days">${daySections.join('')}</div>
-  `;
-  renderEventosTypeChips();
   if (window.lucide) lucide.createIcons();
+}
+
+// Os tipos de evento (os mesmos botões do ecrã grande) numa folha
+// deslizante no telemóvel, como os filtros do Calendário.
+function toggleEventosFiltersSheet(open, trigger) {
+  if (open) trigger?.focus({ preventScroll: true });
+  AppUI.setSheetOpen('eventos-filter-panel', 'eventos-filters-backdrop', open, 'm-sheet-open');
+}
+
+function selectEventosAgendaDate(date) {
+  eventosAgendaSelected = date;
+  renderEventosAgendaMobile();
 }
 
 function renderEventoTaskCard(evento) {
@@ -264,15 +252,6 @@ function renderEventoTaskCard(evento) {
       <small>${type.singular}${evento.accommodation_name ? ' · ' + AppModules.core.escapeHtml(evento.accommodation_name) : ''}${time ? ' · ' + time : ''}</small>
     </span>
   </div>`;
-}
-
-// Tocar num dia da tira desloca até à secção correspondente na lista
-// abaixo (a lista mostra sempre todos os dias do horizonte, não troca
-// para uma vista de dia único) e marca esse chip como selecionado.
-function scrollToEventosAgendaDay(dateStr, btn) {
-  document.getElementById('eventos-agenda-day-' + dateStr)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  document.querySelectorAll('#eventos-date-strip .eds-day').forEach(el => el.classList.remove('active'));
-  btn?.classList.add('active');
 }
 
 function setEventosView(view) {
@@ -619,9 +598,9 @@ function toggleEventoTypeChip(typeId) {
     eventosTypeFilters.add(typeId);
   }
   if (eventosView === 'list') eventosListQueryChanged({ immediate: true });
-  else if (eventosMode === 'timeline') renderEventosTimeline();
+  else if (activeEventosMode() === 'timeline') renderEventosTimeline();
   else renderEventosCalendar();
-  // No mobile o que está visível é a agenda, não o calendário/timeline
+  // No telemóvel o que está visível é o mês com o dia escolhido.
   renderEventosAgendaMobile();
 }
 
@@ -692,7 +671,6 @@ function renderEventoListRow(evento) {
 function findEvento(id) {
   return eventosListPaged.state.rows.find(e => e.id === id)
       || eventosCalendarRange.state.rows.find(e => e.id === id)
-      || eventosAgendaRange.state.rows.find(e => e.id === id)
       || null;
 }
 
@@ -1006,7 +984,7 @@ function populateEventosResponsibleSelect(selected = '') {
 }
 
 function eventosPrev() {
-  if (eventosMode === 'timeline') {
+  if (activeEventosMode() === 'timeline') {
     const wrap = document.getElementById('eventos-timeline-wrap');
     if (wrap) wrap.scrollLeft -= (wrap.clientWidth - EVENTOS_LABEL_W) * 0.7;
     return;
@@ -1017,7 +995,7 @@ function eventosPrev() {
 }
 
 function eventosNext() {
-  if (eventosMode === 'timeline') {
+  if (activeEventosMode() === 'timeline') {
     const wrap = document.getElementById('eventos-timeline-wrap');
     if (wrap) wrap.scrollLeft += (wrap.clientWidth - EVENTOS_LABEL_W) * 0.7;
     return;
@@ -1031,7 +1009,8 @@ function eventosToday() {
   const now = new Date();
   eventosYear = now.getFullYear();
   eventosMonth = now.getMonth();
-  if (eventosView === 'calendar' && eventosMode === 'timeline') {
+  eventosAgendaSelected = window.ReservationDates.localIso(now);
+  if (eventosView === 'calendar' && activeEventosMode() === 'timeline') {
     scrollEventosTimelineToToday(getEventosDayWidth());
     return;
   }
@@ -1065,7 +1044,8 @@ AppActions.register({
   "eventos-delete-evento-e910ecc": (el, event, args) => { deleteEvento(args[0]) },
   "eventos-toggle-evento-type-chip-750c6ad": (el, event, args) => { toggleEventoTypeChip(args[0]) },
   "eventos-stop-propagation-185b92b": (el, event, args) => { event.stopPropagation();toggleEventoStatus(args[0]) },
-  "eventos-scroll-to-eventos-agenda-day-a78e6ec": (el, event, args) => { scrollToEventosAgendaDay(args[0], el) },
+  "eventos-select-agenda-date": (el, event, args) => { selectEventosAgendaDate(args[0]) },
+  "eventos-toggle-filters-sheet": (el, event, args) => { toggleEventosFiltersSheet(args[0] === 'open', el) },
 }, "click");
 
 AppActions.register({
@@ -1084,7 +1064,7 @@ AppModules.onReset('eventos.js', () => {
   eventosEditingId = null;
   eventosTeamMembers = [];
   eventosCalendarRange.reset();
-  eventosAgendaRange.reset();
+  eventosAgendaSelected = null;
   eventosListPaged.reset();
 });
 

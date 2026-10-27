@@ -37,6 +37,7 @@ async function main() {
     VALUES(?,?,?,?,?,'unit','concluido',?,?,?)`);
   task.run('t-in', org.id, 'Check-in', 'checkin', '2030-07-06', 'arrival', user.id, 'checkin');
   task.run('t-out', org.id, 'Check-out', 'checkout', '2030-07-06', 'departure', user.id, 'checkout');
+  db.prepare(`INSERT INTO operational_events(id,organization_id,title,type,date,status,created_by_user_id) VALUES('e-clean',?,'Limpeza geral','limpeza','2030-07-06','planeado',?)`).run(org.id, user.id);
   server = app.listen(0, '127.0.0.1');
   await new Promise((resolve, reject) => { server.once('listening', resolve); server.once('error', reject); });
   browser = await chromium.launch({ headless: true });
@@ -95,8 +96,34 @@ async function main() {
   await page.evaluate(() => AppModules.core.showView('calendario'));
   await expect(page.locator('.agenda-month')).toBeVisible();
   await expect(page.locator('.agenda-date[aria-current="date"]')).toHaveAttribute('aria-pressed', 'true');
+  // Eventos no telemóvel: o mesmo mês com o dia escolhido por baixo, mesmo
+  // com a timeline guardada como modo preferido no ecrã grande.
+  await page.evaluate(async () => {
+    sessionStorage.setItem('sp:evt:year', '2030');
+    sessionStorage.setItem('sp:evt:month', '6');
+    sessionStorage.setItem('sp:evt:mode', JSON.stringify('timeline'));
+    await AppModules.core.showView('eventos');
+  });
+  const evtAgenda = page.locator('#eventos-agenda-mobile');
+  await expect(evtAgenda.locator('.agenda-date')).toHaveCount(31);
+  await expect(page.locator('#eventos-label')).toHaveText('Julho 2030');
+  const evtDay = evtAgenda.locator('[data-agenda-date="2030-07-06"]');
+  await expect(evtDay.locator('.agenda-date-dot')).toHaveCount(3); // limpeza, check-in, check-out
+  await evtDay.click();
+  await expect(evtDay).toHaveAttribute('aria-pressed', 'true');
+  assert.deepEqual(await evtAgenda.locator('.agenda-day-summary strong').allTextContents(), ['3', '1', '2']);
+  await expect(evtAgenda.locator('.eventos-task-item')).toHaveCount(3);
+  await page.locator('#view-eventos .m-filters-trigger').click();
+  await page.locator('#eventos-filter-panel .evt-type-chip', { hasText: 'Limpezas' }).click();
+  await page.keyboard.press('Escape');
+  await expect(evtAgenda.locator('.eventos-task-item')).toHaveCount(1);
+  await page.locator('#view-eventos [data-on-click="index-eventos-next-30dc29c"]').click();
+  await expect(page.locator('#eventos-label')).toHaveText('Agosto 2030');
+  await expect(evtAgenda.locator('[data-agenda-date="2030-08-01"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(evtAgenda.locator('.agenda-day-empty')).toHaveText('Sem eventos neste dia.');
+  assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   assert.deepEqual(errors, []);
-  console.log(`OK: seleção, contagens, detalhes, dias vazios, navegação, layouts e preferência timeline. Capturas: ${temp}`);
+  console.log(`OK: seleção, contagens, detalhes, dias vazios, navegação, layouts, preferência timeline e mês dos Eventos. Capturas: ${temp}`);
 }
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
   await browser?.close();
