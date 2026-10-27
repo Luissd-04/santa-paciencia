@@ -129,46 +129,7 @@
       <h1 class="sb-label">Santa Paciência</h1>
       <p class="sb-label">Gestão de Alojamento</p>
     </div>
-    <nav class="sidebar-nav">
-      <div class="nav-section sb-label">Principal</div>
-      <button type="button" class="nav-item active" data-view="dashboard" data-on-click="index-show-view-f5d0286" aria-current="page">
-        <span class="icon"><i data-lucide="layout-dashboard"></i></span><span class="nav-label"> Dashboard</span>
-      </button>
-      <button type="button" class="nav-item" data-view="reservas" data-on-click="index-show-view-3d0e569">
-        <span class="icon"><i data-lucide="clipboard-list"></i></span><span class="nav-label"> Reservas</span>
-      </button>
-      <button type="button" class="nav-item" data-view="calendario" data-on-click="index-show-view-6fd615e">
-        <span class="icon"><i data-lucide="calendar-days"></i></span><span class="nav-label"> Calendário</span>
-      </button>
-      <button type="button" class="nav-item" data-view="eventos" data-on-click="index-show-view-68ce776">
-        <span class="icon"><i data-lucide="calendar-range"></i></span><span class="nav-label"> Eventos</span>
-      </button>
-      <button type="button" class="nav-item" data-view="notificacoes" data-on-click="index-show-view-afe629f">
-        <span class="icon"><i data-lucide="bell"></i></span><span class="nav-label"> Notificações</span>
-      </button>
-      <button type="button" class="nav-item" data-view="invoice" data-on-click="index-show-view-772edb1">
-        <span class="icon"><i data-lucide="mail"></i></span><span class="nav-label"> Mensagens</span><span class="nav-badge" id="nav-badge-invoice" style="display:none;"></span>
-      </button>
-      <div class="nav-section sb-label">Gestão</div>
-      <button type="button" class="nav-item" data-view="hospedes" data-on-click="index-show-view-a1dad0e">
-        <span class="icon"><i data-lucide="users"></i></span><span class="nav-label"> Hóspedes</span>
-      </button>
-      <button type="button" class="nav-item" data-view="alojamentos" data-on-click="index-show-view-4899013">
-        <span class="icon"><i data-lucide="home"></i></span><span class="nav-label"> Alojamentos</span>
-      </button>
-      <button type="button" class="nav-item" data-view="precos" data-on-click="index-show-view-aa6e09d">
-        <span class="icon"><i data-lucide="tag"></i></span><span class="nav-label"> Preços</span>
-      </button>
-      <button type="button" class="nav-item" data-view="despesas" data-on-click="index-show-view-5da348e">
-        <span class="icon"><i data-lucide="receipt"></i></span><span class="nav-label"> Despesas</span>
-      </button>
-      <button type="button" class="nav-item" data-view="relatorios" data-on-click="index-show-view-7f3ea84">
-        <span class="icon"><i data-lucide="bar-chart-3"></i></span><span class="nav-label"> Relatórios</span>
-      </button>
-      <button type="button" class="nav-item" data-view="vouchers" data-on-click="index-show-view-447b5f9">
-        <span class="icon"><i data-lucide="ticket"></i></span><span class="nav-label"> Vouchers</span>
-      </button>
-    </nav>
+    <nav class="sidebar-nav" aria-label="Menu principal"><!-- Itens gerados por js/menu.js (NAV_ITEMS) --></nav>
     <div class="sidebar-settings-nav">
       <button type="button" class="nav-item" data-view="definicoes" data-on-click="index-show-view-56547aa">
         <span class="icon"><i data-lucide="settings"></i></span><span class="nav-label"> Definições</span>
@@ -1058,23 +1019,7 @@
 </div>
 
 <!-- BOTTOM NAV (mobile only) -->
-<nav class="bottom-nav-bar" id="bottom-nav-bar">
-  <button class="bn-item active" id="bn-dashboard" data-on-click="index-show-view-f5d0286">
-    <i data-lucide="layout-dashboard"></i><span>Início</span>
-  </button>
-  <button class="bn-item" id="bn-reservas" data-on-click="index-show-view-3d0e569">
-    <i data-lucide="clipboard-list"></i><span>Reservas</span>
-  </button>
-  <button class="bn-item" id="bn-calendario" data-on-click="index-show-view-6fd615e">
-    <i data-lucide="calendar-days"></i><span>Calendário</span>
-  </button>
-  <button class="bn-item" id="bn-eventos" data-on-click="index-show-view-68ce776">
-    <i data-lucide="calendar-check"></i><span>Eventos</span>
-  </button>
-  <button class="bn-item" id="bn-despesas" data-on-click="index-show-view-5da348e">
-    <i data-lucide="receipt"></i><span>Despesas</span>
-  </button>
-</nav>
+<nav class="bottom-nav-bar" id="bottom-nav-bar" aria-label="Atalhos"><!-- Atalhos gerados por js/menu.js --></nav>
 
 <!-- Voltar ao topo da área atual (mobile only) -->
 <button type="button" class="mobile-back-to-top" id="mobile-back-to-top" aria-label="Voltar ao topo" title="Voltar ao topo" hidden>
@@ -1089,71 +1034,43 @@
 <!-- SIDE DRAWER (mobile) -->
 <div class="side-drawer-overlay" id="side-drawer-overlay" data-on-click="index-close-side-drawer-28b0ec9"></div>
 <aside class="side-drawer" id="side-drawer" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="side-drawer-title" tabindex="-1">
-  <div class="side-drawer-brand">
-    <h2 id="side-drawer-title">Santa Paciência</h2>
-    <p>Gestão de Alojamento</p>
+  <div class="side-drawer-scroll">
+    <div class="side-drawer-brand">
+      <div class="side-drawer-brandrow">
+        <div>
+          <h2 id="side-drawer-title">Santa Paciência</h2>
+          <p>Gestão de Alojamento</p>
+        </div>
+        <button type="button" class="side-drawer-edit" data-on-click="menu-open-editor"><i data-lucide="pencil"></i> Editar</button>
+      </div>
+    </div>
+    <nav id="side-drawer-nav" aria-label="Menu"><!-- Itens gerados por js/menu.js, na ordem de cada pessoa --></nav>
   </div>
-  <div class="side-drawer-section">Principal</div>
-  <button type="button" class="side-drawer-item" data-view="dashboard" data-on-click="index-show-view-2517b76">
-    <i data-lucide="layout-dashboard"></i> Dashboard
-  </button>
-  <button type="button" class="side-drawer-item" data-view="reservas" data-on-click="index-show-view-3896a1c">
-    <i data-lucide="clipboard-list"></i> Reservas
-  </button>
-  <button type="button" class="side-drawer-item" data-view="calendario" data-on-click="index-show-view-ee36455">
-    <i data-lucide="calendar-days"></i> Calendário
-  </button>
-  <button type="button" class="side-drawer-item" data-view="eventos" data-on-click="index-show-view-5e22dbf">
-    <i data-lucide="calendar-range"></i> Eventos
-  </button>
-  <button type="button" class="side-drawer-item" data-view="hospedes" data-on-click="index-show-view-5680375">
-    <i data-lucide="users"></i> Hóspedes
-  </button>
-  <button type="button" class="side-drawer-item" data-view="notificacoes" data-on-click="index-show-view-78c396d">
-    <i data-lucide="bell"></i> Notificações
-  </button>
-  <div class="side-drawer-section">Gestão</div>
-  <button type="button" class="side-drawer-item" data-view="alojamentos" data-on-click="index-show-view-e180a25">
-    <i data-lucide="home"></i> Alojamentos
-  </button>
-  <button type="button" class="side-drawer-item" data-view="precos" data-on-click="index-show-view-9dc1e16">
-    <i data-lucide="tag"></i> Preços
-  </button>
-  <button type="button" class="side-drawer-item" data-view="despesas" data-on-click="index-show-view-05eda4c">
-    <i data-lucide="receipt"></i> Despesas
-  </button>
-  <button type="button" class="side-drawer-item" data-view="relatorios" data-on-click="index-show-view-a532708">
-    <i data-lucide="bar-chart-3"></i> Relatórios
-  </button>
-  <button type="button" class="side-drawer-item" data-view="vouchers" data-on-click="mobile-open-vouchers">
-    <i data-lucide="ticket"></i> Vouchers
-  </button>
-  <button type="button" class="side-drawer-item" data-view="invoice" data-on-click="mobile-open-messages">
-    <i data-lucide="mail"></i> Mensagens
-  </button>
-  <button type="button" class="side-drawer-item" data-on-click="index-show-view-9eff395">
-    <i data-lucide="mail-open"></i> Modelos de email
-  </button>
-  <div class="side-drawer-section">Sistema</div>
-  <button type="button" class="side-drawer-item" data-view="definicoes" data-on-click="index-show-view-ef3e4be">
-    <i data-lucide="settings"></i> Definições
-  </button>
-  <div class="side-drawer-section">Conta</div>
-  <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-0395508">
-    <i data-lucide="user-round"></i> O meu perfil
-  </button>
-  <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-5e6ac44">
-    <i data-lucide="key-round"></i> Alterar palavra-passe
-  </button>
-  <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-f44ae7e">
-    <i data-lucide="monitor-smartphone"></i> Sessões ativas
-  </button>
-  <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-b4bebaf">
-    <i data-lucide="users-round"></i> Trocar de conta
-  </button>
-  <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-4a3b8ba">
-    <i data-lucide="log-out"></i> Sair
-  </button>
+  <!-- A conta fica fixa no fundo; as ações abrem por cima. -->
+  <div class="side-drawer-account">
+    <div class="side-drawer-account-actions" id="side-drawer-account-actions" hidden>
+      <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-0395508">
+        <i data-lucide="user-round"></i> O meu perfil
+      </button>
+      <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-5e6ac44">
+        <i data-lucide="key-round"></i> Alterar palavra-passe
+      </button>
+      <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-f44ae7e">
+        <i data-lucide="monitor-smartphone"></i> Sessões ativas
+      </button>
+      <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-b4bebaf">
+        <i data-lucide="users-round"></i> Trocar de conta
+      </button>
+      <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-4a3b8ba">
+        <i data-lucide="log-out"></i> Sair
+      </button>
+    </div>
+    <button type="button" class="side-drawer-profile" id="side-drawer-account-toggle" aria-expanded="false" aria-controls="side-drawer-account-actions" data-on-click="menu-toggle-account">
+      <span class="side-drawer-avatar" id="side-drawer-avatar" aria-hidden="true">?</span>
+      <span class="side-drawer-who"><b id="side-drawer-user-name">Sessão</b><small id="side-drawer-user-sub"></small></span>
+      <i data-lucide="chevrons-up-down"></i>
+    </button>
+  </div>
 </aside>
 
 <script src="/js/domain/modules.js"></script>
@@ -1175,6 +1092,7 @@
 <script src="js/domain/features.js?v=v1-20261024-2"></script>
 <script src="js/ui.js"></script>
 <script src="js/ui-blocks.js"></script>
+<script src="js/menu.js"></script>
 <script src="js/validators.js"></script>
 <!-- Perfil -->
 <div id="profile-modal" class="modal-bg" data-on-click="index-if-3215315">

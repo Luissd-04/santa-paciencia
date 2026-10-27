@@ -185,6 +185,8 @@ function updateUserBadge() {
     const role = AppModules.core.currentUser?.role || '';
     roleEl.textContent = [org, role].filter(Boolean).join(' · ');
   }
+  // Nome e cargo também na conta fixa no fundo do menu do telemóvel.
+  AppModules.core.renderNavigation();
 }
 
 function setAuthenticatedLayout(isAuthenticated) {

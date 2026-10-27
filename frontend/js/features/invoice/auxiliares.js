@@ -31,24 +31,15 @@ function _restoreLastOpenInvoiceThread() {
 const _INVOICE_LAST_CHECK_KEY = 'sp-invoice-last-check';
 
 function _updateInvoiceBadge() {
-  const badge = document.getElementById('nav-badge-invoice');
-  if (!badge) return;
   const lastCheck = localStorage.getItem(_INVOICE_LAST_CHECK_KEY);
-  if (!lastCheck) { badge.style.display = 'none'; return; }
+  if (!lastCheck) { AppModules.core.setNavBadge('invoice', 0); return; }
   const cutoff = new Date(lastCheck);
-  const newCount = AppModules.invoice._invoiceConversas.filter(t => t._lastDate && new Date(t._lastDate) > cutoff).length;
-  if (newCount > 0) {
-    badge.textContent = newCount > 9 ? '9+' : newCount;
-    badge.style.display = '';
-  } else {
-    badge.style.display = 'none';
-  }
+  AppModules.core.setNavBadge('invoice', AppModules.invoice._invoiceConversas.filter(t => t._lastDate && new Date(t._lastDate) > cutoff).length);
 }
 
 function _markInvoiceRead() {
   localStorage.setItem(_INVOICE_LAST_CHECK_KEY, new Date().toISOString());
-  const badge = document.getElementById('nav-badge-invoice');
-  if (badge) badge.style.display = 'none';
+  AppModules.core.setNavBadge('invoice', 0);
 }
 
 /* ── Filtro ── */

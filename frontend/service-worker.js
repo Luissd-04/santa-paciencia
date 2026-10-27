@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 58;
+const CACHE_VERSION = 59;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -66,6 +66,7 @@ const STATIC_ASSETS = [
   '/js/public-reservation-actions.js',
   '/js/ui.js',
   '/js/ui-blocks.js',
+  '/js/menu.js',
   '/js/pubsub.js',
   '/js/notifications.js',
   '/js/dashboard.js',

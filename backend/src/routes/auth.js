@@ -89,6 +89,7 @@ function serializeUser(user) {
     organization_id: user.organization_id,
     organization_name: user.organization_name,
     organization_slug: user.organization_slug,
+    menu_prefs: user.organization_id ? require('../services/menuPrefs').get(user.id, user.organization_id) : null,
   };
 }
 
@@ -258,6 +259,14 @@ router.post('/logout', requireAuth, (req, res) => {
 
 router.get('/me', requireAuth, (req, res) => {
   res.json({ success: true, data: { user: serializeUser(req.user) } });
+});
+
+// Menu do telemóvel desta pessoa nesta organização; null repõe o original.
+router.put('/menu-prefs', requireAuth, (req, res, next) => {
+  try {
+    const prefs = require('../services/menuPrefs').save(req.user.id, req.user.organization_id, req.body?.menu_prefs ?? null);
+    res.json({ success: true, data: { menu_prefs: prefs } });
+  } catch (error) { next(error); }
 });
 
 router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {

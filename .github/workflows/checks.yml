@@ -40,7 +40,7 @@ jobs:
         working-directory: backend/src
         env:
           BROWSER_ARTIFACTS_DIR: ${{ github.workspace }}/browser-artifacts
-      - run: npm run test:mobile && BROWSER_ENGINE=webkit npm run test:mobile && node scripts/check-precheckin.cjs && node scripts/check-public-voucher.cjs && node scripts/check-payment-policy-browser.cjs && node scripts/check-wizard-voucher.cjs && BROWSER_ENGINE=webkit node scripts/check-wizard-voucher.cjs && node scripts/check-pwa-resilience.cjs && BROWSER_ENGINE=webkit node scripts/check-pwa-resilience.cjs && node scripts/check-vouchers.cjs && node scripts/check-calendar-mobile.cjs && node scripts/check-public-mobile.cjs && node scripts/check-stripe-browser.cjs && node scripts/check-frontend-modules.cjs && node scripts/check-notif-sound.cjs
+      - run: npm run test:mobile && BROWSER_ENGINE=webkit npm run test:mobile && node scripts/check-precheckin.cjs && node scripts/check-public-voucher.cjs && node scripts/check-payment-policy-browser.cjs && node scripts/check-wizard-voucher.cjs && BROWSER_ENGINE=webkit node scripts/check-wizard-voucher.cjs && node scripts/check-pwa-resilience.cjs && BROWSER_ENGINE=webkit node scripts/check-pwa-resilience.cjs && node scripts/check-vouchers.cjs && node scripts/check-calendar-mobile.cjs && node scripts/check-public-mobile.cjs && node scripts/check-stripe-browser.cjs && node scripts/check-frontend-modules.cjs && node scripts/check-notif-sound.cjs && node scripts/check-menu-editor.cjs
         working-directory: backend/src
       - run: npm run measure:frontend
         working-directory: backend/src
