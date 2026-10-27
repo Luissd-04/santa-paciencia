@@ -91,6 +91,7 @@ function renderCalLandscape(allDays, filters = AppModules.calendario.getCalendar
         const col1       = week.findIndex(d => d.dateStr === effEnd);
         const startsHere = r.check_in  >= weekStart;
         const endsHere   = r.check_out <= weekEnd;
+        const markCls = AppModules.calendario.calTaskMarkCls(r, { start: startsHere, end: endsHere });
         const sameDay    = col0 === col1 && startsHere && endsHere;
         const leftPct  = sameDay ? col0 / 7 * 100 : (startsHere ? (col0 + 0.5) / 7 * 100 : 0);
         const rightPct = sameDay ? (col0 + 1) / 7 * 100 : (endsHere ? (col1 + 0.5) / 7 * 100 : 100);
@@ -98,8 +99,7 @@ function renderCalLandscape(allDays, filters = AppModules.calendario.getCalendar
         const roundCls  = (startsHere ? 'cll-span-round-left ' : '') + (endsHere ? 'cll-span-round-right' : '');
         const firstName = AppModules.core.escapeHtml((r.guest_name || '').split(' ')[0]);
         const accName   = AppModules.core.escapeHtml((r.accommodation_name || '').replace('Suite ', ''));
-        const checkoutCls = r.task_status?.checkout_done ? ' cll-booking-checked-out' : '';
-        eventHtml += `<div class="cll-booking${checkoutCls} ${roundCls}" style="left:${leftPct.toFixed(2)}%;width:${widthPct.toFixed(2)}%;top:${laneTops[l]}px;height:${LANE_H}px;background:${color}${AppModules.calendario.CAL.alpha.landFill};border-left-color:${color};color:${color};" title="${AppModules.core.escapeHtml(r.guest_name || '')} · ${AppModules.core.escapeHtml(r.accommodation_name || '')}" ${AppActions.attrs("click", "paisagem-stop-propagation-eb43f3e", [String((r.id) ?? '')])}>${firstName} · ${accName}</div>`;
+        eventHtml += `<div class="cll-booking${markCls} ${roundCls}" style="left:${leftPct.toFixed(2)}%;width:${widthPct.toFixed(2)}%;top:${laneTops[l]}px;height:${LANE_H}px;background:${color}${AppModules.calendario.CAL.alpha.landFill};border-left-color:${color};color:${color};" title="${AppModules.core.escapeHtml(r.guest_name || '')} · ${AppModules.core.escapeHtml(r.accommodation_name || '')}" ${AppActions.attrs("click", "paisagem-stop-propagation-eb43f3e", [String((r.id) ?? '')])}>${firstName} · ${accName}</div>`;
       }
     }
 

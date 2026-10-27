@@ -7,6 +7,8 @@ AppModules.define('calendario', {
   calMode: { get: () => window.matchMedia('(max-width: 600px)').matches ? 'calendar' : calMode, set: value => { calMode = value; } },
   calReservationSuiteInfo: { get: () => calReservationSuiteInfo },
   calReservationSuites: { get: () => calReservationSuites },
+  calTaskMarkCls: { get: () => calTaskMarkCls },
+  calTaskMarkLabels: { get: () => calTaskMarkLabels },
   getCalendarFilters: { get: () => getCalendarFilters },
   getTimelineDayWidth: { get: () => getTimelineDayWidth },
   MONTHS_PT: { get: () => MONTHS_PT },
@@ -104,6 +106,21 @@ function calReservationSuites(r) {
 
 // Como calReservationSuites, mas devolve também a cor de cada alojamento
 // (para pintar cada linha da reserva multi-suíte com a cor certa).
+// Check-in e check-out marcados como feitos: bola verde no início da barra e
+// vermelha no fim, iguais no mês, na timeline e no telemóvel deitado. Numa
+// reserva que passa de uma semana para a outra, só o pedaço onde a estadia
+// começa (ou acaba) leva a bola.
+function calTaskMarkCls(r, { start = true, end = true } = {}) {
+  const done = r.task_status || {};
+  return `${start && done.checkin_done ? ' cal-mark-in' : ''}${end && done.checkout_done ? ' cal-mark-out' : ''}`;
+}
+
+// Os mesmos estados em texto, para a lista do dia no telemóvel.
+function calTaskMarkLabels(r) {
+  const done = r.task_status || {};
+  return [done.checkin_done && ['in', 'Check-in feito'], done.checkout_done && ['out', 'Check-out feito']].filter(Boolean);
+}
+
 function calReservationSuiteInfo(r) {
   let accs = [];
   try {
