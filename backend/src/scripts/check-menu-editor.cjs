@@ -80,11 +80,18 @@ async function main() {
   await openDrawer();
   await expect(actions).toBeHidden();
 
-  // Editar: o menu fecha e abre o ecrã de edição.
-  await drawer.getByRole('button', { name: 'Editar' }).click();
+  // Editar o menu fica nas Definições (o menu lateral já não tem «Editar»).
+  await expect(drawer.getByRole('button', { name: 'Editar' })).toHaveCount(0);
+  const menuEntry = page.locator('#view-definicoes').getByRole('button', { name: /Menu do telemóvel/ });
+  const openEditor = async () => {
+    if (!(await drawer.getAttribute('class')).includes('open')) await openDrawer();
+    await drawer.getByRole('button', { name: 'Definições' }).click();
+    await expect(drawer).not.toHaveClass(/open/);
+    await menuEntry.click();
+  };
+  await openEditor();
   const editor = page.locator('#menu-editor');
   await expect(editor).toBeVisible();
-  await expect(drawer).not.toHaveClass(/open/);
   const editorOrder = () => editor.locator('.menu-editor-row').evaluateAll(els => els.map(el => el.dataset.navId));
   // Teclado: Despesas sobe até ao topo.
   const despesas = editor.locator('[data-menu-handle="despesas"]');
@@ -116,8 +123,7 @@ async function main() {
   assert.equal(saved(), null);
 
   // Repetir e guardar.
-  await openDrawer();
-  await drawer.getByRole('button', { name: 'Editar' }).click();
+  await openEditor();
   await editor.locator('[data-menu-handle="despesas"]').focus();
   for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowUp');
   await editor.getByRole('button', { name: 'Esconder Vouchers' }).click();
@@ -155,11 +161,12 @@ async function main() {
   const sidebar = await page.locator('#main-sidebar .nav-item[data-view]').evaluateAll(els => els.map(el => el.dataset.view));
   assert.deepEqual(sidebar.slice(0, 3), ['dashboard', 'reservas', 'calendario']);
   assert.ok(sidebar.includes('vouchers') && !sidebar.includes('modelos-email'));
+  await page.evaluate(() => AppModules.core.showView('definicoes'));
+  await expect(menuEntry).toBeHidden(); // só existe no telemóvel
   await page.setViewportSize({ width: 375, height: 667 });
 
   // Repor original.
-  await openDrawer();
-  await drawer.getByRole('button', { name: 'Editar' }).click();
+  await openEditor();
   await editor.getByRole('button', { name: 'Repor original' }).click();
   await expect(editor).toBeHidden();
   await expect(page.locator('.toast').filter({ hasText: 'Menu reposto.' })).toBeVisible();

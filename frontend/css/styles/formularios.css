@@ -467,13 +467,6 @@
   padding: calc(48px + env(safe-area-inset-top, 0px)) 0 12px;
   overscroll-behavior: contain;
 }
-.side-drawer-brandrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-.side-drawer-edit {
-  flex: none; display: inline-flex; align-items: center; gap: 6px;
-  border: 1px solid rgba(255,255,255,.25); background: transparent; color: #fff;
-  border-radius: 999px; padding: 6px 11px; font: 600 12px inherit; font-family: inherit; cursor: pointer;
-}
-.side-drawer-edit i[data-lucide] { width: 13px; height: 13px; }
 .side-drawer-settings { border-top: 1px solid rgba(255,255,255,.1); margin-top: 10px; padding-top: 6px; }
 .side-drawer-item[aria-current="page"] { background: rgba(0,0,0,.2); color: #fff; font-weight: 600; }
 .side-drawer-item .nav-badge { margin-left: auto; }
