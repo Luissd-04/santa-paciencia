@@ -143,8 +143,40 @@ test('alteração falhada é repetida com o estado atual da reserva', async () =
   db.prepare("UPDATE reservations SET total_amount = 260 WHERE id = 'r1'").run();
   boot(); makeDue();
   assert.equal((await service.processCalendarQueue('org'))[0].outcome, 'updated');
-  assert.match(live('cal-a')[0].description, /Total: 260,00\s€/);
+  assert.match(live('cal-a')[0].description, /Total 260,00\s€ · falta 260,00\s€/);
   assert.match(live('cal-a')[0].description, /Chegada tardia/);
+});
+
+test('títulos com um ícone por tipo: quem vem, quantos e por onde; tarefas com o hóspede', async () => {
+  db.exec(`UPDATE reservations SET num_guests = 3, num_adults = 2, num_children = 1, channel = 'booking', arrival_time = '16:00', amount_paid = 50 WHERE id = 'r1';
+    UPDATE guests SET email = 'guest_x@sem-email.local', phone = '+351910000000' WHERE id = 'g1';
+    INSERT INTO organization_settings(organization_id, key, value) VALUES ('org', 'gcal_sync_calendar', '1');
+    INSERT INTO operational_events(id, organization_id, title, type, date, start_time, end_time, status, accommodation_id, reservation_id, auto_generated, auto_kind)
+      VALUES ('t-in', 'org', 'Check-in · Suite A', 'checkin', '2035-03-01', '09:00', '12:00', 'planeado', 'a1', 'r1', 1, 'checkin'),
+             ('t-pa', 'org', 'Pequeno-almoço · Suite A', 'pequeno_almoco', '2035-03-02', '08:00', '10:30', 'planeado', 'a1', 'r1', 1, 'breakfast'),
+             ('t-out', 'org', 'Check-out · Suite A', 'checkout', '2035-03-03', '09:00', '11:00', 'planeado', 'a1', 'r1', 1, 'checkout'),
+             ('t-limp', 'org', 'Limpeza · Suite A', 'limpeza', '2035-03-03', '14:00', '18:00', 'planeado', 'a1', 'r1', 1, 'cleaning'),
+             ('t-man', 'org', 'Reparar torneira', 'manutencao', '2035-03-04', NULL, NULL, 'planeado', 'a1', NULL, 0, NULL);`);
+  service.queueCalendarUpsert('org', 'reservation', 'r1', 'u1');
+  for (const id of ['t-in', 't-pa', 't-out', 't-limp', 't-man']) service.queueCalendarUpsert('org', 'event', id, 'u1');
+  await service.processCalendarQueue('org');
+  const byId = Object.fromEntries(live('cal-a').map(e => [e.id, e]));
+  const summary = (kind, id) => byId[service.appEventId(kind, 'org', id)].summary;
+  assert.equal(summary('reservation', 'r1'), '🛏️ Hóspede Sintético · 3 pax · Booking.com');
+  assert.equal(summary('event', 't-in'), '🛎️ Check-in · Hóspede Sintético (3)');
+  assert.equal(summary('event', 't-pa'), '🥐 Pequeno-almoço · 3 pessoas · Hóspede Sintético');
+  assert.equal(summary('event', 't-out'), '🧳 Check-out · Hóspede Sintético');
+  assert.equal(summary('event', 't-limp'), '🧹 Limpeza · Suite A');
+  assert.equal(summary('event', 't-man'), '🛠️ Reparar torneira');
+  for (const event of live('cal-a')) assert.equal(event.extendedProperties.private.santaPaciencia, '1');
+  const description = byId[service.appEventId('reservation', 'org', 'r1')].description;
+  assert.match(description, /2 adultos \+ 1 criança/);
+  assert.match(description, /2 noites · chegada 16:00/);
+  assert.match(description, /Canal: Booking\.com/);
+  assert.match(description, /pago 50,00\s€ · falta 150,00\s€/);
+  assert.doesNotMatch(description, /sem-email/);
+  assert.match(description, /reservas\?reserva=r1/);
+  assert.match(byId[service.appEventId('event', 'org', 't-in')].description, /Chegada prevista: 16:00/);
 });
 
 test('cancelar e apagar: a remoção guarda o ID e repete até o Google confirmar', async () => {
