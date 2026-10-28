@@ -9,8 +9,9 @@ function canSendTemplate(template, reservation) {
   if (CANCELLATION_TEMPLATES.includes(template.slug)) return reservation.status === 'cancelada';
   if (reservation.status === 'cancelada') return false;
   if (['checkin', 'checkout'].includes(template.timing_event) && !STAY_STATUSES.includes(reservation.status)) return false;
+  // Código da porta e senha do Wi-Fi, soltos ou no bloco {{codigos_acesso}}.
   const sensitive = template.slug === 'codigo_porta' ||
-    /\{\{\s*(codigo_porta|door_code|wifi_password|password_wifi)\s*\}\}/i.test(`${template.subject || ''} ${template.body || ''}`);
+    /\{\{\s*(codigo_porta|door_code|wifi_password|password_wifi|codigos_acesso)\s*\}\}/i.test(`${template.subject || ''} ${template.body || ''}`);
   if (!sensitive) return true;
   return ['confirmada', 'check_in', 'checkin', 'checked_in'].includes(reservation.status) &&
     Math.round(Number(reservation.amount_paid || 0) * 100) >= Math.round(Number(reservation.total_amount || 0) * 100);

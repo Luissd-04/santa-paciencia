@@ -19,7 +19,6 @@ const PALETTE = {
   brand:       '#843424', // terracota da marca
   brandText:   '#fbf3ea', // creme sobre terracota
   brandSoft:   '#865944', // rótulos discretos, com contraste sobre creme
-  brandBorder: '#c08a6e', // contorno dos botões sociais
   pageBg:      '#efe7da', // compatibilidade com fundos de modelos antigos
   surface:     '#faf5ec', // creme do contentor
   cardBg:      '#fcf9f3', // linhas ímpares do cartão
@@ -29,6 +28,12 @@ const PALETTE = {
   textSoft:    '#5d554c',
   muted:       '#71665b',
   accent:      '#c9a84c', // filete dourado sob o título de boas-vindas
+  // Estados (etiquetas, caixas de aviso): verde = feito, âmbar = falta algo.
+  okBg:        '#e6efe5',
+  ok:          '#2e6b3f',
+  warnBg:      '#f8ecd6',
+  warn:        '#8a5a12',
+  chipBg:      '#ece6dc', // etiqueta neutra
 };
 
 // A fonte pretendida é uma serifada de texto; nenhum cliente de email garante
@@ -60,6 +65,8 @@ const TEXT_THEME_CLASSES = new Map([
   [PALETTE.brand,     'sp-brand-text'],
   [PALETTE.brandText, 'sp-brand-on-text'],
   [PALETTE.brandSoft, 'sp-brand-soft-text'],
+  [PALETTE.ok,        'sp-ok-text'],
+  [PALETTE.warn,      'sp-warn-text'],
   ['#9a8f84',         'sp-muted-text'], // modelos guardados antes do ajuste de contraste
   ['#9c6b53',         'sp-brand-soft-text'],
 ]);
@@ -72,6 +79,9 @@ const BACKGROUND_THEME_CLASSES = new Map([
   [PALETTE.brand, 'sp-brand-bg'],
   [PALETTE.divider, 'sp-divider-bg'],
   [PALETTE.accent, 'sp-accent-bg'],
+  [PALETTE.okBg, 'sp-ok-bg'],
+  [PALETTE.warnBg, 'sp-warn-bg'],
+  [PALETTE.chipBg, 'sp-chip-bg'],
 ]);
 
 function addClass(attribs, className) {
@@ -245,31 +255,36 @@ const SOCIAL_ICONS = {
   tripadvisor: '/img/email/tripadvisor.png',
 };
 
-function iconImg(key, color) {
+function iconImg(key) {
   const url = emailAssetUrl(SOCIAL_ICONS[key]);
   if (!url) return '';
   // alt vazio de propósito: o rótulo de texto ao lado já diz o que é, e um alt
   // repetido faria o botão ler "Instagram Instagram" com imagens bloqueadas.
-  return `<img src="${attr(url)}" width="16" height="16" alt="" style="width:16px;height:16px;vertical-align:middle;margin-right:8px;border:0;display:inline-block;" />`;
+  return `<img src="${attr(url)}" width="14" height="14" alt="" style="width:14px;height:14px;vertical-align:middle;margin-right:5px;border:0;display:inline-block;" />`;
 }
 
 // ── Blocos reutilizáveis ───────────────────────────────────────────────────
 
-function buildHeader(settings) {
+// Cabeçalho terracota só com o logótipo. Os avisos à equipa levam por baixo
+// a etiqueta "Aviso à equipa", para não se confundirem com os do hóspede.
+function buildHeader(settings, { label = '' } = {}) {
   const logo = safeUrl(settings.logo_url);
   const name = settings.property_name || 'Alojamento';
+  const width = label ? 160 : 200;
   const logoHtml = logo
-    ? `<img src="${attr(logo)}" width="220" alt="${attr(name)}" style="display:block;margin:0 auto;width:220px;max-width:100%;height:auto;border:0;" />`
+    ? `<img src="${attr(logo)}" width="${width}" alt="${attr(name)}" style="display:block;margin:0 auto;width:${width}px;max-width:70%;height:auto;border:0;" />`
     : `<div class="sp-brand-on-text" style="font-family:${SERIF};font-size:30px;${textStyle(PALETTE.brandText)}">${escapeHtml(name)}</div>`;
+  const labelHtml = label
+    ? `<div class="sp-brand-subtext" style="font-family:${SERIF};font-size:11px;letter-spacing:3px;color:rgba(251,243,234,.82);margin:10px 0 0;">${escapeHtml(label).toUpperCase()}</div>`
+    : '';
   return `<tr>
-    <td align="center" bgcolor="${PALETTE.brand}" class="sp-brand-bg" style="${backgroundStyle(PALETTE.brand)}padding:24px 24px 20px;border-radius:10px 10px 0 0;text-align:center;">
-      ${logoHtml}
-      <div class="sp-brand-subtext" style="font-family:${SERIF};font-size:12px;letter-spacing:3px;color:rgba(251,243,234,.82);margin:12px 0 0;">ALOJAMENTO LOCAL</div>
+    <td align="center" bgcolor="${PALETTE.brand}" class="sp-brand-bg" style="${backgroundStyle(PALETTE.brand)}padding:24px 24px ${label ? '18px' : '24px'};border-radius:10px 10px 0 0;text-align:center;">
+      ${logoHtml}${labelHtml}
     </td>
   </tr>`;
 }
 
-function buildFooter(settings) {
+function buildFooter(settings, { social = true } = {}) {
   const name    = escapeHtml(settings.property_name || '');
   const rawAddress = String(settings.property_address || '').trim();
   const address = escapeHtml(rawAddress);
@@ -288,14 +303,16 @@ function buildFooter(settings) {
   if (identity) lines.push(identity);
   if (license)  lines.push(`Licença AL: ${license}`);
   if (contact)  lines.push(`<a href="${attr(contact)}" class="sp-brand-text" style="${textStyle(PALETTE.brand)}text-decoration:underline;">${escapeHtml(settings.email_contact)}</a>`);
-  if (!lines.length) return '';
+  const socialHtml = social ? buildSocialBlock(settings) : '';
+  if (!lines.length && !socialHtml) return '';
 
   return `<tr>
-    <td bgcolor="${PALETTE.surface}" class="sp-pad sp-surface-bg" style="${backgroundStyle(PALETTE.surface)}padding:0 40px 34px;">
+    <td bgcolor="${PALETTE.surface}" class="sp-pad sp-surface-bg" style="${backgroundStyle(PALETTE.surface)}padding:8px 40px 30px;">
       ${divider()}
-      <p class="sp-muted-text" style="font-family:${SERIF};font-size:13px;line-height:1.65;${textStyle(PALETTE.muted)}text-align:center;margin:18px 0 0;">
+      ${socialHtml}
+      ${lines.length ? `<p class="sp-muted-text" style="font-family:${SERIF};font-size:13px;line-height:1.65;${textStyle(PALETTE.muted)}text-align:center;margin:14px 0 0;">
         ${lines.join('<br />')}
-      </p>
+      </p>` : ''}
     </td>
   </tr>`;
 }
@@ -306,8 +323,9 @@ function divider(marginTop = 0) {
   </table>`;
 }
 
-// Botões sociais em contorno, como no print de boas-vindas. Só aparecem as
-// ligações configuradas e com protocolo válido.
+// Redes sociais discretas no rodapé dos emails ao hóspede: só texto
+// ("Instagram · Website"), com o ícone quando a base pública é HTTPS. Só
+// aparecem as ligações configuradas e com protocolo válido.
 function buildSocialBlock(settings) {
   const enabled = settings.social_links_enabled;
   const entries = [
@@ -318,43 +336,214 @@ function buildSocialBlock(settings) {
   ].filter(([key, , url]) => safeUrl(url) && (!enabled || enabled.includes(key)));
   if (!entries.length) return '';
 
-  const buttons = entries.map(([key, label, url]) => `<a href="${attr(safeUrl(url))}" class="sp-social-button sp-surface-bg" style="display:inline-block;margin:5px 4px;padding:11px 17px;border:1px solid ${PALETTE.brandBorder};border-radius:6px;${backgroundStyle(PALETTE.surface)}${textStyle(PALETTE.brand)}text-decoration:none;font-family:${SERIF};font-size:14px;line-height:1.2;white-space:nowrap;">${iconImg(key)}<span class="sp-brand-text" style="${textStyle(PALETTE.brand)}">${escapeHtml(label)}</span></a>`).join('');
+  const links = entries.map(([key, label, url]) => `<a href="${attr(safeUrl(url))}" class="sp-brand-text" style="${textStyle(PALETTE.brand)}text-decoration:none;font-family:${SERIF};font-size:13.5px;white-space:nowrap;">${iconImg(key)}${escapeHtml(label)}</a>`)
+    .join(`<span class="sp-muted-text" style="${textStyle(PALETTE.muted)}padding:0 8px;">·</span>`);
 
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="sp-social-block" style="width:100%;margin:30px 0 0;">
-    <tr><td>${divider()}</td></tr>
-    <tr><td align="center" class="sp-brand-soft-text" style="padding:22px 0 10px;font-family:${SERIF};font-size:12px;letter-spacing:3px;${textStyle(PALETTE.brandSoft)}">ACOMPANHE-NOS</td></tr>
-    <tr><td align="center" style="padding:0 0 4px;">${buttons}</td></tr>
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="sp-social-block" style="width:100%;margin:16px 0 0;">
+    <tr><td align="center" style="padding:0;line-height:2;">${links}</td></tr>
   </table>`;
 }
 
-// Moldura social comum a todos os emails. Se o template já colocou o mesmo
-// bloco no corpo (templates antigos ou uma posição personalizada), não volta
-// a inseri-lo no rodapé.
-function buildSocialFooter(settings, bodyHtml) {
-  if (/\bsp-social-block\b/.test(String(bodyHtml || ''))) return '';
-  const social = buildSocialBlock(settings);
-  if (!social) return '';
-  return `<tr>
-    <td bgcolor="${PALETTE.surface}" class="sp-pad sp-surface-bg" style="${backgroundStyle(PALETTE.surface)}padding:0 40px 0;">
-      ${social}
-    </td>
-  </tr>`;
+// Mantido para os modelos que ainda têm {{acompanhe_nos}} no corpo: as redes
+// passaram para o rodapé, por isso o bloco no corpo já não acrescenta nada.
+function buildSocialFooter() {
+  return '';
 }
 
-// Botão terracota principal. Sem endereço configurado devolve vazio — mais
-// vale não haver botão do que um botão que não leva a lado nenhum.
-function buildCtaBlock(url, label) {
+// Botão: frase normal (sem maiúsculas, que partiam em duas linhas no
+// telemóvel) e da largura do conteúdo. O secundário é só contorno. Sem
+// endereço devolve vazio: mais vale não haver botão do que um que não leva a
+// lado nenhum.
+function buttonCell(href, label, secondary) {
+  const bg = secondary ? PALETTE.surface : PALETTE.brand;
+  const bgClass = secondary ? 'sp-surface-bg' : 'sp-brand-bg';
+  const textClass = secondary ? 'sp-brand-text' : 'sp-brand-on-text';
+  const color = secondary ? PALETTE.brand : PALETTE.brandText;
+  return `<td align="center" bgcolor="${bg}" class="${bgClass}" style="${backgroundStyle(bg)}border:1.5px solid ${PALETTE.brand};border-radius:10px;">
+    <a href="${attr(href)}" class="${textClass}" style="display:block;padding:14px 18px;font-family:${SERIF};font-size:16px;font-weight:bold;line-height:1.3;${textStyle(color)}text-decoration:none;text-align:center;">${escapeHtml(label)}</a>
+  </td>`;
+}
+
+function buildButton(url, label, { secondary = false } = {}) {
   const href = safeUrl(url);
   if (!href) return '';
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:28px 0 6px;">
-    <tr><td align="center">
-      <table role="presentation" width="88%" cellpadding="0" cellspacing="0" border="0" style="width:88%;">
-        <tr><td align="center" bgcolor="${PALETTE.brand}" class="sp-brand-bg" style="${backgroundStyle(PALETTE.brand)}border-radius:4px;">
-          <a href="${attr(href)}" class="sp-brand-on-text" style="display:block;padding:17px 20px;font-family:${SERIF};font-size:14px;letter-spacing:2.5px;${textStyle(PALETTE.brandText)}text-decoration:none;text-align:center;">${escapeHtml(label).toUpperCase()}</a>
-        </td></tr>
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:${secondary ? '12px' : '24px'} 0 6px;">
+    <tr>${buttonCell(href, label, secondary)}</tr>
+  </table>`;
+}
+
+// Dois botões lado a lado (o primeiro cheio, o segundo em contorno). Se só um
+// tiver endereço, fica sozinho e cheio.
+function buildButtonPair(first, second) {
+  const a = first && safeUrl(first.url) ? first : null;
+  const b = second && safeUrl(second.url) ? second : null;
+  if (!a || !b) return buildButton((a || b)?.url, (a || b)?.label || '');
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:24px 0 6px;">
+    <tr>
+      ${buttonCell(safeUrl(a.url), a.label, false).replace('<td ', '<td width="49%" ')}
+      <td width="2%" style="width:2%;font-size:0;line-height:0;">&nbsp;</td>
+      ${buttonCell(safeUrl(b.url), b.label, true).replace('<td ', '<td width="49%" ')}
+    </tr>
+  </table>`;
+}
+
+// Compatibilidade: modelos guardados com {{botao_...}} usam o botão principal.
+function buildCtaBlock(url, label) {
+  return buildButton(url, label);
+}
+
+const TONES = {
+  ok:    { bg: PALETTE.okBg,    bgClass: 'sp-ok-bg',       text: PALETTE.ok,      textClass: 'sp-ok-text' },
+  warn:  { bg: PALETTE.warnBg,  bgClass: 'sp-warn-bg',     text: PALETTE.warn,    textClass: 'sp-warn-text' },
+  muted: { bg: PALETTE.chipBg,  bgClass: 'sp-chip-bg',     text: PALETTE.textSoft, textClass: 'sp-text-soft' },
+  brand: { bg: PALETTE.cardAlt, bgClass: 'sp-card-alt-bg', text: PALETTE.brand,   textClass: 'sp-brand-text' },
+};
+const tone = name => TONES[name] || TONES.brand;
+
+// Título do email: etiqueta do estado (opcional) e a frase principal.
+function buildTitle({ eyebrow = '', tone: toneName = 'brand', headline = '' } = {}) {
+  const t = tone(toneName);
+  const chip = eyebrow
+    ? `<tr><td style="padding:0 0 12px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+        <td bgcolor="${t.bg}" class="${t.bgClass}" style="${backgroundStyle(t.bg)}border-radius:999px;padding:6px 12px;">
+          <span class="${t.textClass}" style="font-family:${SERIF};font-size:11px;font-weight:bold;letter-spacing:2px;${textStyle(t.text)}">${escapeHtml(eyebrow).toUpperCase()}</span>
+        </td></tr></table></td></tr>`
+    : '';
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:0 0 16px;">
+    ${chip}
+    <tr><td class="sp-text" style="font-family:${SERIF};font-size:27px;font-weight:bold;line-height:1.25;${textStyle(PALETTE.text)}">${escapeHtml(headline)}</td></tr>
+  </table>`;
+}
+
+const label = text => `<div class="sp-muted-text" style="font-family:${SERIF};font-size:11px;letter-spacing:1.5px;line-height:1.4;${textStyle(PALETTE.muted)}">${escapeHtml(text).toUpperCase()}</div>`;
+
+// Estadia: entrada e saída lado a lado, e o quarto, as noites e os hóspedes
+// numa linha por baixo.
+function buildStay({ checkin = '', checkinNote = '', checkout = '', checkoutNote = '', summary = '' } = {}) {
+  if (!checkin && !checkout) return '';
+  const side = (title, value, note) => `${label(title)}
+    <div class="sp-text" style="font-family:${SERIF};font-size:18px;font-weight:bold;line-height:1.35;${textStyle(PALETTE.text)}margin:4px 0 0;">${escapeHtml(value)}</div>
+    ${note ? `<div class="sp-text-soft" style="font-family:${SERIF};font-size:14px;line-height:1.4;${textStyle(PALETTE.textSoft)}">${escapeHtml(note)}</div>` : ''}`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:20px 0;border:1px solid ${PALETTE.divider};border-radius:12px;border-collapse:separate;border-spacing:0;">
+    <tr>
+      <td width="50%" valign="top" bgcolor="${PALETTE.cardBg}" class="sp-card-bg" style="${backgroundStyle(PALETTE.cardBg)}width:50%;padding:14px 16px;border-right:1px solid ${PALETTE.divider};border-radius:12px 0 0 ${summary ? '0' : '12px'};">${side('Entrada', checkin, checkinNote)}</td>
+      <td width="50%" valign="top" bgcolor="${PALETTE.cardBg}" class="sp-card-bg" style="${backgroundStyle(PALETTE.cardBg)}width:50%;padding:14px 16px;border-radius:0 12px ${summary ? '0' : '12px'} 0;">${side('Saída', checkout, checkoutNote)}</td>
+    </tr>
+    ${summary ? `<tr><td colspan="2" bgcolor="${PALETTE.cardAlt}" class="sp-card-alt-bg sp-text-soft" style="${backgroundStyle(PALETTE.cardAlt)}padding:11px 16px;font-family:${SERIF};font-size:14px;line-height:1.45;${textStyle(PALETTE.textSoft)}border-top:1px solid ${PALETTE.divider};border-radius:0 0 12px 12px;">${escapeHtml(summary)}</td></tr>` : ''}
+  </table>`;
+}
+
+// Pagamento: quanto já foi pago, a barra do progresso e o que falta.
+// Recebe os valores já formatados e a percentagem (0–100).
+function buildPaymentProgress({ paid = '', total = '', missing = '', deadline = '', percent = 0, settled = false } = {}) {
+  if (!total) return '';
+  const pct = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+  const bar = pct >= 100
+    ? `<td height="10" bgcolor="${PALETTE.brand}" class="sp-brand-bg" style="height:10px;font-size:0;line-height:0;${backgroundStyle(PALETTE.brand)}border-radius:999px;">&nbsp;</td>`
+    : pct <= 0
+      ? `<td height="10" bgcolor="${PALETTE.cardAlt}" class="sp-card-alt-bg" style="height:10px;font-size:0;line-height:0;${backgroundStyle(PALETTE.cardAlt)}border-radius:999px;">&nbsp;</td>`
+      : `<td width="${pct}%" height="10" bgcolor="${PALETTE.brand}" class="sp-brand-bg" style="width:${pct}%;height:10px;font-size:0;line-height:0;${backgroundStyle(PALETTE.brand)}border-radius:999px 0 0 999px;">&nbsp;</td>
+         <td height="10" bgcolor="${PALETTE.cardAlt}" class="sp-card-alt-bg" style="height:10px;font-size:0;line-height:0;${backgroundStyle(PALETTE.cardAlt)}border-radius:0 999px 999px 0;">&nbsp;</td>`;
+  const after = settled
+    ? `<div class="sp-ok-text" style="font-family:${SERIF};font-size:14px;font-weight:bold;${textStyle(PALETTE.ok)}margin:10px 0 0;">Pago na totalidade</div>`
+    : `<div class="sp-text-soft" style="font-family:${SERIF};font-size:14px;line-height:1.5;${textStyle(PALETTE.textSoft)}margin:10px 0 0;">Falta <strong class="sp-text" style="${textStyle(PALETTE.text)}">${escapeHtml(missing)}</strong>${deadline ? ` até <strong class="sp-text" style="${textStyle(PALETTE.text)}">${escapeHtml(deadline)}</strong>` : ''}</div>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:20px 0;border:1px solid ${PALETTE.divider};border-radius:12px;border-collapse:separate;">
+    <tr><td bgcolor="${PALETTE.cardBg}" class="sp-card-bg" style="${backgroundStyle(PALETTE.cardBg)}padding:16px;border-radius:12px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;">
+        <tr>
+          <td class="sp-text-soft" style="font-family:${SERIF};font-size:14px;${textStyle(PALETTE.textSoft)}">Pago</td>
+          <td align="right" class="sp-text-soft" style="font-family:${SERIF};font-size:14px;${textStyle(PALETTE.textSoft)}">Total ${escapeHtml(total)}</td>
+        </tr>
       </table>
+      <div class="sp-text" style="font-family:${SERIF};font-size:24px;font-weight:bold;line-height:1.3;${textStyle(PALETTE.text)}margin:2px 0 10px;">${escapeHtml(paid)}</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;"><tr>${bar}</tr></table>
+      ${after}
     </td></tr>
   </table>`;
+}
+
+// Caixa de destaque (próximo passo, aviso importante). `html` é construído no
+// servidor, com os valores já escapados.
+function buildNote({ heading = '', html = '', tone: toneName = 'brand' } = {}) {
+  if (!html) return '';
+  const t = tone(toneName);
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:20px 0;">
+    <tr><td bgcolor="${t.bg}" class="${t.bgClass}" style="${backgroundStyle(t.bg)}border-left:4px solid ${t.text};border-radius:10px;padding:14px 16px;">
+      ${heading ? `<div class="${t.textClass}" style="font-family:${SERIF};font-size:12px;font-weight:bold;letter-spacing:1.5px;${textStyle(t.text)}margin:0 0 6px;">${escapeHtml(heading).toUpperCase()}</div>` : ''}
+      <div class="sp-text" style="font-family:${SERIF};font-size:15px;line-height:1.55;${textStyle(PALETTE.text)}">${html}</div>
+    </td></tr>
+  </table>`;
+}
+
+// Linhas rótulo / valor (resumo de um cancelamento, aviso à equipa).
+function buildRows(rows) {
+  const list = (rows || []).filter(row => row && row.value !== '' && row.value !== null && row.value !== undefined);
+  if (!list.length) return '';
+  const last = list.length - 1;
+  // Cantos arredondados só nas células dos cantos (o sanitizador só aceita
+  // o atalho border-radius).
+  const radius = (i, side) => {
+    const top = i === 0 ? '12px' : '0';
+    const bottom = i === last ? '12px' : '0';
+    return side === 'left' ? `border-radius:${top} 0 0 ${bottom};` : `border-radius:0 ${top} ${bottom} 0;`;
+  };
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:20px 0;border:1px solid ${PALETTE.divider};border-radius:12px;border-collapse:separate;border-spacing:0;">
+    ${list.map((row, i) => `<tr>
+      <td bgcolor="${PALETTE.cardBg}" class="sp-card-bg sp-muted-text" style="${backgroundStyle(PALETTE.cardBg)}padding:11px 16px;font-family:${SERIF};font-size:15px;${textStyle(PALETTE.muted)}${i ? `border-top:1px solid ${PALETTE.divider};` : ''}${radius(i, 'left')}">${escapeHtml(row.label)}</td>
+      <td align="right" bgcolor="${PALETTE.cardBg}" class="sp-card-bg sp-text" style="${backgroundStyle(PALETTE.cardBg)}padding:11px 16px;font-family:${SERIF};font-size:15px;font-weight:bold;${textStyle(PALETTE.text)}text-align:right;${i ? `border-top:1px solid ${PALETTE.divider};` : ''}${radius(i, 'right')}">${escapeHtml(row.value)}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+// Códigos para usar à porta (código da porta, Wi-Fi): letra grande e
+// monoespaçada. Valores vazios não aparecem.
+function buildCodes(list) {
+  const items = (list || []).filter(item => item && item.value);
+  if (!items.length) return '';
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:20px 0;border-collapse:separate;border-spacing:0 10px;">
+    ${items.map(item => `<tr><td bgcolor="${PALETTE.cardBg}" class="sp-card-bg" style="${backgroundStyle(PALETTE.cardBg)}border:1px solid ${PALETTE.divider};border-radius:12px;padding:12px 16px;">
+      ${label(item.label)}
+      <div class="sp-text" style="font-family:'Courier New',Courier,monospace;font-size:22px;font-weight:bold;letter-spacing:1px;line-height:1.35;${textStyle(PALETTE.text)}margin:4px 0 0;">${escapeHtml(item.value)}</div>
+    </td></tr>`).join('')}
+  </table>`;
+}
+
+// Lista com visto (o que é pedido no pré-check-in, o que fazer antes de sair).
+function buildChecklist(items) {
+  const list = (items || []).filter(Boolean);
+  if (!list.length) return '';
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:16px 0;">
+    ${list.map(item => `<tr>
+      <td width="30" valign="top" style="width:30px;padding:6px 10px 6px 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="20" height="20" align="center" bgcolor="${PALETTE.cardAlt}" class="sp-card-alt-bg sp-brand-text" style="${backgroundStyle(PALETTE.cardAlt)}width:20px;height:20px;border-radius:999px;font-family:${SERIF};font-size:12px;font-weight:bold;${textStyle(PALETTE.brand)}text-align:center;">✓</td></tr></table>
+      </td>
+      <td valign="top" class="sp-text-soft" style="padding:6px 0;font-family:${SERIF};font-size:15px;line-height:1.5;${textStyle(PALETTE.textSoft)}">${escapeHtml(item)}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+// Passos numerados (o que acontece a seguir a um pedido).
+function buildSteps(items) {
+  const list = (items || []).filter(Boolean);
+  if (!list.length) return '';
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:16px 0;">
+    ${list.map((item, i) => {
+      const bg = i === 0 ? PALETTE.brand : PALETTE.cardAlt;
+      return `<tr>
+      <td width="36" valign="top" style="width:36px;padding:6px 10px 6px 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="26" height="26" align="center" bgcolor="${bg}" class="${i === 0 ? 'sp-brand-bg sp-brand-on-text' : 'sp-card-alt-bg sp-brand-text'}" style="${backgroundStyle(bg)}width:26px;height:26px;border-radius:999px;font-family:${SERIF};font-size:13px;font-weight:bold;${textStyle(i === 0 ? PALETTE.brandText : PALETTE.brand)}text-align:center;">${i + 1}</td></tr></table>
+      </td>
+      <td valign="top" class="sp-text-soft" style="padding:9px 0 6px;font-family:${SERIF};font-size:15px;line-height:1.5;${textStyle(PALETTE.textSoft)}">${escapeHtml(item)}</td>
+    </tr>`;
+    }).join('')}
+  </table>`;
+}
+
+// Linha de contacto no fim dos emails ao hóspede.
+function buildContactLine(settings) {
+  const contact = settings?.email_contact;
+  const mail = contact && safeUrl(`mailto:${contact}`);
+  return `<p class="sp-text-soft" style="font-family:${SERIF};font-size:14.5px;line-height:1.6;${textStyle(PALETTE.textSoft)}text-align:center;margin:18px 0 4px;">Dúvidas? Responda a este email${mail ? ` ou escreva para <a href="${attr(mail)}" class="sp-brand-text" style="${textStyle(PALETTE.brand)}">${escapeHtml(contact)}</a>` : ''}.</p>`;
 }
 
 // Título de boas-vindas: centrado, com filete dourado curto por baixo.
@@ -369,16 +558,9 @@ function buildWelcomeTitle(title) {
   </table>`;
 }
 
-// Cabeçalho do email de reserva: símbolo discreto + título. O título vem do
-// estado real da reserva (ver statusPresentation em emailService), para uma
-// reserva pendente nunca aparecer como confirmada.
-function buildReservationTitle(title, glyph = '✓') {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px;">
-    <tr>
-      <td width="24" valign="middle" class="sp-brand-text" style="width:24px;padding-right:12px;font-family:${SERIF};font-size:26px;line-height:1;${textStyle(PALETTE.brand)}text-align:center;">${escapeHtml(glyph)}</td>
-      <td valign="middle" class="sp-text" style="font-family:${SERIF};font-size:28px;font-weight:bold;line-height:1.2;${textStyle(PALETTE.text)}">${escapeHtml(title)}</td>
-    </tr>
-  </table>`;
+// Compatibilidade com modelos guardados que usam o título antigo.
+function buildReservationTitle(title) {
+  return buildTitle({ headline: title });
 }
 
 // Cartão de detalhes da reserva: rótulo pequeno por cima do valor, fundos
@@ -428,8 +610,8 @@ function buildReservationCard(rows, total) {
 //     possa recusar, para não dependerem do bloco principal.
 // Fonte: hteumeuleu.com/2021/fixing-gmail-dark-mode-css-blend-modes/
 const LIGHT_TEXT = /\bsp-(?:brand-on-text|brand-subtext)\b/;
-const DARK_TEXT = /\bsp-(?:text|text-soft|muted-text|brand-text|brand-soft-text)\b/;
-const LIGHT_SURFACE = /\bsp-(?:surface|card|card-alt|page|divider)-bg\b/;
+const DARK_TEXT = /\bsp-(?:text|text-soft|muted-text|brand-text|brand-soft-text|ok-text|warn-text)\b/;
+const LIGHT_SURFACE = /\bsp-(?:surface|card|card-alt|page|divider|ok|warn|chip)-bg\b/;
 
 const GMAIL_BLEND_STYLES = ['u + .body', 'u ~ .body', 'u + div.body']
   .map(scope => `<style>
@@ -502,6 +684,9 @@ function normalizeBodyParagraph(bodyHtml) {
   return `<p class="sp-text-soft" style="font-family:${SERIF};font-size:16px;line-height:1.7;${textStyle(PALETTE.textSoft)}margin:0 0 14px;">${html}</p>`;
 }
 
+// Opções: `title` (o <title>), `headerLabel` (etiqueta por baixo do logótipo,
+// ex.: "Aviso à equipa") e `social` (redes no rodapé; false nos emails à
+// equipa e de conta).
 function composeEmail(bodyHtml, settings, options = {}) {
   const s = settings || {};
   const title = escapeHtml(options.title || s.property_name || 'Santa Paciência');
@@ -528,6 +713,11 @@ function composeEmail(bodyHtml, settings, options = {}) {
   .sp-brand-bg { ${backgroundRule(PALETTE.brand)} }
   .sp-divider-bg { ${backgroundRule(PALETTE.divider)} }
   .sp-accent-bg { ${backgroundRule(PALETTE.accent)} }
+  .sp-ok-bg { ${backgroundRule(PALETTE.okBg)} }
+  .sp-warn-bg { ${backgroundRule(PALETTE.warnBg)} }
+  .sp-chip-bg { ${backgroundRule(PALETTE.chipBg)} }
+  .sp-ok-text { color:${PALETTE.ok} !important; }
+  .sp-warn-text { color:${PALETTE.warn} !important; }
   .sp-text { color:${PALETTE.text} !important; }
   .sp-text-soft { color:${PALETTE.textSoft} !important; }
   .sp-muted-text { color:${PALETTE.muted} !important; }
@@ -535,7 +725,6 @@ function composeEmail(bodyHtml, settings, options = {}) {
   .sp-brand-on-text { color:${PALETTE.brandText} !important; }
   .sp-brand-soft-text { color:${PALETTE.brandSoft} !important; }
   .sp-brand-subtext { color:rgba(251,243,234,.82) !important; }
-  .sp-social-button { border-color:${PALETTE.brandBorder} !important; }
 
   [data-ogsc] .sp-page-bg, [data-ogsb] .sp-page-bg { background-color:${PALETTE.pageBg} !important; color-scheme:light only !important; }
   [data-ogsc] .sp-surface-bg, [data-ogsb] .sp-surface-bg { background-color:${PALETTE.surface} !important; }
@@ -559,6 +748,11 @@ function composeEmail(bodyHtml, settings, options = {}) {
     .sp-muted-text { color:${PALETTE.muted} !important; }
     .sp-brand-text { color:${PALETTE.brand} !important; }
     .sp-brand-on-text { color:${PALETTE.brandText} !important; }
+    .sp-ok-bg { background-color:${PALETTE.okBg} !important; }
+    .sp-warn-bg { background-color:${PALETTE.warnBg} !important; }
+    .sp-chip-bg { background-color:${PALETTE.chipBg} !important; }
+    .sp-ok-text { color:${PALETTE.ok} !important; }
+    .sp-warn-text { color:${PALETTE.warn} !important; }
   }
   /* Melhoria progressiva: em 320–430px o contentor já encolhe por max-width,
      aqui só se recupera largura útil reduzindo o avanço lateral. */
@@ -572,10 +766,9 @@ function composeEmail(bodyHtml, settings, options = {}) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="sp-email-shell" style="width:100%;background-color:transparent;">
   <tr><td align="center" class="sp-outer" style="padding:16px 12px;">
     <table role="presentation" width="${MAX_WIDTH}" cellpadding="0" cellspacing="0" border="0" class="sp-surface-bg" bgcolor="${PALETTE.surface}" style="width:100%;max-width:${MAX_WIDTH}px;${backgroundStyle(PALETTE.surface)}border-radius:10px;border-collapse:separate;overflow:hidden;">
-      ${buildHeader(s)}
+      ${buildHeader(s, { label: options.headerLabel || '' })}
       <tr><td bgcolor="${PALETTE.surface}" class="sp-pad sp-surface-bg sp-email-body email-body-bg" style="${backgroundStyle(PALETTE.surface)}padding:28px 40px 10px;font-family:${SERIF};font-size:16px;line-height:1.7;${textStyle(PALETTE.textSoft)}">${BODY_START}${bodyHtml}${BODY_END}</td></tr>
-      ${buildSocialFooter(s, bodyHtml)}
-      ${buildFooter(s)}
+      ${buildFooter(s, { social: options.social !== false })}
     </table>
   </td></tr>
 </table>
@@ -603,6 +796,17 @@ module.exports = {
   buildSocialBlock,
   buildSocialFooter,
   buildCtaBlock,
+  buildButton,
+  buildButtonPair,
+  buildTitle,
+  buildStay,
+  buildPaymentProgress,
+  buildNote,
+  buildRows,
+  buildCodes,
+  buildChecklist,
+  buildSteps,
+  buildContactLine,
   buildWelcomeTitle,
   buildReservationTitle,
   buildReservationCard,

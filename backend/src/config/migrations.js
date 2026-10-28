@@ -61,6 +61,7 @@ function runMigrations(db) {
   migrateScheduledTaskRuns(db);
   migrateMenuPrefs(db);
   migrateCalendarTitles(db);
+  migrateEmailDesign(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -85,6 +86,21 @@ function migrateMenuPrefs(db) {
   if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
   db.transaction(() => {
     if (!db.pragma('table_info(memberships)').some(c => c.name === 'menu_prefs')) db.exec('ALTER TABLE memberships ADD COLUMN menu_prefs TEXT');
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+// Desenho novo dos emails (10/2026) nos modelos já guardados de todas as
+// organizações. A versão anterior de cada modelo fica em
+// organization_email_templates_backup (scripts/apply-email-design.cjs --restore).
+function migrateEmailDesign(db) {
+  const id = '20261028_email_design';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  const hasTemplates = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='organization_email_templates'").get();
+  db.transaction(() => {
+    if (hasTemplates) {
+      const design = require('../services/emailDesign');
+      for (const { id: orgId } of db.prepare('SELECT id FROM organizations').all()) design.apply(db, orgId, { reason: id });
+    }
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }

@@ -206,6 +206,7 @@ function selectTemplate(slug) {
           <label>Estado da reserva
             <select class="form-control" id="et-preview-status" data-on-change="emails-update-email-preview-34d4f1c">
               <option value="confirmada">Confirmada</option>
+              <option value="pre_reserva">Pré-reserva</option>
               <option value="pendente">Pendente</option>
               <option value="aguardar_pagamento">Aguarda sinal</option>
               <option value="cancelada">Cancelada</option>

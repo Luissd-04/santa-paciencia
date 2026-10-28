@@ -26,7 +26,7 @@ const staff = require('../services/staffNotifier');
 const pushes = [];
 staff.push = async (org, type, options) => { pushes.push(options); log.push(`staff:push:${type}${options.excludeUserId ? `!${options.excludeUserId}` : ''}`); };
 let staffEmailFailures = 0;
-staff.email = async (org, { title }) => {
+staff.email = async (org, { eyebrow: title }) => {
   if (staffEmailFailures > 0) { staffEmailFailures--; throw new Error('Gmail indisponível'); }
   log.push(`staff:email:${title}`);
 };

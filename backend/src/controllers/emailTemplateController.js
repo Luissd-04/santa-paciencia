@@ -121,7 +121,7 @@ function resolveAccommodationContext(req) {
 
 // Dados fictícios: a pré-visualização nunca lê uma reserva real. O estado é
 // escolhido pelo utilizador para poder ver como fica uma reserva pendente.
-const PREVIEW_STATUSES = ['confirmada', 'pendente', 'aguardar_pagamento', 'cancelada'];
+const PREVIEW_STATUSES = ['confirmada', 'pre_reserva', 'pendente', 'aguardar_pagamento', 'cancelada'];
 
 function buildPreviewContext(req) {
   const orgId = req.user.organization_id;

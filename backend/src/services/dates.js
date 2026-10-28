@@ -55,6 +55,12 @@ function shortDate(day, { year = null, today = localDay() } = {}) {
   const showYear = year ?? String(y) !== today.slice(0, 4);
   return `${d} ${SHORT_MONTHS[m - 1]}${showYear ? ` ${y}` : ''}`;
 }
+// «sáb, 14 nov» (dia da semana abreviado, sem ponto).
+const SHORT_WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+function weekdayDate(day, options = {}) {
+  const [y, m, d] = String(day).slice(0, 10).split('-').map(Number);
+  return `${SHORT_WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]}, ${shortDate(day, options)}`;
+}
 function shortRange(from, to, { today = localDay() } = {}) {
   const crossesYear = from.slice(0, 4) !== to.slice(0, 4);
   const year = crossesYear || from.slice(0, 4) !== today.slice(0, 4);
@@ -62,4 +68,4 @@ function shortRange(from, to, { today = localDay() } = {}) {
   return `${shortDate(from, { year, today })} → ${shortDate(to, { year, today })}`;
 }
 
-module.exports = { businessTimeZone, localDay, localTime, zonedDateTime, addDays, daysBetween, shortDate, shortRange };
+module.exports = { businessTimeZone, localDay, localTime, zonedDateTime, addDays, daysBetween, shortDate, shortRange, weekdayDate };
