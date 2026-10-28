@@ -4,10 +4,10 @@
 // Importante: alterar este ficheiro NÃO altera os modelos já guardados de
 // nenhuma organização. O arranque só o usa para semear instalações novas
 // (seedEmailTemplates) e para acrescentar modelos que ainda não existam
-// (ensureNewEmailTemplateDefaults, com INSERT OR IGNORE). Aplicar o desenho
-// novo a uma organização existente é uma operação deliberada:
-//   node scripts/apply-email-design.cjs --org=<id>
-// que guarda sempre a versão anterior antes de escrever.
+// (ensureNewEmailTemplateDefaults, com INSERT OR IGNORE). Um desenho novo
+// passa para as organizações existentes por uma migração própria (ex.:
+// 20261028_email_design) ou por scripts/apply-email-design.cjs; ambos usam
+// services/emailDesign.js, que guarda sempre a versão anterior.
 //
 // Os marcadores {{...}} dividem-se em dois tipos:
 //   - variáveis de texto ({{primeiro_nome}}, {{total}}, …) — escapadas;
@@ -30,22 +30,14 @@ const SERIF = "Georgia, 'Times New Roman', Times, serif";
 
 const p = (html, extra = '') => `<p style="font-family:${SERIF};font-size:16px;line-height:1.7;color:${C.soft};margin:0 0 14px;${extra}">${html}</p>`;
 
-// Tabela simples de duas colunas para os modelos que não usam o cartão de
-// reserva (Wi-Fi, código de porta). Mesma paleta, editável no editor.
-const infoTable = rows => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;margin:22px 0;border:1px solid ${C.border};border-radius:8px;border-collapse:separate;overflow:hidden;">` +
-  rows.map(([label, value, mono], i) => {
-    const bg = i % 2 === 0 ? C.cardBg : C.cardAlt;
-    return `<tr><td bgcolor="${bg}" style="background:${bg};padding:13px 18px;border-bottom:1px solid ${C.row};">` +
-      `<div style="font-family:${SERIF};font-size:12.5px;line-height:1.4;color:${C.muted};margin:0 0 3px;">${label}</div>` +
-      `<div style="font-family:${SERIF};font-size:16px;line-height:1.45;color:${C.text};${mono ? "font-family:'Courier New',Courier,monospace;letter-spacing:1px;" : ''}">${value}</div>` +
-      `</td></tr>`;
-  }).join('') + '</table>';
-
+// Desenho de 10/2026: título com a etiqueta do estado, entrada e saída lado a
+// lado, barra do que está pago, um próximo passo claro e botões em frase
+// normal. Cada modelo é texto editável à volta de blocos do servidor.
 const TEMPLATES = {
-  // ── Print 2 ──────────────────────────────────────────────────────────────
-  // O título e a mensagem vêm do estado real da reserva: o gatilho dispara na
-  // criação, que aceita pendente/aguardar_pagamento, e uma reserva por aprovar
-  // não pode chegar ao hóspede anunciada como confirmada.
+  // O título, a mensagem e o próximo passo vêm do estado real da reserva: o
+  // gatilho dispara na criação, que aceita pré-reserva, pendente e
+  // aguardar_pagamento, e uma reserva por aprovar não pode chegar ao hóspede
+  // anunciada como confirmada.
   confirmacao: {
     name: 'Agradecimento pela reserva',
     subject: '{{titulo_estado}} — {{alojamento}}',
@@ -53,19 +45,22 @@ const TEMPLATES = {
       '{{titulo_reserva}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
       p('{{mensagem_estado}}'),
-      '{{cartao_reserva}}',
-      p('Se tiver alguma questão, não hesite em contactar-nos.'),
+      '{{estadia}}',
+      '{{resumo_pagamento}}',
+      '{{proximo_passo}}',
+      '{{contacto}}',
     ].join(''),
   },
 
-  // ── Print 1 ──────────────────────────────────────────────────────────────
   apos_checkin: {
     name: 'Após check-in',
     subject: 'Bem-vindo à {{alojamento}}, {{primeiro_nome}}',
     body: [
       '{{titulo_boas_vindas}}',
-      p('Esperamos que desfrute de uma estadia tranquila em {{localidade}}.', 'text-align:center;'),
+      p('Esperamos que a viagem tenha corrido bem. Fica aqui o que pode precisar durante a estadia em {{localidade}}.'),
+      '{{info_estadia}}',
       '{{botao_alojamento}}',
+      '{{contacto}}',
     ].join(''),
   },
 
@@ -75,49 +70,41 @@ const TEMPLATES = {
     body: [
       '{{titulo_reserva}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
-      p('Informamos que a sua reserva em <strong>{{alojamento}}</strong> foi cancelada.'),
-      '{{cartao_reserva_sem_total}}',
+      p('Confirmamos o cancelamento da sua reserva em <strong>{{alojamento}}</strong>.'),
+      '{{resumo_cancelamento}}',
       p('Esperamos poder recebê-lo numa próxima oportunidade.'),
+      '{{contacto}}',
     ].join(''),
   },
 
   pre_checkin: {
     name: 'Preenchimento do formulário de check-in',
-    subject: 'Complete o seu pré check-in — {{alojamento}}',
+    subject: 'Complete o seu pré-check-in — {{alojamento}}',
     body: [
-      '{{titulo_reserva}}',
+      '{{titulo_pre_checkin}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
-      p('A sua reserva em <strong>{{alojamento}}</strong> foi aprovada. Para prepararmos a sua chegada, pedimos que complete o pré check-in com a hora prevista de chegada e os dados dos hóspedes.'),
+      p('Para termos tudo pronto à sua chegada, precisamos de alguns dados. Demora cerca de 2 minutos.'),
+      '{{lista_pre_checkin}}',
       '{{botao_pre_checkin}}',
-      p('Referência da reserva: <strong>{{referencia}}</strong>', `font-size:13.5px;color:${C.muted};`),
+      '{{estadia}}',
+      '{{contacto}}',
     ].join(''),
   },
 
-  // Junta o que antes eram dois modelos (coordenadas + código de porta),
-  // disparados ambos "1 dia antes do check-in" — a mesma informação de
-  // chegada chegava em dois emails separados sem necessidade. O código de
-  // porta continua sujeito às regras de emailEligibility (reserva aprovada e
-  // integralmente paga): a deteção é pelo conteúdo ({{codigo_porta}} no
-  // corpo), não pelo nome do modelo, por isso a fusão não contorna a regra —
-  // torna-a mais estrita, porque agora as coordenadas só seguem juntas com o
-  // código, ao contrário de antes (coordenadas seguiam mesmo sem pagamento
-  // integral).
+  // Junta o que antes eram dois modelos (coordenadas + código de porta). O
+  // código e a senha do Wi-Fi seguem as regras de emailEligibility (reserva
+  // aprovada e integralmente paga); sem elas, os códigos não aparecem.
   coordenadas: {
     name: 'Informações e código de acesso',
     subject: 'Informações para a sua chegada — {{alojamento}}',
     body: [
-      '{{titulo_reserva}}',
+      '{{titulo_chegada}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
-      p('Está quase na hora. Aqui ficam as informações para a sua chegada:'),
-      infoTable([
-        ['Check-in', '{{data_checkin}} a partir das {{hora_checkin}}'],
-        ['Alojamento', '{{alojamento}}'],
-        ['Wi-Fi', '{{wifi_nome}}'],
-        ['Senha Wi-Fi', '{{wifi_password}}', true],
-        ['Código da porta', '{{codigo_porta}}', true],
-      ]),
-      p('Se tiver alguma dúvida, não hesite em contactar-nos. Aguardamos a sua chegada.'),
-      '{{acompanhe_nos}}',
+      p('Falta pouco. Guarde este email: tem o que precisa para entrar.'),
+      '{{estadia}}',
+      '{{codigos_acesso}}',
+      '{{botao_mapa}}',
+      '{{contacto}}',
     ].join(''),
   },
 
@@ -125,25 +112,27 @@ const TEMPLATES = {
     name: 'Antes do check-out',
     subject: 'Lembrete de check-out — {{alojamento}}',
     body: [
-      '{{titulo_reserva}}',
+      '{{titulo_checkout}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
-      p('O seu check-out está previsto para <strong>{{data_checkout}}</strong>, até às <strong>{{hora_checkout}}</strong>.'),
-      p('Por favor deixe o alojamento arrumado e entregue as chaves conforme o combinado.'),
-      p('Foi um prazer tê-lo connosco, <strong>{{primeiro_nome}}</strong>.'),
+      p('Esperamos que esteja a gostar. Antes de sair:'),
+      '{{lista_checkout}}',
+      '{{nota_checkout_tardio}}',
     ].join(''),
   },
 
   // Enviado em cada pagamento recebido (manual ou Stripe): sinal, restante ou
-  // pagamento único. O cartão mostra o total pago e o que falta.
+  // pagamento único.
   pagamento: {
     name: 'Pagamento recebido',
     subject: 'Pagamento recebido — {{alojamento}}',
     body: [
       '{{titulo_pagamento}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
-      p('Confirmamos a receção de um pagamento de <strong>{{valor_pagamento}}</strong> da sua reserva em <strong>{{alojamento}}</strong>.'),
-      '{{cartao_pagamento}}',
-      p('Obrigado. Se tiver alguma questão, não hesite em contactar-nos.'),
+      p('Obrigado. Registámos o pagamento de <strong>{{valor_pagamento}}</strong> da sua reserva em <strong>{{alojamento}}</strong>.'),
+      '{{resumo_pagamento}}',
+      '{{estadia}}',
+      '{{botao_reserva}}',
+      '{{contacto}}',
     ].join(''),
   },
 
@@ -155,9 +144,12 @@ const TEMPLATES = {
     body: [
       '{{titulo_aviso_pagamento}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
-      p('Falta concluir o pagamento de <strong>{{valor_em_falta}}</strong> da sua reserva em <strong>{{alojamento}}</strong>. Pague até <strong>{{prazo_pagamento}}</strong> (hora de Lisboa). Após este prazo, a reserva será cancelada sem devolução dos montantes já pagos.'),
-      p('Se tentou pagar por cartão, poderá ser necessária uma nova autorização do banco.'),
-      '{{botao_reserva}}',
+      p('Falta concluir o pagamento da sua reserva em <strong>{{alojamento}}</strong>.'),
+      '{{resumo_pagamento}}',
+      '{{botao_pagar}}',
+      '{{aviso_prazo}}',
+      p('Pagou por cartão e não ficou concluído? O banco pode pedir uma nova autorização: volte a carregar no botão.', 'font-size:14px;'),
+      '{{contacto}}',
     ].join(''),
   },
 
@@ -167,11 +159,12 @@ const TEMPLATES = {
     name: 'Cancelamento com reembolso',
     subject: 'Cancelamento — Reserva {{referencia}}',
     body: [
-      '{{titulo_reserva}}',
+      '{{titulo_reembolso}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
-      p('A sua reserva em <strong>{{alojamento}}</strong> foi cancelada. Reembolso aplicável: <strong>{{valor_reembolso}}</strong>.'),
-      p('Pode consultar o estado do reembolso no link abaixo.'),
+      p('A sua reserva em <strong>{{alojamento}}</strong> foi cancelada. Este é o resumo do reembolso, segundo a política aceite na reserva:'),
+      '{{resumo_reembolso}}',
       '{{botao_reserva}}',
+      '{{contacto}}',
     ].join(''),
   },
 
@@ -179,11 +172,10 @@ const TEMPLATES = {
     name: 'Obrigado pela estadia',
     subject: 'Obrigado pela sua visita — {{alojamento}}',
     body: [
-      '{{titulo_boas_vindas}}',
-      p('Olá <strong>{{primeiro_nome}}</strong>,'),
-      p('Esperamos que a sua estadia em <strong>{{alojamento}}</strong> tenha sido do seu agrado.'),
-      p('A sua opinião é muito importante para nós. Se tiver um momento, adorávamos receber a sua avaliação.'),
-      '{{acompanhe_nos}}',
+      '{{titulo_obrigado}}',
+      p('Foi um gosto recebê-lo em <strong>{{alojamento}}</strong>.'),
+      p('Se tiver um momento, deixe-nos uma avaliação: ajuda outros viajantes e ajuda-nos a melhorar.'),
+      '{{botao_avaliar}}',
     ].join(''),
   },
 };

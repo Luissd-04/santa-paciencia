@@ -154,9 +154,9 @@ function getEmailSettings(accommodation, organizationId) {
 // mesma composição, por isso não podem divergir. baseTemplate() mantém-se como
 // ponto de entrada porque há mensagens avulsas (pagamento, pré check-in,
 // notificação ao owner) que compõem o conteúdo em código e não por template.
-function baseTemplate(content, settings) {
+function baseTemplate(content, settings, options = {}) {
   const s = settings || getEmailSettings();
-  return composer.composeEmail(composer.sanitizeBodyHtml(content, { placeholders: false }), s);
+  return composer.composeEmail(composer.sanitizeBodyHtml(content, { placeholders: false }), s, options);
 }
 
 // Mantido para os testes e chamadas antigas; o bloco social passou a ser
@@ -166,25 +166,37 @@ function buildSocialButtons(settings) {
   return composer.buildSocialBlock(settings || getEmailSettings());
 }
 
-// Como cada estado de reserva se apresenta ao hóspede. O template chama-se
-// "confirmacao" mas dispara na criação da reserva, e a criação aceita estados
-// pendente/aguardar_pagamento — sem isto uma reserva por aprovar chegava ao
-// hóspede anunciada como confirmada.
+// Como cada estado de reserva se apresenta ao hóspede: etiqueta, cor, frase
+// principal e mensagem. O modelo "confirmacao" dispara na criação da reserva,
+// que aceita pré-reserva, pendente e aguardar_pagamento — sem isto uma reserva
+// por aprovar chegava ao hóspede anunciada como confirmada.
+const CONFIRMED = {
+  title: 'Reserva confirmada', eyebrow: 'Reserva confirmada', tone: 'ok',
+  headline: v => v.data_checkin_extenso ? `Está tudo pronto para ${v.data_checkin_extenso}` : 'A sua reserva está confirmada',
+  message: 'A sua reserva está confirmada. Guardámos aqui o essencial.',
+};
 const STATUS_PRESENTATION = {
-  confirmada:         { title: 'Reserva confirmada',            glyph: '✓', message: 'A sua reserva foi confirmada. Aguardamos a sua visita!' },
-  check_in:           { title: 'Reserva confirmada',            glyph: '✓', message: 'A sua reserva foi confirmada. Aguardamos a sua visita!' },
-  checkin:            { title: 'Reserva confirmada',            glyph: '✓', message: 'A sua reserva foi confirmada. Aguardamos a sua visita!' },
-  checked_in:         { title: 'Reserva confirmada',            glyph: '✓', message: 'A sua reserva foi confirmada. Aguardamos a sua visita!' },
-  pendente:           { title: 'Pedido de reserva recebido',    glyph: '•', message: 'Recebemos o seu pedido de reserva. Confirmamos a disponibilidade e entramos em contacto em breve.' },
-  aguardar_pagamento: { title: 'Reserva por confirmar',         glyph: '•', message: 'A sua reserva fica confirmada assim que recebermos o sinal.' },
-  cancelada:          { title: 'Reserva cancelada',             glyph: '×', message: 'A sua reserva foi cancelada.' },
+  confirmada: CONFIRMED,
+  check_in: CONFIRMED,
+  checkin: CONFIRMED,
+  checked_in: CONFIRMED,
+  pre_reserva:        { title: 'Pré-reserva', eyebrow: 'Pré-reserva', tone: 'muted', headline: () => 'Datas guardadas para si',
+    message: 'Guardámos estas datas para si. Falta confirmar a reserva; entramos em contacto com os próximos passos.' },
+  pendente:           { title: 'Pedido de reserva recebido', eyebrow: 'Pedido recebido', tone: 'muted', headline: () => 'Recebemos o seu pedido',
+    message: 'Vamos confirmar a disponibilidade e responder em breve. Ainda não precisa de pagar nada.' },
+  aguardar_pagamento: { title: 'Reserva por confirmar', eyebrow: 'Aguarda o sinal', tone: 'warn', headline: () => 'Falta o sinal para confirmar',
+    message: 'Guardámos as datas. A reserva fica confirmada assim que recebermos o sinal.' },
+  cancelada:          { title: 'Reserva cancelada', eyebrow: 'Reserva cancelada', tone: 'muted', headline: () => 'A sua reserva foi cancelada',
+    message: 'A sua reserva foi cancelada.' },
 };
 
-const STATUS_FALLBACK = { title: 'A sua reserva', glyph: '•', message: 'Aqui ficam os detalhes da sua reserva.' };
+const STATUS_FALLBACK = { title: 'A sua reserva', eyebrow: '', tone: 'brand', headline: () => 'A sua reserva', message: 'Aqui ficam os detalhes da sua reserva.' };
 
 function statusPresentation(reservation) {
   return STATUS_PRESENTATION[String(reservation?.status || '').toLowerCase()] || STATUS_FALLBACK;
 }
+
+const plural = (n, one, many) => `${n} ${Number(n) === 1 ? one : many}`;
 
 // Blocos gerados pelo servidor e inseridos no corpo por {{nome}}. Ao contrário
 // das variáveis de texto (que são escapadas), estes são HTML de confiança —
@@ -192,6 +204,9 @@ function statusPresentation(reservation) {
 function buildBlocks(vars, settings, reservation) {
   const pres = statusPresentation(reservation);
   const s = settings || {};
+  const status = String(reservation?.status || '').toLowerCase();
+  const esc = escapeHtml;
+  const button = (url, label, options) => composer.buildButton(url, label, options);
   const cardRows = [
     { label: 'Alojamento', value: vars.alojamento },
     { label: 'Check-in',   value: vars.data_checkin  ? `${vars.data_checkin} às ${vars.hora_checkin}` : '' },
@@ -200,26 +215,113 @@ function buildBlocks(vars, settings, reservation) {
     { label: 'Hóspedes',   value: vars.num_hospedes },
     { label: 'Referência', value: vars.referencia },
   ];
+  const stay = composer.buildStay({
+    checkin: vars.data_checkin_curta, checkinNote: vars.hora_checkin ? `a partir das ${vars.hora_checkin}` : '',
+    checkout: vars.data_checkout_curta, checkoutNote: vars.hora_checkout ? `até às ${vars.hora_checkout}` : '',
+    summary: [vars.alojamento, vars.noites && plural(vars.noites, 'noite', 'noites'), vars.num_hospedes && plural(vars.num_hospedes, 'hóspede', 'hóspedes'), vars.referencia && `Ref. ${vars.referencia}`].filter(Boolean).join(' · '),
+  });
+  const progress = composer.buildPaymentProgress({
+    paid: vars.total_pago, total: vars.total, missing: vars.valor_em_falta, deadline: vars.prazo_pagamento_curto,
+    percent: vars.percentagem_paga, settled: Boolean(vars.pagamento_liquidado),
+  });
+  const mapButton = button(vars.link_mapa, 'Como chegar', { secondary: true });
+  const precheckinDone = Boolean(reservation?.precheckin_submitted_at);
+
+  // O que o hóspede faz a seguir, segundo o estado da reserva.
+  const nextStep = {
+    confirmada: () => (vars.link_pre_checkin && !precheckinDone
+      ? composer.buildNote({ heading: 'Próximo passo', html: 'Complete o pré-check-in: hora de chegada e dados dos hóspedes. Demora cerca de 2 minutos.' })
+        + button(vars.link_pre_checkin, 'Fazer o pré-check-in')
+      : '') + mapButton,
+    aguardar_pagamento: () => button(vars.link_reserva, vars.valor_sinal ? `Pagar o sinal · ${vars.valor_sinal}` : 'Pagar o sinal'),
+    pendente: () => composer.buildSteps(['Confirmamos a disponibilidade', 'Enviamos a confirmação e os próximos passos', 'Prepara a sua chegada com o pré-check-in']),
+    pre_reserva: () => button(vars.link_reserva, 'Ver a reserva', { secondary: true }),
+  };
+  nextStep.check_in = nextStep.confirmada;
+
   return {
-    titulo_reserva: composer.buildReservationTitle(pres.title, pres.glyph),
-    titulo_boas_vindas: composer.buildWelcomeTitle(`Bem-vindo à ${s.property_name || 'Santa Paciência'}`),
+    // ── Título segundo o estado (modelo da reserva) ──
+    titulo_reserva: composer.buildTitle({ eyebrow: pres.eyebrow, tone: pres.tone, headline: pres.headline(vars) }),
+    estadia: stay,
+    // Pedidos ainda sem pagamento mostram só o total previsto.
+    resumo_pagamento: ['pendente', 'pre_reserva'].includes(status)
+      ? composer.buildRows([{ label: 'Total previsto', value: vars.total }])
+      : progress,
+    proximo_passo: (nextStep[status] || (() => ''))(),
+    contacto: composer.buildContactLine(s),
+    botao_mapa: mapButton,
+
+    // ── Pré-check-in ──
+    titulo_pre_checkin: composer.buildTitle({ eyebrow: 'Falta um passo', tone: 'warn', headline: 'Complete o pré-check-in' }),
+    lista_pre_checkin: composer.buildChecklist(['Hora prevista de chegada', 'Nome e documento de cada hóspede (obrigatório por lei)', 'Pedidos especiais (berço, almofadas, alergias)']),
+    botao_pre_checkin: button(vars.link_pre_checkin, 'Completar o pré-check-in'),
+
+    // ── Chegada ──
+    titulo_chegada: composer.buildTitle({ eyebrow: 'Chegada', tone: 'ok', headline: 'Tudo para a sua chegada' }),
+    // Só com a reserva paga na totalidade (emailEligibility): sem isso os
+    // códigos chegam vazios e as linhas não aparecem.
+    // O nome da rede fica num valor (e não no rótulo em maiúsculas): tem de
+    // aparecer exatamente como está escrito.
+    codigos_acesso: composer.buildCodes([
+      { label: 'Código da porta', value: vars.codigo_porta && vars.codigo_porta !== '—' ? vars.codigo_porta : '' },
+      ...(vars.wifi_password && vars.wifi_password !== '—' ? [
+        { label: 'Rede Wi-Fi', value: vars.wifi_nome && vars.wifi_nome !== '—' ? vars.wifi_nome : '' },
+        { label: 'Senha do Wi-Fi', value: vars.wifi_password },
+      ] : []),
+    ]),
+
+    // ── Durante a estadia ──
+    titulo_boas_vindas: composer.buildTitle({ headline: vars.primeiro_nome ? `Bem-vindo, ${vars.primeiro_nome}` : `Bem-vindo à ${s.property_name || 'Santa Paciência'}` }),
+    info_estadia: composer.buildRows([
+      { label: 'Wi-Fi', value: vars.wifi_nome && vars.wifi_nome !== '—' ? vars.wifi_nome : '' },
+      { label: 'Senha', value: vars.wifi_password && vars.wifi_password !== '—' ? vars.wifi_password : '' },
+      { label: 'Check-out', value: vars.data_checkout_curta ? `${vars.data_checkout_curta}, até às ${vars.hora_checkout}` : '' },
+    ]),
+    botao_alojamento: button(s.website, 'Conhecer o alojamento', { secondary: true }),
+
+    // ── Saída e depois ──
+    titulo_checkout: composer.buildTitle({ eyebrow: 'Lembrete', tone: 'muted', headline: vars.data_checkout_curta ? `Check-out ${vars.data_checkout_curta}, até às ${vars.hora_checkout}` : 'Lembrete de check-out' }),
+    lista_checkout: composer.buildChecklist(['Deixe as chaves conforme o combinado', 'Feche as janelas e desligue as luzes e o ar condicionado', 'Verifique se não fica nada esquecido']),
+    nota_checkout_tardio: composer.buildNote({ heading: 'Precisa de mais tempo?', html: 'Responda a este email: se o alojamento estiver livre, tentamos ajudar com um check-out mais tarde.' }),
+    titulo_obrigado: composer.buildTitle({ eyebrow: 'Obrigado', tone: 'brand', headline: vars.primeiro_nome ? `Obrigado pela visita, ${vars.primeiro_nome}` : 'Obrigado pela visita' }),
+    botao_avaliar: button(s.tripadvisor, 'Avaliar no TripAdvisor'),
+
+    // ── Cancelamento ──
+    resumo_cancelamento: composer.buildRows([
+      { label: 'Alojamento', value: vars.alojamento },
+      { label: 'Datas', value: vars.datas_curtas },
+      { label: 'Referência', value: vars.referencia },
+    ]),
+    titulo_reembolso: composer.buildTitle({ eyebrow: 'Reserva cancelada', tone: 'muted', headline: vars.valor_reembolso ? `Reembolso de ${vars.valor_reembolso}` : 'A sua reserva foi cancelada' }),
+    resumo_reembolso: composer.buildRows([
+      { label: 'Total pago', value: vars.total_pago },
+      { label: 'A devolver', value: vars.valor_reembolso },
+    ]),
+
+    // ── Pagamentos ──
+    titulo_pagamento: composer.buildTitle(vars.pagamento_liquidado
+      ? { eyebrow: 'Pagamento concluído', tone: 'ok', headline: 'A reserva está paga na totalidade' }
+      : { eyebrow: 'Pagamento recebido', tone: 'ok', headline: vars.valor_pagamento ? `Recebemos ${vars.valor_pagamento}` : 'Pagamento recebido' }),
+    titulo_aviso_pagamento: composer.buildTitle({ eyebrow: 'Pagamento em falta', tone: 'warn', headline: vars.valor_em_falta ? `Faltam ${vars.valor_em_falta} para concluir` : 'Pagamento em falta' }),
+    botao_pagar: button(vars.link_reserva, vars.valor_em_falta ? `Pagar ${vars.valor_em_falta}` : 'Pagar'),
+    aviso_prazo: vars.prazo_pagamento
+      ? composer.buildNote({ tone: 'warn', heading: 'Importante', html: `Se o pagamento não chegar até <strong>${esc(vars.prazo_pagamento)}</strong> (hora de Lisboa), a reserva é cancelada e os montantes já pagos não são devolvidos.` })
+      : '',
+    botao_reserva: button(vars.link_reserva, 'Ver a reserva e os pagamentos', { secondary: true }),
+
+    // ── Blocos dos modelos antigos (continuam a funcionar nos textos guardados) ──
     cartao_reserva: composer.buildReservationCard(cardRows, vars.total),
     // Mesmo cartão sem a faixa do total — numa reserva cancelada, mostrar um
     // total a pagar seria enganador.
     cartao_reserva_sem_total: composer.buildReservationCard(cardRows, ''),
-    botao_alojamento: composer.buildCtaBlock(s.website, 'Conhecer o alojamento'),
-    botao_pre_checkin: composer.buildCtaBlock(vars.link_pre_checkin, 'Completar pré check-in'),
-    acompanhe_nos: composer.buildSocialBlock(s),
-    // Pagamentos e política de pagamento.
-    titulo_pagamento: composer.buildReservationTitle(vars.pagamento_liquidado ? 'Pagamento confirmado' : 'Pagamento recebido', '✓'),
-    titulo_aviso_pagamento: composer.buildReservationTitle('Pagamento em falta', '•'),
     cartao_pagamento: composer.buildReservationCard([
       { label: 'Alojamento', value: vars.alojamento },
       { label: 'Referência', value: vars.referencia },
       { label: 'Total pago', value: vars.total_pago },
       ...(vars.pagamento_liquidado ? [] : [{ label: 'Em falta', value: vars.valor_em_falta }]),
     ], vars.total),
-    botao_reserva: composer.buildCtaBlock(vars.link_reserva, 'Consultar reserva e pagamento'),
+    // As redes sociais passaram para o rodapé de todos os emails ao hóspede.
+    acompanhe_nos: '',
   };
 }
 
@@ -247,7 +349,7 @@ function renderManualEmail({ organizationId, subject, body, context }) {
   const reservation = context?.reservation || null;
   const accommodation = context?.accommodation || null;
   const settings = getEmailSettings(accommodation, organizationId);
-  if (!require('./emailEligibility').canSendTemplate({ subject, body }, reservation) && /\{\{\s*(codigo_porta|door_code|wifi_password|password_wifi)\s*\}\}/i.test(`${subject} ${body}`)) {
+  if (!require('./emailEligibility').canSendTemplate({ subject, body }, reservation) && /\{\{\s*(codigo_porta|door_code|wifi_password|password_wifi|codigos_acesso)\s*\}\}/i.test(`${subject} ${body}`)) {
     throw httpError('Os códigos de acesso só podem ser enviados numa reserva confirmada e integralmente paga.', 409);
   }
   let vars = { ...(context?.vars || {}) };
@@ -280,6 +382,12 @@ function buildVars(guest, reservation, accommodation, settings, extra) {
     hora_checkin: s.checkin_time || '15:00',
     data_checkout: formatDate(reservation.check_out),
     hora_checkout: s.checkout_time || '11:00',
+    // Formas curtas para os blocos: «sáb, 14 nov» e «14 de novembro».
+    data_checkin_curta: formatWeekdayDate(reservation.check_in),
+    data_checkout_curta: formatWeekdayDate(reservation.check_out),
+    data_checkin_extenso: formatDayMonth(reservation.check_in),
+    datas_curtas: reservation.check_in && reservation.check_out ? require('./dates').shortRange(reservation.check_in, reservation.check_out) : '',
+    link_mapa: mapUrl(accommodation, s),
     noites: String(reservation.nights || ''),
     num_hospedes: String(reservation.num_guests || ''),
     // Formato português: 240,00 € — o símbolo vem do Intl, por isso os
@@ -304,7 +412,7 @@ function buildVars(guest, reservation, accommodation, settings, extra) {
 // Variáveis cujo valor acaba num href têm de passar pelo filtro de protocolos
 // antes de chegar ao template — o sanitizador do corpo deixa passar o
 // marcador {{...}} intacto, por isso a validação tem de ser feita no valor.
-const URL_VARS = ['link_pre_checkin', 'link_reserva'];
+const URL_VARS = ['link_pre_checkin', 'link_reserva', 'link_mapa'];
 function sanitizeUrlVars(vars) {
   for (const key of URL_VARS) {
     if (vars[key] !== undefined) vars[key] = composer.safeUrl(vars[key]);
@@ -393,6 +501,22 @@ function findGuestEmailContext(organizationId, email) {
   };
 }
 
+// «sáb, 14 nov» (com o ano só quando não é o corrente).
+const formatWeekdayDate = dateStr => (dateStr ? require('./dates').weekdayDate(dateStr) : '');
+
+// «14 de novembro».
+function formatDayMonth(dateStr) {
+  if (!dateStr) return '';
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-PT', { day: 'numeric', month: 'long' });
+}
+
+// Ligação para o mapa a partir da morada do alojamento (ou a da organização).
+function mapUrl(accommodation, settings) {
+  const address = [accommodation?.address, accommodation?.postal_code, accommodation?.city].filter(Boolean).join(', ')
+    || String(settings?.property_address || '').trim();
+  return address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : '';
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return '';
   return new Date(dateStr + 'T12:00:00').toLocaleDateString('pt-PT', {
@@ -469,7 +593,13 @@ function paymentVars(reservation) {
   } catch { /* sem cancelamento por política */ }
   let link = '';
   try { link = require('./publicLinks').reservationPageUrl(reservation); } catch { /* origem por configurar */ }
+  const totalCents = cents(reservation.total_amount || 0);
+  let depositCents = 0;
+  try { depositCents = require('./paymentPolicy').requiredDepositCents(reservation); } catch { /* sem política */ }
   return {
+    percentagem_paga: totalCents > 0 ? String(Math.round(Math.min(paidCents, totalCents) / totalCents * 100)) : '0',
+    valor_sinal: depositCents > paidCents ? composer.formatCurrency((depositCents - paidCents) / 100) : '',
+    prazo_pagamento_curto: reservation.balance_deadline ? formatWeekdayDate(require('./dates').localDay(new Date(reservation.balance_deadline))) : '',
     total_pago: composer.formatCurrency(paidCents / 100),
     valor_pagamento: composer.formatCurrency(paidCents / 100),
     valor_em_falta: composer.formatCurrency(missingCents / 100),
@@ -500,25 +630,35 @@ async function sendReservationRequestApprovedEmail(guest, reservation, accommoda
 }
 
 // Aviso à equipa de um pedido novo do site público (staffNotifier).
+// Pedidos por aprovar ou à espera do sinal chamam a atenção (âmbar).
+const STAFF_NEW_LABEL = { pendente: ['Novo pedido · por aprovar', 'warn'], aguardar_pagamento: ['Nova reserva · aguarda sinal', 'warn'] };
+
 async function sendOwnerNewReservationEmail(organizationId, guest, reservation, accommodation, appUrl) {
   if (emailDisabled()) return null;
+  const dates = require('./dates');
+  const [eyebrow, tone] = STAFF_NEW_LABEL[reservation.status] || ['Nova reserva', 'ok'];
+  const nights = Number(reservation.nights) || dates.daysBetween(reservation.check_in, reservation.check_out);
   return require('./staffNotifier').email(organizationId, {
     subject: `Nova reserva — ${guest.name} · ${reservation.id}`,
-    title: 'Nova reserva recebida',
+    eyebrow, tone,
+    headline: `${guest.name || 'Hóspede'} · ${dates.shortRange(reservation.check_in, reservation.check_out)}`,
     accommodation,
     rows: [
-      { label: 'Referência',  value: reservation.id || '' },
-      { label: 'Hóspede',     value: `${guest.name || ''} <${guest.email || ''}>` },
-      { label: 'Alojamento',  value: accommodation.name || '' },
-      { label: 'Check-in',    value: formatDate(reservation.check_in) },
-      { label: 'Check-out',   value: formatDate(reservation.check_out) },
-      { label: 'Hóspedes',    value: String(reservation.num_guests || 1) },
-      { label: 'Estado',      value: statusPresentation(reservation).title },
+      { label: 'Alojamento',        value: accommodation.name || '' },
+      { label: 'Noites · hóspedes', value: `${nights} · ${reservation.num_guests || 1}` },
+      { label: 'Canal',             value: require('../config/channels').channelLabel(reservation.channel || 'website') },
+      { label: 'Total',             value: composer.formatCurrency(reservation.total_amount || 0) },
+      { label: 'Email',             value: isDeliverableEmail(guest.email) ? guest.email : '' },
+      { label: 'Telefone',          value: guest.phone || '' },
     ],
-    total: composer.formatCurrency(reservation.total_amount || 0),
     url: appUrl ? `${appUrl}/reservas?reserva=${encodeURIComponent(reservation.id)}` : '',
+    footnote: `Referência ${reservation.id}`,
   });
 }
+
+// Nomes dos blocos {{…}} que o servidor constrói. Fonte única para quem
+// precisa de os distinguir de variáveis em falta (ex.: envio manual).
+const BLOCK_NAMES = Object.freeze(Object.keys(buildBlocks({}, {}, null)));
 
 module.exports = {
   emailDisabled,
@@ -536,6 +676,7 @@ module.exports = {
   interpolate,
   buildVars,
   buildBlocks,
+  BLOCK_NAMES,
   renderEmail,
   renderManualEmail,
   statusPresentation,

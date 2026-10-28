@@ -84,11 +84,11 @@ test('acentos e aspas aparecem corretos e não partem atributos', () => {
 });
 
 test('uma única passagem de substituição impede injeção de blocos por dados', () => {
-  // Um hóspede chamado "{{acompanhe_nos}}" não pode fazer aparecer o bloco.
-  const guest = { name: '{{acompanhe_nos}}', first_name: '{{acompanhe_nos}}', email: 'x@y.invalid' };
+  // Um hóspede chamado "{{contacto}}" não pode fazer aparecer o bloco.
+  const guest = { name: '{{contacto}}', first_name: '{{contacto}}', email: 'x@y.invalid' };
   const { html } = render('confirmacao', { guest });
-  assert.ok(html.includes('{{acompanhe_nos}}'), 'o texto fica literal');
-  assert.equal((html.match(/ACOMPANHE-NOS/g) || []).length, 1, 'o nome não pode injetar um segundo bloco social');
+  assert.ok(html.includes('{{contacto}}'), 'o texto fica literal');
+  assert.equal((unblend(html).match(/Dúvidas\? Responda a este email/g) || []).length, 1, 'o nome não pode injetar um segundo bloco');
 });
 
 test('marcador desconhecido fica literal em vez de desaparecer', () => {
@@ -224,13 +224,14 @@ test('todos os emails recebem apenas as redes escolhidas no alojamento', () => {
     social_links_enabled: ['instagram', 'website'],
   };
   for (const slug of ['confirmacao', 'apos_checkin', 'cancelamento']) {
-    const { html } = render(slug, { settings });
-    assert.ok(html.includes('ACOMPANHE-NOS'), `${slug} sem bloco social`);
+    const html = unblend(render(slug, { settings }).html);
+    assert.equal((html.match(/sp-social-block/g) || []).length, 1, `${slug}: redes uma só vez, no rodapé`);
     assert.ok(html.includes('Instagram'), `${slug} sem Instagram`);
     assert.ok(html.includes('Website'), `${slug} sem Website`);
-    assert.ok(!html.includes('>Facebook</a>'), `${slug} ignorou a seleção do alojamento`);
-    assert.equal((html.match(/ACOMPANHE-NOS/g) || []).length, 1, `${slug} duplicou o bloco social`);
+    assert.ok(!html.includes('Facebook'), `${slug} ignorou a seleção do alojamento`);
   }
+  // Emails internos e de conta não levam redes sociais.
+  assert.doesNotMatch(emailService.baseTemplate('<p>x</p>', SETTINGS, { social: false }), /sp-social-block/);
 });
 
 test('a morada do rodapé abre uma pesquisa no mapa', () => {
@@ -241,9 +242,13 @@ test('a morada do rodapé abre uma pesquisa no mapa', () => {
 });
 
 test('sem endereço configurado não se desenha um botão que não leva a lado nenhum', () => {
-  assert.equal(composer.buildCtaBlock('', 'Conhecer o alojamento'), '');
-  assert.equal(composer.buildCtaBlock('javascript:alert(1)', 'Conhecer o alojamento'), '');
-  assert.ok(composer.buildCtaBlock('https://exemplo.invalid', 'Conhecer o alojamento').includes('CONHECER O ALOJAMENTO'));
+  assert.equal(composer.buildButton('', 'Conhecer o alojamento'), '');
+  assert.equal(composer.buildButton('javascript:alert(1)', 'Conhecer o alojamento'), '');
+  const button = composer.buildButton('https://exemplo.invalid', 'Conhecer o alojamento');
+  // Frase normal: as maiúsculas partiam o botão em duas linhas no telemóvel.
+  assert.ok(button.includes('>Conhecer o alojamento</a>'));
+  assert.doesNotMatch(button, /CONHECER|letter-spacing/);
+  assert.match(composer.buildButton('https://exemplo.invalid', 'Como chegar', { secondary: true }), /sp-surface-bg[\s\S]*sp-brand-text/, 'secundário em contorno');
 });
 
 test('linhas vazias do cartão são omitidas em vez de ficarem sem valor', () => {
@@ -301,8 +306,8 @@ test('todos os emails prendem as cores contra o modo escuro do Gmail', () => {
     assert.doesNotMatch(html, /<span class="sp-g[se]"><span class="sp-gd"><span class="sp-g/, 'sem camadas duplicadas');
     assert.doesNotMatch(html, /-webkit-text-fill-color|\sbackground="/, 'sem as proteções antigas');
   }
-  const header = emailService.baseTemplate('<p>x</p>', SETTINGS);
-  assert.match(header, /class="sp-gs"><span class="sp-gd">ALOJAMENTO LOCAL<\/span><\/span>/, 'texto claro sobre terracota');
+  const header = emailService.baseTemplate('<p>x</p>', SETTINGS, { headerLabel: 'Aviso à equipa' });
+  assert.match(header, /class="sp-gs"><span class="sp-gd">AVISO À EQUIPA<\/span><\/span>/, 'texto claro sobre terracota');
   // Um corpo que já traz camadas (ex.: email anterior) não leva outra.
   const twice = emailService.baseTemplate(composer.extractBody(header), SETTINGS);
   assert.doesNotMatch(twice, /sp-gd">[^<]*<span class="sp-g/);
@@ -364,8 +369,8 @@ test('modelos guardados conservam fundo creme e cor de recurso após sanitizaç�
 test('os ícones vêm de imagens HTTPS e o rótulo continua legível sem elas', () => {
   const social = composer.buildSocialBlock(SETTINGS);
   assert.ok(social.includes('https://exemplo.invalid/img/email/instagram.png'));
-  assert.ok(social.includes('alt=""'), 'alt vazio: o rótulo ao lado é que nomeia o botão');
-  assert.ok(social.includes('>Instagram</span></a>'), 'o texto sobrevive sem imagens');
+  assert.ok(social.includes('alt=""'), 'alt vazio: o rótulo ao lado é que nomeia a ligação');
+  assert.ok(social.includes('/>Instagram</a>'), 'o texto sobrevive sem imagens');
 });
 
 test('sem base pública HTTPS não se emitem imagens inacessíveis ao destinatário', () => {
@@ -398,7 +403,7 @@ test('pré-visualização e envio produzem exatamente o mesmo HTML para o mesmo 
 test('baseTemplate das mensagens avulsas usa a mesma moldura dos templates', () => {
   const avulso = emailService.baseTemplate('<p>Mensagem manual</p>', SETTINGS);
   const template = render('confirmacao').html;
-  for (const marca of ['#843424', 'max-width:600px', 'ALOJAMENTO LOCAL', 'Licença AL:']) {
+  for (const marca of ['#843424', 'max-width:600px', 'sp-social-block', 'Licença AL:']) {
     assert.ok(avulso.includes(marca), `mensagem avulsa sem ${marca}`);
     assert.ok(template.includes(marca), `template sem ${marca}`);
   }
@@ -592,26 +597,26 @@ test('os modelos por omissão cobrem todos os slugs usados pela aplicação', ()
   assert.ok(!TEMPLATES.codigo_porta, 'código de porta devia ter-se fundido em coordenadas');
 });
 
-test('o modelo de boas-vindas tem título, botão e redes, como o print', () => {
-  const { html } = render('apos_checkin');
-  assert.ok(html.includes('Bem-vindo à Santa Paciência'), 'título com o nome configurado');
-  assert.ok(html.includes('CONHECER O ALOJAMENTO'), 'botão do alojamento');
-  assert.ok(html.includes('ACOMPANHE-NOS'), 'zona das redes sociais');
+test('o modelo de boas-vindas tem o nome, o Wi-Fi, o check-out e o botão do alojamento', () => {
+  const html = unblend(render('apos_checkin', { accommodation: { ...ACCOMMODATION, wifi_name: 'SP_WiFi' } }).html);
+  assert.ok(html.includes('Bem-vindo, Rui'), 'título com o primeiro nome');
+  assert.ok(html.includes('>Conhecer o alojamento</a>'), 'botão do alojamento');
+  assert.ok(html.includes('>Wi-Fi</td>') && html.includes('>Check-out</td>'), 'Wi-Fi e hora do check-out');
+  assert.ok(html.includes('sp-social-block'), 'redes no rodapé');
   assert.ok(html.includes('Reguengos de Monsaraz'), 'localidade dinâmica');
 });
 
-test('o modelo de confirmação tem o cartão com todas as linhas e o total', () => {
+test('o modelo de confirmação tem a estadia, o pagamento e o próximo passo', () => {
   const html = unblend(render('confirmacao').html);
-  for (const label of ['Alojamento', 'Check-in', 'Check-out', 'Noites', 'Hóspedes', 'Referência', 'Total']) {
-    assert.ok(html.includes(`>${label}</div>`) || html.includes(`>${label}</td>`), `falta a linha ${label}`);
+  for (const text of ['RESERVA CONFIRMADA', 'ENTRADA', 'SAÍDA', 'Suite Mezzanine Deluxe · 2 noites', '>Pago</td>', 'Total 240,00', 'PRÓXIMO PASSO', '>Fazer o pré-check-in</a>']) {
+    assert.ok(html.includes(text), `falta ${text}`);
   }
-  assert.ok(html.includes('SP-1'), 'referência dinâmica');
-  assert.ok(html.includes('Suite Mezzanine Deluxe'), 'alojamento dinâmico');
+  assert.doesNotMatch(html, /Reserva confirmada<\/td>[\s\S]*Reserva confirmada<\/td>/, 'título uma vez');
 });
 
-test('o nome configurado da organização manda no título de boas-vindas', () => {
+test('sem primeiro nome, o título de boas-vindas usa o nome configurado da organização', () => {
   const settings = { ...SETTINGS, property_name: 'Monte do Cano' };
-  const { html } = render('apos_checkin', { settings });
+  const html = unblend(render('apos_checkin', { settings, guest: { name: '', first_name: '', email: 'x@y.invalid' } }).html);
   assert.ok(html.includes('Bem-vindo à Monte do Cano'));
   assert.ok(!html.includes('Bem-vindo à Santa Paciência'));
 });

@@ -1,7 +1,7 @@
 const { db } = require('../config/database');
 const {
   getEmailSettings, buildVars, buildBlocks, renderEmail, sanitizeUrlVars,
-  resolveAccommodationInheritance,
+  resolveAccommodationInheritance, BLOCK_NAMES,
 } = require('../services/emailService');
 
 // Ordem cronológica da jornada do hóspede, para a lista ficar percetível
@@ -26,7 +26,7 @@ function getAll(req, res) {
     ORDER BY rowid
   `).all(req.user.organization_id);
   const settings = getEmailSettings(null, req.user.organization_id);
-  res.json({ success: true, data: sortTemplates(templates), settings });
+  res.json({ success: true, data: sortTemplates(templates), settings, blocks: BLOCK_NAMES });
 }
 
 function update(req, res) {
@@ -121,7 +121,7 @@ function resolveAccommodationContext(req) {
 
 // Dados fictícios: a pré-visualização nunca lê uma reserva real. O estado é
 // escolhido pelo utilizador para poder ver como fica uma reserva pendente.
-const PREVIEW_STATUSES = ['confirmada', 'pendente', 'aguardar_pagamento', 'cancelada'];
+const PREVIEW_STATUSES = ['confirmada', 'pre_reserva', 'pendente', 'aguardar_pagamento', 'cancelada'];
 
 function buildPreviewContext(req) {
   const orgId = req.user.organization_id;

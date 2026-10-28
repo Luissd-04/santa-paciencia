@@ -60,8 +60,8 @@ test('email de pagamento parcial mostra o valor recebido e o que falta', async (
   assert.ok(result.id);
   assert.equal(sent.length, 1);
   assert.match(sent[0].subject, /Pagamento recebido/);
-  assert.match(sent[0].html, /50,00/);
-  assert.match(sent[0].html, /Em falta/);
+  assert.match(sent[0].html, /Recebemos 50,00/);
+  assert.match(sent[0].html, />Falta </);
   assert.match(sent[0].html, /150,00/);
   assert.doesNotMatch(sent[0].html, /\{\{/);
 });
@@ -69,8 +69,8 @@ test('email de pagamento parcial mostra o valor recebido e o que falta', async (
 test('email de pagamento que liquida a reserva diz confirmado e não mostra falta', async () => {
   const r = reservation({ amount_paid: 200, payment_status: 'confirmado' });
   await emailService.sendPaymentConfirmationEmail(guest(), r, unit(), { amount: 150 });
-  assert.match(sent[0].html, /Pagamento confirmado/);
-  assert.doesNotMatch(sent[0].html, /Em falta/);
+  assert.match(sent[0].html, /Pago na totalidade/);
+  assert.doesNotMatch(sent[0].html, />Falta </);
 });
 
 test('modelo de pagamento desativado: nada é enviado', async () => {

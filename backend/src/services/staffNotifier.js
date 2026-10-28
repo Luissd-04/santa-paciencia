@@ -35,9 +35,11 @@ function staffEmails(organizationId) {
     ORDER BY CASE m.role WHEN 'owner' THEN 1 ELSE 2 END`).all(organizationId).map(row => row.email);
 }
 
-// `rows` são as linhas do cartão ({ label, value }); `url` abre a reserva no
-// backoffice. Uma falha parcial não repete o envio a quem já o recebeu.
-async function email(organizationId, { subject, title, rows = [], total = '', url = '', accommodation = null }) {
+// Aviso por email à equipa: etiqueta e título (quem e quando), as linhas da
+// reserva ({ label, value }), uma caixa opcional e o botão `url` para o
+// backoffice. Cabeçalho "Aviso à equipa" e sem redes sociais, por ser um
+// email interno. Uma falha parcial não repete o envio a quem já o recebeu.
+async function email(organizationId, { subject, eyebrow = '', tone = 'brand', headline = '', rows = [], note = null, url = '', footnote = '', accommodation = null }) {
   const recipients = staffEmails(organizationId);
   if (!recipients.length) return { sent: 0 };
   const emailService = require('./emailService');
@@ -45,10 +47,12 @@ async function email(organizationId, { subject, title, rows = [], total = '', ur
   const resolved = accommodation ? emailService.resolveAccommodationInheritance(accommodation, organizationId) : null;
   const settings = emailService.getEmailSettings(resolved, organizationId);
   const html = emailService.baseTemplate(`
-    ${composer.buildReservationTitle(title, '•')}
-    ${composer.buildReservationCard(rows, total)}
-    ${url ? composer.buildCtaBlock(url, 'Ver reserva no backoffice') : ''}
-  `, settings);
+    ${composer.buildTitle({ eyebrow, tone, headline })}
+    ${composer.buildRows(rows)}
+    ${note ? composer.buildNote(note) : ''}
+    ${composer.buildButton(url, 'Abrir no backoffice')}
+    ${footnote ? `<p style="font-family:${composer.SERIF};font-size:13px;line-height:1.5;color:${composer.PALETTE.muted};text-align:center;margin:12px 0 0;">${composer.escapeHtml(footnote)}</p>` : ''}
+  `, settings, { headerLabel: 'Aviso à equipa', social: false });
   let sent = 0, failed = 0;
   for (const to of recipients) {
     try {

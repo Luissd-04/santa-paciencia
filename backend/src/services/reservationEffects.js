@@ -62,6 +62,13 @@ const nights = ({ reservation }) => {
   const n = Number(reservation.nights) || dates.daysBetween(reservation.check_in, reservation.check_out);
   return `${n} noite${n !== 1 ? 's' : ''}`;
 };
+// Reembolso contratado pela política (cancelamento com política de pagamento).
+const refundOf = reservation => {
+  try {
+    const cancellation = reservation.policy_cancellation_json && JSON.parse(reservation.policy_cancellation_json);
+    return cancellation ? money(cancellation.refundCents / 100) : '';
+  } catch { return ''; }
+};
 const backofficeUrl = (event, reservation) => {
   const origin = require('./publicOrigin').configuredOrigin() || event.payload.appUrl || '';
   return origin ? `${origin}/reservas?reserva=${encodeURIComponent(reservation.id)}` : '';
@@ -116,16 +123,16 @@ const HANDLERS = {
   }),
   staff_email_cancelled: (ctx, event) => staff.email(event.organizationId, {
     subject: `Reserva cancelada — ${ctx.guest.name || 'Hóspede'} · ${ctx.reservation.id}`,
-    title: CANCEL_REASONS[event.payload.reason] || 'Reserva cancelada',
+    eyebrow: CANCEL_REASONS[event.payload.reason] || 'Reserva cancelada', tone: 'muted',
+    headline: `${guestName(ctx)} · ${stay(ctx)}`,
     accommodation: ctx.accommodation,
     rows: [
-      { label: 'Referência', value: ctx.reservation.id },
-      { label: 'Hóspede', value: ctx.guest.name || '' },
       { label: 'Alojamento', value: ctx.accommodation.name || '' },
-      { label: 'Check-in', value: ctx.reservation.check_in },
-      { label: 'Check-out', value: ctx.reservation.check_out },
       { label: 'Pago', value: money(ctx.reservation.amount_paid) },
+      { label: 'A devolver', value: refundOf(ctx.reservation) },
+      { label: 'Referência', value: ctx.reservation.id },
     ],
+    note: { tone: 'ok', heading: 'As datas ficaram livres', html: require('./emailComposer').escapeHtml(`O calendário já mostra ${ctx.accommodation.name || 'o alojamento'} disponível nessas datas (${stay(ctx)}).`) },
     url: backofficeUrl(event, ctx.reservation),
   }),
   staff_push_precheckin: (ctx, event) => staff.push(event.organizationId, 'precheckin', {

@@ -82,12 +82,18 @@ test('seletor de templates liberta o estado global do modal antes de sair do DOM
   assert.deepEqual(calls, ['close', 'remove']);
 });
 
-test('validação do compositor deixa os blocos do servidor e recusa campos realmente em falta', () => {
-  const ctx = vm.createContext({ console, window: {}, document: { getElementById: () => null } });
+test('validação do compositor deixa os blocos do servidor e recusa campos realmente em falta', async () => {
+  // Os nomes dos blocos vêm do servidor, com os modelos.
+  const { BLOCK_NAMES } = require('../services/emailService');
+  const requests = [];
+  const ctx = vm.createContext({ console, window: {}, document: { getElementById: () => null },
+    apiGet: async url => { requests.push(url); return { data: [], blocks: BLOCK_NAMES }; } });
   runFrontend(fs.readFileSync(path.join(root, 'js/features/invoice/composicao.js'), 'utf8'), ctx);
-  const missing = vm.runInContext(`_unresolvedTemplateVars(
+  assert.deepEqual(Array.from(await vm.runInContext(`_unresolvedTemplateVars('Olá', '<p>Sem marcadores</p>')`, ctx)), []);
+  assert.deepEqual(requests, [], 'sem marcadores não pede nada ao servidor');
+  const missing = await vm.runInContext(`_unresolvedTemplateVars(
     'Assunto {{primeiro_nome}}',
-    '{{titulo_reserva}}<p>{{cartao_reserva}}</p><p>{{campo_desconhecido}}</p>'
+    '{{titulo_reserva}}{{estadia}}<p>{{cartao_reserva}}</p>{{codigos_acesso}}<p>{{campo_desconhecido}}</p>'
   )`, ctx);
   assert.deepEqual(Array.from(missing), ['primeiro_nome', 'campo_desconhecido']);
 });
