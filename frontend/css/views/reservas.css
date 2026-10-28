@@ -1162,25 +1162,22 @@
 .resf-voucher-line[hidden] { display: none; }
 #f-total-manual.is-pending { opacity: .55; }
 
-/* ── Discount row (form + panel shared) ── */
-.resf-discount-row,
-.rdv2-acc-discount-row {
+/* ── Desconto no formulário ── */
+.resf-discount-row {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.resf-disc-toggle,
-.rdv2-disc-toggle {
+.resf-disc-toggle {
   display: flex;
   border: 1px solid var(--border-soft);
   border-radius: 8px;
   overflow: hidden;
 }
 
-.resf-disc-type,
-.rdv2-disc-type {
+.resf-disc-type {
   padding: 5px 12px;
   font-size: 12px;
   font-weight: 600;
@@ -1191,150 +1188,10 @@
   transition: background .15s, color .15s;
 }
 
-.resf-disc-type.active,
-.rdv2-disc-type.active {
+.resf-disc-type.active {
   background: var(--brand-shell);
   color: #fff;
 }
-
-/* ── Accommodation panel overlay ── */
-.rdv2-acc-panel {
-  position: absolute;
-  inset: 0;
-  background: var(--surface-card-strong, var(--branco));
-  border-radius: 14px;
-  display: flex;
-  flex-direction: column;
-  z-index: 10;
-  overflow: hidden;
-}
-
-.rdv2-acc-panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-main);
-  border-bottom: 1px solid var(--border-soft);
-  background: var(--surface-muted);
-}
-
-.rdv2-acc-panel-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.rdv2-acc-loading {
-  padding: 20px;
-  text-align: center;
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-.rdv2-acc-option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-soft);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: border-color .15s, background .15s;
-}
-
-.rdv2-acc-option:hover { border-color: var(--brand-shell); background: rgba(84,54,35,.04); }
-.rdv2-acc-selected { border-color: var(--brand-shell) !important; background: rgba(84,54,35,.06) !important; }
-.rdv2-acc-unavail { opacity: .55; }
-
-.rdv2-acc-opt-info { flex: 1; }
-.rdv2-acc-opt-name { font-size: 13px; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.rdv2-acc-opt-meta { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
-.rdv2-acc-opt-price { font-size: 13px; font-weight: 700; color: var(--text-main); white-space: nowrap; }
-
-.rdv2-badge-current {
-  font-size: 10px; font-weight: 600; padding: 1px 7px;
-  background: var(--brand-shell); color: #fff; border-radius: 20px;
-}
-
-.rdv2-badge-unavail {
-  font-size: 10px; font-weight: 600; padding: 1px 7px;
-  background: #b03030; color: #fff; border-radius: 20px;
-}
-
-.rdv2-acc-discount {
-  padding: 12px 14px;
-  border-top: 1px solid var(--border-soft);
-  background: rgba(201,168,76,.06);
-}
-
-.rdv2-acc-discount-head {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .4px;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.rdv2-disc-input {
-  width: 90px;
-  padding: 5px 8px;
-  border: 1px solid var(--border-soft);
-  border-radius: 7px;
-  font-size: 13px;
-  background: var(--surface-card);
-  color: var(--text-main);
-}
-
-.rdv2-acc-final-price {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-left: 4px;
-}
-
-.rdv2-acc-final-price strong { color: var(--text-main); }
-
-.rdv2-acc-panel-foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 14px;
-  border-top: 1px solid var(--border-soft);
-  background: var(--surface-muted);
-}
-
-/* Checkbox wrap in acc option */
-.rdv2-acc-check-wrap { display: flex; align-items: center; flex-shrink: 0; }
-.rdv2-acc-check-wrap input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand-shell); }
-
-/* Price edit field per accommodation */
-.rdv2-acc-price-edit {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-.rdv2-acc-priceinput {
-  width: 72px;
-  padding: 4px 6px;
-  border: 1px solid var(--border-soft);
-  border-radius: 6px;
-  font-size: 12.5px;
-  font-weight: 600;
-  text-align: right;
-  background: var(--surface-muted);
-  color: var(--text-main);
-}
-.rdv2-acc-priceinput-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
 
 /* Payment list */
 .rdv2-pay-list { margin-bottom: 10px; }

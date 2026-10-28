@@ -23,6 +23,7 @@ AppModules.define('core', {
   lcIcon: { get: () => lcIcon },
   realEmail: { get: () => realEmail },
   mediaThumb: { get: () => mediaThumb },
+  putReservationConfirmingTotal: { get: () => putReservationConfirmingTotal },
   safeMediaUrl: { get: () => safeMediaUrl },
   showOperationProgress: { get: () => showOperationProgress },
   toast: { get: () => toast },
@@ -169,6 +170,26 @@ function confirmPriceChange({ standardTotal, newTotal, editedAt = null, editedBy
     });
     overlay.querySelector('[data-pc-confirm]').onclick = () => { confirmed = true; AppUI.closeDialog(overlay); };
   });
+}
+
+// Alterações à reserva fora do assistente (arrastar no calendário, adicionar
+// hóspede). Numa reserva com o preço editado à mão (ou com voucher que deixa
+// de valer) o servidor não recalcula o total sem confirmação: mostra o total
+// atual e o novo e grava com o total confirmado. Devolve null se cancelar.
+const TOTAL_CONFIRMATION_CODES = new Set(['total_confirmation', 'voucher_min_nights', 'voucher_accommodation']);
+async function putReservationConfirmingTotal(id, body, currentTotal) {
+  try {
+    return await apiPut(`/api/reservations/${id}`, body);
+  } catch (error) {
+    const payload = error?.payload;
+    if (error?.status !== 409 || !TOTAL_CONFIRMATION_CODES.has(payload?.code) || payload?.details?.total_amount == null) throw error;
+    const ok = await confirmPriceChange({
+      title: 'Confirmar o novo total?', intro: payload.error,
+      standardLabel: 'Total atual', standardTotal: Number(currentTotal) || 0, newTotal: payload.details.total_amount,
+    });
+    if (!ok) return null;
+    return apiPut(`/api/reservations/${id}`, { ...body, total_amount: payload.details.total_amount });
+  }
 }
 
 // Returns the email only if it's a real one (not an internal placeholder)

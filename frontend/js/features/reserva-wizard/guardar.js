@@ -315,7 +315,11 @@ async function saveReserva() {
     const hasValueEdits = AppModules.reservas._manualTotalOverride != null
       || Object.keys(AppModules.reservas._nightlyOverrides).length > 0
       || (parseFloat(document.getElementById('f-discount-val')?.value) || 0) > 0;
-    if (!confirmed && hasValueEdits && quote.standard_total != null && typeof AppModules.core.confirmPriceChange === 'function'
+    // Na edição, um total igual ao que já estava guardado não é uma alteração
+    // (ex.: mudar só as notas de uma reserva com preço editado).
+    const totalUnchanged = AppModules.core.editingId
+      && Math.abs(Number(quote.total_amount) - Number(AppModules.reservas._editingStoredTotal)) <= 0.005;
+    if (!confirmed && hasValueEdits && !totalUnchanged && quote.standard_total != null && typeof AppModules.core.confirmPriceChange === 'function'
       && Math.abs(Number(quote.total_amount) - Number(quote.standard_total)) > 0.005) {
       const ok = await AppModules.core.confirmPriceChange({
         standardTotal: quote.standard_total,

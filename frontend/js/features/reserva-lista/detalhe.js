@@ -134,7 +134,7 @@ async function showDetail(id, opts = {}) {
     // A ficha e o menu mobile partilham ações, dados e permissões.
     const reservationActionsHtml = `
             ${r.status === 'pendente' ? `<button class="rdv2-action-link rdv2-action-success" ${AppActions.attrs("click", "detalhe-aprovar-reserva-0f31ccd", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('check', 12)} Aprovar e enviar pre check-in</button>` : ''}
-            <button class="rdv2-action-link" data-accs="${(JSON.stringify(accsData)).replace(/"/g,'&quot;')}" data-res='{"id":"${r.id}","accId":"${r.accommodation_id}","ci":"${r.check_in}","co":"${r.check_out}","ng":${r.num_guests||1},"na":${r.num_adults||1},"nc":${r.num_children||0},"bkf":${r.breakfast_included?true:false},"nights":${r.nights||1}}' data-on-click="detalhe-open-accommodation-panel-from-btn-4247f77">${AppModules.core.lcIcon('home', 12)} Editar alojamento</button>
+            <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-edit-page-8b67124", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('home', 12)} Editar alojamento</button>
             <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-edit-page-8b67124", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('pencil', 12)} Editar reserva</button>
             <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-add-guest-form-2a832ca", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('user-plus', 12)} Adicionar hóspede</button>
             <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-payment-form-74a29ac", [String((r.id) ?? ''), paid, total])}>${AppModules.core.lcIcon('credit-card', 12)} Registar pagamento</button>
@@ -493,7 +493,6 @@ AppActions.register({
   "detalhe-rdv2-show-tab-c86cc3e": (el, event, args) => { AppModules.reservas.rdv2ShowTab('tarefas') },
   "detalhe-rdv2-show-tab-5aa1943": (el, event, args) => { AppModules.reservas.rdv2ShowTab('timeline') },
   "detalhe-start-inline-price-edit-700b5d7": (el, event, args) => { AppModules.reservas.startInlinePriceEdit(args[0], args[1]) },
-  "detalhe-open-accommodation-panel-from-btn-4247f77": (el, event, args) => { AppModules.reservas.openAccommodationPanelFromBtn(el) },
   "detalhe-open-edit-page-8b67124": (el, event, args) => { AppModules.reservas.openEditPage(args[0]) },
   "detalhe-open-add-guest-form-2a832ca": (el, event, args) => { AppModules.reservas.openAddGuestForm(args[0]) },
   "detalhe-open-payment-form-74a29ac": (el, event, args) => { AppModules.reservas.openPaymentForm(args[0], args[1], args[2]) },
