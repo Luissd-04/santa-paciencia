@@ -17,7 +17,7 @@ async function sendInvoiceEmail(toEmail, toName, reservationId, standalone) {
 
   if (!subject || !bodyEl?.textContent?.trim()) { AppModules.core.toast('Preenche o assunto e a mensagem.', 'warning'); return; }
 
-  const missing = _unresolvedTemplateVars(subject, body);
+  const missing = await _unresolvedTemplateVars(subject, body);
   if (missing.length) {
     AppModules.core.toast(`Faltam dados por preencher antes de enviar: ${missing.join(', ')}`, 'error', 6000);
     return;
@@ -129,7 +129,7 @@ async function sendNovaConversa() {
 
   if (!to || !subject || !bodyEl?.textContent?.trim()) { AppModules.core.toast('Preenche todos os campos.', 'warning'); return; }
 
-  const missing = _unresolvedTemplateVars(subject, body);
+  const missing = await _unresolvedTemplateVars(subject, body);
   if (missing.length) {
     AppModules.core.toast(`Faltam dados por preencher antes de enviar: ${missing.join(', ')}`, 'error', 6000);
     return;
@@ -227,20 +227,16 @@ function _interpolateTemplate(text, vars) {
   );
 }
 
-// Estes marcadores não são campos em falta: são blocos HTML de confiança que
-// o servidor constrói no momento do envio, com os dados atuais da reserva.
-const SERVER_TEMPLATE_BLOCKS = new Set([
-  'titulo_reserva', 'titulo_boas_vindas', 'cartao_reserva',
-  'cartao_reserva_sem_total', 'botao_alojamento',
-  'botao_pre_checkin', 'acompanhe_nos',
-  'titulo_pagamento', 'titulo_aviso_pagamento', 'cartao_pagamento', 'botao_reserva',
-]);
-
-function _unresolvedTemplateVars(subject, body) {
+// Os blocos ({{titulo_reserva}}, {{estadia}}, …) não são campos em falta: são
+// HTML de confiança que o servidor constrói no envio. A lista vem do servidor,
+// com os modelos.
+async function _unresolvedTemplateVars(subject, body) {
   const found = new Set();
-  for (const m of String(subject || '').matchAll(/\{\{\s*(\w+)\s*\}\}/g)) found.add(m[1]);
-  for (const m of String(body || '').matchAll(/\{\{\s*(\w+)\s*\}\}/g)) {
-    if (!SERVER_TEMPLATE_BLOCKS.has(m[1])) found.add(m[1]);
+  const text = `${subject || ''}\n${body || ''}`;
+  if (!/\{\{\s*\w+\s*\}\}/.test(text)) return [];
+  const { blocks } = await _loadTemplates();
+  for (const m of text.matchAll(/\{\{\s*(\w+)\s*\}\}/g)) {
+    if (!blocks.has(m[1])) found.add(m[1]);
   }
   return [...found];
 }
@@ -249,18 +245,27 @@ function _unresolvedTemplateVars(subject, body) {
 let _invoiceTemplatesCache = null;
 let _tplPickerContext = { guest: null, reservation: null, active: false, vars: {} };
 
-async function openTemplatesPicker(subjectId, bodyId, forEmail) {
-  if (forEmail) _lastKnownComposeEmail = forEmail;
+// Modelos e nomes dos blocos do servidor, pedidos uma vez por sessão.
+async function _loadTemplates() {
   if (!_invoiceTemplatesCache) {
     try {
       const data = await AppModules.core.apiGet('/api/email-templates');
-      _invoiceTemplatesCache = (data?.data || []).filter(t => t.subject && t.body);
-    } catch { _invoiceTemplatesCache = []; }
+      _invoiceTemplatesCache = {
+        list: (data?.data || []).filter(t => t.subject && t.body),
+        blocks: new Set(data?.blocks || []),
+      };
+    } catch { return { list: [], blocks: new Set() }; }
   }
+  return _invoiceTemplatesCache;
+}
+
+async function openTemplatesPicker(subjectId, bodyId, forEmail) {
+  if (forEmail) _lastKnownComposeEmail = forEmail;
+  const templates = (await _loadTemplates()).list;
 
   _closeInvoiceModal('modal-tpl-picker');
 
-  if (!_invoiceTemplatesCache.length) {
+  if (!templates.length) {
     AppModules.core.toast('Sem templates configurados. Vai a Definições → Templates.', 'info');
     return;
   }
@@ -284,7 +289,7 @@ async function openTemplatesPicker(subjectId, bodyId, forEmail) {
           ? `<div class="tpl-picker-warning">⚠️ ${AppModules.invoice.esc(_tplPickerContext.guest.name || '')} não tem estadia ativa, nem chegada nos próximos 7 dias, nem saída nos últimos 7 dias — os campos da reserva vão ficar por preencher.</div>`
           : ''}
       <div class="modal-body" style="padding:8px 0;">
-        ${_invoiceTemplatesCache.map((t, i) => `
+        ${templates.map((t, i) => `
           <button class="tpl-picker-item" ${AppActions.attrs("click", "composicao-apply-template-0af418a", [i, String((subjectId) ?? ''), String((bodyId) ?? '')])}>
             <span class="tpl-picker-name">${AppModules.invoice.esc(t.name || t.slug)}</span>
             <span class="tpl-picker-sub">${AppModules.invoice.esc(t.subject)}</span>
@@ -297,7 +302,7 @@ async function openTemplatesPicker(subjectId, bodyId, forEmail) {
 }
 
 function _applyTemplate(index, subjectId, bodyId) {
-  const tpl = _invoiceTemplatesCache[index];
+  const tpl = _invoiceTemplatesCache?.list[index];
   if (!tpl) return;
 
   const vars = _tplPickerContext.vars || {};

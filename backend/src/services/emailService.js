@@ -218,7 +218,7 @@ function buildBlocks(vars, settings, reservation) {
   const stay = composer.buildStay({
     checkin: vars.data_checkin_curta, checkinNote: vars.hora_checkin ? `a partir das ${vars.hora_checkin}` : '',
     checkout: vars.data_checkout_curta, checkoutNote: vars.hora_checkout ? `até às ${vars.hora_checkout}` : '',
-    summary: [vars.alojamento, vars.noites && plural(vars.noites, 'noite', 'noites'), vars.num_hospedes && plural(vars.num_hospedes, 'hóspede', 'hóspedes')].filter(Boolean).join(' · '),
+    summary: [vars.alojamento, vars.noites && plural(vars.noites, 'noite', 'noites'), vars.num_hospedes && plural(vars.num_hospedes, 'hóspede', 'hóspedes'), vars.referencia && `Ref. ${vars.referencia}`].filter(Boolean).join(' · '),
   });
   const progress = composer.buildPaymentProgress({
     paid: vars.total_pago, total: vars.total, missing: vars.valor_em_falta, deadline: vars.prazo_pagamento_curto,
@@ -656,6 +656,10 @@ async function sendOwnerNewReservationEmail(organizationId, guest, reservation, 
   });
 }
 
+// Nomes dos blocos {{…}} que o servidor constrói. Fonte única para quem
+// precisa de os distinguir de variáveis em falta (ex.: envio manual).
+const BLOCK_NAMES = Object.freeze(Object.keys(buildBlocks({}, {}, null)));
+
 module.exports = {
   emailDisabled,
   isDeliverableEmail,
@@ -672,6 +676,7 @@ module.exports = {
   interpolate,
   buildVars,
   buildBlocks,
+  BLOCK_NAMES,
   renderEmail,
   renderManualEmail,
   statusPresentation,

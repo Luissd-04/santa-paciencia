@@ -397,9 +397,9 @@ async function main() {
   await expect(page.locator('#et-preview-frame')).toBeVisible();
 
   const previewFrame = page.frameLocator('#et-preview-frame');
-  await expect(previewFrame.locator('body')).toContainText('ALOJAMENTO LOCAL');
-  await expect(previewFrame.locator('body')).toContainText('Reserva confirmada');
-  await expect(previewFrame.locator('body')).toContainText('ACOMPANHE-NOS');
+  await expect(previewFrame.locator('body')).toContainText('RESERVA CONFIRMADA');
+  await expect(previewFrame.locator('body')).toContainText('Está tudo pronto para');
+  await expect(previewFrame.locator('.sp-social-block')).toContainText('Facebook');
 
   // Um rascunho por gravar tem de aparecer na pré-visualização.
   await page.evaluate(() => {
@@ -411,12 +411,12 @@ async function main() {
   // Mudar o estado da reserva muda o que a pré-visualização diz: uma reserva
   // pendente não pode aparecer como confirmada.
   await page.evaluate(() => {
-    document.getElementById('et-body').innerHTML = '{{titulo_reserva}}{{cartao_reserva}}';
+    document.getElementById('et-body').innerHTML = '{{titulo_reserva}}{{estadia}}{{resumo_pagamento}}';
     document.getElementById('et-preview-status').value = 'pendente';
     document.getElementById('et-body').dispatchEvent(new Event('input', { bubbles: true }));
   });
-  await expect(previewFrame.locator('body')).toContainText('Pedido de reserva recebido');
-  assert(!(await previewFrame.locator('body').textContent()).includes('Reserva confirmada'),
+  await expect(previewFrame.locator('body')).toContainText('Recebemos o seu pedido');
+  assert(!/RESERVA CONFIRMADA|Está tudo pronto/.test(await previewFrame.locator('body').textContent()),
     'reserva pendente apresentada como confirmada');
 
   // O iframe é isolado: sem allow-scripts, nada do corpo do email corre.
@@ -674,7 +674,7 @@ async function main() {
   const manualTemplateMessage = db.prepare(`SELECT subject,body_html FROM invoice_messages
     WHERE organization_id=? AND reservation_id='r011' ORDER BY rowid DESC LIMIT 1`).get(org.id);
   assert(manualTemplateMessage.body_html.includes('r011'), 'o cartão não trouxe a referência da reserva');
-  assert(manualTemplateMessage.body_html.includes('ACOMPANHE-NOS'), 'o envio manual não trouxe os links sociais comuns');
+  assert(manualTemplateMessage.body_html.includes('sp-social-block'), 'o envio manual não trouxe os links sociais comuns');
   assert(!/\{\{\s*\w+\s*\}\}/.test(manualTemplateMessage.subject + manualTemplateMessage.body_html),
     'o envio manual deixou marcadores do template por preencher');
   await page.locator('#ica-tpl-btn').click();
