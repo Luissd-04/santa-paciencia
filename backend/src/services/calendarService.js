@@ -38,8 +38,10 @@ const APP_EVENT_MARK = { private: { santaPaciencia: '1' } };
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const pax = reservation => Number(reservation.num_guests) || (Number(reservation.num_adults) || 0) + (Number(reservation.num_children) || 0) || 1;
 
-// Títulos sem ícones: o calendário já é o do alojamento, por isso o título
-// diz quem vem, quantos são e por onde reservaram.
+// Um ícone por tipo (a estadia é 🛏️, as tarefas usam o de config/eventTypes.js).
+// O calendário já é o do alojamento, por isso o título diz quem vem, quantos
+// são e por onde reservaram.
+const STAY_ICON = '🛏️';
 function reservationEventBody(reservation, guest, accommodation) {
   const { formatEUR } = require('./money');
   const { channelLabel } = require('../config/channels');
@@ -52,7 +54,7 @@ function reservationEventBody(reservation, guest, accommodation) {
   const rooms = (() => { try { return JSON.parse(reservation.accommodations_data || '[]'); } catch { return []; } })();
   const nights = Number(reservation.nights) || 0;
   return {
-    summary: `${guest.name} · ${pax(reservation)} pax · ${channelLabel(reservation.channel || 'direto')}`,
+    summary: `${STAY_ICON} ${guest.name} · ${pax(reservation)} pax · ${channelLabel(reservation.channel || 'direto')}`,
     description: [
       `${guest.name} · ${plural(adults, 'adulto', 'adultos')}${children ? ` + ${plural(children, 'criança', 'crianças')}` : ''}`,
       `${shortRange(reservation.check_in, reservation.check_out)} · ${plural(nights, 'noite', 'noites')}${reservation.arrival_time ? ` · chegada ${reservation.arrival_time}` : ''}`,
@@ -313,9 +315,9 @@ function addOneHour(time) {
 }
 
 const { EVENT_TYPE_EMOJIS, EVENT_TYPE_COLORS } = require('../config/eventTypes');
-// Ícones dos títulos antigos: só servem para reconhecer eventos da app criados
-// antes da marca APP_EVENT_MARK (limpeza de duplicados).
-const LEGACY_TITLE_ICONS = Object.values(EVENT_TYPE_EMOJIS).concat(['🏨']);
+// Ícones dos títulos antigos (até 10/2026): só servem para reconhecer eventos
+// da app criados antes da marca APP_EVENT_MARK (limpeza de duplicados).
+const LEGACY_TITLE_ICONS = ['🏨', '🧹', '👥', '☕', '🔑', '🔧', '🎉', '📋'];
 
 // Paleta fixa de cores de EVENTO da Calendar API (colorId 1-11) — não aceita hex livre,
 // ao contrário da cor do calendário em si (ver ensureAccommodationCalendar acima).
@@ -345,7 +347,7 @@ function nearestGoogleColorId(hex) {
 }
 
 // Tarefas criadas por uma reserva dizem o hóspede (e, no pequeno-almoço,
-// quantas pessoas); as outras ficam com o título da tarefa. Sem ícones.
+// quantas pessoas); as outras ficam com o título da tarefa.
 function taskSummary(task, reservation) {
   if (!task.auto_generated || !reservation) return task.title;
   const guest = reservation.guest_name || 'hóspede';
@@ -366,7 +368,7 @@ function taskEventBody(task, accommodation, reservation = null) {
     end   = { date: addDays(task.date, 1) };
   }
   return {
-    summary: taskSummary(task, reservation),
+    summary: `${EVENT_TYPE_EMOJIS[task.type] || EVENT_TYPE_EMOJIS.outro} ${taskSummary(task, reservation)}`,
     description: [
       task.notes,
       reservation?.arrival_time && task.auto_kind === 'checkin' ? `Chegada prevista: ${reservation.arrival_time}` : null,

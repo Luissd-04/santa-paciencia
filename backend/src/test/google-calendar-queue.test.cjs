@@ -147,7 +147,7 @@ test('alteração falhada é repetida com o estado atual da reserva', async () =
   assert.match(live('cal-a')[0].description, /Chegada tardia/);
 });
 
-test('títulos sem ícones: quem vem, quantos e por onde; tarefas com o hóspede', async () => {
+test('títulos com um ícone por tipo: quem vem, quantos e por onde; tarefas com o hóspede', async () => {
   db.exec(`UPDATE reservations SET num_guests = 3, num_adults = 2, num_children = 1, channel = 'booking', arrival_time = '16:00', amount_paid = 50 WHERE id = 'r1';
     UPDATE guests SET email = 'guest_x@sem-email.local', phone = '+351910000000' WHERE id = 'g1';
     INSERT INTO organization_settings(organization_id, key, value) VALUES ('org', 'gcal_sync_calendar', '1');
@@ -162,16 +162,13 @@ test('títulos sem ícones: quem vem, quantos e por onde; tarefas com o hóspede
   await service.processCalendarQueue('org');
   const byId = Object.fromEntries(live('cal-a').map(e => [e.id, e]));
   const summary = (kind, id) => byId[service.appEventId(kind, 'org', id)].summary;
-  assert.equal(summary('reservation', 'r1'), 'Hóspede Sintético · 3 pax · Booking.com');
-  assert.equal(summary('event', 't-in'), 'Check-in · Hóspede Sintético (3)');
-  assert.equal(summary('event', 't-pa'), 'Pequeno-almoço · 3 pessoas · Hóspede Sintético');
-  assert.equal(summary('event', 't-out'), 'Check-out · Hóspede Sintético');
-  assert.equal(summary('event', 't-limp'), 'Limpeza · Suite A');
-  assert.equal(summary('event', 't-man'), 'Reparar torneira');
-  for (const event of live('cal-a')) {
-    assert.doesNotMatch(event.summary, /\p{Extended_Pictographic}/u, `sem ícones: ${event.summary}`);
-    assert.equal(event.extendedProperties.private.santaPaciencia, '1');
-  }
+  assert.equal(summary('reservation', 'r1'), '🛏️ Hóspede Sintético · 3 pax · Booking.com');
+  assert.equal(summary('event', 't-in'), '🛎️ Check-in · Hóspede Sintético (3)');
+  assert.equal(summary('event', 't-pa'), '🥐 Pequeno-almoço · 3 pessoas · Hóspede Sintético');
+  assert.equal(summary('event', 't-out'), '🧳 Check-out · Hóspede Sintético');
+  assert.equal(summary('event', 't-limp'), '🧹 Limpeza · Suite A');
+  assert.equal(summary('event', 't-man'), '🛠️ Reparar torneira');
+  for (const event of live('cal-a')) assert.equal(event.extendedProperties.private.santaPaciencia, '1');
   const description = byId[service.appEventId('reservation', 'org', 'r1')].description;
   assert.match(description, /2 adultos \+ 1 criança/);
   assert.match(description, /2 noites · chegada 16:00/);
