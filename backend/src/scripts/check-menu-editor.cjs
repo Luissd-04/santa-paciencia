@@ -33,6 +33,17 @@ async function main() {
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(base);
   await expect(page.locator('body')).toHaveClass(/auth-ready/);
+  // Redimensionar a meio do carregamento das Reservas (o listener de
+  // lista-colunas.js corre antes de lista-render.js existir) não dá erro.
+  await page.route('**/lista-render.js*', async route => { await new Promise(r => setTimeout(r, 800)); await route.continue(); });
+  const loadingReservas = page.evaluate(() => AppModules.core.ensureFeature('reservas'));
+  await page.waitForTimeout(400);
+  await page.setViewportSize({ width: 390, height: 667 });
+  await page.setViewportSize({ width: 375, height: 667 });
+  await loadingReservas;
+  await page.unroute('**/lista-render.js*');
+  assert.deepEqual(errors, [], 'redimensionar durante o carregamento das Reservas');
+
 
   const drawer = page.locator('#side-drawer');
   const drawerItems = () => drawer.locator('#side-drawer-nav .side-drawer-item').evaluateAll(els => els.map(el => el.dataset.navId));
