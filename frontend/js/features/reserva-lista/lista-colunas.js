@@ -268,6 +268,9 @@ function initReservasHeadDnD() {
 // Auto-fit à largura do ecrã enquanto o utilizador não ajustar colunas à mão.
 let _resFitT = null;
 window.addEventListener('resize', () => {
+  // Este ficheiro corre antes de lista-render.js: um redimensionar a meio do
+  // carregamento das Reservas ainda não tem applyReservasViewMode.
+  if (!AppModules.core.isFeatureLoaded('reservas')) return;
   AppModules.reservas.applyReservasViewMode();
   if (reservasColsHaveManualWidths()) return;
   const v = document.getElementById('view-reservas');
