@@ -38,10 +38,8 @@ function staffEmails(organizationId) {
 // Aviso por email à equipa: etiqueta e título (quem e quando), as linhas da
 // reserva ({ label, value }), uma caixa opcional e o botão `url` para o
 // backoffice. Cabeçalho "Aviso à equipa" e sem redes sociais, por ser um
-// email interno. Uma falha parcial não repete o envio a quem já o recebeu.
-async function email(organizationId, { subject, eyebrow = '', tone = 'brand', headline = '', rows = [], note = null, url = '', footnote = '', accommodation = null }) {
-  const recipients = staffEmails(organizationId);
-  if (!recipients.length) return { sent: 0 };
+// email interno. compose() devolve { subject, html } sem enviar.
+function compose(organizationId, { subject, eyebrow = '', tone = 'brand', headline = '', rows = [], note = null, url = '', footnote = '', accommodation = null }) {
   const emailService = require('./emailService');
   const composer = require('./emailComposer');
   const resolved = accommodation ? emailService.resolveAccommodationInheritance(accommodation, organizationId) : null;
@@ -53,6 +51,16 @@ async function email(organizationId, { subject, eyebrow = '', tone = 'brand', he
     ${composer.buildButton(url, 'Abrir no backoffice')}
     ${footnote ? `<p style="font-family:${composer.SERIF};font-size:13px;line-height:1.5;color:${composer.PALETTE.muted};text-align:center;margin:12px 0 0;">${composer.escapeHtml(footnote)}</p>` : ''}
   `, settings, { headerLabel: 'Aviso à equipa', social: false });
+  return { subject, html };
+}
+
+// Envia para o proprietário e os gestores ativos. Uma falha parcial não
+// repete o envio a quem já o recebeu.
+async function email(organizationId, message) {
+  const recipients = staffEmails(organizationId);
+  if (!recipients.length) return { sent: 0 };
+  const emailService = require('./emailService');
+  const { subject, html } = compose(organizationId, message);
   let sent = 0, failed = 0;
   for (const to of recipients) {
     try {
@@ -66,4 +74,4 @@ async function email(organizationId, { subject, eyebrow = '', tone = 'brand', he
   return { sent };
 }
 
-module.exports = { KINDS, pushPayload, push, email, staffEmails };
+module.exports = { KINDS, pushPayload, push, compose, email, staffEmails };

@@ -74,6 +74,24 @@ const backofficeUrl = (event, reservation) => {
   return origin ? `${origin}/reservas?reserva=${encodeURIComponent(reservation.id)}` : '';
 };
 
+// Aviso à equipa de uma reserva cancelada (também usado pelos exemplos).
+function staffCancelledMessage(ctx, reason, url) {
+  return {
+    subject: `Reserva cancelada — ${ctx.guest.name || 'Hóspede'} · ${ctx.reservation.id}`,
+    eyebrow: CANCEL_REASONS[reason] || 'Reserva cancelada', tone: 'muted',
+    headline: `${guestName(ctx)} · ${stay(ctx)}`,
+    accommodation: ctx.accommodation,
+    rows: [
+      { label: 'Alojamento', value: ctx.accommodation.name || '' },
+      { label: 'Pago', value: money(ctx.reservation.amount_paid) },
+      { label: 'A devolver', value: refundOf(ctx.reservation) },
+      { label: 'Referência', value: ctx.reservation.id },
+    ],
+    note: { tone: 'ok', heading: 'As datas ficaram livres', html: require('./emailComposer').escapeHtml(`O calendário já mostra ${ctx.accommodation.name || 'o alojamento'} disponível nessas datas (${stay(ctx)}).`) },
+    url,
+  };
+}
+
 // Todos os emails ao hóspede passam por aqui. Um envio que tem de esperar
 // (janela do modelo, Gmail indisponível, envio anterior por confirmar) volta
 // à fila para essa hora; depois de a estadia acabar, desiste-se em silêncio.
@@ -121,20 +139,7 @@ const HANDLERS = {
     kind: 'cancellation', title: CANCEL_REASONS[event.payload.reason] || 'Reserva cancelada', body: summary(ctx),
     url: `/reservas?reserva=${ctx.reservation.id}`, excludeUserId: event.actorUserId,
   }),
-  staff_email_cancelled: (ctx, event) => staff.email(event.organizationId, {
-    subject: `Reserva cancelada — ${ctx.guest.name || 'Hóspede'} · ${ctx.reservation.id}`,
-    eyebrow: CANCEL_REASONS[event.payload.reason] || 'Reserva cancelada', tone: 'muted',
-    headline: `${guestName(ctx)} · ${stay(ctx)}`,
-    accommodation: ctx.accommodation,
-    rows: [
-      { label: 'Alojamento', value: ctx.accommodation.name || '' },
-      { label: 'Pago', value: money(ctx.reservation.amount_paid) },
-      { label: 'A devolver', value: refundOf(ctx.reservation) },
-      { label: 'Referência', value: ctx.reservation.id },
-    ],
-    note: { tone: 'ok', heading: 'As datas ficaram livres', html: require('./emailComposer').escapeHtml(`O calendário já mostra ${ctx.accommodation.name || 'o alojamento'} disponível nessas datas (${stay(ctx)}).`) },
-    url: backofficeUrl(event, ctx.reservation),
-  }),
+  staff_email_cancelled: (ctx, event) => staff.email(event.organizationId, staffCancelledMessage(ctx, event.payload.reason, backofficeUrl(event, ctx.reservation))),
   staff_push_precheckin: (ctx, event) => staff.push(event.organizationId, 'precheckin', {
     kind: 'precheckin', title: event.payload.resubmission ? 'Pré-check-in alterado pelo hóspede' : 'Pré-check-in recebido',
     body: [guestName(ctx), ctx.accommodation.name, `entrada a ${dates.shortDate(ctx.reservation.check_in)}`].filter(Boolean).join(' · '),
@@ -150,4 +155,4 @@ async function runEffect(effect, event) {
   await handler(ctx, event);
 }
 
-module.exports = { effectsFor, runEffect, CANCEL_REASONS };
+module.exports = { effectsFor, runEffect, staffCancelledMessage, CANCEL_REASONS };
