@@ -36,7 +36,9 @@ test('um exemplo de cada email, sem marcadores por preencher nem códigos reais'
   assert.equal(guest.length, slugs().length + 3, 'cada modelo uma vez e a confirmação em 4 estados');
   assert.deepEqual(all.filter(s => s.group === 'Equipa').map(s => s.name), ['Nova reserva', 'Reserva cancelada']);
   assert.equal(all.filter(s => s.group === 'Conta').length, 5);
-  assert.deepEqual([...new Set(all.map(s => s.group))], ['Hóspede', 'Equipa', 'Conta'], 'pela ordem da jornada');
+  assert.deepEqual([...new Set(all.map(s => s.group))], ['Teste', 'Hóspede', 'Equipa', 'Conta'], 'o teste do modo escuro e depois pela ordem da jornada');
+  // O teste do modo escuro mostra as 5 versões.
+  assert.equal((all[0].html.match(/VERSÃO \d/g) || []).length, 5);
   for (const s of all) {
     assert.ok(s.subject && s.html.includes('</html>'), s.name);
     assert.ok(!/\{\{\s*\w+\s*\}\}/.test(s.subject + s.html), `${s.name}: marcadores por preencher`);
@@ -71,7 +73,7 @@ test('enviar todos: valida o endereço, exige o Gmail, numera os assuntos e não
   assert.deepEqual(ok.body.failed, []);
   assert.equal(sent.length, ok.body.total);
   assert.ok(sent.every(m => m.to === 'luis@example.org' && m.org === org.id));
-  assert.match(sent[0].subject, new RegExp(`^\\[Exemplo 01/${ok.body.total}\\] `));
+  assert.match(sent[0].subject, new RegExp(`^\\[Exemplo 01/${ok.body.total}\\] Teste do modo escuro`));
   assert.match(sent.at(-1).subject, new RegExp(`^\\[Exemplo ${ok.body.total}/${ok.body.total}\\] Teste de email`));
 
   const again = await call({ to: 'luis@example.org' });
