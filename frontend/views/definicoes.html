@@ -376,6 +376,15 @@
                 <div class="emails-sidebar-sep"></div>
                 <div class="emails-sidebar-section-title">Configurações</div>
                 <div id="email-settings-panel"></div>
+                <div class="emails-sidebar-sep"></div>
+                <div class="emails-sidebar-section-title">Receber todos os emails</div>
+                <form class="email-samples-form" data-on-submit="emails-send-all-samples" novalidate>
+                  <p class="email-samples-hint">Um exemplo de cada email (hóspede, equipa e conta), com dados e códigos fictícios.</p>
+                  <label class="email-samples-label" for="email-samples-to">Enviar para</label>
+                  <input type="email" class="form-control" id="email-samples-to" placeholder="email@exemplo.pt" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" required>
+                  <button type="submit" class="btn btn-primary btn-sm" id="email-samples-btn"><i data-lucide="send"></i> Enviar todos</button>
+                  <div id="email-samples-result" class="email-samples-result" role="status" aria-live="polite"></div>
+                </form>
               </div>
               <div class="emails-editor" id="email-editor-panel">
                 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--cinza);gap:10px;">

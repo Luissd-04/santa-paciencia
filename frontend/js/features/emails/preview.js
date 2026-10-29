@@ -5,6 +5,7 @@
 AppModules.define('definicoes', {
   emailBodyChanged: { get: () => emailBodyChanged },
   previewEmail: { get: () => previewEmail },
+  sendAllSamples: { get: () => sendAllSamples },
   updateEmailPreview: { get: () => updateEmailPreview },
 });
 
@@ -76,9 +77,49 @@ async function previewEmail(slug) {
   }
 }
 
+// Um exemplo de cada email da plataforma para o endereço indicado (o servidor
+// compõe tudo com dados fictícios; ver services/emailSamples.js).
+async function sendAllSamples() {
+  const input = document.getElementById('email-samples-to');
+  const btn = document.getElementById('email-samples-btn');
+  const result = document.getElementById('email-samples-result');
+  const to = input?.value.trim() || '';
+  if (!to || !input.checkValidity()) {
+    AppModules.core.toast('Indique um endereço de email válido.', 'warning');
+    input?.focus();
+    return;
+  }
+  const label = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `${AppModules.core.lcIcon('loader-2', 13)} A enviar…`;
+  if (result) result.textContent = 'A enviar os exemplos, um de cada vez. Pode demorar até um minuto.';
+  try {
+    const data = await AppModules.core.apiPost('/api/email-templates/send-samples', { to }, { timeoutMs: 180000 });
+    if (data?.success) {
+      const failed = data.failed?.length ? ` Não foi possível enviar: ${data.failed.join(', ')}.` : '';
+      if (result) result.textContent = `Enviados ${data.sent} de ${data.total} emails para ${data.to}.${failed}`;
+      AppModules.core.toast(`📧 ${data.sent} emails enviados para ${data.to}`, failed ? 'warning' : 'success');
+    } else {
+      if (result) result.textContent = '';
+      AppModules.core.toast('❌ ' + (data?.error || 'Não foi possível enviar os exemplos.'), 'error');
+    }
+  } catch (e) {
+    if (result) result.textContent = '';
+    AppModules.core.toast('❌ ' + (e?.message || 'Erro de ligação ao servidor.'), 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = label;
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
 AppActions.register({
   "emails-preview-email-b9e13c6": (el, event, args) => { previewEmail(args[0]) },
 }, "click");
+
+AppActions.register({
+  "emails-send-all-samples": (el, event) => { event.preventDefault(); sendAllSamples() },
+}, "submit");
 
 AppActions.register({
   "emails-update-email-preview-34d4f1c": (el, event, args) => { updateEmailPreview() },

@@ -162,6 +162,9 @@ function renderEmailSettings() {
         ${AppModules.core.lcIcon('building-2', 13)} Ir para configurações de alojamento
       </button>
     </div>`;
+  // Os exemplos vão, por omissão, para o email de quem está a ver.
+  const samplesTo = document.getElementById('email-samples-to');
+  if (samplesTo && !samplesTo.value) samplesTo.value = AppModules.core.currentUser?.email || '';
   if (window.lucide) lucide.createIcons();
 }
 

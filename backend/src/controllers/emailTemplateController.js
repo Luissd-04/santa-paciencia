@@ -1,23 +1,10 @@
 const { db } = require('../config/database');
 const {
-  getEmailSettings, buildVars, buildBlocks, renderEmail, sanitizeUrlVars,
-  resolveAccommodationInheritance, BLOCK_NAMES,
+  getEmailSettings, renderEmail, resolveAccommodationInheritance, BLOCK_NAMES, isDeliverableEmail,
 } = require('../services/emailService');
 
-// Ordem cronológica da jornada do hóspede, para a lista ficar percetível
-// nas definições (o cancelamento fica no fim, como percurso de exceção).
-const TEMPLATE_ORDER = [
-  'confirmacao', 'pre_checkin', 'coordenadas',
-  'apos_checkin', 'antes_checkout', 'obrigado', 'cancelamento',
-];
-
-function sortTemplates(templates) {
-  return [...templates].sort((a, b) => {
-    const ia = TEMPLATE_ORDER.indexOf(a.slug);
-    const ib = TEMPLATE_ORDER.indexOf(b.slug);
-    return (ia === -1 ? TEMPLATE_ORDER.length : ia) - (ib === -1 ? TEMPLATE_ORDER.length : ib);
-  });
-}
+const samples = require('../services/emailSamples');
+const { sortTemplates } = samples;
 
 function getAll(req, res) {
   const templates = db.prepare(`
@@ -119,41 +106,14 @@ function resolveAccommodationContext(req) {
   return resolveAccommodationInheritance(accommodation, req.user.organization_id);
 }
 
-// Dados fictícios: a pré-visualização nunca lê uma reserva real. O estado é
-// escolhido pelo utilizador para poder ver como fica uma reserva pendente.
-const PREVIEW_STATUSES = ['confirmada', 'pre_reserva', 'pendente', 'aguardar_pagamento', 'cancelada'];
-
+// Dados fictícios (emailSamples): a pré-visualização nunca lê uma reserva
+// real. O estado é escolhido pelo utilizador para ver, por exemplo, como fica
+// uma reserva pendente.
+const baseUrl = req => `${req.protocol}://${req.get('host')}`;
 function buildPreviewContext(req) {
-  const orgId = req.user.organization_id;
-  const accommodation = resolveAccommodationContext(req);
-  const settings = getEmailSettings(accommodation, orgId);
-  const status = PREVIEW_STATUSES.includes(req.body?.status) ? req.body.status : 'confirmada';
-
-  const guest = { name: 'Rui Marques Silva', first_name: 'Rui', email: 'hospede.exemplo@example.org' };
-  const reservation = {
-    id: 'SP-1778013512761',
-    status,
-    check_in: '2026-05-29',
-    check_out: '2026-05-31',
-    nights: 2,
-    num_guests: 1,
-    total_amount: 240,
-    amount_paid: 80,
-    public_token: 'exemplo',
-    balance_deadline: '2026-05-14T11:00:00Z',
-    policy_cancellation_json: JSON.stringify({ refundCents: 4000 }),
-    organization_id: orgId,
-  };
-  const accommodationForVars = accommodation || { name: 'Suite Mezzanine Deluxe', city: settings.property_name };
-
-  const vars = sanitizeUrlVars(buildVars(guest, reservation, accommodationForVars, settings, {
-    link_pre_checkin: `${req.protocol}://${req.get('host')}/pre-checkin/exemplo`,
-    wifi_password: accommodationForVars.wifi_password || '••••••••',
-    codigo_porta: accommodationForVars.door_code || '1234#',
-    valor_pagamento: '80,00 €',
-  }));
-
-  return { settings, vars, blocks: buildBlocks(vars, settings, reservation), reservation };
+  return samples.previewContext(req.user.organization_id, {
+    baseUrl: baseUrl(req), status: req.body?.status, accommodation: resolveAccommodationContext(req),
+  });
 }
 
 // Assunto/corpo a compor: o rascunho aberto no editor tem prioridade sobre o
@@ -250,4 +210,31 @@ async function preview(req, res) {
   }
 }
 
-module.exports = { getAll, update, getSettings, saveSettings, preview, previewHtml };
+// POST /api/email-templates/send-samples — envia um exemplo de cada email da
+// plataforma (hóspede, equipa, conta) para `to`, com dados e códigos de
+// exemplo. Um envio por organização de cada vez, com pausa entre envios, para
+// não servir de canal de envio em massa.
+const SAMPLES_COOLDOWN_MS = 2 * 60 * 1000;
+const samplesSentAt = new Map();
+async function sendSamples(req, res) {
+  const orgId = req.user.organization_id;
+  const to = String(req.body?.to || '').trim();
+  if (!isDeliverableEmail(to)) return res.status(400).json({ error: 'Indique um endereço de email válido.' });
+  if (process.env.EMAIL_ENABLED === 'false') return res.status(400).json({ error: 'Email desativado (EMAIL_ENABLED=false)' });
+  if (!require('../config/googleEmail').isEmailAuthenticated(orgId)) {
+    return res.status(400).json({ error: 'Gmail não ligado — liga a conta Google nas definições' });
+  }
+  const wait = (samplesSentAt.get(orgId) || 0) + SAMPLES_COOLDOWN_MS - Date.now();
+  if (wait > 0) return res.status(429).json({ error: `Os exemplos acabaram de ser enviados. Tente de novo daqui a ${Math.ceil(wait / 60000)} min.` });
+  samplesSentAt.set(orgId, Date.now());
+  try {
+    const result = await samples.sendAll(orgId, to, { baseUrl: baseUrl(req) });
+    if (!result.sent) samplesSentAt.delete(orgId);
+    res.status(result.sent ? 200 : 502).json({ success: result.sent > 0, to, ...result });
+  } catch (e) {
+    samplesSentAt.delete(orgId);
+    res.status(500).json({ error: e.message });
+  }
+}
+
+module.exports = { getAll, update, getSettings, saveSettings, preview, previewHtml, sendSamples, _samplesSentAt: samplesSentAt };

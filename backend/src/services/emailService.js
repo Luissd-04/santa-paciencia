@@ -633,12 +633,12 @@ async function sendReservationRequestApprovedEmail(guest, reservation, accommoda
 // Pedidos por aprovar ou à espera do sinal chamam a atenção (âmbar).
 const STAFF_NEW_LABEL = { pendente: ['Novo pedido · por aprovar', 'warn'], aguardar_pagamento: ['Nova reserva · aguarda sinal', 'warn'] };
 
-async function sendOwnerNewReservationEmail(organizationId, guest, reservation, accommodation, appUrl) {
-  if (emailDisabled()) return null;
+// Aviso à equipa de uma reserva nova (também usado pelos exemplos).
+function ownerNewReservationMessage(guest, reservation, accommodation, appUrl) {
   const dates = require('./dates');
   const [eyebrow, tone] = STAFF_NEW_LABEL[reservation.status] || ['Nova reserva', 'ok'];
   const nights = Number(reservation.nights) || dates.daysBetween(reservation.check_in, reservation.check_out);
-  return require('./staffNotifier').email(organizationId, {
+  return {
     subject: `Nova reserva — ${guest.name} · ${reservation.id}`,
     eyebrow, tone,
     headline: `${guest.name || 'Hóspede'} · ${dates.shortRange(reservation.check_in, reservation.check_out)}`,
@@ -653,7 +653,12 @@ async function sendOwnerNewReservationEmail(organizationId, guest, reservation, 
     ],
     url: appUrl ? `${appUrl}/reservas?reserva=${encodeURIComponent(reservation.id)}` : '',
     footnote: `Referência ${reservation.id}`,
-  });
+  };
+}
+
+async function sendOwnerNewReservationEmail(organizationId, guest, reservation, accommodation, appUrl) {
+  if (emailDisabled()) return null;
+  return require('./staffNotifier').email(organizationId, ownerNewReservationMessage(guest, reservation, accommodation, appUrl));
 }
 
 // Nomes dos blocos {{…}} que o servidor constrói. Fonte única para quem
@@ -670,6 +675,7 @@ module.exports = {
   sendPreCheckinEmail,
   sendReservationRequestApprovedEmail,
   sendOwnerNewReservationEmail,
+  ownerNewReservationMessage,
   sendTemplatedEmail,
   baseTemplate,
   buildSocialButtons,

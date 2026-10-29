@@ -6,6 +6,8 @@ router.use(requireRole('manager'));
 router.get('/', ctrl.getAll);
 router.get('/email-settings', ctrl.getSettings);
 router.put('/email-settings', ctrl.saveSettings);
+// Envia um exemplo de cada email da plataforma para um endereço.
+router.post('/send-samples', ctrl.sendSamples);
 router.put('/:slug', ctrl.update);
 router.post('/:slug/preview', ctrl.preview);
 // Compõe o HTML da pré-visualização sem enviar email. Mesma permissão
