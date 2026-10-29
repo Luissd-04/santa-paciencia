@@ -293,13 +293,17 @@ test('a composição inclui os recursos de cor; o resultado no Gmail exige teste
 
 // Gmail do iPhone em modo escuro: o email fica igual ao modo claro (versão B
 // do teste de cores, confirmada no iPhone a 26/10/2026). Fundos presos por
-// gradiente, texto em camadas de mistura só ativas no Gmail, regras do Gmail
-// em blocos <style> próprios.
+// gradiente e texto em camadas de mistura, os dois só ativos pelas regras do
+// Gmail, em blocos <style> próprios. Um fundo nunca fica preso sozinho: com a
+// app nova do Gmail (29/10/2026) o fundo claro ficava com letra clara.
 test('todos os emails prendem as cores contra o modo escuro do Gmail', () => {
   const examples = [emailService.baseTemplate('<p>teste</p>', SETTINGS),
     ...Object.keys(TEMPLATES).map(slug => render(slug).html)];
   for (const html of examples) {
-    assert.match(html, /background-color:#faf5ec;[^"]*background-image:linear-gradient\(#faf5ec,#faf5ec\)/, 'fundo creme preso');
+    assert.match(html, /<style>\nu \+ \.body \.sp-page-bg \{ background-image:linear-gradient\(#[0-9a-f]{6},#[0-9a-f]{6}\) !important; \}[^<]*\.sp-surface-bg \{ background-image:linear-gradient\(#faf5ec,#faf5ec\) !important; \}/, 'fundo creme preso pelas regras do Gmail');
+    // Só o cabeçalho (logótipo branco) fica preso sempre.
+    assert.deepEqual(html.slice(html.indexOf('<body')).match(/class="[^"]*"[^>]*linear-gradient/g)?.map(m => m.match(/class="([^"]*)"/)[1]), ['sp-brand-bg sp-header'],
+      'nenhum outro fundo preso fora das regras do Gmail');
     assert.match(html, /<style>\nu \+ \.body \.sp-gs \{ background:#000; mix-blend-mode:screen; \}/, 'regras do Gmail no seu bloco');
     assert.ok(html.indexOf('u + .body .sp-gd') < html.indexOf(':root { color-scheme'), 'antes do bloco principal');
     assert.match(html, /class="sp-ge"><span class="sp-gd">/, 'texto escuro sobre creme');
