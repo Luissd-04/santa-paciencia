@@ -37,8 +37,8 @@ test('um exemplo de cada email, sem marcadores por preencher nem códigos reais'
   assert.deepEqual(all.filter(s => s.group === 'Equipa').map(s => s.name), ['Nova reserva', 'Reserva cancelada']);
   assert.equal(all.filter(s => s.group === 'Conta').length, 5);
   assert.deepEqual([...new Set(all.map(s => s.group))], ['Teste', 'Hóspede', 'Equipa', 'Conta'], 'o teste do modo escuro e depois pela ordem da jornada');
-  // O teste do modo escuro mostra as 5 versões.
-  assert.equal((all[0].html.match(/VERSÃO \d/g) || []).length, 5);
+  // O teste do modo escuro mostra as 3 versões.
+  assert.equal((all[0].html.match(/VERSÃO [A-C]/g) || []).length, 3);
   for (const s of all) {
     assert.ok(s.subject && s.html.includes('</html>'), s.name);
     assert.ok(!/\{\{\s*\w+\s*\}\}/.test(s.subject + s.html), `${s.name}: marcadores por preencher`);
@@ -93,4 +93,17 @@ test('uma falha não pára os outros exemplos', async () => {
   } finally {
     emailService.sendMail = original;
   }
+});
+
+test('teste do modo escuro: a cor misturada devolve a cor da marca sobre o fundo', () => {
+  const { ink } = require('../services/emailDarkModeTest');
+  const { PALETTE: P } = require('../services/emailComposer');
+  const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+  const close = (a, b) => rgb(a).every((v, i) => Math.abs(v - rgb(b)[i]) <= 1.5 / 255);
+  const exclusion = (s, b) => '#' + rgb(s).map((v, i) => Math.round((rgb(b)[i] + v - 2 * rgb(b)[i] * v) * 255).toString(16).padStart(2, '0')).join('');
+  const screen = (s, b) => '#' + rgb(s).map((v, i) => Math.round((1 - (1 - rgb(b)[i]) * (1 - v)) * 255).toString(16).padStart(2, '0')).join('');
+  for (const [color, backdrop] of [[P.brand, P.cardBg], [P.ok, P.okBg], [P.text, P.cardBg]]) {
+    assert.ok(close(exclusion(ink(color, backdrop, false), backdrop), color), `${color} sobre ${backdrop}`);
+  }
+  assert.ok(close(screen(ink(P.brandText, P.brand, true), P.brand), P.brandText), 'letra clara sobre terracota');
 });
