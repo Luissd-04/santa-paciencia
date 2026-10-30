@@ -602,19 +602,21 @@ function buildReservationCard(rows, total) {
 
 // ── Modo escuro do Gmail do iPhone ─────────────────────────────────────────
 // O Gmail inverte as cores do email por conta própria (ignora color-scheme).
-// Para o email ficar igual ao modo claro (versão B do teste de cores,
-// confirmada no iPhone a 26/10/2026):
+// Para o email ficar igual nos dois modos:
 //  1. cada fundo leva um gradiente da mesma cor, em que o Gmail não mexe;
 //  2. cada texto vai em duas camadas de mistura: no Gmail invertido,
 //     «difference» repõe o branco e «screen»/«exclusion» devolvem letra clara
-//     sobre terracota ou escura sobre creme. Nos outros clientes as camadas
-//     não têm estilo.
-// As duas proteções só se ativam juntas, pelas mesmas regras do Gmail
-// (u + .body). Se uma versão do Gmail deixar de as aplicar (como a app nova
-// do iPhone em 29/10/2026), o Gmail inverte o email inteiro, que continua
-// legível; antes o gradiente era inline e ficava sozinho: fundo claro com
-// letra clara. Cada grupo de regras vai no seu bloco <style>, sem nada que
-// o Gmail possa recusar, para um bloco não levar o outro.
+//     sobre terracota ou escura (quase preta) sobre os fundos claros. A cor
+//     da letra (castanho, verde) perde-se, nos dois modos e em todos os
+//     clientes que aplicam as regras — escolha do proprietário a 30/10/2026,
+//     confirmada no iPhone (versão A do 2.º teste).
+// As regras usam .body: a app nova do Gmail no iPhone deixou de pôr o <u> de
+// que dependia «u + .body» (29/10/2026). Ficam fora do alcance do Outlook do
+// Windows (comentário condicional), que lê as classes mas não as misturas e
+// mostraria a letra em caixas pretas. Se um cliente não as aplicar, inverte o
+// email inteiro, que continua legível; fundo e letra nunca ficam presos um
+// sem o outro. Cada grupo de regras vai no seu bloco <style>, para um bloco
+// recusado não levar o outro.
 // Fonte: hteumeuleu.com/2021/fixing-gmail-dark-mode-css-blend-modes/
 const LIGHT_TEXT = /\bsp-(?:brand-on-text|brand-subtext)\b/;
 const DARK_TEXT = /\bsp-(?:text|text-soft|muted-text|brand-text|brand-soft-text|ok-text|warn-text)\b/;
@@ -626,14 +628,17 @@ const BACKGROUND_CLASSES = [
   ['sp-accent-bg', PALETTE.accent], ['sp-ok-bg', PALETTE.okBg], ['sp-warn-bg', PALETTE.warnBg], ['sp-chip-bg', PALETTE.chipBg],
 ];
 
-const GMAIL_SCOPES = ['u + .body', 'u ~ .body', 'u + div.body'];
-const GMAIL_BLEND_STYLES = GMAIL_SCOPES.flatMap(scope => [`<style>
-${scope} .sp-gs { background:#000; mix-blend-mode:screen; }
-${scope} .sp-ge { background:#000; mix-blend-mode:exclusion; }
-${scope} .sp-gd { background:#000; mix-blend-mode:difference; color:#fff; }
-</style>`, `<style>
-${BACKGROUND_CLASSES.map(([cls, color]) => `${scope} .${cls} { background-image:linear-gradient(${color},${color}) !important; }`).join('\n')}
-</style>`]).join('\n');
+const GMAIL_SCOPE = '.body';
+const GMAIL_BLEND_STYLES = `<!--[if !mso]><!-->
+<style>
+${GMAIL_SCOPE} .sp-gs { background:#000; mix-blend-mode:screen; }
+${GMAIL_SCOPE} .sp-ge { background:#000; mix-blend-mode:exclusion; }
+${GMAIL_SCOPE} .sp-gd { background:#000; mix-blend-mode:difference; color:#fff; }
+</style>
+<style>
+${BACKGROUND_CLASSES.map(([cls, color]) => `${GMAIL_SCOPE} .${cls} { background-image:linear-gradient(${color},${color}) !important; }`).join('\n')}
+</style>
+<!--<![endif]-->`;
 
 function blendText(inner) {
   const frames = [];
