@@ -110,11 +110,8 @@ function accountSamples(orgId, { baseUrl }) {
 }
 
 // Todos os exemplos, pela ordem em que chegam à caixa: hóspede, equipa, conta.
-// Temporário: o teste do modo escuro do Gmail (services/emailDarkModeTest.js)
-// vai primeiro, até se escolher a versão.
 function allSamples(orgId, { baseUrl = '' } = {}) {
-  const darkModeTest = { group: 'Teste', name: 'Teste do modo escuro', ...require('./emailDarkModeTest').build() };
-  return [darkModeTest, ...guestSamples(orgId, { baseUrl }), ...staffSamples(orgId, { baseUrl }), ...accountSamples(orgId, { baseUrl })];
+  return [...guestSamples(orgId, { baseUrl }), ...staffSamples(orgId, { baseUrl }), ...accountSamples(orgId, { baseUrl })];
 }
 
 // Envia cada exemplo para `to`, numerado no assunto para ficar por ordem.
