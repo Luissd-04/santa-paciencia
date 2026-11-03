@@ -569,7 +569,10 @@
 
 .layout.sb-collapsed .nav-badge { display: none !important; }
 
-/* ── Template picker ── */
+/* ── Template picker (janela única, AppUI.openDialog) ── */
+.app-dialog.tpl-picker-dialog { width: min(440px, 95vw); }
+.app-dialog.compose-dialog { width: min(480px, 95vw); }
+.tpl-picker-dialog .modal-body { padding: 8px 0; gap: 4px; }
 .tpl-picker-item {
   display: flex;
   flex-direction: column;

@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { chromium, webkit, devices, expect } = require('@playwright/test');
+const { chooseDate: pickDate } = require('../test-support/date-picker.cjs');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'sp-public-mobile-'));
 const previous = process.cwd();
 process.chdir(temp);
@@ -33,20 +34,7 @@ async function main() {
   await page.goto(url);
   await expect(page.locator('#property-name')).toHaveText('Casa de teste');
   await expect(page.locator('[data-flow-mobile] #next-btn')).toBeVisible();
-  async function chooseDate(input, iso) {
-    await input.click();
-    const calendar = page.getByRole('dialog', { name: 'Calendário' });
-    await calendar.locator('[data-nav="to-months"]').click();
-    await calendar.locator('[data-nav="to-years"]').click();
-    const year = Number(iso.slice(0, 4));
-    while (!await calendar.locator(`[data-year="${year}"]`).count()) {
-      const first = Number(await calendar.locator('[data-year]').first().getAttribute('data-year'));
-      await calendar.locator(`[data-nav="${year < first ? 'pyp' : 'nyp'}"]`).click();
-    }
-    await calendar.locator(`[data-year="${year}"]`).click();
-    await calendar.locator(`[data-month="${Number(iso.slice(5, 7)) - 1}"]`).click();
-    await calendar.locator(`[data-iso="${iso}"]`).click();
-  }
+  const chooseDate = (input, iso) => pickDate(page, input, iso);
   // O calendário move o foco; selecionar datas testa a interação real em Safari.
   await chooseDate(page.locator('#pb-checkout'), '2035-02-03');
   await chooseDate(page.locator('#pb-checkin'), '2035-02-01');

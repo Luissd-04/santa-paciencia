@@ -216,10 +216,13 @@ function renderPrecosCalendar() {
   }
 
   // Header with month nav
-  let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding:0 2px;">
-    <button class="btn btn-ghost btn-sm" data-precos-nav data-on-click="precos-precos-nav-month-74389c1" style="gap:4px;">${AppModules.core.lcIcon('chevron-left',16)} Anterior</button>
-    <div style="font-size:17px;font-weight:700;color:var(--texto);">${PRECOS_MONTH_NAMES[_precosMonth-1]} ${_precosYear}</div>
-    <button class="btn btn-ghost btn-sm" data-precos-nav data-on-click="precos-precos-nav-month-bbb65ce" style="gap:4px;">Seguinte ${AppModules.core.lcIcon('chevron-right',16)}</button>
+  // No telemóvel estreito os botões ficam só com a seta (o nome do mês mais
+  // comprido, «Fevereiro»/«Novembro», não cabia ao lado de «Anterior» e
+  // «Seguinte» a 320 px).
+  let html = `<div class="precos-cal-head">
+    <button class="btn btn-ghost btn-sm" data-precos-nav data-on-click="precos-precos-nav-month-74389c1" aria-label="Mês anterior">${AppModules.core.lcIcon('chevron-left',16)}<span class="precos-nav-label"> Anterior</span></button>
+    <div class="precos-cal-month">${PRECOS_MONTH_NAMES[_precosMonth-1]} ${_precosYear}</div>
+    <button class="btn btn-ghost btn-sm" data-precos-nav data-on-click="precos-precos-nav-month-bbb65ce" aria-label="Mês seguinte"><span class="precos-nav-label">Seguinte </span>${AppModules.core.lcIcon('chevron-right',16)}</button>
   </div>`;
 
   if (!_precosAlojId) {

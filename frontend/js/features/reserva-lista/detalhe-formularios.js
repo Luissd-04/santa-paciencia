@@ -20,7 +20,7 @@ function openPaymentForm(reservationId, currentPaid, total) {
     body: `
       <div class="form-group">
         <label class="form-label" for="pf-amount">Valor (€)</label>
-        <input id="pf-amount" class="form-control" type="number" inputmode="decimal" min="0" step="0.01" value="${remaining}" autocomplete="off">
+        <input id="pf-amount" class="form-control" type="text" inputmode="decimal" value="${remaining}" autocomplete="off">
       </div>
       <div class="form-group">
         <label class="form-label" for="pf-method">Método</label>
@@ -50,7 +50,9 @@ function openPaymentForm(reservationId, currentPaid, total) {
 }
 
 async function savePaymentForm(reservationId) {
-  const amount = parseFloat(document.getElementById('pf-amount')?.value);
+  // Vírgula ou ponto: o campo de texto aceita os dois (o numérico do Safari
+  // recusava o ponto em português).
+  const amount = ReservationMoney.parse(document.getElementById('pf-amount')?.value);
   const method = document.getElementById('pf-method')?.value;
   const date = document.getElementById('pf-date')?.value;
   if (isNaN(amount) || amount <= 0) { AppModules.core.toast('⚠️ Valor inválido', 'error'); return; }

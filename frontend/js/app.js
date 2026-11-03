@@ -167,6 +167,13 @@ window.addEventListener('popstate', async (e) => {
   if (v === 'gcal') { settingsTab = 'gcal'; v = 'definicoes'; }
   if (v === 'equipa') { settingsTab = 'equipa'; v = 'definicoes'; }
   if (v === 'emails') { settingsTab = 'emails'; v = 'definicoes'; }
+  if (v === 'definicoes' && e.state?.settingsTab) {
+    settingsTab = e.state.settingsTab;
+    await showView('definicoes', false);
+    settingsSectionOpen = Boolean(e.state.section);
+    applySettingsTab();
+    return;
+  }
   if (e.state?.reservaDetail && v === 'reservas') {
     AppModules.core.openingReservationDetail = true;
     try { await showView('reservas', false); } finally { AppModules.core.openingReservationDetail = false; }
@@ -301,12 +308,20 @@ function switchSettingsTab(tab, render = true) {
   settingsSectionOpen = true;
   applySettingsTab();
   if (render) {
+    // Cada secção aberta fica no histórico: o «voltar» do browser regressa à
+    // secção (ou à lista) anterior, em vez de sair das Definições.
+    const state = history.state || {};
+    if (state.view !== 'definicoes' || state.settingsTab !== settingsTab || !state.section) {
+      history.pushState({ view: 'definicoes', settingsTab, section: true }, '', '/definicoes');
+    }
     window.scrollTo({ top: 0, behavior: 'instant' });
     renderSettingsView();
   }
 }
 
 function openSettingsIndex() {
+  // A seta da secção (telemóvel) faz o mesmo que o «voltar» do browser.
+  if (history.state?.view === 'definicoes' && history.state.section) { history.back(); return; }
   settingsSectionOpen = false;
   applySettingsTab();
   window.scrollTo({ top: 0, behavior: 'instant' });

@@ -175,6 +175,24 @@ async function main() {
   await openDrawer();
   await expect(drawer.locator('.side-drawer-section')).toHaveText(['Principal', 'Gestão']);
   assert.ok((await drawerItems()).includes('vouchers'));
+
+  // O «voltar» do browser nas Definições: de uma secção volta à lista, e a
+  // secção anterior volta a abrir com «avançar» (antes saía das Definições).
+  await drawer.getByRole('button', { name: 'Definições' }).click();
+  const shell = page.locator('.settings-shell');
+  await expect(shell).not.toHaveClass(/is-section-open/);
+  await page.locator('.settings-tab[data-settings-tab="push"]').click();
+  await expect(shell).toHaveClass(/is-section-open/);
+  await expect(page.locator('#settings-push')).toHaveClass(/active/);
+  await page.goBack();
+  await expect(page.locator('#view-definicoes')).toHaveClass(/active/);
+  await expect(shell).not.toHaveClass(/is-section-open/);
+  await page.goForward();
+  await expect(shell).toHaveClass(/is-section-open/);
+  await expect(page.locator('#settings-push')).toHaveClass(/active/);
+  // A seta da própria secção faz o mesmo.
+  await page.locator('#settings-push .settings-back, .settings-shell .settings-back').first().click();
+  await expect(shell).not.toHaveClass(/is-section-open/);
   assert.deepEqual(errors, []);
   console.log('OK: menu do telemóvel — conta fixa no fundo, ordem (arrastar e teclado), esconder, atalhos da barra, guardar, recarregar e repor.');
 }
