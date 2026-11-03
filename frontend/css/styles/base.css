@@ -37,6 +37,8 @@ body.auth-locked {
 
 /* Só o proprietário vê o que tem data-owner-only (classe posta em js/auth.js). */
 body:not(.role-owner) [data-owner-only="true"] { display: none !important; }
+/* Proprietário e gestores (alertas do sistema, por exemplo). */
+body:not(.role-manager-or-owner) [data-manager-only="true"] { display: none !important; }
 
 .bg-pattern {
   position: fixed;

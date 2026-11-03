@@ -108,7 +108,7 @@ async function showDetail(id, opts = {}) {
     if (!isNaN(standardTotal) && standardTotal > 0) {
       const priceDiff = total - standardTotal;
       const editedNote = r.price_edited_at
-        ? ` · editada manualmente em ${sd(r.price_edited_at.slice(0, 10))}${r.price_edited_by_name ? ` por ${AppModules.core.escapeHtml(r.price_edited_by_name)}` : ''}`
+        ? ` · editada manualmente em ${window.ReservationDates.formatDateTime(r.price_edited_at, 'date')}${r.price_edited_by_name ? ` por ${AppModules.core.escapeHtml(r.price_edited_by_name)}` : ''}`
         : '';
       if (Math.abs(priceDiff) > 0.005) {
         priceCompareLine = `

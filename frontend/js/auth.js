@@ -88,7 +88,10 @@ function clearFieldErrors() {
 // partir desta classe no <body>: assim também vale para a marcação das vistas
 // que só chega depois, quando a vista abre (domain/features.js).
 function updateOwnerUiVisibility() {
-  document.body.classList.toggle('role-owner', AppModules.core.currentUser?.role === 'owner');
+  const role = AppModules.core.currentUser?.role;
+  document.body.classList.toggle('role-owner', role === 'owner');
+  // Gestão (proprietário ou gestor): [data-manager-only].
+  document.body.classList.toggle('role-manager-or-owner', role === 'owner' || role === 'manager');
 }
 
 // ── Contas guardadas neste dispositivo ──

@@ -58,14 +58,10 @@ async function sendInvoiceEmail(toEmail, toName, reservationId, standalone) {
 }
 
 /* ── Modal helper ── */
+// As janelas desta funcionalidade são da janela única (AppUI.openDialog):
+// foco, `inert` e Escape tratados num só sítio.
 function _closeInvoiceModal(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  // Os modais dinâmicos também passam pelo gestor global, que aplica
-  // `inert` ao resto da página e guarda o foco anterior. Remover o elemento
-  // diretamente deixa esse estado preso e bloqueia todos os cliques seguintes.
-  AppUI.closeModal(el);
-  el.remove();
+  AppUI.closeDialog(id);
 }
 
 /* ── Nova conversa (email avulso) ── */
@@ -73,23 +69,16 @@ let _novaConversaReservationId = null;
 
 function openNovaConversa(prefillEmail = '', prefillName = '', reservationId = null) {
   _novaConversaReservationId = reservationId || null;
-  _closeInvoiceModal('modal-nova-conversa');
-
-  const wrap = document.createElement('div');
-  wrap.className = 'modal-bg open';
-  wrap.id = 'modal-nova-conversa';
-  wrap.addEventListener('click', e => { if (e.target === wrap) _closeInvoiceModal('modal-nova-conversa'); });
-  wrap.innerHTML = `
-    <div class="modal" style="max-width:480px;">
-      <div class="modal-header">
-        <h3>Nova mensagem${prefillName ? ` para ${prefillName.split(' ')[0]}` : ''}</h3>
-        <button class="modal-close" data-on-click="composicao-close-invoice-modal-8a17ccf">
-          <i data-lucide="x"></i>
-        </button>
-      </div>
-      <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+  const esc = AppModules.invoice.esc;
+  const firstName = String(prefillName || '').split(' ')[0];
+  AppUI.openDialog({
+    id: 'modal-nova-conversa',
+    title: `Nova mensagem${firstName ? ` para ${esc(firstName)}` : ''}`,
+    className: 'compose-dialog',
+    body: `
+      <div style="display:flex;flex-direction:column;gap:12px;">
         <label class="form-label">Para (email)
-          <input class="form-control" type="email" id="nc-to" placeholder="hospede@email.com" value="${prefillEmail || ''}" autocomplete="off">
+          <input class="form-control" type="email" id="nc-to" placeholder="hospede@email.com" value="${esc(prefillEmail || '')}" autocomplete="off">
         </label>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
           <label class="form-label" style="margin:0;flex:1;">Assunto
@@ -103,17 +92,13 @@ function openNovaConversa(prefillEmail = '', prefillName = '', reservationId = n
         <label class="form-label">Mensagem</label>
         ${buildComposeToolbar()}
         <div class="email-body-editor compose-body-editor" id="nc-body" contenteditable="true" data-placeholder="Escreve a tua mensagem..."></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-ghost" data-on-click="composicao-close-invoice-modal-8a17ccf">Cancelar</button>
-        <button class="btn btn-primary" id="nc-send-btn" data-on-click="composicao-send-nova-conversa-1a4eb0f">
-          <i data-lucide="send"></i> Enviar
-        </button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(wrap);
-  if (window.lucide) lucide.createIcons();
+      </div>`,
+    footer: `
+      <button class="btn btn-ghost" data-on-click="composicao-close-invoice-modal-8a17ccf">Cancelar</button>
+      <button class="btn btn-primary" id="nc-send-btn" data-on-click="composicao-send-nova-conversa-1a4eb0f">
+        <i data-lucide="send"></i> Enviar
+      </button>`,
+  });
   const toField = document.getElementById('nc-to');
   toField?.addEventListener('blur', () => _applyTemplateGating('nc-tpl-btn', toField.value.trim()));
   _applyTemplateGating('nc-tpl-btn', prefillEmail);
@@ -273,32 +258,24 @@ async function openTemplatesPicker(subjectId, bodyId, forEmail) {
   const email = _currentComposeEmail(bodyId);
   _tplPickerContext = await _fetchComposeContext(email);
 
-  const wrap = document.createElement('div');
-  wrap.className = 'modal-bg open';
-  wrap.id = 'modal-tpl-picker';
-  wrap.addEventListener('click', e => { if (e.target === wrap) _closeInvoiceModal('modal-tpl-picker'); });
-  wrap.innerHTML = `
-    <div class="modal" style="max-width:440px;">
-      <div class="modal-header">
-        <h3><i data-lucide="layout-template" style="width:16px;height:16px;vertical-align:-2px;margin-right:4px;"></i>Escolher template</h3>
-        <button class="modal-close" data-on-click="composicao-get-element-by-id-12671d3"><i data-lucide="x"></i></button>
-      </div>
+  AppUI.openDialog({
+    id: 'modal-tpl-picker',
+    title: '<i data-lucide="layout-template" style="width:16px;height:16px;vertical-align:-2px;margin-right:4px;"></i>Escolher template',
+    className: 'tpl-picker-dialog',
+    body: `
       ${!_tplPickerContext.guest
         ? `<div class="tpl-picker-warning">⚠️ Sem hóspede associado a este email — os campos da reserva vão ficar por preencher.</div>`
         : !_tplPickerContext.eligible
           ? `<div class="tpl-picker-warning">⚠️ ${AppModules.invoice.esc(_tplPickerContext.guest.name || '')} não tem estadia ativa, nem chegada nos próximos 7 dias, nem saída nos últimos 7 dias — os campos da reserva vão ficar por preencher.</div>`
           : ''}
-      <div class="modal-body" style="padding:8px 0;">
+      <div class="tpl-picker-list">
         ${templates.map((t, i) => `
           <button class="tpl-picker-item" ${AppActions.attrs("click", "composicao-apply-template-0af418a", [i, String((subjectId) ?? ''), String((bodyId) ?? '')])}>
             <span class="tpl-picker-name">${AppModules.invoice.esc(t.name || t.slug)}</span>
             <span class="tpl-picker-sub">${AppModules.invoice.esc(t.subject)}</span>
           </button>`).join('')}
-      </div>
-    </div>
-  `;
-  document.body.appendChild(wrap);
-  if (window.lucide) lucide.createIcons();
+      </div>`,
+  });
 }
 
 function _applyTemplate(index, subjectId, bodyId) {
@@ -316,7 +293,6 @@ function _applyTemplate(index, subjectId, bodyId) {
 /* ── Manter a conversa aberta ao recarregar a página ── */
 
 AppActions.register({
-  "composicao-get-element-by-id-12671d3": (el, event, args) => { _closeInvoiceModal('modal-tpl-picker') },
   "composicao-exec-command-c7ec81d": (el, event, args) => { document.execCommand('bold') },
   "composicao-exec-command-5331e67": (el, event, args) => { document.execCommand('italic') },
   "composicao-exec-command-2bf8db4": (el, event, args) => { document.execCommand('underline') },

@@ -84,7 +84,7 @@ async function importReservasXLS(input) {
         if (!parsed) return '';
         return `${parsed.y}-${String(parsed.m).padStart(2, '0')}-${String(parsed.d).padStart(2, '0')}`;
       };
-      const asAmount = value => parseFloat(String(value || '').replace(',', '.')) || 0;
+      const asAmount = value => ReservationMoney.parse(value) || 0;
 
       let created = 0, skipped = 0, cancelled = 0;
       for (const row of rows) {

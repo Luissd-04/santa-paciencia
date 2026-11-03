@@ -1,4 +1,4 @@
-FROM node:22-alpine AS dependencies
+FROM node:22.23.4-alpine3.23 AS dependencies
 
 # better-sqlite3 é um módulo nativo — as ferramentas de compilação ficam
 # apenas nesta fase e não entram na imagem final.
@@ -10,7 +10,7 @@ WORKDIR /app
 COPY backend/src/package*.json ./
 RUN npm ci --omit=dev
 
-FROM node:22-alpine AS runtime
+FROM node:22.23.4-alpine3.23 AS runtime
 
 # zip/unzip são necessários ao export/import de backups; tzdata ao fuso local.
 RUN apk add --no-cache zip unzip tzdata

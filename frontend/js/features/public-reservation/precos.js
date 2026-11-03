@@ -58,14 +58,23 @@ function recalc() {
   const note = AppModules.booking.$('summary-dates-note');
   if (note) note.style.display = hasDates ? '' : 'none';
 
+  // Sem escolha disponível não há total a mostrar (antes ficava a taxa
+  // turística sozinha, ex. 18,00 €, com o nome da casa ocupada).
+  const selection = AppModules.booking.selectionAvailability();
+  if ((!isPropertySelected && !unit) || (selection && !selection.available)) {
+    AppModules.booking.$('summary-unit').textContent = 'Escolha um quarto';
+    AppModules.booking.$('summary-media').style.backgroundImage = '';
+    document.querySelectorAll('.summary-row.muted:not(#summary-discount-row)').forEach(row => row.style.display = 'none');
+    if (totalRow) totalRow.style.display = 'none';
+    return;
+  }
+
   if (isPropertySelected) {
     AppModules.booking.$('summary-unit').textContent = AppModules.booking.state.property?.name || 'Alojamento completo';
     AppModules.booking.$('summary-media').style.backgroundImage = `url(${JSON.stringify(AppModules.booking.mediaThumb(AppModules.booking.state.property?.images?.[0]?.url, 1024))})`;
-  } else if (unit) {
+  } else {
     AppModules.booking.$('summary-unit').textContent = unit.name;
     AppModules.booking.$('summary-media').style.backgroundImage = `url(${JSON.stringify(AppModules.booking.mediaThumb(unit.cover_image || unit.images?.[0]?.url, 1024))})`;
-  } else {
-    return;
   }
 
   if (!n) return;

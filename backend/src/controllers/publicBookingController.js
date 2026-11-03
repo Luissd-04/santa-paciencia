@@ -417,10 +417,19 @@ function getReservationStatus(req, res) {
       total_amount: Number(reservation.total_amount || 0),
       amount_paid: Number(reservation.amount_paid || 0),
       created_at: reservation.created_at,
+      // Link para o pré-check-in (antes só chegava por email): só depois de a
+      // reserva ser aceite e enquanto o pré-check-in estiver aberto.
+      precheckin: precheckinLink(reservation),
       cover_image: imageUrl(req, reservation.cover_image),
       images: normalizeImages(req, reservation).map(img => img.url).filter(Boolean),
     },
   });
+}
+
+function precheckinLink(reservation) {
+  if (reservation.status === 'pendente' || precheckinClosed(reservation)) return null;
+  const token = reservation.precheckin_token || reservation.public_token;
+  return { path: `/pre-checkin/${encodeURIComponent(token)}`, submitted: Boolean(reservation.precheckin_submitted_at) };
 }
 
 // O hóspede pode abrir e corrigir o pré check-in quantas vezes quiser até ao

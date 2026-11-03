@@ -3,6 +3,7 @@
 AppModules.define('booking', {
   _turnstileToken: { get: () => _turnstileToken, set: value => { _turnstileToken = value; } },
   availabilityFor: { get: () => availabilityFor },
+  selectionAvailability: { get: () => selectionAvailability },
   init: { get: () => init },
   renderTurnstile: { get: () => renderTurnstile },
   renderUnits: { get: () => renderUnits },
@@ -131,6 +132,17 @@ function availabilityFor(unitId) {
   return AppModules.booking.state.availability.find(a => a.id === unitId);
 }
 
+// Disponibilidade da escolha atual: a casa inteira tem uma entrada própria
+// (type 'property'); sem datas não há entrada e devolve undefined.
+function selectionAvailability() {
+  const id = AppModules.booking.state.selectedUnitId;
+  if (!id) return undefined;
+  if (id === 'property' || id === AppModules.booking.state.property?.id) {
+    return AppModules.booking.state.availability.find(a => a.type === 'property');
+  }
+  return availabilityFor(id);
+}
+
 function renderUnits() {
   const container = AppModules.booking.$('unit-list');
   const propertyAv = AppModules.booking.state.availability.find(a => a.type === 'property');
@@ -195,9 +207,12 @@ function renderUnits() {
       const extraPrice = extraOpts[0]?.price || 0;
       const rooms = unit.num_rooms || 1;
       const extraLine = extraCapacity > 0 && extraPrice > 0
-        ? `<p class="unit-desc-extra">${extraCapacity} hóspede${extraCapacity !== 1 ? 's' : ''} adiciona${extraCapacity !== 1 ? 'is' : 'l'} · ${AppModules.booking.fmtCurrency(extraPrice)}/noite</p>`
+        ? `<p class="unit-desc-extra">${baseGuests} incluído${baseGuests !== 1 ? 's' : ''} no preço · cada hóspede a mais ${AppModules.booking.fmtCurrency(extraPrice)}/noite</p>`
         : '';
-      descHtml = `<p>${baseGuests} hóspede${baseGuests !== 1 ? 's' : ''} · ${rooms} quarto${rooms !== 1 ? 's' : ''}</p>${extraLine}`;
+      // A lotação mostrada é a máxima: quem procura para 3 tem de ver que cabe,
+      // mesmo quando o 3.º hóspede não paga extra.
+      const maxGuests = Math.max(baseGuests, Number(unit.max_guests) || baseGuests);
+      descHtml = `<p>Até ${maxGuests} hóspede${maxGuests !== 1 ? 's' : ''} · ${rooms} quarto${rooms !== 1 ? 's' : ''}</p>${extraLine}`;
     }
 
     return `

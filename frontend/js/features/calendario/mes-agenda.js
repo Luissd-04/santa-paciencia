@@ -203,10 +203,7 @@ function drawCal() {
 }
 
 function closeCalendarOverflow() {
-  const modal = document.getElementById('calendar-overflow-modal');
-  if (!modal) return;
-  AppUI.closeModal(modal);
-  modal.remove();
+  AppUI.closeDialog('calendar-overflow-modal');
 }
 
 function openCalendarOverflow(dateStr) {
@@ -218,25 +215,20 @@ function openCalendarOverflow(dateStr) {
   const dateLabel = new Date(`${dateStr}T12:00:00`).toLocaleDateString('pt-PT', {
     weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
   });
-  document.getElementById('calendar-overflow-modal')?.remove();
-  const modal = document.createElement('div');
-  modal.id = 'calendar-overflow-modal';
-  modal.className = 'modal-bg';
-  modal.innerHTML = `<div class="modal calendar-overflow-dialog">
-    <div class="modal-header">
-      <div><h3>Reservas do dia</h3><p>${AppModules.core.escapeHtml(dateLabel)}</p></div>
-      <button type="button" class="modal-close" aria-label="Fechar" ${AppActions.attrs("click", "mes-agenda-close-overflow-0d3c59b")}>${AppModules.core.lcIcon('x', 18)}</button>
-    </div>
+  // Janela única da aplicação (AppUI.openDialog): foco, Escape e fecho iguais
+  // às restantes.
+  AppUI.openDialog({
+    id: 'calendar-overflow-modal',
+    title: 'Reservas do dia',
+    className: 'calendar-overflow-dialog',
+    body: `<p class="calendar-overflow-date">${AppModules.core.escapeHtml(dateLabel)}</p>
     <div class="calendar-overflow-list">
       ${reservations.map(r => `<button type="button" class="calendar-overflow-item" ${AppActions.attrs("click", "mes-agenda-open-overflow-reservation-b4219da", [String(r.id)])}>
         <span class="calendar-overflow-dot" style="background:${AppModules.calendario.calAccColor(r.accommodation_id)}"></span>
         <span><strong>${AppModules.core.escapeHtml(r.guest_name || 'Reserva')}</strong><small>${AppModules.core.escapeHtml(r.accommodation_name || 'Alojamento')} · ${AppModules.core.escapeHtml(r.status || '—')}</small></span>
       </button>`).join('')}
-    </div>
-  </div>`;
-  document.body.appendChild(modal);
-  AppUI.openModal(modal);
-  if (window.lucide) lucide.createIcons();
+    </div>`,
+  });
 }
 
 function openOverflowReservation(id) {
@@ -312,7 +304,6 @@ AppActions.register({
   "mes-agenda-show-detail-3d67b14": (el, event, args) => { AppModules.reservas.showDetail(args[0]) },
   "mes-agenda-stop-propagation-eb43f3e": (el, event, args) => { event.stopPropagation();AppModules.reservas.showDetail(args[0]) },
   "mes-agenda-open-overflow-87a42f1": (el, event, args) => { event.stopPropagation();openCalendarOverflow(args[0]) },
-  "mes-agenda-close-overflow-0d3c59b": (el, event, args) => { closeCalendarOverflow() },
   "mes-agenda-open-overflow-reservation-b4219da": (el, event, args) => { openOverflowReservation(args[0]) },
   "mes-agenda-open-modal-from-calendar-76a36bf": (el, event, args) => { AppModules.reservas.openModalFromCalendar(args[0]) },
   "mes-agenda-open-block-from-calendar-969183d": (el, event, args) => { AppModules.bloqueios.openBlockFromCalendar(args[0], args[1]) },

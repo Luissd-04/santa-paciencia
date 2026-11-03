@@ -25,6 +25,7 @@
 .rs-checkout { margin-top: 24px; border-top: 1px solid var(--line); padding-top: 16px; }
 .rs-checkout p { line-height: 1.6; }
 .rs-checkout .rs-note { margin-top: 12px; }
+.rs-precheckin .primary-btn { display: block; margin-top: 12px; text-align: center; text-decoration: none; }
 .rs-checkout button { width: 100%; min-height: 48px; white-space: normal; }
 .rs-refresh { margin-top: 20px; min-height: 44px; }
 .rs-checkout button:focus-visible, .rs-refresh:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
