@@ -764,6 +764,14 @@ select.form-control { cursor:pointer; }
 .toast.success { border-left:4px solid #0f9d58; }
 .toast.error   { border-left:4px solid #ea4335; }
 .toast.info    { border-left:4px solid var(--dourado); }
+/* Reservas com alterações por guardar (domain/edit-drafts.js), no topo do conteúdo. */
+.edit-drafts-banner { margin: 12px 24px 0; padding: 12px 14px; border-radius: 10px; background: #fdf3e2; border: 1px solid #f0d9a8; color: #6b4e12; font-size: 13.5px; display: grid; gap: 8px; }
+.edit-drafts-banner[hidden] { display: none; }
+.edit-drafts-title { display: flex; align-items: center; gap: 8px; }
+.edit-drafts-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.edit-drafts-list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.edit-drafts-list small { color: #8a6d1d; }
+@media (max-width: 600px) { .edit-drafts-banner { margin: 10px 12px 0; } }
 /* Versão nova publicada durante a sessão (helpers.js). Acima da barra inferior mobile. */
 .app-update-banner {
   position:fixed; left:50%; transform:translateX(-50%);

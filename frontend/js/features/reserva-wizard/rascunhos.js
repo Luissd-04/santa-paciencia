@@ -7,6 +7,7 @@ AppModules.define('reservas', {
   flushReservaDraft: { get: () => flushReservaDraft },
   discardReservaDraft: { get: () => discardReservaDraft },
   loadReservaDraft: { get: () => loadReservaDraft },
+  restoreEditDraft: { get: () => restoreEditDraft },
   captureReservaEditBaseline: { get: () => captureReservaEditBaseline },
   requestCloseReservaModal: { get: () => requestCloseReservaModal },
   reservaModalIsOpen: { get: () => reservaModalIsOpen },
@@ -64,6 +65,9 @@ function reservaFormHasData() {
 function requestCloseReservaModal() {
   if (AppModules.core.editingId) {
     if (editIsDirty() && !window.confirm('Descartar as alterações desta reserva?\n\nAs alterações ainda não foram guardadas.')) return false;
+    // Uma gravação automática ainda pendente voltaria a criar o rascunho.
+    clearTimeout(_draftSaveTimer);
+    AppModules.core.clearEditDraft(AppModules.core.editingId);
     AppModules.reservas.closeModal();
     return true;
   }
@@ -96,7 +100,21 @@ function serializeReservaForm() {
     extraGuests: AppModules.reservas.collectExtraGuests(),
     nightlyOverrides: AppModules.reservas._nightlyOverrides,
     manualTotal: AppModules.reservas._manualTotalOverride,
+    extraRooms: AppModules.reservas._wizExtraRooms,
   };
+}
+
+// Edição: o rascunho é o formulário inteiro enquanto houver alterações por
+// guardar (core/edit-drafts.js); sem alterações, deixa de existir.
+function saveEditDraftNow() {
+  const id = AppModules.core.editingId;
+  if (_suppressDraftSave || !id || !AppModules.core.currentUser || !reservaModalIsOpen()) return;
+  if (!editIsDirty()) { AppModules.core.clearEditDraft(id); return; }
+  const value = fieldId => document.getElementById(fieldId)?.value || '';
+  AppModules.core.saveEditDraft(id, {
+    label: { guest: value('f-nome-completo'), checkIn: window.ReservationDates.normalizeIsoDate(value('f-checkin')), checkOut: window.ReservationDates.normalizeIsoDate(value('f-checkout')) },
+    form: serializeReservaForm(),
+  });
 }
 
 function saveReservaDraft() {
@@ -107,9 +125,9 @@ function saveReservaDraft() {
 }
 
 function scheduleReservaDraftSave() {
-  if (_suppressDraftSave || AppModules.core.editingId || !AppModules.core.currentUser) return;
+  if (_suppressDraftSave || !AppModules.core.currentUser) return;
   clearTimeout(_draftSaveTimer);
-  _draftSaveTimer = setTimeout(saveReservaDraft, 400);
+  _draftSaveTimer = setTimeout(AppModules.core.editingId ? saveEditDraftNow : saveReservaDraft, 400);
 }
 
 // Grava já o que estiver por gravar (ao guardar a reserva): se a sessão
@@ -117,7 +135,8 @@ function scheduleReservaDraftSave() {
 // ter tudo o que foi escrito até ao clique.
 function flushReservaDraft() {
   clearTimeout(_draftSaveTimer);
-  saveReservaDraft();
+  if (AppModules.core.editingId) saveEditDraftNow();
+  else saveReservaDraft();
 }
 
 function clearReservaDraft() {
@@ -159,6 +178,7 @@ function applyReservaDraft(draft) {
     AppModules.reservas._nightlyOverrides = draft.nightlyOverrides && typeof draft.nightlyOverrides === 'object' ? { ...draft.nightlyOverrides } : {};
     AppModules.reservas._manualTotalOverride = (draft.manualTotal == null || isNaN(Number(draft.manualTotal))) ? null : Number(draft.manualTotal);
     AppModules.reservas._nightlyGridSig = '';
+    if (Array.isArray(draft.extraRooms)) AppModules.reservas._wizExtraRooms = draft.extraRooms.map(room => ({ ...room }));
 
     AppModules.reservas.renderExtraGuests();
     (draft.extraGuests || []).forEach((g, idx) => {
@@ -183,13 +203,42 @@ function applyReservaDraft(draft) {
     });
 
     const notice = document.getElementById('resf-draft-notice');
-    if (notice) notice.style.display = '';
+    if (notice) {
+      // Texto da nova reserva; a edição troca-o em restoreEditDraft.
+      const text = notice.querySelector('span');
+      if (text) { text.dataset.defaultText ??= text.textContent; text.textContent = text.dataset.defaultText; }
+      notice.style.display = '';
+    }
   } finally {
     _suppressDraftSave = false;
   }
 }
 
+// Depois de a edição abrir com os dados do servidor (e a linha de base
+// captada): aplica as alterações por guardar, se as houver.
+async function restoreEditDraft(id) {
+  const draft = AppModules.core.loadEditDraft(id);
+  if (!draft) return false;
+  applyReservaDraft(draft.form);
+  const notice = document.getElementById('resf-draft-notice');
+  const text = notice?.querySelector('span');
+  if (text) text.textContent = `Alterações por guardar recuperadas (${window.ReservationDates.formatDateTime(new Date(draft.savedAt), 'compact')}). Reveja e carregue em «Atualizar Reserva».`;
+  await AppModules.reservas.calcTotal();
+  AppModules.reservas.renderSuiteCards();
+  AppModules.reservas.updateWizSummary();
+  return true;
+}
+
 function discardReservaDraft() {
+  const editingId = AppModules.core.editingId;
+  if (editingId) {
+    // Volta à reserva como está no servidor.
+    clearTimeout(_draftSaveTimer);
+    AppModules.core.clearEditDraft(editingId);
+    AppModules.reservas.closeModal();
+    const reopen = AppModules.reservas._wizardPageMode ? AppModules.reservas.openEditPage : AppModules.reservas.openEditModal;
+    return reopen(editingId);
+  }
   clearReservaDraft();
   _suppressDraftSave = true;
   try {

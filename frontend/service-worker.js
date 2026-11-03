@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 68;
+const CACHE_VERSION = 69;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -76,6 +76,7 @@ const STATIC_ASSETS = [
   '/js/domain/pagination.js',
   '/js/domain/event-types.js',
   '/js/domain/channels.js',
+  '/js/domain/edit-drafts.js',
   '/js/domain/features.js',
   '/js/domain/libraries.js',
   '/js/domain/dates.js',
