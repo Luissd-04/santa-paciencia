@@ -20,6 +20,27 @@ test('montantes no formato português, iguais aos dos emails', () => {
   assert.equal(nbsp(ReservationMoney.formatShort(99.5)), '99,5 €');
 });
 
+test('valores escritos à mão: vírgula ou ponto decimal e separadores de milhares', () => {
+  const { ReservationMoney: M } = load('money.js');
+  assert.equal(M.parse('80,5'), 80.5);
+  assert.equal(M.parse('80.5'), 80.5);
+  assert.equal(M.parse('1 234,56 €'), 1234.56);
+  assert.equal(M.parse('1.234,56'), 1234.56);
+  assert.equal(M.parse('1,234.56'), 1234.56);
+  assert.equal(M.parse(120), 120);
+  assert.ok(Number.isNaN(M.parse('')));
+  assert.ok(Number.isNaN(M.parse('abc')));
+  assert.ok(Number.isNaN(M.parse('12,3,4,5x')));
+});
+
+test('datas e horas: data de uma marca temporal SQLite também no Safari', () => {
+  const { ReservationDates: D } = load('dates.js');
+  // «2026-10-26 23:30:00» é UTC; em Lisboa (inverno, UTC+0) é o mesmo dia.
+  assert.equal(D.formatDateTime('2026-10-26 23:30:00', 'date'), '26/10/2026');
+  // No verão (UTC+1) já é o dia seguinte em Lisboa.
+  assert.equal(D.formatDateTime('2026-07-14 23:30:00', 'date'), '15/07/2026');
+});
+
 test('estados: os mesmos rótulos em todos os ecrãs, incluindo valores antigos', () => {
   const { ReservationStatus: S } = load('reservation-status.js');
   // O pré-check-in deixou de ser um estado da reserva; só o histórico o mostra.

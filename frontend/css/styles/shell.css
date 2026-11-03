@@ -648,7 +648,7 @@ select.form-control { cursor:pointer; }
 .cal-overflow-btn:hover { text-decoration: underline; }
 .cal-overflow-btn:focus-visible { outline: 2px solid var(--azul); outline-offset: -2px; }
 .calendar-overflow-dialog { width: min(520px, calc(100vw - 32px)); max-height: min(680px, calc(100dvh - 32px)); }
-.calendar-overflow-dialog .modal-header p { margin: 3px 0 0; color: var(--cinza); font-size: 12px; text-transform: capitalize; }
+.calendar-overflow-date { margin: 0 0 10px; color: var(--cinza); font-size: 12px; text-transform: capitalize; }
 .calendar-overflow-list { display: grid; gap: 8px; padding: 4px 0; max-height: 55dvh; overflow: auto; }
 .calendar-overflow-item {
   width: 100%; min-height: 52px; display: flex; align-items: center; gap: 10px;

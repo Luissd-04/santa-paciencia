@@ -145,7 +145,7 @@ function confirmPriceChange({ standardTotal, newTotal, editedAt = null, editedBy
       : '';
     const editedWarn = editedAt ? `
       <div style="background:#fdf3e2;border:1px solid #f0d9a8;border-radius:8px;padding:10px 12px;font-size:12.5px;color:#8a6d1d;">
-        ⚠️ Esta reserva já foi editada manualmente em ${new Date(editedAt).toLocaleDateString('pt-PT')}${editedByName ? ` por ${editedByName}` : ''}.
+        ⚠️ Esta reserva já foi editada manualmente em ${window.ReservationDates.formatDateTime(editedAt, 'date')}${editedByName ? ` por ${esc(editedByName)}` : ''}.
       </div>` : '';
 
     let confirmed = false;
