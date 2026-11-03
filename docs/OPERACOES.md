@@ -71,8 +71,9 @@ público.
    `EMAIL_ENABLED` com o valor decidido.
 6. Avisar a equipa: quem tiver a aplicação aberta recebe «versão nova
    disponível» e recarrega ao abrir a secção seguinte (ver «Atualizações da PWA»).
-7. Fixar as imagens externas: `cloudflare/cloudflared:latest` e `node:22-alpine`
-   não estão fixadas por versão/digest — publicar com a mesma imagem testada.
+7. Imagens externas com versão fixa (`node:22.23.4-alpine3.23` no `Dockerfile`,
+   `cloudflare/cloudflared:2026.10.7` no `docker-compose.yml`): um rebuild usa
+   sempre a mesma imagem. Para atualizar, mudar a versão num PR próprio e testar.
 
 ### Publicar
 

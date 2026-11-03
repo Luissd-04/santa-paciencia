@@ -96,6 +96,10 @@ async function main() {
   await expect(page.locator('#pc-time-presets button')).toHaveCount(6);
   await page.locator('#pc-submit').click();
   await expect(page.locator('#pc-arrival-time')).toBeFocused();
+  // A mensagem do topo diz o que falta (antes lia-se só «reveja os campos
+  // assinalados.») e o exemplo do campo não parece uma hora preenchida.
+  await expect(page.locator('#pc-error')).toHaveText('Indique a hora prevista de chegada.');
+  await expect(page.locator('#pc-arrival-time')).toHaveAttribute('placeholder', 'hh:mm');
   await page.locator('#pc-arrival-time').fill('25:99');
   await page.locator('#pc-submit').click();
   await expect(page.locator('#pc-arrival-time')).toHaveValue('25:99');
@@ -110,6 +114,9 @@ async function main() {
   await page.locator('#pc-submit').click();
   await expect(page).toHaveURL(/public-success\.html\?tipo=dados$/);
   await expect(page.locator('#confirmation-title')).toContainText('Dados guardados com sucesso');
+  // O título recebe o foco (leitor de ecrã), sem a moldura do browser.
+  await expect(page.locator('#confirmation-title')).toBeFocused();
+  assert.equal(await page.locator('#confirmation-title').evaluate(el => getComputedStyle(el).outlineStyle), 'none');
   await expect(page.locator('#precheckin-form')).toHaveCount(0);
   await page.screenshot({ path: path.join(temp, 'sucesso.png'), fullPage: true, animations: 'disabled' });
   assert.equal(db.prepare('SELECT arrival_time FROM reservations WHERE id=?').get('res').arrival_time, '17:30');
