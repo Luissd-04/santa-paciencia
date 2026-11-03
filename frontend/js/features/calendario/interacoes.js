@@ -304,8 +304,8 @@ function tlOnPointerUp() {
   if (roomChanged) {
     msgBody += `<tr>
       <td style="color:var(--cinza);padding:3px 8px 3px 0;white-space:nowrap;">Quarto</td>
-      <td><span style="text-decoration:line-through;opacity:.55">${fromAcc?.name || origAccId}</span>
-          &nbsp;→&nbsp;<b style="color:var(--azul)">${targetAccName}</b></td>
+      <td><span style="text-decoration:line-through;opacity:.55">${AppModules.core.escapeHtml(fromAcc?.name || origAccId)}</span>
+          &nbsp;→&nbsp;<b style="color:var(--azul)">${AppModules.core.escapeHtml(targetAccName)}</b></td>
     </tr>`;
   }
   if (datesChanged) {
@@ -325,7 +325,7 @@ function tlOnPointerUp() {
   }
 
   if (childConflicts.length > 0) {
-    const occupiedRooms = [...new Set(childConflicts.map(c => `<b>${c._childName}</b>`))].join(', ');
+    const occupiedRooms = [...new Set(childConflicts.map(c => `<b>${AppModules.core.escapeHtml(c._childName)}</b>`))].join(', ');
     msgBody += `<div style="margin-top:12px;padding:10px 12px;background:#fff3f3;border:1.5px solid #fbb;border-radius:8px;font-size:12.5px;color:#b91c1c;">
       ⚠️ Alojamento completo não disponível — ${occupiedRooms} já ${childConflicts.length > 1 ? 'têm' : 'tem'} reserva nestas datas.
     </div>`;

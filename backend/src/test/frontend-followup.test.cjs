@@ -53,33 +53,19 @@ test('intervalos independentes descartam respostas antigas e limpam dados ao ter
   assert.equal(calendar.state.rows.length + agenda.state.rows.length, 0);
 });
 
-test('seletor de templates liberta o estado global do modal antes de sair do DOM', () => {
+test('seletor de templates fecha pela janela única (que liberta o estado global do modal)', () => {
   const calls = [];
-  const modal = {
-    remove() {
-      calls.push('remove');
-    },
-  };
   const ctx = vm.createContext({
     console,
     window: {},
-    document: {
-      getElementById(id) {
-        return id === 'modal-tpl-picker' ? modal : null;
-      },
-    },
-    AppUI: {
-      closeModal(element) {
-        assert.equal(element, modal);
-        calls.push('close');
-      },
-    },
+    document: { getElementById: () => null },
+    AppUI: { closeDialog(id) { calls.push(id); } },
   });
   runFrontend(fs.readFileSync(path.join(root, 'js/features/invoice/composicao.js'), 'utf8'), ctx);
 
   vm.runInContext("_closeInvoiceModal('modal-tpl-picker')", ctx);
 
-  assert.deepEqual(calls, ['close', 'remove']);
+  assert.deepEqual(calls, ['modal-tpl-picker']);
 });
 
 test('validação do compositor deixa os blocos do servidor e recusa campos realmente em falta', async () => {
