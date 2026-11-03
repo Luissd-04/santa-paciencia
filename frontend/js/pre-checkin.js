@@ -445,12 +445,21 @@ function focusInvalid(input) {
   input.focus();
   input.scrollIntoView({ block: 'center', behavior: 'instant' });
 }
+// Mensagem do topo para o primeiro campo inválido: frase completa, a dizer
+// o que falta (antes, fora das fichas, lia-se só «reveja os campos
+// assinalados.», como se estivesse cortada).
+function invalidMessage(input) {
+  const card = input.closest('.guest-card');
+  if (card) return `Hóspede ${Number(card.dataset.guest) + 1}: reveja os campos assinalados.`;
+  if (input.id === 'pc-arrival-time') return 'Indique a hora prevista de chegada.';
+  if (input.id === 'pc-rgpd') return 'Para enviar, aceite o tratamento dos dados.';
+  return 'Reveja os campos assinalados.';
+}
 function validateInputs(inputs) {
   const invalid = inputs.filter(input => !validateField(input));
   allCards().forEach(updateGuestStatus);
   if (invalid.length) {
-    const card = invalid[0].closest('.guest-card');
-    showError(`${card ? `Hóspede ${Number(card.dataset.guest) + 1}: ` : ''}reveja os campos assinalados.`);
+    showError(invalidMessage(invalid[0]));
     focusInvalid(invalid[0]);
     return false;
   }

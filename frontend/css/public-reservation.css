@@ -1073,3 +1073,7 @@ textarea { resize: vertical; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Títulos focados pelo código (tabindex="-1"), para o leitor de ecrã ler o
+   passo novo: sem a moldura de foco do browser, que o Safari desenha preta. */
+h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, h3[tabindex="-1"]:focus { outline: none; }
