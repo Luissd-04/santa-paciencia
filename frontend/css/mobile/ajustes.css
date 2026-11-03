@@ -3,6 +3,12 @@
    para o painel de edição em vez do painel lateral fixo)
 ══════════════════════════════════════════════════════════════ */
 
+/* Cabeçalho do calendário de preços: mês ao centro, botões de navegação. */
+.precos-cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 18px; padding: 0 2px; }
+.precos-cal-head .btn { gap: 4px; flex-shrink: 0; }
+.precos-cal-month { flex: 1; min-width: 0; text-align: center; font-size: 17px; font-weight: 700; color: var(--texto); }
+@media (max-width: 420px) { .precos-nav-label { display: none; } }
+
 .precos-sheet-header { display: none; }
 .precos-sheet-backdrop { display: none; }
 
