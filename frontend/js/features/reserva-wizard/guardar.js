@@ -348,6 +348,7 @@ async function saveReserva() {
     resetWizQuote();
     if (payload.id) {
       AppModules.core.toast('✅ Reserva atualizada!', 'success');
+      AppModules.core.clearEditDraft(AppModules.core.editingId);
       const wasPage = AppModules.reservas._wizardPageMode;
       const retId = AppModules.reservas._returnToDetailId;
       AppModules.reservas.closeModal();

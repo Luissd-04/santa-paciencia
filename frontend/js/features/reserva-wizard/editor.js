@@ -9,6 +9,7 @@ AppModules.define('reservas', {
 });
 
 function openModal(config = {}) {
+  finishPendingClose();
   AppModules.core.editingId = null;
   AppModules.reservas._editingPriceInfo = null;
   AppModules.reservas._editingStoredTotal = null;
@@ -98,6 +99,7 @@ async function openEditPage(id) {
 }
 
 async function openEditModal(id) {
+  finishPendingClose();
   try {
     const data = await AppModules.core.apiGet(`/api/reservations/${id}`);
     const r = data.data;
@@ -240,6 +242,11 @@ async function openEditModal(id) {
     AppUI.refreshDropdowns(document.getElementById('modal-bg'));
     document.getElementById('modal-bg').classList.toggle('resf-page-mode', AppModules.reservas._wizardPageMode);
     AppModules.reservas.captureReservaEditBaseline();
+    // Alterações por guardar de uma sessão anterior (sessão expirada, app
+    // fechada): aplicadas por cima da reserva como está no servidor.
+    const notice = document.getElementById('resf-draft-notice');
+    if (notice) notice.style.display = 'none';
+    await AppModules.reservas.restoreEditDraft(id);
     AppModules.reservas.resetMobileSteps();
     AppUI.openModal('modal-bg');
   } catch (e) {
@@ -247,19 +254,32 @@ async function openEditModal(id) {
   }
 }
 
+// O fecho termina depois da animação. Reabrir antes disso (ex.: «Descartar»
+// num rascunho, ou editar logo a seguir a guardar) termina-o já: senão o fecho
+// atrasado fechava a janela nova e apagava a reserva em edição.
+let pendingClose = null;
+function finishPendingClose() {
+  if (!pendingClose) return;
+  clearTimeout(pendingClose.timer);
+  pendingClose.finish();
+}
+
 function closeModal() {
+  finishPendingClose();
   const bg = document.getElementById('modal-bg');
   const modal = bg.querySelector('.modal');
   AppModules.reservas._wizardPageMode = false;
   AppModules.reservas._returnToDetailId = null;
   AppModules.reservas.resetWizQuote();
   modal.classList.add('modal-closing');
-  setTimeout(() => {
+  const finish = () => {
+    pendingClose = null;
     AppUI.closeModal(bg);
     modal.classList.remove('modal-closing');
     bg.classList.remove('resf-page-mode');
     AppModules.core.editingId = null;
-  }, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 320);
+  };
+  pendingClose = { finish, timer: setTimeout(finish, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 320) };
 }
 
 // ── FECHO SEGURO + RASCUNHO (só para Nova Reserva) ──

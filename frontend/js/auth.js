@@ -211,6 +211,7 @@ function setAuthenticatedLayout(isAuthenticated) {
   document.body.classList.toggle('auth-ready', isAuthenticated);
   updateUserBadge();
   updateOwnerUiVisibility();
+  if (typeof AppModules.core.renderEditDraftsBanner === 'function') AppModules.core.renderEditDraftsBanner();
   if (window.lucide) lucide.createIcons();
 }
 
@@ -512,6 +513,8 @@ async function logout() {
   try {
     localStorage.removeItem('sp_reserva_draft_v1');
     Object.keys(sessionStorage).filter(key => key.startsWith('sp_reserva_draft_')).forEach(key => sessionStorage.removeItem(key));
+    // Alterações por guardar das edições (edit-drafts.js) também saem com o logout.
+    Object.keys(localStorage).filter(key => key.startsWith(AppModules.core.EDIT_DRAFTS_PREFIX)).forEach(key => localStorage.removeItem(key));
     if ('caches' in window) await Promise.all((await caches.keys()).filter(key => key.startsWith('sp-')).map(key => caches.delete(key)));
   } catch (_) {}
   try {
@@ -587,6 +590,7 @@ async function switchOrg(organizationId) {
   if (organizationId === AppModules.core.currentUser?.organization_id) return;
   try {
     if (typeof AppModules.reservas.clearReservaDraft === 'function') AppModules.reservas.clearReservaDraft();
+    if (typeof AppModules.core.clearUserEditDrafts === 'function') AppModules.core.clearUserEditDrafts();
     if (typeof AppModules.core.cancelApiRequests === 'function') AppModules.core.cancelApiRequests();
     if (typeof AppModules.core.resetPrivateLists === 'function') AppModules.core.resetPrivateLists();
     if (typeof AppModules.invoice._stopInvoicePoll === 'function') AppModules.invoice._stopInvoicePoll();
