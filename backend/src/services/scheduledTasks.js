@@ -26,6 +26,11 @@ runner.register('email', {
   intervalMs: fromEnv('EMAIL_SCHEDULER_INTERVAL_MS', 60 * MINUTE),
   run: assertLease => require('./emailScheduler').runScheduler(assertLease),
 });
+runner.register('ops_alerts', {
+  label: 'Alertas do sistema (push e email)',
+  intervalMs: fromEnv('OPS_ALERTS_INTERVAL_MS', 15 * MINUTE),
+  run: () => require('./opsAlerts').checkAll(),
+});
 runner.register('daily_summary', {
   label: 'Resumo diário (push)',
   intervalMs: fromEnv('PUSH_SUMMARY_INTERVAL_MS', 15 * MINUTE),
@@ -37,7 +42,7 @@ function start() {
   try { require('./reservationLifecycle').reconcileLegacyStatuses(); }
   catch (error) { console.error('Acerto dos estados das reservas falhou:', error.message); }
   runner.start();
-  console.log('⏰ Tarefas automáticas ativas (manutenção, Google, emails, resumo diário)');
+  console.log('⏰ Tarefas automáticas ativas (manutenção, Google, emails, alertas, resumo diário)');
 }
 
 module.exports = { start, stop: runner.stop, status: runner.status, runTask: runner.runTask };

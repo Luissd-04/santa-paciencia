@@ -13,19 +13,22 @@ const KINDS = {
   cancellation: { action: 'Ver reserva' },
   precheckin: { action: 'Ver reserva' },
   summary: { action: 'Ver reservas' },
+  // Alerta do «Estado do sistema»: sem ícone próprio, usa o da aplicação.
+  alert: { action: 'Ver estado', icon: 'app' },
 };
 
 // Sem `kind` (ex.: envio de teste), o logótipo e nenhum botão.
 function pushPayload({ kind = null, title, body, url = '/', tag, requireInteraction = false }) {
   const look = KINDS[kind];
-  const icon = look ? kind : 'app';
+  const icon = look ? (look.icon || kind) : 'app';
   return { title, body, url, tag, requireInteraction, icon: `/img/push/${icon}.png`, badge: `/img/push/${icon}-badge.png`,
     actions: look ? [{ action: 'open', title: look.action }] : [] };
 }
 
-async function push(organizationId, type, { kind = null, title, body, url = '/', excludeUserId = null, requireInteraction = false, tag = null }) {
+// `roles` limita a quem recebe (ex.: alertas só para proprietário e gestores).
+async function push(organizationId, type, { kind = null, title, body, url = '/', excludeUserId = null, requireInteraction = false, tag = null, roles = null }) {
   return require('./pushService').sendToOrganization(organizationId,
-    pushPayload({ kind, title, body, url, tag: tag || `sp-${type}`, requireInteraction }), { type, excludeUserId });
+    pushPayload({ kind, title, body, url, tag: tag || `sp-${type}`, requireInteraction }), { type, excludeUserId, roles });
 }
 
 function staffEmails(organizationId) {
