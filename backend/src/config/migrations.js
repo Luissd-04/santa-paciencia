@@ -62,6 +62,7 @@ function runMigrations(db) {
   migrateMenuPrefs(db);
   migrateCalendarTitles(db);
   migrateEmailDesign(db);
+  migrateOpsAlerts(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -505,6 +506,23 @@ function migrateEmailQueueToEvents(db) {
       effect.run(eventId);
     }
     db.prepare('DELETE FROM organization_email_queue').run();
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Alertas do sistema já avisados (services/opsAlerts): um por problema, para
+// não repetir o aviso a cada passagem.
+function migrateOpsAlerts(db) {
+  const id = '20261103_ops_alerts';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`CREATE TABLE IF NOT EXISTS ops_alerts (
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      key TEXT NOT NULL,
+      notified_at TEXT NOT NULL,
+      resolved_at TEXT,
+      PRIMARY KEY (organization_id, key)
+    )`);
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }
