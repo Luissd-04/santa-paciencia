@@ -134,10 +134,15 @@ async function fetchAvailability() {
   const guests = AppModules.booking.totalGuests();
   const payload = await AppModules.booking.api(`/api/public/booking/${AppModules.booking.state.slug}/availability?check_in=${ci}&check_out=${co}&num_guests=${guests}`).catch(() => null);
   AppModules.booking.state.availability = payload?.data || [];
-  if (AppModules.booking.availabilityFor(AppModules.booking.state.selectedUnitId) && !AppModules.booking.availabilityFor(AppModules.booking.state.selectedUnitId).available) {
+  // A escolha (quarto ou casa inteira) deixou de estar disponível: passa para
+  // o primeiro quarto livre, ou para nenhuma escolha.
+  const selection = AppModules.booking.selectionAvailability();
+  if (selection && !selection.available) {
     AppModules.booking.state.selectedUnitId = AppModules.booking.state.units.find(u => AppModules.booking.availabilityFor(u.id)?.available)?.id || '';
   }
   AppModules.booking.renderUnits();
+  // O resumo foi calculado antes de a disponibilidade chegar.
+  AppModules.booking.recalc();
 }
 
 const guestDrafts = new Map();
