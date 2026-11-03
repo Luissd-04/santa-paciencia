@@ -127,7 +127,7 @@ function deleteDeviceById(organizationId, id) {
 
 // ── Preferências por tipo (switches nas Definições, guardadas por utilizador) ──
 
-const PUSH_TYPES = ['new_reservation', 'cancellation', 'payment', 'precheckin', 'daily_summary'];
+const PUSH_TYPES = ['new_reservation', 'cancellation', 'payment', 'precheckin', 'daily_summary', 'ops_alert'];
 const DEFAULT_PUSH_PREFS = Object.fromEntries(PUSH_TYPES.map(t => [t, true]));
 
 function getUserPushPrefs(organizationId, userId) {
@@ -144,13 +144,15 @@ function saveUserPushPrefs(organizationId, userId, prefs = {}) {
 // Envia para todos os dispositivos da organização.
 // options.excludeUserId — não notificar quem fez a ação.
 // options.type — tipo de notificação; respeita os switches de cada utilizador.
+// options.roles — só estes papéis (ex.: ['owner', 'manager']).
 async function sendToOrganization(organizationId, payload, options = {}) {
   getVapidKeys();
-  const { excludeUserId = null, type = null } = options;
-  let rows = db.prepare('SELECT s.endpoint, s.keys_json, s.user_id, s.organization_id FROM push_subscriptions s JOIN memberships m ON m.user_id=s.user_id AND m.organization_id=s.organization_id JOIN users u ON u.id=s.user_id WHERE s.organization_id = ? AND s.active = 1 AND m.active = 1 AND u.active = 1').all(organizationId);
+  const { excludeUserId = null, type = null, roles = null } = options;
+  let rows = db.prepare('SELECT s.endpoint, s.keys_json, s.user_id, s.organization_id, m.role FROM push_subscriptions s JOIN memberships m ON m.user_id=s.user_id AND m.organization_id=s.organization_id JOIN users u ON u.id=s.user_id WHERE s.organization_id = ? AND s.active = 1 AND m.active = 1 AND u.active = 1').all(organizationId);
   // Subscrições gravadas antes da validação também não podem ser usadas.
   rows = rows.filter(r => isValidPushEndpoint(r.endpoint));
   if (excludeUserId) rows = rows.filter(r => r.user_id !== excludeUserId);
+  if (roles) rows = rows.filter(r => roles.includes(r.role));
   if (type) {
     const prefsCache = {};
     rows = rows.filter(r => {
