@@ -10,13 +10,24 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Playfair+Display:wght@600;700&amp;display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/public-reservation.css?v=publicas-20261103-1">
+  <link rel="stylesheet" href="/css/public-reservation.css?v=publicas-novas-20261104-1">
   <link rel="stylesheet" href="/css/reservation-status.css?v=publicas-20261103-1">
+  <link rel="stylesheet" href="/css/public-novo.css?v=publicas-novas-20261104-1">
+  <script src="/js/domain/public-layout.js?v=publicas-novas-20261104-1"></script>
 </head>
 <body>
   <div class="booking-page">
     <div class="ambient-bg" id="rs-bg"></div>
     <div class="ambient-overlay"></div>
+
+    <!-- Versão nova (?layout=novo): elementos escondidos na versão atual. -->
+    <div class="pn-topbar novo-only"><span class="pn-mark" aria-hidden="true">S</span><strong>Santa Paciência</strong><span class="pn-ref" id="pn-rs-ref"></span></div>
+    <section class="pn-hero pn-rs-hero novo-only" id="pn-rs-hero" hidden>
+      <div class="pn-hero-copy">
+        <span class="pn-pill ok">✓ Reserva confirmada</span>
+        <h1 id="pn-rs-hero-title"></h1>
+      </div>
+    </section>
 
     <header class="booking-hero">
       <div class="brand-pill" id="rs-reference">Reserva</div>
@@ -28,24 +39,30 @@
       <section class="booking-card reservation-status-card" aria-live="polite">
         <div class="rs-loading" id="rs-loading">A carregar…</div>
         <div id="rs-content" hidden>
-          <div class="rs-status-line">
-            <span class="rs-status" id="rs-status"></span>
-            <span class="rs-payment" id="rs-payment"></span>
+          <div class="rs-stay">
+            <div class="rs-status-line">
+              <span class="rs-status" id="rs-status"></span>
+              <span class="rs-payment" id="rs-payment"></span>
+            </div>
+            <h2 id="rs-accommodation">—</h2>
+            <dl class="rs-grid">
+              <div><dt>Check-in</dt><dd id="rs-checkin">—</dd></div>
+              <div><dt>Check-out</dt><dd id="rs-checkout">—</dd></div>
+              <div><dt>Hóspedes</dt><dd id="rs-guests">—</dd></div>
+              <div><dt>Total</dt><dd id="rs-total">—</dd></div>
+              <div><dt>Pago</dt><dd id="rs-paid">—</dd></div>
+            </dl>
+            <div class="pn-rs-stay novo-only" id="pn-rs-stay"></div>
           </div>
-          <h2 id="rs-accommodation">—</h2>
-          <dl class="rs-grid">
-            <div><dt>Check-in</dt><dd id="rs-checkin">—</dd></div>
-            <div><dt>Check-out</dt><dd id="rs-checkout">—</dd></div>
-            <div><dt>Hóspedes</dt><dd id="rs-guests">—</dd></div>
-            <div><dt>Total</dt><dd id="rs-total">—</dd></div>
-            <div><dt>Pago</dt><dd id="rs-paid">—</dd></div>
-          </dl>
+          <section class="pn-card novo-only" id="pn-rs-steps"></section>
+          <section class="pn-card novo-only" id="pn-rs-payments"></section>
           <div class="rs-checkout rs-precheckin" id="rs-precheckin" hidden>
             <p id="rs-precheckin-text"></p>
             <a class="primary-btn" id="rs-precheckin-link" href="#">Fazer o pré-check-in</a>
           </div>
           <section id="rs-policy" class="rs-policy" hidden aria-label="Condições de pagamento e cancelamento"></section>
           <div class="rs-checkout" id="rs-payment-panel" hidden>
+            <div class="pn-due novo-only" id="pn-rs-due"></div>
             <p id="rs-payment-message" role="status"></p>
             <label id="rs-consent-label" class="rs-consent" hidden><input type="checkbox" id="rs-consent"> Li e aceito as condições de pagamento e cancelamento apresentadas acima.</label>
             <label id="rs-auto-label" class="rs-consent" hidden><input type="checkbox" id="rs-auto"> Autorizo a Stripe a guardar o cartão para cobrar o restante desta reserva na data indicada. Com MB WAY, pagarei através de um novo link.</label>
@@ -61,8 +78,9 @@
     </main>
   </div>
   <script src="/js/domain/money.js?v=centralizacao-20261024-2"></script>
-  <script src="/js/domain/dates.js?v=mobile-20261026-1"></script>
+  <script src="/js/domain/dates.js?v=publicas-novas-20261104-1"></script>
   <script src="/js/domain/reservation-status.js?v=mobile-20261026-1"></script>
-  <script src="/js/reservation-status.js?v=publicas-20261103-1"></script>
+  <script src="/js/reservation-status-novo.js?v=publicas-novas-20261104-1"></script>
+  <script src="/js/reservation-status.js?v=publicas-novas-20261104-1"></script>
 </body>
 </html>

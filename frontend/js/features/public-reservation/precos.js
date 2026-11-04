@@ -2,6 +2,7 @@
 (() => {
 AppModules.define('booking', {
   getBirthDates: { get: () => getBirthDates },
+  quote: { get: () => quote },
   recalc: { get: () => recalc },
 });
 
@@ -37,6 +38,27 @@ function extraCharge(unit, n) {
   ) || 0;
 }
 
+// Total da estadia para um quarto (ou, sem quarto, para a casa inteira) com as
+// datas e os hóspedes escolhidos: o resumo e a ficha do quarto usam este.
+function quote(unit) {
+  const common = {
+    check_in: AppModules.booking.iso(AppModules.booking.$('pb-checkin').value),
+    check_out: AppModules.booking.iso(AppModules.booking.$('pb-checkout').value),
+    num_guests: AppModules.booking.totalGuests(),
+    breakfast_included: false,
+  };
+  if (unit) {
+    return window.ReservationPricing.calculateReservationTotal(unit, AppModules.booking.state.services, {
+      ...common, birth_dates: AppModules.booking.effectiveBirthDates(), pricing_periods: unit.pricing_periods || []
+    });
+  }
+  const property = AppModules.booking.state.property;
+  const rawTotals = window.ReservationPricing.calculateReservationTotal(property, AppModules.booking.state.services, {
+    ...common, birth_dates: [], pricing_periods: property?.pricing_periods || []
+  });
+  return { ...rawTotals, extraOccupancyCost: 0, totalAmount: rawTotals.baseAmount + rawTotals.breakfastCost + rawTotals.touristTax };
+}
+
 function recalc() {
   const unit = AppModules.booking.selectedUnit();
   const n = AppModules.booking.nights();
@@ -66,6 +88,7 @@ function recalc() {
     AppModules.booking.$('summary-media').style.backgroundImage = '';
     document.querySelectorAll('.summary-row.muted:not(#summary-discount-row)').forEach(row => row.style.display = 'none');
     if (totalRow) totalRow.style.display = 'none';
+    AppModules.booking.novo?.afterRecalc(null);
     return;
   }
 
@@ -77,34 +100,10 @@ function recalc() {
     AppModules.booking.$('summary-media').style.backgroundImage = `url(${JSON.stringify(AppModules.booking.mediaThumb(unit.cover_image || unit.images?.[0]?.url, 1024))})`;
   }
 
-  if (!n) return;
+  if (!n) { AppModules.booking.novo?.afterRecalc(null); return; }
 
-  let totals;
-  if (isPropertySelected) {
-    const rawTotals = window.ReservationPricing.calculateReservationTotal(AppModules.booking.state.property, AppModules.booking.state.services, {
-      check_in: AppModules.booking.iso(AppModules.booking.$('pb-checkin').value),
-      check_out: AppModules.booking.iso(AppModules.booking.$('pb-checkout').value),
-      num_guests: guests,
-      breakfast_included: false,
-      birth_dates: [],
-      pricing_periods: AppModules.booking.state.property?.pricing_periods || []
-    });
-    totals = {
-      ...rawTotals,
-      extraOccupancyCost: 0,
-      totalAmount: rawTotals.baseAmount + rawTotals.breakfastCost + rawTotals.touristTax
-    };
-  } else {
-    totals = window.ReservationPricing.calculateReservationTotal(unit, AppModules.booking.state.services, {
-      check_in: AppModules.booking.iso(AppModules.booking.$('pb-checkin').value),
-      check_out: AppModules.booking.iso(AppModules.booking.$('pb-checkout').value),
-      num_guests: guests,
-      breakfast_included: false,
-      birth_dates: AppModules.booking.effectiveBirthDates(),
-      pricing_periods: unit.pricing_periods || []
-    });
-    updateRateHints(unit);
-  }
+  const totals = quote(isPropertySelected ? null : unit);
+  if (!isPropertySelected) updateRateHints(unit);
 
   const discountAmount = window.ReservationPricing.voucherDiscount(AppModules.booking._voucherData, totals.totalAmount, totals.nightlyPrices);
   const finalTotal = Math.max(0, totals.totalAmount - discountAmount);
@@ -120,6 +119,7 @@ function recalc() {
   }
 
   AppModules.booking.$('summary-total').textContent = AppModules.booking.fmtCurrency(finalTotal);
+  AppModules.booking.novo?.afterRecalc({ unit: isPropertySelected ? AppModules.booking.state.property : unit, nights: n, guests, totals, discountAmount, finalTotal });
 }
 
 function updateRateHints(unit) {
@@ -127,6 +127,7 @@ function updateRateHints(unit) {
   AppModules.booking.$('pb-main-rate').textContent = main ? `${main.label} · ${AppModules.booking.fmtCurrency(main.price)}/noite` : '';
   document.querySelectorAll('.extra-guest-box').forEach((box, idx) => {
     const hint = box.querySelector('.rate-hint');
+    if (!hint) return; // acompanhante só com o nome (versão nova)
     const info = specialRate(unit, box.querySelector('[data-field="birth_date"]').value, idx + 1);
     hint.textContent = info ? `${info.label} · ${AppModules.booking.fmtCurrency(info.price)}/noite` : '';
   });

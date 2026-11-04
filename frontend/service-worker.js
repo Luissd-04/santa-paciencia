@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 73;
+const CACHE_VERSION = 74;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -46,6 +46,7 @@ const STATIC_ASSETS = [
   '/js/features/public-reservation/dados-hospedes.js',
   '/js/features/public-reservation/disponibilidade.js',
   '/js/features/public-reservation/precos.js',
+  '/js/features/public-reservation/layout-novo.js',
   '/js/features/public-reservation/submissao.js',
   '/css/views/dashboard.css',
   '/css/views/reservas.css',
@@ -54,6 +55,7 @@ const STATIC_ASSETS = [
   '/css/views/calendar.css',
   '/css/vendor/flag-icons.min.css',
   '/css/public-reservation.css',
+  '/css/public-novo.css',
   '/css/reservation-status.css',
   '/js/app.js',
   '/js/auth.js',
@@ -72,6 +74,7 @@ const STATIC_ASSETS = [
   '/js/dashboard.js',
   '/js/pre-checkin.js',
   '/js/reservation-status.js',
+  '/js/reservation-status-novo.js',
   '/js/validators.js',
   '/js/domain/pagination.js',
   '/js/domain/event-types.js',
@@ -82,6 +85,7 @@ const STATIC_ASSETS = [
   '/js/domain/dates.js',
   '/js/domain/money.js',
   '/js/domain/reservation-status.js',
+  '/js/domain/public-layout.js',
   '/js/domain/pricing.js',
   '/js/domain/date-picker.js',
   '/js/domain/table-cols.js',

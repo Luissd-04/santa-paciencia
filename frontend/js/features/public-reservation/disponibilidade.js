@@ -162,6 +162,8 @@ function renderExtraGuests() {
     });
   });
 
+  // A versão nova pede aos acompanhantes só o nome; o resto fica para o pré-check-in.
+  const nameOnly = AppModules.booking.novo?.companionsNameOnly === true;
   const parts = [];
   for (let i = 2; i <= count; i++) {
     const prev = guestDrafts.get(i) || {};
@@ -174,7 +176,7 @@ function renderExtraGuests() {
           <span>Nome completo *</span>
           <input data-field="name" required value="${AppModules.booking.escapeHtml(prev.name || '')}" placeholder="Nome completo" autocomplete="off">
         </label>
-        <div class="field-grid two">
+        ${nameOnly ? '' : `<div class="field-grid two">
           <label>
             <span>Email *</span>
             <input data-field="email" type="email" required value="${AppModules.booking.escapeHtml(prev.email || '')}" placeholder="email@exemplo.com" autocomplete="off">
@@ -203,7 +205,7 @@ function renderExtraGuests() {
             <input class="birth-input guest-birth-input" data-field="birth_date" type="text" inputmode="numeric" value="${AppModules.booking.escapeHtml(prev.birth_date || '')}" placeholder="dd-mm-aaaa" maxlength="10" autocomplete="off">
             <small class="rate-hint"></small>
           </label>
-        </div>
+        </div>`}
       </div>`);
   }
   wrap.innerHTML = parts.join('');
