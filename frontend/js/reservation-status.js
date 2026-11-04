@@ -126,6 +126,7 @@
       renderPayment(reservation);
       const image = mediaThumb(reservation.cover_image || reservation.images?.[0], 1600);
       if (image) $('rs-bg').style.backgroundImage = `url(${JSON.stringify(image)})`;
+      window.ReservationStatusNovo?.render(reservation);
       $('rs-loading').hidden = true;
       $('rs-content').hidden = false;
       $('rs-error').hidden = true;

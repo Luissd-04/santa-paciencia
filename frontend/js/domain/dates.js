@@ -53,6 +53,19 @@
     return date.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
+  // «sex, 14 mai» (resumos curtos) ou «14 de maio» (long): sem depender dos
+  // pontos que cada browser põe nas abreviaturas.
+  const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+  const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  function formatDayLabel(value, { weekday = true, long = false } = {}) {
+    const iso = normalizeIsoDate(value);
+    if (!iso) return '—';
+    const [year, month, day] = iso.split('-').map(Number);
+    if (long) return `${day} de ${MONTHS[month - 1]}`;
+    const week = WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+    return `${weekday ? `${week}, ` : ''}${day} ${MONTHS[month - 1].slice(0, 3)}`;
+  }
+
   function countNights(checkIn, checkOut) {
     const ci = normalizeIsoDate(checkIn);
     const co = normalizeIsoDate(checkOut);
@@ -120,6 +133,7 @@
     normalizeIsoDate,
     formatPtDate,
     formatShortPtDate,
+    formatDayLabel,
     countNights,
     ageAtDate,
     isValidDateParts,

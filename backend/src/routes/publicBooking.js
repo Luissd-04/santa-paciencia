@@ -7,6 +7,7 @@ const {
 router.get('/booking/:slug', ctrl.getLanding);
 router.get('/booking/:slug/availability', ctrl.getAvailability);
 router.get('/booking/:slug/voucher', voucherLimiter, ctrl.validatePublicVoucher);
+router.get('/booking/:slug/payment-plan', ctrl.getPaymentPlan);
 router.post('/booking/:slug/reservations', publicBookingLimiter, ctrl.createReservation);
 router.get('/reservation/:token', preCheckinLookupLimiter, ctrl.getReservationStatus);
 router.post('/reservation/:token/checkout', publicBookingLimiter, require('../controllers/stripePaymentsController').checkout);

@@ -8,11 +8,16 @@ AppModules.define('booking', {
 
 function renderStep(focus = false) {
   document.querySelectorAll('.form-step').forEach(step => step.classList.toggle('active', Number(step.dataset.step) === AppModules.booking.state.step));
-  document.querySelectorAll('[data-step-dot]').forEach(dot => dot.classList.toggle('active', Number(dot.dataset.stepDot) === AppModules.booking.state.step));
+  document.querySelectorAll('[data-step-dot]').forEach(dot => {
+    dot.classList.toggle('active', Number(dot.dataset.stepDot) === AppModules.booking.state.step);
+    dot.classList.toggle('done', Number(dot.dataset.stepDot) < AppModules.booking.state.step);
+  });
+  document.body.dataset.bookingStep = String(AppModules.booking.state.step);
   AppModules.booking.$('prev-btn').style.display = AppModules.booking.state.step > 1 ? '' : 'none';
   AppModules.booking.$('next-btn').textContent = AppModules.booking.state.step === 3
     ? (AppModules.booking.state.onlinePayment ? 'Reservar e continuar para pagamento' : 'Enviar pedido') : 'Seguinte';
   if (AppModules.booking.state.step === 3) AppModules.booking.renderTurnstile();
+  AppModules.booking.novo?.afterStep();
   if (focus) AppModules.publicFlow.focusStep(document.querySelector('.form-step.active h2'));
 }
 
@@ -56,20 +61,19 @@ function validateStep() {
       return false;
     }
 
+    // Só se validam os campos que o formulário mostra (a versão nova pede aos
+    // acompanhantes apenas o nome; o resto fica para o pré-check-in).
     const guestSections = Array.from(document.querySelectorAll('.extra-guest-box'));
     for (let i = 0; i < guestSections.length; i++) {
       const section = guestSections[i];
       const idx = Number(section.dataset.guestIndex);
-      const guestName = section.querySelector('[data-field="name"]').value.trim();
-      const guestEmail = section.querySelector('[data-field="email"]').value.trim();
-      const guestPhone = section.querySelector('[data-field="phone"]').value.trim();
-      const guestCountry = section.querySelector('[data-field="country"]').value.trim();
-
-      if (!guestName || !guestEmail || !guestPhone || !guestCountry) {
+      const field = name => section.querySelector(`[data-field="${name}"]`)?.value.trim() ?? null;
+      const guestEmail = field('email');
+      if (['name', 'email', 'phone', 'country'].some(name => field(name) === '')) {
         AppModules.booking.showStepError(`Preencha todos os campos obrigatórios (*) do hóspede ${idx}.`);
         return false;
       }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+      if (guestEmail !== null && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
         AppModules.booking.showStepError(`Email inválido para hóspede ${idx}.`);
         return false;
       }
@@ -112,18 +116,18 @@ function collectPayload() {
       birth_date: AppModules.booking.iso(AppModules.booking.$('pb-birth').value) || null
     },
     guests_data: Array.from(document.querySelectorAll('.extra-guest-box')).map(guestSection => {
-      const fullName = guestSection.querySelector('[data-field="name"]').value.trim();
+      const value = name => guestSection.querySelector(`[data-field="${name}"]`)?.value.trim() || '';
+      const fullName = value('name');
       const parts = fullName.split(' ');
-      const guestPhoneCode = guestSection.querySelector('input[data-field="phone_code"]').value;
-      const guestPhone = guestSection.querySelector('[data-field="phone"]').value.trim();
+      const guestPhone = value('phone');
       return {
         name: fullName,
         first_name: parts[0] || '',
         last_name: parts.slice(1).join(' '),
-        email: guestSection.querySelector('[data-field="email"]').value.trim(),
-        phone: guestPhone ? `${guestPhoneCode} ${guestPhone}` : null,
-        nationality: guestSection.querySelector('[data-field="country"]').value.trim(),
-        birth_date: AppModules.booking.iso(guestSection.querySelector('[data-field="birth_date"]').value) || null
+        email: value('email'),
+        phone: guestPhone ? `${guestSection.querySelector('input[data-field="phone_code"]')?.value || '+351'} ${guestPhone}` : null,
+        nationality: value('country'),
+        birth_date: AppModules.booking.iso(value('birth_date')) || null
       };
     })
   };

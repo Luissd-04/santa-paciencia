@@ -67,6 +67,7 @@
       "js/features/public-reservation/dados-hospedes.js",
       "js/features/public-reservation/disponibilidade.js",
       "js/features/public-reservation/precos.js",
+      "js/features/public-reservation/layout-novo.js",
       "js/features/public-reservation/submissao.js"
     ],
     "original_sha256": "dd7d2c57081bc38337e84af713f077c6e333841939a63f50067b809dbf34e153"

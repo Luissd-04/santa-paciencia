@@ -2,6 +2,7 @@
 (() => {
 AppModules.define('booking', {
   _turnstileToken: { get: () => _turnstileToken, set: value => { _turnstileToken = value; } },
+  allImages: { get: () => allImages },
   availabilityFor: { get: () => availabilityFor },
   selectionAvailability: { get: () => selectionAvailability },
   init: { get: () => init },
@@ -97,6 +98,7 @@ function renderLanding() {
   renderRail('gallery-bottom', imgs.length ? imgs.slice().reverse() : [fallback]);
   rotateBackground();
   renderUnits();
+  AppModules.booking.novo?.afterLanding();
   const rgpdBox = AppModules.booking.$('rgpd-text-box');
   if (rgpdBox) {
     const text = p.rgpd_text || 'Os seus dados pessoais são recolhidos e tratados para a gestão da sua reserva e cumprimento das obrigações legais aplicáveis ao alojamento local em Portugal. Os dados são conservados pelo período legalmente exigido. Tem direito de acesso, retificação e apagamento dos seus dados por contacto direto com o estabelecimento.';
@@ -223,10 +225,12 @@ function renderUnits() {
           ${descHtml}
         </div>
         ${unitPriceHtml(unit, unit.pricing_periods)}
+        ${AppModules.booking.novo?.unitExtras(unit, { blocked, selected }) || ''}
       </div>`;
   }).join('');
 
   container.innerHTML = propertyCard + unitCards;
+  AppModules.booking.novo?.afterUnits();
 }
 
 

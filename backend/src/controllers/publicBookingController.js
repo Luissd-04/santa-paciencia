@@ -217,6 +217,29 @@ function getAvailability(req, res) {
   res.json({ success: true, data: available });
 }
 
+// Pré-visualização do plano de pagamento (página de reservas nova): quanto se
+// paga hoje, o restante e até quando, e o reembolso por antecedência. Usa o
+// mesmo cálculo do pagamento real; o total vem do cliente porque é só uma
+// estimativa — a reserva volta a calcular tudo no servidor.
+function getPaymentPlan(req, res) {
+  const parent = getPropertyBySlug(req.params.slug);
+  if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado.' });
+  const policy = require('../services/paymentPolicy');
+  const rules = policy.getPolicy(parent.organization_id);
+  if (!rules.enabled || !stripeEnabled(parent.organization_id)) return res.json({ success: true, data: null });
+  const checkIn = normalizeDateValue(req.query.check_in);
+  const total = Number(req.query.total);
+  const today = policy.localDay();
+  if (!checkIn || checkIn < today || !Number.isFinite(total) || total <= 0 || total > 999999) {
+    return res.status(400).json({ success: false, error: 'Datas ou total inválidos.' });
+  }
+  const plan = policy.calculate(rules, { total, bookedOn: today, checkIn });
+  res.json({ success: true, data: {
+    depositPercent: plan.depositPercent, depositCents: plan.depositCents, balanceCents: plan.balanceCents, dueAt: plan.dueAt,
+    automaticCharge: rules.automaticCharge, graceHours: rules.graceHours, refundBasis: rules.refundBasis, refundRules: rules.refundRules,
+  } });
+}
+
 // Mensagem genérica para qualquer rejeição anti-bot — não dar pistas a quem
 // está a tentar contornar (honeypot, timing, captcha) sobre QUAL camada falhou.
 const ANTIBOT_GENERIC_ERROR = 'Não foi possível processar o pedido. Por favor recarrega a página e tenta de novo.';
@@ -617,6 +640,7 @@ module.exports = {
   getLanding,
   getAvailability,
   validatePublicVoucher,
+  getPaymentPlan,
   createReservation,
   getReservationStatus,
   getPreCheckin,
