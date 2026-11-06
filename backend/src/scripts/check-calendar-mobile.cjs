@@ -69,7 +69,7 @@ async function main() {
   await page.screenshot({ path: path.join(temp, 'calendar-reservations.png') });
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await page.locator('.agenda-reservation').filter({ hasText: 'Marta Silva' }).click();
-  await expect(page.locator('.rdv2-if-val').filter({ hasText: 'Marta Silva' })).toBeVisible();
+  await expect(page.locator('.rf-guest-name')).toHaveText('Marta Silva');
   await page.getByRole('button', { name: 'Calendário', exact: true }).click();
   await page.locator('[data-agenda-date="2030-07-20"]').click();
   await expect(page.locator('.agenda-day-empty')).toBeVisible();

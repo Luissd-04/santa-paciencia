@@ -60,7 +60,7 @@ function startInlinePriceEdit(id, currentTotal) {
       }
     } catch (e) {
       span.textContent = `${ReservationMoney.format(currentTotal)}`;
-      AppModules.core.toast('❌ Erro de ligação', 'error');
+      AppModules.core.toast('❌ ' + (e?.payload?.error || 'Erro de ligação'), 'error');
     }
   };
 
