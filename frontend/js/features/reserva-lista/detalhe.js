@@ -9,14 +9,13 @@ AppModules.define('reservas', {
 
 function rdv2TaskBtnHtml(resId, kind, done) {
   const label = kind === 'checkin' ? 'Check-in' : 'Check-out';
-  const icon = kind === 'checkin' ? 'log-in' : 'log-out';
-  return done
-    ? `<button class="btn btn-ghost btn-sm" style="color:#0f9d58;border:1px solid #0f9d5844;background:#0f9d580f;"
-         ${AppActions.attrs("click", "detalhe-toggle-reservation-task-7c3386e", [String((resId) ?? ''), String((kind) ?? '')])} title="Clique para repor como por fazer">
-         ${AppModules.core.lcIcon('check-circle', 13)} ${label} feito</button>`
-    : `<button class="btn btn-ghost btn-sm" aria-label="Marcar ${label.toLowerCase()} feito"
-         ${AppActions.attrs("click", "detalhe-toggle-reservation-task-bf7e72a", [String((resId) ?? ''), String((kind) ?? '')])}>
-         ${AppModules.core.lcIcon(icon, 13)} <span class="rdv2-task-label-desktop">Marcar ${label.toLowerCase()} feito</span><span class="rdv2-mobile-only">${label}</span></button>`;
+  const hint = done ? 'feito · tocar para repor' : (kind === 'checkin' ? 'marcar no dia da chegada' : 'marcar no dia da saída');
+  return `<button type="button" class="rf-op${done ? ' done' : ''}" aria-pressed="${done}" aria-label="${done ? `${label} feito: repor como por fazer` : `Marcar ${label.toLowerCase()} feito`}"
+      ${done
+        ? AppActions.attrs('click', 'detalhe-toggle-reservation-task-7c3386e', [String(resId ?? ''), String(kind ?? '')])
+        : AppActions.attrs('click', 'detalhe-toggle-reservation-task-bf7e72a', [String(resId ?? ''), String(kind ?? '')])}>
+      <span class="rf-op-box" aria-hidden="true">${done ? AppModules.core.lcIcon('check', 14) : ''}</span>
+      <span><strong>${label} feito</strong><small>${hint}</small></span></button>`;
 }
 
 async function toggleReservationTask(resId, kind, done) {
@@ -29,6 +28,8 @@ async function toggleReservationTask(resId, kind, done) {
         + rdv2TaskBtnHtml(resId, 'checkout', !!ts.checkout_done);
       if (window.lucide) lucide.createIcons();
     }
+    // O «Próximo passo» depende do check-in/check-out: volta a desenhar a ficha.
+    if (document.querySelector('.rf-next')) AppModules.reservas.showDetail(resId, { fromHistory: true });
     AppModules.core.toast(done ? '✅ Marcado como feito.' : '↩️ Reposto como por fazer.', 'success');
     if (typeof AppModules.reservas.rdv2InvalidateTarefas === 'function') AppModules.reservas.rdv2InvalidateTarefas();
     if (typeof AppModules.core.loadNotifications === 'function') AppModules.core.loadNotifications();
@@ -129,321 +130,253 @@ async function showDetail(id, opts = {}) {
     const canOpenOnlinePayment = paymentPageUrl && r.can_pay_online;
     const guestEmail = encodeURIComponent(r.guest_email || '');
     const guestName = encodeURIComponent(r.guest_name || '');
+    const invoiceData = JSON.stringify({ n: r.invoice_number || '', d: r.invoice_date || '', sd: r.invoice_sent_date || '', m: r.invoice_sent_method || '' }).replace(/'/g, '&#39;');
 
 
-    // A ficha e o menu mobile partilham ações, dados e permissões.
+    // Ações da reserva (menu «Mais»): as mesmas em todos os ecrãs. As mais
+    // usadas também aparecem no cartão a que dizem respeito.
+    const ic = (name, size = 14) => AppModules.core.lcIcon(name, size);
+    const esc = AppModules.core.escapeHtml;
     const reservationActionsHtml = `
-            ${r.status === 'pendente' ? `<button class="rdv2-action-link rdv2-action-success" ${AppActions.attrs("click", "detalhe-aprovar-reserva-0f31ccd", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('check', 12)} Aprovar e enviar pre check-in</button>` : ''}
-            <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-edit-page-8b67124", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('home', 12)} Editar alojamento</button>
-            <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-edit-page-8b67124", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('pencil', 12)} Editar reserva</button>
-            <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-add-guest-form-2a832ca", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('user-plus', 12)} Adicionar hóspede</button>
-            <button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-payment-form-74a29ac", [String((r.id) ?? ''), paid, total])}>${AppModules.core.lcIcon('credit-card', 12)} Registar pagamento</button>
-            ${canOpenOnlinePayment ? `<button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-open-7fd73a2", [String((paymentPageUrl) ?? '')])}>${AppModules.core.lcIcon('external-link', 12)} Abrir pagamento online</button>` : ''}
-            <button class="rdv2-action-link" data-inv='${JSON.stringify({ n: r.invoice_number || '', d: r.invoice_date || '', sd: r.invoice_sent_date || '', m: r.invoice_sent_method || '' }).replace(/'/g, "&#39;")}' ${AppActions.attrs("click", "detalhe-open-invoice-form-from-btn-ddace26", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('file-text', 12)} Registar fatura</button>
-            ${r.guest_email ? `<button class="rdv2-action-link" ${AppActions.attrs("click", "detalhe-abrir-mensagens-da-reserva-8cd7ba1", [String((r.id) ?? ''), String((guestEmail) ?? ''), String((guestName) ?? '')])}>${AppModules.core.lcIcon('mail', 12)} Enviar email</button>` : ''}
+            ${r.status === 'pendente' ? `<button class="rdv2-action-link rdv2-action-success" ${AppActions.attrs('click', 'detalhe-aprovar-reserva-0f31ccd', [String(r.id)])}>${ic('check', 12)} Aprovar e enviar pre check-in</button>` : ''}
+            <button class="rdv2-action-link" ${AppActions.attrs('click', 'detalhe-open-edit-page-8b67124', [String(r.id)])}>${ic('pencil', 12)} Editar reserva</button>
+            <button class="rdv2-action-link" ${AppActions.attrs('click', 'detalhe-open-edit-page-8b67124', [String(r.id)])}>${ic('home', 12)} Editar alojamento</button>
+            <button class="rdv2-action-link" ${AppActions.attrs('click', 'detalhe-open-add-guest-form-2a832ca', [String(r.id)])}>${ic('user-plus', 12)} Adicionar hóspede</button>
+            <button class="rdv2-action-link" ${AppActions.attrs('click', 'detalhe-open-payment-form-74a29ac', [String(r.id), paid, total])}>${ic('credit-card', 12)} Registar pagamento</button>
+            ${canOpenOnlinePayment ? `<button class="rdv2-action-link" ${AppActions.attrs('click', 'detalhe-open-7fd73a2', [String(paymentPageUrl)])}>${ic('external-link', 12)} Abrir pagamento online</button>` : ''}
+            <button class="rdv2-action-link" data-inv='${invoiceData}' ${AppActions.attrs('click', 'detalhe-open-invoice-form-from-btn-ddace26', [String(r.id)])}>${ic('file-text', 12)} Registar fatura</button>
+            ${r.guest_email ? `<button class="rdv2-action-link" ${AppActions.attrs('click', 'detalhe-abrir-mensagens-da-reserva-8cd7ba1', [String(r.id), guestEmail, guestName])}>${ic('mail', 12)} Enviar email</button>` : ''}
+            <div class="rf-menu-sep" role="separator"></div>
             ${r.status === 'cancelada'
-              ? `${!r.payment_policy?.cancellation ? `<button class="rdv2-action-link rdv2-action-success" ${AppActions.attrs("click", "detalhe-reativar-reserva-9888cf4", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('refresh-cw', 12)} Reativar reserva</button>` : ''}
-                 ${AppModules.reservas.hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" ${AppActions.attrs("click", "detalhe-apagar-reserva-definitivo-727881f", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('trash-2', 12)} Apagar definitivamente</button>` : ''}`
-              : `<button class="rdv2-action-link rdv2-action-danger" ${AppActions.attrs("click", "detalhe-cancelar-reserva-2d9df9b", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('x-circle', 12)} Cancelar reserva</button>
-                 ${AppModules.reservas.hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" ${AppActions.attrs("click", "detalhe-apagar-reserva-definitivo-727881f", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('trash-2', 12)} Apagar reserva</button>` : ''}`}
+              ? `${!r.payment_policy?.cancellation ? `<button class="rdv2-action-link rdv2-action-success" ${AppActions.attrs('click', 'detalhe-reativar-reserva-9888cf4', [String(r.id)])}>${ic('refresh-cw', 12)} Reativar reserva</button>` : ''}
+                 ${AppModules.reservas.hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" ${AppActions.attrs('click', 'detalhe-apagar-reserva-definitivo-727881f', [String(r.id)])}>${ic('trash-2', 12)} Apagar definitivamente</button>` : ''}`
+              : `<button class="rdv2-action-link rdv2-action-danger" ${AppActions.attrs('click', 'detalhe-cancelar-reserva-2d9df9b', [String(r.id)])}>${ic('x-circle', 12)} Cancelar reserva</button>
+                 ${AppModules.reservas.hasRole('manager') ? `<button class="rdv2-action-link rdv2-action-danger" ${AppActions.attrs('click', 'detalhe-apagar-reserva-definitivo-727881f', [String(r.id)])}>${ic('trash-2', 12)} Apagar reserva</button>` : ''}`}
     `;
+
+    // Datas por extenso («sáb, 21 nov 2026») e quantos dias faltam.
+    const D = window.ReservationDates;
+    const longDay = d => d ? `${D.formatDayLabel(d)} ${String(d).slice(0, 4)}` : '—';
+    const today = D.localIso();
+    const daysToArrival = r.check_in ? D.countNights(today, r.check_in) : 0;
+    const arrivalText = !r.check_in || r.check_in < today ? '' : daysToArrival === 0 ? 'chegada hoje' : daysToArrival === 1 ? 'chegada amanhã' : `chegada daqui a ${daysToArrival} dias`;
+    const nAdults = Number(r.num_adults || r.num_guests || 0);
+    const nChildren = Number(r.num_children || 0);
+    const guestsText = `${nAdults} adulto${nAdults === 1 ? '' : 's'} · ${nChildren} criança${nChildren === 1 ? '' : 's'}`;
+    const accNames = accRows.map(row => row.name || row.accommodation_name).filter(Boolean).join(', ') || '—';
+    const channel = AppModules.core.channelLabel(r.channel) || '—';
+    const onlineLabels = {
+      pending: 'A aguardar', processing: 'Em processamento', paid: 'Pago', failed: 'Falhou',
+      cancelled: 'Cancelado', expired: 'Sessão expirada', refunded: 'Reembolsado',
+      partially_refunded: 'Reembolso parcial', review_required: 'Requer verificação',
+    };
+    const onlineStatus = r.online_payment_status ? (onlineLabels[r.online_payment_status] || r.online_payment_status) : '';
+    const tasks = r.task_status || {};
+    const initials = name => String(name || '?').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase() || '?';
+    const paidPercent = total > 0 ? Math.min(100, Math.max(0, Math.round((paid / total) * 100))) : 0;
+
+    // Próximo passo: o que a equipa tem de fazer agora nesta reserva.
+    const nextStep = (() => {
+      if (r.status === 'cancelada') return null;
+      const copyPay = canOpenOnlinePayment ? `<button class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'detalhe-write-text-8f51584', [String(paymentPageUrl)])}>${ic('copy', 13)} Copiar link de pagamento</button>` : '';
+      const payBtn = `<button class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-open-payment-form-74a29ac', [String(r.id), paid, total])}>${ic('credit-card', 13)} Registar pagamento</button>`;
+      if (r.status === 'pendente') return { icon: 'inbox', title: 'Pedido por aprovar', text: [arrivalText, 'o hóspede aguarda resposta'].filter(Boolean).join(' · '),
+        actions: `<button class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-aprovar-reserva-0f31ccd', [String(r.id)])}>${ic('check', 13)} Aprovar e enviar pré-check-in</button>` };
+      if (r.status === 'confirmada' && r.check_in && r.check_in <= today && !tasks.checkin_done) return { icon: 'log-in', title: 'Chegada hoje', text: r.arrival_time ? `hora prevista ${r.arrival_time}` : 'sem hora de chegada indicada',
+        actions: `<button class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-toggle-reservation-task-bf7e72a', [String(r.id), 'checkin'])}>${ic('log-in', 13)} Marcar check-in feito</button>` };
+      if (r.status === 'check_in' && r.check_out && r.check_out <= today && !tasks.checkout_done) return { icon: 'log-out', title: 'Saída hoje', text: remaining > 0.01 ? `faltam ${fmt(remaining)} por receber` : 'estadia paga',
+        actions: `${remaining > 0.01 ? payBtn.replace('btn-primary', 'btn-ghost') : ''}<button class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-toggle-reservation-task-bf7e72a', [String(r.id), 'checkout'])}>${ic('log-out', 13)} Marcar check-out feito</button>` };
+      if (['pre_reserva', 'aguardar_pagamento'].includes(r.status) && remaining > 0.01) return { icon: 'credit-card', title: paid > 0 ? 'Receber o restante do sinal' : 'Receber o sinal',
+        text: [`faltam ${fmt(remaining)}`, onlineStatus ? `pagamento online: ${onlineStatus.toLowerCase()}` : '', arrivalText].filter(Boolean).join(' · '), actions: copyPay + payBtn };
+      if (['confirmada', 'check_in'].includes(r.status) && r.precheckin_state !== 'preenchido') return { icon: 'send', title: 'Pedir o pré-check-in',
+        text: [r.precheckin_state === 'enviado' ? 'link enviado, a aguardar o hóspede' : 'ainda não foi enviado', arrivalText].filter(Boolean).join(' · '),
+        actions: `<button class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-enviar-link-precheckin-ae74bc8', [String(r.id)])}>${ic('send', 13)} ${r.precheckin_state === 'enviado' ? 'Reenviar pré-check-in' : 'Enviar pré-check-in'}</button>` };
+      if (['confirmada', 'check_in'].includes(r.status) && remaining > 0.01) return { icon: 'credit-card', title: 'Receber o restante',
+        text: [`faltam ${fmt(remaining)}`, r.payment_policy?.balanceCents ? `vence ${D.formatDateTime(r.payment_policy.dueAt, 'date')}` : '', arrivalText].filter(Boolean).join(' · '), actions: copyPay + payBtn };
+      return null;
+    })();
+
+    const accLines = accRows.map(row => `
+              <div class="rf-line"><span>${esc(row.name || row.accommodation_name || '—')}<span class="rf-formula">${ReservationMoney.formatShort(Math.round(Number(row.price_per_night || 0)))}/noite × ${row.nights || r.nights} noites</span></span>
+                <span class="rdv2-amt">${fmt(row.subtotal || (Number(row.price_per_night || 0) * (row.nights || r.nights)))}</span></div>`).join('');
+    const otherLines = [...services, ...taxes].map(s => `
+              <div class="rf-line"><span>${esc(s.name)}${s.formula ? `<span class="rf-formula">${esc(s.formula)}</span>` : ''}</span><span class="rdv2-amt">${fmt(s.total)}</span></div>`).join('');
+    const policy = r.payment_policy;
+    const invoiceText = r.invoice_number
+      ? `nº ${esc(r.invoice_number)}${r.invoice_sent_date ? ` · enviada ${sd(r.invoice_sent_date)}` : r.invoice_date ? ` · ${sd(r.invoice_date)}` : ''}`
+      : 'por registar';
 
     if (detailLoading) detailLoading.style.display = 'none';
 
     detailContent.innerHTML = `
-      <!-- Header -->
-      <div class="rdv2-header">
-        <button class="btn btn-ghost btn-sm" data-on-click="detalhe-show-reservas-list-3f01da3">${AppModules.core.lcIcon('arrow-left', 13)} Voltar</button>
-        <div class="rdv2-title-area">
-          <span class="rdv2-subtitle">Ficha da reserva</span>
-          <span class="rdv2-id-pill">${r.id}</span>
+      <!-- Cabeçalho: hóspede, referência e os três estados -->
+      <div class="rdv2-header rf-head">
+        <button class="btn btn-ghost btn-sm rf-back" data-on-click="detalhe-show-reservas-list-3f01da3">${ic('arrow-left', 13)} Voltar</button>
+        <div class="rf-who">
+          <h2 class="rf-guest-name">${esc(r.guest_name || '—')}</h2>
+          <div class="rf-sub">
+            <span class="rdv2-id-pill">${esc(r.id)}</span>
+            <span class="rf-sub-text">${esc(accNames)} · ${esc(channel)}</span>
+            <span class="rf-chips">${AppModules.core.badgeEstado(r.status)}${AppModules.core.badgePagamento(r.payment_status)}${r.status !== 'cancelada' ? `<span class="badge-label">Pré-check-in</span>${AppModules.core.badgePrecheckin(r.precheckin_state)}` : ''}</span>
+          </div>
         </div>
-        <div class="rdv2-header-actions">
-          <button type="button" class="rdv2-quick-edit" aria-label="Editar reserva" title="Editar reserva" ${AppActions.attrs("click", "detalhe-open-edit-page-8b67124", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('pencil', 18)}</button>
-          <button type="button" class="rdv2-quick-edit rdv2-more-actions" id="rdv2-actions-trigger" aria-label="Ações da reserva" title="Ações da reserva" aria-haspopup="dialog" aria-expanded="false" aria-controls="rdv2-actions-menu" popovertarget="rdv2-actions-menu">${AppModules.core.lcIcon('ellipsis-vertical', 18)}</button>
+        <div class="rf-head-actions">
+          <div class="rdv2-tabs" role="tablist">
+            <button class="rdv2-tab rdv2-tab-active" id="rdv2-tab-btn-reserva" data-on-click="detalhe-rdv2-show-tab-b77b54f">${ic('clipboard', 12)} Reserva</button>
+            <button class="rdv2-tab" id="rdv2-tab-btn-tarefas" data-on-click="detalhe-rdv2-show-tab-c86cc3e">${ic('list-checks', 12)} Tarefas</button>
+            <button class="rdv2-tab" id="rdv2-tab-btn-timeline" data-on-click="detalhe-rdv2-show-tab-5aa1943">${ic('git-branch', 12)} Timeline</button>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm rf-edit" aria-label="Editar reserva" title="Editar reserva" ${AppActions.attrs('click', 'detalhe-open-edit-page-8b67124', [String(r.id)])}>${ic('pencil', 14)}<span class="rf-label"> Editar</span></button>
+          <button type="button" class="btn btn-ghost btn-sm rf-more" id="rdv2-actions-trigger" aria-label="Mais ações da reserva" title="Mais ações" aria-haspopup="dialog" aria-expanded="false" aria-controls="rdv2-actions-menu" popovertarget="rdv2-actions-menu">${ic('ellipsis', 14)}<span class="rf-label"> Mais</span></button>
         </div>
         <div id="rdv2-actions-menu" class="rdv2-actions-menu" popover="auto" role="dialog" aria-labelledby="rdv2-actions-title">
           <div class="rdv2-actions-menu-heading">
             <div class="rdv2-widget-title" id="rdv2-actions-title">Ações da reserva</div>
-            <button type="button" class="rdv2-icon-btn" aria-label="Fechar ações da reserva" popovertarget="rdv2-actions-menu" popovertargetaction="hide">${AppModules.core.lcIcon('x', 18)}</button>
+            <button type="button" class="rdv2-icon-btn" aria-label="Fechar ações da reserva" popovertarget="rdv2-actions-menu" popovertargetaction="hide">${ic('x', 18)}</button>
           </div>
           ${reservationActionsHtml}
         </div>
-        <div class="rdv2-tabs">
-          <button class="rdv2-tab rdv2-tab-active" id="rdv2-tab-btn-reserva" data-on-click="detalhe-rdv2-show-tab-b77b54f">${AppModules.core.lcIcon('clipboard', 12)} Reserva</button>
-          <button class="rdv2-tab" id="rdv2-tab-btn-tarefas" data-on-click="detalhe-rdv2-show-tab-c86cc3e">${AppModules.core.lcIcon('list-checks', 12)} Tarefas</button>
-          <button class="rdv2-tab" id="rdv2-tab-btn-timeline" data-on-click="detalhe-rdv2-show-tab-5aa1943">${AppModules.core.lcIcon('git-branch', 12)} Timeline</button>
-        </div>
       </div>
 
-      <!-- Body -->
-      <div class="rdv2-body" id="rdv2-panel-reserva">
+      <div class="rdv2-body rf-body" id="rdv2-panel-reserva">
+        ${nextStep ? `<div class="rf-next" role="status">
+          <span class="rf-next-icon">${ic(nextStep.icon, 18)}</span>
+          <div class="rf-next-text"><strong>Próximo passo: ${esc(nextStep.title.charAt(0).toLowerCase() + nextStep.title.slice(1))}</strong><span>${esc(nextStep.text)}</span></div>
+          <div class="rf-next-actions">${nextStep.actions}</div>
+        </div>` : ''}
 
-        <!-- Main card -->
-        <div class="rdv2-main">
-
-          <div class="rdv2-card rdv2-summary-card">
-          <!-- Info bar -->
-          <div class="rdv2-info-bar">
-            <div class="rdv2-info-field rdv2-field-guest">
-              <span class="rdv2-if-label">Hóspede</span>
-              <span class="rdv2-if-val">${AppModules.core.escapeHtml(r.guest_name)}</span>
+        <div class="rf-main">
+          <!-- Estadia -->
+          <section class="rf-card" aria-labelledby="rf-stay-title">
+            <div class="rf-card-head"><h3 id="rf-stay-title">Estadia</h3>
+              <button class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'detalhe-open-edit-page-8b67124', [String(r.id)])}>${ic('pencil', 12)} Alterar</button></div>
+            <div class="rf-dates">
+              <div class="rf-date"><span class="rf-kicker">Check-in</span><strong>${esc(longDay(r.check_in))}</strong>${acc?.checkin_time ? `<small>a partir das ${esc(acc.checkin_time)}</small>` : ''}</div>
+              <span class="rf-arrow" aria-hidden="true">${ic('arrow-right', 16)}</span>
+              <div class="rf-date"><span class="rf-kicker">Check-out</span><strong>${esc(longDay(r.check_out))}</strong>${acc?.checkout_time ? `<small>até às ${esc(acc.checkout_time)}</small>` : ''}</div>
+              <div class="rf-nights"><strong>${r.nights}</strong><small>${Number(r.nights) === 1 ? 'noite' : 'noites'}</small></div>
             </div>
-            <div class="rdv2-info-field rdv2-field-nights">
-              <span class="rdv2-if-label">Noites</span>
-              <span class="rdv2-if-val">${AppModules.core.lcIcon('moon', 11)} ${r.nights}<span class="rdv2-mobile-only">${Number(r.nights) === 1 ? 'noite' : 'noites'}</span></span>
-            </div>
-            <div class="rdv2-info-field rdv2-field-dates">
-              <span class="rdv2-if-label">Datas</span>
-              <span class="rdv2-if-val">${AppModules.core.lcIcon('calendar', 11)} ${sd(r.check_in)} → ${sd(r.check_out)}</span>
-            </div>
-            <div class="rdv2-info-field rdv2-mobile-only rdv2-field-checkin">
-              <span class="rdv2-if-label">Check-in</span>
-              <span class="rdv2-if-val">${AppModules.core.lcIcon('calendar', 16)} ${sd(r.check_in)}</span>
-            </div>
-            <div class="rdv2-info-field rdv2-mobile-only rdv2-field-checkout">
-              <span class="rdv2-if-label">Check-out</span>
-              <span class="rdv2-if-val">${AppModules.core.lcIcon('calendar', 16)} ${sd(r.check_out)}</span>
-            </div>
-            <div class="rdv2-info-field">
-              <span class="rdv2-if-label">Adultos</span>
-              <span class="rdv2-if-val">${r.num_adults || r.num_guests || 0} ${AppModules.core.lcIcon('user', 11)}</span>
-            </div>
-            <div class="rdv2-info-field">
-              <span class="rdv2-if-label">Crianças</span>
-              <span class="rdv2-if-val">${r.num_children || 0} ${AppModules.core.lcIcon('baby', 11)}</span>
-              ${childAges.length ? `<span style="font-size:10.5px;color:var(--text-muted);">${childAges.join(' · ')}</span>` : ''}
-            </div>
-            <div class="rdv2-info-field rdv2-field-arrival">
-              <span class="rdv2-if-label">Hora chegada</span>
-              <span class="rdv2-if-val">${AppModules.core.lcIcon('clock', 11)}
-                <span id="rdv2-arrival-val">${AppModules.core.escapeHtml(r.arrival_time || '—')}</span>
-                <button class="rdv2-edit-btn" ${AppActions.attrs("click", "detalhe-editar-hora-chegada-5c1a9e2", [String((r.id) ?? ''), String((r.arrival_time) ?? '')])} title="Editar hora de chegada">${AppModules.core.lcIcon('pencil', 11)}</button>
-              </span>
-            </div>
-          </div>
-
-          ${r.status !== 'cancelada' ? `
-          <!-- Check-in / Check-out feitos (sincronizado com as tarefas de Eventos) -->
-          <div id="rdv2-task-bar" style="display:flex;gap:8px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--borda);">
-            ${rdv2TaskBtnHtml(r.id, 'checkin', !!r.task_status?.checkin_done)}
-            ${rdv2TaskBtnHtml(r.id, 'checkout', !!r.task_status?.checkout_done)}
-          </div>` : ''}
-
-          <!-- Canal -->
-          <div class="rdv2-canal-bar">
-            <div class="rdv2-info-field">
-              <span class="rdv2-if-label">Canal</span>
-              <span class="rdv2-if-val">${AppModules.core.escapeHtml(AppModules.core.channelLabel(r.channel) || '—')}</span>
-            </div>
-            ${r.guest_email ? `<div class="rdv2-info-field">
-              <span class="rdv2-if-label">Email</span>
-              <span class="rdv2-if-val">${AppModules.core.escapeHtml(r.guest_email)}</span>
+            <dl class="rf-facts">
+              <div><dt>Alojamento</dt><dd>${esc(accNames)}</dd></div>
+              <div><dt>Hóspedes</dt><dd>${guestsText}${childAges.length ? `<small>${esc(childAges.join(' · '))}</small>` : ''}</dd></div>
+              <div><dt>Hora de chegada</dt><dd><span id="rdv2-arrival-val">${esc(r.arrival_time || '—')}</span>
+                <button class="rdv2-edit-btn" ${AppActions.attrs('click', 'detalhe-editar-hora-chegada-5c1a9e2', [String(r.id), String(r.arrival_time ?? '')])} title="Editar hora de chegada" aria-label="Editar hora de chegada">${ic('pencil', 11)}</button></dd></div>
+              <div><dt>Canal</dt><dd>${esc(channel)}</dd></div>
+            </dl>
+            ${r.status !== 'cancelada' ? `<div class="rf-ops" id="rdv2-task-bar">
+              ${rdv2TaskBtnHtml(r.id, 'checkin', !!tasks.checkin_done)}${rdv2TaskBtnHtml(r.id, 'checkout', !!tasks.checkout_done)}
             </div>` : ''}
-            ${r.guest_phone ? `<div class="rdv2-info-field">
-              <span class="rdv2-if-label">Telefone</span>
-              <span class="rdv2-if-val">${AppModules.core.escapeHtml(r.guest_phone)}</span>
-            </div>` : ''}
-          </div>
-          </div>
+          </section>
 
-          <!-- Divisor zona alojamento -->
-          <div class="rdv2-card rdv2-prices-card">
-          <div class="rdv2-zone-divider">${AppModules.core.lcIcon('home', 10)} Alojamento e Preços</div>
-
-          <!-- Alojamentos -->
-          <div class="rdv2-section">
-            <div class="rdv2-section-head">
-              <span>${AppModules.core.lcIcon('home', 12)} Alojamentos</span>
-              <span>Subtotal</span>
-            </div>
-            ${accRows.map(row => `
-            <div class="rdv2-section-row">
-              <span>${AppModules.core.escapeHtml(row.name || row.accommodation_name || '—')} <span class="rdv2-formula">${ReservationMoney.formatShort(Math.round(Number(row.price_per_night || 0)))}/noite × ${row.nights || r.nights} noites</span></span>
-              <span class="rdv2-amt">${fmt(row.subtotal || (Number(row.price_per_night || 0) * (row.nights || r.nights)))}</span>
-            </div>`).join('')}
-            <div class="rdv2-section-subtot">
-              <button class="rdv2-edit-btn" ${AppActions.attrs("click", "detalhe-start-inline-price-edit-700b5d7", [String((r.id) ?? ''), total])} title="Editar preço total">${AppModules.core.lcIcon('pencil', 11)}</button>
-              <span class="rdv2-amt" id="rdv2-acc-subtot">${fmt(accRows.reduce((s, row) => s + Number(row.subtotal || (Number(row.price_per_night || 0) * (row.nights || r.nights))), 0) + extraOcc)}</span>
-            </div>
-          </div>
-
-          ${services.length ? `
-          <!-- Serviços -->
-          <div class="rdv2-section">
-            <div class="rdv2-section-head">
-              <span>${AppModules.core.lcIcon('plus-square', 12)} Serviços</span>
-              <span>Subtotal</span>
-            </div>
-            ${services.map(s => `<div class="rdv2-section-row">
-              <span>${AppModules.core.escapeHtml(s.name)} <span class="rdv2-formula">${AppModules.core.escapeHtml(s.formula)}</span></span>
-              <span class="rdv2-amt">${fmt(s.total)}</span>
-            </div>`).join('')}
-            <div class="rdv2-section-subtot">
-              <span class="rdv2-amt">${fmt(services.reduce((a, s) => a + s.total, 0))}</span>
-            </div>
-          </div>` : ''}
-
-          ${taxes.length ? `
-          <!-- Taxas -->
-          <div class="rdv2-section">
-            <div class="rdv2-section-head">
-              <span>${AppModules.core.lcIcon('landmark', 12)} Taxas</span>
-              <span>Subtotal</span>
-            </div>
-            ${taxes.map(t => `<div class="rdv2-section-row">
-              <span>${t.name}</span>
-              <span class="rdv2-amt">${fmt(t.total)}</span>
-            </div>`).join('')}
-            <div class="rdv2-section-subtot">
-              <span class="rdv2-amt">${fmt(taxes.reduce((a, t) => a + t.total, 0))}</span>
-            </div>
-          </div>` : ''}
-
-          <!-- Total -->
-          <div class="rdv2-total-row">
-            <span>TOTAL</span>
-            <span class="rdv2-amt">${fmt(total)}</span>
-          </div>
-          ${priceCompareLine}
-          </div>
-
-          <!-- Divisor zona pagamentos -->
-          <div class="rdv2-card rdv2-payments-card">
-          <div class="rdv2-zone-divider">${AppModules.core.lcIcon('credit-card', 10)} Pagamentos</div>
-
-          <!-- Pagamentos -->
-          <div class="rdv2-pay-section" id="rdv2-pay-section">
-            ${(r.payments || []).length > 0 ? `
-              <div class="rdv2-pay-list" id="rdv2-pay-list">
-                ${(r.payments || []).map(p => `
-                  <div class="rdv2-pay-entry" data-pid="${p.id}">
-                    <div class="rdv2-pay-entry-info">
-                      <span class="rdv2-green rdv2-pay-entry-amt">${fmt(p.amount)}</span>
-                      ${p.method ? `<span class="rdv2-pay-entry-method">${p.method}</span>` : ''}
-                    </div>
-                    <div class="rdv2-pay-entry-right">
-                      ${p.payment_date ? `<span class="rdv2-pay-entry-date">${sd(p.payment_date)}</span>` : '<span class="rdv2-pay-entry-date">—</span>'}
-                      ${String(p.id).startsWith('stripe-') ? '' : `<button class="rdv2-icon-btn rdv2-pay-del" ${AppActions.attrs("click", "detalhe-delete-payment-entry-6f2ae81", [String((r.id) ?? ''), String((p.id) ?? '')])} title="Remover pagamento">${AppModules.core.lcIcon('trash-2', 11)}</button>`}
-                    </div>
-                  </div>`).join('')}
+          <!-- Hóspedes -->
+          <section class="rf-card" aria-labelledby="rf-guests-title">
+            <div class="rf-card-head"><h3 id="rf-guests-title">Hóspedes</h3>
+              <button class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'detalhe-open-add-guest-form-2a832ca', [String(r.id)])}>${ic('user-plus', 12)} Adicionar hóspede</button></div>
+            <div class="rf-guest">
+              <span class="rf-avatar" aria-hidden="true">${esc(initials(r.guest_name))}</span>
+              <div class="rf-guest-info"><strong>${esc(r.guest_name || '—')} <span class="rf-tag">principal</span></strong>
+                <span>${[r.guest_email, r.guest_phone].filter(Boolean).map(esc).join(' · ') || 'sem contactos'}</span></div>
+              <div class="rf-guest-actions">
+                ${r.guest_email ? `<button class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'detalhe-abrir-mensagens-da-reserva-8cd7ba1', [String(r.id), guestEmail, guestName])}>${ic('mail', 12)} Email</button>` : ''}
+                ${r.guest_phone ? `<a class="btn btn-ghost btn-sm" href="tel:${esc(String(r.guest_phone).replace(/[^+\d]/g, ''))}">${ic('phone', 12)} Ligar</a>` : ''}
+                ${r.guest_id ? `<button class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'detalhe-open-guest-card-621ccbd', [String(r.guest_id), String(r.id)])}>Ficha</button>` : ''}
               </div>
-              <div class="rdv2-pay-summary">
-                <div class="rdv2-pay-row">
-                  <span>Total pago</span>
-                  <span class="rdv2-green" id="rdv2-total-paid">${fmt(paid)}</span>
-                </div>
-                ${remaining > 0.01 ? `<div class="rdv2-pay-row">
-                  <span>Em falta</span>
-                  <span class="rdv2-red" id="rdv2-remaining">${fmt(remaining)}</span>
-                </div>` : ''}
-              </div>` : `
-              <div class="rdv2-pay-empty">Sem pagamentos registados</div>
-              `}
-            <button type="button" class="btn btn-primary rdv2-mobile-only rdv2-payment-cta" ${AppActions.attrs("click", "detalhe-open-payment-form-74a29ac", [String((r.id) ?? ''), paid, total])}>${AppModules.core.lcIcon('credit-card', 16)} Registar pagamento</button>
-          </div>
-          </div>
-
-          ${r.invoice_number || r.invoice_date || r.invoice_sent_date ? `
-          <div class="rdv2-card rdv2-invoice-card">
-          <div class="rdv2-zone-divider">${AppModules.core.lcIcon('file-text', 10)} Fatura</div>
-          <div style="background:var(--surface-muted);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;">
-            <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--text-muted);">Nº</span><b style="color:var(--text-main);">${AppModules.core.escapeHtml(r.invoice_number || '—')}</b></div>
-            <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--text-muted);">Data</span><b style="color:var(--text-main);">${r.invoice_date ? sd(r.invoice_date) : '—'}</b></div>
-            <div style="display:flex;justify-content:space-between;font-size:12.5px;"><span style="color:var(--text-muted);">Enviada</span><b style="color:var(--text-main);">${r.invoice_sent_date ? sd(r.invoice_sent_date) : '—'}${r.invoice_sent_method ? ' · ' + AppModules.reservas.invoiceMethodLabel(r.invoice_sent_method) : ''}</b></div>
-          </div></div>` : ''}
-
-          ${r.notes ? `<div class="rdv2-notes">${AppModules.core.lcIcon('file-text', 12)} ${AppModules.core.escapeHtml(r.notes)}</div>` : ''}
-
-          ${guestsData.length ? `<div class="rdv2-guests">
-            <div class="rdv2-guests-title">Hóspedes adicionais</div>
-            ${guestsData.map((g, i) => `<div class="rdv2-guest-row">
-              <span class="rdv2-guest-num">Hóspede ${i + 2}</span>
-              <span>${g.id
-                ? `<a class="rdv2-guest-link" ${AppActions.attrs("click", "detalhe-abrir-hospede-b15454b", [String((g.id) ?? '')])}>${AppModules.core.escapeHtml(g.name || '—')}</a>`
-                : AppModules.core.escapeHtml(g.name || '—')}${g.email ? ` · ${AppModules.core.escapeHtml(g.email)}` : ''}${g.phone ? ` · ${AppModules.core.escapeHtml(g.phone)}` : ''}</span>
+            </div>
+            ${guestsData.map((g, i) => `<div class="rf-guest">
+              <span class="rf-avatar" aria-hidden="true">${esc(initials(g.name))}</span>
+              <div class="rf-guest-info"><strong>${esc(g.name || '—')}</strong>
+                <span>hóspede ${i + 2}${[g.email, g.phone].filter(Boolean).length ? ` · ${[g.email, g.phone].filter(Boolean).map(esc).join(' · ')}` : ''}</span></div>
+              <div class="rf-guest-actions">${g.id ? `<button class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'detalhe-abrir-hospede-b15454b', [String(g.id)])}>Ficha</button>` : ''}</div>
             </div>`).join('')}
-          </div>` : ''}
+          </section>
 
-          <div class="rdv2-sync ${r.google_event_id ? 'rdv2-sync-ok' : ''}">
-            ${AppModules.core.lcIcon('calendar', 11)} ${r.google_event_id ? 'Sincronizado com Google Calendar' : 'Não sincronizado com Google Calendar'}
-          </div>
+          <!-- Valores e pagamentos -->
+          <section class="rf-card" aria-labelledby="rf-money-title">
+            <div class="rf-card-head"><h3 id="rf-money-title">Valores e pagamentos</h3>
+              <button class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'detalhe-open-payment-form-74a29ac', [String(r.id), paid, total])}>${ic('credit-card', 12)} Registar pagamento</button></div>
+            <div class="rf-lines">
+              ${accLines}${otherLines}
+              <div class="rf-line rf-total rdv2-total-row"><span>Total
+                <button class="rdv2-edit-btn" ${AppActions.attrs('click', 'detalhe-start-inline-price-edit-700b5d7', [String(r.id), total])} title="Editar preço total" aria-label="Editar preço total">${ic('pencil', 11)}</button></span>
+                <span class="rdv2-amt" id="rdv2-acc-subtot">${fmt(total)}</span></div>
+              ${priceCompareLine}
+            </div>
+            <div class="rf-progress" role="img" aria-label="Pago ${paidPercent}% do total"><i style="width:${paidPercent}%"></i></div>
+            <div class="rf-paysum">
+              <div><small>Pago</small><strong class="rdv2-green" id="rdv2-total-paid">${fmt(paid)}</strong></div>
+              <div><small>Em falta</small><strong class="${remaining > 0.01 ? 'rdv2-red' : ''}" id="rdv2-remaining">${fmt(Math.max(0, remaining))}</strong></div>
+              <div><small>Total</small><strong>${fmt(total)}</strong></div>
+            </div>
+            ${(r.payments || []).length ? `<div class="rdv2-pay-list" id="rdv2-pay-list">
+              ${(r.payments || []).map(p => `
+                <div class="rdv2-pay-entry" data-pid="${esc(p.id)}">
+                  <div class="rdv2-pay-entry-info">
+                    <span class="rdv2-green rdv2-pay-entry-amt">${fmt(p.amount)}</span>
+                    ${p.method ? `<span class="rdv2-pay-entry-method">${esc(p.method)}</span>` : ''}
+                  </div>
+                  <div class="rdv2-pay-entry-right">
+                    <span class="rdv2-pay-entry-date">${p.payment_date ? sd(p.payment_date) : '—'}</span>
+                    ${String(p.id).startsWith('stripe-') ? '' : `<button class="rdv2-icon-btn rdv2-pay-del" ${AppActions.attrs('click', 'detalhe-delete-payment-entry-6f2ae81', [String(r.id), String(p.id)])} title="Remover pagamento" aria-label="Remover pagamento">${ic('trash-2', 11)}</button>`}
+                  </div>
+                </div>`).join('')}
+            </div>` : '<div class="rdv2-pay-empty">Sem pagamentos registados</div>'}
+            ${policy ? `<div class="rf-policy">
+              Política: inicial <strong>${fmt(policy.depositCents / 100)}</strong>${policy.balanceCents ? ` · restante <strong>${fmt(policy.balanceCents / 100)}</strong> até <strong>${esc(D.formatDateTime(policy.dueAt))}</strong>` : ''}
+              · ${policy.accepted ? 'condições aceites pelo hóspede' : 'condições ainda não aceites pelo hóspede'}
+              · ${policy.cancellation ? `reembolso previsto no cancelamento: <strong>${fmt(policy.cancellation.amount)}</strong> (${policy.cancellation.state === 'complete' ? 'concluído' : policy.cancellation.state === 'manual_review' ? 'precisa de revisão manual' : 'em processamento'})` : `reembolso se cancelar agora: <strong>${fmt(policy.refundCents / 100)} (${policy.refundPercent}%)</strong>`}
+              ${r.balance_deadline ? ` · prazo adicional: ${esc(D.formatDateTime(r.balance_deadline))}` : ''}
+              ${paymentPageUrl ? `<button class="rf-link-btn" ${AppActions.attrs('click', 'detalhe-write-text-8f51584', [paymentPageUrl])}>${ic('copy', 12)} Copiar link da reserva e pagamento</button>` : ''}
+            </div>` : ''}
+          </section>
+
+          ${r.notes ? `<section class="rf-card"><div class="rf-card-head"><h3>Notas</h3></div><p class="rf-notes">${esc(r.notes)}</p></section>` : ''}
         </div>
 
-        <!-- Sidebar -->
-        <div class="rdv2-sidebar">
-
+        <aside class="rf-side">
           <!-- Estado -->
-          <div class="rdv2-widget">
-            <div class="rdv2-widget-title">Estado</div>
-            ${r.online_payment_status ? `<p class="rdv2-status-label">Pagamento online: ${AppModules.core.escapeHtml(({
-              pending: 'A aguardar', processing: 'Em processamento', paid: 'Pago', failed: 'Falhou',
-              cancelled: 'Cancelado', expired: 'Sessão expirada', refunded: 'Reembolsado',
-              partially_refunded: 'Reembolso parcial', review_required: 'Requer verificação — pagamento recebido com reserva alterada ou cancelada',
-            })[r.online_payment_status] || r.online_payment_status)}</p>` : ''}
+          <section class="rf-card">
+            <div class="rf-card-head"><h3>Estado</h3></div>
             <div class="rdv2-status-row">
               <span class="rdv2-status-label">Reserva</span>
-              <select class="rdv2-status-select" id="rdv2-status-select" aria-label="Estado da reserva" ${AppActions.attrs("change", "detalhe-update-detail-status-05d2970", [String((r.id) ?? '')])}></select>
+              <select class="rdv2-status-select" id="rdv2-status-select" aria-label="Estado da reserva" ${AppActions.attrs('change', 'detalhe-update-detail-status-05d2970', [String(r.id)])}></select>
             </div>
-            <div class="rdv2-status-row">
-              <span class="rdv2-status-label">Pagamento</span>
-              <span>${AppModules.core.badgePagamento(r.payment_status)}</span>
-            </div>
-            <div class="rdv2-status-row">
-              <span class="rdv2-status-label">Pré-check-in</span>
-              <span>${AppModules.core.badgePrecheckin(r.precheckin_state)}</span>
-            </div>
-          </div>
-
-          ${r.payment_policy ? `<div class="rdv2-widget">
-            <div class="rdv2-widget-title">${AppModules.core.lcIcon('credit-card', 18)} Política de pagamento</div>
-            <p>Inicial: <strong>${fmt(r.payment_policy.depositCents / 100)}</strong> · Restante previsto: <strong>${fmt(r.payment_policy.balanceCents / 100)}</strong></p>
-            ${r.payment_policy.balanceCents ? `<p>Vencimento: ${AppModules.core.escapeHtml(window.ReservationDates.formatDateTime(r.payment_policy.dueAt))} (Lisboa)</p>` : ''}
-            <p>${r.payment_policy.accepted ? 'Condições aceites pelo hóspede.' : 'A aguardar aceitação das condições pelo hóspede.'}</p>
-            ${r.payment_policy.cancellation ? `<p>Reembolso previsto no cancelamento: ${fmt(r.payment_policy.cancellation.amount)}.</p>` : `<p>Reembolso se cancelar agora: ${fmt(r.payment_policy.refundCents / 100)} (${r.payment_policy.refundPercent}%).</p>`}
-            ${r.balance_deadline ? `<p>Prazo adicional: ${AppModules.core.escapeHtml(window.ReservationDates.formatDateTime(r.balance_deadline))}.</p>` : ''}
-            ${r.payment_policy.cancellation ? `<p>Cancelamento: ${r.payment_policy.cancellation.state === 'complete' ? 'processamento concluído' : r.payment_policy.cancellation.state === 'manual_review' ? 'reembolso precisa de revisão manual' : 'reembolso em processamento'}.</p>` : ''}
-            ${paymentPageUrl ? `<button class="rdv2-action-link" ${AppActions.attrs('click', 'detalhe-write-text-8f51584', [paymentPageUrl])}>${AppModules.core.lcIcon('copy', 12)} Copiar link da reserva e pagamento</button>` : ''}
-          </div>` : ''}
-          <!-- Ações -->
-          <div class="rdv2-widget">
-            <div class="rdv2-widget-title">${AppModules.core.lcIcon('settings', 18)} Ações da reserva</div>
-            ${reservationActionsHtml}
-          </div>
+            <div class="rdv2-status-row"><span class="rdv2-status-label">Pagamento</span><span>${AppModules.core.badgePagamento(r.payment_status)}</span></div>
+            ${onlineStatus ? `<div class="rdv2-status-row"><span class="rdv2-status-label">Pagamento online</span><span class="badge">${esc(onlineStatus)}</span></div>` : ''}
+            <div class="rdv2-status-row"><span class="rdv2-status-label">Pré-check-in</span><span>${AppModules.core.badgePrecheckin(r.precheckin_state)}</span></div>
+          </section>
 
           ${r.status !== 'pendente' && r.status !== 'cancelada' ? `
-          <!-- Concierge -->
-          <div class="rdv2-widget">
-            <div class="rdv2-widget-title">${AppModules.core.lcIcon('send', 18)} Concierge</div>
+          <!-- Pré-check-in -->
+          <section class="rf-card">
+            <div class="rf-card-head"><h3>Pré-check-in</h3></div>
             ${preCheckinUrl ? `
             <div class="rdv2-concierge-url">
-              <span class="rdv2-url-text" title="${preCheckinUrl}">${preCheckinUrl}</span>
-              <button class="rdv2-icon-btn" ${AppActions.attrs("click", "detalhe-write-text-8f51584", [String((preCheckinUrl) ?? '')])} title="Copiar">${AppModules.core.lcIcon('copy', 12)}</button>
+              <span class="rdv2-url-text" title="${esc(preCheckinUrl)}">${esc(preCheckinUrl)}</span>
+              <button class="rdv2-icon-btn" ${AppActions.attrs('click', 'detalhe-write-text-8f51584', [String(preCheckinUrl)])} title="Copiar" aria-label="Copiar link do pré-check-in">${ic('copy', 12)}</button>
             </div>
-            <div class="rdv2-concierge-btns">
-              <button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-open-7fd73a2", [String((preCheckinUrl) ?? '')])} title="Abrir o formulário do pré-check-in para o preencher com o hóspede">${AppModules.core.lcIcon('arrow-right', 13)} ${r.precheckin_state === 'preenchido' ? 'Abrir' : 'Preencher agora'}</button>
-              <button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-enviar-link-precheckin-ae74bc8", [String((r.id) ?? '')])} title="Enviar link de pré-checkin">${AppModules.core.lcIcon('send', 13)} Enviar pré-checkin</button>
-              ${r.guest_email ? `<button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-abrir-mensagens-da-reserva-8cd7ba1", [String((r.id) ?? ''), String((guestEmail) ?? ''), String((guestName) ?? '')])} title="Enviar email">${AppModules.core.lcIcon('mail', 13)} Email</button>` : ''}
+            <div class="rf-stack">
+              <button class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-enviar-link-precheckin-ae74bc8', [String(r.id)])}>${ic('send', 13)} ${r.precheckin_state === 'nao_enviado' || !r.precheckin_state ? 'Enviar link ao hóspede' : 'Reenviar link ao hóspede'}</button>
+              <div class="rf-two">
+                <button class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'detalhe-open-7fd73a2', [String(preCheckinUrl)])} title="Abrir o formulário do pré-check-in para o preencher com o hóspede">${ic('arrow-right', 13)} ${r.precheckin_state === 'preenchido' ? 'Abrir' : 'Preencher agora'}</button>
+                <button class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'detalhe-write-text-8f51584', [String(preCheckinUrl)])}>${ic('copy', 13)} Copiar link</button>
+              </div>
             </div>
-            <div style="padding:6px 0 0;font-size:11.5px;color:var(--text-muted);">
-              ${r.precheckin_submitted_at
-                ? `Submetido a ${sd(String(r.precheckin_submitted_at).slice(0, 10))}${r.precheckin_updated_at && r.precheckin_updated_at !== r.precheckin_submitted_at ? ` · alterado a ${sd(String(r.precheckin_updated_at).slice(0, 10))}` : ''} · o hóspede pode corrigir até ao check-in`
-                : 'A aguardar submissão do hóspede'}
-            </div>` : `
-            <div class="rdv2-concierge-btns">
-              <button class="rdv2-cta-btn" ${AppActions.attrs("click", "detalhe-enviar-link-precheckin-1ddc760", [String((r.id) ?? '')])} title="Gerar link de pré-checkin">${AppModules.core.lcIcon('link', 13)} Gerar pré-checkin</button>
-            </div>`}
-          </div>` : ''}
+            <p class="rf-foot">${r.precheckin_submitted_at
+              ? `Submetido a ${sd(String(r.precheckin_submitted_at).slice(0, 10))}${r.precheckin_updated_at && r.precheckin_updated_at !== r.precheckin_submitted_at ? ` · alterado a ${sd(String(r.precheckin_updated_at).slice(0, 10))}` : ''} · o hóspede pode corrigir até ao check-in`
+              : 'A aguardar submissão do hóspede'}</p>` : `
+            <button class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'detalhe-enviar-link-precheckin-1ddc760', [String(r.id)])}>${ic('link', 13)} Gerar pré-check-in</button>`}
+          </section>` : ''}
 
           <!-- Documentos -->
-          <div class="rdv2-widget rdv2-widget-docs">
-            <div class="rdv2-widget-title">${AppModules.core.lcIcon('files', 18)} Documentos</div>
-            <button class="rdv2-doc-link" ${AppActions.attrs("click", "detalhe-open-reservation-sheet-d1319da", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('clipboard', 12)} Ficha de reserva</button>
-            <button class="rdv2-doc-link" ${AppActions.attrs("click", "detalhe-open-guest-card-621ccbd", [String((r.guest_id) ?? ''), String((r.id) ?? '')])}>${AppModules.core.lcIcon('user', 12)} Ficha de hóspede</button>
-            <button class="rdv2-doc-link" ${AppActions.attrs("click", "detalhe-open-account-statement-dbfcf1c", [String((r.id) ?? '')])}>${AppModules.core.lcIcon('credit-card', 12)} Conta corrente</button>
-          </div>
-
-        </div>
+          <section class="rf-card">
+            <div class="rf-card-head"><h3>Documentos</h3></div>
+            <button class="rf-doc" ${AppActions.attrs('click', 'detalhe-open-reservation-sheet-d1319da', [String(r.id)])}><span class="rf-doc-icon">${ic('clipboard', 14)}</span>Ficha de reserva</button>
+            <button class="rf-doc" ${AppActions.attrs('click', 'detalhe-open-guest-card-621ccbd', [String(r.guest_id ?? ''), String(r.id)])}><span class="rf-doc-icon">${ic('user', 14)}</span>Ficha de hóspede</button>
+            <button class="rf-doc" ${AppActions.attrs('click', 'detalhe-open-account-statement-dbfcf1c', [String(r.id)])}><span class="rf-doc-icon">${ic('credit-card', 14)}</span>Conta corrente</button>
+            <button class="rf-doc" data-inv='${invoiceData}' ${AppActions.attrs('click', 'detalhe-open-invoice-form-from-btn-ddace26', [String(r.id)])}><span class="rf-doc-icon">${ic('file-text', 14)}</span>Fatura<small>${invoiceText}</small></button>
+          </section>
+          <p class="rf-sync ${r.google_event_id ? 'rf-sync-ok' : ''}">${ic('calendar', 12)} ${r.google_event_id ? 'Sincronizado com Google Calendar' : 'Não sincronizado com Google Calendar'}</p>
+        </aside>
       </div>
 
       <!-- Painéis Tarefas / Timeline (carregados ao abrir a tab) -->

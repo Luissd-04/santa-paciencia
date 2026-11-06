@@ -243,7 +243,9 @@ async function main() {
   await expect(deepPage.locator('#view-reservas')).toHaveClass(/active/);
   await expect(deepPage.locator('#reserva-detail-page')).toBeVisible();
   await expect(deepPage.locator('#reserva-detail-page')).toContainText('Hóspede 001');
-  await expect(deepPage.getByText('Abrir pagamento online', { exact: true }).filter({ visible: true })).toBeVisible();
+  // As ações da reserva estão no menu «Mais» da ficha.
+  await deepPage.locator('#rdv2-actions-trigger').click();
+  await expect(deepPage.locator('#rdv2-actions-menu').getByText('Abrir pagamento online', { exact: true })).toBeVisible();
   assert.deepEqual(deepErrors, []);
   await deepPage.close();
   console.log('OK: ligação direta a uma reserva abre a ficha com o módulo carregado.');
