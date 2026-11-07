@@ -307,8 +307,10 @@ function renderNotificationsPage() {
   const countLabel = document.getElementById('notifications-page-count-label');
   if (countEl) countEl.textContent = String(_notifications.length);
   if (countLabel) countLabel.textContent = _notifications.length === 1 ? 'notificação' : 'notificações';
+  renderNotificationsSide();
+  const shown = notifSideFilter ? _notifications.filter(n => notifGroup(n) === notifSideFilter) : _notifications;
 
-  if (_notifications.length === 0) {
+  if (shown.length === 0) {
     list.innerHTML = `
       <div class="empty-state">
         <div class="es-icon">🔔</div>
@@ -326,7 +328,7 @@ function renderNotificationsPage() {
     'download': 'download', 'mail': 'mail',
   };
 
-  list.innerHTML = _notifications.map(n => `
+  list.innerHTML = shown.map(n => `
     <div class="notifications-page-item ${priorityClass[n.priority] || ''}">
       <span class="notif-item-icon"><i data-lucide="${icons[n.icon] || 'bell'}"></i></span>
       <span class="notifications-page-copy">
@@ -362,6 +364,63 @@ function renderNotificationsPage() {
     </div>
   `).join('');
   if (window.lucide) lucide.createIcons();
+}
+
+// ── V2: painel do resumo ao lado da lista (ecrã grande) ──
+// Contagens por grupo; tocar num grupo filtra a lista. O botão da barra
+// recolhe o painel para o lado e a escolha fica guardada neste aparelho.
+// Na V1 o painel não aparece (operations.css) e a lista mostra tudo.
+const NOTIF_GROUPS = [
+  ['estadias', 'Chegadas e saídas', 'log-in', ['checkin_today', 'checkout_today', 'checkin_tomorrow']],
+  ['pedidos', 'Pedidos', 'clock', ['pending']],
+  ['pagamentos', 'Pagamentos', 'circle-alert', ['unpaid', 'payment_review']],
+  ['tarefas', 'Tarefas', 'sparkles', ['important_task']],
+  ['envios', 'Emails e avisos', 'mail', ['email_review', 'notice_failed']],
+  ['outras', 'Outras', 'bell', []],
+];
+const NOTIF_SIDE_KEY = 'sp-notif-resumo';
+let notifSideFilter = '';
+let notifSideClosed = (() => { try { return localStorage.getItem(NOTIF_SIDE_KEY) === 'fechado'; } catch { return false; } })();
+
+function notifGroup(n) {
+  return (NOTIF_GROUPS.find(([, , , types]) => types.includes(n.type)) || NOTIF_GROUPS[NOTIF_GROUPS.length - 1])[0];
+}
+
+function renderNotificationsSide() {
+  document.getElementById('notifications-page-shell')?.classList.toggle('notif-side-closed', notifSideClosed);
+  const toggle = document.getElementById('notif-side-toggle');
+  if (toggle) {
+    toggle.setAttribute('aria-pressed', String(!notifSideClosed));
+    toggle.title = notifSideClosed ? 'Mostrar o resumo' : 'Recolher o resumo';
+  }
+  const box = document.getElementById('notifications-side-summary');
+  if (!box) return;
+  const counts = Object.fromEntries(NOTIF_GROUPS.map(([key]) => [key, 0]));
+  _notifications.forEach(n => { counts[notifGroup(n)] += 1; });
+  if (notifSideFilter && !counts[notifSideFilter]) notifSideFilter = '';
+  const urgent = _notifications.filter(n => n.priority === 'high').length;
+  const row = (key, label, icon, count) => `<button type="button" class="notif-side-row${notifSideFilter === key ? ' is-active' : ''}" aria-pressed="${notifSideFilter === key}" ${AppActions.attrs('click', 'notifications-side-filter', [key])}>
+      ${AppModules.core.lcIcon(icon, 15)}<span>${label}</span><strong>${count}</strong>
+    </button>`;
+  box.innerHTML = `<p class="notif-side-urgent"><strong>${urgent}</strong> ${urgent === 1 ? 'urgente' : 'urgentes'}</p>
+    ${row('', 'Todas', 'list', _notifications.length)}
+    ${NOTIF_GROUPS.filter(([key]) => counts[key]).map(([key, label, icon]) => row(key, label, icon, counts[key])).join('')}`;
+}
+
+function setNotifSideFilter(key) {
+  notifSideFilter = notifSideFilter === key ? '' : key;
+  renderNotificationsPage();
+}
+
+function toggleNotificationsSide() {
+  notifSideClosed = !notifSideClosed;
+  try { localStorage.setItem(NOTIF_SIDE_KEY, notifSideClosed ? 'fechado' : 'aberto'); } catch { /* Vale só nesta página. */ }
+  renderNotificationsSide();
+}
+
+async function openPushSettings() {
+  await AppModules.core.showView('definicoes');
+  AppModules.core.switchSettingsTab('push');
 }
 
 async function notifGoTo(reservationId) {
@@ -506,6 +565,9 @@ AppActions.register({
   "notifications-refuse-export-reminder-e3d92d6": (el, event, args) => { refuseExportReminder(args[0]) },
   "notifications-resolve-email-sent-7d2a1c4": (el, event, args) => { resolveEmailDelivery(args[0], args[1], 'sent') },
   "notifications-resolve-email-retry-9b3e5f0": (el, event, args) => { resolveEmailDelivery(args[0], args[1], 'retry') },
+  "notifications-side-filter": (el, event, args) => { setNotifSideFilter(args[0]) },
+  "notifications-toggle-side": () => { toggleNotificationsSide() },
+  "notifications-open-push-settings": () => { openPushSettings() },
 }, "click");
 
 // Limpeza da funcionalidade ao sair ou trocar de organização.

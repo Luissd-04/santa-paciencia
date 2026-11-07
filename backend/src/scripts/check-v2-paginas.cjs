@@ -1,4 +1,5 @@
-// V2: páginas principais redesenhadas (Reservas e Calendário). Na V1 nada
+// V2: páginas principais redesenhadas (Reservas, Calendário, Eventos e
+// Notificações). Na V1 nada
 // muda; nos aspetos novos: lista com colunas coladas opacas, ficha ainda no
 // aspeto antigo, painel do dia ao lado do mês que se recolhe e fica guardado,
 // e nada mais largo do que o ecrã no telemóvel. Dados sintéticos e base
@@ -61,6 +62,10 @@ async function main() {
   await expect(page.locator('#cal-day-panel-toggle')).toBeHidden();
   await page.locator('#cal-grid .cal-day-click-area').nth(3).click();
   await expect.poll(modalOpen).toBe(true);
+  await page.goto(`${base}/notificacoes`);
+  await expect(page.locator('#notifications-page-list .notifications-page-item').first()).toBeVisible();
+  await expect(page.locator('#notifications-side')).toBeHidden();
+  await expect(page.locator('#notif-side-toggle')).toBeHidden();
 
   // Vidro escuro: o painel do dia está ao lado do mês, com o dia de hoje.
   appearance.save(user.id, { look: 'vidro', mode: 'escuro' });
@@ -122,21 +127,48 @@ async function main() {
   await expect(page.locator('#reservas-table tbody tr').first()).toBeVisible();
   await expect(page.locator('#view-reservas')).toHaveAttribute('data-v2', '');
 
+  // Notificações: lista a toda a largura com o resumo ao lado; tocar num grupo
+  // filtra a lista; o resumo recolhe e a escolha fica guardada.
+  await page.goto(`${base}/notificacoes`);
+  const items = page.locator('#notifications-page-list .notifications-page-item');
+  const resumo = page.locator('#notifications-side');
+  await expect(items.first()).toBeVisible();
+  await expect(resumo).toBeVisible();
+  const all = await items.count();
+  const pedidos = resumo.locator('.notif-side-row', { hasText: 'Pedidos' });
+  await expect(pedidos.locator('strong')).toHaveText('1');
+  await pedidos.click();
+  await expect(items).toHaveCount(1);
+  await expect(items.first()).toContainText('Rui Marques');
+  await pedidos.click();
+  await expect(items).toHaveCount(all);
+  const sideToggle = page.locator('#notif-side-toggle');
+  await sideToggle.click();
+  await expect(resumo).toBeHidden();
+  await page.goto(`${base}/notificacoes`);
+  await expect(items.first()).toBeVisible();
+  await expect(resumo).toBeHidden();
+  await sideToggle.click();
+  await resumo.getByRole('button', { name: 'Preferências de push' }).click();
+  await expect(page.locator('#settings-push')).toBeVisible();
+
   // Telemóvel: nada mais largo do que o ecrã, em cada aspeto.
   await page.setViewportSize({ width: 390, height: 844 });
   for (const [look, mode] of [['classico', 'auto'], ['vidro', 'claro'], ['vidro', 'escuro']]) {
     appearance.save(user.id, { look, mode });
-    for (const view of ['reservas', 'calendario']) {
+    for (const view of ['reservas', 'calendario', 'eventos', 'notificacoes']) {
       await page.goto(`${base}/${view}`);
       await expect(page.locator(`#view-${view}.active`)).toBeVisible();
       await page.waitForTimeout(200);
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${view} mais largo do que o ecrã (${look} ${mode})`);
     }
   }
+  // No telemóvel o Calendário mostra a agenda com o mês, como sempre.
+  await page.goto(`${base}/calendario`);
   await expect(page.locator('#calendar-agenda-mobile .agenda-month')).toBeVisible();
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista com colunas coladas opacas, ficha no aspeto antigo) e Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline) e largura no telemóvel.');
+  console.log('OK: V2 — Reservas (lista com colunas coladas opacas, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (resumo ao lado, filtro por grupo, recolher guardado, preferências de push) e largura no telemóvel com Eventos.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
