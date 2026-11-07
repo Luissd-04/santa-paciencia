@@ -47,6 +47,8 @@ async function main() {
   task.run('t-limpeza', org.id, 'Limpeza completa', 'limpeza', today, '12:00', 'planeado', 'Maria Lopes');
   task.run('t-checkout', org.id, 'Check-out cedo', 'checkout', today, '09:00', 'concluido', 'Maria Lopes');
 
+  db.prepare(`INSERT INTO vouchers(id, organization_id, code, type, value, description, valid_until, max_uses, status) VALUES ('vx',?,'NATAL2026','discount_fixed',150,'Oferta de Natal',?,1,'active')`).run(org.id, dates.addDays(today, 40));
+
   server = app.listen(0, '127.0.0.1');
   await new Promise((resolve, reject) => { server.once('listening', resolve); server.once('error', reject); });
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -222,6 +224,16 @@ async function main() {
   await roomCard.locator('h3').click();
   await expect(page.locator('#view-alojamento-detalhe')).toBeVisible();
 
+  // Vouchers: números, filtros por estado e um bilhete por voucher.
+  await page.goto(`${base}/vouchers`);
+  const ticket = page.locator('#vouchers-list-wrap .vv2-ticket', { hasText: 'NATAL2026' });
+  await expect(ticket).toBeVisible();
+  await expect(ticket.locator('.vv2-val')).toHaveText('150,00 €');
+  await expect(page.locator('#vouchers-list-wrap .vv2-kpi').first()).toContainText('1');
+  await expect(page.locator('#vouchers-list-wrap .rv2-chip.is-on')).toHaveText('Ativo 1');
+  await ticket.locator('.vv2-code').click();
+  await expect(page.locator('#voucher-modal-bg')).toHaveClass(/open/);
+
   // Despesas no vidro escuro: os cartões de totais perdem o degradé claro da V1.
   await page.goto(`${base}/despesas`);
   const kpi = page.locator('#despesas-kpi-grid .kpi-card').first();
@@ -251,7 +263,7 @@ async function main() {
   await expect(page.locator('#calendar-agenda-mobile .agenda-month')).toBeVisible();
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro), Eventos (vista Semana, marcar feito, resumo), Alojamentos (cartões com ocupação), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro), Eventos (vista Semana, marcar feito, resumo), Alojamentos (cartões com ocupação), Vouchers (bilhetes e filtros), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
