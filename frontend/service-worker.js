@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 84;
+const CACHE_VERSION = 85;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -148,6 +148,7 @@ const FEATURE_ASSETS = [
   '/js/features/alojamentos/servicos-heranca.js',
   '/js/features/alojamentos/exportacao.js',
   '/js/features/alojamentos/configuracao.js',
+  '/js/features/alojamentos/cartoes-v2.js',
   '/js/despesas.js',
   '/js/relatorios.js',
   '/js/vouchers.js',
