@@ -6,6 +6,12 @@ AppModules.define('vouchers', {
   openVoucherModal: { get: () => openVoucherModal },
   saveVoucher: { get: () => saveVoucher },
   updateVoucherValueLabel: { get: () => updateVoucherValueLabel },
+  // Para os bilhetes da V2 (features/vouchers/bilhetes-v2.js).
+  voucherStatus: { get: () => getVoucherStatus },
+  voucherExpiringSoon: { get: () => isVoucherExpiringSoon },
+  voucherValue: { get: () => formatVoucherValue },
+  VOUCHER_STATUS_LABELS: { get: () => VOUCHER_STATUS_LABELS },
+  VOUCHER_TYPE_LABELS: { get: () => VOUCHER_TYPE_LABELS },
 });
 
 let vouchersData = [];
@@ -69,6 +75,9 @@ function renderVouchersList() {
   const countLabel = document.getElementById('vouchers-count-label');
   if (countEl) countEl.textContent = String(vouchersData.length);
   if (countLabel) countLabel.textContent = vouchersData.length === 1 ? 'voucher' : 'vouchers';
+
+  // V2: bilhetes da maqueta (features/vouchers/bilhetes-v2.js).
+  if (AppModules.vouchers.renderVouchersV2?.(vouchersData)) return;
 
   if (vouchersData.length === 0) {
     wrap.innerHTML = "\n      <div class=\"empty-state\">\n        <div class=\"es-icon\"><i data-lucide=\"ticket\" style=\"width:40px;height:40px;opacity:.3;\"></i></div>\n        <h3>Sem vouchers</h3>\n        <p>Cria o primeiro voucher para oferecer descontos ou créditos de estadia aos teus hóspedes.</p>\n        <button class=\"btn btn-primary btn-sm\" data-on-click=\"vouchers-open-voucher-modal-d7741bd\"><i data-lucide=\"plus\"></i> Criar voucher</button>\n      </div>";

@@ -9,7 +9,7 @@
   const dark = window.matchMedia('(prefers-color-scheme: dark)');
   const BAR_COLORS = { atual: '#843424', classico: '#843424', claro: '#eceef2', escuro: '#0a0a0c' };
   // CSS da V2: só se descarrega quando há um aspeto novo escolhido.
-  const STYLES = ['aparencia', 'componentes', 'painel', 'reservas', 'calendario', 'eventos', 'notificacoes', 'mensagens', 'hospedes', 'alojamentos', 'precos', 'definicoes'].map(name => `/css/v2/${name}.css`);
+  const STYLES = ['aparencia', 'componentes', 'painel', 'reservas', 'calendario', 'eventos', 'notificacoes', 'mensagens', 'hospedes', 'alojamentos', 'precos', 'vouchers', 'definicoes'].map(name => `/css/v2/${name}.css`);
   let stylesLoaded = false;
   let prefs = null;
   try { prefs = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { prefs = null; }

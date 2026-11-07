@@ -123,7 +123,7 @@ const FEATURE_MODULES = {
   vouchers: {
     // O histórico de utilizações abre as fichas das reservas associadas.
     deps: ['reservas'],
-    scripts: ['js/vouchers.js'],
+    scripts: ['js/vouchers.js', 'js/features/vouchers/bilhetes-v2.js'],
   },
   precos: {
     scripts: ['js/precos.js'],
