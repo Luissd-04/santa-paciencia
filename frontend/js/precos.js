@@ -110,6 +110,25 @@ function populatePrecosAlojSelector() {
     AppModules.core.accommodations.map(a => `<option value="${AppModules.core.escapeHtml(a.id)}">${AppModules.core.escapeHtml(a.name)}</option>`).join('');
   if (_precosAlojId) sel.value = _precosAlojId;
   if (window.AppUI) AppUI.enhanceSelect(sel, { placeholder: '— Selecionar alojamento —' });
+  renderPrecosUnitPills();
+}
+
+// V2: os alojamentos em pílula (como na maqueta) no lugar da lista de escolha;
+// sem nenhum escolhido, abre no primeiro. Na V1 fica só a lista.
+function renderPrecosUnitPills() {
+  const box = document.getElementById('precos-v2-units');
+  if (!box) return;
+  const v2 = Boolean(document.documentElement?.dataset?.look);
+  box.hidden = !v2;
+  if (!v2) return;
+  const units = AppModules.core.accommodations || [];
+  if (!_precosAlojId && units.length) {
+    const sel = document.getElementById('precos-aloj-sel');
+    if (sel) { sel.value = units[0].id; onPrecosAlojChange(); return; }
+  }
+  const esc = AppModules.core.escapeHtml;
+  box.innerHTML = units.map(a => `<button type="button" class="rv2-chip${a.id === _precosAlojId ? ' is-on' : ''}" aria-pressed="${a.id === _precosAlojId}"
+    ${AppActions.attrs('click', 'precos-v2-unidade', [String(a.id)])}><span class="pv2-dot" style="background:${esc(a.color || '#843424')}"></span>${esc(a.name)}</button>`).join('');
 }
 
 function _updatePrecosBase() {
@@ -124,6 +143,7 @@ function _updatePrecosBase() {
 async function onPrecosAlojChange() {
   const sel = document.getElementById('precos-aloj-sel');
   _precosAlojId = sel?.value || '';
+  renderPrecosUnitPills();
   if (typeof AppModules.core.SS !== 'undefined') AppModules.core.SS.set('precos:aloj', _precosAlojId);
   _rangeStart = null;
   _rangeEnd   = null;
@@ -822,6 +842,10 @@ function _ptToIso(value) {
 AppActions.register({
   "precos-open-precos-period-modal-9640b4e": (el, event, args) => { openPrecosPeriodModal(args[0]) },
   "precos-stop-propagation-22499e1": (el, event, args) => { event.stopPropagation() },
+  "precos-v2-unidade": (el, event, args) => {
+    const sel = document.getElementById('precos-aloj-sel');
+    if (sel) { sel.value = args[0]; AppUI.refreshDropdowns?.(document.getElementById('view-precos')); onPrecosAlojChange(); }
+  },
   "precos-delete-precos-period-ee51f70": (el, event, args) => { deletePrecosPeriod(args[0]) },
   "precos-cancel-precos-selection-93768a7": (el, event, args) => { cancelPrecosSelection() },
   "precos-handle-precos-day-click-09b32cf": (el, event, args) => { handlePrecosDayClick(args[0]) },
