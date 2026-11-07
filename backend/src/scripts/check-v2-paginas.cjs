@@ -234,8 +234,17 @@ async function main() {
   await ticket.locator('.vv2-code').click();
   await expect(page.locator('#voucher-modal-bg')).toHaveClass(/open/);
 
-  // Despesas no vidro escuro: os cartões de totais perdem o degradé claro da V1.
+  // Despesas: quatro números e «Por mês» com os últimos seis meses (do servidor).
+  db.prepare("INSERT INTO expenses (id,organization_id,date,description,category,amount) VALUES ('ex1',?,?,'Lavandaria','limpeza',84.5)").run(org.id, today);
+  const summary = await page.evaluate(async () => (await (await fetch('/api/expenses/summary')).json()).data);
+  assert.equal(summary.byMonth.length, 6);
+  assert.equal(summary.byMonth[5].total, 84.5);
+  assert.equal(typeof summary.previousMonthTotal, 'number');
   await page.goto(`${base}/despesas`);
+  await expect(page.locator('#despesas-kpi-grid .dv2-kpi')).toHaveCount(4);
+  await expect(page.locator('#despesas-kpi-grid .dv2-kpi').first()).toContainText('84,50');
+  await expect(page.locator('#despesas-v2-meses .dv2-bars > div')).toHaveCount(6);
+  // Despesas no vidro escuro: os cartões de totais perdem o degradé claro da V1.
   const kpi = page.locator('#despesas-kpi-grid .kpi-card').first();
   await expect(kpi).toBeVisible();
   assert.equal(await kpi.evaluate(el => getComputedStyle(el).backgroundImage), 'none', 'cartão de totais das Despesas ainda claro');
@@ -263,7 +272,7 @@ async function main() {
   await expect(page.locator('#calendar-agenda-mobile .agenda-month')).toBeVisible();
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro), Eventos (vista Semana, marcar feito, resumo), Alojamentos (cartões com ocupação), Vouchers (bilhetes e filtros), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro), Eventos (vista Semana, marcar feito, resumo), Alojamentos (cartões com ocupação), Vouchers (bilhetes e filtros), Despesas (números e «Por mês»), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {

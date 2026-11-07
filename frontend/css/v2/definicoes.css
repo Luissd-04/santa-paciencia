@@ -1,11 +1,6 @@
-/* ══ V2: Despesas, Relatórios, Vouchers e Definições ══
-   Quase tudo vem das peças comuns (componentes.css); aqui fica o que estas
-   páginas tinham com cor fixa. */
-
-/* Despesas: os filtros no ecrã grande ficam soltos (no telemóvel são uma folha). */
-@media (min-width: 601px) {
-  html[data-look] #view-despesas[data-v2] .despesas-filter-panel { background: none; box-shadow: none; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
-}
+/* ══ V2: Definições ══
+   Quase tudo vem das peças comuns (componentes.css); aqui fica o que esta
+   página tinha com cor fixa. */
 
 /* Definições → Ligações: o ícone de cada serviço (era tijolo com ícone branco). */
 html[data-look] #view-definicoes[data-v2] .settings-integration-icon { background: var(--v2-accent-soft); color: var(--v2-ink); }

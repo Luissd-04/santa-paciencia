@@ -112,7 +112,7 @@ const FEATURE_MODULES = {
     ],
   },
   despesas: {
-    scripts: ['js/despesas.js'],
+    scripts: ['js/despesas.js', 'js/features/despesas/resumo-v2.js'],
   },
   relatorios: {
     // Os gráficos de despesas usam as categorias e cores de despesas.js,

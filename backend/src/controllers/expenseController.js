@@ -57,7 +57,17 @@ function getSummary(req, res) {
   const yearTotal  = db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM expenses WHERE organization_id = ? AND substr(date,1,4)=?").get(orgId, thisYear).t;
   const allTotal   = db.prepare("SELECT COALESCE(SUM(amount),0) as t FROM expenses WHERE organization_id = ?").get(orgId).t;
   const byCategory = db.prepare("SELECT category, COALESCE(SUM(amount),0) as total FROM expenses WHERE organization_id = ? AND substr(date,1,4)=? GROUP BY category ORDER BY total DESC").all(orgId, thisYear);
-  res.json({ success: true, data: { monthTotal, yearTotal, allTotal, byCategory } });
+  // Últimos seis meses (o atual incluído), do mais antigo para o mais recente:
+  // gráfico «Por mês» e comparação com o mês anterior.
+  const [year, month] = thisMonth.split('-').map(Number);
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(Date.UTC(year, month - 1 - (5 - i), 1));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  });
+  const totals = Object.fromEntries(db.prepare(`SELECT substr(date,1,7) AS month, COALESCE(SUM(amount),0) AS total FROM expenses
+    WHERE organization_id = ? AND substr(date,1,7) >= ? GROUP BY month`).all(orgId, months[0]).map(row => [row.month, row.total]));
+  const byMonth = months.map(m => ({ month: m, total: totals[m] || 0 }));
+  res.json({ success: true, data: { monthTotal, previousMonthTotal: byMonth[4].total, yearTotal, allTotal, byCategory, byMonth } });
 }
 
 // GET /api/expenses/periods — meses (YYYY-MM) com despesas, mais recente primeiro.
