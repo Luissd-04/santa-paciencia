@@ -345,11 +345,11 @@
       </div>
 
       <!-- ══ ALOJAMENTOS — LISTA ══ -->
-      <div class="view" id="view-eventos">
+      <div class="view" id="view-eventos" data-v2>
       </div>
 
-      <div class="view" id="view-notificacoes">
-        <section class="notifications-page-shell">
+      <div class="view" id="view-notificacoes" data-v2>
+        <section class="notifications-page-shell" id="notifications-page-shell">
           <div class="card card--flush notifications-page-card">
             <div class="card-header">
               <span class="card-title"><i data-lucide="bell"></i> Notificações</span>
@@ -364,10 +364,25 @@
                 <button class="btn btn-primary btn-sm" data-on-click="index-open-manual-notification-modal-01af437">
                   <i data-lucide="bell-plus"></i> Adicionar
                 </button>
+                <button type="button" class="btn btn-ghost btn-sm notif-side-toggle" id="notif-side-toggle" aria-controls="notifications-side" aria-pressed="true" aria-label="Resumo" title="Recolher o resumo" data-on-click="notifications-toggle-side">
+                  <i data-lucide="panel-right"></i>
+                </button>
               </div>
             </div>
             <div id="notifications-page-list" class="notifications-page-list"></div>
           </div>
+          <!-- V2: resumo por tipo e avisos no telemóvel (notifications.js → renderNotificationsSide). -->
+          <aside class="card notifications-side" id="notifications-side" aria-label="Resumo das notificações">
+            <h3>Resumo</h3>
+            <div id="notifications-side-summary" class="notifications-side-summary"></div>
+            <div class="notifications-side-push">
+              <h3>Avisos no telemóvel</h3>
+              <p>Escolhe que acontecimentos chegam como notificação push a este aparelho.</p>
+              <button type="button" class="btn btn-ghost btn-sm" data-on-click="notifications-open-push-settings">
+                <i data-lucide="smartphone"></i> Preferências de push
+              </button>
+            </div>
+          </aside>
         </section>
       </div>
 
