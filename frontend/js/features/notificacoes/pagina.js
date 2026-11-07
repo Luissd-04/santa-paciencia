@@ -75,7 +75,7 @@ function renderToolbar(list) {
     ...GROUPS.map(([key, label]) => [key, label, list.filter(n => groupOf(n)[0] === key).length])];
   box.innerHTML = `<div class="nv2-chips" role="group" aria-label="Filtrar notificações">${chips
     .filter(([key, , count]) => !key || count || key === filter)
-    .map(([key, label, count]) => `<button type="button" class="nv2-chip${key === filter ? ' is-on' : ''}" aria-pressed="${key === filter}" ${AppActions.attrs('click', 'notificacoes-v2-filtro', [key])}>${label}${key && count ? ` <em>${count}</em>` : ''}</button>`)
+    .map(([key, label, count]) => `<button type="button" class="rv2-chip${key === filter ? ' is-on' : ''}" aria-pressed="${key === filter}" ${AppActions.attrs('click', 'notificacoes-v2-filtro', [key])}>${label}${key && count ? ` <em>${count}</em>` : ''}</button>`)
     .join('')}</div>
     <button type="button" class="btn btn-ghost btn-sm nv2-read-all" ${unread ? '' : 'disabled'} ${AppActions.attrs('click', 'notificacoes-v2-ler-todas')}>${AppModules.core.lcIcon('check-check', 15)} Marcar todas como lidas</button>`;
 }

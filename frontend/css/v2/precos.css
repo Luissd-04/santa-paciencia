@@ -9,10 +9,6 @@ html[data-look="classico"] #view-precos[data-v2] .precos-dow-btn.active { backgr
 .pv2-units[hidden] { display: none !important; }
 html[data-look] #view-precos[data-v2] .view-toolbar:has(#precos-v2-units) > :is(#precos-aloj-sel, .app-select) { display: none !important; }
 html[data-look] #view-precos[data-v2] .pv2-units { display: flex; flex-wrap: wrap; gap: 6px; }
-html[data-look] #view-precos[data-v2] .rv2-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 14px; border: 1px solid var(--v2-line); border-radius: 999px;
-  background: var(--v2-surface); color: var(--v2-ink); font: 500 13px var(--v2-font); cursor: pointer; }
-html[data-look] #view-precos[data-v2] .rv2-chip.is-on { background: var(--v2-accent); border-color: var(--v2-accent); color: var(--v2-accent-ink); font-weight: 600; }
-html[data-look="classico"] #view-precos[data-v2] .rv2-chip.is-on { background: #843424; border-color: #843424; color: #fff; }
 html[data-look] #view-precos[data-v2] .pv2-units .rv2-chip { flex-shrink: 0; white-space: nowrap; }
 html[data-look] #view-precos[data-v2] .pv2-dot { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .7); }
 @media (max-width: 600px) { html[data-look] #view-precos[data-v2] .pv2-units { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; } }

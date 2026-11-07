@@ -34,7 +34,9 @@ function photoHtml(a) {
   const src = a.cover_image && core.safeMediaUrl(a.cover_image)
     ? core.mediaThumb(a.cover_image.startsWith('http') ? a.cover_image : core.API_BASE + a.cover_image, 640) : '';
   const color = a.color || '#843424';
-  return `<div class="av2-photo" style="--acc:${core.escapeHtml(color)}">${src ? `<img src="${core.escapeHtml(src)}" alt="" loading="lazy" decoding="async">` : core.lcIcon('home', 28)}
+  // A casa fica sempre por baixo: se a foto não carregar (ficheiro que já
+  // não existe), sai e fica a cor do alojamento em vez da imagem partida.
+  return `<div class="av2-photo" style="--acc:${core.escapeHtml(color)}">${core.lcIcon('home', 28)}${src ? `<img src="${core.escapeHtml(src)}" alt="" loading="lazy" decoding="async" ${AppActions.attrs('error', 'alojamentos-v2-foto-falhou')}>` : ''}
     <span class="av2-type">${core.escapeHtml(a.type === 'alojamento' ? 'Alojamento' : (a.type || 'Unidade'))}</span></div>`;
 }
 
@@ -87,6 +89,10 @@ async function renderAlojamentosV2(ordered) {
   box.insertAdjacentHTML('beforeend', `<div class="av2-add"><button type="button" class="btn btn-primary btn-sm" data-on-click="index-add-alojamento-ff5f8f7">${core.lcIcon('plus', 15)} Adicionar alojamento</button></div>`);
   if (window.lucide) lucide.createIcons();
 }
+
+AppActions.register({
+  'alojamentos-v2-foto-falhou': el => { el.remove() },
+}, 'error');
 
 AppModules.onReset('features/alojamentos/cartoes-v2.js', () => { occupancy = null; occupancyAt = 0; });
 

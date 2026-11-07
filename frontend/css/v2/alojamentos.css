@@ -3,7 +3,7 @@
    tabela; os serviços e taxas ficam no cartão de sempre. */
 .av2[hidden] { display: none !important; }
 html[data-look] #view-alojamentos[data-v2] .aloj-v1-card { display: none; }
-html[data-look] #view-alojamentos[data-v2] .av2 { display: grid; gap: 22px; }
+html[data-look] #view-alojamentos[data-v2] .av2 { display: grid; }
 html[data-look] #view-alojamentos[data-v2] .av2-group { display: grid; gap: 12px; }
 html[data-look] #view-alojamentos[data-v2] .av2-group-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 html[data-look] #view-alojamentos[data-v2] .av2-group-h b { font-family: var(--v2-head); font-size: 18px; color: var(--v2-ink); letter-spacing: var(--v2-head-track); }

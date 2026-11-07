@@ -8,13 +8,7 @@ html[data-look] #view-notificacoes[data-v2] .notifications-page-card .card-title
 
 /* ── Filtros e «Marcar todas como lidas» ── */
 html[data-look] #view-notificacoes[data-v2] .notif-v2-toolbar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-html[data-look] #view-notificacoes[data-v2] .nv2-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-right: auto; }
-html[data-look] #view-notificacoes[data-v2] .nv2-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 14px; border: 1px solid var(--v2-line); border-radius: 999px;
-  background: var(--v2-surface); color: var(--v2-ink); font: 500 13px var(--v2-font); cursor: pointer; backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
-html[data-look] #view-notificacoes[data-v2] .nv2-chip em { font-style: normal; color: var(--v2-muted); }
-html[data-look] #view-notificacoes[data-v2] .nv2-chip.is-on { background: var(--v2-accent); border-color: var(--v2-accent); color: var(--v2-accent-ink); font-weight: 600; }
-html[data-look] #view-notificacoes[data-v2] .nv2-chip.is-on em { color: inherit; opacity: .75; }
-html[data-look="classico"] #view-notificacoes[data-v2] .nv2-chip.is-on { background: #843424; border-color: #843424; color: #fff; }
+html[data-look] #view-notificacoes[data-v2] .nv2-chips { margin-right: auto; }
 
 /* ── Lista por dia ── */
 html[data-look] #view-notificacoes[data-v2] .nv2-section h4 { margin: 14px 14px 4px; color: var(--v2-soft); font: 600 11px var(--v2-font); letter-spacing: .06em; text-transform: uppercase; }
