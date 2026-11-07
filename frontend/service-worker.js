@@ -150,6 +150,7 @@ const FEATURE_ASSETS = [
   '/js/relatorios.js',
   '/js/vouchers.js',
   '/js/precos.js',
+  '/js/features/notificacoes/resumo.js',
   '/js/invoice.js',
   '/js/features/invoice/historico.js',
   '/js/features/invoice/arquivo.js',
