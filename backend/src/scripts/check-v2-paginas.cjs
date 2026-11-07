@@ -1,5 +1,5 @@
-// V2: páginas principais redesenhadas (Reservas, Calendário, Eventos e
-// Notificações). Na V1 nada
+// V2: páginas principais redesenhadas (Reservas, Calendário, Eventos,
+// Notificações, Mensagens, Hóspedes, Alojamentos e Preços). Na V1 nada
 // muda; nos aspetos novos: lista com colunas coladas opacas, ficha ainda no
 // aspeto antigo, painel do dia ao lado do mês que se recolhe e fica guardado,
 // e nada mais largo do que o ecrã no telemóvel. Dados sintéticos e base
@@ -152,11 +152,19 @@ async function main() {
   await resumo.getByRole('button', { name: 'Preferências de push' }).click();
   await expect(page.locator('#settings-push')).toBeVisible();
 
+  // Mensagens no vidro escuro: as iniciais e a resposta não ficam brancas
+  // sobre branco (na V1 eram tijolo com letra branca).
+  await page.goto(`${base}/invoice`);
+  const avatar = page.locator('.itt-avatar').first();
+  await expect(avatar).toBeVisible();
+  const [avatarBg, avatarInk] = await avatar.evaluate(el => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color]);
+  assert.notEqual(avatarBg, avatarInk, 'iniciais da conversa sem contraste');
+
   // Telemóvel: nada mais largo do que o ecrã, em cada aspeto.
   await page.setViewportSize({ width: 390, height: 844 });
   for (const [look, mode] of [['classico', 'auto'], ['vidro', 'claro'], ['vidro', 'escuro']]) {
     appearance.save(user.id, { look, mode });
-    for (const view of ['reservas', 'calendario', 'eventos', 'notificacoes']) {
+    for (const view of ['reservas', 'calendario', 'eventos', 'notificacoes', 'invoice', 'hospedes', 'alojamentos', 'precos']) {
       await page.goto(`${base}/${view}`);
       await expect(page.locator(`#view-${view}.active`)).toBeVisible();
       await page.waitForTimeout(200);
@@ -168,7 +176,7 @@ async function main() {
   await expect(page.locator('#calendar-agenda-mobile .agenda-month')).toBeVisible();
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista com colunas coladas opacas, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (resumo ao lado, filtro por grupo, recolher guardado, preferências de push) e largura no telemóvel com Eventos.');
+  console.log('OK: V2 — Reservas (lista com colunas coladas opacas, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (resumo ao lado, filtro por grupo, recolher guardado, preferências de push), Mensagens (iniciais legíveis no escuro) e largura no telemóvel de todas as páginas principais redesenhadas.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
