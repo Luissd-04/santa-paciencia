@@ -246,6 +246,17 @@ async function main() {
   await page.locator('#hv2-chips .rv2-chip', { hasText: 'Todos' }).click();
   await expect(guestRows).toHaveCount(2);
 
+  // Preços: alojamentos em pílula; abre no primeiro e tocar noutro troca.
+  db.prepare(`INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests) VALUES('u2',?,'Quarto Monsaraz','quarto',95,2)`).run(org.id);
+  await page.goto(`${base}/precos`);
+  const unitPills = page.locator('#precos-v2-units .rv2-chip');
+  await expect(unitPills).toHaveCount(2);
+  await expect(page.locator('#precos-v2-units .rv2-chip.is-on')).toHaveCount(1);
+  await unitPills.filter({ hasText: 'Quarto Monsaraz' }).click();
+  await expect(unitPills.filter({ hasText: 'Quarto Monsaraz' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#precos-base-price-val')).toHaveText('95,00 €');
+  db.prepare("DELETE FROM accommodations WHERE id='u2'").run();
+
   // Vouchers: números, filtros por estado e um bilhete por voucher.
   await page.goto(`${base}/vouchers`);
   const ticket = page.locator('#vouchers-list-wrap .vv2-ticket', { hasText: 'NATAL2026' });
@@ -294,7 +305,7 @@ async function main() {
   await expect(page.locator('#calendar-agenda-mobile .agenda-month')).toBeVisible();
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo), Alojamentos (cartões com ocupação), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Despesas (números e «Por mês»), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo), Alojamentos (cartões com ocupação), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Preços (alojamentos em pílula), Despesas (números e «Por mês»), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
