@@ -23,3 +23,51 @@ html[data-look] #view-hospedes[data-v2] .hospede-card-top .hospede-flag { width:
 html[data-look] #view-hospedes[data-v2] .hospede-name { color: var(--v2-ink); font-weight: 600; font-size: 16px; margin-bottom: 8px; }
 html[data-look] #view-hospedes[data-v2] .hospede-info-row { color: var(--v2-muted); }
 html[data-look] #view-hospedes[data-v2] .hospede-info-row svg { color: var(--v2-soft); }
+
+/* ══ Maqueta: números, filtros e lista (js/features/hospedes/lista-v2.js) ══ */
+.hv2[hidden] { display: none !important; }
+html[data-look] #view-hospedes[data-v2] :is(.hospedes-card-board, .view-chip-list, .hospedes-view-toggle) { display: none !important; }
+html[data-look] #view-hospedes[data-v2] .hv2 { display: grid; gap: 16px; }
+html[data-look] #view-hospedes[data-v2] .hv2-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+html[data-look] #view-hospedes[data-v2] .hv2-kpi .kpi-label { display: flex; align-items: center; gap: 6px; }
+html[data-look] #view-hospedes[data-v2] .hv2-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+html[data-look] #view-hospedes[data-v2] .rv2-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 14px; border: 1px solid var(--v2-line); border-radius: 999px;
+  background: var(--v2-surface); color: var(--v2-ink); font: 500 13px var(--v2-font); cursor: pointer; }
+html[data-look] #view-hospedes[data-v2] .rv2-chip em { font-style: normal; color: var(--v2-muted); }
+html[data-look] #view-hospedes[data-v2] .rv2-chip.is-on { background: var(--v2-accent); border-color: var(--v2-accent); color: var(--v2-accent-ink); font-weight: 600; }
+html[data-look] #view-hospedes[data-v2] .rv2-chip.is-on em { color: inherit; opacity: .75; }
+html[data-look="classico"] #view-hospedes[data-v2] .rv2-chip.is-on { background: #843424; border-color: #843424; color: #fff; }
+html[data-look] #view-hospedes[data-v2] .hv2-list { padding: 8px 10px; background: var(--v2-solid); }
+html[data-look] #view-hospedes[data-v2] :is(.hv2-head, .hv2-row) { display: grid; grid-template-columns: minmax(220px, 2fr) minmax(120px, 1fr) minmax(130px, 1fr) 80px 90px minmax(100px, .8fr); align-items: center; gap: 12px; padding: 0 12px; }
+html[data-look] #view-hospedes[data-v2] .hv2-head { min-height: 38px; border-bottom: 1px solid var(--v2-divider); }
+html[data-look] #view-hospedes[data-v2] .hv2-head button { padding: 0; border: 0; background: none; color: var(--v2-soft); font: 600 11px var(--v2-font); letter-spacing: .06em; text-transform: uppercase; text-align: left; cursor: pointer; }
+html[data-look] #view-hospedes[data-v2] .hv2-head button:last-child, html[data-look] #view-hospedes[data-v2] .hv2-total { text-align: right; }
+html[data-look] #view-hospedes[data-v2] .hv2-row { min-height: 60px; border-radius: 12px; cursor: pointer; }
+html[data-look] #view-hospedes[data-v2] .hv2-row + .hv2-row { box-shadow: inset 0 1px 0 var(--v2-divider); }
+html[data-look] #view-hospedes[data-v2] .hv2-row:hover { background: var(--v2-accent-soft); }
+html[data-look] #view-hospedes[data-v2] .hv2-row:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: -2px; }
+html[data-look] #view-hospedes[data-v2] .hv2-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+html[data-look] #view-hospedes[data-v2] .hv2-who-text { display: grid; min-width: 0; }
+html[data-look] #view-hospedes[data-v2] .hv2-who-text b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-look] #view-hospedes[data-v2] .hv2-who-text small, html[data-look] #view-hospedes[data-v2] .hv2-muted { color: var(--v2-muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-look] #view-hospedes[data-v2] .hv2-country { display: flex; align-items: center; gap: 8px; min-width: 0; }
+html[data-look] #view-hospedes[data-v2] .hv2-country .hospede-flag, html[data-look] #view-hospedes[data-v2] .hv2-sub .hospede-flag { border-radius: 3px; flex-shrink: 0; }
+html[data-look] #view-hospedes[data-v2] .hv2-total { font-weight: 600; font-variant-numeric: tabular-nums; }
+html[data-look] #view-hospedes[data-v2] .hv2-tag { margin-left: 6px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; vertical-align: 1px; }
+html[data-look] #view-hospedes[data-v2] .hv2-tag.warn { background: var(--v2-warn-bg); color: var(--v2-warn); }
+html[data-look] #view-hospedes[data-v2] .hv2-tag.info { background: var(--v2-info-bg); color: var(--v2-info); }
+html[data-look] #view-hospedes[data-v2] .hv2-sub { display: none; }
+
+@media (max-width: 900px) {
+  html[data-look] #view-hospedes[data-v2] .hv2-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  html[data-look] #view-hospedes[data-v2] .hv2-list { padding: 0; border: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; display: grid; gap: 10px; }
+  html[data-look] #view-hospedes[data-v2] .hv2-head { display: none; }
+  html[data-look] #view-hospedes[data-v2] .hv2-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "who total" "sub sub"; row-gap: 4px; padding: 14px;
+    border: 1px solid var(--v2-line); border-radius: var(--v2-radius); background: var(--v2-surface); box-shadow: var(--v2-shadow); backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
+  html[data-look] #view-hospedes[data-v2] .hv2-row + .hv2-row { box-shadow: var(--v2-shadow); }
+  html[data-look] #view-hospedes[data-v2] .hv2-row > :nth-child(n+2):nth-child(-n+5) { display: none; }
+  html[data-look] #view-hospedes[data-v2] .hv2-who { grid-area: who; }
+  html[data-look] #view-hospedes[data-v2] .hv2-total { grid-area: total; }
+  html[data-look] #view-hospedes[data-v2] .hv2-sub { grid-area: sub; display: flex; align-items: center; gap: 6px; padding-left: 44px; color: var(--v2-muted); font-size: 12.5px; }
+  html[data-look] #view-hospedes[data-v2] .hv2-who-text small { display: none; }
+}

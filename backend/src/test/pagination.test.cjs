@@ -103,12 +103,31 @@ test('paginação conserva o estado das tarefas, preferindo a data atual da rese
 test('resumo e ordenação de hóspedes abrangem todas as páginas', () => {
   const first = listGuests('a');
   assert.equal(first.data.length, 50);
-  assert.deepEqual(first.summary, { total: 123, vip: 1, repeat: 1 });
+  assert.deepEqual(first.summary, { total: 123, vip: 1, repeat: 1, foreign_count: 0, countries: 0, top_country: null });
   const sorted = listGuests('a', { sort: 'reservation_count', direction: 'desc', limit: '1' });
   assert.equal(sorted.data[0].id, '120');
   assert.equal(listGuests('a', { search: 'érIcA' }).pagination.total, 1);
   assert.equal(listGuests('a', { search: '%' }).pagination.total, 1);
   assert.equal(listGuests('a', { search: 'Guest' }).data.length, 20);
+});
+test('hóspedes: total gasto, países e segmentos (repetentes, VIP, estrangeiros)', () => {
+  db.exec(`INSERT INTO organizations(id,name,slug) VALUES('seg','Seg','seg');
+    INSERT INTO accommodations(id,organization_id,name,type) VALUES('seg-unit','seg','Seg Unit','alojamento');
+    INSERT INTO guests(id,organization_id,name,email,country,nationality,is_vip) VALUES
+      ('s-pt','seg','Ana','ana@example.invalid','Portugal',NULL,0),('s-es','seg','Carlos','carlos@example.invalid',NULL,'Espanha',1),
+      ('s-de','seg','Emma','emma@example.invalid','Alemanha',NULL,0),('s-x','seg','Sem país','x@example.invalid',NULL,NULL,0);
+    INSERT INTO reservations(id,organization_id,guest_id,accommodation_id,check_in,check_out,nights,num_guests,total_amount,status) VALUES
+      ('s-r1','seg','s-pt','seg-unit','2030-01-01','2030-01-03',2,1,200,'confirmada'),('s-r2','seg','s-pt','seg-unit','2030-02-01','2030-02-03',2,1,150,'confirmada'),
+      ('s-r3','seg','s-es','seg-unit','2030-03-01','2030-03-02',1,1,90,'cancelada');`);
+  const all = listGuests('seg', { sort: 'total_spent', direction: 'desc' });
+  assert.equal(all.data[0].id, 's-pt');
+  assert.equal(all.data[0].total_spent, 350, 'canceladas não contam');
+  assert.deepEqual({ ...all.summary }, { total: 4, vip: 1, repeat: 1, foreign_count: 2, countries: 3, top_country: { country: all.summary.top_country.country, share: 25 } });
+  assert.deepEqual(listGuests('seg', { segment: 'repeat' }).data.map(g => g.id), ['s-pt']);
+  assert.deepEqual(listGuests('seg', { segment: 'vip' }).data.map(g => g.id), ['s-es']);
+  assert.deepEqual(listGuests('seg', { segment: 'foreign' }).data.map(g => g.id).sort(), ['s-de', 's-es']);
+  assert.equal(listGuests('seg', { segment: 'foreign' }).pagination.total, 2);
+  assert.equal(listGuests('seg', { segment: 'foreign' }).summary.total, 4, 'os números do topo não dependem do segmento');
 });
 test('paginação rejeita parâmetros inválidos e tentativas de injeção SQL', () => {
   for (const list of [listGuests, listReservations]) {

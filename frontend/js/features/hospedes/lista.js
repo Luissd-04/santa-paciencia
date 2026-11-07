@@ -39,6 +39,8 @@ function renderHospedes() {
 function drawHospedes() {
   if (!document.getElementById('hospedes-cards-grid')) return;
   const state = AppModules.hospedes.hospedesPaged.state;
+  // V2: a página da maqueta (features/hospedes/lista-v2.js).
+  AppModules.hospedes.renderHospedesV2?.();
   updateHospedesSummary();
   renderHospedesCards();
   renderHospedesList();

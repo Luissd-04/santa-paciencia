@@ -151,7 +151,7 @@ function listReservations(organizationId, query = {}) {
   })();
 }
 
-const GUEST_SORTS = Object.fromEntries(['name', 'email', 'phone', 'nationality', 'country', 'last_check_in', 'reservation_count'].map(key => [key, key + (['last_check_in', 'reservation_count'].includes(key) ? '' : ' COLLATE NOCASE')]));
+const GUEST_SORTS = Object.fromEntries(['name', 'email', 'phone', 'nationality', 'country', 'last_check_in', 'reservation_count', 'total_spent'].map(key => [key, key + (['last_check_in', 'reservation_count', 'total_spent'].includes(key) ? '' : ' COLLATE NOCASE')]));
 function listGuests(organizationId, query = {}) {
   const options = pageOptions(query, GUEST_SORTS, 'name', query.search && !query.page ? 20 : 50);
   const search = textParam(query, 'search');
@@ -161,19 +161,32 @@ function listGuests(organizationId, query = {}) {
     where += " AND app_lower(g.name || ' ' || COALESCE(g.email,'') || ' ' || COALESCE(g.email_personal,'') || ' ' || COALESCE(g.nationality,'') || ' ' || COALESCE(g.phone,'') || ' ' || COALESCE(g.country,'') || ' ' || COALESCE(g.company,'')) LIKE ? ESCAPE '\\'";
     params.push(searchPattern(search));
   }
+  // País de cada hóspede (país ou nacionalidade) e se é de fora de Portugal.
+  const countryExpr = "COALESCE(NULLIF(TRIM(g.country),''), NULLIF(TRIM(g.nationality),''))";
+  const foreignExpr = `(${countryExpr} IS NOT NULL AND app_lower(${countryExpr}) NOT IN ('pt','portugal','portuguesa','portugues','português','portuguese'))`;
+  // Segmento (filtros rápidos da V2): repetentes, VIP/favoritos ou estrangeiros.
+  const segment = textParam(query, 'segment', 20);
+  const segmentWhere = { repeat: ' WHERE reservation_count>1', vip: ' WHERE is_vip=1 OR is_favorite=1', foreign: ' WHERE is_foreign=1' }[segment] || '';
   const source = `WITH counts AS (
-      SELECT guest_id, COUNT(*) AS reservation_count, MAX(check_in) AS last_check_in
+      SELECT guest_id, COUNT(*) AS reservation_count, MAX(check_in) AS last_check_in, COALESCE(SUM(total_amount),0) AS total_spent
       FROM reservations WHERE organization_id=? AND status!='cancelada' GROUP BY guest_id
     ), matches AS (
-      SELECT g.*, COALESCE(c.reservation_count,0) AS reservation_count, c.last_check_in
+      SELECT g.*, COALESCE(c.reservation_count,0) AS reservation_count, c.last_check_in, COALESCE(c.total_spent,0) AS total_spent,
+        ${countryExpr} AS country_label, ${foreignExpr} AS is_foreign
       FROM guests g LEFT JOIN counts c ON c.guest_id=g.id ${where}
     ) `;
   return db.transaction(() => {
     const summary = db.prepare(source + `SELECT COUNT(*) AS total,
       COALESCE(SUM(CASE WHEN is_vip=1 OR is_favorite=1 THEN 1 ELSE 0 END),0) AS vip,
-      COALESCE(SUM(CASE WHEN reservation_count>1 THEN 1 ELSE 0 END),0) AS repeat FROM matches`).get(...params);
-    const data = db.prepare(source + `SELECT * FROM matches ORDER BY ${options.order}, id ASC LIMIT ? OFFSET ?`).all(...params, options.limit, options.offset);
-    return { data, pagination: metadata(options, summary.total), summary };
+      COALESCE(SUM(CASE WHEN reservation_count>1 THEN 1 ELSE 0 END),0) AS repeat,
+      COALESCE(SUM(is_foreign),0) AS foreign_count,
+      COUNT(DISTINCT CASE WHEN country_label IS NOT NULL THEN app_lower(country_label) END) AS countries FROM matches`).get(...params);
+    const top = db.prepare(source + `SELECT country_label AS country, COUNT(*) AS n FROM matches WHERE country_label IS NOT NULL
+      GROUP BY app_lower(country_label) ORDER BY n DESC LIMIT 1`).get(...params);
+    summary.top_country = top ? { country: top.country, share: summary.total ? Math.round(top.n / summary.total * 100) : 0 } : null;
+    const filtered = segmentWhere ? db.prepare(source + `SELECT COUNT(*) AS total FROM matches${segmentWhere}`).get(...params).total : summary.total;
+    const data = db.prepare(source + `SELECT * FROM matches${segmentWhere} ORDER BY ${options.order}, id ASC LIMIT ? OFFSET ?`).all(...params, options.limit, options.offset);
+    return { data, pagination: metadata(options, filtered), summary };
   })();
 }
 
