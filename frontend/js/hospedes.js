@@ -23,7 +23,9 @@ const hospedesPaged = AppModules.core.createPagedCollection('/api/guests', state
 
 function getHospedesQuery() {
   const search = document.getElementById('hospedes-search')?.value.trim() || '';
-  return { search, sort: hospedesSortCol, direction: hospedesSortAsc ? 'asc' : 'desc' };
+  // V2: segmento dos filtros rápidos (features/hospedes/lista-v2.js).
+  const segment = AppModules.hospedes.hospedesSegment?.() || '';
+  return { search, sort: hospedesSortCol, direction: hospedesSortAsc ? 'asc' : 'desc', ...(segment ? { segment } : {}) };
 }
 
 // Limpeza da funcionalidade ao sair ou trocar de organização.

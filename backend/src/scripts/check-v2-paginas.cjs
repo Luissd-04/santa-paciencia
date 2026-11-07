@@ -224,6 +224,20 @@ async function main() {
   await roomCard.locator('h3').click();
   await expect(page.locator('#view-alojamento-detalhe')).toBeVisible();
 
+  // Hóspedes: números, filtros rápidos (o segmento vai ao servidor) e a lista
+  // com país, estadias e total gasto.
+  db.prepare("UPDATE guests SET country='Espanha' WHERE id='g-depois'").run();
+  await page.goto(`${base}/hospedes`);
+  const guestRows = page.locator('#hv2-list .hv2-row');
+  await expect(guestRows).toHaveCount(2);
+  await expect(page.locator('#hv2-kpis .hv2-kpi').nth(2)).toContainText('Espanha 50%');
+  await expect(guestRows.filter({ hasText: 'Beatriz Pinto' }).locator('.hv2-total')).toHaveText('200,00 €');
+  await page.locator('#hv2-chips .rv2-chip', { hasText: 'Estrangeiros' }).click();
+  await expect(guestRows).toHaveCount(1);
+  await expect(guestRows.first()).toContainText('Rui Marques');
+  await page.locator('#hv2-chips .rv2-chip', { hasText: 'Todos' }).click();
+  await expect(guestRows).toHaveCount(2);
+
   // Vouchers: números, filtros por estado e um bilhete por voucher.
   await page.goto(`${base}/vouchers`);
   const ticket = page.locator('#vouchers-list-wrap .vv2-ticket', { hasText: 'NATAL2026' });
@@ -272,7 +286,7 @@ async function main() {
   await expect(page.locator('#calendar-agenda-mobile .agenda-month')).toBeVisible();
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro), Eventos (vista Semana, marcar feito, resumo), Alojamentos (cartões com ocupação), Vouchers (bilhetes e filtros), Despesas (números e «Por mês»), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro), Eventos (vista Semana, marcar feito, resumo), Alojamentos (cartões com ocupação), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Despesas (números e «Por mês»), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {

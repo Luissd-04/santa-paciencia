@@ -95,6 +95,7 @@ const FEATURE_MODULES = {
       'js/hospedes.js',
       'js/features/hospedes/paises.js',
       'js/features/hospedes/lista.js',
+      'js/features/hospedes/lista-v2.js',
       'js/features/hospedes/detalhe.js',
       'js/features/hospedes/exportacao.js',
     ],
