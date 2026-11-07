@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 86;
+const CACHE_VERSION = 87;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -150,6 +150,7 @@ const FEATURE_ASSETS = [
   '/js/features/alojamentos/configuracao.js',
   '/js/features/alojamentos/cartoes-v2.js',
   '/js/despesas.js',
+  '/js/features/despesas/resumo-v2.js',
   '/js/relatorios.js',
   '/js/vouchers.js',
   '/js/features/vouchers/bilhetes-v2.js',

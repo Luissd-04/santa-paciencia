@@ -1,0 +1,46 @@
+/* ══ V2: Despesas (js/features/despesas/resumo-v2.js) ══
+   Quatro números em cima, o registo de sempre e, ao lado, «Por mês». */
+/* O registo tem muitas colunas: o gráfico só fica ao lado em ecrãs largos;
+   abaixo disso vem por baixo do registo, a toda a largura. */
+@media (min-width: 1500px) {
+  html[data-look] #view-despesas[data-v2] .despesas-shell { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+  html[data-look] #view-despesas[data-v2] .despesas-shell > * { grid-column: 1 / -1; }
+  html[data-look] #view-despesas[data-v2] .despesas-shell > .despesas-table-card { grid-column: 1; }
+  html[data-look] #view-despesas[data-v2] .despesas-shell > .dv2-months { grid-column: 2; }
+  html[data-look] #view-despesas[data-v2] .despesas-shell > :is(.m-sheet-backdrop, .mobile-fab) { grid-column: auto; }
+}
+html[data-look] #view-despesas[data-v2] .dv2-bars { max-width: 640px; }
+html[data-look] #view-despesas[data-v2] #despesas-kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+html[data-look] #view-despesas[data-v2] .kpi-label { display: flex; align-items: center; gap: 6px; }
+html[data-look] #view-despesas[data-v2] .dv2-kpi[role="button"] { cursor: pointer; }
+html[data-look] #view-despesas[data-v2] .dv2-kpi[role="button"]:hover { background: var(--v2-solid); }
+html[data-look] #view-despesas[data-v2] .dv2-up { color: var(--v2-bad); font-weight: 600; }
+html[data-look] #view-despesas[data-v2] .dv2-down { color: var(--v2-ok); font-weight: 600; }
+
+/* Filtros soltos no ecrã grande (no telemóvel são uma folha). */
+@media (min-width: 601px) {
+  html[data-look] #view-despesas[data-v2] .despesas-filter-panel { background: none; box-shadow: none; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+
+/* «Por mês». */
+html[data-look] #view-despesas[data-v2] .dv2-months { padding: 18px 20px; }
+html[data-look] #view-despesas[data-v2] .dv2-months[hidden] { display: none; }
+html[data-look] #view-despesas[data-v2] .dv2-card-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+html[data-look] #view-despesas[data-v2] .dv2-card-h h3 { margin: 0; font-size: 16px; }
+html[data-look] #view-despesas[data-v2] .dv2-card-h small { color: var(--v2-muted); }
+html[data-look] #view-despesas[data-v2] .dv2-bars { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; height: 180px; align-items: end; }
+html[data-look] #view-despesas[data-v2] .dv2-bars > div { display: grid; grid-template-rows: auto 1fr auto; justify-items: center; gap: 4px; height: 100%; }
+html[data-look] #view-despesas[data-v2] .dv2-bars b { color: var(--v2-muted); font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+html[data-look] #view-despesas[data-v2] .dv2-bars i { align-self: end; width: 70%; min-height: 3px; border-radius: 8px 8px 3px 3px; background: var(--v2-accent); }
+html[data-look="classico"] #view-despesas[data-v2] .dv2-bars i { background: #843424; }
+html[data-look] #view-despesas[data-v2] .dv2-bars span { color: var(--v2-muted); font-size: 12px; }
+
+@media (max-width: 1100px) {
+  html[data-look] #view-despesas[data-v2] #despesas-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* Telemóvel: os mesmos quatro números (2×2) em vez da faixa da V1. */
+@media (max-width: 600px) {
+  html[data-look] #view-despesas[data-v2] #despesas-kpi-grid { display: grid !important; gap: 10px; }
+  html[data-look] #view-despesas[data-v2] .despesas-kpi-mobile { display: none !important; }
+  html[data-look] #view-despesas[data-v2] .kpi-value { font-size: 22px; }
+}

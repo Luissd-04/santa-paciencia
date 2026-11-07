@@ -266,6 +266,8 @@ async function getDespesasParaExportar() {
 }
 
 function renderDespesasKpi(s) {
+  // V2: os números e o gráfico da maqueta (features/despesas/resumo-v2.js).
+  if (AppModules.despesas.renderDespesasKpiV2?.(s)) return;
   const grid = document.getElementById('despesas-kpi-grid');
   if (!grid) return;
   grid.innerHTML = `
