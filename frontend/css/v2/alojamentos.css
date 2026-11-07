@@ -1,0 +1,31 @@
+/* ══ V2: Alojamentos (js/features/alojamentos/cartoes-v2.js) ══
+   Cartões por unidade, agrupados por alojamento principal, no lugar da
+   tabela; os serviços e taxas ficam no cartão de sempre. */
+.av2[hidden] { display: none !important; }
+html[data-look] #view-alojamentos[data-v2] .aloj-v1-card { display: none; }
+html[data-look] #view-alojamentos[data-v2] .av2 { display: grid; gap: 22px; }
+html[data-look] #view-alojamentos[data-v2] .av2-group { display: grid; gap: 12px; }
+html[data-look] #view-alojamentos[data-v2] .av2-group-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+html[data-look] #view-alojamentos[data-v2] .av2-group-h b { font-family: var(--v2-head); font-size: 18px; color: var(--v2-ink); letter-spacing: var(--v2-head-track); }
+html[data-look] #view-alojamentos[data-v2] .av2-group-h span { margin-left: 8px; color: var(--v2-muted); font-size: 13.5px; }
+html[data-look] #view-alojamentos[data-v2] .av2-rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 16px; }
+html[data-look] #view-alojamentos[data-v2] .av2-card { padding: 0; overflow: hidden; cursor: pointer; transition: transform .15s ease; }
+html[data-look] #view-alojamentos[data-v2] .av2-card:hover { transform: translateY(-2px); }
+html[data-look] #view-alojamentos[data-v2] .av2-photo { position: relative; display: grid; place-items: center; height: 150px; color: rgba(255, 255, 255, .85);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--acc) 45%, #fff), var(--acc)); }
+html[data-look] #view-alojamentos[data-v2] .av2-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+html[data-look] #view-alojamentos[data-v2] .av2-type { position: absolute; left: 12px; top: 12px; padding: 4px 10px; border-radius: 999px; background: rgba(255, 255, 255, .85); color: #1d1d1f;
+  font-size: 12px; font-weight: 600; text-transform: capitalize; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+html[data-look] #view-alojamentos[data-v2] .av2-body { display: grid; gap: 10px; padding: 14px 16px 16px; }
+html[data-look] #view-alojamentos[data-v2] .av2-body h3 { margin: 0; font-size: 17px; }
+html[data-look] #view-alojamentos[data-v2] .av2-facts { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--v2-muted); font-size: 13px; }
+html[data-look] #view-alojamentos[data-v2] .av2-facts span { display: inline-flex; align-items: center; gap: 5px; }
+html[data-look] #view-alojamentos[data-v2] .av2-price { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--v2-muted); font-size: 13px; }
+html[data-look] #view-alojamentos[data-v2] .av2-price b { color: var(--v2-ink); font-family: var(--v2-head); font-size: 20px; }
+html[data-look] #view-alojamentos[data-v2] .av2-bar { height: 6px; border-radius: 999px; background: var(--v2-surface-2); overflow: hidden; }
+html[data-look] #view-alojamentos[data-v2] .av2-bar i { display: block; height: 100%; border-radius: inherit; background: var(--v2-accent); }
+html[data-look="classico"] #view-alojamentos[data-v2] .av2-bar i { background: #843424; }
+html[data-look] #view-alojamentos[data-v2] .av2-actions { display: flex; gap: 8px; }
+html[data-look] #view-alojamentos[data-v2] .av2-actions .btn { flex: 1; justify-content: center; }
+html[data-look] #view-alojamentos[data-v2] .av2-group-h:empty { display: none; }
+html[data-look] #view-alojamentos[data-v2] .av2-add { display: flex; justify-content: flex-end; }

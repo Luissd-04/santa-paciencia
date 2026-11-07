@@ -216,6 +216,11 @@ function renderAlojamentos() {
     </tr>`;
   }).join('');
   renderAlojamentosMobileCards(ordered, parentMap, childrenByParent, inFiltered);
+  // V2: os cartões da maqueta (features/alojamentos/cartoes-v2.js).
+  const v2 = AppModules.alojamentos.isAlojamentosV2();
+  const v2Box = document.getElementById('aloj-v2');
+  if (v2Box) v2Box.hidden = !v2;
+  if (v2) AppModules.alojamentos.renderAlojamentosV2(ordered);
   if (window.lucide) lucide.createIcons();
 }
 

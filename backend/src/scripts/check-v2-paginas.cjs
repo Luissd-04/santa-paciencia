@@ -212,6 +212,16 @@ async function main() {
   const [avatarBg, avatarInk] = await avatar.evaluate(el => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color]);
   assert.notEqual(avatarBg, avatarInk, 'iniciais da conversa sem contraste');
 
+  // Alojamentos: cartões da maqueta com a ocupação do mês; a tabela da V1 sai.
+  await page.goto(`${base}/alojamentos`);
+  const roomCard = page.locator('#aloj-v2 .av2-card', { hasText: 'Suite Oliveira' });
+  await expect(roomCard).toBeVisible();
+  await expect(roomCard.locator('.av2-price')).toContainText('/ noite');
+  await expect(roomCard.locator('.av2-price small')).toContainText('%');
+  await expect(page.locator('#aloj-table')).toBeHidden();
+  await roomCard.locator('h3').click();
+  await expect(page.locator('#view-alojamento-detalhe')).toBeVisible();
+
   // Despesas no vidro escuro: os cartões de totais perdem o degradé claro da V1.
   await page.goto(`${base}/despesas`);
   const kpi = page.locator('#despesas-kpi-grid .kpi-card').first();
@@ -241,7 +251,7 @@ async function main() {
   await expect(page.locator('#calendar-agenda-mobile .agenda-month')).toBeVisible();
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro), Eventos (vista Semana, marcar feito, resumo), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro), Eventos (vista Semana, marcar feito, resumo), Alojamentos (cartões com ocupação), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
