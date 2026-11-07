@@ -43,6 +43,10 @@ async function main() {
     res.run(id, org.id, `g-${id}`, ci, co, dates.daysBetween(ci, co), 200, 0, status);
   }
 
+  const task = db.prepare(`INSERT INTO operational_events(id,organization_id,title,type,date,start_time,status,accommodation_id,responsible) VALUES(?,?,?,?,?,?,?,'u',?)`);
+  task.run('t-limpeza', org.id, 'Limpeza completa', 'limpeza', today, '12:00', 'planeado', 'Maria Lopes');
+  task.run('t-checkout', org.id, 'Check-out cedo', 'checkout', today, '09:00', 'concluido', 'Maria Lopes');
+
   server = app.listen(0, '127.0.0.1');
   await new Promise((resolve, reject) => { server.once('listening', resolve); server.once('error', reject); });
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -140,6 +144,27 @@ async function main() {
   await expect(page.locator('.rf-guest-name')).toBeVisible();
   await page.locator('.rf-back').click();
 
+  // Eventos: vista Semana da maqueta (faixa da semana, lista por hora com
+  // responsável e marcar feito, mês pequeno e resumo da semana).
+  await page.goto(`${base}/eventos`);
+  const semana = page.locator('#eventos-panel-semana');
+  await expect(semana).toBeVisible();
+  await expect(page.locator('#ev2-week .ev2-wd')).toHaveCount(7);
+  await expect(page.locator('#ev2-week .ev2-wd.is-on')).toHaveClass(/is-today/);
+  const taskRows = page.locator('#ev2-days .ev2-day').first().locator('.ev2-row');
+  await expect(taskRows).toHaveCount(2);
+  await expect(taskRows.first()).toContainText('09:00');
+  await expect(taskRows.nth(1).locator('.ev2-who')).toHaveText('ML');
+  await expect(page.locator('#ev2-summary')).toContainText('1/2 feitas');
+  await taskRows.nth(1).locator('.ev2-check').click();
+  await expect(taskRows.nth(1)).toHaveClass(/is-done/);
+  assert.equal(db.prepare("SELECT status FROM operational_events WHERE id='t-limpeza'").get().status, 'concluido');
+  await expect(page.locator('#ev2-summary')).toContainText('2/2 feitas');
+  await page.locator('[data-eventos-view="calendar"]').click();
+  await expect(page.locator('#eventos-cal-grid')).toBeVisible();
+  await page.locator('[data-eventos-view="semana"]').click();
+  await expect(semana).toBeVisible();
+
   // Notificações: lista a toda a largura com o resumo ao lado; tocar num grupo
   // filtra a lista; o resumo recolhe e a escolha fica guardada.
   await page.goto(`${base}/notificacoes`);
@@ -202,7 +227,7 @@ async function main() {
   await expect(page.locator('#calendar-agenda-mobile .agenda-month')).toBeVisible();
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (resumo ao lado, filtro por grupo, recolher guardado, preferências de push), Mensagens (iniciais legíveis no escuro), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (resumo ao lado, filtro por grupo, recolher guardado, preferências de push), Mensagens (iniciais legíveis no escuro), Eventos (vista Semana, marcar feito, resumo), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {

@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 82;
+const CACHE_VERSION = 83;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -137,6 +137,7 @@ const FEATURE_ASSETS = [
   '/js/features/calendario/timeline.js',
   '/js/features/calendario/interacoes.js',
   '/js/eventos.js',
+  '/js/features/eventos/semana.js',
   '/js/hospedes.js',
   '/js/features/hospedes/paises.js',
   '/js/features/hospedes/lista.js',

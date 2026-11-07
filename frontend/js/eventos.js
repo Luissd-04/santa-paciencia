@@ -16,9 +16,19 @@ AppModules.define('eventos', {
   setEventosMode: { get: () => setEventosMode },
   setEventosTimelineRange: { get: () => setEventosTimelineRange },
   setEventosView: { get: () => setEventosView },
+  // Para a vista Semana da V2 (features/eventos/semana.js).
+  eventosRows: { get: () => () => filteredEventos() },
+  eventoType: { get: () => getEventoType },
+  eventoTime: { get: () => formatEventoTime },
+  toggleEventoStatus: { get: () => toggleEventoStatus },
+  renderEventosTypeChips: { get: () => renderEventosTypeChips },
 });
 
-let eventosView = AppModules.core.SS.get('evt:view', 'calendar');
+// Na V2 a vista por omissão é a Semana (features/eventos/semana.js) e a
+// escolha fica guardada à parte, para não mexer na da V1.
+const eventosV2 = () => Boolean(document.documentElement.dataset.look);
+const eventosViewKey = () => (eventosV2() ? 'evt:view2' : 'evt:view');
+let eventosView = AppModules.core.SS.get(eventosViewKey(), eventosV2() ? 'semana' : 'calendar');
 let eventosMode = AppModules.core.SS.get('evt:mode', 'calendar');
 let eventosYear = Number(AppModules.core.SS.get('evt:year', new Date().getFullYear()));
 let eventosMonth = Number(AppModules.core.SS.get('evt:month', new Date().getMonth()));
@@ -70,7 +80,7 @@ const activeEventosMode = () => (eventosPhone() ? 'calendar' : eventosMode);
 // calendário mostra fora do mês.
 function eventosPeriod() {
   const iso = window.ReservationDates.localIso;
-  if (eventosView !== 'list' && activeEventosMode() === 'timeline') {
+  if (currentEventosView() === 'calendar' && activeEventosMode() === 'timeline') {
     const start = new Date();
     start.setDate(start.getDate() - 1);
     const end = new Date(start);
@@ -154,6 +164,8 @@ function eventosListQueryChanged(options = {}) {
 }
 
 async function loadEventos() {
+  // A aparência pode ter mudado desde a última visita (vistas guardadas à parte).
+  eventosView = AppModules.core.SS.get(eventosViewKey(), eventosV2() ? 'semana' : 'calendar');
   const session = AppModules.sessionVersion;
   await loadEventosTeamMembers();
   if (session !== AppModules.sessionVersion) return;
@@ -169,10 +181,16 @@ async function loadEventosTeamMembers() {
   }
 }
 
+// Semana só existe na V2; no telemóvel da V2 é a única vista.
+function currentEventosView() {
+  if (!eventosV2()) return eventosView === 'semana' ? 'calendar' : eventosView;
+  return eventosPhone() ? 'semana' : eventosView;
+}
+
 async function renderEventosView() {
   const version = ++eventosRenderVersion;
   const isCurrent = () => version === eventosRenderVersion;
-  AppModules.core.SS.set('evt:view', eventosView);
+  AppModules.core.SS.set(eventosViewKey(), eventosView);
   AppModules.core.SS.set('evt:mode', eventosMode);
   AppModules.core.SS.set('evt:year', eventosYear);
   AppModules.core.SS.set('evt:month', eventosMonth);
@@ -182,8 +200,12 @@ async function renderEventosView() {
   updateEventosViewUi();
   updateEventosModeUi();
 
-  if (eventosView === 'list') {
+  const view = currentEventosView();
+  if (view === 'list') {
     eventosListQueryChanged({ immediate: true });
+  } else if (view === 'semana') {
+    await ensureEventosRange(eventosCalendarRange, AppModules.eventos.semanaPeriod(), ['ev2-days'],
+      () => AppModules.eventos.renderSemana(), isCurrent);
   } else {
     // O mês do ecrã grande e o do telemóvel desenham o mesmo intervalo.
     await ensureEventosRange(eventosCalendarRange, eventosPeriod(), ['eventos-cal-grid', 'eventos-timeline-wrap', 'eventos-agenda-mobile'],
@@ -255,7 +277,7 @@ function renderEventoTaskCard(evento) {
 }
 
 function setEventosView(view) {
-  eventosView = view === 'list' ? 'list' : 'calendar';
+  eventosView = ['list', 'semana'].includes(view) ? view : 'calendar';
   return renderEventosView();
 }
 
@@ -307,11 +329,12 @@ function setEventosMode(mode) {
 }
 
 function updateEventosViewUi() {
+  const view = currentEventosView();
   document.querySelectorAll('[data-eventos-view]').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.eventosView === eventosView);
+    btn.classList.toggle('active', btn.dataset.eventosView === view);
   });
   document.querySelectorAll('.eventos-panel').forEach(panel => {
-    panel.classList.toggle('active', panel.id === `eventos-panel-${eventosView}`);
+    panel.classList.toggle('active', panel.id === `eventos-panel-${view}`);
   });
 }
 
@@ -361,7 +384,7 @@ function updateEventosModeUi() {
   const calWrap = document.getElementById('eventos-cal-wrap');
   const tlWrap = document.getElementById('eventos-timeline-wrap');
   const rangeToggle = document.getElementById('eventos-range-toggle');
-  const calendarPanelActive = eventosView === 'calendar';
+  const calendarPanelActive = currentEventosView() === 'calendar';
   if (calWrap) calWrap.style.display = calendarPanelActive && eventosMode === 'calendar' ? '' : 'none';
   if (tlWrap) tlWrap.style.display = calendarPanelActive && eventosMode === 'timeline' ? '' : 'none';
   if (rangeToggle) rangeToggle.style.display = calendarPanelActive && eventosMode === 'timeline' ? '' : 'none';
@@ -580,11 +603,14 @@ function renderEventosTimeline(autoScroll = true) {
   if (window.lucide) lucide.createIcons();
 }
 
-function renderEventosTypeChips() {
-  const html = AppModules.core.EVENT_TYPES.map(t => {
+// `counts` (opcional, vista Semana da V2): número de cada tipo na semana, e
+// aparece o botão «Todas» para limpar os filtros.
+function renderEventosTypeChips(counts = null) {
+  const all = counts ? `<button class="evt-type-chip${eventosTypeFilters.size ? '' : ' active'}" ${AppActions.attrs("click", "eventos-type-chips-all")}><span>Todas</span></button>` : '';
+  const html = all + AppModules.core.EVENT_TYPES.map(t => {
     const active = eventosTypeFilters.has(t.id);
     return `<button class="evt-type-chip${active ? ' active' : ''}" style="--chip-color:${t.color}" ${AppActions.attrs("click", "eventos-toggle-evento-type-chip-750c6ad", [String((t.id) ?? '')])} title="${t.label}">
-      <i data-lucide="${t.icon}"></i><span>${t.label}</span>
+      <i data-lucide="${t.icon}"></i><span>${t.label}</span>${counts?.[t.id] ? ` <em>${counts[t.id]}</em>` : ''}
     </button>`;
   }).join('');
   document.querySelectorAll('.eventos-type-chips-row').forEach(row => { row.innerHTML = html; });
@@ -597,7 +623,8 @@ function toggleEventoTypeChip(typeId) {
   } else {
     eventosTypeFilters.add(typeId);
   }
-  if (eventosView === 'list') eventosListQueryChanged({ immediate: true });
+  if (currentEventosView() === 'list') eventosListQueryChanged({ immediate: true });
+  else if (currentEventosView() === 'semana') { AppModules.eventos.renderSemana(); return; }
   else if (activeEventosMode() === 'timeline') renderEventosTimeline();
   else renderEventosCalendar();
   // No telemóvel o que está visível é o mês com o dia escolhido.
@@ -677,7 +704,7 @@ function findEvento(id) {
 // Recarrega o que estiver visível, depois de criar/alterar/apagar.
 async function refreshEventos() {
   invalidateEventosRange();
-  if (eventosView === 'list') await eventosListPaged.load(getEventosListQuery(), { force: true });
+  if (currentEventosView() === 'list') await eventosListPaged.load(getEventosListQuery(), { force: true });
   renderEventosView();
 }
 
@@ -984,6 +1011,7 @@ function populateEventosResponsibleSelect(selected = '') {
 }
 
 function eventosPrev() {
+  if (currentEventosView() === 'semana') { AppModules.eventos.moveSemana(-7); renderEventosView(); return; }
   if (activeEventosMode() === 'timeline') {
     const wrap = document.getElementById('eventos-timeline-wrap');
     if (wrap) wrap.scrollLeft -= (wrap.clientWidth - EVENTOS_LABEL_W) * 0.7;
@@ -995,6 +1023,7 @@ function eventosPrev() {
 }
 
 function eventosNext() {
+  if (currentEventosView() === 'semana') { AppModules.eventos.moveSemana(7); renderEventosView(); return; }
   if (activeEventosMode() === 'timeline') {
     const wrap = document.getElementById('eventos-timeline-wrap');
     if (wrap) wrap.scrollLeft += (wrap.clientWidth - EVENTOS_LABEL_W) * 0.7;
@@ -1010,7 +1039,8 @@ function eventosToday() {
   eventosYear = now.getFullYear();
   eventosMonth = now.getMonth();
   eventosAgendaSelected = window.ReservationDates.localIso(now);
-  if (eventosView === 'calendar' && activeEventosMode() === 'timeline') {
+  if (currentEventosView() === 'semana') { AppModules.eventos.moveSemana(0); renderEventosView(); return; }
+  if (currentEventosView() === 'calendar' && activeEventosMode() === 'timeline') {
     scrollEventosTimelineToToday(getEventosDayWidth());
     return;
   }
@@ -1043,6 +1073,7 @@ AppActions.register({
   "eventos-open-evento-modal-a2a7fbb": (el, event, args) => { openEventoModal(args[0]) },
   "eventos-delete-evento-e910ecc": (el, event, args) => { deleteEvento(args[0]) },
   "eventos-toggle-evento-type-chip-750c6ad": (el, event, args) => { toggleEventoTypeChip(args[0]) },
+  "eventos-type-chips-all": () => { eventosTypeFilters.clear(); renderEventosView(); },
   "eventos-stop-propagation-185b92b": (el, event, args) => { event.stopPropagation();toggleEventoStatus(args[0]) },
   "eventos-select-agenda-date": (el, event, args) => { selectEventosAgendaDate(args[0]) },
   "eventos-toggle-filters-sheet": (el, event, args) => { toggleEventosFiltersSheet(args[0] === 'open', el) },

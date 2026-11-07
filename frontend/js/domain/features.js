@@ -84,7 +84,7 @@ const FEATURE_MODULES = {
     ],
   },
   eventos: {
-    scripts: ['js/eventos.js'],
+    scripts: ['js/eventos.js', 'js/features/eventos/semana.js'],
   },
   hospedes: {
     actions: ['showHospedeDetail', 'exportHospedesXLS', 'exportHospedesPDF', 'importHospedesXLS'],

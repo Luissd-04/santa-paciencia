@@ -19,3 +19,87 @@ html[data-look="vidro"][data-mode="escuro"] #view-eventos[data-v2] .eventos-pill
 html[data-look] #view-eventos[data-v2] .section-card-eventos .section-card-head { padding: 22px 24px 12px; }
 html[data-look] #view-eventos[data-v2] .section-card-eventos .cal-wrap { background: transparent; box-shadow: none; }
 html[data-look] #view-eventos[data-v2] .eventos-title-cell .eventos-pill { width: max-content; }
+
+/* ══ Maqueta: vista Semana (js/features/eventos/semana.js) ══ */
+html[data-look] #view-eventos[data-v2] .ev2-only { display: inline-flex; }
+html[data-look] #view-eventos[data-v2] .evt-type-chip em { font-style: normal; color: var(--v2-muted); }
+html[data-look] #view-eventos[data-v2] .evt-type-chip.active em { color: inherit; opacity: .75; }
+html[data-look] #view-eventos[data-v2] .ev2-toolbar { align-items: center; }
+html[data-look] #view-eventos[data-v2] .ev2-icon-btn { width: 36px; padding: 0; justify-content: center; }
+html[data-look] #view-eventos[data-v2] .ev2-label { margin: 0 0 0 6px; font-size: 18px; }
+html[data-look] #view-eventos[data-v2] .ev2-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+html[data-look] #view-eventos[data-v2] .ev2-main { padding: 16px 18px; }
+html[data-look] #view-eventos[data-v2] .ev2-side { display: grid; gap: 18px; }
+html[data-look] #view-eventos[data-v2] .ev2-side .card { padding: 16px 18px; }
+
+/* Faixa da semana. */
+html[data-look] #view-eventos[data-v2] .ev2-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+html[data-look] #view-eventos[data-v2] .ev2-wd { display: grid; justify-items: center; gap: 2px; padding: 8px 0 6px; border: 0; border-radius: 14px; background: transparent; color: var(--v2-muted); font: 500 12px var(--v2-font); cursor: pointer; }
+html[data-look] #view-eventos[data-v2] .ev2-wd b { color: var(--v2-ink); font-size: 18px; font-weight: 600; }
+html[data-look] #view-eventos[data-v2] .ev2-wd:hover { background: var(--v2-accent-soft); }
+html[data-look] #view-eventos[data-v2] .ev2-wd.is-today b { text-decoration: underline; text-underline-offset: 4px; }
+html[data-look] #view-eventos[data-v2] .ev2-wd.is-on { background: var(--v2-accent); color: var(--v2-accent-ink); }
+html[data-look] #view-eventos[data-v2] .ev2-wd.is-on b { color: inherit; }
+html[data-look="classico"] #view-eventos[data-v2] .ev2-wd.is-on { background: #843424; color: #fff; }
+html[data-look] #view-eventos[data-v2] .ev2-dots { display: flex; gap: 3px; height: 6px; }
+html[data-look] #view-eventos[data-v2] .ev2-dots s { width: 5px; height: 5px; border-radius: 50%; }
+html[data-look] #view-eventos[data-v2] .ev2-wd.is-on .ev2-dots s { box-shadow: 0 0 0 1px rgba(255, 255, 255, .7); }
+
+/* Lista por dia. */
+html[data-look] #view-eventos[data-v2] .ev2-day h4 { margin: 18px 0 4px; color: var(--v2-soft); font: 600 11px var(--v2-font); letter-spacing: .06em; text-transform: uppercase; }
+html[data-look] #view-eventos[data-v2] .ev2-row { display: grid; grid-template-columns: 48px 32px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; min-height: 56px; padding: 6px 8px; border-radius: 12px; cursor: pointer; }
+html[data-look] #view-eventos[data-v2] .ev2-row + .ev2-row { box-shadow: inset 0 1px 0 var(--v2-divider); }
+html[data-look] #view-eventos[data-v2] .ev2-row:hover { background: var(--v2-accent-soft); }
+html[data-look] #view-eventos[data-v2] .ev2-row:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: -2px; }
+html[data-look] #view-eventos[data-v2] .ev2-time { color: var(--v2-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+html[data-look] #view-eventos[data-v2] .ev2-type { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--type); color: #fff; }
+html[data-look] #view-eventos[data-v2] .ev2-text { display: grid; min-width: 0; }
+html[data-look] #view-eventos[data-v2] .ev2-text b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-look] #view-eventos[data-v2] .ev2-text small { color: var(--v2-muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-look] #view-eventos[data-v2] .ev2-who { width: 30px; height: 30px; font-size: 11px; }
+html[data-look] #view-eventos[data-v2] .ev2-check { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 1.5px solid var(--v2-soft); border-radius: 7px; background: transparent; color: #fff; cursor: pointer; }
+html[data-look] #view-eventos[data-v2] .ev2-row.is-done .ev2-check { background: var(--v2-ok); border-color: var(--v2-ok); }
+html[data-look] #view-eventos[data-v2] .ev2-row.is-done .ev2-text b { color: var(--v2-muted); text-decoration: line-through; }
+html[data-look] #view-eventos[data-v2] .ev2-empty { margin: 8px; color: var(--v2-muted); font-size: 13px; }
+
+/* Mês pequeno e resumo da semana. */
+html[data-look] #view-eventos[data-v2] .ev2-card-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+html[data-look] #view-eventos[data-v2] .ev2-card-h h3 { margin: 0; font-size: 16px; }
+html[data-look] #view-eventos[data-v2] .ev2-card-h small { color: var(--v2-muted); }
+html[data-look] #view-eventos[data-v2] .ev2-nav { width: 28px; height: 28px; border: 0; border-radius: 8px; background: transparent; color: var(--v2-muted); cursor: pointer; }
+html[data-look] #view-eventos[data-v2] .ev2-nav:hover { background: var(--v2-accent-soft); color: var(--v2-ink); }
+html[data-look] #view-eventos[data-v2] .ev2-mini { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+html[data-look] #view-eventos[data-v2] .ev2-mini-h { color: var(--v2-soft); font-size: 11px; font-weight: 600; padding-bottom: 4px; }
+html[data-look] #view-eventos[data-v2] .ev2-md { position: relative; aspect-ratio: 1; border: 0; border-radius: 50%; background: transparent; color: var(--v2-ink); font: 500 12.5px var(--v2-font); cursor: pointer; }
+html[data-look] #view-eventos[data-v2] .ev2-md.is-out { color: var(--v2-soft); opacity: .6; }
+html[data-look] #view-eventos[data-v2] .ev2-md.has-ev::after { content: ''; position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--v2-muted); }
+html[data-look] #view-eventos[data-v2] .ev2-md:hover { background: var(--v2-accent-soft); }
+html[data-look] #view-eventos[data-v2] .ev2-md.is-today { font-weight: 700; box-shadow: inset 0 0 0 1.5px var(--v2-ink); }
+html[data-look] #view-eventos[data-v2] .ev2-md.is-on { background: var(--v2-accent); color: var(--v2-accent-ink); }
+html[data-look="classico"] #view-eventos[data-v2] .ev2-md.is-on { background: #843424; color: #fff; }
+html[data-look] #view-eventos[data-v2] .ev2-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 6px 0; font-size: 13px; }
+html[data-look] #view-eventos[data-v2] .ev2-bar span { display: flex; align-items: center; gap: 8px; color: var(--v2-ink); }
+html[data-look] #view-eventos[data-v2] .ev2-bar span i { width: 8px; height: 8px; border-radius: 50%; }
+html[data-look] #view-eventos[data-v2] .ev2-bar em { grid-column: 1 / -1; height: 5px; border-radius: 999px; background: var(--v2-surface-2); overflow: hidden; }
+html[data-look] #view-eventos[data-v2] .ev2-bar em s { display: block; height: 100%; border-radius: inherit; }
+
+@media (max-width: 1100px) {
+  html[data-look] #view-eventos[data-v2] .ev2-layout { grid-template-columns: minmax(0, 1fr); }
+  html[data-look] #view-eventos[data-v2] .ev2-side { display: none; }
+}
+/* Telemóvel: a Semana é a vista única (eventos.js → currentEventosView). */
+@media (max-width: 600px) {
+  html[data-look] #view-eventos[data-v2] #eventos-panel-calendar { display: none !important; }
+  html[data-look] #view-eventos[data-v2] #eventos-panel-semana.active { display: block !important; }
+  html[data-look] #view-eventos[data-v2] .ev2-label { display: none; }
+  html[data-look] #view-eventos[data-v2] .ev2-toolbar { display: flex !important; flex-wrap: nowrap; justify-content: flex-start; gap: 8px; }
+  html[data-look] #view-eventos[data-v2] .ev2-toolbar > .btn { flex: 0 0 auto; min-height: 40px; }
+  html[data-look] #view-eventos[data-v2] .ev2-icon-btn { width: 40px; }
+  /* O «+» flutuante já cria tarefas: o botão do topo fica a mais. */
+  html[data-look] #view-eventos[data-v2] .eventos-mobile-add-btn { display: none !important; }
+  html[data-look] #view-eventos[data-v2] .eventos-tabs { display: none; }
+  html[data-look] #view-eventos[data-v2] .ev2-toolbar .view-toolbar-actions { display: none; }
+  html[data-look] #view-eventos[data-v2] .ev2-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  html[data-look] #view-eventos[data-v2] .ev2-main { padding: 12px; }
+  html[data-look] #view-eventos[data-v2] .ev2-row { grid-template-columns: 42px 30px minmax(0, 1fr) auto auto; gap: 8px; }
+}
