@@ -10,7 +10,8 @@ html[data-look] .view[data-v2] {
   --surface-card: var(--v2-surface); --surface-card-strong: var(--v2-solid); --surface-panel: var(--v2-surface);
   --surface-muted: var(--v2-surface-2); --surface-elevated: var(--v2-surface);
   --branco: var(--v2-solid); --creme: var(--v2-surface-2); --cinza-claro: var(--v2-surface-2);
-  --marca: var(--v2-accent); --marca-claro: var(--v2-accent); --marca-bg: var(--v2-accent-soft); --azul-claro: var(--marca);
+  --bg-card: var(--v2-surface); --bg-secondary: var(--v2-surface-2); --bg-hover: var(--v2-accent-soft); --border: var(--v2-line);
+  --marca: var(--v2-accent); --marca-claro: var(--v2-accent); --marca-bg: var(--v2-accent-soft); --marca-light: var(--v2-accent-soft); --azul-claro: var(--marca);
   --verde: var(--v2-ok); --vermelho: var(--v2-bad); --laranja: var(--v2-warn); --roxo: var(--v2-violet);
   --sombra: var(--v2-shadow); --shadow-soft: var(--v2-shadow); --shadow-card: var(--v2-shadow); --shadow-inset: none;
   color: var(--v2-ink); font-family: var(--v2-font);
@@ -60,6 +61,12 @@ html[data-look] .view[data-v2] .cal-mode-btn { color: var(--v2-muted); border-ra
 html[data-look] .view[data-v2] .cal-mode-btn.active { color: var(--v2-ink); background: transparent; font-weight: 600; }
 html[data-look] .view[data-v2] .page-toolbar-count { color: var(--v2-muted); }
 html[data-look] .view[data-v2] .page-toolbar-count strong { color: var(--v2-ink); }
+
+/* Separadores de página (.report-tabs: Eventos, Preços, Relatórios, …) em pílula. */
+html[data-look] .view[data-v2] .report-tabs { display: inline-flex; width: max-content; max-width: 100%; gap: 2px; padding: 3px; border: 1px solid var(--v2-line); border-radius: 999px; background: var(--v2-surface-2); }
+html[data-look] .view[data-v2] .report-tab { border: 0; border-radius: 999px; padding: 6px 14px; color: var(--v2-muted); background: transparent; font-weight: 500; }
+html[data-look] .view[data-v2] .report-tab:hover { color: var(--v2-ink); background: transparent; }
+html[data-look] .view[data-v2] .report-tab.active { color: var(--v2-ink); background: var(--v2-solid); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
 
 /* ── Tabelas ── */
 html[data-look] .view[data-v2] table { color: var(--v2-ink); background: transparent; }

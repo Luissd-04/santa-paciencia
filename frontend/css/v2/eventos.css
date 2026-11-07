@@ -3,12 +3,6 @@
    aqui ficam os separadores, os tipos de evento, as etiquetas na grelha e a
    lista. */
 
-/* Separadores Calendário / Lista em pílula. */
-html[data-look] #view-eventos[data-v2] .eventos-tabs { display: inline-flex; width: max-content; max-width: 100%; gap: 2px; padding: 3px; border: 1px solid var(--v2-line); border-radius: 999px; background: var(--v2-surface-2); }
-html[data-look] #view-eventos[data-v2] .report-tab { border: 0; border-radius: 999px; padding: 6px 14px; color: var(--v2-muted); background: transparent; font-weight: 500; }
-html[data-look] #view-eventos[data-v2] .report-tab:hover { color: var(--v2-ink); background: transparent; }
-html[data-look] #view-eventos[data-v2] .report-tab.active { color: var(--v2-ink); background: var(--v2-solid); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
-
 /* Tipos de evento (filtros). */
 html[data-look] #view-eventos[data-v2] .evt-type-chip { min-height: 32px; padding: 4px 12px; border: 1px solid var(--v2-line); border-radius: 999px; background: var(--v2-surface); color: var(--v2-ink);
   backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }

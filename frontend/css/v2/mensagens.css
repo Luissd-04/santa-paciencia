@@ -1,0 +1,35 @@
+/* ══ V2: Mensagens (vista invoice: conversas, arquivo e faturas) ══
+   As cores vêm das variáveis traduzidas em componentes.css (--bg-card,
+   --bg-secondary, …); aqui ficam os acertos de forma e o que tinha cor fixa. */
+
+/* Separadores em pílula. */
+html[data-look] #view-invoice[data-v2] .invoice-tabs { border: 1px solid var(--v2-line); border-radius: 999px; padding: 3px; }
+html[data-look] #view-invoice[data-v2] .inv-tab { border-radius: 999px; color: var(--v2-muted); }
+html[data-look] #view-invoice[data-v2] .inv-tab.active { background: var(--v2-solid); color: var(--v2-ink); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+
+/* Caixa de entrada: um só cartão de vidro com a lista e a conversa. */
+html[data-look] #view-invoice[data-v2] .invoice-inbox-layout { border-color: var(--v2-line); border-radius: var(--v2-radius); box-shadow: var(--v2-shadow);
+  backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
+html[data-look] #view-invoice[data-v2] .invoice-thread-list { border-right-color: var(--v2-divider); }
+html[data-look] #view-invoice[data-v2] .invoice-thread-item { border-bottom-color: var(--v2-divider); }
+html[data-look] #view-invoice[data-v2] .invoice-thread-item.active { border-left-color: var(--v2-accent); }
+html[data-look="classico"] #view-invoice[data-v2] .invoice-thread-item.active { border-left-color: #843424; }
+html[data-look] #view-invoice[data-v2] :is(.itt-name, .idh-info h2) { color: var(--v2-ink); }
+html[data-look] #view-invoice[data-v2] :is(.itt-date, .itt-sub, .itt-snippet, .idh-email, .idh-meta) { color: var(--v2-muted); }
+html[data-look] #view-invoice[data-v2] .invoice-detail-header { background: transparent; border-bottom-color: var(--v2-divider); }
+html[data-look] #view-invoice[data-v2] .invoice-compose-area { background: transparent; border-top-color: var(--v2-divider); }
+
+/* Bolhas: a recebida deixa de ser branca fixa; o HTML do email continua
+   num fundo branco (os emails são desenhados para isso). */
+html[data-look] #view-invoice[data-v2] .ib-body { background: var(--v2-solid); border-color: var(--v2-line); color: var(--v2-ink); border-radius: 14px; }
+html[data-look] #view-invoice[data-v2] .invoice-bubble--sent .ib-body { background: var(--v2-accent-soft); }
+html[data-look] #view-invoice[data-v2] :is(.ib-meta, .ib-att-size) { color: var(--v2-muted); }
+html[data-look] #view-invoice[data-v2] .imb-reauth-banner { background: var(--v2-warn-bg); color: var(--v2-warn); }
+
+/* Iniciais e etiquetas que na V1 eram tijolo com letra branca. */
+html[data-look] #view-invoice[data-v2] :is(.itt-avatar, .idh-avatar) { background: var(--v2-accent-soft); color: var(--v2-ink); }
+html[data-look] #view-invoice[data-v2] .itt-aloj-init { background: var(--v2-surface-2); color: var(--v2-muted); }
+html[data-look="classico"] #view-invoice[data-v2] :is(.itt-avatar, .idh-avatar) { background: #843424; color: #fff; }
+
+/* Editor da resposta: o mesmo fundo dos outros campos. */
+html[data-look] #view-invoice[data-v2] .email-body-editor { background: var(--v2-solid); color: var(--v2-ink); border-color: var(--v2-line); border-radius: var(--v2-radius-sm); }

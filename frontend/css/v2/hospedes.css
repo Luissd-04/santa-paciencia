@@ -1,0 +1,25 @@
+/* ══ V2: Hóspedes ══ */
+
+/* Contadores em linha (número + etiqueta), como pílulas. */
+html[data-look] #view-hospedes[data-v2] .view-stat-chip { flex-direction: row; align-items: baseline; gap: 6px; min-width: 0; padding: 8px 14px; border-radius: 999px; border-color: var(--v2-line);
+  background: var(--v2-surface); box-shadow: none; backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
+html[data-look] #view-hospedes[data-v2] .view-stat-chip strong { font-family: var(--v2-head); font-size: 17px; color: var(--v2-ink); }
+html[data-look] #view-hospedes[data-v2] .view-stat-chip span { color: var(--v2-muted); font-size: 13px; text-transform: none; letter-spacing: 0; }
+
+/* Cartões / Lista: mesmo separador em pílula das outras páginas. */
+html[data-look] #view-hospedes[data-v2] .hospedes-view-toggle { padding: 3px; border: 1px solid var(--v2-line); border-radius: 999px; background: var(--v2-surface-2); }
+html[data-look] #view-hospedes[data-v2] .hvt-btn { border-radius: 999px; color: var(--v2-muted); font-family: var(--v2-font); }
+html[data-look] #view-hospedes[data-v2] .hvt-btn.active { background: var(--v2-solid); color: var(--v2-ink); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+html[data-look] #view-hospedes[data-v2] .hvt-btn svg { width: 15px; height: 15px; }
+
+/* Os cartões ficam soltos sobre o fundo (sem o cartão à volta). */
+html[data-look] #view-hospedes[data-v2] .hospedes-card-board:has(#hospedes-cards-view:not([style*="none"])) { padding: 0; border: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+html[data-look] #view-hospedes[data-v2] .hospedes-grid { gap: 16px; }
+html[data-look] #view-hospedes[data-v2] .hospede-card { padding: 18px 20px; border: 1px solid var(--v2-line); border-radius: var(--v2-radius); background: var(--v2-surface); box-shadow: var(--v2-shadow);
+  backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); cursor: pointer; }
+html[data-look] #view-hospedes[data-v2] .hospede-card:hover { transform: translateY(-2px); box-shadow: var(--v2-shadow); background: var(--v2-solid); }
+html[data-look] #view-hospedes[data-v2] .hospede-card-top { margin-bottom: 10px; }
+html[data-look] #view-hospedes[data-v2] .hospede-card-top .hospede-flag { width: 40px !important; height: 30px !important; font-size: 26px !important; border-radius: 8px; }
+html[data-look] #view-hospedes[data-v2] .hospede-name { color: var(--v2-ink); font-weight: 600; font-size: 16px; margin-bottom: 8px; }
+html[data-look] #view-hospedes[data-v2] .hospede-info-row { color: var(--v2-muted); }
+html[data-look] #view-hospedes[data-v2] .hospede-info-row svg { color: var(--v2-soft); }
