@@ -88,8 +88,11 @@
                 <span class="reservas-period-count" id="reservas-period-past-count">—</span>
               </button>
             </div>
+            <!-- V2: filtros rápidos por estado (lista-v2.js) -->
+            <div class="rv2-chips" id="reservas-v2-chips" role="group" aria-label="Estado das reservas"></div>
             <p class="reservas-period-context" id="reservas-period-context" aria-live="polite">Inclui estadias em curso e reservas futuras</p>
           </div>
+
 
           <div id="reservas-mobile" class="reservas-mobile-layout" style="display:none">
             <div class="m-search-box reservas-mobile-search">
@@ -158,6 +161,11 @@
                 <div class="spinner"></div> A carregar reservas...
               </div>
             </div>
+          </div>
+
+          <!-- V2: lista da maqueta (lista-v2.js); na V1 fica escondida. -->
+          <div class="card rv2-list" id="reservas-v2" hidden>
+            <div id="reservas-v2-list"></div>
           </div>
 
           <nav id="reservas-pagination" class="list-pagination" aria-label="Páginas de reservas"></nav>

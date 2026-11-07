@@ -15,6 +15,7 @@ AppModules.define('core', {
   cancelApiRequests: { get: () => cancelApiRequests },
   confirmPriceChange: { get: () => confirmPriceChange },
   escapeHtml: { get: () => escapeHtml },
+  initials: { get: () => initials },
   flagHtml: { get: () => flagHtml },
   formatDate: { get: () => formatDate },
   formatEUR: { get: () => formatEUR },
@@ -223,6 +224,11 @@ function formatDate(s) {
 }
 
 // Rótulos e classes em js/domain/reservation-status.js (iguais em todos os ecrãs).
+// Iniciais de um nome para os avatares («Beatriz Pinto» → «BP»).
+function initials(name) {
+  return String(name || '?').trim().split(/\s+/).slice(0, 2).map(part => part[0] || '').join('').toUpperCase() || '?';
+}
+
 function badgeEstado(e) {
   const S = window.ReservationStatus;
   return `<span class="badge ${S.badge(e)}">${escapeHtml(S.label(e))}</span>`;

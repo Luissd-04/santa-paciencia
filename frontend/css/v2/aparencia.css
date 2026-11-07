@@ -12,7 +12,7 @@ html[data-look="classico"] {
   --v2-side-bg: linear-gradient(180deg, #8a3a28, #6f2b1d); --v2-side-ink: #fbefe9; --v2-side-muted: rgba(251, 239, 233, .66);
   --v2-side-active: rgba(255, 255, 255, .14); --v2-side-line: rgba(255, 255, 255, .1);
   --v2-bar-bg: rgba(244, 238, 230, .88); --v2-bar-line: rgba(84, 54, 35, .1);
-  --v2-surface: #fffdfa; --v2-surface-2: #f7f1e9; --v2-solid: #fffdfa; --v2-opaque: #fffdfa; --v2-line: rgba(84, 54, 35, .11); --v2-divider: rgba(84, 54, 35, .1);
+  --v2-surface: #fffdfa; --v2-surface-2: #f7f1e9; --v2-solid: #fffdfa; --v2-line: rgba(84, 54, 35, .11); --v2-divider: rgba(84, 54, 35, .1);
   --v2-ink: #2b211b; --v2-muted: #76675d; --v2-soft: #a1948a;
   --v2-accent: #843424; --v2-accent-ink: #fff; --v2-accent-soft: #f3e3dc;
   --v2-head: "Playfair Display", Georgia, serif; --v2-head-track: -.01em; --v2-font: "Inter", system-ui, -apple-system, sans-serif;
@@ -30,7 +30,7 @@ html[data-look="vidro"][data-mode="claro"] {
             radial-gradient(40% 45% at 30% 95%, rgba(214, 198, 242, .9), transparent 72%);
   --v2-side-bg: rgba(255, 255, 255, .48); --v2-side-ink: #1d1d1f; --v2-side-muted: #6e6e73; --v2-side-active: rgba(255, 255, 255, .88); --v2-side-line: rgba(0, 0, 0, .06);
   --v2-bar-bg: rgba(255, 255, 255, .45); --v2-bar-line: rgba(255, 255, 255, .75);
-  --v2-surface: rgba(255, 255, 255, .6); --v2-surface-2: rgba(127, 127, 127, .1); --v2-solid: rgba(255, 255, 255, .86); --v2-opaque: #f6f6f8; --v2-line: rgba(255, 255, 255, .75); --v2-divider: rgba(127, 127, 127, .16);
+  --v2-surface: rgba(255, 255, 255, .6); --v2-surface-2: rgba(127, 127, 127, .1); --v2-solid: rgba(255, 255, 255, .86); --v2-line: rgba(255, 255, 255, .75); --v2-divider: rgba(127, 127, 127, .16);
   --v2-ink: #1d1d1f; --v2-muted: #6e6e73; --v2-soft: #8e8e93;
   --v2-accent: #1d1d1f; --v2-accent-ink: #fff; --v2-accent-soft: rgba(0, 0, 0, .06);
   --v2-head: "Inter", system-ui, -apple-system, sans-serif; --v2-head-track: -.025em; --v2-font: "Inter", system-ui, -apple-system, sans-serif;
@@ -48,7 +48,7 @@ html[data-look="vidro"][data-mode="escuro"] {
             radial-gradient(35% 40% at 25% 90%, rgba(92, 64, 140, .38), transparent 70%);
   --v2-side-bg: rgba(40, 40, 46, .45); --v2-side-ink: #f5f5f7; --v2-side-muted: #a1a1a6; --v2-side-active: rgba(255, 255, 255, .12); --v2-side-line: rgba(255, 255, 255, .07);
   --v2-bar-bg: rgba(30, 30, 34, .45); --v2-bar-line: rgba(255, 255, 255, .1);
-  --v2-surface: rgba(44, 44, 50, .52); --v2-surface-2: rgba(255, 255, 255, .07); --v2-solid: rgba(34, 34, 40, .86); --v2-opaque: #222227; --v2-line: rgba(255, 255, 255, .1); --v2-divider: rgba(255, 255, 255, .08);
+  --v2-surface: rgba(44, 44, 50, .52); --v2-surface-2: rgba(255, 255, 255, .07); --v2-solid: rgba(34, 34, 40, .86); --v2-line: rgba(255, 255, 255, .1); --v2-divider: rgba(255, 255, 255, .08);
   --v2-ink: #f5f5f7; --v2-muted: #a1a1a6; --v2-soft: #7c7c82;
   --v2-accent: #f5f5f7; --v2-accent-ink: #111; --v2-accent-soft: rgba(255, 255, 255, .1);
   --v2-head: "Inter", system-ui, -apple-system, sans-serif; --v2-head-track: -.025em; --v2-font: "Inter", system-ui, -apple-system, sans-serif;

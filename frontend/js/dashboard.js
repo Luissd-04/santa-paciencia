@@ -290,7 +290,6 @@ async function renderDashboard() {
 // ── Painel da V2 (aspetos Clássico e Vidro; js/domain/appearance.js) ──
 // Os dados vêm do mesmo /stats/dashboard (campo `painel`); a V1 não o usa.
 // Linhas e números clicáveis também com Enter e Espaço (teclado).
-const PAINEL_KEYS = AppActions.attrs('keydown', 'dashboard-painel-tecla');
 const PAINEL_TONES = { confirmada: 'ok', pendente: 'violet', pre_reserva: 'violet', aguardar_pagamento: 'warn', check_in: 'info', check_out: 'neutral', cancelada: 'bad' };
 const TASK_ICONS = { limpeza: 'sparkles', manutencao: 'wrench', compras: 'shopping-cart', lavandaria: 'shirt' };
 
@@ -311,7 +310,7 @@ function painelChip(tone, label) {
 }
 
 function painelRowAttrs(item) {
-  return item.kind === 'task' ? '' : `role="button" tabindex="0" ${PAINEL_KEYS} ${AppActions.attrs('click', 'dashboard-abrir-reserva-3bb1e04', [String(item.id)])}`;
+  return item.kind === 'task' ? '' : `role="button" tabindex="0" ${AppModules.core.KEY_ACTIVATE} ${AppActions.attrs('click', 'dashboard-abrir-reserva-3bb1e04', [String(item.id)])}`;
 }
 
 function painelTodayItem(item) {
@@ -348,7 +347,7 @@ function painelAttention(painel) {
   const count = groups.reduce((sum, [key]) => sum + painel.attention[key].length, 0);
   const rows = groups.map(([key, icon, tone, title, text]) => {
     const list = painel.attention[key];
-    return `<div class="v2-row v2-row-link" role="button" tabindex="0" ${PAINEL_KEYS} ${AppActions.attrs('click', 'dashboard-abrir-reserva-3bb1e04', [String(list[0].id)])}>
+    return `<div class="v2-row v2-row-link" role="button" tabindex="0" ${AppModules.core.KEY_ACTIVATE} ${AppActions.attrs('click', 'dashboard-abrir-reserva-3bb1e04', [String(list[0].id)])}>
       <span class="v2-ic ${tone}">${AppModules.core.lcIcon(icon, 16)}</span>
       <div class="v2-row-text"><b>${title(list)}</b><span>${text(list)}</span></div>
       <span class="v2-btn sm">Ver</span></div>`;
@@ -370,7 +369,7 @@ function renderPainelV2(stats) {
   const prevName = new Date(new Date(`${today.slice(0, 8)}01T12:00:00`).getTime() - 86400000).toLocaleDateString('pt-PT', { month: 'long' });
   const diff = Number(stats.occupancyRate) - Number(painel.previousOccupancyRate);
   const diffText = diff === 0 ? `igual a ${prevName}` : `<b class="${diff > 0 ? 'v2-up' : 'v2-down'}">${diff > 0 ? '+' : '−'}${Math.abs(diff)} pts</b> face a ${prevName}`;
-  const kpi = (icon, label, value, sub, action) => `<div class="v2-card v2-kpi" role="button" tabindex="0" ${PAINEL_KEYS} ${AppActions.attrs('click', 'dashboard-painel-ir', [action])}>
+  const kpi = (icon, label, value, sub, action) => `<div class="v2-card v2-kpi" role="button" tabindex="0" ${AppModules.core.KEY_ACTIVATE} ${AppActions.attrs('click', 'dashboard-painel-ir', [action])}>
     <small><span class="v2-ic">${AppModules.core.lcIcon(icon, 16)}</span>${label}</small><strong>${value}</strong><span>${sub}</span></div>`;
   const color = id => AppModules.core.accommodations.find(a => a.id === id)?.color || 'var(--v2-accent)';
 
@@ -387,8 +386,8 @@ function renderPainelV2(stats) {
         <div class="v2-card v2-dense v2-c-hoje"><div class="v2-card-h"><h3>Hoje</h3><span class="v2-link">${esc(window.ReservationDates.formatDayLabel(today))}</span></div>
           ${painel.today.length ? painel.today.map(painelTodayItem).join('') : '<p class="v2-empty">Nada marcado para hoje.</p>'}</div>
         <div class="v2-card v2-dense v2-c-proximas"><div class="v2-card-h"><h3>Próximas chegadas</h3><button type="button" class="v2-link" ${AppActions.attrs('click', 'dashboard-painel-ir', ['reservas'])}>Ver todas</button></div>
-          ${stats.upcoming.length ? stats.upcoming.map(r => `<div class="v2-row v2-row-link" role="button" tabindex="0" ${PAINEL_KEYS} ${AppActions.attrs('click', 'dashboard-abrir-reserva-3bb1e04', [String(r.id)])}>
-            <span class="v2-av">${esc(String(r.guest_name || '?').split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase())}</span>
+          ${stats.upcoming.length ? stats.upcoming.map(r => `<div class="v2-row v2-row-link" role="button" tabindex="0" ${AppModules.core.KEY_ACTIVATE} ${AppActions.attrs('click', 'dashboard-abrir-reserva-3bb1e04', [String(r.id)])}>
+            <span class="v2-av">${esc(AppModules.core.initials(r.guest_name))}</span>
             <div class="v2-row-text"><b>${esc(r.guest_name)}</b><span><i class="v2-dot" style="background:${esc(color(r.accommodation_id))}"></i>${esc(r.accommodation_name)} · ${r.nights} noite${r.nights === 1 ? '' : 's'}</span></div>
             ${painelChip(PAINEL_TONES[r.status] || 'neutral', window.ReservationStatus.label(r.status))}
             <span class="v2-when">${r.check_in === today ? 'Hoje' : esc(window.ReservationDates.formatDayLabel(r.check_in))}</span></div>`).join('') : '<p class="v2-empty">Sem chegadas marcadas.</p>'}</div>
@@ -452,14 +451,6 @@ AppActions.register({
   "dashboard-painel-ir": (el, event, args) => { PAINEL_DESTINOS[args[0]]?.() },
   "dashboard-painel-marcar-feito": (el, event, args) => { event.stopPropagation(); return painelMarcarFeito(args[0], args[1]) },
 }, "click");
-
-AppActions.register({
-  "dashboard-painel-tecla": (el, event) => {
-    if ((event.key !== 'Enter' && event.key !== ' ') || event.target !== el) return;
-    event.preventDefault();
-    el.click();
-  },
-}, "keydown");
 
 // Limpeza da funcionalidade ao sair ou trocar de organização.
 AppModules.onReset('dashboard.js', () => {

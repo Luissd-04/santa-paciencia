@@ -169,6 +169,10 @@
   background: color-mix(in srgb, var(--marca) 13%, transparent);
 }
 
+/* Filtros rápidos e lista da V2 (css/v2/reservas.css); na V1 não aparecem. */
+.rv2-chips { display: none; }
+.rv2-list[hidden] { display: none !important; }
+
 .reservas-period-context {
   margin: 0;
   color: var(--text-muted);

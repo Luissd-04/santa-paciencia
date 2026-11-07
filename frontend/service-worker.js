@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 81;
+const CACHE_VERSION = 82;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -121,6 +121,7 @@ const FEATURE_ASSETS = [
   '/js/features/reserva-lista/lista-dados.js',
   '/js/features/reserva-lista/lista-colunas.js',
   '/js/features/reserva-lista/lista-render.js',
+  '/js/features/reserva-lista/lista-v2.js',
   '/js/features/reserva-lista/detalhe.js',
   '/js/features/reserva-lista/detalhe-formularios.js',
   '/js/features/reserva-lista/documentos.js',
