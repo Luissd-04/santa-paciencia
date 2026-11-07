@@ -64,6 +64,7 @@ function runMigrations(db) {
   migrateEmailDesign(db);
   migrateOpsAlerts(db);
   migrateAppearance(db);
+  migrateNotificationState(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -517,6 +518,25 @@ function migrateAppearance(db) {
   if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
   db.transaction(() => {
     if (!db.pragma('table_info(users)').some(c => c.name === 'appearance')) db.exec('ALTER TABLE users ADD COLUMN appearance TEXT');
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Notificações por pessoa (services/notificationState): quando cada aviso
+// apareceu e quando foi lido. Os avisos são calculados na hora; aqui só fica
+// o estado de cada um para cada pessoa.
+function migrateNotificationState(db) {
+  const id = '20261108_notification_state';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`CREATE TABLE IF NOT EXISTS notification_state (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      notif_key TEXT NOT NULL,
+      first_seen_at TEXT NOT NULL,
+      read_at TEXT,
+      PRIMARY KEY (user_id, organization_id, notif_key)
+    )`);
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }

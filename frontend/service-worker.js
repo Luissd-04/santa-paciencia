@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 83;
+const CACHE_VERSION = 84;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -152,7 +152,7 @@ const FEATURE_ASSETS = [
   '/js/relatorios.js',
   '/js/vouchers.js',
   '/js/precos.js',
-  '/js/features/notificacoes/resumo.js',
+  '/js/features/notificacoes/pagina.js',
   '/js/invoice.js',
   '/js/features/invoice/historico.js',
   '/js/features/invoice/arquivo.js',

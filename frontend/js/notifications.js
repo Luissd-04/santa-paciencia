@@ -7,6 +7,7 @@ AppModules.define('core', {
   loadNotifications: { get: () => loadNotifications },
   openManualNotificationModal: { get: () => openManualNotificationModal },
   renderNotificationsPage: { get: () => renderNotificationsPage },
+  notifActionsHtml: { get: () => notifActionsHtml },
   saveAutoTaskSettings: { get: () => saveAutoTaskSettings },
   saveManualNotification: { get: () => saveManualNotification },
   setExportReminder: { get: () => setExportReminder },
@@ -143,7 +144,8 @@ async function loadNotifications() {
 
 function renderNotifBadge() {
   const badge = document.getElementById('notif-badge');
-  const count = _notifications.length;
+  // Conta só as por ler (lidas na página de Notificações da V2).
+  const count = _notifications.filter(n => !n.read).length;
   if (!badge) return;
   badge.textContent = count > 9 ? '9+' : String(count);
   badge.style.display = count > 0 ? '' : 'none';
@@ -307,13 +309,11 @@ function renderNotificationsPage() {
   const countLabel = document.getElementById('notifications-page-count-label');
   if (countEl) countEl.textContent = String(_notifications.length);
   if (countLabel) countLabel.textContent = _notifications.length === 1 ? 'notificação' : 'notificações';
-  // V2: resumo ao lado e filtro por grupo (js/features/notificacoes/resumo.js,
-  // carregado com a vista).
-  const resumo = AppModules.notificacoes;
-  if (typeof resumo.renderSide === 'function') resumo.renderSide(_notifications);
-  const shown = typeof resumo.filter === 'function' ? resumo.filter(_notifications) : _notifications;
+  // V2: a página da maqueta (js/features/notificacoes/pagina.js, carregada
+  // com a vista) desenha tudo e devolve true.
+  if (AppModules.notificacoes.renderPage?.(_notifications)) return;
 
-  if (shown.length === 0) {
+  if (_notifications.length === 0) {
     list.innerHTML = `
       <div class="empty-state">
         <div class="es-icon">🔔</div>
@@ -331,14 +331,23 @@ function renderNotificationsPage() {
     'download': 'download', 'mail': 'mail',
   };
 
-  list.innerHTML = shown.map(n => `
+  list.innerHTML = _notifications.map(n => `
     <div class="notifications-page-item ${priorityClass[n.priority] || ''}">
       <span class="notif-item-icon"><i data-lucide="${icons[n.icon] || 'bell'}"></i></span>
       <span class="notifications-page-copy">
         <strong>${AppModules.core.escapeHtml(n.title)}</strong>
         <small>${AppModules.core.escapeHtml(n.subtitle)}</small>
       </span>
-      ${n.type === 'export_reminder' ? `
+      ${notifActionsHtml(n)}
+    </div>
+  `).join('');
+  if (window.lucide) lucide.createIcons();
+}
+
+// Botões de cada notificação (página da V1 e da V2): exportar/recusar o
+// lembrete, resolver um email ou ver a reserva.
+function notifActionsHtml(n) {
+  return n.type === 'export_reminder' ? `
         <span class="notifications-page-actions">
           <button class="btn btn-primary btn-sm" ${AppActions.attrs("click", "notifications-approve-export-reminder-5611f49", [String((n.export_key) ?? '')])}>
             <i data-lucide="download"></i> Exportar agora
@@ -362,11 +371,7 @@ function renderNotificationsPage() {
       ` : `
         <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "notifications-notif-go-to-0365e4e", [String((n.reservation_id) ?? '')])}>
           <i data-lucide="chevron-right"></i> Ver
-        </button>
-      `}
-    </div>
-  `).join('');
-  if (window.lucide) lucide.createIcons();
+        </button>`;
 }
 
 async function notifGoTo(reservationId) {
