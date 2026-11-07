@@ -26,6 +26,14 @@ html[data-look] .view[data-v2] :is(.card, .section-card, .m-card) {
 }
 html[data-look] .view[data-v2] :is(.section-card-title, h2, h3, h4) { color: var(--v2-ink); font-family: var(--v2-head); letter-spacing: var(--v2-head-track); }
 
+/* Cartões de totais (.kpi-card: Despesas, Relatórios, …) como os do painel. */
+html[data-look] .view[data-v2] :is(.kpi-grid, #despesas-kpi-grid) .kpi-card { min-height: 0; padding: 18px 20px; border: 1px solid var(--v2-line) !important; border-radius: var(--v2-radius); background: var(--v2-surface); box-shadow: var(--v2-shadow);
+  backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
+html[data-look] .view[data-v2] .kpi-card::after { display: none; }
+html[data-look] .view[data-v2] .kpi-label { color: var(--v2-muted); font-size: 12.5px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+html[data-look] .view[data-v2] .kpi-value { margin-top: 6px; color: var(--v2-ink) !important; font-family: var(--v2-head); font-size: 30px; font-weight: 600; letter-spacing: var(--v2-head-track); }
+html[data-look] .view[data-v2] .kpi-sub { color: var(--v2-muted); }
+
 /* ── Botões ── */
 html[data-look] .view[data-v2] .btn { border-radius: 999px; font-family: var(--v2-font); font-weight: 600; box-shadow: none; }
 html[data-look] .view[data-v2] .btn:hover { transform: none; }
