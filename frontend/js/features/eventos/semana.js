@@ -136,6 +136,11 @@ function renderSemana() {
 
 AppActions.register({
   'eventos-v2-semana': () => { AppModules.eventos.setEventosView('semana') },
+  // Botões próprios da barra da Semana (os da V1 continuam com as suas ações).
+  'eventos-v2-prev': () => { AppModules.eventos.eventosPrev() },
+  'eventos-v2-next': () => { AppModules.eventos.eventosNext() },
+  'eventos-v2-today': () => { AppModules.eventos.eventosToday() },
+  'eventos-v2-new': () => { AppModules.eventos.openEventoModal(null, selectedDay()) },
   // Voltar a desenhar pelo eventos.js: só pede ao servidor se o intervalo mudar.
   'eventos-v2-day': (el, event, args) => { selected = args[0]; AppModules.eventos.setEventosView('semana') },
   'eventos-v2-month': (el, event, args) => {

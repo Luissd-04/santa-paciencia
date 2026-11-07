@@ -26,7 +26,7 @@ AppModules.define('eventos', {
 
 // Na V2 a vista por omissão é a Semana (features/eventos/semana.js) e a
 // escolha fica guardada à parte, para não mexer na da V1.
-const eventosV2 = () => Boolean(document.documentElement.dataset.look);
+const eventosV2 = () => Boolean(document.documentElement?.dataset?.look);
 const eventosViewKey = () => (eventosV2() ? 'evt:view2' : 'evt:view');
 let eventosView = AppModules.core.SS.get(eventosViewKey(), eventosV2() ? 'semana' : 'calendar');
 let eventosMode = AppModules.core.SS.get('evt:mode', 'calendar');
