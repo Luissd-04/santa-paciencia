@@ -132,6 +132,17 @@ async function main() {
   await expect(chips.filter({ hasText: 'Por aprovar' })).toHaveAttribute('aria-pressed', 'true');
   await chips.filter({ hasText: 'Todas' }).click();
   await expect(rows).toHaveCount(2);
+  // O menu de um filtro aberto fica por cima da lista (antes a lista tapava-o).
+  await page.locator('#reservas-filters-toggle').click();
+  await page.locator('.app-select-button', { hasText: 'Todos os canais' }).click();
+  const menu = page.locator('.app-select.is-open .app-select-menu');
+  await expect(menu).toBeVisible();
+  assert.ok(await menu.evaluate(el => {
+    const r = el.getBoundingClientRect();
+    return el.contains(document.elementFromPoint(r.left + r.width / 2, r.bottom - 8));
+  }), 'menu do filtro tapado pela lista');
+  await page.keyboard.press('Escape');
+  await page.locator('#reservas-filters-toggle').click();
 
   // A ficha ainda não está redesenhada: com ela aberta a vista perde o [data-v2].
   await rows.first().click();
@@ -166,6 +177,13 @@ async function main() {
   await expect(page.locator('#eventos-cal-grid')).toBeVisible();
   await page.locator('[data-eventos-view="semana"]').click();
   await expect(semana).toBeVisible();
+  // Botões da barra e filtros por tipo com a mesma altura; os filtros não
+  // colam à semana.
+  const heights = await page.locator('#eventos-panel-semana').evaluate(el => [...el.querySelectorAll('.ev2-toolbar > .btn, .evt-type-chip')]
+    .filter(b => b.offsetHeight).map(b => b.offsetHeight));
+  assert.equal(new Set(heights).size, 1, `alturas diferentes na barra dos Eventos: ${heights}`);
+  const chipsGap = await page.locator('#eventos-panel-semana').evaluate(el => el.querySelector('.ev2-layout').getBoundingClientRect().top - el.querySelector('.eventos-type-chips-row').getBoundingClientRect().bottom);
+  assert.ok(chipsGap >= 12, `filtros colados à semana (${chipsGap}px)`);
 
   // Notificações como na maqueta: filtros, lista por dia com «por ler»,
   // ler ao tocar, «Marcar todas como lidas» (guardado no servidor por pessoa),
@@ -173,7 +191,7 @@ async function main() {
   await page.goto(`${base}/notificacoes`);
   const items = page.locator('#notifications-page-list .nv2-item');
   const resumo = page.locator('#notifications-side');
-  const nchips = page.locator('#notif-v2-toolbar .nv2-chip');
+  const nchips = page.locator('#notif-v2-toolbar .rv2-chip');
   await expect(items.first()).toBeVisible();
   await expect(resumo).toBeVisible();
   await expect(page.locator('.nv2-section h4').first()).toHaveText('Hoje');
@@ -223,9 +241,13 @@ async function main() {
   await expect(page.locator('.rf-guest-name')).toHaveText('Beatriz Pinto');
 
   // Alojamentos: cartões da maqueta com a ocupação do mês; a tabela da V1 sai.
+  // Uma foto que já não existe sai e fica a cor com a casa (não a imagem partida).
+  db.prepare("UPDATE accommodations SET cover_image='/uploads/foto-que-nao-existe.jpg' WHERE id='u'").run();
   await page.goto(`${base}/alojamentos`);
   const roomCard = page.locator('#aloj-v2 .av2-card', { hasText: 'Suite Oliveira' });
   await expect(roomCard).toBeVisible();
+  await expect(roomCard.locator('.av2-photo img')).toHaveCount(0);
+  await expect(roomCard.locator('.av2-photo :is(svg, [data-lucide])')).toHaveCount(1);
   await expect(roomCard.locator('.av2-price')).toContainText('/ noite');
   await expect(roomCard.locator('.av2-price small')).toContainText('%');
   await expect(page.locator('#aloj-table')).toBeHidden();
@@ -267,16 +289,17 @@ async function main() {
   await ticket.locator('.vv2-code').click();
   await expect(page.locator('#voucher-modal-bg')).toHaveClass(/open/);
 
-  // Despesas: quatro números e «Por mês» com os últimos seis meses (do servidor).
+  // Despesas: quatro números (o do mês compara com o anterior, do servidor).
   db.prepare("INSERT INTO expenses (id,organization_id,date,description,category,amount) VALUES ('ex1',?,?,'Lavandaria','limpeza',84.5)").run(org.id, today);
+  const lastMonth = dates.addDays(`${today.slice(0, 7)}-01`, -1);
+  db.prepare("INSERT INTO expenses (id,organization_id,date,description,category,amount) VALUES ('ex0',?,?,'Gás','utilidades',40)").run(org.id, lastMonth);
   const summary = await page.evaluate(async () => (await (await fetch('/api/expenses/summary')).json()).data);
-  assert.equal(summary.byMonth.length, 6);
-  assert.equal(summary.byMonth[5].total, 84.5);
-  assert.equal(typeof summary.previousMonthTotal, 'number');
+  assert.equal(summary.previousMonthTotal, 40);
+  assert.equal(summary.byMonth, undefined);
   await page.goto(`${base}/despesas`);
   await expect(page.locator('#despesas-kpi-grid .dv2-kpi')).toHaveCount(4);
   await expect(page.locator('#despesas-kpi-grid .dv2-kpi').first()).toContainText('84,50');
-  await expect(page.locator('#despesas-v2-meses .dv2-bars > div')).toHaveCount(6);
+  await expect(page.locator('#despesas-v2-meses')).toHaveCount(0);
   // Despesas no vidro escuro: os cartões de totais perdem o degradé claro da V1.
   const kpi = page.locator('#despesas-kpi-grid .kpi-card').first();
   await expect(kpi).toBeVisible();
@@ -305,7 +328,7 @@ async function main() {
   await expect(page.locator('#calendar-agenda-mobile .agenda-month')).toBeVisible();
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo), Alojamentos (cartões com ocupação), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Preços (alojamentos em pílula), Despesas (números e «Por mês»), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto partida), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {

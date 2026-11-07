@@ -16,6 +16,9 @@ html[data-look] .view[data-v2] {
   --sombra: var(--v2-shadow); --shadow-soft: var(--v2-shadow); --shadow-card: var(--v2-shadow); --shadow-inset: none;
   color: var(--v2-ink); font-family: var(--v2-font);
 }
+/* Medidas comuns: uma altura para botões, campos e filtros que ficam lado a
+   lado (--v2-ctl) e um só espaço entre os blocos de cada página (--v2-gap). */
+html[data-look] .view[data-v2] { --v2-ctl: 36px; --v2-gap: 18px; }
 /* No clássico a cor de marca continua a ser o tijolo. */
 html[data-look="classico"] .view[data-v2] { --marca: #843424; --marca-claro: #9a4330; }
 
@@ -45,6 +48,43 @@ html[data-look] .view[data-v2] :is(.btn-ghost, .btn-outline, .btn-secondary):hov
 html[data-look] .view[data-v2] .btn svg { width: 16px; height: 16px; }
 html[data-look] .view[data-v2] .btn-sm svg { width: 15px; height: 15px; }
 html[data-look] .view[data-v2] .btn:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
+/* Todos com a mesma altura (no telemóvel ficam as medidas de toque da V1);
+   nas linhas das tabelas, botões de ícone mais pequenos mas iguais entre si. */
+@media (min-width: 601px) {
+  html[data-look] .view[data-v2] .btn { min-height: var(--v2-ctl); justify-content: center; }
+  html[data-look] .view[data-v2] td .btn { min-height: 30px; min-width: 30px; padding: 0 8px; }
+  html[data-look] .view[data-v2] :is(.form-control:not(textarea), .app-select-button) { min-height: var(--v2-ctl); padding-block: 0; }
+  html[data-look] .view[data-v2] :is(input.form-control, .search-box) { height: var(--v2-ctl); }
+  html[data-look] .view[data-v2] .search-box input { height: 100%; min-height: 0; padding-block: 0; }
+  /* Um menu de escolha aberto fica por cima do que vem a seguir: o painel
+     de filtros (com desfoque) é uma camada própria e a lista por baixo
+     tapava-o. O painel de filtros (.m-sheet) é folha fixa no telemóvel e
+     deitado: aí só o z-index (nas grelhas vale sem mudar a posição). */
+  html[data-look] .view[data-v2] :is(.m-sheet, .card, .section-card):has(.app-select.is-open) { z-index: 40; }
+  html[data-look] .view[data-v2] :is(.card, .section-card):has(.app-select.is-open) { position: relative; }
+  /* Separadores em pílula: por fora, a mesma altura dos botões. */
+  html[data-look] .view[data-v2] :is(.report-tab, .cal-mode-btn) { height: calc(var(--v2-ctl) - 8px); padding-block: 0; }
+}
+
+/* ── Espaço entre blocos: o mesmo (--v2-gap) em todas as páginas ──
+   As grelhas de cada página ganham esse espaço e os filhos perdem as margens
+   da V1 (somavam-se ao espaço da grelha: 24, 34, 42, 48 px…); nas páginas em
+   fluxo normal fica a margem por baixo de cada bloco. As grelhas da V1 têm
+   regras com #view-…: o :not(#v2-id) dá a estas o mesmo peso sem as nomear. */
+html[data-look] .view[data-v2] :is(.view-toolbar, .report-tabs, .eventos-type-chips-row, .settings-panel > .card) { margin-bottom: var(--v2-gap); }
+html[data-look] .view[data-v2]:not(#v2-id) :is(.reservas-shell, .calendar-shell, .hospedes-shell, .hv2, .despesas-shell, :where(#vouchers-list-wrap), .notifications-page-shell, .av2, .ev2-layout, .ev2-side, .report-tab-panel) { gap: var(--v2-gap); }
+html[data-look] .view[data-v2]:not(#v2-id) :is(.reservas-shell, .calendar-shell, .hospedes-shell, .hv2, .despesas-shell, :where(#vouchers-list-wrap), .report-tab-panel) > * { margin-top: 0; margin-bottom: 0; }
+
+/* ── Filtros em pílula (estado, segmento, tipo, alojamento, …) ── */
+html[data-look] .view[data-v2] :is(.rv2-chips, .nv2-chips, .hv2-chips, .vv2-chips) { display: flex; flex-wrap: wrap; gap: 6px; }
+html[data-look] .view[data-v2] :is(.rv2-chip, .evt-type-chip) { display: inline-flex; align-items: center; gap: 6px; min-height: var(--v2-ctl); padding: 0 12px; border: 1px solid var(--v2-line); border-radius: 999px;
+  background: var(--v2-surface); color: var(--v2-ink); font: 500 13px var(--v2-font); white-space: nowrap; flex-shrink: 0; cursor: pointer; backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
+html[data-look] .view[data-v2] :is(.rv2-chip, .evt-type-chip):hover:not(.is-on, .active) { background: var(--v2-solid); }
+html[data-look] .view[data-v2] :is(.rv2-chip, .evt-type-chip) em { font-style: normal; color: var(--v2-muted); font-variant-numeric: tabular-nums; }
+html[data-look] .view[data-v2] :is(.rv2-chip.is-on, .evt-type-chip.active) { background: var(--v2-accent); border-color: var(--v2-accent); color: var(--v2-accent-ink); font-weight: 600; }
+html[data-look] .view[data-v2] :is(.rv2-chip.is-on, .evt-type-chip.active) em { color: inherit; opacity: .75; }
+html[data-look="classico"] .view[data-v2] :is(.rv2-chip.is-on, .evt-type-chip.active) { background: #843424; border-color: #843424; color: #fff; }
+html[data-look] .view[data-v2] :is(.rv2-chip, .evt-type-chip):focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
 
 /* ── Campos, pesquisa e menus de escolha ── */
 html[data-look] .view[data-v2] :is(.form-control, .search-box, .m-search-box, .app-select-button) {
@@ -56,7 +96,9 @@ html[data-look] .view[data-v2] :is(.search-box, .m-search-box) input { backgroun
 html[data-look] .view[data-v2] :is(.search-box, .m-search-box) :is(i, svg) { color: var(--v2-soft); }
 html[data-look] .view[data-v2] ::placeholder { color: var(--v2-soft); }
 html[data-look] .view[data-v2] .app-select-button::after { border-color: var(--v2-muted); }
-html[data-look] .view[data-v2] .app-select-menu { background: var(--v2-solid); border: 1px solid var(--v2-line); border-radius: var(--v2-radius-sm); box-shadow: 0 18px 40px rgba(0, 0, 0, .18);
+/* Fundo opaco: dentro de um painel com desfoque o desfoque do menu não vê o
+   que está por baixo do painel, e a lista transparecia. */
+html[data-look] .view[data-v2] .app-select-menu { background: linear-gradient(var(--v2-solid), var(--v2-solid)), var(--v2-bg); border: 1px solid var(--v2-line); border-radius: var(--v2-radius-sm); box-shadow: 0 18px 40px rgba(0, 0, 0, .18);
   backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); color: var(--v2-ink); }
 html[data-look] .view[data-v2] .app-select-option { color: var(--v2-ink); }
 html[data-look] .view[data-v2] :is(.app-select-option:hover, .app-select-option.is-selected) { background: var(--v2-accent-soft); color: var(--v2-ink); }
@@ -72,7 +114,7 @@ html[data-look] .view[data-v2] .page-toolbar-count strong { color: var(--v2-ink)
 
 /* Separadores de página (.report-tabs: Eventos, Preços, Relatórios, …) em pílula. */
 html[data-look] .view[data-v2] .report-tabs { display: inline-flex; width: max-content; max-width: 100%; gap: 2px; padding: 3px; border: 1px solid var(--v2-line); border-radius: 999px; background: var(--v2-surface-2); }
-html[data-look] .view[data-v2] .report-tab { border: 0; border-radius: 999px; padding: 6px 14px; color: var(--v2-muted); background: transparent; font-weight: 500; }
+html[data-look] .view[data-v2] .report-tab { margin: 0; border: 0; border-radius: 999px; padding: 6px 14px; color: var(--v2-muted); background: transparent; font-weight: 500; }
 html[data-look] .view[data-v2] .report-tab:hover { color: var(--v2-ink); background: transparent; }
 html[data-look] .view[data-v2] .report-tab.active { color: var(--v2-ink); background: var(--v2-solid); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
 

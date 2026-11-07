@@ -4,13 +4,11 @@
    lista. */
 
 /* Tipos de evento (filtros). */
-html[data-look] #view-eventos[data-v2] .evt-type-chip { min-height: 32px; padding: 4px 12px; border: 1px solid var(--v2-line); border-radius: 999px; background: var(--v2-surface); color: var(--v2-ink);
-  backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
 html[data-look] #view-eventos[data-v2] .evt-type-chip svg { width: 14px; height: 14px; color: var(--chip-color); }
-html[data-look] #view-eventos[data-v2] .evt-type-chip:hover:not(.active) { background: var(--v2-solid); }
-html[data-look] #view-eventos[data-v2] .evt-type-chip.active { background: var(--v2-accent); border-color: var(--v2-accent); color: var(--v2-accent-ink); }
 html[data-look] #view-eventos[data-v2] .evt-type-chip.active svg { color: currentColor; }
-html[data-look="classico"] #view-eventos[data-v2] .evt-type-chip.active { background: #843424; border-color: #843424; color: #fff; }
+/* Os tipos ficam numa linha (desliza se não couberem), sem um a sobrar em baixo. */
+html[data-look] #view-eventos[data-v2] .ev2-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+html[data-look] #view-eventos[data-v2] .evt-type-chip { gap: 5px; padding: 0 10px; }
 
 /* Etiquetas dos eventos na grelha e na lista. */
 html[data-look] #view-eventos[data-v2] .eventos-pill { border-radius: 8px; font-weight: 600; }
@@ -22,8 +20,6 @@ html[data-look] #view-eventos[data-v2] .eventos-title-cell .eventos-pill { width
 
 /* ══ Maqueta: vista Semana (js/features/eventos/semana.js) ══ */
 html[data-look] #view-eventos[data-v2] .ev2-only { display: inline-flex; }
-html[data-look] #view-eventos[data-v2] .evt-type-chip em { font-style: normal; color: var(--v2-muted); }
-html[data-look] #view-eventos[data-v2] .evt-type-chip.active em { color: inherit; opacity: .75; }
 html[data-look] #view-eventos[data-v2] .ev2-toolbar { align-items: center; }
 html[data-look] #view-eventos[data-v2] .ev2-icon-btn { width: 36px; padding: 0; justify-content: center; }
 html[data-look] #view-eventos[data-v2] .ev2-label { margin: 0 0 0 6px; font-size: 18px; }
@@ -99,7 +95,6 @@ html[data-look] #view-eventos[data-v2] .ev2-bar em s { display: block; height: 1
   html[data-look] #view-eventos[data-v2] .eventos-mobile-add-btn { display: none !important; }
   html[data-look] #view-eventos[data-v2] .eventos-tabs { display: none; }
   html[data-look] #view-eventos[data-v2] .ev2-toolbar .view-toolbar-actions { display: none; }
-  html[data-look] #view-eventos[data-v2] .ev2-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   html[data-look] #view-eventos[data-v2] .ev2-main { padding: 12px; }
   html[data-look] #view-eventos[data-v2] .ev2-row { grid-template-columns: 42px 30px minmax(0, 1fr) auto auto; gap: 8px; }
 }
