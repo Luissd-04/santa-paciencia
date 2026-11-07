@@ -14,7 +14,7 @@ const { recordHistory } = require('../services/reservationHistoryService');
 
 const { safeJson, computeStandardTotals, getOrganizationServices, publicUrl, ensurePublicToken, ensurePrecheckinToken } = require('../services/reservationSupport');
 const { create, update, quote } = require('./reservationWriteController');
-const { getDashboardStats, getReservationTaskStatus, setTaskStatus, getHistory, getNotifications } = require('./reservationOperationsController');
+const { getDashboardStats, getReservationTaskStatus, setTaskStatus, getHistory, getNotifications, markNotificationsRead } = require('./reservationOperationsController');
 
 async function getAvailability(req, res, next) {
   try {
@@ -230,4 +230,4 @@ async function resolveEmailDelivery(req, res, next) {
 }
 
 // GET /api/reservations/stats/dashboard
-module.exports = { resolveEmailDelivery, getAll, getById, create, update, quote, approve, sendPrecheckinLink, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, addPayment, deletePayment, saveInvoice, setTaskStatus, getHistory };
+module.exports = { resolveEmailDelivery, getAll, getById, create, update, quote, approve, sendPrecheckinLink, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, markNotificationsRead, addPayment, deletePayment, saveInvoice, setTaskStatus, getHistory };

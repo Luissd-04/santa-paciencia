@@ -165,27 +165,41 @@ async function main() {
   await page.locator('[data-eventos-view="semana"]').click();
   await expect(semana).toBeVisible();
 
-  // Notificações: lista a toda a largura com o resumo ao lado; tocar num grupo
-  // filtra a lista; o resumo recolhe e a escolha fica guardada.
+  // Notificações como na maqueta: filtros, lista por dia com «por ler»,
+  // ler ao tocar, «Marcar todas como lidas» (guardado no servidor por pessoa),
+  // resumo recolhível ao lado e preferências de push.
   await page.goto(`${base}/notificacoes`);
-  const items = page.locator('#notifications-page-list .notifications-page-item');
+  const items = page.locator('#notifications-page-list .nv2-item');
   const resumo = page.locator('#notifications-side');
+  const nchips = page.locator('#notif-v2-toolbar .nv2-chip');
   await expect(items.first()).toBeVisible();
   await expect(resumo).toBeVisible();
+  await expect(page.locator('.nv2-section h4').first()).toHaveText('Hoje');
   const all = await items.count();
-  const pedidos = resumo.locator('.notif-side-row', { hasText: 'Pedidos' });
-  await expect(pedidos.locator('strong')).toHaveText('1');
-  await pedidos.click();
-  await expect(items).toHaveCount(1);
-  await expect(items.first()).toContainText('Rui Marques');
-  await pedidos.click();
+  await expect(page.locator('#notifications-page-list .nv2-item.is-unread')).toHaveCount(all);
+  await expect(nchips.filter({ hasText: 'Por ler' })).toHaveText(`Por ler ${all}`);
+  await nchips.filter({ hasText: 'Reservas' }).click();
+  await expect(items.filter({ hasText: 'Rui Marques' })).toHaveCount(1);
+  await nchips.filter({ hasText: 'Todas' }).click();
   await expect(items).toHaveCount(all);
+  // Tocar num aviso marca-o como lido (e o sino conta menos um).
+  const pendingItem = items.filter({ hasText: 'Reserva pendente' });
+  await pendingItem.locator('.nv2-when').click();
+  await expect(pendingItem).not.toHaveClass(/is-unread/);
+  await expect.poll(() => db.prepare("SELECT COUNT(*) AS n FROM notification_state WHERE user_id=? AND read_at IS NOT NULL").get(user.id).n).toBe(1);
+  await expect(page.locator('#notif-badge')).toHaveText(String(all - 1));
+  await page.locator('#notif-v2-toolbar .nv2-read-all').click();
+  await expect(page.locator('#notifications-page-list .nv2-item.is-unread')).toHaveCount(0);
+  await expect.poll(() => db.prepare("SELECT COUNT(*) AS n FROM notification_state WHERE user_id=? AND read_at IS NULL").get(user.id).n).toBe(0);
+  await expect(page.locator('#notif-badge')).toBeHidden();
+  // O resumo recolhe e a escolha fica guardada.
   const sideToggle = page.locator('#notif-side-toggle');
   await sideToggle.click();
   await expect(resumo).toBeHidden();
   await page.goto(`${base}/notificacoes`);
   await expect(items.first()).toBeVisible();
   await expect(resumo).toBeHidden();
+  await expect(page.locator('#notifications-page-list .nv2-item.is-unread')).toHaveCount(0);
   await sideToggle.click();
   await resumo.getByRole('button', { name: 'Preferências de push' }).click();
   await expect(page.locator('#settings-push')).toBeVisible();
@@ -227,7 +241,7 @@ async function main() {
   await expect(page.locator('#calendar-agenda-mobile .agenda-month')).toBeVisible();
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (resumo ao lado, filtro por grupo, recolher guardado, preferências de push), Mensagens (iniciais legíveis no escuro), Eventos (vista Semana, marcar feito, resumo), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro), Eventos (vista Semana, marcar feito, resumo), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {

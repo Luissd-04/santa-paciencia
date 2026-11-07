@@ -8,6 +8,7 @@ router.use(requireRole('staff'));
 router.get('/stats/dashboard', ctrl.getDashboardStats);
 router.get('/availability', ctrl.getAvailability);
 router.get('/notifications', ctrl.getNotifications);
+router.post('/notifications/read', ctrl.markNotificationsRead);
 router.get('/', ctrl.getAll);
 router.get('/:id/history', ctrl.getHistory);
 router.get('/:id', ctrl.getById);

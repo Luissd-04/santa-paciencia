@@ -128,7 +128,7 @@ const FEATURE_MODULES = {
     scripts: ['js/precos.js'],
   },
   notificacoes: {
-    scripts: ['js/features/notificacoes/resumo.js'],
+    scripts: ['js/features/notificacoes/pagina.js'],
   },
   invoice: {
     actions: ['openInvoiceForReservation'],

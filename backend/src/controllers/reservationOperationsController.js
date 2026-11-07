@@ -1,3 +1,4 @@
+const notificationState = require('../services/notificationState');
 const { db } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 const { syncOperationalEventsToGoogle } = require('../services/calendarService');
@@ -307,10 +308,24 @@ function getNotifications(req, res, next) {
         subtitle: `${f.effect.replace(/_/g, ' ')} · ${f.last_error || 'falhou depois de várias tentativas'}`, reservation_id: f.reservation_id });
       for (const d of deliveries) notifications.push({ type: 'email_review', priority: 'high', icon: 'mail', title: d.state === 'blocked' ? 'Email por enviar' : 'Envio de email por confirmar', subtitle: `${d.template_slug} · ${d.last_error || 'Aguarde a conclusão e confirme no Gmail antes de repetir.'}`, reservation_id: d.reservation_id, template_slug: d.template_slug, delivery_state: d.state });
     }
-    res.json({ success: true, data: { notifications } });
+    res.json({ success: true, data: { notifications: notificationState.annotate(req.user.id, orgId, notifications) } });
   } catch (err) {
     next(err);
   }
 }
 
-module.exports = { getDashboardStats, getReservationTaskStatus, setTaskStatus, getHistory, getNotifications };
+// Marcar como lidas: { keys: [...] } ou { all: true }.
+function markNotificationsRead(req, res, next) {
+  try {
+    const { keys, all } = req.body || {};
+    if (!all && (!Array.isArray(keys) || !keys.length || keys.length > 500)) {
+      return res.status(400).json({ success: false, error: 'Indique as notificações a marcar como lidas.' });
+    }
+    const changed = notificationState.markRead(req.user.id, req.user.organization_id, all ? 'all' : keys);
+    res.json({ success: true, data: { changed } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getDashboardStats, getReservationTaskStatus, setTaskStatus, getHistory, getNotifications, markNotificationsRead };
