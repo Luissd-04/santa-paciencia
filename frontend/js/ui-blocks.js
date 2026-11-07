@@ -44,7 +44,7 @@ function togglePageFilters(panelId, btn) {
  *   `dots` é uma lista de cores (até 3); 'currentColor' é o ponto simples.
  * @returns {string} HTML
  */
-function monthAgendaHtml({ days, selected, dayAttrs, info, summary, listHtml, emptyText }) {
+function monthAgendaHtml({ days, selected, dayAttrs, info, summary, listHtml, emptyText, headingActions = '' }) {
   const esc = AppModules.core.escapeHtml;
   const today = window.ReservationDates.localIso(new Date());
   const firstWeekday = new Date(`${days[0]}T12:00:00`).getDay();
@@ -68,7 +68,7 @@ function monthAgendaHtml({ days, selected, dayAttrs, info, summary, listHtml, em
       </div>
     </div>
     <div class="agenda-selected-heading">
-      <h4>${esc(dateLabel)}</h4>
+      <h4>${esc(dateLabel)}</h4>${headingActions}
     </div>
     <div class="agenda-day-results" aria-live="polite" aria-atomic="true">
       <div class="agenda-day-summary">${summary.map(([label, count]) => `<div><span>${esc(label)}</span><strong>${count}</strong></div>`).join('')}</div>

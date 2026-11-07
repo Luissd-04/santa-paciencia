@@ -1,0 +1,92 @@
+/* ══ V2: peças comuns das páginas redesenhadas ══
+   Só nas vistas marcadas com [data-v2] e com html[data-look]. Primeiro
+   traduz as variáveis da V1 para os tokens --v2-* (assim tudo o que já as
+   usa muda sozinho); depois acerta o que na V1 tinha cor fixa: cartões,
+   botões, campos, menus de escolha, tabelas, etiquetas e separadores. */
+
+html[data-look] .view[data-v2] {
+  --text-main: var(--v2-ink); --texto: var(--v2-ink); --azul: var(--v2-ink); --azul-medio: var(--v2-ink); --text-muted: var(--v2-muted); --cinza: var(--v2-muted); --text-soft: var(--v2-soft);
+  --border-soft: var(--v2-divider); --border-strong: var(--v2-line);
+  --surface-card: var(--v2-surface); --surface-card-strong: var(--v2-solid); --surface-panel: var(--v2-surface);
+  --surface-muted: var(--v2-surface-2); --surface-elevated: var(--v2-surface);
+  --branco: var(--v2-solid); --creme: var(--v2-surface-2); --cinza-claro: var(--v2-surface-2);
+  --marca: var(--v2-accent); --marca-claro: var(--v2-accent); --marca-bg: var(--v2-accent-soft); --azul-claro: var(--marca);
+  --verde: var(--v2-ok); --vermelho: var(--v2-bad); --laranja: var(--v2-warn); --roxo: var(--v2-violet);
+  --sombra: var(--v2-shadow); --shadow-soft: var(--v2-shadow); --shadow-card: var(--v2-shadow); --shadow-inset: none;
+  color: var(--v2-ink); font-family: var(--v2-font);
+}
+/* No clássico a cor de marca continua a ser o tijolo. */
+html[data-look="classico"] .view[data-v2] { --marca: #843424; --marca-claro: #9a4330; }
+
+/* ── Cartões ── */
+html[data-look] .view[data-v2] :is(.card, .section-card, .m-card) {
+  background: var(--v2-surface); border: 1px solid var(--v2-line); border-radius: var(--v2-radius); box-shadow: var(--v2-shadow);
+  backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); color: var(--v2-ink);
+}
+html[data-look] .view[data-v2] :is(.section-card-title, h2, h3, h4) { color: var(--v2-ink); font-family: var(--v2-head); letter-spacing: var(--v2-head-track); }
+
+/* ── Botões ── */
+html[data-look] .view[data-v2] .btn { border-radius: 999px; font-family: var(--v2-font); font-weight: 600; box-shadow: none; }
+html[data-look] .view[data-v2] .btn:hover { transform: none; }
+html[data-look] .view[data-v2] .btn-primary { background: var(--v2-accent); color: var(--v2-accent-ink); border: 1px solid var(--v2-accent); }
+html[data-look="classico"] .view[data-v2] .btn-primary { background: #843424; border-color: #843424; color: #fff; }
+html[data-look] .view[data-v2] :is(.btn-ghost, .btn-outline, .btn-secondary) { background: var(--v2-surface); color: var(--v2-ink); border: 1px solid var(--v2-line);
+  backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
+html[data-look] .view[data-v2] :is(.btn-ghost, .btn-outline, .btn-secondary):hover { background: var(--v2-solid); }
+html[data-look] .view[data-v2] .btn:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
+
+/* ── Campos, pesquisa e menus de escolha ── */
+html[data-look] .view[data-v2] :is(.form-control, .search-box, .m-search-box, .app-select-button) {
+  background: var(--v2-surface); border: 1px solid var(--v2-line); color: var(--v2-ink); border-radius: 999px; box-shadow: none;
+  backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); font-family: var(--v2-font);
+}
+html[data-look] .view[data-v2] :is(textarea.form-control) { border-radius: var(--v2-radius-sm); }
+html[data-look] .view[data-v2] :is(.search-box, .m-search-box) input { background: transparent; color: var(--v2-ink); font-family: var(--v2-font); }
+html[data-look] .view[data-v2] :is(.search-box, .m-search-box) :is(i, svg) { color: var(--v2-soft); }
+html[data-look] .view[data-v2] ::placeholder { color: var(--v2-soft); }
+html[data-look] .view[data-v2] .app-select-button::after { border-color: var(--v2-muted); }
+html[data-look] .view[data-v2] .app-select-menu { background: var(--v2-solid); border: 1px solid var(--v2-line); border-radius: var(--v2-radius-sm); box-shadow: 0 18px 40px rgba(0, 0, 0, .18);
+  backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); color: var(--v2-ink); }
+html[data-look] .view[data-v2] .app-select-option { color: var(--v2-ink); }
+html[data-look] .view[data-v2] :is(.app-select-option:hover, .app-select-option.is-selected) { background: var(--v2-accent-soft); color: var(--v2-ink); }
+html[data-look] .view[data-v2] .app-select-search { background: var(--v2-surface-2); color: var(--v2-ink); border-color: var(--v2-line); }
+
+/* ── Separadores (Cartão/Lista, Calendário/Timeline, …) ── */
+html[data-look] .view[data-v2] .cal-mode-toggle { background: var(--v2-surface-2); border: 1px solid var(--v2-line); border-radius: 999px; padding: 3px; box-shadow: none; }
+html[data-look] .view[data-v2] .cal-mode-pill { background: var(--v2-solid); border-radius: 999px; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+html[data-look] .view[data-v2] .cal-mode-btn { color: var(--v2-muted); border-radius: 999px; font-family: var(--v2-font); font-weight: 500; }
+html[data-look] .view[data-v2] .cal-mode-btn.active { color: var(--v2-ink); background: transparent; font-weight: 600; }
+html[data-look] .view[data-v2] .page-toolbar-count { color: var(--v2-muted); }
+html[data-look] .view[data-v2] .page-toolbar-count strong { color: var(--v2-ink); }
+
+/* ── Tabelas ── */
+html[data-look] .view[data-v2] table { color: var(--v2-ink); background: transparent; }
+html[data-look] .view[data-v2] table th { background: transparent; color: var(--v2-soft); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--v2-divider); }
+html[data-look] .view[data-v2] table td { border-bottom: 1px solid var(--v2-divider); background: transparent; color: var(--v2-ink); }
+html[data-look] .view[data-v2] table tbody tr:hover td { background: var(--v2-accent-soft); }
+html[data-look] .view[data-v2] .table-wrap { background: transparent; }
+
+/* ── Etiquetas de estado ── */
+html[data-look] .view[data-v2] .badge { border-radius: 999px; font-family: var(--v2-font); font-weight: 600; font-size: 11.5px; }
+html[data-look] .view[data-v2] :is(.badge-confirmada, .badge-pago) { background: var(--v2-ok-bg); color: var(--v2-ok); }
+html[data-look] .view[data-v2] :is(.badge-pendente, .badge-parcial) { background: var(--v2-warn-bg); color: var(--v2-warn); }
+html[data-look] .view[data-v2] :is(.badge-cancelada, .badge-pendpag) { background: var(--v2-bad-bg); color: var(--v2-bad); }
+html[data-look] .view[data-v2] :is(.badge-prereserva, .badge-checkout) { background: var(--v2-violet-bg); color: var(--v2-violet); }
+html[data-look] .view[data-v2] .badge-checkin { background: var(--v2-info-bg); color: var(--v2-info); }
+
+/* Alojamento: ponto com a cor dele e o nome em texto normal. */
+html[data-look] .view[data-v2] .acc-chip { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: none; color: var(--v2-ink); font-weight: 500; }
+html[data-look] .view[data-v2] .acc-chip::before { content: ''; flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--acc); }
+
+/* ── Estados vazios e a carregar ── */
+html[data-look] .view[data-v2] :is(.empty-state, .loading) { color: var(--v2-muted); background: transparent; }
+html[data-look] .view[data-v2] .empty-state h3 { color: var(--v2-ink); }
+
+/* ── Folhas de filtros do telemóvel ── */
+html[data-look] .view[data-v2] .m-sheet { background: var(--v2-solid); color: var(--v2-ink); backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
+html[data-look] .view[data-v2] .m-sheet-header { color: var(--v2-ink); border-color: var(--v2-divider); }
+html[data-look] .view[data-v2] .m-sheet-close { color: var(--v2-muted); background: var(--v2-surface-2); }
+html[data-look] .view[data-v2] .m-filters-trigger { background: var(--v2-surface); color: var(--v2-ink); border: 1px solid var(--v2-line); border-radius: 999px; }
+html[data-look] .view[data-v2] :is(.chip, .mobile-filter-chips .chip) { background: var(--v2-surface); color: var(--v2-muted); border: 1px solid var(--v2-line); border-radius: 999px; }
+html[data-look] .view[data-v2] .chip.active { background: var(--v2-accent); color: var(--v2-accent-ink); border-color: var(--v2-accent); }
+html[data-look="classico"] .view[data-v2] .chip.active { background: #843424; color: #fff; border-color: #843424; }

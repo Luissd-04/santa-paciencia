@@ -143,7 +143,7 @@ async function loadDashboardStats() {
 function accomChip(r) {
   const a = AppModules.core.accommodations.find(x => x.id === r.accommodation_id);
   const color = a?.color || '#843424';
-  return `<span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;background:${color}20;color:${color};border:1px solid ${color}40;">${AppModules.core.escapeHtml(r.accommodation_name)}</span>`;
+  return `<span class="acc-chip" style="--acc:${color}">${AppModules.core.escapeHtml(r.accommodation_name)}</span>`;
 }
 
 function relativeArrivalLabel(dateStr, todayStr) {

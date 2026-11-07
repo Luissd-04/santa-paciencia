@@ -23,6 +23,7 @@ function drawCal() {
   const todayStr = window.ReservationDates.localIso(now);
 
   const grid = document.getElementById('cal-grid');
+  applyDayPanel();
 
   // Build all visible days (prev-month padding + current month + next-month padding)
   const allDays = [];
@@ -44,6 +45,9 @@ function drawCal() {
     const ny = AppModules.core.calMonth === 11 ? AppModules.core.calYear + 1 : AppModules.core.calYear;
     allDays.push({ dateStr: `${ny}-${String(nm+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`, dayNum: i, otherMonth: true });
   }
+
+  const monthDays = allDays.filter(day => !day.otherMonth).map(day => day.dateStr);
+  const selectedDay = normalizeAgendaSelection(monthDays);
 
   // Reservations visible in this calendar view, sorted longest-first for better lane packing
   const visStart = allDays[0].dateStr;
@@ -103,7 +107,7 @@ function drawCal() {
 
     const dayCells = week.map(day => {
       const blocked = dayIsBlocked(day);
-      return `<div class="cal-day${day.otherMonth ? ' other-month' : ''}${day.isToday ? ' today' : ''}${blocked ? ' cal-day-blocked' : ''}" ${dayClickAttr(day)}${blocked ? ' title="🔒 Data bloqueada — clique para editar"' : ''}>
+      return `<div class="cal-day${day.otherMonth ? ' other-month' : ''}${day.isToday ? ' today' : ''}${day.dateStr === selectedDay ? ' is-selected' : ''}${blocked ? ' cal-day-blocked' : ''}" ${dayClickAttr(day)}${blocked ? ' title="🔒 Data bloqueada — clique para editar"' : ''}>
         <div class="day-num">${day.dayNum}</div>
         ${blocked ? '<span class="cal-day-lock">🔒</span>' : ''}
       </div>`;
@@ -198,7 +202,7 @@ function drawCal() {
     );
   }
 
-  renderCalendarAgenda(allDays.filter(day => !day.otherMonth).map(day => day.dateStr), filters);
+  renderCalendarAgenda(monthDays, filters);
   AppModules.calendario.renderCalLandscape(allDays, filters);
 }
 
@@ -242,16 +246,54 @@ function selectAgendaDate(dateStr) {
   document.querySelector(`[data-agenda-date="${dateStr}"]`)?.focus({ preventScroll: true });
 }
 
+// Dia escolhido na agenda: fica no mês visível (hoje, se for este mês).
+function normalizeAgendaSelection(monthDays) {
+  if (!monthDays.includes(calAgendaSelectedDate)) {
+    const today = window.ReservationDates.localIso(new Date());
+    calAgendaSelectedDate = monthDays.includes(today) ? today : monthDays[0];
+  }
+  return calAgendaSelectedDate;
+}
+
+// ── V2: painel do dia ao lado do mês (ecrã grande) ──
+// A mesma agenda do telemóvel (#calendar-agenda-mobile) fica à direita da
+// grelha; o botão da barra recolhe-a para o lado e a escolha fica guardada
+// neste aparelho. Com o painel à vista, tocar num dia mostra-o no painel; a
+// nova reserva desse dia abre pelo botão do painel. Na V1 o painel não aparece
+// e tocar num dia continua a abrir a nova reserva.
+const DAY_PANEL_KEY = 'sp-cal-painel-dia';
+let dayPanelClosed = (() => { try { return localStorage.getItem(DAY_PANEL_KEY) === 'fechado'; } catch { return false; } })();
+
+function applyDayPanel() {
+  document.querySelector('#view-calendario .section-card-calendar')?.classList.toggle('cal-day-panel-closed', dayPanelClosed);
+  const button = document.getElementById('cal-day-panel-toggle');
+  if (!button) return;
+  button.setAttribute('aria-pressed', String(!dayPanelClosed));
+  button.title = dayPanelClosed ? 'Mostrar o painel do dia' : 'Recolher o painel do dia';
+}
+
+function toggleDayPanel() {
+  dayPanelClosed = !dayPanelClosed;
+  try { localStorage.setItem(DAY_PANEL_KEY, dayPanelClosed ? 'fechado' : 'aberto'); } catch { /* Vale só nesta página. */ }
+  applyDayPanel();
+}
+
+function dayPanelShown() {
+  const agenda = document.getElementById('calendar-agenda-mobile');
+  return Boolean(document.documentElement.dataset.look && agenda && agenda.getClientRects().length
+    && window.matchMedia('(min-width: 901px)').matches);
+}
+
+function pickCalendarDay(dateStr) {
+  if (dayPanelShown()) selectAgendaDate(dateStr);
+  else AppModules.reservas.openModalFromCalendar(dateStr);
+}
+
 function renderCalendarAgenda(monthDays, filters = AppModules.calendario.getCalendarFilters(), targetId = 'calendar-agenda-mobile') {
   const agenda = document.getElementById(targetId);
   if (!agenda || !monthDays.length) return;
   const esc = AppModules.core.escapeHtml;
-  const now = new Date();
-  const today = window.ReservationDates.localIso(now);
-  if (!monthDays.includes(calAgendaSelectedDate)) {
-    calAgendaSelectedDate = monthDays.includes(today) ? today : monthDays[0];
-  }
-  const selected = calAgendaSelectedDate;
+  const selected = normalizeAgendaSelection(monthDays);
   const reservations = AppModules.calendario.calendarReservas
     .filter(r => AppModules.calendario.reservationMatchesCalendarFilters(r, filters));
   const dayReservations = reservations.filter(r => r.check_in <= selected && r.check_out >= selected)
@@ -271,6 +313,7 @@ function renderCalendarAgenda(monthDays, filters = AppModules.calendario.getCale
       return { label: `${label}, ${count} reserva${count === 1 ? '' : 's'}`, dots: count ? ['currentColor'] : [] };
     },
     summary: counts,
+    headingActions: `<button type="button" class="btn btn-ghost btn-sm agenda-day-new" ${AppActions.attrs('click', 'mes-agenda-new-for-day', [selected])}>${AppModules.core.lcIcon('plus', 14)} Nova reserva</button>`,
     listHtml: dayReservations.map(r => {
         const suites = AppModules.calendario.calReservationSuiteInfo(r);
         const taskMarks = AppModules.calendario.calTaskMarkLabels(r);
@@ -305,7 +348,9 @@ AppActions.register({
   "mes-agenda-stop-propagation-eb43f3e": (el, event, args) => { event.stopPropagation();AppModules.reservas.showDetail(args[0]) },
   "mes-agenda-open-overflow-87a42f1": (el, event, args) => { event.stopPropagation();openCalendarOverflow(args[0]) },
   "mes-agenda-open-overflow-reservation-b4219da": (el, event, args) => { openOverflowReservation(args[0]) },
-  "mes-agenda-open-modal-from-calendar-76a36bf": (el, event, args) => { AppModules.reservas.openModalFromCalendar(args[0]) },
+  "mes-agenda-open-modal-from-calendar-76a36bf": (el, event, args) => { pickCalendarDay(args[0]) },
+  "mes-agenda-new-for-day": (el, event, args) => { AppModules.reservas.openModalFromCalendar(args[0]) },
+  "mes-agenda-toggle-day-panel": () => { toggleDayPanel() },
   "mes-agenda-open-block-from-calendar-969183d": (el, event, args) => { AppModules.bloqueios.openBlockFromCalendar(args[0], args[1]) },
 }, "click");
 

@@ -441,6 +441,9 @@ tbody td { padding: 12px 14px; color: var(--texto); white-space:nowrap; }
 .badge-pago       { background:rgba(46,125,82,.12); color:var(--verde); }
 .badge-parcial    { background:rgba(196,120,32,.12); color:var(--laranja); }
 .badge-pendpag    { background:rgba(176,48,48,.12); color:var(--vermelho); }
+/* Alojamento com a cor dele (dashboard.js → accomChip). */
+.acc-chip { display:inline-block; padding:2px 10px; border-radius:20px; font-size:12px; font-weight:600; color:var(--acc);
+  background:color-mix(in srgb, var(--acc) 12.5%, transparent); border:1px solid color-mix(in srgb, var(--acc) 25%, transparent); }
 
 .modal-bg {
   display:none;
