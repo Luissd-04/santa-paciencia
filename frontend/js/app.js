@@ -162,8 +162,15 @@ async function initView(v) {
   if (v === 'definicoes') renderSettingsView();
 }
 
+// Nome da vista a partir do caminho do endereço ("/reservas/" → "reservas").
+function viewFromPath(pathname) {
+  return pathname.replace(/^\/+|\/+$/g, '') || 'dashboard';
+}
+
 window.addEventListener('popstate', async (e) => {
-  let v = e.state?.view || 'dashboard';
+  // Entrada sem estado (a primeira, aberta pelo endereço): vale o caminho, senão
+  // voltar da ficha aberta em /reservas ia parar ao painel.
+  let v = e.state?.view || viewFromPath(window.location.pathname);
   if (v === 'gcal') { settingsTab = 'gcal'; v = 'definicoes'; }
   if (v === 'equipa') { settingsTab = 'equipa'; v = 'definicoes'; }
   if (v === 'emails') { settingsTab = 'emails'; v = 'definicoes'; }
@@ -180,14 +187,14 @@ window.addEventListener('popstate', async (e) => {
     if (typeof AppModules.reservas.showDetail === 'function') AppModules.reservas.showDetail(e.state.reservaDetail, { fromHistory: true });
     return;
   }
-  if (VIEW_TITLES[v]) showView(v, false);
+  showView(VIEW_TITLES[v] ? v : 'dashboard', false);
 });
 
 // Deep-link: /reservas?reserva=<id> abre diretamente a ficha da reserva.
 // Usado no boot (links de email) e nos cliques em notificações push.
 async function handleDeepLinkUrl(raw) {
   const u = new URL(raw, window.location.origin);
-  const view = u.pathname.replace(/^\/+|\/+$/g, '') || 'dashboard';
+  const view = viewFromPath(u.pathname);
   const reservaId = u.searchParams.get('reserva');
   if (view === 'reservas' && reservaId) {
     if (await AppModules.core.ensureFeature('reservas')) { AppModules.reservas.showDetail(reservaId); return; }
@@ -782,7 +789,7 @@ async function initApp() {
     if (icon) { icon.setAttribute('data-lucide', 'panel-left-open'); lucide.createIcons(); }
   }
 
-  let pathView = window.location.pathname.replace(/^\/+|\/+$/g, '') || 'dashboard';
+  let pathView = viewFromPath(window.location.pathname);
   if (pathView === 'gcal') { settingsTab = 'gcal'; pathView = 'definicoes'; }
   if (pathView === 'equipa') { settingsTab = 'equipa'; pathView = 'definicoes'; }
   // Deep-link /reservas?reserva=<id>: limpar o estado ANTES do showView — após

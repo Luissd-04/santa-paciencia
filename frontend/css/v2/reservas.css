@@ -1,0 +1,44 @@
+/* ══ V2: Reservas (lista e cartões) ══
+   A ficha da reserva ainda não está redesenhada: com ela aberta a vista
+   perde o [data-v2] (lista-render.js → setReservasDetailMode). */
+
+/* Período: separador em pílula em vez de caixa com contorno. */
+html[data-look] #view-reservas[data-v2] .reservas-period-bar { padding: 0; border: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+html[data-look] #view-reservas[data-v2] .reservas-period-switch { padding: 3px; gap: 2px; border: 1px solid var(--v2-line); border-radius: 999px; background: var(--v2-surface-2); }
+html[data-look] #view-reservas[data-v2] .reservas-period-btn { min-height: 38px; padding: 6px 14px; border: 0; border-radius: 999px; color: var(--v2-muted); font-weight: 500; }
+html[data-look] #view-reservas[data-v2] .reservas-period-btn:hover { color: var(--v2-ink); background: transparent; }
+html[data-look] #view-reservas[data-v2] .reservas-period-btn.active { color: var(--v2-ink); background: var(--v2-solid); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+html[data-look] #view-reservas[data-v2] .reservas-period-count,
+html[data-look] #view-reservas[data-v2] .reservas-period-btn.active .reservas-period-count { color: var(--v2-muted); background: var(--v2-surface-2); }
+html[data-look] #view-reservas[data-v2] .reservas-period-context { color: var(--v2-muted); }
+
+/* Lista: um só cartão de vidro, linhas sem fundo. */
+html[data-look] #view-reservas[data-v2] .reservas-table-wrap { padding: 8px 20px 16px; }
+html[data-look] #view-reservas[data-v2] #reservas-table td { padding-top: 13px; padding-bottom: 13px; }
+html[data-look] #view-reservas[data-v2] #reservas-table tbody tr { cursor: pointer; }
+html[data-look] #view-reservas[data-v2] #reservas-table tbody tr:last-child td { border-bottom: 0; }
+
+/* As três colunas coladas à direita precisam de fundo opaco, senão vê-se o
+   que passa por trás delas ao fazer scroll. */
+html[data-look] #view-reservas[data-v2] #reservas-table :is(thead th, tbody td):nth-last-child(-n+3) { background: var(--v2-opaque); }
+html[data-look] #view-reservas[data-v2] #reservas-table tr:hover td:nth-last-child(-n+3) { background: linear-gradient(var(--v2-accent-soft), var(--v2-accent-soft)), var(--v2-opaque); }
+
+/* Cartões. */
+html[data-look] #view-reservas[data-v2] #mobile-res-cards .m-res-card { padding: 16px 18px; border: 1px solid var(--v2-line); border-left-width: 1px; border-radius: var(--v2-radius);
+  background: var(--v2-surface); box-shadow: var(--v2-shadow); backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
+html[data-look] #view-reservas[data-v2] .m-res-card .mrc-name { color: var(--v2-ink); font-size: 15px; font-weight: 600; }
+html[data-look] #view-reservas[data-v2] .m-res-card .mrc-id,
+html[data-look] #view-reservas[data-v2] .m-res-card .mrc-channel,
+html[data-look] #view-reservas[data-v2] .m-res-card .mrc-meta { color: var(--v2-muted); }
+html[data-look] #view-reservas[data-v2] .m-res-card .mrc-meta { border-color: var(--v2-divider); }
+html[data-look] #view-reservas[data-v2] .m-res-card .mrc-price { color: var(--v2-ink); font-family: var(--v2-font); font-weight: 700; }
+html[data-look] #view-reservas[data-v2] .m-res-card .mrc-price span { color: var(--v2-bad) !important; }
+html[data-look] #view-reservas[data-v2] .m-res-card .mrc-actions { justify-content: flex-end; margin-top: 8px; }
+html[data-look] #view-reservas[data-v2] .m-card-btn { flex: 0 0 auto; width: auto; min-height: 36px; padding: 4px 14px; border: 1px solid var(--v2-line); border-radius: 999px; background: var(--v2-surface-2); color: var(--v2-ink); font-weight: 500; }
+
+html[data-look] #view-reservas[data-v2] .m-card-btn svg { width: 14px; height: 14px; }
+
+/* Paginação. */
+html[data-look] #view-reservas[data-v2] .list-pagination :is(button, a, span) { color: var(--v2-ink); }
+html[data-look] #view-reservas[data-v2] .list-pagination button { background: var(--v2-surface); border: 1px solid var(--v2-line); border-radius: 999px; }
+html[data-look] #view-reservas[data-v2] .list-pagination [aria-current="page"] { background: var(--v2-accent); color: var(--v2-accent-ink); border-color: var(--v2-accent); }
