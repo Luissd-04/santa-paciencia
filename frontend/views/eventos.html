@@ -3,12 +3,39 @@
             <button class="report-tab active" data-eventos-view="calendar" data-on-click="index-set-eventos-view-cb4fbd3">
               <i data-lucide="calendar-days" style="width:14px;height:14px;"></i> Calendário
             </button>
+            <!-- V2: vista Semana (features/eventos/semana.js); na V1 fica escondida. -->
+            <button class="report-tab ev2-only" data-eventos-view="semana" data-on-click="eventos-v2-semana">
+              <i data-lucide="calendar-range" style="width:14px;height:14px;"></i> Semana
+            </button>
             <button class="report-tab" data-eventos-view="list" data-on-click="index-set-eventos-view-234943d">
               <i data-lucide="list-checks" style="width:14px;height:14px;"></i> Lista
             </button>
             <button class="btn btn-primary btn-sm eventos-mobile-add-btn" data-on-click="index-open-evento-modal-bd416ff">
               <i data-lucide="plus" style="width:14px;height:14px;"></i> Novo evento
             </button>
+          </div>
+
+          <div class="eventos-panel" id="eventos-panel-semana">
+            <div class="view-toolbar calendar-toolbar ev2-toolbar">
+              <button class="btn btn-ghost btn-sm ev2-icon-btn" aria-label="Semana anterior" data-on-click="eventos-v2-prev"><i data-lucide="chevron-left"></i></button>
+              <button class="btn btn-ghost btn-sm ev2-icon-btn" aria-label="Semana seguinte" data-on-click="eventos-v2-next"><i data-lucide="chevron-right"></i></button>
+              <button class="btn btn-ghost btn-sm" data-on-click="eventos-v2-today">Hoje</button>
+              <h3 class="ev2-label" id="ev2-label"></h3>
+              <div class="view-toolbar-actions">
+                <button class="btn btn-primary btn-sm" data-on-click="eventos-v2-new"><i data-lucide="plus"></i> Nova tarefa</button>
+              </div>
+            </div>
+            <div class="eventos-type-chips-row ev2-chips"></div>
+            <div class="ev2-layout">
+              <div class="card ev2-main">
+                <div class="ev2-week" id="ev2-week" role="group" aria-label="Dias da semana"></div>
+                <div class="ev2-days" id="ev2-days"></div>
+              </div>
+              <aside class="ev2-side">
+                <div class="card" id="ev2-month"></div>
+                <div class="card" id="ev2-summary"></div>
+              </aside>
+            </div>
           </div>
 
           <div class="eventos-panel active" id="eventos-panel-calendar">

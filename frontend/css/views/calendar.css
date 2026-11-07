@@ -84,6 +84,9 @@
   left: 0;
 }
 
+/* Eventos → Semana: só na V2 (css/v2/eventos.css). */
+#view-eventos .ev2-only { display: none; }
+
 /* Painel do dia ao lado do mês e «Nova reserva» do dia: só na V2
    (css/v2/calendario.css); na V1 ficam escondidos. */
 .cal-day-panel-toggle,
