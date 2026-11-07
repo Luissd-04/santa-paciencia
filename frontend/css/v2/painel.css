@@ -1,6 +1,5 @@
 /* ══ V2: painel (js/dashboard.js → renderPainelV2) ══
    Só com html[data-look]; na V1 o painel antigo continua igual. */
-.v2-painel { display: none; }
 html[data-look] #view-dashboard .dashboard-shell { display: none !important; }
 html[data-look] .v2-painel { display: grid; gap: 18px; color: var(--v2-ink); font-family: var(--v2-font); }
 

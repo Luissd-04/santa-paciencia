@@ -8,11 +8,32 @@
   const root = document.documentElement;
   const dark = window.matchMedia('(prefers-color-scheme: dark)');
   const BAR_COLORS = { atual: '#843424', classico: '#843424', claro: '#eceef2', escuro: '#0a0a0c' };
+  // CSS da V2: só se descarrega quando há um aspeto novo escolhido.
+  const STYLES = ['/css/v2/aparencia.css', '/css/v2/painel.css'];
+  let stylesLoaded = false;
   let prefs = null;
   try { prefs = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { prefs = null; }
 
+  function loadStyles() {
+    if (stylesLoaded) return;
+    stylesLoaded = true;
+    // Ainda a ler o <head>: document.write mantém o CSS a bloquear o primeiro
+    // desenho, para a página não aparecer um instante com o aspeto da V1.
+    if (document.readyState === 'loading') {
+      document.write(STYLES.map(href => `<link rel="stylesheet" href="${href}">`).join(''));
+      return;
+    }
+    for (const href of STYLES) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      document.head.append(link);
+    }
+  }
+
   function resolve() {
     const look = prefs?.look === 'classico' || prefs?.look === 'vidro' ? prefs.look : null;
+    if (look) loadStyles();
     if (look) root.dataset.look = look; else delete root.dataset.look;
     const mode = look === 'vidro' ? (prefs.mode === 'escuro' || (prefs.mode !== 'claro' && dark.matches) ? 'escuro' : 'claro') : null;
     if (mode) root.dataset.mode = mode; else delete root.dataset.mode;
