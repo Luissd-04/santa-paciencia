@@ -213,6 +213,14 @@ async function main() {
   await expect(avatar).toBeVisible();
   const [avatarBg, avatarInk] = await avatar.evaluate(el => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color]);
   assert.notEqual(avatarBg, avatarInk, 'iniciais da conversa sem contraste');
+  // Ao abrir a conversa de uma reserva, o painel da reserva fica ao lado.
+  await page.locator('.invoice-thread-item', { hasText: 'Beatriz Pinto' }).click();
+  const ctx = page.locator('#invoice-thread-detail .iv2-ctx');
+  await expect(ctx).toBeVisible();
+  await expect(ctx).toContainText('chega');
+  await expect(ctx.locator('.iv2-owed')).toHaveText('200,00 €');
+  await ctx.getByRole('button', { name: 'Abrir reserva' }).click();
+  await expect(page.locator('.rf-guest-name')).toHaveText('Beatriz Pinto');
 
   // Alojamentos: cartões da maqueta com a ocupação do mês; a tabela da V1 sai.
   await page.goto(`${base}/alojamentos`);
@@ -286,7 +294,7 @@ async function main() {
   await expect(page.locator('#calendar-agenda-mobile .agenda-month')).toBeVisible();
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro), Eventos (vista Semana, marcar feito, resumo), Alojamentos (cartões com ocupação), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Despesas (números e «Por mês»), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo), Alojamentos (cartões com ocupação), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Despesas (números e «Por mês»), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
