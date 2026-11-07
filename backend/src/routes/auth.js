@@ -90,6 +90,7 @@ function serializeUser(user) {
     organization_name: user.organization_name,
     organization_slug: user.organization_slug,
     menu_prefs: user.organization_id ? require('../services/menuPrefs').get(user.id, user.organization_id) : null,
+    appearance: require('../services/appearancePrefs').get(user.id),
   };
 }
 
@@ -266,6 +267,13 @@ router.put('/menu-prefs', requireAuth, (req, res, next) => {
   try {
     const prefs = require('../services/menuPrefs').save(req.user.id, req.user.organization_id, req.body?.menu_prefs ?? null);
     res.json({ success: true, data: { menu_prefs: prefs } });
+  } catch (error) { next(error); }
+});
+
+// Aspeto da aplicação desta pessoa (Definições → Aparência).
+router.put('/appearance', requireAuth, (req, res, next) => {
+  try {
+    res.json({ success: true, data: { appearance: require('../services/appearancePrefs').save(req.user.id, req.body?.appearance) } });
   } catch (error) { next(error); }
 });
 

@@ -52,10 +52,15 @@
                 <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
               </button>
             </div>
-            <!-- Só no telemóvel: o menu lateral e a barra de baixo de cada pessoa (js/menu.js). -->
-            <div class="settings-nav-group settings-nav-phone">
+            <!-- Preferências de cada pessoa. O menu do telemóvel só aparece no telemóvel (js/menu.js). -->
+            <div class="settings-nav-group">
               <span class="settings-nav-title">A minha conta</span>
-              <button type="button" class="settings-tab" data-on-click="menu-open-editor">
+              <button type="button" class="settings-tab" data-settings-tab="aparencia" data-on-click="appearance-open">
+                <i data-lucide="palette"></i>
+                <span class="settings-tab-text"><strong>Aparência</strong><small>Clássico, vidro, claro ou escuro</small></span>
+                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
+              </button>
+              <button type="button" class="settings-tab settings-nav-phone" data-on-click="menu-open-editor">
                 <i data-lucide="panel-left"></i>
                 <span class="settings-tab-text"><strong>Menu do telemóvel</strong><small>Ordem, itens escondidos e atalhos da barra</small></span>
                 <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
@@ -67,6 +72,37 @@
           </button>
 
           <div class="settings-panel" id="settings-payments"><div id="pp-content"></div></div>
+          <!-- Aparência (js/appearance-settings.js): vale para a conta, em todos os aparelhos. -->
+          <div class="settings-panel" id="settings-aparencia">
+            <div class="card appearance-card">
+              <h3>Aparência</h3>
+              <p class="appearance-intro">Escolha como a aplicação aparece para si. Fica guardado na sua conta e vale em todos os aparelhos.</p>
+              <div class="appearance-options" role="radiogroup" aria-label="Aspeto da aplicação">
+                <button type="button" class="appearance-option" role="radio" aria-checked="false" data-appearance-look="atual" data-on-click="appearance-set-look" data-args-click='["atual"]'>
+                  <span class="appearance-swatch swatch-atual" aria-hidden="true"><i></i><b></b><b></b></span>
+                  <strong>Atual</strong><small>O aspeto de sempre</small>
+                </button>
+                <button type="button" class="appearance-option" role="radio" aria-checked="false" data-appearance-look="classico" data-on-click="appearance-set-look" data-args-click='["classico"]'>
+                  <span class="appearance-swatch swatch-classico" aria-hidden="true"><i></i><b></b><b></b></span>
+                  <strong>Clássico</strong><small>Terracota e creme, renovado</small>
+                </button>
+                <button type="button" class="appearance-option" role="radio" aria-checked="false" data-appearance-look="vidro" data-on-click="appearance-set-look" data-args-click='["vidro"]'>
+                  <span class="appearance-swatch swatch-vidro" aria-hidden="true"><i></i><b></b><b></b></span>
+                  <strong>Vidro</strong><small>Translúcido e minimalista</small>
+                </button>
+              </div>
+              <div class="appearance-mode" id="appearance-mode" hidden>
+                <h4>Claro ou escuro</h4>
+                <div class="appearance-mode-options" role="radiogroup" aria-label="Claro ou escuro">
+                  <button type="button" role="radio" aria-checked="false" data-appearance-mode="auto" data-on-click="appearance-set-mode" data-args-click='["auto"]'><i data-lucide="sun-moon"></i> Automático</button>
+                  <button type="button" role="radio" aria-checked="false" data-appearance-mode="claro" data-on-click="appearance-set-mode" data-args-click='["claro"]'><i data-lucide="sun"></i> Claro</button>
+                  <button type="button" role="radio" aria-checked="false" data-appearance-mode="escuro" data-on-click="appearance-set-mode" data-args-click='["escuro"]'><i data-lucide="moon"></i> Escuro</button>
+                </div>
+                <small>Automático segue o telemóvel ou o computador: claro de dia, escuro à noite.</small>
+              </div>
+              <p class="appearance-note"><i data-lucide="info"></i> O painel já tem o desenho novo. As outras páginas vão mudando à medida que ficarem prontas.</p>
+            </div>
+          </div>
           <div class="settings-panel active" id="settings-gcal">
 
             <!-- Gmail para envio de emails -->

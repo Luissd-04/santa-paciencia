@@ -63,6 +63,7 @@ function runMigrations(db) {
   migrateCalendarTitles(db);
   migrateEmailDesign(db);
   migrateOpsAlerts(db);
+  migrateAppearance(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -506,6 +507,16 @@ function migrateEmailQueueToEvents(db) {
       effect.run(eventId);
     }
     db.prepare('DELETE FROM organization_email_queue').run();
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Aspeto da aplicação escolhido por cada pessoa (services/appearancePrefs).
+function migrateAppearance(db) {
+  const id = '20261107_user_appearance';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    if (!db.pragma('table_info(users)').some(c => c.name === 'appearance')) db.exec('ALTER TABLE users ADD COLUMN appearance TEXT');
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }

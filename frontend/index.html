@@ -20,7 +20,7 @@
 <!-- Ícones iOS (usar /icons/icon-*.png quando os ficheiros existirem) -->
 <link rel="apple-touch-icon" href="/img/app/apple-touch-icon.png">
 <link rel="icon" type="image/png" href="favicon.png?v=2">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/layout.css">
@@ -38,6 +38,10 @@
 <link rel="stylesheet" href="css/animations.css">
 <link rel="stylesheet" href="css/vendor/flag-icons.min.css">
 <link rel="stylesheet" href="css/mobile.css">
+<!-- V2: aspetos Clássico e Vidro (Definições → Aparência); a V1 não é afetada. -->
+<link rel="stylesheet" href="css/v2/aparencia.css">
+<link rel="stylesheet" href="css/v2/painel.css">
+<script src="js/domain/appearance.js"></script>
 <script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js" integrity="sha384-bdZtphetAEBgkGZvhZXOFDWc55tHGLqaSo1f4qZtgvEiolEBqlJ9u6FTk+CoLfj0" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -219,7 +223,9 @@
     <div class="content">
 
       <!-- ══ DASHBOARD ══ -->
-      <div class="view active" id="view-dashboard">
+      <div class="view active" id="view-dashboard" data-v2>
+        <!-- Painel da V2 (aspetos Clássico e Vidro): desenhado por dashboard.js. -->
+        <section class="v2-painel" id="v2-painel" aria-label="Painel"></section>
         <section class="dashboard-shell">
           <div id="dash-mobile" class="dashboard-mobile-layout" style="display:none">
             <div class="dashboard-mobile-highlight m-card stagger-1" data-on-click="index-show-view-3d0e569">
