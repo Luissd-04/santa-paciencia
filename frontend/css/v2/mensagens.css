@@ -33,3 +33,18 @@ html[data-look="classico"] #view-invoice[data-v2] :is(.itt-avatar, .idh-avatar) 
 
 /* Editor da resposta: o mesmo fundo dos outros campos. */
 html[data-look] #view-invoice[data-v2] .email-body-editor { background: var(--v2-solid); color: var(--v2-ink); border-color: var(--v2-line); border-radius: var(--v2-radius-sm); }
+
+/* ══ Maqueta: painel da reserva ao lado da conversa (contexto-v2.js) ══ */
+@media (min-width: 1200px) {
+  html[data-look] #view-invoice[data-v2] .invoice-thread-detail:has(.iv2-ctx) { display: grid; grid-template-columns: minmax(0, 1fr) 250px; grid-template-rows: auto minmax(0, 1fr) auto; }
+  html[data-look] #view-invoice[data-v2] .invoice-thread-detail:has(.iv2-ctx) > :not(.iv2-ctx) { grid-column: 1; }
+  html[data-look] #view-invoice[data-v2] .iv2-ctx { grid-column: 2; grid-row: 1 / 4; }
+}
+html[data-look] #view-invoice[data-v2] .iv2-ctx { display: grid; align-content: start; gap: 10px; padding: 18px; border-left: 1px solid var(--v2-divider); overflow: auto; }
+html[data-look] #view-invoice[data-v2] .iv2-ctx h3 { margin: 0 0 4px; font-size: 16px; }
+html[data-look] #view-invoice[data-v2] .iv2-kv { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+html[data-look] #view-invoice[data-v2] .iv2-kv span { color: var(--v2-muted); }
+html[data-look] #view-invoice[data-v2] .iv2-kv b { color: var(--v2-ink); font-weight: 600; text-align: right; }
+html[data-look] #view-invoice[data-v2] .iv2-kv b.iv2-owed { color: var(--v2-bad); }
+html[data-look] #view-invoice[data-v2] .iv2-ctx .btn { justify-content: center; margin-top: 6px; }
+@media (max-width: 1199px) { html[data-look] #view-invoice[data-v2] .iv2-ctx { display: none; } }

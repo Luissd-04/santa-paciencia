@@ -79,6 +79,7 @@ function openInvoiceThread(thread, detailId = 'invoice-thread-detail') {
         </button>
       </div>
     </div>
+    ${AppModules.invoice.threadContextV2?.(thread) || ''}
   `;
 
   if (window.lucide) lucide.createIcons();

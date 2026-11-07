@@ -140,6 +140,7 @@ const FEATURE_MODULES = {
       'js/features/invoice/arquivo.js',
       'js/features/invoice/composicao.js',
       'js/features/invoice/auxiliares.js',
+      'js/features/invoice/contexto-v2.js',
     ],
   },
   definicoes: {

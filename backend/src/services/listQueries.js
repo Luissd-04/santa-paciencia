@@ -364,6 +364,7 @@ function listMessageThreads(organizationId, query = {}) {
         r.check_out         AS check_out,
         r.status            AS status,
         r.total_amount      AS total_amount,
+        r.amount_paid       AS amount_paid,
         a.name              AS alojamento,
         u.last_sent_at      AS last_sent_at
       FROM reservations r
@@ -389,7 +390,7 @@ function listMessageThreads(organizationId, query = {}) {
           MAX(m.to_name), MAX(m.to_email)
         ) AS guest_name,
         MAX(m.to_email) AS guest_email,
-        NULL AS check_in, NULL AS check_out, NULL AS status, NULL AS total_amount,
+        NULL AS check_in, NULL AS check_out, NULL AS status, NULL AS total_amount, NULL AS amount_paid,
         '' AS alojamento,
         MAX(m.sent_at) AS last_sent_at
       FROM invoice_messages m

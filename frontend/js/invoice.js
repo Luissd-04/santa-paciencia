@@ -123,6 +123,7 @@ function _threadFromRow(row) {
     status: row.status,
     alojamento: alojNome,
     total: row.total_amount,
+    paid: row.amount_paid,
     _standalone: !!row.standalone,
     _alojInitials: activeStatuses.has(ReservationStatus.normalize(row.status)) && alojNome
       ? alojNome.split(' ').filter(w => w.length > 2).map(w => w[0].toUpperCase()).join('').slice(0, 3)

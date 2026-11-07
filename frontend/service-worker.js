@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 88;
+const CACHE_VERSION = 89;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -162,6 +162,7 @@ const FEATURE_ASSETS = [
   '/js/features/invoice/arquivo.js',
   '/js/features/invoice/composicao.js',
   '/js/features/invoice/auxiliares.js',
+  '/js/features/invoice/contexto-v2.js',
   '/js/emails.js',
   '/js/features/emails/codes.js',
   '/js/features/emails/editor.js',
