@@ -126,6 +126,9 @@ const FEATURE_MODULES = {
   precos: {
     scripts: ['js/precos.js'],
   },
+  notificacoes: {
+    scripts: ['js/features/notificacoes/resumo.js'],
+  },
   invoice: {
     actions: ['openInvoiceForReservation'],
     scripts: [
@@ -166,6 +169,7 @@ const VIEW_FEATURE = {
   vouchers: 'vouchers',
   precos: 'precos',
   invoice: 'invoice',
+  notificacoes: 'notificacoes',
   definicoes: 'definicoes',
 };
 

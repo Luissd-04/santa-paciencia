@@ -1,44 +1,45 @@
-/* ══ V2: Calendário ══
-   Grelha do mês com o painel do dia à direita (ecrã grande). O painel é a
-   mesma agenda do telemóvel (#calendar-agenda-mobile); o botão da barra
-   recolhe-o para o lado (mes-agenda.js → toggleDayPanel). */
+/* ══ V2: Calendário (e a grelha do mês e a agenda dos Eventos, que usam as
+   mesmas peças) ══
+   Grelha do mês com o painel do dia à direita (ecrã grande, só no
+   Calendário). O painel é a mesma agenda do telemóvel (#calendar-agenda-mobile);
+   o botão da barra recolhe-o para o lado (mes-agenda.js → toggleDayPanel). */
 
 /* ── Grelha do mês ── */
-html[data-look] #view-calendario[data-v2] .section-card-calendar .cal-wrap { background: transparent; box-shadow: none; }
-html[data-look] #view-calendario[data-v2] .section-card-calendar .section-card-head { padding: 22px 24px 4px; }
-html[data-look] #view-calendario[data-v2] .calendar-month-title { font-size: 26px; }
-html[data-look] #view-calendario[data-v2] .cal-header { color: var(--v2-soft); border-bottom-color: var(--v2-divider); font-weight: 600; }
-html[data-look] #view-calendario[data-v2] .cal-week:not(:first-child) { border-top: 1px solid var(--v2-divider); }
-html[data-look] #view-calendario[data-v2] .cal-col-sep { background-image: none; background: var(--v2-divider); }
-html[data-look] #view-calendario[data-v2] .day-num { color: var(--v2-ink); font-weight: 500; }
-html[data-look] #view-calendario[data-v2] .cal-day:hover { background: var(--v2-accent-soft); }
-html[data-look] #view-calendario[data-v2] .cal-day.today .day-num { background: var(--v2-accent); color: var(--v2-accent-ink); }
-html[data-look="classico"] #view-calendario[data-v2] .cal-day.today .day-num { background: #843424; color: #fff; }
-html[data-look] #view-calendario[data-v2] .cal-day.is-selected:not(.today) .day-num { border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--v2-ink); }
-html[data-look] #view-calendario[data-v2] .cal-event-span { border-radius: 6px; font-weight: 600; }
-html[data-look] #view-calendario[data-v2] .cal-overflow-btn { color: var(--v2-muted); }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .section-card-calendar .cal-wrap { background: transparent; box-shadow: none; }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .section-card-calendar .section-card-head { padding: 22px 24px 4px; }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .calendar-month-title { font-size: 26px; }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .cal-header { color: var(--v2-soft); border-bottom-color: var(--v2-divider); font-weight: 600; }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .cal-week:not(:first-child) { border-top: 1px solid var(--v2-divider); }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .cal-col-sep { background-image: none; background: var(--v2-divider); }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .day-num { color: var(--v2-ink); font-weight: 500; }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .cal-day:hover { background: var(--v2-accent-soft); }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .cal-day.today .day-num { background: var(--v2-accent); color: var(--v2-accent-ink); }
+html[data-look="classico"] :is(#view-calendario, #view-eventos)[data-v2] .cal-day.today .day-num { background: #843424; color: #fff; }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .cal-day.is-selected:not(.today) .day-num { border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--v2-ink); }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .cal-event-span { border-radius: 6px; font-weight: 600; }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .cal-overflow-btn { color: var(--v2-muted); }
 /* Vidro escuro: barras com a cor do alojamento mais forte e texto claro. */
-html[data-look="vidro"][data-mode="escuro"] #view-calendario[data-v2] :is(.cal-event-span:not(.cal-event-multi), .cal-span-row) { background-color: color-mix(in srgb, currentColor 38%, transparent) !important; }
-html[data-look="vidro"][data-mode="escuro"] #view-calendario[data-v2] .cal-span-text { color: color-mix(in srgb, currentColor 25%, #fff); }
+html[data-look="vidro"][data-mode="escuro"] :is(#view-calendario, #view-eventos)[data-v2] :is(.cal-event-span:not(.cal-event-multi), .cal-span-row) { background-color: color-mix(in srgb, currentColor 38%, transparent) !important; }
+html[data-look="vidro"][data-mode="escuro"] :is(#view-calendario, #view-eventos)[data-v2] .cal-span-text { color: color-mix(in srgb, currentColor 25%, #fff); }
 
 /* Legenda (filtros Confirmada/Pendente). */
-html[data-look] #view-calendario[data-v2] .legend-pill { background: var(--v2-surface-2); border-color: var(--v2-line); color: var(--v2-ink); box-shadow: none; letter-spacing: .04em; }
-html[data-look] #view-calendario[data-v2] .legend-pill.active { background: var(--v2-solid); }
-html[data-look] #view-calendario[data-v2] .legend-mark { color: var(--v2-muted); }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .legend-pill { background: var(--v2-surface-2); border-color: var(--v2-line); color: var(--v2-ink); box-shadow: none; letter-spacing: .04em; }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .legend-pill.active { background: var(--v2-solid); }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .legend-mark { color: var(--v2-muted); }
 
 /* ── Painel do dia (agenda) ── */
-html[data-look] #view-calendario[data-v2] .agenda-selected-heading { border-top-color: var(--v2-divider); }
-html[data-look] #view-calendario[data-v2] .agenda-selected-heading h4 { font-size: 16px; }
-html[data-look] #view-calendario[data-v2] .agenda-selected-heading h4::first-letter { text-transform: uppercase; }
-html[data-look] #view-calendario[data-v2] .agenda-day-new { display: inline-flex; min-height: 32px; padding: 4px 12px; }
-html[data-look] #view-calendario[data-v2] .agenda-day-summary { background: var(--v2-surface-2); border-color: var(--v2-line); border-radius: var(--v2-radius-sm); }
-html[data-look] #view-calendario[data-v2] .agenda-day-summary > div + div { border-left-color: var(--v2-divider); }
-html[data-look] #view-calendario[data-v2] .agenda-day-summary strong { font-family: var(--v2-head); font-weight: 600; }
-html[data-look] #view-calendario[data-v2] .agenda-reservation { background: var(--v2-solid); border-color: var(--v2-line); border-left-color: var(--agenda-color, var(--v2-accent)); border-radius: var(--v2-radius-sm); }
-html[data-look] #view-calendario[data-v2] .agenda-date { color: var(--v2-ink); }
-html[data-look] #view-calendario[data-v2] .agenda-date.is-today { border-color: var(--v2-ink); }
-html[data-look] #view-calendario[data-v2] .agenda-date[aria-pressed="true"] { background: var(--v2-accent); color: var(--v2-accent-ink); }
-html[data-look="classico"] #view-calendario[data-v2] .agenda-date[aria-pressed="true"] { background: #843424; color: #fff; }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .agenda-selected-heading { border-top-color: var(--v2-divider); }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .agenda-selected-heading h4 { font-size: 16px; }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .agenda-selected-heading h4::first-letter { text-transform: uppercase; }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .agenda-day-new { display: inline-flex; min-height: 32px; padding: 4px 12px; }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .agenda-day-summary { background: var(--v2-surface-2); border-color: var(--v2-line); border-radius: var(--v2-radius-sm); }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .agenda-day-summary > div + div { border-left-color: var(--v2-divider); }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .agenda-day-summary strong { font-family: var(--v2-head); font-weight: 600; }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .agenda-reservation { background: var(--v2-solid); border-color: var(--v2-line); border-left-color: var(--agenda-color, var(--v2-accent)); border-radius: var(--v2-radius-sm); }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .agenda-date { color: var(--v2-ink); }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .agenda-date.is-today { border-color: var(--v2-ink); }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .agenda-date[aria-pressed="true"] { background: var(--v2-accent); color: var(--v2-accent-ink); }
+html[data-look="classico"] :is(#view-calendario, #view-eventos)[data-v2] .agenda-date[aria-pressed="true"] { background: #843424; color: #fff; }
 
 @media (min-width: 901px) {
   /* Botão da barra que mostra/recolhe o painel (não faz sentido na timeline). */
@@ -72,4 +73,3 @@ html[data-look="classico"] #view-calendario[data-v2] .agenda-date[aria-pressed="
   html[data-look] #view-calendario[data-v2] .calendar-agenda-mobile .agenda-reservation-name { font-size: 15px; }
   html[data-look] #view-calendario[data-v2] .calendar-agenda-mobile .agenda-reservation-meta { font-size: 13px; color: var(--v2-muted); }
 }
-@keyframes v2PanelIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }

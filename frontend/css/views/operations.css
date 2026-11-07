@@ -819,6 +819,11 @@ body.tl-is-panning * {
   display: grid;
 }
 
+/* Resumo ao lado da lista e botão para o recolher: só na V2
+   (css/v2/notificacoes.css); na V1 ficam escondidos. */
+.notifications-side,
+.notif-side-toggle { display: none; }
+
 /* ── Vouchers ── */
 .vouchers-shell {
   display: grid;

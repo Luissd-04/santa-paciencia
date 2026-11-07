@@ -307,8 +307,13 @@ function renderNotificationsPage() {
   const countLabel = document.getElementById('notifications-page-count-label');
   if (countEl) countEl.textContent = String(_notifications.length);
   if (countLabel) countLabel.textContent = _notifications.length === 1 ? 'notificação' : 'notificações';
+  // V2: resumo ao lado e filtro por grupo (js/features/notificacoes/resumo.js,
+  // carregado com a vista).
+  const resumo = AppModules.notificacoes;
+  if (typeof resumo.renderSide === 'function') resumo.renderSide(_notifications);
+  const shown = typeof resumo.filter === 'function' ? resumo.filter(_notifications) : _notifications;
 
-  if (_notifications.length === 0) {
+  if (shown.length === 0) {
     list.innerHTML = `
       <div class="empty-state">
         <div class="es-icon">🔔</div>
@@ -326,7 +331,7 @@ function renderNotificationsPage() {
     'download': 'download', 'mail': 'mail',
   };
 
-  list.innerHTML = _notifications.map(n => `
+  list.innerHTML = shown.map(n => `
     <div class="notifications-page-item ${priorityClass[n.priority] || ''}">
       <span class="notif-item-icon"><i data-lucide="${icons[n.icon] || 'bell'}"></i></span>
       <span class="notifications-page-copy">
