@@ -56,8 +56,13 @@ function applyReservasViewMode() {
   const list = document.getElementById('reservas-desktop');
   const mobile = window.matchMedia('(max-width: 600px), (max-height: 500px) and (orientation: landscape)').matches;
   const cardsVisible = mobile || AppModules.reservas.reservasViewMode === 'card';
-  if (cards) cards.style.setProperty('display', cardsVisible ? 'block' : 'none', 'important');
-  if (list) list.style.setProperty('display', cardsVisible ? 'none' : 'block', 'important');
+  // V2: a lista da maqueta (lista-v2.js) substitui os cartões e a tabela da V1.
+  const v2 = AppModules.reservas.isReservasV2();
+  const v2List = document.getElementById('reservas-v2');
+  if (v2List) v2List.hidden = !v2;
+  // No telemóvel a V2 aproveita a pesquisa e o botão de filtros do bloco móvel.
+  if (cards) cards.style.setProperty('display', (v2 ? mobile : cardsVisible) ? 'block' : 'none', 'important');
+  if (list) list.style.setProperty('display', !v2 && !cardsVisible ? 'block' : 'none', 'important');
   // a lista pode ter sido medida com clientWidth=0 (estava oculta) — re-ajustar
   // as larguras agora que está visível
   if (list && AppModules.reservas.reservasViewMode === 'list') requestAnimationFrame(AppModules.reservas.applyReservasColWidths);
@@ -180,7 +185,7 @@ function updateReservasSummary(total, detailText) {
 
 function setReservasDetailMode(isDetail) {
   AppModules.reservas.reservasDetailOpen = isDetail;
-  document.querySelectorAll('.view-toolbar-reservas, .reservas-filter-panel, #reservas-period-bar, #reservas-mobile, #reservas-desktop, #reservas-pagination').forEach(el => {
+  document.querySelectorAll('.view-toolbar-reservas, .reservas-filter-panel, #reservas-period-bar, #reservas-mobile, #reservas-desktop, #reservas-v2, #reservas-pagination').forEach(el => {
     el.style.setProperty('display', isDetail ? 'none' : '', isDetail ? 'important' : '');
   });
   const detailPage = document.getElementById('reserva-detail-page');

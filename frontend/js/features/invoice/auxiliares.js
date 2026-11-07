@@ -10,7 +10,7 @@ AppModules.define('invoice', {
   fmtDate: { get: () => fmtDate },
   fmtDateTime: { get: () => fmtDateTime },
   formatMoney: { get: () => formatMoney },
-  initials: { get: () => initials },
+  initials: { get: () => AppModules.core.initials },
   labelStatus: { get: () => labelStatus },
   renderEmailBodySandboxed: { get: () => renderEmailBodySandboxed },
 });
@@ -53,10 +53,6 @@ function filterInvoiceConversas() {
 }
 
 /* ── Helpers ── */
-function initials(name) {
-  return (name || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
-}
-
 function esc(str) {
   return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }

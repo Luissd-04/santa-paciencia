@@ -55,6 +55,7 @@ const FEATURE_MODULES = {
       'js/features/reserva-lista/lista-dados.js',
       'js/features/reserva-lista/lista-colunas.js',
       'js/features/reserva-lista/lista-render.js',
+      'js/features/reserva-lista/lista-v2.js',
       'js/features/reserva-lista/detalhe.js',
       'js/features/reserva-lista/detalhe-formularios.js',
       'js/features/reserva-lista/documentos.js',

@@ -110,23 +110,35 @@ async function main() {
   await expect(panel).toBeHidden();
   await page.locator('#cal-main-toggle [data-mode="calendar"]').click();
 
-  // Reservas em lista: as colunas coladas à direita têm fundo opaco.
+  // Reservas: lista da maqueta (iniciais, alojamento com a cor, estado e
+  // pagamento) e filtros rápidos com as contagens por estado do servidor.
   await page.goto(`${base}/reservas`);
-  await expect(page.locator('#reservas-results-total')).toHaveText('2');
-  await page.locator('[data-res-view="list"]').click();
-  await expect(page.locator('#reservas-table tbody tr')).toHaveCount(2);
-  const stuck = await page.locator('#reservas-table tbody tr').first().locator('td').last()
-    .evaluate(td => getComputedStyle(td).backgroundColor);
-  assert.match(stuck, /^rgb\(/, `coluna colada sem fundo opaco (${stuck})`);
-  await expect(page.locator('#reservas-table .acc-chip').first()).toHaveText('Suite Oliveira');
+  const rows = page.locator('#reservas-v2-list .rv2-row');
+  await expect(rows).toHaveCount(2);
+  await expect(page.locator('#reservas-table')).toBeHidden();
+  await expect(rows.first().locator('.v2-av')).toHaveText('BP');
+  await expect(rows.first().locator('.rv2-room .acc-chip')).toHaveText('Suite Oliveira');
+  const chips = page.locator('#reservas-v2-chips .rv2-chip');
+  await expect(chips).toHaveText(['Todas', 'Por aprovar 1', 'Confirmadas 1']);
+  await chips.filter({ hasText: 'Por aprovar' }).click();
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText('Rui Marques');
+  await expect(chips.filter({ hasText: 'Por aprovar' })).toHaveAttribute('aria-pressed', 'true');
+  await chips.filter({ hasText: 'Todas' }).click();
+  await expect(rows).toHaveCount(2);
 
   // A ficha ainda não está redesenhada: com ela aberta a vista perde o [data-v2].
-  await page.locator('#reservas-table tbody tr').first().locator('td[data-col="guest_name"]').click();
+  await rows.first().click();
   await expect(page.locator('.rf-guest-name')).toBeVisible();
   assert.equal(await page.locator('#view-reservas').getAttribute('data-v2'), null);
   await page.locator('.rf-back').click();
-  await expect(page.locator('#reservas-table tbody tr').first()).toBeVisible();
+  await expect(rows.first()).toBeVisible();
   await expect(page.locator('#view-reservas')).toHaveAttribute('data-v2', '');
+  // Teclado: Enter numa linha abre a ficha.
+  await rows.first().focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.rf-guest-name')).toBeVisible();
+  await page.locator('.rf-back').click();
 
   // Notificações: lista a toda a largura com o resumo ao lado; tocar num grupo
   // filtra a lista; o resumo recolhe e a escolha fica guardada.
@@ -190,7 +202,7 @@ async function main() {
   await expect(page.locator('#calendar-agenda-mobile .agenda-month')).toBeVisible();
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista com colunas coladas opacas, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (resumo ao lado, filtro por grupo, recolher guardado, preferências de push), Mensagens (iniciais legíveis no escuro), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (resumo ao lado, filtro por grupo, recolher guardado, preferências de push), Mensagens (iniciais legíveis no escuro), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {

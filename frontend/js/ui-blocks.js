@@ -2,6 +2,7 @@
 (() => {
 AppModules.define('core', {
   emptyStateHtml: { get: () => emptyStateHtml },
+  KEY_ACTIVATE: { get: () => KEY_ACTIVATE },
   monthAgendaHtml: { get: () => monthAgendaHtml },
   togglePageFilters: { get: () => togglePageFilters },
 });
@@ -91,5 +92,15 @@ function emptyStateHtml(icon, title, text, opts) {
   const cls = 'empty-state' + (opts && opts.inline ? ' empty-state-inline' : '');
   return `<div class="${cls}"><div class="es-icon">${icon}</div><h3>${title}</h3>${text ? `<p>${text}</p>` : ''}</div>`;
 }
+
+// Linhas e cartões com role="button": Enter e Espaço fazem o mesmo que o clique.
+const KEY_ACTIVATE = AppActions.attrs('keydown', 'tecla-ativa');
+AppActions.register({
+  'tecla-ativa': (el, event) => {
+    if ((event.key !== 'Enter' && event.key !== ' ') || event.target !== el) return;
+    event.preventDefault();
+    el.click();
+  },
+}, 'keydown');
 
 })();

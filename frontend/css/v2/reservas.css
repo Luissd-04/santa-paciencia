@@ -1,6 +1,8 @@
-/* ══ V2: Reservas (lista e cartões) ══
-   A ficha da reserva ainda não está redesenhada: com ela aberta a vista
-   perde o [data-v2] (lista-render.js → setReservasDetailMode). */
+/* ══ V2: Reservas ══
+   Período e filtros rápidos numa linha e a lista da maqueta (lista-v2.js),
+   que no telemóvel passa a cartões. A ficha da reserva ainda não está
+   redesenhada: com ela aberta a vista perde o [data-v2]
+   (lista-render.js → setReservasDetailMode). */
 
 /* Período: separador em pílula em vez de caixa com contorno. */
 html[data-look] #view-reservas[data-v2] .reservas-period-bar { padding: 0; border: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
@@ -12,33 +14,72 @@ html[data-look] #view-reservas[data-v2] .reservas-period-count,
 html[data-look] #view-reservas[data-v2] .reservas-period-btn.active .reservas-period-count { color: var(--v2-muted); background: var(--v2-surface-2); }
 html[data-look] #view-reservas[data-v2] .reservas-period-context { color: var(--v2-muted); }
 
-/* Lista: um só cartão de vidro, linhas sem fundo. */
-html[data-look] #view-reservas[data-v2] .reservas-table-wrap { padding: 8px 20px 16px; }
-html[data-look] #view-reservas[data-v2] #reservas-table td { padding-top: 13px; padding-bottom: 13px; }
-html[data-look] #view-reservas[data-v2] #reservas-table tbody tr { cursor: pointer; }
-html[data-look] #view-reservas[data-v2] #reservas-table tbody tr:last-child td { border-bottom: 0; }
-
-/* As três colunas coladas à direita precisam de fundo opaco, senão vê-se o
-   que passa por trás delas ao fazer scroll. */
-html[data-look] #view-reservas[data-v2] #reservas-table :is(thead th, tbody td):nth-last-child(-n+3) { background: var(--v2-opaque); }
-html[data-look] #view-reservas[data-v2] #reservas-table tr:hover td:nth-last-child(-n+3) { background: linear-gradient(var(--v2-accent-soft), var(--v2-accent-soft)), var(--v2-opaque); }
-
-/* Cartões. */
-html[data-look] #view-reservas[data-v2] #mobile-res-cards .m-res-card { padding: 16px 18px; border: 1px solid var(--v2-line); border-left-width: 1px; border-radius: var(--v2-radius);
-  background: var(--v2-surface); box-shadow: var(--v2-shadow); backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
-html[data-look] #view-reservas[data-v2] .m-res-card .mrc-name { color: var(--v2-ink); font-size: 15px; font-weight: 600; }
-html[data-look] #view-reservas[data-v2] .m-res-card .mrc-id,
-html[data-look] #view-reservas[data-v2] .m-res-card .mrc-channel,
-html[data-look] #view-reservas[data-v2] .m-res-card .mrc-meta { color: var(--v2-muted); }
-html[data-look] #view-reservas[data-v2] .m-res-card .mrc-meta { border-color: var(--v2-divider); }
-html[data-look] #view-reservas[data-v2] .m-res-card .mrc-price { color: var(--v2-ink); font-family: var(--v2-font); font-weight: 700; }
-html[data-look] #view-reservas[data-v2] .m-res-card .mrc-price span { color: var(--v2-bad) !important; }
-html[data-look] #view-reservas[data-v2] .m-res-card .mrc-actions { justify-content: flex-end; margin-top: 8px; }
-html[data-look] #view-reservas[data-v2] .m-card-btn { flex: 0 0 auto; width: auto; min-height: 36px; padding: 4px 14px; border: 1px solid var(--v2-line); border-radius: 999px; background: var(--v2-surface-2); color: var(--v2-ink); font-weight: 500; }
-
-html[data-look] #view-reservas[data-v2] .m-card-btn svg { width: 14px; height: 14px; }
-
 /* Paginação. */
 html[data-look] #view-reservas[data-v2] .list-pagination :is(button, a, span) { color: var(--v2-ink); }
 html[data-look] #view-reservas[data-v2] .list-pagination button { background: var(--v2-surface); border: 1px solid var(--v2-line); border-radius: 999px; }
 html[data-look] #view-reservas[data-v2] .list-pagination [aria-current="page"] { background: var(--v2-accent); color: var(--v2-accent-ink); border-color: var(--v2-accent); }
+
+/* ══ Maqueta: filtros rápidos e lista (js/features/reserva-lista/lista-v2.js) ══ */
+/* O estado escolhe-se nos filtros rápidos; Cartão/Lista deixam de fazer falta. */
+html[data-look] #view-reservas[data-v2] #filter-estado,
+html[data-look] #view-reservas[data-v2] #filter-estado + .app-select,
+html[data-look] #view-reservas[data-v2] .app-select:has(#filter-estado),
+html[data-look] #view-reservas[data-v2] #reservas-view-toggle,
+html[data-look] #view-reservas[data-v2] .reservas-period-context { display: none !important; }
+html[data-look] #view-reservas[data-v2] .reservas-period-bar { justify-content: flex-start; flex-wrap: wrap; gap: 10px; }
+html[data-look] #view-reservas[data-v2] .rv2-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+html[data-look] #view-reservas[data-v2] .rv2-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 14px; border: 1px solid var(--v2-line); border-radius: 999px;
+  background: var(--v2-surface); color: var(--v2-ink); font: 500 13px var(--v2-font); cursor: pointer; backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
+html[data-look] #view-reservas[data-v2] .rv2-chip em { font-style: normal; color: var(--v2-muted); font-variant-numeric: tabular-nums; }
+html[data-look] #view-reservas[data-v2] .rv2-chip.is-on { background: var(--v2-accent); border-color: var(--v2-accent); color: var(--v2-accent-ink); font-weight: 600; }
+html[data-look] #view-reservas[data-v2] .rv2-chip.is-on em { color: inherit; opacity: .75; }
+html[data-look="classico"] #view-reservas[data-v2] .rv2-chip.is-on { background: #843424; border-color: #843424; color: #fff; }
+html[data-look] #view-reservas[data-v2] .rv2-chip:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
+
+html[data-look] #view-reservas[data-v2] .rv2-list { padding: 8px 10px; background: var(--v2-solid); }
+html[data-look] #view-reservas[data-v2] :is(.rv2-head, .rv2-row) { display: grid; grid-template-columns: minmax(170px, 1.5fr) minmax(130px, 1.1fr) minmax(170px, 1.3fr) minmax(80px, .7fr) 120px 110px minmax(90px, .8fr); align-items: center; gap: 12px; padding: 0 12px; }
+html[data-look] #view-reservas[data-v2] .rv2-head { min-height: 38px; color: var(--v2-soft); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--v2-divider); }
+html[data-look] #view-reservas[data-v2] .rv2-head span:last-child, html[data-look] #view-reservas[data-v2] .rv2-total { text-align: right; }
+html[data-look] #view-reservas[data-v2] .rv2-row { min-height: 60px; border-radius: 12px; cursor: pointer; }
+html[data-look] #view-reservas[data-v2] .rv2-row + .rv2-row { box-shadow: inset 0 1px 0 var(--v2-divider); }
+html[data-look] #view-reservas[data-v2] .rv2-row:hover { background: var(--v2-accent-soft); }
+html[data-look] #view-reservas[data-v2] .rv2-row:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: -2px; }
+html[data-look] #view-reservas[data-v2] .rv2-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+html[data-look] #view-reservas[data-v2] .rv2-who-text { display: grid; min-width: 0; }
+html[data-look] #view-reservas[data-v2] .rv2-who-text b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-look] #view-reservas[data-v2] :is(.rv2-who-text small, .rv2-stay small, .rv2-total small) { display: block; color: var(--v2-soft); font-size: 12px; }
+html[data-look] #view-reservas[data-v2] .rv2-total { font-weight: 600; font-variant-numeric: tabular-nums; }
+html[data-look] #view-reservas[data-v2] .rv2-total .rv2-owed { color: var(--v2-bad); font-weight: 500; }
+html[data-look] #view-reservas[data-v2] :is(.rv2-chan, .rv2-stay) { color: var(--v2-muted); font-size: 13.5px; }
+html[data-look] #view-reservas[data-v2] .rv2-stay { color: var(--v2-ink); }
+html[data-look] #view-reservas[data-v2] .rv2-room .acc-chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-look] #view-reservas[data-v2] .rv2-sub { display: none; }
+
+/* Telemóvel: do bloco móvel da V1 ficam só a pesquisa e os filtros. */
+html[data-look] #view-reservas[data-v2] :is(.reservas-mobile-chips, #mobile-res-cards) { display: none !important; }
+html[data-look] #view-reservas[data-v2] .reservas-mobile-search { display: flex; }
+@media (max-width: 600px) {
+  html[data-look] #view-reservas[data-v2] .reservas-period-btn { white-space: nowrap; }
+  html[data-look] #view-reservas[data-v2] .rv2-who-text small { display: none; }
+}
+
+/* Telemóvel e tablet estreito: cada reserva é um cartão. */
+@media (max-width: 900px) {
+  html[data-look] #view-reservas[data-v2] .rv2-list { padding: 0; border: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  html[data-look] #view-reservas[data-v2] .rv2-head { display: none; }
+  html[data-look] #view-reservas[data-v2] #reservas-v2-list { display: grid; gap: 10px; }
+  html[data-look] #view-reservas[data-v2] .rv2-row { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "who who total" "stay stay stay" "sub state pay"; column-gap: 6px; row-gap: 6px; padding: 14px;
+    border: 1px solid var(--v2-line); border-radius: var(--v2-radius); background: var(--v2-surface); box-shadow: var(--v2-shadow); backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
+  html[data-look] #view-reservas[data-v2] .rv2-row + .rv2-row { box-shadow: var(--v2-shadow); }
+  html[data-look] #view-reservas[data-v2] .rv2-who { grid-area: who; }
+  html[data-look] #view-reservas[data-v2] .rv2-total { grid-area: total; align-self: start; }
+  html[data-look] #view-reservas[data-v2] .rv2-stay { grid-area: stay; padding-left: 44px; color: var(--v2-muted); font-size: 12.5px; }
+  html[data-look] #view-reservas[data-v2] .rv2-stay small { display: inline; margin-left: 4px; }
+  html[data-look] #view-reservas[data-v2] .rv2-stay small::before { content: '· '; }
+  html[data-look] #view-reservas[data-v2] :is(.rv2-room, .rv2-chan) { display: none; }
+  html[data-look] #view-reservas[data-v2] .rv2-state { grid-area: state; }
+  html[data-look] #view-reservas[data-v2] .rv2-pay { grid-area: pay; }
+  html[data-look] #view-reservas[data-v2] .rv2-sub { grid-area: sub; display: flex; flex-wrap: nowrap; min-width: 0; overflow: hidden; white-space: nowrap; align-items: center; gap: 6px; color: var(--v2-muted); font-size: 12.5px; }
+  html[data-look] #view-reservas[data-v2] .rv2-sub .acc-chip { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
+  html[data-look] #view-reservas[data-v2] .rv2-sub > span:last-child { flex-shrink: 0; }
+}

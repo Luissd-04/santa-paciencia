@@ -78,7 +78,7 @@ function listReservations(organizationId, query = {}) {
   if (scope !== 'all' && !today) throw invalid('Data de referência em falta.');
   const params = [organizationId];
   let where = ' WHERE r.organization_id = ?';
-  for (const key of ['status', 'channel', 'payment_status']) {
+  for (const key of ['channel', 'payment_status']) {
     const value = textParam(query, key);
     if (value) { where += ` AND r.${key} = ?`; params.push(value); }
   }
@@ -108,15 +108,20 @@ function listReservations(organizationId, query = {}) {
   const joined = ` FROM reservations r
     JOIN guests g ON g.id=r.guest_id AND g.organization_id=r.organization_id
     JOIN accommodations a ON a.id=r.accommodation_id AND a.organization_id=r.organization_id`;
+  // Contagem por estado com os mesmos filtros e período, menos o próprio estado
+  // (alimenta os filtros rápidos «Por aprovar 2», «Confirmadas 5», …).
+  let scopeWhere = '';
+  const scopeParams = [];
+  if (scope === 'operational') { scopeWhere = " AND r.status != 'cancelada' AND r.check_out >= ?"; scopeParams.push(today); }
+  else if (scope === 'past') { scopeWhere = " AND r.status != 'cancelada' AND r.check_out < ?"; scopeParams.push(today); }
+  const byStatusSql = 'SELECT r.status, COUNT(*) AS n' + joined + where + scopeWhere + ' GROUP BY r.status';
+  const byStatusParams = [...params, ...scopeParams];
+  const status = textParam(query, 'status');
+  if (status) { where += ' AND r.status = ?'; params.push(status); }
   const summaryWhere = where;
   const summaryParams = [...params];
-  if (scope === 'operational') {
-    where += " AND r.status != 'cancelada' AND r.check_out >= ?";
-    params.push(today);
-  } else if (scope === 'past') {
-    where += " AND r.status != 'cancelada' AND r.check_out < ?";
-    params.push(today);
-  }
+  where += scopeWhere;
+  params.push(...scopeParams);
   return db.transaction(() => {
     const summaryRow = today
       ? db.prepare(`SELECT COUNT(*) AS total,
@@ -140,7 +145,7 @@ function listReservations(organizationId, query = {}) {
       delete row.checkin_task_status;
       delete row.checkout_task_status;
     }
-    const summary = { all: summaryRow.total };
+    const summary = { all: summaryRow.total, by_status: Object.fromEntries(db.prepare(byStatusSql).all(...byStatusParams).map(row => [row.status, row.n])) };
     if (today) Object.assign(summary, { operational: summaryRow.operational, past: summaryRow.past });
     return { data, pagination: metadata(options, total), summary };
   })();

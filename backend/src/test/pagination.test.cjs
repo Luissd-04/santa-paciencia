@@ -76,7 +76,7 @@ test('filtros pesquisam todas as páginas, respeitam datas e suítes adicionais'
 test('reservas em curso e passadas usam o check-out e mantêm o histórico paginado no servidor', () => {
   const current = listReservations('scope', { scope: 'operational', today: '2030-01-15' });
   assert.deepEqual(current.data.map(row => row.id), ['scope-ongoing', 'scope-checkout-today', 'scope-future']);
-  assert.deepEqual(current.summary, { all: 6, operational: 3, past: 2 });
+  assert.deepEqual(current.summary, { all: 6, operational: 3, past: 2, by_status: { confirmada: 3 } });
   assert.equal(current.pagination.total, 3);
 
   const past = listReservations('scope', { scope: 'past', today: '2030-01-15', sort: 'check_out', direction: 'desc' });
@@ -85,7 +85,9 @@ test('reservas em curso e passadas usam o check-out e mantêm o histórico pagin
 
   const cancelled = listReservations('scope', { scope: 'all', today: '2030-01-15', status: 'cancelada' });
   assert.deepEqual(cancelled.data.map(row => row.id), ['scope-cancelled']);
-  assert.deepEqual(cancelled.summary, { all: 1, operational: 0, past: 0 });
+  assert.deepEqual(cancelled.summary, { all: 1, operational: 0, past: 0, by_status: { cancelada: 1, confirmada: 5 } });
+  // A contagem por estado ignora o próprio filtro de estado (para os filtros rápidos).
+  assert.deepEqual(listReservations('scope', { scope: 'operational', today: '2030-01-15', status: 'pendente' }).summary.by_status, { confirmada: 3 });
   assert.equal(listReservations('scope', { scope: 'all', today: '2030-01-15', search: 'Past Older' }).pagination.total, 1);
 });
 test('paginação conserva o estado das tarefas, preferindo a data atual da reserva', () => {

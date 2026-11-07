@@ -101,6 +101,7 @@ function drawReservasPage() {
     `<tr ${AppActions.attrs("click", "lista-dados-show-detail-3d67b14", [String((r.id) ?? '')])}>${AppModules.reservas.resColOrder.map(k => AppModules.reservas.RES_CELL[k](r)).join('')}</tr>`
   ).join('');
   AppModules.reservas.renderMobileCards();
+  if (AppModules.reservas.isReservasV2()) AppModules.reservas.renderReservasV2(state);
   const scope = getEffectiveReservasPeriod();
   const detail = scope === 'operational' ? 'em curso ou próximas'
     : scope === 'past' ? 'reservas passadas'
