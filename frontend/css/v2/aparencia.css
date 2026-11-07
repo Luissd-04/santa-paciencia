@@ -79,6 +79,13 @@ html[data-look="vidro"] .sidebar { top: 12px; bottom: 12px; left: 12px; border: 
 html[data-look="vidro"][data-mode="claro"] .nav-item.active { box-shadow: 0 1px 3px rgba(0, 0, 0, .06); }
 html[data-look="vidro"] .sb-collapse-btn { color: var(--v2-side-muted); }
 
+/* Menu recolhido (só ícones): no vidro continua a flutuar, com a mesma margem. */
+html[data-look] .layout.sb-collapsed .nav-item { width: 44px; height: 44px; margin: 0 auto 6px; padding: 0; justify-content: center; border-radius: 12px; }
+html[data-look] .layout.sb-collapsed .nav-item.active { border-left: 0; padding-left: 0; }
+html[data-look] .layout.sb-collapsed .sidebar-nav, html[data-look] .layout.sb-collapsed .sidebar-settings-nav { padding: 8px 0; }
+html[data-look="vidro"] .layout.sb-collapsed .sidebar { width: 68px; }
+html[data-look="vidro"] .layout.sb-collapsed .main { margin-left: 92px; }
+
 /* ── Barra de cima ── */
 html[data-look] .topbar { background: var(--v2-bar-bg); border-bottom: 1px solid var(--v2-bar-line); box-shadow: none;
   backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); color: var(--v2-ink); }
