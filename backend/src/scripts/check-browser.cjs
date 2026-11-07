@@ -479,6 +479,8 @@ async function main() {
   page.on('request', r => { if (/\/api\/events\?/.test(r.url())) eventRequests.push(r.url()); });
   await page.locator('.sidebar .nav-item').filter({ hasText: 'Eventos' }).click();
   await page.locator('#view-eventos [data-on-click^="index-set-eventos-view-"]').first().waitFor({ state: 'attached' });
+  // A marcação da vista pode chegar antes dos scripts dela: espera pelo módulo.
+  await page.waitForFunction(() => typeof AppModules.eventos.setEventosView === 'function');
   await page.evaluate(() => AppModules.eventos.setEventosView('list'));
 
   await expect(page.locator('#eventos-list-pagination')).toContainText('1–50 de 137');
