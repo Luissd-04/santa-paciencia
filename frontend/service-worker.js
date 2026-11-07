@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 75;
+const CACHE_VERSION = 76;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -86,6 +86,9 @@ const STATIC_ASSETS = [
   '/js/domain/money.js',
   '/js/domain/reservation-status.js',
   '/js/domain/public-layout.js',
+  '/js/domain/appearance.js',
+  '/css/v2/aparencia.css',
+  '/css/v2/painel.css',
   '/js/domain/pricing.js',
   '/js/domain/date-picker.js',
   '/js/domain/table-cols.js',
@@ -160,6 +163,7 @@ const FEATURE_ASSETS = [
   '/js/payment-policy.js',
   '/js/team.js',
   '/js/push.js',
+  '/js/appearance-settings.js',
 ];
 
 /* Marcação por vista (frontend/views/*.html), pedida por ensureViewMarkup()

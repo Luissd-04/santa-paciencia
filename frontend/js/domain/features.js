@@ -146,6 +146,7 @@ const FEATURE_MODULES = {
       'js/fornecedores.js',
       'js/team.js',
       'js/push.js',
+      'js/appearance-settings.js',
     ],
   },
 };

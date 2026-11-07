@@ -1,0 +1,119 @@
+/* Letra da V2 (Inter): só se descarrega com um aspeto novo escolhido. */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+/* ══ V2: aspetos Clássico e Vidro (Definições → Aparência) ══
+   Só se aplica com html[data-look] (js/domain/appearance.js); sem ele, a V1
+   fica exatamente como está. Cada aspeto é um conjunto de tokens --v2-*; a
+   moldura (menu, barra de cima, barra do telemóvel) e as páginas já
+   redesenhadas (marcadas com [data-v2]) usam-nos. As páginas ainda por
+   redesenhar mantêm o seu aspeto claro. */
+
+html[data-look="classico"] {
+  --v2-bg: #f4eee6; --v2-art: none;
+  --v2-side-bg: linear-gradient(180deg, #8a3a28, #6f2b1d); --v2-side-ink: #fbefe9; --v2-side-muted: rgba(251, 239, 233, .66);
+  --v2-side-active: rgba(255, 255, 255, .14); --v2-side-line: rgba(255, 255, 255, .1);
+  --v2-bar-bg: rgba(244, 238, 230, .88); --v2-bar-line: rgba(84, 54, 35, .1);
+  --v2-surface: #fffdfa; --v2-surface-2: #f7f1e9; --v2-solid: #fffdfa; --v2-line: rgba(84, 54, 35, .11); --v2-divider: rgba(84, 54, 35, .1);
+  --v2-ink: #2b211b; --v2-muted: #76675d; --v2-soft: #a1948a;
+  --v2-accent: #843424; --v2-accent-ink: #fff; --v2-accent-soft: #f3e3dc;
+  --v2-head: "Playfair Display", Georgia, serif; --v2-head-track: -.01em; --v2-font: "Inter", system-ui, -apple-system, sans-serif;
+  --v2-shadow: 0 1px 2px rgba(59, 37, 25, .05), 0 10px 28px rgba(59, 37, 25, .06);
+  --v2-blur: none; --v2-radius: 18px; --v2-radius-sm: 12px;
+  --v2-tab-bg: #fffdfa; --v2-tab-line: rgba(84, 54, 35, .12);
+  --v2-ok: #2f6b4f; --v2-ok-bg: #e2eee5; --v2-warn: #8a5a10; --v2-warn-bg: #f6ead0; --v2-info: #2f5f86; --v2-info-bg: #e3edf5;
+  --v2-bad: #a02522; --v2-bad-bg: #f8e1df; --v2-violet: #5b4a8a; --v2-violet-bg: #ebe6f6;
+}
+html[data-look="vidro"][data-mode="claro"] {
+  --v2-bg: #eceef2;
+  --v2-art: radial-gradient(45% 55% at 10% 15%, rgba(243, 178, 148, .95), transparent 72%),
+            radial-gradient(42% 50% at 90% 8%, rgba(176, 204, 240, .95), transparent 72%),
+            radial-gradient(50% 55% at 82% 88%, rgba(186, 214, 176, .95), transparent 72%),
+            radial-gradient(40% 45% at 30% 95%, rgba(214, 198, 242, .9), transparent 72%);
+  --v2-side-bg: rgba(255, 255, 255, .48); --v2-side-ink: #1d1d1f; --v2-side-muted: #6e6e73; --v2-side-active: rgba(255, 255, 255, .88); --v2-side-line: rgba(0, 0, 0, .06);
+  --v2-bar-bg: rgba(255, 255, 255, .45); --v2-bar-line: rgba(255, 255, 255, .75);
+  --v2-surface: rgba(255, 255, 255, .6); --v2-surface-2: rgba(127, 127, 127, .1); --v2-solid: rgba(255, 255, 255, .86); --v2-line: rgba(255, 255, 255, .75); --v2-divider: rgba(127, 127, 127, .16);
+  --v2-ink: #1d1d1f; --v2-muted: #6e6e73; --v2-soft: #8e8e93;
+  --v2-accent: #1d1d1f; --v2-accent-ink: #fff; --v2-accent-soft: rgba(0, 0, 0, .06);
+  --v2-head: "Inter", system-ui, -apple-system, sans-serif; --v2-head-track: -.025em; --v2-font: "Inter", system-ui, -apple-system, sans-serif;
+  --v2-shadow: inset 0 1px 0 rgba(255, 255, 255, .9), 0 8px 32px rgba(31, 38, 54, .08);
+  --v2-blur: blur(28px) saturate(180%); --v2-radius: 24px; --v2-radius-sm: 14px;
+  --v2-tab-bg: rgba(255, 255, 255, .58); --v2-tab-line: rgba(255, 255, 255, .8);
+  --v2-ok: #2f6b4f; --v2-ok-bg: rgba(47, 107, 79, .12); --v2-warn: #8a5a10; --v2-warn-bg: rgba(220, 160, 40, .16); --v2-info: #2f5f86; --v2-info-bg: rgba(47, 95, 134, .12);
+  --v2-bad: #a02522; --v2-bad-bg: rgba(200, 50, 40, .11); --v2-violet: #5b4a8a; --v2-violet-bg: rgba(91, 74, 138, .12);
+}
+html[data-look="vidro"][data-mode="escuro"] {
+  --v2-bg: #0a0a0c;
+  --v2-art: radial-gradient(40% 50% at 12% 18%, rgba(170, 82, 58, .42), transparent 70%),
+            radial-gradient(38% 45% at 88% 10%, rgba(52, 86, 140, .45), transparent 70%),
+            radial-gradient(45% 50% at 80% 85%, rgba(44, 92, 74, .42), transparent 70%),
+            radial-gradient(35% 40% at 25% 90%, rgba(92, 64, 140, .38), transparent 70%);
+  --v2-side-bg: rgba(40, 40, 46, .45); --v2-side-ink: #f5f5f7; --v2-side-muted: #a1a1a6; --v2-side-active: rgba(255, 255, 255, .12); --v2-side-line: rgba(255, 255, 255, .07);
+  --v2-bar-bg: rgba(30, 30, 34, .45); --v2-bar-line: rgba(255, 255, 255, .1);
+  --v2-surface: rgba(44, 44, 50, .52); --v2-surface-2: rgba(255, 255, 255, .07); --v2-solid: rgba(34, 34, 40, .86); --v2-line: rgba(255, 255, 255, .1); --v2-divider: rgba(255, 255, 255, .08);
+  --v2-ink: #f5f5f7; --v2-muted: #a1a1a6; --v2-soft: #7c7c82;
+  --v2-accent: #f5f5f7; --v2-accent-ink: #111; --v2-accent-soft: rgba(255, 255, 255, .1);
+  --v2-head: "Inter", system-ui, -apple-system, sans-serif; --v2-head-track: -.025em; --v2-font: "Inter", system-ui, -apple-system, sans-serif;
+  --v2-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 10px 40px rgba(0, 0, 0, .45);
+  --v2-blur: blur(28px) saturate(170%); --v2-radius: 24px; --v2-radius-sm: 14px;
+  --v2-tab-bg: rgba(40, 40, 46, .6); --v2-tab-line: rgba(255, 255, 255, .1);
+  --v2-ok: #6fd39b; --v2-ok-bg: rgba(111, 211, 155, .14); --v2-warn: #f2c063; --v2-warn-bg: rgba(242, 192, 99, .14); --v2-info: #7fb6f0; --v2-info-bg: rgba(127, 182, 240, .14);
+  --v2-bad: #ff8a80; --v2-bad-bg: rgba(255, 138, 128, .14); --v2-violet: #c3b0ff; --v2-violet-bg: rgba(195, 176, 255, .14);
+  color-scheme: dark;
+}
+
+/* ── Fundo e letra ── */
+html[data-look] body { background: var(--v2-art), var(--v2-bg); background-attachment: fixed; }
+html[data-look] body.auth-ready { font-family: var(--v2-font); }
+html[data-look] .layout, html[data-look] .main, html[data-look] .content { background: transparent; }
+html[data-look] body.auth-ready::before { display: none; }
+
+/* ── Menu lateral ── */
+html[data-look] .sidebar { background: var(--v2-side-bg); color: var(--v2-side-ink); border-right: 0; box-shadow: none; }
+html[data-look] .sidebar-brand::after { background: var(--v2-side-line); }
+html[data-look] .sidebar-brand h1 { color: var(--v2-side-ink); font-family: var(--v2-head); letter-spacing: var(--v2-head-track); }
+html[data-look] .sidebar-brand p, html[data-look] .sidebar-footer, html[data-look] .nav-section { color: var(--v2-side-muted); }
+html[data-look] .nav-item { color: var(--v2-side-muted); font-weight: 500; border-radius: 12px; }
+html[data-look] .nav-item:hover { background: var(--v2-side-active); color: var(--v2-side-ink); transform: none; }
+html[data-look] .nav-item.active { background: var(--v2-side-active); color: var(--v2-side-ink); font-weight: 600; box-shadow: none; }
+html[data-look="vidro"] .sidebar { top: 12px; bottom: 12px; left: 12px; border: 1px solid var(--v2-line); border-radius: var(--v2-radius);
+  backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); box-shadow: var(--v2-shadow); }
+html[data-look="vidro"][data-mode="claro"] .nav-item.active { box-shadow: 0 1px 3px rgba(0, 0, 0, .06); }
+html[data-look="vidro"] .sb-collapse-btn { color: var(--v2-side-muted); }
+
+/* ── Barra de cima ── */
+html[data-look] .topbar { background: var(--v2-bar-bg); border-bottom: 1px solid var(--v2-bar-line); box-shadow: none;
+  backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%); color: var(--v2-ink); }
+html[data-look] .topbar-title { color: var(--v2-ink); font-family: var(--v2-head); letter-spacing: var(--v2-head-track); }
+html[data-look] .topbar-subtitle { color: var(--v2-muted); }
+html[data-look] .topbar { --marca: var(--v2-accent); }
+html[data-look] .topbar .btn-primary { background: var(--v2-accent); color: var(--v2-accent-ink); border-color: var(--v2-accent); box-shadow: none; }
+html[data-look] .notif-bell, html[data-look] .auth-user-chip { background: var(--v2-surface); border: 1px solid var(--v2-line); color: var(--v2-ink); box-shadow: none; }
+html[data-look] .auth-user-copy strong { color: var(--v2-ink); }
+html[data-look] .auth-user-copy span { color: var(--v2-muted); }
+html[data-look="vidro"] .topbar { margin: 12px 12px 0; border: 1px solid var(--v2-line); border-radius: var(--v2-radius); box-shadow: var(--v2-shadow); backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
+html[data-look="vidro"] .main { margin-left: 264px; }
+html[data-look] .hamburger-btn { color: var(--v2-ink); }
+
+/* ── Páginas ainda por redesenhar: no vidro escuro ficam num painel claro,
+      para o texto escuro continuar legível. ── */
+html[data-look="vidro"][data-mode="escuro"] .content > .view:not([data-v2]) { padding: 24px; border-radius: var(--v2-radius); background: #f3ede4; color: #2b211b; color-scheme: light; }
+
+/* ── Botão «Nova reserva» do telemóvel ── */
+html[data-look] .mobile-fab { background: var(--v2-accent); color: var(--v2-accent-ink); }
+html[data-look="classico"] .mobile-fab { background: #843424; color: #fff; }
+html[data-look="vidro"] .mobile-fab { bottom: calc(92px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 8px 24px rgba(0, 0, 0, .25); }
+
+/* ── Barra de baixo (telemóvel) ── */
+html[data-look] .bottom-nav-bar { background: var(--v2-tab-bg); border-top: 1px solid var(--v2-tab-line); }
+html[data-look] .bn-item { color: var(--v2-soft); }
+html[data-look] .bn-item.active { color: var(--v2-accent); }
+html[data-look="classico"] .bn-item.active { color: #843424; }
+html[data-look="vidro"] .bottom-nav-bar { left: 14px; right: 14px; bottom: max(14px, env(safe-area-inset-bottom)); height: 64px; padding: 6px; border: 1px solid var(--v2-tab-line);
+  border-radius: 999px; backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); box-shadow: var(--v2-shadow); }
+html[data-look="vidro"] .bn-item.active { color: var(--v2-ink); background: var(--v2-accent-soft); border-radius: 999px; }
+
+@media (max-width: 767px), (max-height: 500px) and (orientation: landscape) {
+  html[data-look="vidro"] .main { margin-left: 0; }
+  html[data-look="vidro"] .topbar { margin: 0; border-width: 0 0 1px; border-radius: 0; box-shadow: none; }
+  html[data-look="vidro"] .sidebar { top: 0; bottom: 0; left: 0; border-radius: 0; }
+  html[data-look="vidro"][data-mode="escuro"] .content > .view:not([data-v2]) { padding: 14px; }
+}

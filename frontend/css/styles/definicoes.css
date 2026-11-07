@@ -18,7 +18,7 @@
 }
 .settings-nav-group { display: grid; gap: 4px; }
 /* O menu editável só existe no telemóvel. */
-@media (min-width: 601px) { .settings-nav-phone { display: none; } }
+@media (min-width: 601px) { .settings-nav-phone, .settings-tab.settings-nav-phone { display: none; } }
 .settings-nav-title {
   padding: 0 10px 4px;
   font-size: 11px;
@@ -250,4 +250,34 @@
   .pp-table td:last-child { align-self: end; }
   .pp-card input:not([type="checkbox"]), .pp-card select { font-size: 16px; }
   .pp-card button { min-height: 44px; }
+}
+
+/* ── Definições → Aparência (js/appearance-settings.js) ── */
+.appearance-card h3 { margin: 0 0 6px; }
+.appearance-intro { margin: 0 0 18px; color: var(--text-muted); }
+.appearance-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.appearance-option { display: grid; gap: 4px; padding: 12px; border: 2px solid var(--border-soft); border-radius: 16px; background: var(--surface-card-strong); color: var(--text-main); font: inherit; text-align: left; cursor: pointer; }
+.appearance-option[aria-checked="true"] { border-color: var(--brand-shell); box-shadow: 0 0 0 3px rgba(132, 52, 36, .12); }
+.appearance-option small { color: var(--text-muted); }
+.appearance-swatch { position: relative; display: block; height: 76px; margin-bottom: 6px; overflow: hidden; border-radius: 10px; }
+.appearance-swatch i { position: absolute; top: 8px; bottom: 8px; left: 8px; width: 26%; border-radius: 6px; }
+.appearance-swatch b { position: absolute; left: 36%; right: 8px; height: 22px; border-radius: 6px; }
+.appearance-swatch b:first-of-type { top: 8px; } .appearance-swatch b + b { top: 38px; }
+.swatch-atual { background: #f3ede4; } .swatch-atual i { background: #843424; } .swatch-atual b { background: #fff; }
+.swatch-classico { background: #f4eee6; } .swatch-classico i { background: linear-gradient(180deg, #8a3a28, #6f2b1d); } .swatch-classico b { background: #fffdfa; box-shadow: 0 2px 6px rgba(59, 37, 25, .08); }
+.swatch-vidro { background: radial-gradient(60% 70% at 10% 20%, #f3b294, transparent 70%), radial-gradient(60% 70% at 90% 10%, #b0ccf0, transparent 70%), radial-gradient(60% 70% at 80% 90%, #bad6b0, transparent 70%), #eceef2; }
+.swatch-vidro i, .swatch-vidro b { background: rgba(255, 255, 255, .55); border: 1px solid rgba(255, 255, 255, .8); backdrop-filter: blur(6px); }
+.appearance-mode { margin-top: 20px; }
+.appearance-mode h4 { margin: 0 0 8px; }
+.appearance-mode small { display: block; margin-top: 8px; color: var(--text-muted); }
+.appearance-mode-options { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--surface-muted); border: 1px solid var(--border-soft); }
+.appearance-mode-options button { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 14px; border: 0; border-radius: 9px; background: none; color: var(--text-muted); font: inherit; font-weight: 500; cursor: pointer; }
+.appearance-mode-options button svg { width: 16px; height: 16px; }
+.appearance-mode-options button[aria-checked="true"] { background: var(--surface-card-strong); color: var(--text-main); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .1); }
+.appearance-note { display: flex; gap: 8px; align-items: flex-start; margin: 20px 0 0; color: var(--text-muted); font-size: 13px; }
+.appearance-note svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; }
+@media (max-width: 600px) {
+  .appearance-options { grid-template-columns: minmax(0, 1fr); }
+  .appearance-option { grid-template-columns: 96px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 12px; align-items: center; }
+  .appearance-swatch { grid-row: 1 / 3; height: 64px; margin: 0; }
 }

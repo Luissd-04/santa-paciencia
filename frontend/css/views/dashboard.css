@@ -257,3 +257,6 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Painel da V2 (css/v2/painel.css): escondido na V1, onde esse CSS não é carregado. */
+.v2-painel { display: none; }

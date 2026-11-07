@@ -38,6 +38,9 @@
 <link rel="stylesheet" href="css/animations.css">
 <link rel="stylesheet" href="css/vendor/flag-icons.min.css">
 <link rel="stylesheet" href="css/mobile.css">
+<!-- V2: aspetos Clássico e Vidro (Definições → Aparência). O script carrega o
+     CSS da V2 só para quem escolheu um aspeto novo; a V1 não é afetada. -->
+<script src="js/domain/appearance.js"></script>
 <script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js" integrity="sha384-bdZtphetAEBgkGZvhZXOFDWc55tHGLqaSo1f4qZtgvEiolEBqlJ9u6FTk+CoLfj0" crossorigin="anonymous"></script>
 </head>
 <body>
@@ -219,7 +222,9 @@
     <div class="content">
 
       <!-- ══ DASHBOARD ══ -->
-      <div class="view active" id="view-dashboard">
+      <div class="view active" id="view-dashboard" data-v2>
+        <!-- Painel da V2 (aspetos Clássico e Vidro): desenhado por dashboard.js. -->
+        <section class="v2-painel" id="v2-painel" aria-label="Painel"></section>
         <section class="dashboard-shell">
           <div id="dash-mobile" class="dashboard-mobile-layout" style="display:none">
             <div class="dashboard-mobile-highlight m-card stagger-1" data-on-click="index-show-view-3d0e569">

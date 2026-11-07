@@ -81,7 +81,9 @@ async function getDashboardStats(req, res, next) {
         month: monthStart.slice(0, 7),
         today,
         upcoming,
-        availability
+        availability,
+        // Painel da V2 (hoje, atenção, por receber, mês anterior).
+        painel: require('../services/dashboardToday').dashboardToday(organizationId, todayDate, now),
       }
     });
   } catch (err) {
