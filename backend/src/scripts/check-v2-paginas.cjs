@@ -1,5 +1,6 @@
 // V2: páginas principais redesenhadas (Reservas, Calendário, Eventos,
-// Notificações, Mensagens, Hóspedes, Alojamentos e Preços). Na V1 nada
+// Notificações, Mensagens, Hóspedes, Alojamentos, Preços, Despesas,
+// Relatórios, Vouchers e Definições). Na V1 nada
 // muda; nos aspetos novos: lista com colunas coladas opacas, ficha ainda no
 // aspeto antigo, painel do dia ao lado do mês que se recolhe e fica guardado,
 // e nada mais largo do que o ecrã no telemóvel. Dados sintéticos e base
@@ -160,11 +161,24 @@ async function main() {
   const [avatarBg, avatarInk] = await avatar.evaluate(el => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color]);
   assert.notEqual(avatarBg, avatarInk, 'iniciais da conversa sem contraste');
 
+  // Despesas no vidro escuro: os cartões de totais perdem o degradé claro da V1.
+  await page.goto(`${base}/despesas`);
+  const kpi = page.locator('#despesas-kpi-grid .kpi-card').first();
+  await expect(kpi).toBeVisible();
+  assert.equal(await kpi.evaluate(el => getComputedStyle(el).backgroundImage), 'none', 'cartão de totais das Despesas ainda claro');
+  // Definições: o ícone de cada ligação tem contraste.
+  await page.goto(`${base}/definicoes`);
+  await page.locator('[data-settings-tab="gcal"]').click();
+  const icon = page.locator('.settings-integration-icon').first();
+  await expect(icon).toBeVisible();
+  const [iconBg, iconInk] = await icon.evaluate(el => [getComputedStyle(el).backgroundColor, getComputedStyle(el.querySelector('svg') || el).color]);
+  assert.notEqual(iconBg, iconInk, 'ícone da ligação sem contraste');
+
   // Telemóvel: nada mais largo do que o ecrã, em cada aspeto.
   await page.setViewportSize({ width: 390, height: 844 });
   for (const [look, mode] of [['classico', 'auto'], ['vidro', 'claro'], ['vidro', 'escuro']]) {
     appearance.save(user.id, { look, mode });
-    for (const view of ['reservas', 'calendario', 'eventos', 'notificacoes', 'invoice', 'hospedes', 'alojamentos', 'precos']) {
+    for (const view of ['reservas', 'calendario', 'eventos', 'notificacoes', 'invoice', 'hospedes', 'alojamentos', 'precos', 'despesas', 'relatorios', 'vouchers', 'definicoes']) {
       await page.goto(`${base}/${view}`);
       await expect(page.locator(`#view-${view}.active`)).toBeVisible();
       await page.waitForTimeout(200);
@@ -176,7 +190,7 @@ async function main() {
   await expect(page.locator('#calendar-agenda-mobile .agenda-month')).toBeVisible();
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista com colunas coladas opacas, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (resumo ao lado, filtro por grupo, recolher guardado, preferências de push), Mensagens (iniciais legíveis no escuro) e largura no telemóvel de todas as páginas principais redesenhadas.');
+  console.log('OK: V2 — Reservas (lista com colunas coladas opacas, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (resumo ao lado, filtro por grupo, recolher guardado, preferências de push), Mensagens (iniciais legíveis no escuro), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {

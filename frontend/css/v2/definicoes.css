@@ -1,0 +1,19 @@
+/* ══ V2: Despesas, Relatórios, Vouchers e Definições ══
+   Quase tudo vem das peças comuns (componentes.css); aqui fica o que estas
+   páginas tinham com cor fixa. */
+
+/* Despesas: os filtros no ecrã grande ficam soltos (no telemóvel são uma folha). */
+@media (min-width: 601px) {
+  html[data-look] #view-despesas[data-v2] .despesas-filter-panel { background: none; box-shadow: none; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+
+/* Definições → Ligações: o ícone de cada serviço (era tijolo com ícone branco). */
+html[data-look] #view-definicoes[data-v2] .settings-integration-icon { background: var(--v2-accent-soft); color: var(--v2-ink); }
+html[data-look] #view-definicoes[data-v2] .settings-integration-icon svg { color: var(--v2-ink); }
+html[data-look="classico"] #view-definicoes[data-v2] .settings-integration-icon { background: #843424; }
+html[data-look="classico"] #view-definicoes[data-v2] .settings-integration-icon svg { color: #fff; }
+
+/* Definições → Emails: língua escolhida (era tijolo com letra branca). */
+html[data-look] #view-definicoes[data-v2] .lang-tab { border-radius: 999px; }
+html[data-look] #view-definicoes[data-v2] .lang-tab.active { background: var(--v2-accent); border-color: var(--v2-accent); color: var(--v2-accent-ink); }
+html[data-look="classico"] #view-definicoes[data-v2] .lang-tab.active { background: #843424; border-color: #843424; color: #fff; }
