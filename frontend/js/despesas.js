@@ -3,6 +3,8 @@
 AppModules.define('despesas', {
   despesasPaged: { get: () => despesasPaged },
   EXPENSE_CATS: { get: () => EXPENSE_CATS },
+  onReceiptSelected: { get: () => onReceiptSelected },
+  openDespesaModal: { get: () => openDespesaModal },
   loadDespesas: { get: () => loadDespesas },
 });
 

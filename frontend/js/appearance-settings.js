@@ -4,6 +4,7 @@
 (() => {
 AppModules.define('definicoes', {
   renderAppearance: { get: () => renderAppearance },
+  saveAppearance: { get: () => saveAppearance },
 });
 
 function renderAppearance() {
@@ -23,6 +24,7 @@ function saveAppearance(next) {
   const previous = window.AppAppearance.current();
   window.AppAppearance.apply(next);
   renderAppearance();
+  if (document.documentElement.dataset.look) AppModules.core.ensureFeature('v2');
   // Pedidos em fila: dois toques rápidos ficam guardados pela ordem certa.
   saving = saving.then(async () => {
     try {

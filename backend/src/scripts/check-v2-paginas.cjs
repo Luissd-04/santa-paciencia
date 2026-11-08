@@ -336,8 +336,49 @@ async function main() {
   await page.goto(`${base}/calendario`);
   await expect(page.locator('#calendar-agenda-mobile .agenda-month')).toBeVisible();
 
+  // Telemóvel V2 (maquetas tel-01 a tel-03), no vidro escuro.
+  await page.goto(`${base}/`);
+  await expect(page.locator('#view-dashboard.active')).toBeVisible();
+  await page.waitForFunction(() => typeof AppModules.v2.abrirFolha === 'function');
+  // Menu: a conta em cima, pesquisa, claro/escuro (guardado na conta) e Definições/Sair.
+  await page.locator('#mobile-menu-trigger').click();
+  const drawer = page.locator('#side-drawer');
+  await expect(drawer.locator('.v2d-search')).toBeVisible();
+  const [accountTop, listTop] = await drawer.evaluate(el => ['.side-drawer-account', '.side-drawer-scroll'].map(s => el.querySelector(s).getBoundingClientRect().top));
+  assert.ok(accountTop < listTop, 'a conta não ficou em cima no menu');
+  await expect(drawer.locator('#side-drawer-avatar')).toHaveText('CP');
+  await expect(drawer.locator('[data-v2-mode="escuro"]')).toHaveAttribute('aria-checked', 'true');
+  await drawer.locator('[data-v2-mode="claro"]').click();
+  await expect(page.locator('html')).toHaveAttribute('data-mode', 'claro');
+  await expect.poll(() => appearance.get(user.id).mode).toBe('claro');
+  await drawer.locator('.v2d-search').click();
+  await expect(page.locator('#view-reservas.active')).toBeVisible();
+  await expect(page.locator('#mobile-search-input')).toBeFocused();
+  // Sino: folha com filtros e avisos por dia; «Ler todas» lê no servidor.
+  db.prepare('DELETE FROM notification_state WHERE user_id = ?').run(user.id);
+  await page.locator('.topbar .notif-bell').click();
+  await expect(page.locator('#v2-sino-sub')).toContainText('por ler');
+  const sino = page.locator('#v2-sino');
+  await expect(sino.locator('.nv2-item').first()).toBeVisible();
+  await expect(page.locator('#notif-dropdown')).toBeHidden();
+  await sino.locator('.rv2-chip', { hasText: 'Reservas' }).click();
+  await expect(sino.locator('.rv2-chip.is-on')).toContainText('Reservas');
+  await sino.locator('.rv2-chip', { hasText: 'Todas' }).click();
+  await sino.getByRole('button', { name: 'Ler todas' }).click();
+  await expect(sino.locator('.nv2-item.is-unread')).toHaveCount(0);
+  await expect(page.locator('#v2-sino-sub')).toHaveText('Tudo lido');
+  await sino.getByRole('button', { name: 'Fechar' }).click();
+  await expect(sino).toHaveCount(0);
+  // «+»: Criar, e cada opção abre o seu formulário.
+  await page.locator('#mobile-fab').click();
+  const criar = page.locator('#v2-criar');
+  await expect(criar.locator('.v2c-tile')).toHaveCount(6);
+  await criar.locator('.v2c-tile', { hasText: 'Tarefa' }).click();
+  await expect(criar).toHaveCount(0);
+  await expect(page.locator('#evento-modal-bg')).toHaveClass(/open/);
+
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto partida), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto partida), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino e «Criar» da V2.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {

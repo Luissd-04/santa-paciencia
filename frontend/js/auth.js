@@ -211,6 +211,7 @@ function setAuthenticatedLayout(isAuthenticated) {
   document.body.classList.toggle('auth-ready', isAuthenticated);
   // Aspeto escolhido pela pessoa (Definições → Aparência); sem sessão, a V1.
   window.AppAppearance?.apply(isAuthenticated ? AppModules.core.currentUser?.appearance : null);
+  if (isAuthenticated && document.documentElement.dataset.look) AppModules.core.ensureFeature('v2');
   updateUserBadge();
   updateOwnerUiVisibility();
   if (typeof AppModules.core.renderEditDraftsBanner === 'function') AppModules.core.renderEditDraftsBanner();
