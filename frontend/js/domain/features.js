@@ -144,6 +144,7 @@ const FEATURE_MODULES = {
     ],
   },
   definicoes: {
+    actions: ['saveAppearance'],
     scripts: [
       'js/payment-policy.js',
       'js/emails.js',
@@ -155,6 +156,11 @@ const FEATURE_MODULES = {
       'js/push.js',
       'js/appearance-settings.js',
     ],
+  },
+  // V2 no telemóvel: menu, sino e «Criar». Carregado só com um aspeto novo
+  // (auth.js e appearance-settings.js); não tem vista.
+  v2: {
+    scripts: ['js/features/v2/folha.js', 'js/features/v2/telemovel.js'],
   },
 };
 

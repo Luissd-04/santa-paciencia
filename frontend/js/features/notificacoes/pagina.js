@@ -5,8 +5,11 @@
 // grande), o resumo recolhível com urgentes, por ler e os avisos no telemóvel.
 // O estado lido/por ler vem do servidor (services/notificationState). Carregado
 // com a vista; na V1 a lista do núcleo (notifications.js) fica como estava.
+// No telemóvel a folha do sino (features/v2/telemovel.js) mostra os mesmos
+// filtros e a mesma lista, desenhados aqui.
 (() => {
 AppModules.define('notificacoes', {
+  openPushSettings: { get: () => openPushSettings },
   renderPage: { get: () => renderPage },
 });
 
@@ -67,16 +70,21 @@ function itemHtml(n) {
     </div>`;
 }
 
+function chipsHtml(list) {
+  const unread = list.filter(n => !n.read).length;
+  const chips = [['', 'Todas', list.length], ['por-ler', 'Por ler', unread],
+    ...GROUPS.map(([key, label]) => [key, label, list.filter(n => groupOf(n)[0] === key).length])];
+  return `<div class="nv2-chips" role="group" aria-label="Filtrar notificações">${chips
+    .filter(([key, , count]) => !key || count || key === filter)
+    .map(([key, label, count]) => `<button type="button" class="rv2-chip${key === filter ? ' is-on' : ''}" aria-pressed="${key === filter}" ${AppActions.attrs('click', 'notificacoes-v2-filtro', [key])}>${label}${key && count ? ` <em>${count}</em>` : ''}</button>`)
+    .join('')}</div>`;
+}
+
 function renderToolbar(list) {
   const box = document.getElementById('notif-v2-toolbar');
   if (!box) return;
   const unread = list.filter(n => !n.read).length;
-  const chips = [['', 'Todas', list.length], ['por-ler', 'Por ler', unread],
-    ...GROUPS.map(([key, label]) => [key, label, list.filter(n => groupOf(n)[0] === key).length])];
-  box.innerHTML = `<div class="nv2-chips" role="group" aria-label="Filtrar notificações">${chips
-    .filter(([key, , count]) => !key || count || key === filter)
-    .map(([key, label, count]) => `<button type="button" class="rv2-chip${key === filter ? ' is-on' : ''}" aria-pressed="${key === filter}" ${AppActions.attrs('click', 'notificacoes-v2-filtro', [key])}>${label}${key && count ? ` <em>${count}</em>` : ''}</button>`)
-    .join('')}</div>
+  box.innerHTML = `${chipsHtml(list)}
     <button type="button" class="btn btn-ghost btn-sm nv2-read-all" ${unread ? '' : 'disabled'} ${AppActions.attrs('click', 'notificacoes-v2-ler-todas')}>${AppModules.core.lcIcon('check-check', 15)} Marcar todas como lidas</button>`;
 }
 
@@ -111,11 +119,17 @@ function renderPage(list) {
   renderToolbar(list);
   renderSide(list);
   const box = document.getElementById('notifications-page-list');
-  if (!box) return true;
+  if (box) box.innerHTML = listHtml(list);
+  renderSheet(list);
+  if (window.lucide) lucide.createIcons();
+  return true;
+}
+
+// Secções por dia (Hoje, Ontem, …) com os avisos do filtro escolhido.
+function listHtml(list) {
   const items = shown(list).slice().sort((a, b) => b.first_seen_at.localeCompare(a.first_seen_at) || (a.priority === 'high' ? -1 : 1));
   if (!items.length) {
-    box.innerHTML = AppModules.core.emptyStateHtml('🔔', filter ? 'Nada aqui' : 'Sem notificações', filter ? 'Nenhuma notificação com este filtro.' : 'Não há alertas operacionais neste momento.');
-    return true;
+    return AppModules.core.emptyStateHtml('🔔', filter ? 'Nada aqui' : 'Sem notificações', filter ? 'Nenhuma notificação com este filtro.' : 'Não há alertas operacionais neste momento.');
   }
   const sections = new Map();
   for (const n of items) {
@@ -123,9 +137,17 @@ function renderPage(list) {
     if (!sections.has(name)) sections.set(name, []);
     sections.get(name).push(n);
   }
-  box.innerHTML = [...sections].map(([name, rows]) => `<section class="nv2-section"><h4>${name}</h4>${rows.map(itemHtml).join('')}</section>`).join('');
-  if (window.lucide) lucide.createIcons();
-  return true;
+  return [...sections].map(([name, rows]) => `<section class="nv2-section"><h4>${name}</h4>${rows.map(itemHtml).join('')}</section>`).join('');
+}
+
+// Folha do sino no telemóvel, se estiver aberta.
+function renderSheet(list) {
+  const sheet = document.getElementById('v2-sino');
+  if (!sheet) return;
+  const unread = list.filter(n => !n.read).length;
+  document.getElementById('v2-sino-sub').textContent = unread ? `${unread} por ler` : 'Tudo lido';
+  sheet.querySelector('[data-on-click="notificacoes-v2-ler-todas"]').disabled = !unread;
+  sheet.querySelector('.v2f-body').innerHTML = `${chipsHtml(list)}<div class="nv2-list">${listHtml(list)}</div>`;
 }
 
 async function markRead(payload) {

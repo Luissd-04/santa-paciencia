@@ -8,40 +8,40 @@ html[data-look] #view-notificacoes[data-v2] .notifications-page-card .card-title
 
 /* ── Filtros e «Marcar todas como lidas» ── */
 html[data-look] #view-notificacoes[data-v2] .notif-v2-toolbar { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-html[data-look] #view-notificacoes[data-v2] .nv2-chips { margin-right: auto; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-chips { margin-right: auto; }
 
 /* ── Lista por dia ── */
-html[data-look] #view-notificacoes[data-v2] .nv2-section h4 { margin: 14px 14px 4px; color: var(--v2-soft); font: 600 11px var(--v2-font); letter-spacing: .06em; text-transform: uppercase; }
-html[data-look] #view-notificacoes[data-v2] .nv2-item { display: grid; grid-template-columns: 8px 34px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; min-height: 60px; padding: 8px 14px; border-radius: var(--v2-radius-sm); cursor: default; }
-html[data-look] #view-notificacoes[data-v2] .nv2-item + .nv2-item { box-shadow: inset 0 1px 0 var(--v2-divider); }
-html[data-look] #view-notificacoes[data-v2] .nv2-item:hover { background: var(--v2-accent-soft); }
-html[data-look] #view-notificacoes[data-v2] .nv2-dot { width: 8px; height: 8px; border-radius: 50%; }
-html[data-look] #view-notificacoes[data-v2] .nv2-item.is-unread .nv2-dot { background: var(--v2-info); }
-html[data-look="classico"] #view-notificacoes[data-v2] .nv2-item.is-unread .nv2-dot { background: #843424; }
-html[data-look] #view-notificacoes[data-v2] .nv2-text { display: grid; min-width: 0; }
-html[data-look] #view-notificacoes[data-v2] .nv2-text b { color: var(--v2-ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-html[data-look] #view-notificacoes[data-v2] .nv2-item.is-unread .nv2-text b { font-weight: 700; }
-html[data-look] #view-notificacoes[data-v2] .nv2-text small { color: var(--v2-muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-html[data-look] #view-notificacoes[data-v2] .nv2-when { color: var(--v2-soft); font-size: 12px; white-space: nowrap; }
-html[data-look] #view-notificacoes[data-v2] .nv2-actions { display: flex; gap: 6px; }
-html[data-look] #view-notificacoes[data-v2] .nv2-ic { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--v2-surface-2); color: var(--v2-muted); }
-html[data-look] #view-notificacoes[data-v2] .nv2-ic.info { background: var(--v2-info-bg); color: var(--v2-info); }
-html[data-look] #view-notificacoes[data-v2] .nv2-ic.warn { background: var(--v2-warn-bg); color: var(--v2-warn); }
-html[data-look] #view-notificacoes[data-v2] .nv2-ic.violet { background: var(--v2-violet-bg); color: var(--v2-violet); }
-html[data-look] #view-notificacoes[data-v2] .nv2-ic.bad { background: var(--v2-bad-bg); color: var(--v2-bad); }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-section h4 { margin: 14px 14px 4px; color: var(--v2-soft); font: 600 11px var(--v2-font); letter-spacing: .06em; text-transform: uppercase; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-item { display: grid; grid-template-columns: 8px 34px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; min-height: 60px; padding: 8px 14px; border-radius: var(--v2-radius-sm); cursor: default; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-item + .nv2-item { box-shadow: inset 0 1px 0 var(--v2-divider); }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-item:hover { background: var(--v2-accent-soft); }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-dot { width: 8px; height: 8px; border-radius: 50%; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-item.is-unread .nv2-dot { background: var(--v2-info); }
+html[data-look="classico"] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-item.is-unread .nv2-dot { background: #843424; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-text { display: grid; min-width: 0; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-text b { color: var(--v2-ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-item.is-unread .nv2-text b { font-weight: 700; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-text small { color: var(--v2-muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-when { color: var(--v2-soft); font-size: 12px; white-space: nowrap; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-actions { display: flex; gap: 6px; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-ic { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--v2-surface-2); color: var(--v2-muted); }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-ic.info { background: var(--v2-info-bg); color: var(--v2-info); }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-ic.warn { background: var(--v2-warn-bg); color: var(--v2-warn); }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-ic.violet { background: var(--v2-violet-bg); color: var(--v2-violet); }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-ic.bad { background: var(--v2-bad-bg); color: var(--v2-bad); }
 
 /* ── Painel do resumo ── */
 html[data-look] #view-notificacoes[data-v2] .notifications-side { display: grid; align-content: start; gap: 12px; padding: 20px; }
 html[data-look] #view-notificacoes[data-v2] .notifications-side h3 { margin: 0; font-size: 16px; }
-html[data-look] #view-notificacoes[data-v2] .nv2-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px; }
-html[data-look] #view-notificacoes[data-v2] .nv2-stats div { display: grid; padding: 10px 12px; border-radius: var(--v2-radius-sm); background: var(--v2-surface-2); }
-html[data-look] #view-notificacoes[data-v2] .nv2-stats strong { font-family: var(--v2-head); font-size: 22px; color: var(--v2-ink); }
-html[data-look] #view-notificacoes[data-v2] .nv2-stats strong.is-bad { color: var(--v2-bad); }
-html[data-look] #view-notificacoes[data-v2] .nv2-stats span { color: var(--v2-muted); font-size: 12.5px; }
-html[data-look] #view-notificacoes[data-v2] .nv2-side-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 14px; }
-html[data-look] #view-notificacoes[data-v2] .nv2-side-row span:nth-child(2) { flex: 1; }
-html[data-look] #view-notificacoes[data-v2] .nv2-side-row .nv2-ic { width: 28px; height: 28px; border-radius: 8px; }
-html[data-look] #view-notificacoes[data-v2] .nv2-side-row b { color: var(--v2-muted); font-weight: 600; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-stats div { display: grid; padding: 10px 12px; border-radius: var(--v2-radius-sm); background: var(--v2-surface-2); }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-stats strong { font-family: var(--v2-head); font-size: 22px; color: var(--v2-ink); }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-stats strong.is-bad { color: var(--v2-bad); }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-stats span { color: var(--v2-muted); font-size: 12.5px; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-side-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 14px; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-side-row span:nth-child(2) { flex: 1; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-side-row .nv2-ic { width: 28px; height: 28px; border-radius: 8px; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-side-row b { color: var(--v2-muted); font-weight: 600; }
 html[data-look] #view-notificacoes[data-v2] .notifications-side-push { display: grid; gap: 8px; justify-items: start; padding-top: 14px; border-top: 1px solid var(--v2-divider); }
 html[data-look] #view-notificacoes[data-v2] .notifications-side-push p { margin: 0; color: var(--v2-muted); font-size: 13px; line-height: 1.45; }
 
@@ -49,13 +49,13 @@ html[data-look] #view-notificacoes[data-v2] .notifications-side-push p { margin:
 html[data-look] #view-notificacoes[data-v2] .notifications-page-list { padding: 0 8px 10px; }
 
 @media (max-width: 600px) {
-  html[data-look] #view-notificacoes[data-v2] .nv2-item { grid-template-columns: 8px 32px minmax(0, 1fr) auto; grid-template-areas: "dot ic text when" ". . actions actions"; row-gap: 6px; }
-  html[data-look] #view-notificacoes[data-v2] .nv2-dot { grid-area: dot; }
-  html[data-look] #view-notificacoes[data-v2] .nv2-ic { grid-area: ic; }
-  html[data-look] #view-notificacoes[data-v2] .nv2-text { grid-area: text; }
-  html[data-look] #view-notificacoes[data-v2] .nv2-when { grid-area: when; }
-  html[data-look] #view-notificacoes[data-v2] .nv2-actions { grid-area: actions; justify-content: flex-end; }
-  html[data-look] #view-notificacoes[data-v2] .nv2-read-all { width: 100%; justify-content: center; }
+  html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-item { grid-template-columns: 8px 32px minmax(0, 1fr) auto; grid-template-areas: "dot ic text when" ". . actions actions"; row-gap: 6px; }
+  html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-dot { grid-area: dot; }
+  html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-ic { grid-area: ic; }
+  html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-text { grid-area: text; }
+  html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-when { grid-area: when; }
+  html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-actions { grid-area: actions; justify-content: flex-end; }
+  html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-read-all { width: 100%; justify-content: center; }
 }
 
 @media (min-width: 901px) {
