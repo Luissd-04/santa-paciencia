@@ -228,7 +228,7 @@ function clearReservasFilters() {
 }
 
 async function deleteReserva(id) {
-  if (!confirm('Tem a certeza que quer eliminar esta reserva?')) return;
+  if (!(await AppModules.core.confirmar('Tem a certeza que quer eliminar esta reserva?'))) return;
   try {
     const res = await AppModules.core.apiDelete(`/api/reservations/${id}`);
     if (res.success) {

@@ -107,7 +107,7 @@ async function saveFornecedorEdit(id) {
 
 async function deleteFornecedor(id) {
   const f = fornecedoresData.find(x => x.id === id);
-  if (!confirm(`Remover o fornecedor "${f?.name || id}"?\n\nAs despesas já registadas com este fornecedor mantêm o nome.`)) return;
+  if (!(await AppModules.core.confirmar(`Remover o fornecedor "${f?.name || id}"?\n\nAs despesas já registadas com este fornecedor mantêm o nome.`))) return;
   try {
     const res = await AppModules.core.apiDelete(`/api/suppliers/${id}`);
     if (res.success) {

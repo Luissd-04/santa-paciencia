@@ -70,7 +70,7 @@ async function importDB(input) {
     input.value = '';
     return;
   }
-  if (!confirm('⚠️ Isto vai SUBSTITUIR os dados do cliente neste espaço pelos dados do ficheiro. Contas, equipa e acessos da plataforma não serão alterados. Tem a certeza?')) {
+  if (!(await AppModules.core.confirmar('⚠️ Isto vai SUBSTITUIR os dados do cliente neste espaço pelos dados do ficheiro. Contas, equipa e acessos da plataforma não serão alterados. Tem a certeza?'))) {
     input.value = '';
     return;
   }

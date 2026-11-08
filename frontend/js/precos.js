@@ -811,7 +811,7 @@ async function savePrecosPeriod() {
 
 async function deletePrecosPeriod(id) {
   const p = _precosPeriods.find(x => x.id === id);
-  if (!p || !confirm(`Eliminar o período "${p.name}"?`)) return;
+  if (!p || !(await AppModules.core.confirmar(`Eliminar o período "${p.name}"?`))) return;
   try {
     const res = await AppModules.core.apiDelete(`/api/accommodations/${_precosAlojId}/pricing-periods/${id}`);
     if (res.success) {

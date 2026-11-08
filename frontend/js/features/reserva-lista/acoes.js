@@ -11,7 +11,7 @@ AppModules.define('reservas', {
 });
 
 async function aprovarReserva(id) {
-  if (!confirm('Aprovar esta reserva e enviar o email de pre check-in ao hóspede?')) return;
+  if (!(await AppModules.core.confirmar('Aprovar esta reserva e enviar o email de pre check-in ao hóspede?'))) return;
   try {
     const res = await AppModules.core.apiPost(`/api/reservations/${id}/approve`, {});
     if (res.success) {
@@ -106,7 +106,7 @@ async function cancelarReserva(id) {
     const { data: reservation } = await AppModules.core.apiGet(`/api/reservations/${id}`);
     const policy = reservation.payment_policy;
     const message = policy ? `Cancelar esta reserva? Reembolso previsto: ${ReservationMoney.format(policy.refundCents / 100)} (${policy.refundPercent}% do valor pago), segundo a política da reserva.` : 'Cancelar esta reserva? Será removida do Google Calendar.';
-    if (!confirm(message)) return;
+    if (!(await AppModules.core.confirmar(message))) return;
     const res = await AppModules.core.apiDelete(`/api/reservations/${id}`, undefined, policy ? { key: policy.consentKey, refundCents: policy.refundCents } : undefined);
     if (res.success) {
       AppUI.closeModal('detail-bg');
@@ -132,8 +132,8 @@ function hasRole(minRole) {
 }
 
 async function apagarReservaDefinitivo(id) {
-  if (!confirm('⚠️ Esta reserva vai ser APAGADA e depois é IMPOSSÍVEL recuperar.\n\nAs tarefas operacionais associadas também serão removidas. O hóspede e o histórico de emails são mantidos. Reservas com pagamentos registados não podem ser apagadas.')) return;
-  if (!confirm('Confirmar eliminação definitiva? Esta ação NÃO pode ser desfeita.')) return;
+  if (!(await AppModules.core.confirmar('⚠️ Esta reserva vai ser APAGADA e depois é IMPOSSÍVEL recuperar.\n\nAs tarefas operacionais associadas também serão removidas. O hóspede e o histórico de emails são mantidos. Reservas com pagamentos registados não podem ser apagadas.'))) return;
+  if (!(await AppModules.core.confirmar('Confirmar eliminação definitiva? Esta ação NÃO pode ser desfeita.'))) return;
   try {
     const { data: r } = await AppModules.core.apiGet(`/api/reservations/${id}`);
     // O backend só apaga reservas já canceladas — cancelar primeiro se necessário.
@@ -160,7 +160,7 @@ async function apagarReservaDefinitivo(id) {
 }
 
 async function reativarReserva(id) {
-  if (!confirm('Reativar esta reserva? Vai restaurar os estados que existiam antes do cancelamento.')) return;
+  if (!(await AppModules.core.confirmar('Reativar esta reserva? Vai restaurar os estados que existiam antes do cancelamento.'))) return;
   try {
     const res = await AppModules.core.apiPut(`/api/reservations/${id}`, { status: 'confirmada' });
     if (res.success) {

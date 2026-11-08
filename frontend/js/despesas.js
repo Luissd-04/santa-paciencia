@@ -558,7 +558,7 @@ async function _doExportDespesasXLSX(selectedKeys) {
 
 async function deleteDespesa(id) {
   const d = despesasPaged.state.rows.find(x => x.id === id);
-  if (!confirm(`Remover despesa "${d?.description || id}"?`)) return;
+  if (!(await AppModules.core.confirmar(`Remover despesa "${d?.description || id}"?`))) return;
   try {
     const res = await AppModules.core.apiDelete(`/api/expenses/${id}`);
     if (res.success) { AppModules.core.toast('🗑 Despesa removida.', 'info'); await loadDespesas(); }

@@ -187,7 +187,7 @@ async function removeImgSection(idx) {
   if (sec.key === AppModules.alojamentos.COMMON_AREAS_SECTION.key) return;
 
   const imgCount = (imgs[sec.key] || []).length;
-  if (imgCount > 0 && !confirm(`A divisão "${sec.label}" tem ${imgCount} foto(s). Remover mesmo assim? As fotos serão eliminadas.`)) return;
+  if (imgCount > 0 && !(await AppModules.core.confirmar(`A divisão "${sec.label}" tem ${imgCount} foto(s). Remover mesmo assim? As fotos serão eliminadas.`))) return;
 
   const prevImgs = JSON.parse(JSON.stringify(imgs));
   const newSections = sections.filter((_, i) => i !== idx);

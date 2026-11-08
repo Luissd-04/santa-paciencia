@@ -104,7 +104,7 @@ async function togglePushDevice(id, active) {
 }
 
 async function removePushDevice(id, isThisDevice) {
-  if (!confirm('Remover este dispositivo? Para voltar a receber notificações nele será preciso ativá-las de novo nesse aparelho.')) return;
+  if (!(await AppModules.core.confirmar('Remover este dispositivo? Para voltar a receber notificações nele será preciso ativá-las de novo nesse aparelho.'))) return;
   try {
     await AppModules.core.apiDelete(`/api/push/devices/${id}`);
     // Se for o próprio dispositivo, limpar também a subscrição local do browser

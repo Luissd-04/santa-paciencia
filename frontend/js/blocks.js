@@ -231,7 +231,7 @@ function openBlockEditModal(blockId) {
 async function confirmDeleteBlock(blockId) {
   const b = accommodationBlocks.find(x => x.id === blockId);
   if (!b) return;
-  if (!confirm(`Remover o bloqueio de ${blkFmt(b.start_date)} a ${blkFmt(b.end_date)}?`)) return;
+  if (!(await AppModules.core.confirmar(`Remover o bloqueio de ${blkFmt(b.start_date)} a ${blkFmt(b.end_date)}?`))) return;
   try {
     const res = await AppModules.core.apiDelete(`/api/accommodations/blocks/${blockId}`);
     if (res.success) {

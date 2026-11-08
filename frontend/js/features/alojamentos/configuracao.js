@@ -38,7 +38,7 @@ async function deleteAlojamento() {
   const id = document.getElementById('aloj-editing-id').value;
   const name = document.getElementById('aloj-nome').value || id;
   if (!id) return;
-  if (!confirm(`Apagar o alojamento "${name}"?\n\nEsta ação é irreversível. Todas as reservas canceladas associadas serão apagadas.`)) return;
+  if (!(await AppModules.core.confirmar(`Apagar o alojamento "${name}"?\n\nEsta ação é irreversível. Todas as reservas canceladas associadas serão apagadas.`))) return;
   try {
     const res = await AppModules.core.apiDelete(`/api/accommodations/${id}`);
     if (res.success) {

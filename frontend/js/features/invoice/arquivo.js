@@ -42,7 +42,7 @@ async function restoreInvoiceThread(threadId) {
    real fica no Gmail, por isso se voltares a falar com a mesma pessoa a
    conversa reaparece normalmente, com o histórico novo a partir daí. */
 async function deleteInvoiceThreadHistory(threadId, toEmail, reservationId) {
-  if (!confirm('Eliminar o histórico local desta conversa? Os emails continuam no Gmail, mas deixam de aparecer aqui — se voltares a falar com esta pessoa, a conversa reaparece normalmente.')) return;
+  if (!(await AppModules.core.confirmar('Eliminar o histórico local desta conversa? Os emails continuam no Gmail, mas deixam de aparecer aqui — se voltares a falar com esta pessoa, a conversa reaparece normalmente.'))) return;
   try {
     const params = new URLSearchParams({ to_email: toEmail });
     if (reservationId) params.set('reservation_id', reservationId);

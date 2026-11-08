@@ -160,7 +160,7 @@ async function rdv2ToggleTarefa(resId, id) {
 }
 
 async function rdv2DeleteTarefa(resId, id) {
-  if (!confirm('Eliminar esta tarefa?')) return;
+  if (!(await AppModules.core.confirmar('Eliminar esta tarefa?'))) return;
   try {
     await AppModules.core.apiDelete(`/api/events/${id}`);
     AppModules.core.toast('Tarefa eliminada.', 'info');

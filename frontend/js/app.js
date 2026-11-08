@@ -590,7 +590,7 @@ async function previewDuplicates(url, btn, noun) {
     if (!preview.count) { AppModules.core.toast('✅ Sem duplicados.', 'success'); return null; }
     const lines = (preview.sample || []).map(item => `• ${String(item.start || '').slice(0, 10)} — ${item.summary || item.title || ''}`).join('\n');
     const more = preview.count > (preview.sample || []).length ? '\n…' : '';
-    return confirm(`${preview.count} duplicado(s) de ${noun} da app:\n\n${lines}${more}\n\nApagar estes duplicados? Fica sempre uma cópia de cada.`) ? preview.count : null;
+    return (await AppModules.core.confirmar(`${preview.count} duplicado(s) de ${noun} da app:\n\n${lines}${more}\n\nApagar estes duplicados? Fica sempre uma cópia de cada.`)) ? preview.count : null;
   } finally {
     AppUI.setButtonLoading(btn, false);
   }

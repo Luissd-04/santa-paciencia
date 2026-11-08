@@ -466,7 +466,7 @@ async function resolveEmailDelivery(reservationId, templateSlug, resolution) {
   const question = resolution === 'sent'
     ? 'Confirmou no Gmail (pasta Enviados) que esta mensagem foi entregue? Fica registada como enviada e não será repetida.'
     : 'Confirmou no Gmail que esta mensagem NÃO foi enviada? Será feita uma nova tentativa na próxima passagem do envio automático.';
-  if (!reservationId || !templateSlug || !confirm(question)) return;
+  if (!reservationId || !templateSlug || !(await AppModules.core.confirmar(question))) return;
   try {
     await AppModules.core.apiPost(`/api/reservations/${encodeURIComponent(reservationId)}/email-deliveries/resolve`, { template_slug: templateSlug, resolution });
     AppModules.core.toast(resolution === 'sent' ? '✅ Envio registado como entregue.' : '✅ Nova tentativa autorizada.', 'success');
