@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 95;
+const CACHE_VERSION = 96;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -143,6 +143,7 @@ const FEATURE_ASSETS = [
   '/js/features/hospedes/lista.js',
   '/js/features/hospedes/lista-v2.js',
   '/js/features/hospedes/detalhe.js',
+  '/js/features/hospedes/ficha-v2.js',
   '/js/features/hospedes/exportacao.js',
   '/js/alojamentos.js',
   '/js/features/alojamentos/galeria.js',

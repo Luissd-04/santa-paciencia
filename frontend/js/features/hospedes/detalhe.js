@@ -119,6 +119,7 @@ async function openGuestEdit(id) {
     const pageTitle = document.getElementById('gedit-page-title');
     if (pageTitle) pageTitle.textContent = g.name || 'Ficha de hóspede';
     renderGuestReservationsHistory(g);
+    AppModules.hospedes.renderFichaV2(g);
     const delBtn = document.getElementById('gedit-delete-btn');
     if (delBtn) delBtn.onclick = async () => {
       await deleteGuest(g.id, g.name);
