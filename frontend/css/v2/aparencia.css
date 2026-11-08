@@ -96,7 +96,7 @@ html[data-look] .topbar .btn-primary { background: var(--v2-accent); color: var(
 html[data-look] .notif-bell, html[data-look] .auth-user-chip { background: var(--v2-surface); border: 1px solid var(--v2-line); color: var(--v2-ink); box-shadow: none; }
 html[data-look] .auth-user-copy strong { color: var(--v2-ink); }
 html[data-look] .auth-user-copy span { color: var(--v2-muted); }
-html[data-look="vidro"] .topbar { margin: 12px 12px 0; border: 1px solid var(--v2-line); border-radius: var(--v2-radius); box-shadow: var(--v2-shadow); backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
+html[data-look="vidro"] .topbar { margin: calc(12px + var(--safe-top)) 12px 0; border: 1px solid var(--v2-line); border-radius: var(--v2-radius); box-shadow: var(--v2-shadow); backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
 html[data-look="vidro"] .main { margin-left: 264px; }
 html[data-look] .hamburger-btn { color: var(--v2-ink); }
 
@@ -120,7 +120,9 @@ html[data-look="vidro"] .bn-item.active { color: var(--v2-ink); background: var(
 
 @media (max-width: 767px), (max-height: 500px) and (orientation: landscape) {
   html[data-look="vidro"] .main { margin-left: 0; }
-  html[data-look="vidro"] .topbar { margin: 0; border-width: 0 0 1px; border-radius: 0; box-shadow: none; }
+  /* Sem margem dos lados, mas a de cima fica: é o espaço da barra de estado
+     do iPhone (sem ela a barra, presa abaixo do notch, tapava o início da página). */
+  html[data-look="vidro"] .topbar { margin: var(--safe-top) 0 0; border-width: 0 0 1px; border-radius: 0; box-shadow: none; }
   html[data-look="vidro"] .sidebar { top: 0; bottom: 0; left: 0; border-radius: 0; }
   html[data-look="vidro"][data-mode="escuro"] .content > .view:not([data-v2]) { padding: 14px; }
 }

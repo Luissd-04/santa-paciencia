@@ -321,6 +321,15 @@ async function main() {
       await expect(page.locator(`#view-${view}.active`)).toBeVisible();
       await page.waitForTimeout(200);
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${view} mais largo do que o ecrã (${look} ${mode})`);
+      // App instalada no iPhone: com a barra de estado (aqui simulada), a
+      // barra de cima não pode tapar o início da página.
+      const overlap = await page.evaluate(() => {
+        document.documentElement.style.setProperty('--safe-top', '47px');
+        scrollTo(0, 0);
+        const bar = document.querySelector('.topbar').getBoundingClientRect();
+        return bar.bottom - document.querySelector('.view.active').getBoundingClientRect().top;
+      });
+      assert(overlap <= 0, `${view}: a barra de cima tapa ${overlap}px da página (${look} ${mode})`);
     }
   }
   // No telemóvel o Calendário mostra a agenda com o mês, como sempre.
@@ -328,7 +337,7 @@ async function main() {
   await expect(page.locator('#calendar-agenda-mobile .agenda-month')).toBeVisible();
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto partida), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro e largura no telemóvel de todas as páginas principais redesenhadas.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto partida), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
