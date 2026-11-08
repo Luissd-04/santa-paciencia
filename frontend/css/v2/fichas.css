@@ -1,0 +1,54 @@
+/* ══ V2: fichas da reserva, do hóspede e do alojamento ══
+   As fichas usam as variáveis da V1, traduzidas em componentes.css; aqui
+   ficam as cores fixas da V1 e os títulos (maquetas inter-01, 02 e 04). */
+
+/* ── Ficha da reserva ── */
+html[data-look] #view-reservas[data-v2] :is(.rf-guest-name, .rf-card-head h3) { color: var(--v2-ink); font-family: var(--v2-head); letter-spacing: var(--v2-head-track); }
+html[data-look] #view-reservas[data-v2] :is(.rf-card, .rf-head) { border-color: var(--v2-line); border-radius: var(--v2-radius); background: var(--v2-surface); box-shadow: var(--v2-shadow);
+  backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
+html[data-look] #view-reservas[data-v2] .rf-next { border-color: color-mix(in srgb, var(--v2-warn) 30%, transparent); border-radius: var(--v2-radius); background: var(--v2-warn-bg); }
+html[data-look] #view-reservas[data-v2] .rf-next-icon { background: color-mix(in srgb, var(--v2-warn) 18%, transparent); color: var(--v2-warn); }
+html[data-look] #view-reservas[data-v2] .rf-next-text strong { color: var(--v2-ink); }
+html[data-look] #view-reservas[data-v2] .rf-next-text span { color: var(--v2-muted); }
+
+/* ── Ficha do hóspede: o resumo por cima (hospedes/ficha-v2.js) ── */
+html[data-look] #view-hospede-detalhe.hf2-on:not(.hf2-a-editar) > section.card { display: none; }
+html[data-look] #view-hospede-detalhe.hf2-on > section.card { max-width: none !important; margin-top: var(--v2-gap) !important; }
+.hf2 { display: grid; gap: var(--v2-gap); }
+html[data-look] .hf2-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 18px 20px; }
+html[data-look] .hf2-av { width: 52px; height: 52px; font-size: 18px; }
+html[data-look] .hf2-who { flex: 1; min-width: 200px; }
+html[data-look] .hf2-who h2 { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--v2-ink); font: 600 24px var(--v2-head); letter-spacing: var(--v2-head-track); }
+html[data-look] .hf2-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 4px; color: var(--v2-muted); font-size: 13px; }
+html[data-look] .hf2-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+html[data-look] .hf2-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--v2-gap); }
+html[data-look] .hf2-kpi .kpi-label { display: flex; align-items: center; gap: 6px; }
+html[data-look] .hf2-kpi .kpi-value { font-size: 26px; }
+html[data-look] .hf2-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: var(--v2-gap); align-items: start; }
+html[data-look] .hf2-card { padding: 18px 20px; }
+html[data-look] .hf2-card-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+html[data-look] .hf2-card-h h3 { margin: 0; font-size: 17px; }
+html[data-look] .hf2-card-h span { color: var(--v2-muted); font-size: 13px; }
+html[data-look] .hf2-res { display: flex; align-items: center; gap: 12px; padding: 11px 6px; border-radius: 12px; cursor: pointer; }
+html[data-look] .hf2-res + .hf2-res { box-shadow: inset 0 1px 0 var(--v2-divider); }
+html[data-look] .hf2-res:hover { background: var(--v2-accent-soft); }
+html[data-look] .hf2-ic { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 10px; background: var(--v2-accent-soft); color: var(--v2-ink); }
+html[data-look] .hf2-res-t { flex: 1; min-width: 0; display: grid; }
+html[data-look] .hf2-res-t b { font-weight: 600; }
+html[data-look] .hf2-res-t small { overflow: hidden; color: var(--v2-muted); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+html[data-look] .hf2-res-v { white-space: nowrap; }
+html[data-look] .hf2-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; font-size: 14px; }
+html[data-look] .hf2-row + .hf2-row { border-top: 1px solid var(--v2-divider); }
+html[data-look] .hf2-row span { color: var(--v2-muted); }
+html[data-look] .hf2-row b { font-weight: 600; text-align: right; }
+html[data-look] .hf2-empty { margin: 8px 0; color: var(--v2-muted); font-size: 13px; }
+@media (max-width: 1100px) { html[data-look] .hf2-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } html[data-look] .hf2-grid { grid-template-columns: 1fr; } }
+@media (max-width: 600px) {
+  html[data-look] .hf2-kpis { gap: 10px; }
+  html[data-look] .hf2-kpi .kpi-value { font-size: 22px; }
+  html[data-look] .hf2-actions { width: 100%; } html[data-look] .hf2-actions .btn { flex: 1; justify-content: center; }
+  html[data-look] .hf2-res { flex-wrap: wrap; } html[data-look] .hf2-res-t { flex-basis: calc(100% - 50px); }
+}
+
+/* ── Ficha do alojamento ── */
+html[data-look] #view-alojamento-detalhe[data-v2] :is(h1, h2, h3, .card-title, [class*="title"]) { font-family: var(--v2-head); letter-spacing: var(--v2-head-track); }

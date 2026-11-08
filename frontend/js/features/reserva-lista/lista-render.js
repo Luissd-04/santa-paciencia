@@ -190,9 +190,6 @@ function setReservasDetailMode(isDetail) {
   });
   const detailPage = document.getElementById('reserva-detail-page');
   if (detailPage) detailPage.style.display = isDetail ? 'block' : 'none';
-  // V2: a lista já está redesenhada, a ficha ainda não — com a ficha aberta a
-  // vista volta ao aspeto das páginas por redesenhar.
-  document.getElementById('view-reservas')?.toggleAttribute('data-v2', !isDetail);
   if (!isDetail) applyReservasViewMode();
 }
 

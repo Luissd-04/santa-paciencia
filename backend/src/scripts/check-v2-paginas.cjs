@@ -144,10 +144,15 @@ async function main() {
   await page.keyboard.press('Escape');
   await page.locator('#reservas-filters-toggle').click();
 
-  // A ficha ainda não está redesenhada: com ela aberta a vista perde o [data-v2].
+  // A ficha da reserva também está na V2 (maqueta inter-01): a vista fica com o [data-v2].
   await rows.first().click();
   await expect(page.locator('.rf-guest-name')).toBeVisible();
-  assert.equal(await page.locator('#view-reservas').getAttribute('data-v2'), null);
+  await expect(page.locator('#view-reservas')).toHaveAttribute('data-v2', '');
+  // «Próximo passo» legível no vidro escuro (na V1 tinha fundo claro fixo).
+  if (await page.locator('.rf-next').count()) {
+    const [fundo, letra] = await page.locator('.rf-next').evaluate(el => [getComputedStyle(el).backgroundColor, getComputedStyle(el.querySelector('.rf-next-text strong')).color]);
+    assert.notEqual(fundo, 'rgb(255, 247, 233)', `próximo passo com o fundo claro da V1 (${letra})`);
+  }
   await page.locator('.rf-back').click();
   await expect(rows.first()).toBeVisible();
   await expect(page.locator('#view-reservas')).toHaveAttribute('data-v2', '');
@@ -267,6 +272,14 @@ async function main() {
   await expect(guestRows.first()).toContainText('Rui Marques');
   await page.locator('#hv2-chips .rv2-chip', { hasText: 'Todos' }).click();
   await expect(guestRows).toHaveCount(2);
+  // Ficha do hóspede (maqueta inter-02): o resumo por cima e o formulário só ao «Editar».
+  await guestRows.filter({ hasText: 'Beatriz Pinto' }).click();
+  const fichaH = page.locator('#hf2-ficha');
+  await expect(fichaH.locator('.hf2-kpi')).toHaveCount(4);
+  await expect(fichaH.locator('.hf2-res')).toHaveCount(1);
+  await expect(page.locator('#view-hospede-detalhe > section.card')).toBeHidden();
+  await fichaH.getByRole('button', { name: 'Editar' }).click();
+  await expect(page.locator('#gedit-first-name')).toHaveValue('Beatriz');
 
   // Preços: alojamentos em pílula; abre no primeiro e tocar noutro troca.
   db.prepare(`INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests) VALUES('u2',?,'Quarto Monsaraz','quarto',95,2)`).run(org.id);
@@ -480,7 +493,7 @@ async function main() {
   assert.equal(await page.locator('#manual-notification-time').inputValue(), '09:00');
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto partida), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, a minha conta e avisos.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha na V2), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto partida), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos, total gasto e ficha com resumo), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, a minha conta e avisos.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
