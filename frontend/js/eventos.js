@@ -949,7 +949,7 @@ async function toggleEventoStatus(id) {
 }
 
 async function deleteEvento(id) {
-  if (!confirm('Eliminar este evento?')) return;
+  if (!(await AppModules.core.confirmar('Eliminar este evento?'))) return;
   try {
     await AppModules.core.apiDelete(`/api/events/${id}`);
     AppModules.core.toast('Evento eliminado.', 'info');
@@ -963,7 +963,7 @@ async function deleteEvento(id) {
 async function deleteEventoFromModal() {
   if (!eventosEditingId) return;
   const id = eventosEditingId;
-  if (!confirm('Eliminar este evento? Esta ação não pode ser desfeita.')) return;
+  if (!(await AppModules.core.confirmar('Eliminar este evento? Esta ação não pode ser desfeita.'))) return;
   try {
     await AppModules.core.apiDelete(`/api/events/${id}`);
     closeEventoModal();

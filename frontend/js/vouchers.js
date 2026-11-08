@@ -311,7 +311,7 @@ async function deleteVoucher(id) {
   const msg = Number(v.used_count || 0) > 0
     ? `O voucher "${v.code}" já tem ${v.used_count} utilizações. Eliminar o voucher e o respetivo histórico?`
     : `Eliminar voucher "${v.code}"?`;
-  if (!confirm(msg)) return;
+  if (!(await AppModules.core.confirmar(msg))) return;
   try {
     await AppModules.core.apiDelete(`/api/vouchers/${id}`);
     AppModules.core.toast('✅ Voucher eliminado.', 'success');

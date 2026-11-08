@@ -213,7 +213,7 @@ async function saveInvoiceForm(reservationId) {
 }
 
 async function deletePaymentEntry(reservationId, paymentId) {
-  if (!confirm('Remover este pagamento?')) return;
+  if (!(await AppModules.core.confirmar('Remover este pagamento?'))) return;
   try {
     const res = await AppModules.core.apiDelete(`/api/reservations/${reservationId}/payments/${paymentId}`);
     if (res.success) {

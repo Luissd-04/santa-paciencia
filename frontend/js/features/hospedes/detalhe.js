@@ -156,7 +156,7 @@ function closeGuestModal() {
 
 // ── DELETE ──
 async function deleteGuest(id, name) {
-  if (!confirm(`Tem a certeza que quer remover o hóspede "${name}"?\n\nEsta ação não pode ser desfeita.`)) return;
+  if (!(await AppModules.core.confirmar(`Tem a certeza que quer remover o hóspede "${name}"?\n\nEsta ação não pode ser desfeita.`))) return;
   try {
     await AppModules.core.apiDelete(`/api/guests/${id}`);
     AppModules.core.toast('🗑 Hóspede removido.', 'info');
@@ -179,7 +179,7 @@ async function anonymizeGuest(id) {
       `Removidos: nome, contactos, documentos, morada, NIF, notas das reservas e ligações públicas.`,
       `Mantidos: ${data.kept.join(', ')}.`,
     ];
-    if (!confirm(`Anonimizar este hóspede?\n\n${lines.join('\n')}\n\nEsta ação não pode ser desfeita.`)) return;
+    if (!(await AppModules.core.confirmar(`Anonimizar este hóspede?\n\n${lines.join('\n')}\n\nEsta ação não pode ser desfeita.`))) return;
     await AppModules.core.apiPost(`/api/guests/${encodeURIComponent(id)}/anonymize`, { expected_reservations: data.reservations });
     AppModules.core.toast('✅ Dados pessoais anonimizados. Registos financeiros mantidos.', 'success');
     await AppModules.hospedes.loadHospedes();

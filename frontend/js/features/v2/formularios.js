@@ -6,6 +6,9 @@
 // voucher e as horas rápidas do lembrete. Os campos e o guardar são os de
 // sempre; as pílulas só mudam o valor da lista escondida.
 (() => {
+AppModules.define('v2', {
+  marcarCampos: { get: () => marcarCampos },
+});
 const core = () => AppModules.core;
 const PHONE = '(max-width: 767px), (max-height: 500px) and (orientation: landscape)';
 
@@ -21,6 +24,7 @@ const PILLS = {
   'despesa-payment': { seg: true },
   'evento-type': { dot: value => core().EVENT_TYPES.find(t => t.id === value)?.color },
   'evento-responsible': { avatar: true },
+  'blk-acc': { dot: value => core().accommodations?.find(a => a.id === value)?.color },
   'v-type': { seg: true, labels: { discount_pct: 'Percentagem', discount_fixed: 'Valor fixo', credit_stay: 'Crédito estadia' } },
 };
 
@@ -130,10 +134,10 @@ function quando(which) {
 
 // Campos com um só valor ficam em linha (etiqueta à esquerda, valor à
 // direita); os outros são blocos. Os campos em grande ficam fora da lista.
-const SOLTOS = ['despesa-amount', 'evento-title', 'manual-notification-title'];
-const COM_LISTA = ['despesa-modal-bg', 'evento-modal-bg', 'voucher-modal-bg', 'manual-notification-modal-bg'];
+// Chamado pelas janelas da V2 (janelas.js).
+const SOLTOS = ['despesa-amount', 'evento-title', 'manual-notification-title', 'pp2-name'];
 function marcarCampos(modal) {
-  modal.querySelectorAll('.form-grid > .form-group').forEach(group => {
+  modal.querySelectorAll('.modal-body .form-group').forEach(group => {
     // Sem contar a pesquisa interna das listas de escolha (.app-select).
     const fields = [...group.querySelectorAll('input:not([type="hidden"]):not([type="file"]), select, textarea')].filter(field => !field.closest('.app-select-menu'));
     const linha = fields.length === 1 && !group.querySelector('textarea, small, .v2-pills') && !SOLTOS.includes(fields[0].id);
@@ -150,10 +154,9 @@ const PREPARAR = {
 
 document.addEventListener('app:modal', event => {
   const modal = event.detail;
-  if (!document.documentElement.dataset.look || !modal?.id) return;
+  if (!document.documentElement.dataset.look || !modal?.classList?.contains('modal-bg')) return;
   modal.querySelectorAll('select').forEach(select => { if (PILLS[select.id]) renderPills(select); });
   PREPARAR[modal.id]?.(modal);
-  if (COM_LISTA.includes(modal.id)) marcarCampos(modal);
   if (window.lucide) lucide.createIcons();
 });
 // Valores mudados pelo próprio formulário (ex.: ao escolher um hóspede).

@@ -160,6 +160,7 @@ const FEATURE_ASSETS = [
   '/js/features/v2/folha.js',
   '/js/features/v2/barra.js',
   '/js/features/v2/formularios.js',
+  '/js/features/v2/janelas.js',
   '/js/invoice.js',
   '/js/features/invoice/historico.js',
   '/js/features/invoice/arquivo.js',

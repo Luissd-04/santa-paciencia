@@ -21,6 +21,7 @@ AppModules.define('core', {
   formatEUR: { get: () => formatEUR },
   hideOperationProgress: { get: () => hideOperationProgress },
   imageUrlToDataUrl: { get: () => imageUrlToDataUrl },
+  confirmar: { get: () => confirmar },
   lcIcon: { get: () => lcIcon },
   realEmail: { get: () => realEmail },
   mediaThumb: { get: () => mediaThumb },
@@ -256,6 +257,12 @@ function toast(msg, type = 'info', dur = 3500) {
     t.style.transition = 'all .3s';
     setTimeout(() => t.remove(), 300);
   }, dur);
+}
+
+// Confirmação antes de apagar, cancelar, …: na V2 numa janela da app
+// (features/v2/janelas.js); na V1 o aviso do sistema, como sempre.
+function confirmar(message, opts) {
+  return document.documentElement.dataset.look && AppModules.v2.confirmar ? AppModules.v2.confirmar(message, opts) : Promise.resolve(window.confirm(message));
 }
 
 function lcIcon(name, size = 14) {

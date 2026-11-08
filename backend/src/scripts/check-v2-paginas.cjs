@@ -334,6 +334,39 @@ async function main() {
   await expect(page.locator('#manual-notification-modal-bg')).toHaveClass(/open/);
   await page.keyboard.press('Escape');
 
+  // Janelas (maquetas 12 a 16). Confirmar dentro da app: Cancelar não apaga, Remover apaga.
+  await page.goto(`${base}/despesas`);
+  const apagar = page.locator('[data-on-click="delete-despesa"][data-id="ex1"]:visible');
+  await apagar.click();
+  const pergunta = page.locator('.modal-bg.v2-janela .v2-confirmar');
+  await expect(pergunta).toContainText('Remover despesa');
+  await pergunta.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(pergunta).toHaveCount(0);
+  assert.ok(db.prepare("SELECT 1 FROM expenses WHERE id='ex1'").get(), 'Cancelar apagou a despesa');
+  await apagar.click();
+  await pergunta.getByRole('button', { name: 'Remover' }).click();
+  await expect.poll(() => db.prepare("SELECT COUNT(*) AS n FROM expenses WHERE id='ex1'").get().n).toBe(0);
+  // Bloquear datas: alojamentos em pílulas e as noites bloqueadas.
+  await page.evaluate(() => AppModules.core.ensureFeature('bloqueios').then(() => AppModules.bloqueios.openBlockModal()));
+  const bloqueio = page.locator('.modal-bg.v2-janela:has(#blk-acc)');
+  await expect(bloqueio.locator('.v2-pills button', { hasText: 'Suite Oliveira' })).toHaveAttribute('aria-checked', 'true');
+  await bloqueio.locator('#blk-start').fill(dates.addDays(today, 20));
+  await bloqueio.locator('#blk-end').fill(dates.addDays(today, 22));
+  await bloqueio.locator('#blk-end').dispatchEvent('change');
+  await expect(bloqueio.locator('.v2-noites')).toContainText('3 noites bloqueadas');
+  await page.keyboard.press('Escape');
+  // A minha conta: perfil, palavra-passe e sessões com separadores.
+  await page.evaluate(() => AppModules.core.openProfileModal());
+  await expect(page.locator('#profile-modal .v2-conta-tabs [aria-current="page"]')).toContainText('Perfil');
+  await page.locator('#profile-modal .v2-conta-tabs button', { hasText: 'Sessões ativas' }).click();
+  await expect(page.locator('#sessions-modal')).toHaveClass(/open/);
+  await expect(page.locator('#profile-modal')).not.toHaveClass(/open/);
+  await page.keyboard.press('Escape');
+  // Avisos: cartão com ícone em vez do emoji.
+  await page.evaluate(() => AppModules.core.toast('✅ Reserva guardada', 'success'));
+  await expect(page.locator('.toast .v2-aviso-ic.is-success')).toBeVisible();
+  await expect(page.locator('.toast .v2-aviso-t').last()).toHaveText('Reserva guardada');
+
   // Telemóvel: nada mais largo do que o ecrã, em cada aspeto.
   await page.setViewportSize({ width: 390, height: 844 });
   for (const [look, mode] of [['classico', 'auto'], ['vidro', 'claro'], ['vidro', 'escuro']]) {
@@ -447,7 +480,7 @@ async function main() {
   assert.equal(await page.locator('#manual-notification-time').inputValue(), '09:00');
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto partida), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto partida), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, a minha conta e avisos.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
