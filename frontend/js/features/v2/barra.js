@@ -1,8 +1,10 @@
-// V2 no telemóvel (maquetas tel-01 a tel-03): o menu lateral no aspeto novo
-// (a conta em cima, pesquisa, claro/escuro e Definições/Sair em baixo), o
-// sino numa folha com filtros e avisos por dia, e o «+» que abre «Criar».
-// Carregado só com um aspeto novo (auth.js); na V1 e no computador os botões
-// fazem o que sempre fizeram.
+// V2: a barra de cima e o menu (maquetas tel-01 a tel-03 e 09 a 11). No
+// telemóvel: o menu lateral no aspeto novo (a conta em cima, pesquisa,
+// claro/escuro e Definições/Sair em baixo), o sino numa folha com filtros e
+// avisos por dia, e o «+» que abre «Criar». No computador as mesmas folhas
+// abrem por baixo do botão: o sino, a conta e a «Ação Rápida» (que passa a
+// «Criar»). Carregado só com um aspeto novo (auth.js); na V1 os botões fazem
+// o que sempre fizeram.
 (() => {
 const core = () => AppModules.core;
 const v2 = () => AppModules.v2;
@@ -19,7 +21,7 @@ const CRIAR = [
 ];
 const CRIAR_MAIS = [['ban', 'Bloquear datas', 'v2-criar-bloqueio'], ['tag', 'Período de preço', 'v2-criar-periodo']];
 
-function abrirCriar() {
+function abrirCriar(anchor) {
   const ic = core().lcIcon;
   const tiles = CRIAR.map(([icon, label, tone, action]) => action
     ? `<button type="button" class="v2c-tile is-${tone}" data-on-click="${action}"><span>${ic(icon, 21)}</span>${label}</button>`
@@ -27,6 +29,7 @@ function abrirCriar() {
     : `<label class="v2c-tile is-${tone}"><span>${ic(icon, 21)}</span>${label}<input type="file" accept="image/*" capture="environment" hidden data-on-change="v2-criar-talao"></label>`).join('');
   v2().abrirFolha({
     id: 'v2-criar',
+    anchor,
     title: 'Criar',
     body: `<div class="v2c-grid">${tiles}</div>
       <div class="v2c-list">${CRIAR_MAIS.map(([icon, label, action]) => `<button type="button" data-on-click="${action}">${ic(icon, 18)}<span>${label}</span>${ic('chevron-right', 16)}</button>`).join('')}</div>`,
@@ -46,10 +49,11 @@ async function lerTalao(input) {
 }
 
 // ── Sino ──
-async function abrirSino() {
+async function abrirSino(anchor) {
   const ic = core().lcIcon;
   v2().abrirFolha({
     id: 'v2-sino',
+    anchor,
     title: 'Notificações',
     head: `<button type="button" class="btn btn-ghost btn-sm" data-on-click="notificacoes-v2-ler-todas">${ic('check-check', 15)} Ler todas</button>`,
     body: '<div class="loading">A carregar…</div>',
@@ -66,6 +70,13 @@ async function abrirSino() {
 // ── Menu lateral ──
 const MODES = [['claro', 'sun', 'Claro'], ['escuro', 'moon', 'Escuro'], ['auto', 'sun-moon', 'Auto']];
 
+// Claro, escuro ou automático (só no vidro; o clássico tem um só).
+function modesHtml() {
+  const { look, mode } = window.AppAppearance.current();
+  return `<div class="v2d-modes" role="radiogroup" aria-label="Claro ou escuro"${look === 'vidro' ? '' : ' hidden'}>${MODES.map(([value, icon, label]) =>
+    `<button type="button" role="radio" aria-checked="${value === mode}" data-v2-mode="${value}" ${AppActions.attrs('click', 'v2-menu-modo', [value])}>${core().lcIcon(icon, 15)}${label}</button>`).join('')}</div>`;
+}
+
 function prepararMenu() {
   const drawer = document.getElementById('side-drawer');
   if (!drawer) return;
@@ -74,18 +85,14 @@ function prepararMenu() {
     drawer.querySelector('.side-drawer-scroll')?.insertAdjacentHTML('afterbegin',
       `<button type="button" class="v2d-search" data-on-click="v2-menu-pesquisar">${ic('search', 17)}<span>Pesquisar hóspede, reserva…</span></button>`);
     drawer.insertAdjacentHTML('beforeend', `<div class="v2d-foot">
-        <div class="v2d-modes" role="radiogroup" aria-label="Claro ou escuro">${MODES.map(([mode, icon, label]) => `<button type="button" role="radio" data-v2-mode="${mode}" ${AppActions.attrs('click', 'v2-menu-modo', [mode])}>${ic(icon, 15)}${label}</button>`).join('')}</div>
+        <span class="v2d-modes-slot"></span>
         <div class="v2d-row"><button type="button" class="btn btn-ghost" data-on-click="v2-menu-definicoes">${ic('settings', 16)} Definições</button>
           <button type="button" class="btn btn-ghost" data-on-click="index-close-side-drawer-4a3b8ba">${ic('log-out', 16)} Sair</button></div>
       </div>`);
   }
   const avatar = document.getElementById('side-drawer-avatar');
   if (avatar) avatar.textContent = core().initials(core().currentUser?.name || '?');
-  // Claro, escuro ou automático só no vidro (o clássico tem um só).
-  const { look, mode } = window.AppAppearance.current();
-  const modes = drawer.querySelector('.v2d-modes');
-  modes.hidden = look !== 'vidro';
-  modes.querySelectorAll('[data-v2-mode]').forEach(button => button.setAttribute('aria-checked', String(button.dataset.v2Mode === mode)));
+  drawer.querySelector('.v2d-modes-slot').innerHTML = modesHtml();
   // Avisos por ler ao lado de «Notificações», como no sino.
   const bell = document.getElementById('notif-badge');
   const unread = bell && bell.style.display !== 'none' ? bell.textContent : '';
@@ -97,6 +104,25 @@ function prepararMenu() {
     badge.hidden = !unread;
   });
   if (window.lucide) lucide.createIcons();
+}
+
+// ── Conta (computador) ──
+function abrirConta(anchor) {
+  const ic = core().lcIcon;
+  const esc = core().escapeHtml;
+  const user = core().currentUser || {};
+  // Os espaços (trocar de espaço) vêm do menu da conta da V1, já desenhados.
+  const orgs = document.getElementById('user-menu-orgs')?.innerHTML || '';
+  v2().abrirFolha({
+    id: 'v2-conta',
+    anchor,
+    title: user.name || 'Sessão',
+    sub: user.email || '',
+    lead: `<span class="v2-av v2f-av">${esc(core().initials(user.name || '?'))}</span>`,
+    body: `${orgs ? `<div class="v2k-orgs">${orgs}</div>` : ''}${modesHtml()}
+      <div class="v2c-list">${[['user-round', 'A minha conta', 'v2-conta-perfil'], ['monitor-smartphone', 'Sessões ativas', 'v2-conta-sessoes'], ['settings', 'Definições', 'v2-conta-definicoes'], ['log-out', 'Sair', 'index-logout-34b5979']]
+        .map(([icon, label, action]) => `<button type="button" data-on-click="${action}">${ic(icon, 18)}<span>${label}</span></button>`).join('')}</div>`,
+  });
 }
 
 async function pesquisar() {
@@ -117,6 +143,18 @@ function intercept(selector, handler) {
 }
 intercept('#mobile-fab', abrirCriar);
 intercept('.topbar .notif-bell', abrirSino);
+// No computador: o sino, a conta e a «Ação Rápida» abrem por baixo do botão.
+function interceptDesktop(selector, handler) {
+  document.addEventListener('click', event => {
+    const button = event.target.closest?.(selector);
+    if (!document.documentElement.dataset.look || v2().telemovelV2() || !button) return;
+    event.stopPropagation();
+    handler(button);
+  }, true);
+}
+interceptDesktop('.topbar .notif-bell', abrirSino);
+interceptDesktop('#auth-user-chip', abrirConta);
+interceptDesktop('.quick-action-wrap > .btn', abrirCriar);
 document.addEventListener('click', event => {
   if (v2().telemovelV2() && event.target.closest?.('#mobile-menu-trigger')) setTimeout(prepararMenu);
   // A ação de um aviso (ex.: «Ver» a reserva) leva para outro sítio: a folha fecha.
@@ -137,8 +175,11 @@ AppActions.register({
   'v2-menu-definicoes': () => { core().closeSideDrawer(); core().showView('definicoes'); },
   'v2-menu-modo': async (el, event, args) => {
     await core().featureAction('saveAppearance', { ...window.AppAppearance.current(), mode: args[0] });
-    prepararMenu();
+    document.querySelectorAll('[data-v2-mode]').forEach(button => button.setAttribute('aria-checked', String(button.dataset.v2Mode === args[0])));
   },
+  'v2-conta-perfil': () => { v2().fecharFolha(); core().openProfileModal(); },
+  'v2-conta-sessoes': () => { v2().fecharFolha(); core().openSessionsModal(); },
+  'v2-conta-definicoes': () => { v2().fecharFolha(); core().showView('definicoes'); },
 }, 'click');
 AppActions.register({
   'v2-criar-talao': el => lerTalao(el),
