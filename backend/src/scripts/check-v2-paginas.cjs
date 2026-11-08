@@ -312,6 +312,28 @@ async function main() {
   const [iconBg, iconInk] = await icon.evaluate(el => [getComputedStyle(el).backgroundColor, getComputedStyle(el.querySelector('svg') || el).color]);
   assert.notEqual(iconBg, iconInk, 'ícone da ligação sem contraste');
 
+  // Computador (maquetas 09 a 11): o sino, a conta e a «Ação Rápida» abrem por baixo do botão.
+  await page.goto(`${base}/`);
+  await page.waitForFunction(() => typeof AppModules.v2.abrirFolha === 'function');
+  await page.locator('.topbar .notif-bell').click();
+  await expect(page.locator('.v2f-pop #v2-sino .nv2-item').first()).toBeVisible();
+  await expect(page.locator('#notif-dropdown')).toBeHidden();
+  await page.keyboard.press('Escape');
+  await page.locator('#auth-user-chip').click();
+  const conta = page.locator('.v2f-pop #v2-conta');
+  await expect(conta).toContainText('Célia Pinto');
+  await expect(page.locator('#user-menu')).toBeHidden();
+  await conta.getByRole('button', { name: 'Sessões ativas' }).click();
+  await expect(page.locator('#sessions-modal')).toHaveClass(/open/);
+  await page.keyboard.press('Escape');
+  await page.locator('.quick-action-wrap > .btn').click();
+  const criarPc = page.locator('.v2f-pop #v2-criar');
+  await expect(criarPc.locator('.v2c-tile')).toHaveCount(6);
+  await expect(page.locator('#quick-action-menu')).toBeHidden();
+  await criarPc.locator('.v2c-tile', { hasText: 'Lembrete' }).click();
+  await expect(page.locator('#manual-notification-modal-bg')).toHaveClass(/open/);
+  await page.keyboard.press('Escape');
+
   // Telemóvel: nada mais largo do que o ecrã, em cada aspeto.
   await page.setViewportSize({ width: 390, height: 844 });
   for (const [look, mode] of [['classico', 'auto'], ['vidro', 'claro'], ['vidro', 'escuro']]) {
@@ -425,7 +447,7 @@ async function main() {
   assert.equal(await page.locator('#manual-notification-time').inputValue(), '09:00');
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto partida), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto partida), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
