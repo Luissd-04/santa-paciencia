@@ -259,8 +259,7 @@ function toast(msg, type = 'info', dur = 3500) {
   }, dur);
 }
 
-// Confirmação antes de apagar, cancelar, …: na V2 numa janela da app
-// (features/v2/janelas.js); na V1 o aviso do sistema, como sempre.
+// Confirmar: V2 numa janela (v2/janelas.js), V1 com confirm().
 function confirmar(message, opts) {
   return document.documentElement.dataset.look && AppModules.v2.confirmar ? AppModules.v2.confirmar(message, opts) : Promise.resolve(window.confirm(message));
 }

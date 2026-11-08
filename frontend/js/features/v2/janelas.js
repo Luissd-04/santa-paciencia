@@ -50,11 +50,13 @@ function confirmar(message, opts = {}) {
 // ── Janelas e formulários ──
 // [ícone, tom] no título de cada janela.
 const ICONES = {
-  'despesa-modal-bg': 'receipt|warn', 'evento-modal-bg': 'list-checks|violet', 'voucher-modal-bg': 'ticket|bad',
+  'modal-bg': 'calendar-plus|info', 'receipt-modal-bg': 'scan-line|ok', 'despesa-modal-bg': 'receipt|warn', 'evento-modal-bg': 'list-checks|violet', 'voucher-modal-bg': 'ticket|bad',
   'manual-notification-modal-bg': 'alarm-clock|info', 'precos-period-modal-bg': 'tag|ok',
 };
 const CONTA = ['profile-modal', 'change-password-modal', 'sessions-modal'];
-const JANELAS = [...Object.keys(ICONES), ...CONTA];
+// Formulários grandes: só o aspeto (os campos ficam como estão).
+const GRANDES = ['modal-bg', 'receipt-modal-bg'];
+const JANELAS = [...Object.keys(ICONES), ...CONTA, ...GRANDES];
 
 function decorar(modal) {
   modal.classList.add('v2-janela');
@@ -65,7 +67,7 @@ function decorar(modal) {
     header.insertAdjacentHTML('afterbegin', `<span class="v2-bigic is-${tone}" aria-hidden="true">${core().lcIcon(name, 22)}</span>`);
   }
   if (modal.querySelector('#blk-acc')) bloquear(modal);
-  AppModules.v2.marcarCampos(modal);
+  if (!GRANDES.includes(modal.id)) AppModules.v2.marcarCampos(modal);
   if (CONTA.includes(modal.id)) conta(modal);
   if (window.lucide) lucide.createIcons();
 }
