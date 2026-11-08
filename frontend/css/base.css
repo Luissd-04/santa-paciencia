@@ -1,4 +1,8 @@
 :root {
+  /* Altura da barra de estado do iPhone (notch/ilha) na app instalada; numa
+     variável para a barra de cima e o resto a usarem iguais (e os testes a
+     poderem simular). */
+  --safe-top: env(safe-area-inset-top, 0px);
   --motion-press: 120ms;
   --motion-view: 220ms;
   --motion-drawer: 260ms;

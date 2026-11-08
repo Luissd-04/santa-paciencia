@@ -145,8 +145,8 @@ i[data-lucide] { display:inline-flex; align-items:center; justify-content:center
      também tem de estar aqui (não só num padding do ancestral),
      porque position:sticky recalcula a posição "presa" a partir do
      próprio "top", ignorando padding do container ao fazer scroll. */
-  top: env(safe-area-inset-top, 0px);
-  margin-top: env(safe-area-inset-top, 0px);
+  top: var(--safe-top);
+  margin-top: var(--safe-top);
   z-index:50;
 }
 
