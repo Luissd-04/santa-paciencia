@@ -327,6 +327,7 @@
     });
     activeModals.push(modal);
     document.body.classList.add('modal-open');
+    document.dispatchEvent(new CustomEvent('app:modal', { detail: modal }));
     lockPageScroll();
     // Só quando o foco ainda está fora: quem já está a escrever num campo do
     // diálogo não o perde no frame seguinte (o texto escrito perdia-se).

@@ -377,8 +377,55 @@ async function main() {
   await expect(criar).toHaveCount(0);
   await expect(page.locator('#evento-modal-bg')).toHaveClass(/open/);
 
+  // Formulários como folhas (maquetas tel-04 a tel-08): as pílulas mudam a
+  // lista escondida e o guardar é o de sempre.
+  const tarefa = page.locator('#evento-modal-bg');
+  await tarefa.locator('.v2-pills button', { hasText: 'Manutenção' }).click();
+  assert.equal(await page.locator('#evento-type').inputValue(), 'manutencao');
+  await expect(tarefa.locator('.v2-linha').first()).toBeVisible();
+  await expect(tarefa.locator('.modal-footer .btn-ghost')).toBeHidden();
+  await tarefa.locator('.modal-close').click();
+  await expect(tarefa).not.toHaveClass(/open/);
+  // O «+» geral fica no painel (Eventos e Despesas têm o seu, que cria logo).
+  const abrirCriar = async () => {
+    await page.goto(`${base}/`);
+    await page.waitForFunction(() => typeof AppModules.v2.abrirFolha === 'function');
+    await page.locator('#mobile-fab').click();
+  };
+  // Despesa: talão pela câmara, valor em grande, categoria e pagamento em pílulas, guardar.
+  await abrirCriar();
+  await criar.locator('.v2c-tile', { hasText: 'Despesa' }).click();
+  const despesa = page.locator('#despesa-modal-bg');
+  await expect(despesa.locator('.v2-cam')).toBeVisible();
+  await despesa.locator('#despesa-amount').fill('42.5');
+  await despesa.locator('.v2-pills button', { hasText: 'Manutenção' }).click();
+  await despesa.locator('.v2-pills.is-seg button', { hasText: 'Cartão' }).click();
+  await despesa.locator('#despesa-description').fill('Torneira da cozinha');
+  await despesa.locator('.modal-footer .btn-primary').click();
+  await expect(despesa).not.toHaveClass(/open/);
+  await expect.poll(() => db.prepare("SELECT category, payment_method, amount FROM expenses WHERE description = 'Torneira da cozinha'").get())
+    .toEqual({ category: 'manutencao', payment_method: 'cartao', amount: 42.5 });
+  // Voucher: «Gerar» e o bilhete ao vivo.
+  await abrirCriar();
+  await criar.locator('.v2c-tile', { hasText: 'Voucher' }).click();
+  const voucher = page.locator('#voucher-modal-bg');
+  await voucher.getByRole('button', { name: 'Gerar' }).click();
+  const code = await page.locator('#v-code').inputValue();
+  assert.match(code, /^SP[A-Z0-9]{6}$/);
+  await expect(voucher.locator('.v2-ticket-code')).toHaveText(code);
+  await voucher.locator('.v2-pills.is-seg button', { hasText: 'Valor fixo' }).click();
+  await page.locator('#v-value').fill('150');
+  await expect(voucher.locator('.v2-ticket-val')).toContainText('150');
+  await voucher.locator('.modal-close').click();
+  // Lembrete: horas rápidas.
+  await abrirCriar();
+  await criar.locator('.v2c-tile', { hasText: 'Lembrete' }).click();
+  await page.locator('.v2-quando button', { hasText: 'Amanhã às 9:00' }).click();
+  assert.equal(await page.locator('#manual-notification-date').inputValue(), dates.addDays(dates.localDay(), 1));
+  assert.equal(await page.locator('#manual-notification-time').inputValue(), '09:00');
+
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto partida), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino e «Criar» da V2.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha no aspeto antigo), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto partida), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos e total gasto), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {

@@ -85,3 +85,103 @@ html[data-look] #v2-sino .nv2-item:hover { background: none; }
   html[data-look] .v2d-row { display: flex; gap: 8px; }
   html[data-look] .v2d-row .btn { flex: 1; justify-content: center; min-height: 42px; border: 1px solid var(--v2-line); border-radius: 14px; background: var(--v2-surface); color: var(--v2-ink); font: 600 14px var(--v2-font); }
 }
+
+/* ══ Formulários de criar como folhas (maquetas tel-04 a tel-08) ══
+   html.v2-tel só existe no telemóvel (features/v2/formularios.js). */
+html[data-look].v2-tel .modal-bg { background: rgba(10, 10, 14, .42); }
+html[data-look].v2-tel .modal { background: var(--v2-solid); color: var(--v2-ink); font-family: var(--v2-font); border: 1px solid var(--v2-line); border-bottom: 0;
+  border-radius: 26px 26px 0 0; box-shadow: 0 -12px 40px rgba(0, 0, 0, .25); }
+html[data-look="vidro"].v2-tel .modal { backdrop-filter: blur(30px) saturate(170%); -webkit-backdrop-filter: blur(30px) saturate(170%); }
+html[data-look].v2-tel .modal::before { content: ''; display: block; width: 38px; height: 5px; margin: 8px auto 0; border-radius: 999px; background: var(--v2-soft); opacity: .5; }
+/* Título ao centro, fechar à esquerda (como a maqueta). */
+html[data-look].v2-tel .modal-header { display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; gap: 8px; padding: 8px 16px 10px; border: 0; background: none; }
+html[data-look].v2-tel .modal-header .modal-close { grid-column: 1; grid-row: 1; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: var(--v2-surface-2); color: var(--v2-muted); }
+html[data-look].v2-tel .modal-header .modal-title { grid-column: 2; grid-row: 1; margin: 0; color: var(--v2-ink); font: 600 21px var(--v2-head); letter-spacing: var(--v2-head-track); text-align: center; }
+html[data-look].v2-tel .modal-header > .btn { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
+html[data-look].v2-tel .modal-body { padding: 4px 18px 18px; background: none; }
+/* Rodapé: um botão grande; «Cancelar» sai (fecha-se no ✕ ou a deslizar). */
+html[data-look].v2-tel .modal-footer { gap: 10px; padding: 12px 18px max(18px, env(safe-area-inset-bottom, 18px)); border-top: 1px solid var(--v2-divider); background: var(--v2-solid); }
+html[data-look].v2-tel .modal-footer .btn-ghost { display: none; }
+html[data-look].v2-tel .modal-footer .btn-primary { flex: 1; justify-content: center; min-height: 50px; border-radius: 16px; font-size: 15.5px; }
+
+/* Campos em lista: etiqueta à esquerda, valor à direita, numa caixa
+   arredondada. formularios.js marca cada campo: .v2-linha (um valor) ou
+   .v2-bloco (pílulas, notas, campos com explicação, o valor em grande). */
+html[data-look].v2-tel .modal-bg .form-grid:has(.v2-linha) { display: flex; flex-direction: column; gap: 0; }
+html[data-look].v2-tel .modal-bg .v2-linha { display: flex; flex-direction: row; align-items: center; gap: 12px; min-height: 52px; margin: 0; padding: 4px 14px;
+  border: 1px solid var(--v2-line); border-bottom-width: 0; background: var(--v2-surface); }
+html[data-look].v2-tel .modal-bg .v2-linha:not(.v2-linha + .v2-linha) { border-top-left-radius: 16px; border-top-right-radius: 16px; }
+html[data-look].v2-tel .modal-bg .v2-linha:not(:has(+ .v2-linha)) { margin-bottom: 14px; border-bottom-width: 1px; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; }
+html[data-look].v2-tel .modal-bg .v2-linha .form-label { flex: none; margin: 0; color: var(--v2-muted); font: 400 14.5px var(--v2-font); text-align: left; text-transform: none; letter-spacing: 0; }
+html[data-look].v2-tel .modal-bg .v2-linha :is(.form-control, .app-select-button) { flex: 1; min-width: 0; min-height: 40px; height: auto; padding: 0; border: 0; background: none; box-shadow: none;
+  color: var(--v2-ink); font: 600 14.5px var(--v2-font); text-align: right; text-align-last: right; backdrop-filter: none; -webkit-backdrop-filter: none; }
+html[data-look].v2-tel .modal-bg .v2-linha .app-select { flex: 1; min-width: 0; }
+html[data-look].v2-tel .modal-bg .v2-linha .app-select-button { justify-content: flex-end; padding-right: 22px; }
+html[data-look].v2-tel .modal-bg .v2-bloco { margin: 0 0 14px; }
+html[data-look].v2-tel .modal-bg .v2-bloco .form-label { margin-bottom: 8px; color: var(--v2-muted); font: 600 12px var(--v2-font); letter-spacing: .02em; text-align: left; text-transform: none; }
+html[data-look].v2-tel .modal-bg .v2-bloco .form-control { border-radius: 14px; }
+html[data-look].v2-tel .modal-bg .v2-has-pills :is(select, .app-select) { display: none !important; }
+
+/* Pílulas e botões lado a lado (a partir das listas de escolha). */
+html[data-look].v2-tel .v2-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+html[data-look].v2-tel .v2-pills button { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 13px; border: 1px solid var(--v2-line); border-radius: 999px;
+  background: var(--v2-surface); color: var(--v2-ink); font: 500 13.5px var(--v2-font); white-space: nowrap; cursor: pointer; }
+html[data-look].v2-tel .v2-pills button :is(svg, i[data-lucide]) { width: 15px; height: 15px; }
+html[data-look].v2-tel .v2-pills button:is([aria-checked="true"], [aria-pressed="true"]) { background: var(--v2-accent); border-color: var(--v2-accent); color: var(--v2-accent-ink); font-weight: 600; }
+html[data-look="classico"].v2-tel .v2-pills button:is([aria-checked="true"], [aria-pressed="true"]) { background: #843424; border-color: #843424; color: #fff; }
+html[data-look].v2-tel .v2-pills .v2-dot { width: 9px; height: 9px; border-radius: 50%; }
+html[data-look].v2-tel .v2-pills .v2-av { display: grid; place-items: center; width: 24px; height: 24px; margin-left: -6px; border-radius: 50%; background: var(--v2-accent-soft); color: var(--v2-ink); font-size: 10px; font-weight: 700; }
+html[data-look].v2-tel .v2-pills.is-seg { flex-wrap: nowrap; gap: 0; padding: 3px; border: 1px solid var(--v2-line); border-radius: 14px; background: var(--v2-surface-2); }
+html[data-look].v2-tel .v2-pills.is-seg button { flex: 1; justify-content: center; min-height: 36px; padding: 0 6px; border: 0; border-radius: 11px; background: none; color: var(--v2-muted); }
+html[data-look].v2-tel .v2-pills.is-seg button[aria-checked="true"] { background: var(--v2-solid); color: var(--v2-ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+html[data-look].v2-tel .v2-quando { margin-bottom: 12px; }
+
+/* Despesa: talão pela câmara e o valor em grande, primeiro. */
+html[data-look].v2-tel .v2-cam { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; padding: 14px; border: 1px dashed var(--v2-accent); border-radius: 18px; background: var(--v2-accent-soft); color: var(--v2-ink); cursor: pointer; }
+html[data-look].v2-tel .v2-cam[hidden] { display: none; }
+html[data-look].v2-tel .v2-cam > span:nth-child(2) { flex: 1; display: grid; }
+html[data-look].v2-tel .v2-cam small { color: var(--v2-muted); font-size: 12.5px; }
+html[data-look].v2-tel .v2-cam-ic { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: var(--v2-accent); color: var(--v2-accent-ink); }
+html[data-look="classico"].v2-tel .v2-cam { border-color: #843424; } html[data-look="classico"].v2-tel .v2-cam-ic { background: #843424; color: #fff; }
+html[data-look].v2-tel #despesa-modal-bg .form-group:has(#despesa-amount) { order: -2; display: grid; justify-items: center; }
+html[data-look].v2-tel #despesa-modal-bg .form-group:has(#despesa-amount) .form-label { order: 2; margin: 2px 0 0; color: var(--v2-muted); font: 400 12.5px var(--v2-font); }
+html[data-look].v2-tel #despesa-modal-bg #despesa-amount.form-control { width: 100%; height: auto; padding: 0; border: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; color: var(--v2-ink); font: 600 44px var(--v2-head); letter-spacing: -.02em; text-align: center; }
+html[data-look].v2-tel #despesa-modal-bg .v2-has-pills:has(#despesa-category) { order: -1; }
+
+/* Tarefa: o título em grande. */
+html[data-look].v2-tel #evento-modal-bg .form-group:has(#evento-title) { order: -2; }
+html[data-look].v2-tel #evento-modal-bg .form-group:has(#evento-title) .form-label { display: none; }
+html[data-look].v2-tel #evento-modal-bg #evento-title.form-control { width: 100%; height: auto; padding: 4px 0 10px; border: 0; border-bottom: 1.5px solid var(--v2-line); border-radius: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; color: var(--v2-ink); font: 600 22px var(--v2-head); text-align: left; }
+html[data-look].v2-tel #evento-modal-bg .v2-has-pills:has(#evento-type) { order: -1; }
+
+/* Lembrete: o título em grande. */
+html[data-look].v2-tel #manual-notification-modal-bg .form-group:has(#manual-notification-title) .form-label { display: none; }
+html[data-look].v2-tel #manual-notification-modal-bg #manual-notification-title.form-control { width: 100%; height: auto; padding: 4px 0 10px; border: 0; border-bottom: 1.5px solid var(--v2-line); border-radius: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; color: var(--v2-ink); font: 600 22px var(--v2-head); text-align: left; }
+
+/* Voucher: o bilhete. */
+html[data-look].v2-tel .v2-ticket { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin-bottom: 14px; padding: 16px 18px; overflow: hidden; border-radius: 18px; color: #fff;
+  background: linear-gradient(135deg, #843424, #b4583e); }
+html[data-look="vidro"].v2-tel .v2-ticket { background: linear-gradient(135deg, #2b2b33, #4a4a57); }
+html[data-look].v2-tel .v2-ticket > div { display: grid; min-width: 0; }
+html[data-look].v2-tel .v2-ticket-code { overflow: hidden; font: 700 19px ui-monospace, Menlo, monospace; letter-spacing: .08em; text-overflow: ellipsis; white-space: nowrap; }
+html[data-look].v2-tel .v2-ticket-val { grid-row: span 2; align-self: center; font: 700 28px var(--v2-head); }
+html[data-look].v2-tel .v2-ticket small { opacity: .8; font-size: 12.5px; }
+html[data-look].v2-tel .v2-ticket::before, html[data-look].v2-tel .v2-ticket::after { content: ''; position: absolute; top: 50%; width: 18px; height: 18px; margin-top: -9px; border-radius: 50%; background: var(--v2-solid); }
+html[data-look].v2-tel .v2-ticket::before { left: -9px; } html[data-look].v2-tel .v2-ticket::after { right: -9px; }
+/* Código com «Gerar» ao lado. */
+.v2-gerar { display: none; }
+html[data-look].v2-tel .form-group:has(> #v-code) { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 8px; align-items: center; }
+html[data-look].v2-tel .form-group:has(> #v-code) > :not(#v-code, .v2-gerar) { grid-column: 1 / -1; }
+html[data-look].v2-tel .v2-gerar { display: inline-flex; min-height: 40px; }
+
+/* Nova reserva: o assistente já tem passos no telemóvel; aqui o aspeto. */
+html[data-look].v2-tel #modal-bg .resf-chip[aria-pressed="true"] { border-color: var(--v2-accent); background: var(--v2-accent); color: var(--v2-accent-ink); }
+html[data-look="classico"].v2-tel #modal-bg .resf-chip[aria-pressed="true"] { border-color: #843424; background: #843424; color: #fff; }
+html[data-look].v2-tel #suite-cards-grid .suite-card-opt { border: 1px solid var(--v2-line); border-radius: 16px; background: var(--v2-surface); color: var(--v2-ink); box-shadow: none; }
+html[data-look].v2-tel #suite-cards-grid .suite-card-opt.selected { border-color: var(--v2-accent); box-shadow: inset 0 0 0 1px var(--v2-accent); }
+html[data-look="classico"].v2-tel #suite-cards-grid .suite-card-opt.selected { border-color: #843424; box-shadow: inset 0 0 0 1px #843424; }
+html[data-look].v2-tel #suite-cards-grid .suite-card-name { color: var(--v2-ink); font-family: var(--v2-font); font-weight: 600; }
+html[data-look].v2-tel #suite-cards-grid .suite-card-price { color: var(--v2-ink); font-family: var(--v2-font); }
+html[data-look].v2-tel #suite-cards-grid .suite-card-opt:not(.selected) .suite-check { color: transparent; }
+html[data-look].v2-tel #suite-cards-grid .suite-card-opt.selected .suite-check { border-color: var(--v2-accent); background: var(--v2-accent); color: var(--v2-accent-ink); }
+html[data-look="classico"].v2-tel #suite-cards-grid .suite-card-opt.selected .suite-check { border-color: #843424; background: #843424; color: #fff; }

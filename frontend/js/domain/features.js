@@ -160,7 +160,7 @@ const FEATURE_MODULES = {
   // V2 no telemóvel: menu, sino e «Criar». Carregado só com um aspeto novo
   // (auth.js e appearance-settings.js); não tem vista.
   v2: {
-    scripts: ['js/features/v2/folha.js', 'js/features/v2/telemovel.js'],
+    scripts: ['js/features/v2/folha.js', 'js/features/v2/telemovel.js', 'js/features/v2/formularios.js'],
   },
 };
 

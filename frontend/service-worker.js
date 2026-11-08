@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 93;
+const CACHE_VERSION = 94;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -159,6 +159,7 @@ const FEATURE_ASSETS = [
   '/js/features/notificacoes/pagina.js',
   '/js/features/v2/folha.js',
   '/js/features/v2/telemovel.js',
+  '/js/features/v2/formularios.js',
   '/js/invoice.js',
   '/js/features/invoice/historico.js',
   '/js/features/invoice/arquivo.js',
