@@ -2,9 +2,11 @@
    Só nas vistas marcadas com [data-v2] e com html[data-look]. Primeiro
    traduz as variáveis da V1 para os tokens --v2-* (assim tudo o que já as
    usa muda sozinho); depois acerta o que na V1 tinha cor fixa: cartões,
-   botões, campos, menus de escolha, tabelas, etiquetas e separadores. */
+   botões, campos, menus de escolha, tabelas, etiquetas e separadores.
+   Vale também nas folhas do telemóvel (.v2f) e, no telemóvel (html.v2-tel,
+   features/v2/formularios.js), nos formulários que abrem como folha. */
 
-html[data-look] :is(.view[data-v2], .v2f) {
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) {
   --text-main: var(--v2-ink); --texto: var(--v2-ink); --azul: var(--v2-ink); --azul-medio: var(--v2-ink); --text-muted: var(--v2-muted); --cinza: var(--v2-muted); --text-soft: var(--v2-soft);
   --border-soft: var(--v2-divider); --border-strong: var(--v2-line);
   --surface-card: var(--v2-surface); --surface-card-strong: var(--v2-solid); --surface-panel: var(--v2-surface);
@@ -18,52 +20,52 @@ html[data-look] :is(.view[data-v2], .v2f) {
 }
 /* Medidas comuns: uma altura para botões, campos e filtros que ficam lado a
    lado (--v2-ctl) e um só espaço entre os blocos de cada página (--v2-gap). */
-html[data-look] :is(.view[data-v2], .v2f) { --v2-ctl: 36px; --v2-gap: 18px; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) { --v2-ctl: 36px; --v2-gap: 18px; }
 /* No clássico a cor de marca continua a ser o tijolo. */
-html[data-look="classico"] :is(.view[data-v2], .v2f) { --marca: #843424; --marca-claro: #9a4330; }
+html[data-look="classico"] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) { --marca: #843424; --marca-claro: #9a4330; }
 
 /* ── Cartões ── */
-html[data-look] :is(.view[data-v2], .v2f) :is(.card, .section-card, .m-card) {
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.card, .section-card, .m-card) {
   background: var(--v2-surface); border: 1px solid var(--v2-line); border-radius: var(--v2-radius); box-shadow: var(--v2-shadow);
   backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); color: var(--v2-ink);
 }
-html[data-look] :is(.view[data-v2], .v2f) :is(.section-card-title, h2, h3, h4) { color: var(--v2-ink); font-family: var(--v2-head); letter-spacing: var(--v2-head-track); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.section-card-title, h2, h3, h4) { color: var(--v2-ink); font-family: var(--v2-head); letter-spacing: var(--v2-head-track); }
 
 /* Cartões de totais (.kpi-card: Despesas, Relatórios, …) como os do painel. */
-html[data-look] :is(.view[data-v2], .v2f) :is(.kpi-grid, #despesas-kpi-grid) .kpi-card { min-height: 0; padding: 18px 20px; border: 1px solid var(--v2-line) !important; border-radius: var(--v2-radius); background: var(--v2-surface); box-shadow: var(--v2-shadow);
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.kpi-grid, #despesas-kpi-grid) .kpi-card { min-height: 0; padding: 18px 20px; border: 1px solid var(--v2-line) !important; border-radius: var(--v2-radius); background: var(--v2-surface); box-shadow: var(--v2-shadow);
   backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
-html[data-look] :is(.view[data-v2], .v2f) .kpi-card::after { display: none; }
-html[data-look] :is(.view[data-v2], .v2f) .kpi-label { color: var(--v2-muted); font-size: 12.5px; font-weight: 500; letter-spacing: 0; text-transform: none; }
-html[data-look] :is(.view[data-v2], .v2f) .kpi-value { margin-top: 6px; color: var(--v2-ink) !important; font-family: var(--v2-head); font-size: 30px; font-weight: 600; letter-spacing: var(--v2-head-track); }
-html[data-look] :is(.view[data-v2], .v2f) .kpi-sub { color: var(--v2-muted); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .kpi-card::after { display: none; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .kpi-label { color: var(--v2-muted); font-size: 12.5px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .kpi-value { margin-top: 6px; color: var(--v2-ink) !important; font-family: var(--v2-head); font-size: 30px; font-weight: 600; letter-spacing: var(--v2-head-track); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .kpi-sub { color: var(--v2-muted); }
 
 /* ── Botões ── */
-html[data-look] :is(.view[data-v2], .v2f) .btn { border-radius: 999px; font-family: var(--v2-font); font-weight: 600; box-shadow: none; }
-html[data-look] :is(.view[data-v2], .v2f) .btn:hover { transform: none; }
-html[data-look] :is(.view[data-v2], .v2f) .btn-primary { background: var(--v2-accent); color: var(--v2-accent-ink); border: 1px solid var(--v2-accent); }
-html[data-look="classico"] :is(.view[data-v2], .v2f) .btn-primary { background: #843424; border-color: #843424; color: #fff; }
-html[data-look] :is(.view[data-v2], .v2f) :is(.btn-ghost, .btn-outline, .btn-secondary) { background: var(--v2-surface); color: var(--v2-ink); border: 1px solid var(--v2-line);
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .btn { border-radius: 999px; font-family: var(--v2-font); font-weight: 600; box-shadow: none; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .btn:hover { transform: none; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .btn-primary { background: var(--v2-accent); color: var(--v2-accent-ink); border: 1px solid var(--v2-accent); }
+html[data-look="classico"] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .btn-primary { background: #843424; border-color: #843424; color: #fff; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.btn-ghost, .btn-outline, .btn-secondary) { background: var(--v2-surface); color: var(--v2-ink); border: 1px solid var(--v2-line);
   backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
-html[data-look] :is(.view[data-v2], .v2f) :is(.btn-ghost, .btn-outline, .btn-secondary):hover { background: var(--v2-solid); }
-html[data-look] :is(.view[data-v2], .v2f) .btn svg { width: 16px; height: 16px; }
-html[data-look] :is(.view[data-v2], .v2f) .btn-sm svg { width: 15px; height: 15px; }
-html[data-look] :is(.view[data-v2], .v2f) .btn:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.btn-ghost, .btn-outline, .btn-secondary):hover { background: var(--v2-solid); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .btn svg { width: 16px; height: 16px; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .btn-sm svg { width: 15px; height: 15px; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .btn:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
 /* Todos com a mesma altura (no telemóvel ficam as medidas de toque da V1);
    nas linhas das tabelas, botões de ícone mais pequenos mas iguais entre si. */
 @media (min-width: 601px) {
-  html[data-look] :is(.view[data-v2], .v2f) .btn { min-height: var(--v2-ctl); justify-content: center; }
-  html[data-look] :is(.view[data-v2], .v2f) td .btn { min-height: 30px; min-width: 30px; padding: 0 8px; }
-  html[data-look] :is(.view[data-v2], .v2f) :is(.form-control:not(textarea), .app-select-button) { min-height: var(--v2-ctl); padding-block: 0; }
-  html[data-look] :is(.view[data-v2], .v2f) :is(input.form-control, .search-box) { height: var(--v2-ctl); }
-  html[data-look] :is(.view[data-v2], .v2f) .search-box input { height: 100%; min-height: 0; padding-block: 0; }
+  html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .btn { min-height: var(--v2-ctl); justify-content: center; }
+  html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) td .btn { min-height: 30px; min-width: 30px; padding: 0 8px; }
+  html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.form-control:not(textarea), .app-select-button) { min-height: var(--v2-ctl); padding-block: 0; }
+  html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(input.form-control, .search-box) { height: var(--v2-ctl); }
+  html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .search-box input { height: 100%; min-height: 0; padding-block: 0; }
   /* Um menu de escolha aberto fica por cima do que vem a seguir: o painel
      de filtros (com desfoque) é uma camada própria e a lista por baixo
      tapava-o. O painel de filtros (.m-sheet) é folha fixa no telemóvel e
      deitado: aí só o z-index (nas grelhas vale sem mudar a posição). */
-  html[data-look] :is(.view[data-v2], .v2f) :is(.m-sheet, .card, .section-card):has(.app-select.is-open) { z-index: 40; }
-  html[data-look] :is(.view[data-v2], .v2f) :is(.card, .section-card):has(.app-select.is-open) { position: relative; }
+  html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.m-sheet, .card, .section-card):has(.app-select.is-open) { z-index: 40; }
+  html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.card, .section-card):has(.app-select.is-open) { position: relative; }
   /* Separadores em pílula: por fora, a mesma altura dos botões. */
-  html[data-look] :is(.view[data-v2], .v2f) :is(.report-tab, .cal-mode-btn) { height: calc(var(--v2-ctl) - 8px); padding-block: 0; }
+  html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.report-tab, .cal-mode-btn) { height: calc(var(--v2-ctl) - 8px); padding-block: 0; }
 }
 
 /* ── Espaço entre blocos: o mesmo (--v2-gap) em todas as páginas ──
@@ -71,84 +73,84 @@ html[data-look] :is(.view[data-v2], .v2f) .btn:focus-visible { outline: 2px soli
    da V1 (somavam-se ao espaço da grelha: 24, 34, 42, 48 px…); nas páginas em
    fluxo normal fica a margem por baixo de cada bloco. As grelhas da V1 têm
    regras com #view-…: o :not(#v2-id) dá a estas o mesmo peso sem as nomear. */
-html[data-look] :is(.view[data-v2], .v2f) :is(.view-toolbar, .report-tabs, .eventos-type-chips-row, .settings-panel > .card) { margin-bottom: var(--v2-gap); }
-html[data-look] :is(.view[data-v2], .v2f):not(#v2-id) :is(.reservas-shell, .calendar-shell, .hospedes-shell, .hv2, .despesas-shell, :where(#vouchers-list-wrap), .notifications-page-shell, .av2, .ev2-layout, .ev2-side, .report-tab-panel) { gap: var(--v2-gap); }
-html[data-look] :is(.view[data-v2], .v2f):not(#v2-id) :is(.reservas-shell, .calendar-shell, .hospedes-shell, .hv2, .despesas-shell, :where(#vouchers-list-wrap), .report-tab-panel) > * { margin-top: 0; margin-bottom: 0; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.view-toolbar, .report-tabs, .eventos-type-chips-row, .settings-panel > .card) { margin-bottom: var(--v2-gap); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg):not(#v2-id) :is(.reservas-shell, .calendar-shell, .hospedes-shell, .hv2, .despesas-shell, :where(#vouchers-list-wrap), .notifications-page-shell, .av2, .ev2-layout, .ev2-side, .report-tab-panel) { gap: var(--v2-gap); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg):not(#v2-id) :is(.reservas-shell, .calendar-shell, .hospedes-shell, .hv2, .despesas-shell, :where(#vouchers-list-wrap), .report-tab-panel) > * { margin-top: 0; margin-bottom: 0; }
 
 /* ── Filtros em pílula (estado, segmento, tipo, alojamento, …) ── */
-html[data-look] :is(.view[data-v2], .v2f) :is(.rv2-chips, .nv2-chips, .hv2-chips, .vv2-chips) { display: flex; flex-wrap: wrap; gap: 6px; }
-html[data-look] :is(.view[data-v2], .v2f) :is(.rv2-chip, .evt-type-chip) { display: inline-flex; align-items: center; gap: 6px; min-height: var(--v2-ctl); padding: 0 12px; border: 1px solid var(--v2-line); border-radius: 999px;
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.rv2-chips, .nv2-chips, .hv2-chips, .vv2-chips) { display: flex; flex-wrap: wrap; gap: 6px; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.rv2-chip, .evt-type-chip) { display: inline-flex; align-items: center; gap: 6px; min-height: var(--v2-ctl); padding: 0 12px; border: 1px solid var(--v2-line); border-radius: 999px;
   background: var(--v2-surface); color: var(--v2-ink); font: 500 13px var(--v2-font); white-space: nowrap; flex-shrink: 0; cursor: pointer; backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
-html[data-look] :is(.view[data-v2], .v2f) :is(.rv2-chip, .evt-type-chip):hover:not(.is-on, .active) { background: var(--v2-solid); }
-html[data-look] :is(.view[data-v2], .v2f) :is(.rv2-chip, .evt-type-chip) em { font-style: normal; color: var(--v2-muted); font-variant-numeric: tabular-nums; }
-html[data-look] :is(.view[data-v2], .v2f) :is(.rv2-chip.is-on, .evt-type-chip.active) { background: var(--v2-accent); border-color: var(--v2-accent); color: var(--v2-accent-ink); font-weight: 600; }
-html[data-look] :is(.view[data-v2], .v2f) :is(.rv2-chip.is-on, .evt-type-chip.active) em { color: inherit; opacity: .75; }
-html[data-look="classico"] :is(.view[data-v2], .v2f) :is(.rv2-chip.is-on, .evt-type-chip.active) { background: #843424; border-color: #843424; color: #fff; }
-html[data-look] :is(.view[data-v2], .v2f) :is(.rv2-chip, .evt-type-chip):focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.rv2-chip, .evt-type-chip):hover:not(.is-on, .active) { background: var(--v2-solid); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.rv2-chip, .evt-type-chip) em { font-style: normal; color: var(--v2-muted); font-variant-numeric: tabular-nums; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.rv2-chip.is-on, .evt-type-chip.active) { background: var(--v2-accent); border-color: var(--v2-accent); color: var(--v2-accent-ink); font-weight: 600; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.rv2-chip.is-on, .evt-type-chip.active) em { color: inherit; opacity: .75; }
+html[data-look="classico"] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.rv2-chip.is-on, .evt-type-chip.active) { background: #843424; border-color: #843424; color: #fff; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.rv2-chip, .evt-type-chip):focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
 
 /* ── Campos, pesquisa e menus de escolha ── */
-html[data-look] :is(.view[data-v2], .v2f) :is(.form-control, .search-box, .m-search-box, .app-select-button) {
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.form-control, .search-box, .m-search-box, .app-select-button) {
   background: var(--v2-surface); border: 1px solid var(--v2-line); color: var(--v2-ink); border-radius: 999px; box-shadow: none;
   backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); font-family: var(--v2-font);
 }
-html[data-look] :is(.view[data-v2], .v2f) :is(textarea.form-control) { border-radius: var(--v2-radius-sm); }
-html[data-look] :is(.view[data-v2], .v2f) :is(.search-box, .m-search-box) input { background: transparent; color: var(--v2-ink); font-family: var(--v2-font); }
-html[data-look] :is(.view[data-v2], .v2f) :is(.search-box, .m-search-box) :is(i, svg) { color: var(--v2-soft); }
-html[data-look] :is(.view[data-v2], .v2f) ::placeholder { color: var(--v2-soft); }
-html[data-look] :is(.view[data-v2], .v2f) .app-select-button::after { border-color: var(--v2-muted); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(textarea.form-control) { border-radius: var(--v2-radius-sm); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.search-box, .m-search-box) input { background: transparent; color: var(--v2-ink); font-family: var(--v2-font); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.search-box, .m-search-box) :is(i, svg) { color: var(--v2-soft); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) ::placeholder { color: var(--v2-soft); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .app-select-button::after { border-color: var(--v2-muted); }
 /* Fundo opaco: dentro de um painel com desfoque o desfoque do menu não vê o
    que está por baixo do painel, e a lista transparecia. */
-html[data-look] :is(.view[data-v2], .v2f) .app-select-menu { background: linear-gradient(var(--v2-solid), var(--v2-solid)), var(--v2-bg); border: 1px solid var(--v2-line); border-radius: var(--v2-radius-sm); box-shadow: 0 18px 40px rgba(0, 0, 0, .18);
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .app-select-menu { background: linear-gradient(var(--v2-solid), var(--v2-solid)), var(--v2-bg); border: 1px solid var(--v2-line); border-radius: var(--v2-radius-sm); box-shadow: 0 18px 40px rgba(0, 0, 0, .18);
   backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); color: var(--v2-ink); }
-html[data-look] :is(.view[data-v2], .v2f) .app-select-option { color: var(--v2-ink); }
-html[data-look] :is(.view[data-v2], .v2f) :is(.app-select-option:hover, .app-select-option.is-selected) { background: var(--v2-accent-soft); color: var(--v2-ink); }
-html[data-look] :is(.view[data-v2], .v2f) .app-select-search { background: var(--v2-surface-2); color: var(--v2-ink); border-color: var(--v2-line); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .app-select-option { color: var(--v2-ink); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.app-select-option:hover, .app-select-option.is-selected) { background: var(--v2-accent-soft); color: var(--v2-ink); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .app-select-search { background: var(--v2-surface-2); color: var(--v2-ink); border-color: var(--v2-line); }
 
 /* ── Separadores (Cartão/Lista, Calendário/Timeline, …) ── */
-html[data-look] :is(.view[data-v2], .v2f) .cal-mode-toggle { background: var(--v2-surface-2); border: 1px solid var(--v2-line); border-radius: 999px; padding: 3px; box-shadow: none; }
-html[data-look] :is(.view[data-v2], .v2f) .cal-mode-pill { background: var(--v2-solid); border-radius: 999px; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
-html[data-look] :is(.view[data-v2], .v2f) .cal-mode-btn { color: var(--v2-muted); border-radius: 999px; font-family: var(--v2-font); font-weight: 500; }
-html[data-look] :is(.view[data-v2], .v2f) .cal-mode-btn.active { color: var(--v2-ink); background: transparent; font-weight: 600; }
-html[data-look] :is(.view[data-v2], .v2f) .page-toolbar-count { color: var(--v2-muted); }
-html[data-look] :is(.view[data-v2], .v2f) .page-toolbar-count strong { color: var(--v2-ink); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .cal-mode-toggle { background: var(--v2-surface-2); border: 1px solid var(--v2-line); border-radius: 999px; padding: 3px; box-shadow: none; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .cal-mode-pill { background: var(--v2-solid); border-radius: 999px; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .cal-mode-btn { color: var(--v2-muted); border-radius: 999px; font-family: var(--v2-font); font-weight: 500; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .cal-mode-btn.active { color: var(--v2-ink); background: transparent; font-weight: 600; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .page-toolbar-count { color: var(--v2-muted); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .page-toolbar-count strong { color: var(--v2-ink); }
 
 /* Separadores de página (.report-tabs: Eventos, Preços, Relatórios, …) em pílula. */
-html[data-look] :is(.view[data-v2], .v2f) .report-tabs { display: inline-flex; width: max-content; max-width: 100%; gap: 2px; padding: 3px; border: 1px solid var(--v2-line); border-radius: 999px; background: var(--v2-surface-2); }
-html[data-look] :is(.view[data-v2], .v2f) .report-tab { margin: 0; border: 0; border-radius: 999px; padding: 6px 14px; color: var(--v2-muted); background: transparent; font-weight: 500; }
-html[data-look] :is(.view[data-v2], .v2f) .report-tab:hover { color: var(--v2-ink); background: transparent; }
-html[data-look] :is(.view[data-v2], .v2f) .report-tab.active { color: var(--v2-ink); background: var(--v2-solid); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .report-tabs { display: inline-flex; width: max-content; max-width: 100%; gap: 2px; padding: 3px; border: 1px solid var(--v2-line); border-radius: 999px; background: var(--v2-surface-2); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .report-tab { margin: 0; border: 0; border-radius: 999px; padding: 6px 14px; color: var(--v2-muted); background: transparent; font-weight: 500; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .report-tab:hover { color: var(--v2-ink); background: transparent; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .report-tab.active { color: var(--v2-ink); background: var(--v2-solid); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
 
 /* ── Tabelas ── */
-html[data-look] :is(.view[data-v2], .v2f) table { color: var(--v2-ink); background: transparent; }
-html[data-look] :is(.view[data-v2], .v2f) table th { background: transparent; color: var(--v2-soft); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--v2-divider); }
-html[data-look] :is(.view[data-v2], .v2f) table td { border-bottom: 1px solid var(--v2-divider); background: transparent; color: var(--v2-ink); }
-html[data-look] :is(.view[data-v2], .v2f) table tbody tr:hover td { background: var(--v2-accent-soft); }
-html[data-look] :is(.view[data-v2], .v2f) .table-wrap { background: transparent; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) table { color: var(--v2-ink); background: transparent; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) table th { background: transparent; color: var(--v2-soft); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--v2-divider); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) table td { border-bottom: 1px solid var(--v2-divider); background: transparent; color: var(--v2-ink); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) table tbody tr:hover td { background: var(--v2-accent-soft); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .table-wrap { background: transparent; }
 
 /* ── Etiquetas de estado ── */
-html[data-look] :is(.view[data-v2], .v2f) .badge { border-radius: 999px; font-family: var(--v2-font); font-weight: 600; font-size: 11.5px; }
-html[data-look] :is(.view[data-v2], .v2f) :is(.badge-confirmada, .badge-pago) { background: var(--v2-ok-bg); color: var(--v2-ok); }
-html[data-look] :is(.view[data-v2], .v2f) :is(.badge-pendente, .badge-parcial) { background: var(--v2-warn-bg); color: var(--v2-warn); }
-html[data-look] :is(.view[data-v2], .v2f) :is(.badge-cancelada, .badge-pendpag) { background: var(--v2-bad-bg); color: var(--v2-bad); }
-html[data-look] :is(.view[data-v2], .v2f) :is(.badge-prereserva, .badge-checkout) { background: var(--v2-violet-bg); color: var(--v2-violet); }
-html[data-look] :is(.view[data-v2], .v2f) .badge-checkin { background: var(--v2-info-bg); color: var(--v2-info); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .badge { border-radius: 999px; font-family: var(--v2-font); font-weight: 600; font-size: 11.5px; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.badge-confirmada, .badge-pago) { background: var(--v2-ok-bg); color: var(--v2-ok); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.badge-pendente, .badge-parcial) { background: var(--v2-warn-bg); color: var(--v2-warn); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.badge-cancelada, .badge-pendpag) { background: var(--v2-bad-bg); color: var(--v2-bad); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.badge-prereserva, .badge-checkout) { background: var(--v2-violet-bg); color: var(--v2-violet); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .badge-checkin { background: var(--v2-info-bg); color: var(--v2-info); }
 
 /* Alojamento: ponto com a cor dele e o nome em texto normal. */
-html[data-look] :is(.view[data-v2], .v2f) .acc-chip { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: none; color: var(--v2-ink); font-weight: 500; }
-html[data-look] :is(.view[data-v2], .v2f) .acc-chip::before { content: ''; flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--acc); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .acc-chip { display: inline-flex; align-items: center; gap: 8px; padding: 0; border: 0; background: none; color: var(--v2-ink); font-weight: 500; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .acc-chip::before { content: ''; flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--acc); }
 
 /* ── Estados vazios e a carregar ── */
-html[data-look] :is(.view[data-v2], .v2f) :is(.empty-state, .loading) { color: var(--v2-muted); background: transparent; }
-html[data-look] :is(.view[data-v2], .v2f) .empty-state h3 { color: var(--v2-ink); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.empty-state, .loading) { color: var(--v2-muted); background: transparent; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .empty-state h3 { color: var(--v2-ink); }
 
 /* ── Folhas de filtros do telemóvel ── */
-html[data-look] :is(.view[data-v2], .v2f) .m-sheet { background: var(--v2-solid); color: var(--v2-ink); backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
-html[data-look] :is(.view[data-v2], .v2f) .m-sheet-header { color: var(--v2-ink); border-color: var(--v2-divider); }
-html[data-look] :is(.view[data-v2], .v2f) .m-sheet-close { color: var(--v2-muted); background: var(--v2-surface-2); }
-html[data-look] :is(.view[data-v2], .v2f) .m-filters-trigger { background: var(--v2-surface); color: var(--v2-ink); border: 1px solid var(--v2-line); border-radius: 999px; }
-html[data-look] :is(.view[data-v2], .v2f) :is(.chip, .mobile-filter-chips .chip) { background: var(--v2-surface); color: var(--v2-muted); border: 1px solid var(--v2-line); border-radius: 999px; }
-html[data-look] :is(.view[data-v2], .v2f) .chip.active { background: var(--v2-accent); color: var(--v2-accent-ink); border-color: var(--v2-accent); }
-html[data-look="classico"] :is(.view[data-v2], .v2f) .chip.active { background: #843424; color: #fff; border-color: #843424; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .m-sheet { background: var(--v2-solid); color: var(--v2-ink); backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .m-sheet-header { color: var(--v2-ink); border-color: var(--v2-divider); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .m-sheet-close { color: var(--v2-muted); background: var(--v2-surface-2); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .m-filters-trigger { background: var(--v2-surface); color: var(--v2-ink); border: 1px solid var(--v2-line); border-radius: 999px; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) :is(.chip, .mobile-filter-chips .chip) { background: var(--v2-surface); color: var(--v2-muted); border: 1px solid var(--v2-line); border-radius: 999px; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .chip.active { background: var(--v2-accent); color: var(--v2-accent-ink); border-color: var(--v2-accent); }
+html[data-look="classico"] :is(.view[data-v2], .v2f, .v2-tel .modal-bg) .chip.active { background: #843424; color: #fff; border-color: #843424; }
 
 /* Painéis laterais recolhíveis (Calendário, Notificações): entram da direita. */
 @keyframes v2PanelIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
