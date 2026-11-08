@@ -139,7 +139,7 @@ async function loadNotifications() {
   }
   renderNotifBadge();
   if (_notifOpen) renderNotifDropdown();
-  // A página Notificações e, no telemóvel da V2, a folha do sino.
+  // E a folha do sino (V2).
   if (document.getElementById('view-notificacoes')?.classList.contains('active') || document.getElementById('v2-sino')) renderNotificationsPage();
 }
 
