@@ -283,3 +283,9 @@ html[data-look] .modal-bg.v2-janela .modal-body[style*="flex"] { gap: 0 !importa
 html[data-look] #precos-period-modal-bg .form-group:has(#pp2-name) .form-label { display: none; }
 html[data-look] #precos-period-modal-bg #pp2-name.form-control { width: 100%; height: auto; margin-bottom: 14px; padding: 4px 0 10px; border: 0; border-bottom: 1.5px solid var(--v2-line); border-radius: 0; background: none; box-shadow: none;
   backdrop-filter: none; -webkit-backdrop-filter: none; color: var(--v2-ink); font: 600 22px var(--v2-head); }
+
+/* Título que já tinha ícone: fica só o da V2. */
+html[data-look] .modal-bg.v2-janela .modal-header:has(.v2-bigic) .modal-title > :is(svg, i[data-lucide]) { display: none; }
+/* Nova reserva no computador: os quartos com as cores da V2. */
+html[data-look] #suite-cards-grid .suite-card-opt { border-color: var(--v2-line); background: var(--v2-surface); color: var(--v2-ink); }
+html[data-look] #suite-cards-grid :is(.suite-card-name, .suite-card-price) { color: var(--v2-ink); font-family: var(--v2-font); }

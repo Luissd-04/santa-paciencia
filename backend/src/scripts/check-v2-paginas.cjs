@@ -492,8 +492,16 @@ async function main() {
   assert.equal(await page.locator('#manual-notification-date').inputValue(), dates.addDays(dates.localDay(), 1));
   assert.equal(await page.locator('#manual-notification-time').inputValue(), '09:00');
 
+  // Entrar (maqueta inter-08): ao sair, a página de entrar fica com o aspeto deste aparelho.
+  await page.goto(`${base}/`);
+  await page.locator('#mobile-menu-trigger').click();
+  await page.locator('.v2d-row .btn', { hasText: 'Sair' }).click();
+  await expect(page.locator('#auth-shell')).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('data-look', 'vidro');
+  assert.notEqual(await page.locator('.auth-card-premium').evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(255, 255, 255, 0.15)', 'página de entrar ainda na V1');
+
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha na V2), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto partida), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos, total gasto e ficha com resumo), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, a minha conta e avisos.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha na V2), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto partida), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos, total gasto e ficha com resumo), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, a minha conta e avisos; formulários grandes e página de entrar na V2.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {

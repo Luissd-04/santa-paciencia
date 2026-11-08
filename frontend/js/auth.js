@@ -209,8 +209,9 @@ function setAuthenticatedLayout(isAuthenticated) {
   if (layout) layout.style.display = isAuthenticated ? 'flex' : 'none';
   document.body.classList.toggle('auth-locked', !isAuthenticated);
   document.body.classList.toggle('auth-ready', isAuthenticated);
-  // Aspeto escolhido pela pessoa (Definições → Aparência); sem sessão, a V1.
-  window.AppAppearance?.apply(isAuthenticated ? AppModules.core.currentUser?.appearance : null);
+  // Aspeto escolhido pela pessoa (Definições → Aparência). Sem sessão fica o
+  // último deste aparelho: a página de entrar tem o mesmo aspeto.
+  if (isAuthenticated) window.AppAppearance?.apply(AppModules.core.currentUser?.appearance);
   if (isAuthenticated && document.documentElement.dataset.look) AppModules.core.ensureFeature('v2');
   updateUserBadge();
   updateOwnerUiVisibility();
