@@ -15,23 +15,22 @@ AppModules.define('alojamentos', {
 });
 
 async function openAlojCalendar() {
-  const gcalId = document.getElementById('aloj-gcal-id').value.trim();
-  if (gcalId) {
-    const url = 'https://calendar.google.com/calendar/r?cid=' + encodeURIComponent(gcalId);
-    window.open(url, '_blank');
-    return;
-  }
-  await openAlojCalendarDirect(document.getElementById('aloj-editing-id').value);
+  await openAlojCalendarDirect(document.getElementById('aloj-editing-id').value, document.getElementById('aloj-gcal-id').value.trim());
 }
 
-async function openAlojCalendarDirect(id, gcalId, nome) {
-  if (gcalId) {
+// Na V1 abre o Google Calendar da unidade, se tiver um; na V2 abre sempre o
+// calendário da plataforma, já filtrado por esta unidade.
+async function openAlojCalendarDirect(id, gcalId) {
+  if (gcalId && !document.documentElement.dataset.look) {
     window.open('https://calendar.google.com/calendar/r?cid=' + encodeURIComponent(gcalId), '_blank');
     return;
   }
   await AppModules.core.showView('calendario');
   const sel = document.getElementById('cal-suite-filter');
-  if (sel && typeof AppModules.calendario.renderCal === 'function') { sel.value = id; AppModules.calendario.renderCal(); }
+  if (!sel || ![...sel.options].some(o => o.value === String(id))) return;
+  sel.value = String(id);
+  // O `change` atualiza o botão do filtro e volta a desenhar o calendário.
+  sel.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 async function deleteAlojamento() {

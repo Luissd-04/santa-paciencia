@@ -320,6 +320,14 @@ for (const relPath of viewAssets) {
   if (!viewMarkupPaths.has(relPath)) throw new Error(`Service worker: VIEW_ASSETS lista um fragmento que já não está em VIEW_MARKUP — ${relPath}`);
 }
 
+// Miniaturas: o frontend só pede larguras que o servidor gera (um `?w=` fora
+// da lista dá 400 e a foto não aparece).
+const thumbSource = fs.readFileSync(path.join(frontend, 'js/helpers.js'), 'utf8').match(/const THUMB_WIDTHS = (\[[^\]]*\]);/);
+const serverThumbs = [...require('../services/imageOptimizer').THUMB_WIDTHS].sort((a, b) => a - b);
+if (!thumbSource || JSON.stringify(JSON.parse(thumbSource[1])) !== JSON.stringify(serverThumbs)) {
+  throw new Error(`Miniaturas: THUMB_WIDTHS de helpers.js difere do servidor (${serverThumbs.join(', ')})`);
+}
+
 require('./check-frontend-modules.cjs').checkFrontendModules(frontend);
 
-console.log(`${checked} ficheiros JavaScript: sintaxe válida; recursos HTML, registo de funcionalidades (${Object.keys(FEATURE_MODULES).length}), ordem dos módulos, ações registadas, listas do service worker e versões das bibliotecas externas verificados.`);
+console.log(`${checked} ficheiros JavaScript: sintaxe válida; recursos HTML, registo de funcionalidades (${Object.keys(FEATURE_MODULES).length}), ordem dos módulos, ações registadas, listas do service worker, larguras das miniaturas e versões das bibliotecas externas verificados.`);
