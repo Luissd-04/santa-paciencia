@@ -235,11 +235,15 @@ router.get('/email/attachment', requireAuth, requireRole('manager'), async (req,
       url: `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(message_id)}/attachments/${encodeURIComponent(attachment_id)}`,
     });
     const buf = Buffer.from(String(r.data.data || '').replace(/-/g, '+').replace(/_/g, '/'), 'base64');
-    const safeName = String(filename || 'anexo').replace(/[\r\n"]/g, '');
-    res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
-    res.send(buf);
+    // O anexo vem de quem escreveu ao alojamento: sai como dados (sem
+    // adivinhar o tipo) e, se o browser o mostrar, numa caixa isolada sem
+    // scripts nem acesso à sessão.
+    const safeName = String(filename || 'anexo').replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '');
+    res.setHeader('Content-Disposition', `inline; filename="${safeName}"; filename*=UTF-8''${encodeURIComponent(String(filename || 'anexo'))}`);
+    res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'");
+    res.type('application/octet-stream').send(buf);
   } catch (err) {
-    res.status([400, 409].includes(err.status) ? err.status : 502).json({ success: false, error: [400, 409].includes(err.status) ? err.message : 'Não foi possível confirmar o envio no Gmail. Verifique Enviados antes de repetir.' });
+    res.status([400, 409].includes(err.status) ? err.status : 502).json({ success: false, error: [400, 409].includes(err.status) ? err.message : 'Não foi possível abrir o anexo no Gmail. Tente novamente.' });
   }
 });
 

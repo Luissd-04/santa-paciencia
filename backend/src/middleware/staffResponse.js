@@ -1,5 +1,7 @@
 // Bearer capabilities must never be exposed by a read-only team response.
-const hidden = new Set(['public_token', 'precheckin_token', 'pre_checkin_url', 'public_url', 'stripe_customer_id', 'stripe_payment_method_id', 'policy_auto_consent']);
+// Os links iCal das plataformas também são credenciais (abrem o calendário).
+const hidden = new Set(['public_token', 'precheckin_token', 'pre_checkin_url', 'public_url', 'stripe_customer_id', 'stripe_payment_method_id', 'policy_auto_consent',
+  'airbnb_ical_url', 'booking_ical_url']);
 function redact(value) {
   if (Array.isArray(value)) return value.map(redact);
   if (!value || typeof value !== 'object') return value;

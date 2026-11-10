@@ -1,7 +1,7 @@
 # Segurança
 
 Estado dos controlos e processo de reporte, com riscos conhecidos atualizados
-em 8 de outubro de 2026.
+em 10 de novembro de 2026.
 
 ## Reportar uma vulnerabilidade
 
@@ -36,7 +36,9 @@ Usar sempre dados sintéticos nos testes.
   apagar hóspedes e alterar definições da organização exige `manager`;
 - validação de origem, CORS restrito e cookies seguros em produção;
 - Helmet/CSP com JavaScript inline bloqueado;
-- rate limiting em autenticação e fluxos públicos;
+- rate limiting em autenticação e fluxos públicos, por IP real do visitante
+  (atrás do Docker e do Cloudflare Tunnel, ver `TRUST_PROXY`), com limite
+  adicional por conta no login e um teto geral nas rotas públicas;
 - `Cache-Control: no-store` em respostas autenticadas e de API;
 - uploads de recibos privados, autenticados e filtrados pela organização;
 - tokens Google encriptados com AES-256-GCM;
@@ -49,18 +51,36 @@ Usar sempre dados sintéticos nos testes.
 - uploads de imagens, talões e backups validados por magic bytes; importação de
   backups aceita apenas imagens;
 - subscrições push restritas aos serviços de push dos browsers (sem SSRF);
-- login com tempo de resposta independente da existência da conta;
+- login e recuperação de palavra-passe com resposta independente da
+  existência da conta;
+- anexos de emails recebidos servidos como dados, com CSP `sandbox`;
+- staff sem acesso a tokens de reservas nem aos links iCal das plataformas;
 - limites de tamanho distintos para JSON, uploads e importação de backups;
 - containers sem privilégios, filesystem read-only e porta ligada ao loopback;
 - testes automatizados de autenticação, isolamento, CSP, dependências e HTTP.
 
 Os controlos reduzem risco; não substituem revisão, monitorização, backups e
-gestão de incidentes. A revisão local de 8 de outubro confirmou exposição de
-tokens de reserva a staff que permite contornar a autorização de cancelamento,
-injeção de cabeçalhos MIME e dependências com avisos publicados. Estes problemas
-continuam por corrigir. Evidência e condições de exposição estão no
-[relatório de revisão](docs/REVISAO-2026-10-08.md); prioridades e restantes riscos
-estão em [Melhorias técnicas](docs/MELHORIAS.md).
+gestão de incidentes.
+
+Os problemas da [revisão de 8 de outubro](docs/REVISAO-2026-10-08.md) estão
+corrigidos e verificados no código a 10 de novembro: tokens escondidos de
+staff (S01), cabeçalhos MIME validados no transporte (S02), `npm audit` sem
+avisos (S03), convites e recuperação com hash, limites por conta e confirmação
+do novo email (S04), `state` OAuth de uso único (S05), CSV sem fórmulas (S06) e
+imagens validadas por completo (S07).
+
+A revisão de 10 de novembro encontrou e corrigiu: com o Compose de produção,
+o pedido chega ao contentor pelo gateway da rede Docker, não pelo loopback, e
+`TRUST_PROXY=loopback` fazia todos os visitantes partilharem o mesmo IP (os
+limites de login, reservas e pré-check-in ficavam globais, um atacante
+bloqueava-os a todos, e os IPs de consentimento RGPD ficavam errados). Depois
+de publicar, confirmar em «A minha conta → Sessões» que cada sessão mostra o
+IP real e não `172.x`.
+
+Recomendações ainda por implementar: segundo fator (TOTP) para proprietários;
+regras de rate limiting/WAF no Cloudflare como primeira barreira; cópias de
+segurança fora do servidor com ensaio de restauro periódico; mencionar o OCR de
+talões (Anthropic) entre os subcontratantes no texto RGPD.
 
 ## Segredos e chaves
 
@@ -76,7 +96,8 @@ OAuth existentes inutilizáveis.
 ## Checklist de produção
 
 - `PUBLIC_APP_URL` é HTTPS e corresponde ao domínio público;
-- `TRUST_PROXY` identifica apenas os proxies controlados;
+- `TRUST_PROXY` identifica apenas os proxies controlados (no Compose,
+  `loopback,uniquelocal`: o cloudflared chega pelo gateway da rede Docker);
 - `COOKIE_SECURE` está ativo por configuração ou por `NODE_ENV=production`;
 - Turnstile está configurado para o hostname correto;
 - Stripe: modo, chave e segredo de webhook pertencem ao mesmo ambiente;

@@ -67,6 +67,24 @@ const oauthCallbackLimiter = rateLimit({
   message: { success: false, error: 'Demasiadas tentativas. Tenta novamente em 15 minutos.' },
 });
 
+// Login por conta, venham as tentativas de onde vierem (ataque distribuído
+// por muitos IPs). 50 palavras-passe erradas por hora: um só IP não chega lá
+// (o limite por IP são 10 em 15 minutos), por isso não serve para bloquear a
+// conta de alguém de propósito.
+const loginAccountLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, max: 50, standardHeaders: true, legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  keyGenerator: req => `conta:${String(req.body?.email || '').trim().toLowerCase()}`,
+  message: { success: false, error: 'Demasiadas tentativas nesta conta. Tenta novamente mais tarde.' },
+});
+
+// Todas as rotas públicas (página de reservas, estado, pré-check-in): um teto
+// largo por IP contra recolha automática e excesso de pedidos.
+const publicApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, max: 600, standardHeaders: true, legacyHeaders: false,
+  message: { success: false, error: 'Demasiados pedidos. Tenta novamente mais tarde.' },
+});
+
 const sensitiveAccountLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false,
   keyGenerator: req => req.user.id,
@@ -78,6 +96,6 @@ const receiptLimiter = rateLimit({
   message: { success: false, error: 'Limite de leitura de talões atingido. Tente mais tarde.' },
 });
 module.exports = {
-  sensitiveAccountLimiter, receiptLimiter, loginLimiter, publicBookingLimiter, voucherLimiter, preCheckinLookupLimiter,
+  sensitiveAccountLimiter, receiptLimiter, loginLimiter, loginAccountLimiter, publicApiLimiter, publicBookingLimiter, voucherLimiter, preCheckinLookupLimiter,
   preCheckinSubmitLimiter, forgotPasswordLimiter, oauthCallbackLimiter,
 };

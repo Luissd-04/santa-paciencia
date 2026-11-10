@@ -12,7 +12,8 @@ em produção são:
 - `APP_BIND_IP`, no ficheiro `.env` da raiz, quando o Cloudflare Tunnel aponta
   para um IP do servidor em vez de `127.0.0.1`;
 - `PUBLIC_APP_URL` com origem HTTPS canónica;
-- `TRUST_PROXY` limitado aos proxies realmente controlados;
+- `TRUST_PROXY` limitado aos proxies realmente controlados (`loopback,uniquelocal`
+  no Compose: dentro do contentor o cloudflared chega pelo gateway Docker);
 - `DB_PATH` e `FRONTEND_PATH`;
 - credenciais Google e os três redirect URIs, quando a integração está ativa;
 - chaves Turnstile para aceitar reservas públicas;
