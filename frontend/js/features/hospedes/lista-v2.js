@@ -3,13 +3,17 @@
 // lista com iniciais, etiqueta, email, país, telefone, estadias, última
 // visita e total gasto (cartões no telemóvel). Os dados, a pesquisa, a ordem e
 // a paginação são os da V1 (hospedes.js, lista.js); o segmento vai ao servidor.
+// As fichas da mesma pessoa (mesmo email ou telefone e nome) ficam numa linha,
+// com as estadias e o total somados; «N fichas» abre a lista delas.
 (() => {
 AppModules.define('hospedes', {
   hospedesSegment: { get: () => () => (isV2() ? segment : '') },
+  hospedesGrouped: { get: () => isV2 },
   renderHospedesV2: { get: () => renderHospedesV2 },
 });
 
 let segment = '';
+const abertas = new Set();   // pessoas com as fichas à vista
 const isV2 = () => Boolean(document.documentElement?.dataset?.look);
 const SEGMENTS = [['', 'Todos'], ['repeat', 'Repetentes'], ['vip', 'VIP'], ['foreign', 'Estrangeiros']];
 // [coluna da ordem, título]
@@ -22,7 +26,7 @@ function kpisHtml(summary, loading) {
   const top = summary.top_country;
   const kpi = (icon, label, value, sub) => `<div class="kpi-card hv2-kpi"><div class="kpi-label">${core.lcIcon(icon, 15)} ${label}</div><div class="kpi-value">${value}</div><div class="kpi-sub">${sub}</div></div>`;
   return [
-    kpi('users', 'Hóspedes', n('total'), 'com pelo menos uma reserva ou registo'),
+    kpi('users', 'Hóspedes', n('total'), 'pessoas; fichas repetidas contam uma vez'),
     kpi('repeat', 'Repetentes', n('repeat'), `${pct(summary.repeat, summary.total)}% do total`),
     kpi('globe', 'Países', n('countries'), top ? `${core.escapeHtml(top.country)} ${top.share}%` : 'sem país indicado'),
     kpi('star', 'VIP', n('vip'), 'VIP e favoritos'),
@@ -47,15 +51,29 @@ function rowHtml(g) {
   const H = AppModules.hospedes;
   const email = core.realEmail(g.email) || g.email_personal || '';
   const stays = Number(g.reservation_count) || 0;
-  return `<div class="hv2-row" role="button" tabindex="0" ${core.KEY_ACTIVATE} ${AppActions.attrs('click', 'lista-show-hospede-detail-4ac247d', [String(g.id)])}>
-      <span class="hv2-who"><span class="v2-av">${esc(core.initials(g.name))}</span><span class="hv2-who-text"><b>${esc(g.name)} ${tagHtml(g)}</b><small>${esc(email || '—')}</small></span></span>
+  const fichas = Number(g.record_count) || 1;
+  const aberta = abertas.has(g.group_id);
+  return `<div class="hv2-row${aberta ? ' is-open' : ''}" role="button" tabindex="0" ${core.KEY_ACTIVATE} ${AppActions.attrs('click', 'lista-show-hospede-detail-4ac247d', [String(g.id)])}>
+      <span class="hv2-who"><span class="v2-av">${esc(core.initials(g.name))}</span><span class="hv2-who-text"><b>${esc(g.name)} ${tagHtml(g)}${fichas > 1 ? ` <button type="button" class="hv2-fichas" aria-expanded="${aberta}" title="Fichas da mesma pessoa: mesmo email ou telefone" ${AppActions.attrs('click', 'hospedes-v2-fichas', [String(g.group_id)])}>${fichas} fichas ${core.lcIcon(aberta ? 'chevron-up' : 'chevron-down', 13)}</button>` : ''}</b><small>${esc(email || '—')}</small></span></span>
       <span class="hv2-country">${H.flagImg(g, 20)}<span>${esc(g.country_label || '—')}</span></span>
       <span class="hv2-muted">${esc(g.phone || '—')}</span>
       <span>${stays}</span>
       <span class="hv2-muted">${g.last_check_in ? H.formatShortDate(g.last_check_in) : '—'}</span>
       <span class="hv2-total">${ReservationMoney.format(g.total_spent || 0)}</span>
       <span class="hv2-sub">${H.flagImg(g, 16)} ${esc(g.country_label || 'Sem país')} · ${stays} estadia${stays === 1 ? '' : 's'}</span>
-    </div>`;
+    </div>${aberta ? fichasHtml(g.records || []) : ''}`;
+}
+
+// As fichas de uma pessoa: tocar numa abre-a.
+function fichasHtml(records) {
+  const core = AppModules.core;
+  const esc = core.escapeHtml;
+  return `<div class="hv2-fichas-list">${records.map(r => {
+    const n = Number(r.reservation_count) || 0;
+    return `<div class="hv2-ficha" role="button" tabindex="0" ${core.KEY_ACTIVATE} ${AppActions.attrs('click', 'lista-show-hospede-detail-4ac247d', [String(r.id)])}>
+      <b>${esc(r.name)}</b><span>${esc([core.realEmail(r.email), r.phone].filter(Boolean).join(' · ') || 'sem contacto')}</span>
+      <span>${n} estadia${n === 1 ? '' : 's'} · ${ReservationMoney.format(r.total_spent || 0)}</span></div>`;
+  }).join('')}</div>`;
 }
 
 function renderHospedesV2() {
@@ -83,8 +101,10 @@ function renderHospedesV2() {
 AppActions.register({
   'hospedes-v2-segmento': (el, event, args) => { segment = args[0]; AppModules.hospedes.renderHospedes() },
   'hospedes-v2-ordem': (el, event, args) => { AppModules.hospedes.sortHospedes(args[0]) },
+  // Abrir as fichas não abre a ficha da linha.
+  'hospedes-v2-fichas': (el, event, [id]) => { event.stopPropagation(); if (!abertas.delete(id)) abertas.add(id); renderHospedesV2(); },
 }, 'click');
 
-AppModules.onReset('features/hospedes/lista-v2.js', () => { segment = ''; });
+AppModules.onReset('features/hospedes/lista-v2.js', () => { segment = ''; abertas.clear(); });
 
 })();

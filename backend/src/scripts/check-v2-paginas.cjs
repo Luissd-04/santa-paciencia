@@ -327,11 +327,21 @@ async function main() {
   // Hóspedes: números, filtros rápidos (o segmento vai ao servidor) e a lista
   // com país, estadias e total gasto.
   db.prepare("UPDATE guests SET country='Espanha' WHERE id='g-depois'").run();
+  // Uma segunda ficha da Beatriz (outro pedido, mesmo email): fica na mesma linha.
+  db.prepare(`INSERT INTO guests(id,organization_id,name,email) VALUES('g-chega-2',?,'Beatriz Pinheiro Pinto','CHEGA@example.invalid')`).run(org.id);
   await page.goto(`${base}/hospedes`);
   const guestRows = page.locator('#hv2-list .hv2-row');
   await expect(guestRows).toHaveCount(2);
   await expect(page.locator('#hv2-kpis .hv2-kpi').nth(2)).toContainText('Espanha 50%');
   await expect(guestRows.filter({ hasText: 'Beatriz Pinto' }).locator('.hv2-total')).toHaveText('200,00 €');
+  const fichasBtn = guestRows.filter({ hasText: 'Beatriz Pinto' }).locator('.hv2-fichas');
+  await expect(fichasBtn).toContainText('2 fichas');
+  await fichasBtn.click();
+  await expect(page.locator('#hv2-list .hv2-fichas-list .hv2-ficha')).toHaveCount(2);
+  await expect(page.locator('#hv2-list .hv2-fichas-list')).toContainText('Beatriz Pinheiro Pinto');
+  await expect(page.locator('#view-hospedes')).toBeVisible();
+  await fichasBtn.click();
+  await expect(page.locator('#hv2-list .hv2-fichas-list')).toHaveCount(0);
   await page.locator('#hv2-chips .rv2-chip', { hasText: 'Estrangeiros' }).click();
   await expect(guestRows).toHaveCount(1);
   await expect(guestRows.first()).toContainText('Rui Marques');
@@ -346,6 +356,8 @@ async function main() {
   await expect(fichaH.locator('.hf2-kpi')).toHaveCount(4);
   await expect(fichaH.locator('.hf2-grid > .hf2-card .hf2-res')).toHaveCount(1);
   await expect(page.locator('#view-hospede-detalhe > section.card')).toBeHidden();
+  await expect(fichaH.locator('.hf2-outras')).toContainText('Beatriz Pinheiro Pinto');
+  await expect(fichaH.locator('.hf2-outras')).toContainText('0 estadias');
   const msgs = page.locator('#hf2-msgs');
   await expect(msgs.locator('.hf2-res')).toHaveCount(1);
   await expect(msgs).toContainText('Confirmação da reserva');
@@ -644,7 +656,7 @@ async function main() {
   assert.notEqual(await page.locator('.auth-card-premium').evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(255, 255, 255, 0.15)', 'página de entrar ainda na V1');
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha na V2), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto de capa, foto partida, «Calendário» da plataforma; configurações com menu de secções, visão geral das unidades, o que herdam e «Alterações por guardar»), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos, total gasto e ficha com resumo, notas e últimas mensagens), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, a minha conta e avisos (com «Abrir» no que se criou); formulários grandes e página de entrar na V2; nova reserva no computador em quatro passos com o resumo ao lado.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha na V2), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto de capa, foto partida, «Calendário» da plataforma; configurações com menu de secções, visão geral das unidades, o que herdam e «Alterações por guardar»), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos, total gasto, fichas da mesma pessoa numa linha, e ficha com resumo, outras fichas, notas e últimas mensagens), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, a minha conta e avisos (com «Abrir» no que se criou); formulários grandes e página de entrar na V2; nova reserva no computador em quatro passos com o resumo ao lado.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {

@@ -1,7 +1,8 @@
 // Hóspede na V2 (maqueta inter-02): por cima do formulário, o resumo — quem
 // é (iniciais, VIP, país, email, telefone, repetente), quatro números
 // (estadias, total gasto, última visita e próxima estadia), as reservas e os
-// dados pessoais, as notas da equipa e as últimas mensagens enviadas. O
+// dados pessoais, as notas da equipa, as outras fichas da mesma pessoa e as
+// últimas mensagens enviadas. O
 // formulário da V1 fica escondido até «Editar». Os dados são os que a ficha
 // já carrega (/api/guests/:id), mais as mensagens; na V1 nada muda.
 (() => {
@@ -78,6 +79,7 @@ function renderFichaV2(g) {
         <div class="card hf2-card hf2-notes"><div class="hf2-card-h"><h3>Notas</h3>
           <button type="button" class="btn btn-ghost btn-sm" data-on-click="hospedes-v2-editar-notas">${core.lcIcon('pencil', 14)} ${g.notes ? 'Editar' : 'Adicionar'}</button></div>
           ${g.notes ? `<p class="hf2-note">${esc(g.notes)}</p>` : '<p class="hf2-empty">Sem notas. Alergias, preferências ou pedidos habituais ficam aqui e aparecem na ficha de cada reserva.</p>'}</div>
+        ${outrasHtml(g.related || [])}
         <div class="card hf2-card"><div class="hf2-card-h"><h3>Dados pessoais</h3></div>
           ${pessoais.length ? pessoais.map(([k, v]) => `<div class="hf2-row"><span>${k}</span><b>${esc(v)}</b></div>`).join('') : '<p class="hf2-empty">Sem dados pessoais.</p>'}</div>
         ${email && core.currentUser?.role !== 'staff' ? '<div class="card hf2-card" id="hf2-msgs"><div class="hf2-card-h"><h3>Últimas mensagens</h3></div><p class="hf2-empty">A carregar…</p></div>' : ''}
@@ -85,6 +87,23 @@ function renderFichaV2(g) {
     </div>`;
   if (window.lucide) lucide.createIcons();
   if (email && core.currentUser?.role !== 'staff') loadMensagens(g.id, email, nome);
+}
+
+// Outras fichas da mesma pessoa (mesmo email ou telefone e nome): só para
+// ver e abrir; cada uma continua com os seus dados.
+function outrasHtml(related) {
+  if (!related.length) return '';
+  const core = AppModules.core;
+  const esc = core.escapeHtml;
+  return `<div class="card hf2-card hf2-outras"><div class="hf2-card-h"><h3>Outras fichas</h3><span>${related.length}</span></div>
+      <p class="hf2-empty">A mesma pessoa noutros pedidos (mesmo email ou telefone).</p>
+      ${related.map(r => {
+        const n = Number(r.reservation_count) || 0;
+        return `<div class="hf2-res" role="button" tabindex="0" ${core.KEY_ACTIVATE} ${AppActions.attrs('click', 'lista-show-hospede-detail-4ac247d', [String(r.id)])}>
+          <span class="hf2-ic">${core.lcIcon('user-round', 16)}</span>
+          <span class="hf2-res-t"><b>${esc(r.name)}</b><small>${esc([core.realEmail(r.email), r.phone].filter(Boolean).join(' · ') || 'sem contacto')}</small></span>
+          <b class="hf2-res-v">${n} estadia${n === 1 ? '' : 's'}</b></div>`;
+      }).join('')}</div>`;
 }
 
 // As três últimas mensagens enviadas a este email (o histórico das Mensagens).

@@ -25,7 +25,9 @@ function getHospedesQuery() {
   const search = document.getElementById('hospedes-search')?.value.trim() || '';
   // V2: segmento dos filtros rápidos (features/hospedes/lista-v2.js).
   const segment = AppModules.hospedes.hospedesSegment?.() || '';
-  return { search, sort: hospedesSortCol, direction: hospedesSortAsc ? 'asc' : 'desc', ...(segment ? { segment } : {}) };
+  // V2: as fichas da mesma pessoa numa linha.
+  const group = AppModules.hospedes.hospedesGrouped?.() ? { group: '1' } : {};
+  return { search, sort: hospedesSortCol, direction: hospedesSortAsc ? 'asc' : 'desc', ...(segment ? { segment } : {}), ...group };
 }
 
 // Limpeza da funcionalidade ao sair ou trocar de organização.

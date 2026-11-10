@@ -236,3 +236,40 @@ test('exportação recusa páginas inconsistentes após alteração dos dados', 
   const truncated = browser(async () => ({ data: [{ id: 'only-one' }], pagination: { total: 2, page: 1, has_more: false } }));
   await assert.rejects(vm.runInContext('apiGetAllPages("/api/guests")', truncated), /não recebeu todos/);
 });
+test('hóspedes agrupados: fichas da mesma pessoa numa linha, sem juntar pessoas diferentes', () => {
+  db.exec(`INSERT INTO organizations(id,name,slug) VALUES('dup','Dup','dup');
+    INSERT INTO accommodations(id,organization_id,name,type) VALUES('dup-unit','dup','Dup Unit','alojamento');
+    INSERT INTO guests(id,organization_id,name,email,phone,created_at) VALUES
+      ('bp1','dup','Beatriz Pinto','beatriz.p@example.invalid','926000001','2026-01-01'),
+      ('bp2','dup','Beatriz Pinto','BEATRIZ.P@example.invalid','933000002','2026-02-01'),
+      ('bp3','dup','Beatriz Pinheiro Pinto','beatriz.p@example.invalid','926000001','2026-03-01'),
+      ('bp4','dup','Beatriz Pinto','guest_x@sem-email.local','+351 933 000 002','2026-04-01'),
+      ('ag1','dup','Rui Marques','reservas@agencia.invalid',NULL,'2026-01-01'),
+      ('ag2','dup','Ana Costa','reservas@agencia.invalid',NULL,'2026-01-01');
+    INSERT INTO reservations(id,organization_id,guest_id,accommodation_id,check_in,check_out,nights,num_guests,total_amount,status) VALUES
+      ('bp-r','dup','bp2','dup-unit','2026-11-21','2026-11-23',2,2,280,'confirmada'),
+      ('ag-r','dup','ag1','dup-unit','2026-11-01','2026-11-02',1,1,90,'confirmada');`);
+  // Sem agrupar (V1), tudo como antes.
+  assert.equal(listGuests('dup').pagination.total, 6);
+  const grouped = listGuests('dup', { group: '1' });
+  // As quatro Beatrizes (email igual, telefone com e sem indicativo) numa linha;
+  // a agência com o mesmo email mas nomes diferentes fica separada.
+  assert.equal(grouped.pagination.total, 3);
+  assert.equal(grouped.summary.total, 3);
+  const beatriz = grouped.data.find(row => row.record_count > 1);
+  assert.equal(beatriz.id, 'bp2', 'a ficha principal é a que tem estadias');
+  assert.equal(beatriz.record_count, 4);
+  assert.equal(beatriz.reservation_count, 1);
+  assert.equal(beatriz.total_spent, 280);
+  assert.deepEqual(beatriz.records.map(r => r.id), ['bp2', 'bp4', 'bp3', 'bp1']);
+  assert.equal(beatriz.records[0].reservation_count, 1);
+  // A pesquisa encontra a pessoa por qualquer ficha.
+  const search = listGuests('dup', { group: '1', search: 'Pinheiro' });
+  assert.equal(search.pagination.total, 1);
+  assert.equal(search.data[0].id, 'bp2');
+  assert.equal(listGuests('dup', { group: '1', segment: 'repeat' }).pagination.total, 0);
+  // Na ficha de uma delas, as outras.
+  const related = require('../services/guestGroups').relatedGuests('dup', 'bp3');
+  assert.deepEqual(related.map(r => r.id).sort(), ['bp1', 'bp2', 'bp4']);
+  assert.deepEqual(require('../services/guestGroups').relatedGuests('dup', 'ag1'), []);
+});
