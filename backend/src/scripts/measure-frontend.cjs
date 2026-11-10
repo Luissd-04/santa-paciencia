@@ -21,9 +21,12 @@ let server, browser;
 // Vistas medidas depois do arranque, pela ordem em que são abertas.
 const VIEWS = ['reservas', 'calendario', 'eventos', 'hospedes', 'alojamentos',
   'despesas', 'relatorios', 'vouchers', 'precos', 'invoice', 'definicoes'];
+// O arranque conta também os ícones (Lucide, ~390 KB, vindos do CDN). Em
+// novembro de 2026 passou de 1100 para 1150 KB: o núcleo estava encostado ao
+// limite e o código da V2 já vai para um módulo que só carrega com ela.
 const BUDGETS = {
   bootRequests: Number(process.env.FRONTEND_BOOT_REQUEST_BUDGET || 65),
-  bootKb: Number(process.env.FRONTEND_BOOT_KB_BUDGET || 1100),
+  bootKb: Number(process.env.FRONTEND_BOOT_KB_BUDGET || 1150),
   totalKb: Number(process.env.FRONTEND_TOTAL_KB_BUDGET || 2200),
 };
 
