@@ -280,6 +280,49 @@ async function main() {
   await page.goto(`${base}/alojamentos`);
   await roomCard.locator('h3').click();
   await expect(page.locator('#view-alojamento-detalhe')).toBeVisible();
+  // Configurações (maquetas ap e as1–as3): cabeçalho com a capa, menu de
+  // secções em vez dos separadores; um alojamento sem pai abre na visão geral.
+  const det = page.locator('#view-alojamento-detalhe');
+  await expect(det).toHaveClass(/acfg-on/);
+  await expect(det.locator('.aloj-tabs')).toBeHidden();
+  await expect(det.locator('.acfg-head h2')).toHaveText('Suite Oliveira');
+  await expect(det.locator('.acfg-i[aria-current="true"]')).toContainText('Visão geral');
+  await expect(det.locator('.acfg-visao')).toContainText('Ainda sem unidades');
+  await expect(det.locator('#aloj-nome')).toBeHidden();
+  // Com uma unidade: aparece na visão geral e abre com o que herda ao lado.
+  db.prepare(`INSERT INTO accommodations(id,organization_id,name,type,parent_id,price_per_night,max_guests)
+    VALUES('u9',?,'Quarto Figueira','quarto','u',80,2)`).run(org.id);
+  db.prepare("UPDATE accommodations SET wifi_name='Oliveira-WiFi', checkin_time='16:00' WHERE id='u'").run();
+  await page.goto(`${base}/alojamentos`);
+  // Com unidades, o alojamento passa a ser o cabeçalho do grupo.
+  await page.locator('#aloj-v2 .av2-group-h', { hasText: 'Suite Oliveira' }).getByRole('button', { name: 'Editar alojamento' }).click();
+  const unidade = det.locator('.acfg-unit', { hasText: 'Quarto Figueira' });
+  await expect(unidade).toContainText('2 hóspedes');
+  await unidade.getByRole('button', { name: 'Editar' }).click();
+  await expect(det.locator('.acfg-head h2')).toHaveText('Quarto Figueira');
+  await expect(det.locator('.acfg-crumb')).toContainText('Suite Oliveira');
+  const herdado = det.locator('.acfg-side');
+  await expect(herdado).toContainText('Vem de Suite Oliveira');
+  await expect(herdado).toContainText('Oliveira-WiFi');
+  await expect(det.locator('.acfg-i[aria-current="true"]')).toContainText('Geral');
+  await expect(det.locator('#aloj-nome')).toBeVisible();
+  await expect(det.locator('#aloj-preco')).toBeHidden();
+  await det.locator('.acfg-i', { hasText: 'Capacidade e preço' }).click();
+  await expect(det.locator('#aloj-preco')).toBeVisible();
+  await expect(det.locator('#aloj-nome')).toBeHidden();
+  await det.locator('.acfg-i', { hasText: 'Fotos' }).click();
+  await expect(det.locator('#aloj-tab-imagens')).toBeVisible();
+  await expect(det.locator('#aloj-preco')).toBeHidden();
+  // Alterar mostra «Alterações por guardar»; guardar grava e fica na mesma secção.
+  await det.locator('.acfg-i', { hasText: 'Capacidade e preço' }).click();
+  await expect(det.locator('.acfg-save')).toBeHidden();
+  await det.locator('#aloj-preco').fill('85');
+  await expect(det.locator('.acfg-save')).toBeVisible();
+  await det.locator('.acfg-save').getByRole('button', { name: 'Guardar' }).click();
+  await expect.poll(() => db.prepare("SELECT price_per_night FROM accommodations WHERE id='u9'").get().price_per_night).toBe(85);
+  await expect(det.locator('.acfg-save')).toBeHidden();
+  await expect(det.locator('.acfg-i[aria-current="true"]')).toContainText('Capacidade e preço');
+  db.prepare("DELETE FROM accommodations WHERE id='u9'").run();
 
   // Hóspedes: números, filtros rápidos (o segmento vai ao servidor) e a lista
   // com país, estadias e total gasto.
@@ -601,7 +644,7 @@ async function main() {
   assert.notEqual(await page.locator('.auth-card-premium').evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(255, 255, 255, 0.15)', 'página de entrar ainda na V1');
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha na V2), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto de capa, foto partida, «Calendário» da plataforma), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos, total gasto e ficha com resumo, notas e últimas mensagens), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, a minha conta e avisos (com «Abrir» no que se criou); formulários grandes e página de entrar na V2; nova reserva no computador em quatro passos com o resumo ao lado.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha na V2), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto de capa, foto partida, «Calendário» da plataforma; configurações com menu de secções, visão geral das unidades, o que herdam e «Alterações por guardar»), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos, total gasto e ficha com resumo, notas e últimas mensagens), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, a minha conta e avisos (com «Abrir» no que se criou); formulários grandes e página de entrar na V2; nova reserva no computador em quatro passos com o resumo ao lado.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {

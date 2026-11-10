@@ -46,7 +46,7 @@
 
           <!-- Linha 1: Informação / Layout -->
           <div style="display:grid;grid-template-columns:1fr;gap:24px;margin-bottom:24px;">
-            <div class="card">
+            <div class="card" data-acfg="geral">
               <div class="card-header">
                 <span class="card-title" style="font-size:14px;">
                   <i data-lucide="map-pin"></i> Informação do alojamento
@@ -98,7 +98,7 @@
               </div>
             </div>
 
-            <div class="card">
+            <div class="card" data-acfg="capacidade">
               <div class="card-header">
                 <span class="card-title" style="font-size:14px;">
                   <i data-lucide="layout-panel-left"></i> Layout do alojamento
@@ -194,7 +194,7 @@
           </div>
 
           <!-- Linha 2: Descrição -->
-          <div class="card" style="margin-bottom:24px;">
+          <div class="card" data-acfg="geral" style="margin-bottom:24px;">
             <div class="card-header">
               <span class="card-title" style="font-size:14px;">
                 <i data-lucide="file-text"></i> Descrição
@@ -221,7 +221,7 @@
           </div>
 
           <!-- Mapa -->
-          <div class="card" style="margin-bottom:24px;">
+          <div class="card" data-acfg="localizacao" style="margin-bottom:24px;">
             <div class="card-header">
               <span class="card-title" style="font-size:14px;">
                 <i data-lucide="map-pin"></i> Localização no mapa
@@ -239,7 +239,7 @@
 
           <!-- Linha 3: Horários + Wi-Fi + Redes Sociais + Google Calendar -->
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:24px;margin-bottom:0;">
-            <div class="card">
+            <div class="card" data-acfg="acesso">
               <div class="card-header">
                 <span class="card-title" style="font-size:14px;">
                   <i data-lucide="clock"></i> Horários
@@ -257,7 +257,7 @@
               </div>
             </div>
 
-            <div class="card">
+            <div class="card" data-acfg="acesso">
               <div class="card-header">
                 <span class="card-title" style="font-size:14px;">
                   <i data-lucide="wifi"></i> Wi-Fi
@@ -279,7 +279,7 @@
               <span style="font-size:11.5px;color:var(--cinza);">Enviados automaticamente no email de coordenadas</span>
             </div>
 
-            <div class="card">
+            <div class="card" data-acfg="acesso">
               <div class="card-header">
                 <span class="card-title" style="font-size:14px;">
                   <i data-lucide="key-round"></i> Código de acesso
@@ -292,7 +292,7 @@
               <span style="font-size:11.5px;color:var(--cinza);">Enviado automaticamente no email de código de acesso</span>
             </div>
 
-            <div class="card">
+            <div class="card" data-acfg="marca">
               <div class="card-header">
                 <span class="card-title" style="font-size:14px;">
                   <i data-lucide="share-2"></i> Redes Sociais
@@ -337,7 +337,7 @@
               <span style="font-size:11.5px;color:var(--cinza);display:block;margin-top:10px;">Só os links preenchidos e marcados aparecem no bloco "Acompanhe-nos" dos emails.</span>
             </div>
 
-            <div class="card">
+            <div class="card" data-acfg="marca">
               <div class="card-header">
                 <span class="card-title" style="font-size:14px;">
                   <i data-lucide="image"></i> Logótipo <span id="aloj-logo-inherited-badge" style="display:none;margin-left:6px;font-size:10px;color:var(--dourado);font-weight:600;text-transform:uppercase;letter-spacing:.3px;">↑ herdado</span>
@@ -361,7 +361,7 @@
               <span style="font-size:11.5px;color:var(--cinza);">Usado nos emails automáticos e nos PDFs exportados deste alojamento e das suas suites.</span>
             </div>
 
-            <div class="card">
+            <div class="card" data-acfg="ligacoes">
               <div class="card-header">
                 <span class="card-title" style="font-size:14px;">
                   <i data-lucide="calendar-sync"></i> Google Calendar
@@ -383,7 +383,7 @@
               </div>
             </div>
 
-            <div class="card">
+            <div class="card" data-acfg="ligacoes">
               <div class="card-header">
                 <span class="card-title" style="font-size:14px;">
                   <i data-lucide="calendar-plus"></i> Booking & Airbnb iCal

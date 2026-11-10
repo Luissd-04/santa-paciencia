@@ -465,6 +465,7 @@ async function openAlojamento(id, preferredTab = 'info') {
     alojImagens[a.id] = fetchedImageState;
     renderAmenities(a.own_amenities || a.amenities || [], a.inherited_amenities || []);
     showAlojTab(preferredTab);
+    AppModules.alojamentos.renderConfigV2?.(a);
     AppModules.alojamentos.resetAlojMap();
 
     document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
