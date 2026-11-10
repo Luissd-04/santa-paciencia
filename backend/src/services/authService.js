@@ -202,8 +202,8 @@ function getResetToken(token) {
     SELECT rt.*, u.email, u.name
     FROM password_reset_tokens rt
     JOIN users u ON u.id = rt.user_id
-    WHERE rt.token IN (?, ?) AND rt.used_at IS NULL AND datetime(rt.expires_at) > datetime('now')
-  `).get(digestToken(token), token); // Compatibilidade com links emitidos antes da atualização.
+    WHERE rt.token = ? AND rt.used_at IS NULL AND datetime(rt.expires_at) > datetime('now')
+  `).get(digestToken(token));
 }
 
 function consumeResetToken(token, newPassword) {

@@ -125,7 +125,7 @@ router.get('/invitations/:token', (req, res) => {
   });
 });
 
-router.post('/login', loginLimiter, async (req, res) => {
+router.post('/login', loginLimiter, require('../middleware/rateLimiter').loginAccountLimiter, async (req, res) => {
   const { email, password } = req.body || {};
   const user = getUserByEmail(email);
   // Resposta genérica para não revelar se o email existe (anti-enumeration)
@@ -280,6 +280,9 @@ router.put('/appearance', requireAuth, (req, res, next) => {
 router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
   const email = normalizeEmail(req.body?.email);
   const user = getUserByEmail(email);
+  // A resposta é a mesma e sai já, exista ou não a conta: o envio do email
+  // (segundos) só acontece depois, para o tempo não revelar quem tem conta.
+  res.json({ success: true });
   if (user && user.active) {
     try {
       const token = createPasswordResetToken(user.id);
@@ -290,8 +293,6 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
       console.error('Erro ao enviar email de recuperação:', err.message);
     }
   }
-  // Always respond success to prevent email enumeration
-  res.json({ success: true });
 });
 
 router.get('/reset-password/:token', (req, res) => {

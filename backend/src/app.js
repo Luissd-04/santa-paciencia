@@ -29,7 +29,13 @@ const pushRoutes = require('./routes/push');
 
 const app = express();
 const IS_PROD = process.env.NODE_ENV === 'production';
-const trustProxy = String(process.env.TRUST_PROXY || (IS_PROD ? 'loopback' : '')).trim();
+// Em produção o pedido chega pelo cloudflared e pelo Docker: dentro do
+// contentor vem do gateway da rede Docker (172.x), não do loopback. Sem
+// confiar nesse salto, todos os visitantes tinham o mesmo IP e os limites de
+// tentativas (login, reservas, pré-check-in) ficavam partilhados por todos.
+// O IP do visitante é o último do X-Forwarded-For que não é rede privada.
+const DEFAULT_TRUST_PROXY = 'loopback,uniquelocal';
+const trustProxy = String(process.env.TRUST_PROXY || (IS_PROD ? DEFAULT_TRUST_PROXY : '')).trim();
 if (/^(true|false)$/i.test(trustProxy)) throw new Error('TRUST_PROXY deve indicar proxies concretos; não use true/false.');
 if (trustProxy) app.set('trust proxy', trustProxy.split(',').map(value => value.trim()).filter(Boolean));
 if (IS_PROD) configuredOrigin();
@@ -205,7 +211,7 @@ clearExpiredSessions();
 // Rotas
 app.use(['/auth', '/api'], verifyRequestOrigin);
 app.use('/auth', authRoutes);
-app.use('/api/public', publicBookingRoutes);
+app.use('/api/public', require('./middleware/rateLimiter').publicApiLimiter, publicBookingRoutes);
 app.use('/api', requireAuth, require('./middleware/staffResponse'));
 // Avisos em direto às páginas abertas: a ligação e o aviso depois de cada alteração.
 const liveUpdates = require('./services/liveUpdates');

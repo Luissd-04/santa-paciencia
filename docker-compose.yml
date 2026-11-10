@@ -14,7 +14,8 @@ services:
       - TZ=${TZ:-Europe/Lisbon}
       - DB_PATH=/app/data/santapaciencia.db
       - FRONTEND_PATH=/app/frontend
-      - TRUST_PROXY=loopback
+      # O cloudflared chega pelo gateway da rede Docker (rede privada).
+      - TRUST_PROXY=loopback,uniquelocal
     volumes:
       - ./data:/app/data
       - ./tokens:/tokens
