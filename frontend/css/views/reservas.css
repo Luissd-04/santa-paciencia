@@ -1153,6 +1153,8 @@
    O formulário é o mesmo do computador. No telemóvel cada passo mostra a sua
    parte (data-mstep) e os campos opcionais do hóspede ficam recolhidos. */
 .resf-mobile-only { display: none; }
+/* Passos e resumo do computador: só na V2 (css/v2/reservas.css). */
+.resf-dstepper, .resf-dsummary { display: none; }
 .resf-dates { display: contents; }
 
 @media (max-width: 600px), (max-height: 500px) and (orientation: landscape) {

@@ -7,6 +7,8 @@ AppModules.define('reservas', {
   scheduleWizQuote: { get: () => scheduleWizQuote },
   wizVoucherActive: { get: () => wizVoucherActive },
   verifyBackofficeVoucher: { get: () => verifyBackofficeVoucher },
+  // A última cotação do servidor (o resumo ao lado mostra as linhas dela).
+  wizQuote: { get: () => lastQuote?.data || null },
 });
 
 function collectExtraGuests() {
@@ -204,6 +206,7 @@ async function fetchWizQuote(seq, payload) {
     const badge = document.getElementById('resf-total-badge');
     if (badge) { badge.textContent = ''; badge.removeAttribute('aria-busy'); }
     setQuoteLine(error?.payload?.error || 'Não foi possível confirmar o total com o servidor.', 'warn');
+    AppModules.reservas.updateWizSummary();
     throw error;
   } finally {
     if (quoteController === controller) quoteController = null;
@@ -265,14 +268,14 @@ async function saveReserva() {
   const checkout = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkout').value);
   const alojId   = document.getElementById('f-aloj').value;
 
-  // No telemóvel o campo em falta pode estar noutro passo: mostrá-lo.
-  if (!nomeCompleto) { AppModules.reservas.showMobileStep(2); AppModules.core.toast('Por favor insira o nome do hóspede.', 'error'); return; }
-  if (!checkin || !checkout) { AppModules.reservas.showMobileStep(1); AppModules.core.toast('Por favor selecione as datas.', 'error'); return; }
-  if (checkin >= checkout) { AppModules.reservas.showMobileStep(1); AppModules.core.toast('O check-out deve ser depois do check-in.', 'error'); return; }
+  // Com passos, o campo em falta pode estar noutro: mostrá-lo.
+  if (!nomeCompleto) { AppModules.reservas.showStepFor('guest'); AppModules.core.toast('Por favor insira o nome do hóspede.', 'error'); return; }
+  if (!checkin || !checkout) { AppModules.reservas.showStepFor('dates'); AppModules.core.toast('Por favor selecione as datas.', 'error'); return; }
+  if (checkin >= checkout) { AppModules.reservas.showStepFor('dates'); AppModules.core.toast('O check-out deve ser depois do check-in.', 'error'); return; }
   const requestedGuests = parseInt(document.getElementById('f-num-hospedes').value) || 1;
   const room = AppModules.reservas.wizardCapacity();
   if (room.capacity > 0 && requestedGuests > room.capacity) {
-    AppModules.reservas.showMobileStep(1);
+    AppModules.reservas.showStepFor('room');
     AppModules.core.toast(AppModules.reservas.capacityMessage(room), 'error');
     return;
   }

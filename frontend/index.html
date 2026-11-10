@@ -705,6 +705,16 @@
       </div>
       <div class="resf-mstepper-label" id="resf-mstepper-label" aria-live="polite"></div>
     </nav>
+    <!-- Computador na V2: a reserva nova em quatro passos, com o resumo ao lado (passos.js). -->
+    <nav class="resf-dstepper" id="resf-dstepper" aria-label="Passos da nova reserva">
+      <button type="button" class="resf-dstep-tab" data-mstep-tab="1" data-on-click="index-mobile-step-go"><span>1</span>Datas e hóspedes</button>
+      <i aria-hidden="true"></i>
+      <button type="button" class="resf-dstep-tab" data-mstep-tab="2" data-on-click="index-mobile-step-go"><span>2</span>Alojamento</button>
+      <i aria-hidden="true"></i>
+      <button type="button" class="resf-dstep-tab" data-mstep-tab="3" data-on-click="index-mobile-step-go"><span>3</span>Hóspede</button>
+      <i aria-hidden="true"></i>
+      <button type="button" class="resf-dstep-tab" data-mstep-tab="4" data-on-click="index-mobile-step-go"><span>4</span>Pagamento e confirmação</button>
+    </nav>
 
     <div class="modal-body resf-body">
 
@@ -730,7 +740,7 @@
       <!-- ── SECÇÃO 1: DATAS & ALOJAMENTO ── -->
       <div class="resf-section">
         <div class="resf-section-title" data-mstep="1"><i data-lucide="calendar" style="width:14px;height:14px;"></i> Datas & Alojamento</div>
-        <div class="form-grid resf-stay-grid" data-mstep="1">
+        <div class="form-grid resf-stay-grid" data-mstep="1" data-dstep="1">
           <div class="resf-dates">
             <div class="form-group resf-date-cell">
               <label for="f-checkin" class="form-label">Check-in <span class="req-star">*</span></label>
@@ -789,7 +799,7 @@
             <select class="form-control" id="f-canal" data-channel-options data-on-change="index-mobile-canal-change"></select>
           </div>
         </div>
-        <div style="margin-top:16px;" data-mstep="1">
+        <div style="margin-top:16px;" data-mstep="1" data-dstep="2">
           <label for="f-aloj" class="form-label">Alojamento <span class="req-star">*</span></label>
           <p class="suite-cards-hint">Escolhe mais do que um para juntar vários quartos à mesma reserva.</p>
           <select id="f-aloj" style="display:none;" data-on-change="index-calc-total-8bcd488"></select>
@@ -802,7 +812,7 @@
           <span class="resf-fold-hint">O total já inclui as taxas e o voucher</span></span>
           <i data-lucide="chevron-down" class="resf-fold-icon"></i>
         </button>
-        <div id="resf-nightly-wrap" class="resf-nightly" style="margin-top:16px;display:none;" data-mstep="3">
+        <div id="resf-nightly-wrap" class="resf-nightly" style="margin-top:16px;display:none;" data-mstep="3" data-dstep="2">
           <div class="resf-nightly-head">
             <label class="form-label" style="margin:0;">Preço por quarto e por noite <span style="font-weight:400;text-transform:none;letter-spacing:0;">(cobrado ao hóspede)</span></label>
           </div>
@@ -821,9 +831,9 @@
           </div>
         </div>
 
-        <div id="resf-voucher-line" class="resf-voucher-line" role="status" aria-live="polite" hidden data-mstep="3"></div>
+        <div id="resf-voucher-line" class="resf-voucher-line" role="status" aria-live="polite" hidden data-mstep="3" data-dstep="4"></div>
 
-        <div id="resf-discount-wrap" style="margin-top:16px;display:none;" data-mstep="3">
+        <div id="resf-discount-wrap" style="margin-top:16px;display:none;" data-mstep="3" data-dstep="2">
           <label class="form-label" style="margin-bottom:6px;">Desconto <span style="font-weight:400;text-transform:none;letter-spacing:0;">(opcional)</span></label>
           <div class="resf-discount-row">
             <div class="resf-disc-toggle">
@@ -838,7 +848,7 @@
       </div>
 
       <!-- ── SECÇÃO 2: HÓSPEDE ── -->
-      <div class="resf-section" id="resf-guest-section" data-mstep="2">
+      <div class="resf-section" id="resf-guest-section" data-mstep="2" data-dstep="3">
         <div class="resf-section-title"><i data-lucide="user" style="width:14px;height:14px;"></i> Hóspede Principal</div>
 
         <div class="form-group form-full" id="resf-guest-search-group" style="margin-bottom:14px;">
@@ -940,7 +950,7 @@
       </div>
 
       <!-- ── SECÇÃO 3: PAGAMENTO & ESTADO ── -->
-      <div class="resf-section" data-mstep="3">
+      <div class="resf-section" data-mstep="3" data-dstep="4">
         <div class="resf-section-title"><i data-lucide="credit-card" style="width:14px;height:14px;"></i> Estado</div>
         <div class="form-grid">
           <div class="form-group">
@@ -972,6 +982,8 @@
         <input type="hidden" id="f-total">
 
       </div>
+
+      <aside class="resf-dsummary" id="resf-dsummary" aria-label="Resumo da reserva"></aside>
 
     </div><!-- /modal-body -->
 

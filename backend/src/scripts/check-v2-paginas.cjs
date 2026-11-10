@@ -69,6 +69,10 @@ async function main() {
   await expect(page.locator('#cal-day-panel-toggle')).toBeHidden();
   await page.locator('#cal-grid .cal-day-click-area').nth(3).click();
   await expect.poll(modalOpen).toBe(true);
+  // A nova reserva da V1 continua numa página só, sem os passos do computador.
+  await expect(page.locator('#resf-dstepper')).toBeHidden();
+  await expect(page.locator('#resf-dsummary')).toBeHidden();
+  await expect(page.locator('#btn-guardar')).toBeVisible();
   await page.goto(`${base}/notificacoes`);
   await expect(page.locator('#notifications-page-list .notifications-page-item').first()).toBeVisible();
   await expect(page.locator('#notifications-side')).toBeHidden();
@@ -361,6 +365,60 @@ async function main() {
   const [iconBg, iconInk] = await icon.evaluate(el => [getComputedStyle(el).backgroundColor, getComputedStyle(el.querySelector('svg') || el).color]);
   assert.notEqual(iconBg, iconInk, 'ícone da ligação sem contraste');
 
+  // Nova reserva no computador (maquetas nr1–nr4): quatro passos, o nrResumo ao
+  // lado com as linhas do servidor, e cada passo só avança com a sua parte.
+  await page.goto(`${base}/`);
+  await page.waitForFunction(() => typeof AppModules.core.novaReserva === 'function');
+  await page.evaluate(() => AppModules.core.novaReserva());
+  const nr = page.locator('#modal-bg');
+  const passoAtual = nr.locator('#resf-dstepper [aria-current="step"]');
+  const nrResumo = nr.locator('#resf-dsummary');
+  await expect(nr).toHaveClass(/resf-dsteps/);
+  await expect(nr.locator('#resf-dstepper .resf-dstep-tab')).toHaveCount(4);
+  await expect(passoAtual).toContainText('Datas e hóspedes');
+  await expect(nr.locator('#f-checkin')).toBeVisible();
+  await expect(nr.locator('#suite-cards-grid')).toBeHidden();
+  await expect(nr.locator('#btn-guardar')).toBeHidden();
+  await expect(nrResumo).toContainText('O preço aparece quando escolheres o alojamento.');
+  await nrResumo.locator('.resf-ds-next').click();
+  await expect(passoAtual).toContainText('Datas e hóspedes');
+  const nrIn = dates.addDays(today, 30);
+  const nrOut = dates.addDays(today, 32);
+  await page.evaluate(([a, b]) => {
+    for (const [id, v] of [['f-checkin', a], ['f-checkout', b]]) {
+      const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }, [nrIn, nrOut]);
+  await expect(nrResumo).toContainText('Noites');
+  await nrResumo.locator('.resf-ds-next').click();
+  await expect(passoAtual).toContainText('Alojamento');
+  await expect(nr.locator('#f-checkin')).toBeHidden();
+  await nr.locator('#suite-cards-grid .suite-card-opt', { hasText: 'Suite Oliveira' }).click();
+  await expect(nrResumo.locator('.resf-ds-room')).toContainText('Suite Oliveira');
+  await expect(nrResumo.locator('.resf-ds-chip')).toHaveText('Livre');
+  await expect.poll(() => page.evaluate(() => {
+    const q = AppModules.reservas.wizQuote;
+    return q ? document.querySelector('#resf-dsummary .resf-ds-total b')?.textContent === ReservationMoney.format(q.total_amount) : false;
+  })).toBe(true);
+  await expect(nrResumo.locator('.resf-ds-line').first()).toContainText('2 noites');
+  await nrResumo.locator('.resf-ds-next').click();
+  await expect(passoAtual).toContainText('Hóspede');
+  await nrResumo.locator('.resf-ds-next').click();
+  await expect(passoAtual).toContainText('Hóspede');
+  await nr.locator('#f-nome-completo').fill('Inês Duarte');
+  await nrResumo.locator('.resf-ds-next').click();
+  await expect(passoAtual).toContainText('Pagamento');
+  await expect(nr.locator('#f-notas')).toBeVisible();
+  await expect(nrResumo).toContainText('Inês Duarte');
+  // Voltar e avançar mantêm o que foi preenchido.
+  await nrResumo.getByRole('button', { name: 'Voltar' }).click();
+  await expect(nr.locator('#f-nome-completo')).toHaveValue('Inês Duarte');
+  await nrResumo.locator('.resf-ds-next').click();
+  await nrResumo.getByRole('button', { name: 'Criar reserva' }).click();
+  await expect.poll(() => db.prepare("SELECT r.check_in, r.accommodation_id FROM reservations r JOIN guests g ON g.id = r.guest_id WHERE g.name = 'Inês Duarte'").get())
+    .toEqual({ check_in: nrIn, accommodation_id: 'u' });
+  await expect(nr).not.toHaveClass(/open/);
+
   // Computador (maquetas 09 a 11): o sino, a conta e a «Ação Rápida» abrem por baixo do botão.
   await page.goto(`${base}/`);
   await page.waitForFunction(() => typeof AppModules.v2.abrirFolha === 'function');
@@ -543,7 +601,7 @@ async function main() {
   assert.notEqual(await page.locator('.auth-card-premium').evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(255, 255, 255, 0.15)', 'página de entrar ainda na V1');
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha na V2), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto de capa, foto partida, «Calendário» da plataforma), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos, total gasto e ficha com resumo, notas e últimas mensagens), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, a minha conta e avisos (com «Abrir» no que se criou); formulários grandes e página de entrar na V2.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha na V2), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto de capa, foto partida, «Calendário» da plataforma), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos, total gasto e ficha com resumo, notas e últimas mensagens), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, a minha conta e avisos (com «Abrir» no que se criou); formulários grandes e página de entrar na V2; nova reserva no computador em quatro passos com o resumo ao lado.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {

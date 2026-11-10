@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 99;
+const CACHE_VERSION = 100;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -116,6 +116,7 @@ const FEATURE_ASSETS = [
   '/js/features/reserva-wizard/datas-hospedes.js',
   '/js/features/reserva-wizard/disponibilidade.js',
   '/js/features/reserva-wizard/passos.js',
+  '/js/features/reserva-wizard/resumo.js',
   '/js/features/reserva-wizard/guardar.js',
   '/js/reserva-lista.js',
   '/js/features/reserva-lista/lista-dados.js',

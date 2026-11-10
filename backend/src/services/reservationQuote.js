@@ -201,6 +201,21 @@ function voucherSummary(voucher, discount) {
   return voucher ? { code: voucher.code, type: voucher.type, value: Number(voucher.value), discount_amount: discount } : null;
 }
 
+// Linhas do total para o resumo do assistente: o que vem do cálculo da estadia,
+// o voucher e o acerto que falta para o total final (preço ou total editados).
+function quoteBreakdown(totals, voucherDiscount, total) {
+  const round = value => Math.round(Number(value || 0) * 100) / 100;
+  const voucher = round(voucherDiscount);
+  return {
+    accommodation: round(totals.baseAmount),
+    breakfast: round(totals.breakfastCost),
+    extra_occupancy: round(totals.extraOccupancyCost),
+    tourist_tax: round(totals.touristTax),
+    voucher,
+    adjustment: round(Number(total) - (Number(totals.totalAmount) - voucher)),
+  };
+}
+
 // Resposta da pré-visualização: o mesmo total que a gravação usaria.
 function createQuote(organizationId, body) {
   const pricing = priceCreate(organizationId, body);
@@ -210,6 +225,10 @@ function createQuote(organizationId, body) {
     standard_total: pricing.standardTotal,
     nights: pricing.totals.nights,
     nightly_prices: pricing.totals.nightlyPrices,
+    breakdown: quoteBreakdown(pricing.totals, pricing.voucherDiscount, pricing.finalTotal),
+    // Sinal que a política pede para esta reserva (0 nas plataformas).
+    deposit_amount: require('./paymentPolicy').requiredDepositCents({ organization_id: organizationId,
+      channel: body.channel || 'direto', total_amount: pricing.finalTotal, check_in: pricing.totals.checkIn }) / 100,
     voucher: body.voucher_code ? {
       ...(voucherSummary(pricing.voucher, pricing.voucherDiscount) || { code: String(body.voucher_code).trim().toUpperCase() }),
       applied: !!pricing.voucher && !manual,
