@@ -155,10 +155,14 @@ const GUEST_SORTS = Object.fromEntries(['name', 'email', 'phone', 'nationality',
 function listGuests(organizationId, query = {}) {
   const options = pageOptions(query, GUEST_SORTS, 'name', query.search && !query.page ? 20 : 50);
   const search = textParam(query, 'search');
+  const searchExpr = "app_lower(g.name || ' ' || COALESCE(g.email,'') || ' ' || COALESCE(g.email_personal,'') || ' ' || COALESCE(g.nationality,'') || ' ' || COALESCE(g.phone,'') || ' ' || COALESCE(g.country,'') || ' ' || COALESCE(g.company,'')) LIKE ? ESCAPE '\\'";
+  // V2: as fichas da mesma pessoa numa linha (guestGroups.js); a página, a
+  // ordem e os números contam pessoas.
+  const grouped = String(query.group || '') === '1';
   const params = [organizationId, organizationId];
   let where = ' WHERE g.organization_id=?';
-  if (search) {
-    where += " AND app_lower(g.name || ' ' || COALESCE(g.email,'') || ' ' || COALESCE(g.email_personal,'') || ' ' || COALESCE(g.nationality,'') || ' ' || COALESCE(g.phone,'') || ' ' || COALESCE(g.country,'') || ' ' || COALESCE(g.company,'')) LIKE ? ESCAPE '\\'";
+  if (search && !grouped) {
+    where += ` AND ${searchExpr}`;
     params.push(searchPattern(search));
   }
   // País de cada hóspede (país ou nacionalidade) e se é de fora de Portugal.
@@ -167,14 +171,38 @@ function listGuests(organizationId, query = {}) {
   // Segmento (filtros rápidos da V2): repetentes, VIP/favoritos ou estrangeiros.
   const segment = textParam(query, 'segment', 20);
   const segmentWhere = { repeat: ' WHERE reservation_count>1', vip: ' WHERE is_vip=1 OR is_favorite=1', foreign: ' WHERE is_foreign=1' }[segment] || '';
-  const source = `WITH counts AS (
+  const counts = `WITH counts AS (
       SELECT guest_id, COUNT(*) AS reservation_count, MAX(check_in) AS last_check_in, COALESCE(SUM(total_amount),0) AS total_spent
       FROM reservations WHERE organization_id=? AND status!='cancelada' GROUP BY guest_id
-    ), matches AS (
+    )`;
+  let groups = null;
+  let source = `${counts}, matches AS (
       SELECT g.*, COALESCE(c.reservation_count,0) AS reservation_count, c.last_check_in, COALESCE(c.total_spent,0) AS total_spent,
         ${countryExpr} AS country_label, ${foreignExpr} AS is_foreign
       FROM guests g LEFT JOIN counts c ON c.guest_id=g.id ${where}
     ) `;
+  if (grouped) {
+    groups = require('./guestGroups').guestGroups(organizationId);
+    // A ficha principal de cada pessoa é a com mais estadias (depois a mais
+    // recente); estadias, última visita e total somam todas. A pesquisa
+    // encontra a pessoa por qualquer uma das fichas.
+    source = `${counts}, fichas AS (
+        SELECT g.id, g.created_at, COALESCE(gm.value, g.id) AS gid, COALESCE(c.reservation_count,0) AS reservation_count, c.last_check_in,
+          COALESCE(c.total_spent,0) AS total_spent, ${search ? searchExpr : '1'} AS hit
+        FROM guests g LEFT JOIN counts c ON c.guest_id=g.id LEFT JOIN json_each(?) gm ON gm.key=g.id WHERE g.organization_id=?
+      ), ordem AS (
+        SELECT fichas.*, ROW_NUMBER() OVER (PARTITION BY gid ORDER BY reservation_count DESC, COALESCE(last_check_in,'') DESC, created_at DESC, id) AS n FROM fichas
+      ), pessoas AS (
+        SELECT gid, MAX(CASE WHEN n=1 THEN id END) AS primary_id, COUNT(*) AS record_count, SUM(reservation_count) AS reservation_count,
+          MAX(last_check_in) AS last_check_in, SUM(total_spent) AS total_spent, MAX(hit) AS hit
+        FROM ordem GROUP BY gid
+      ), matches AS (
+        SELECT g.*, p.reservation_count, p.last_check_in, p.total_spent, p.record_count, p.gid AS group_id,
+          ${countryExpr} AS country_label, ${foreignExpr} AS is_foreign
+        FROM pessoas p JOIN guests g ON g.id=p.primary_id WHERE p.hit=1
+      ) `;
+    params.splice(1, 1, ...(search ? [searchPattern(search)] : []), JSON.stringify(Object.fromEntries(groups)), organizationId);
+  }
   return db.transaction(() => {
     const summary = db.prepare(source + `SELECT COUNT(*) AS total,
       COALESCE(SUM(CASE WHEN is_vip=1 OR is_favorite=1 THEN 1 ELSE 0 END),0) AS vip,
@@ -186,6 +214,13 @@ function listGuests(organizationId, query = {}) {
     summary.top_country = top ? { country: top.country, share: summary.total ? Math.round(top.n / summary.total * 100) : 0 } : null;
     const filtered = segmentWhere ? db.prepare(source + `SELECT COUNT(*) AS total FROM matches${segmentWhere}`).get(...params).total : summary.total;
     const data = db.prepare(source + `SELECT * FROM matches${segmentWhere} ORDER BY ${options.order}, id ASC LIMIT ? OFFSET ?`).all(...params, options.limit, options.offset);
+    // As fichas de cada pessoa da página (para abrir a lista na linha).
+    if (groups) {
+      const byGroup = new Map();
+      for (const [id, gid] of groups) byGroup.set(gid, [...(byGroup.get(gid) || []), id]);
+      const summaries = require('./guestGroups').guestSummaries;
+      for (const row of data) if (row.record_count > 1) row.records = summaries(organizationId, byGroup.get(row.group_id) || []);
+    }
     return { data, pagination: metadata(options, filtered), summary };
   })();
 }

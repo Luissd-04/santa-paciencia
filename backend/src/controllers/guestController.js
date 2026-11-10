@@ -53,7 +53,9 @@ async function getById(req, res, next) {
       WHERE r.guest_id = ? AND r.organization_id = ?
       ORDER BY r.check_in DESC
     `).all(req.params.id, organizationId);
-    res.json({ success: true, data: { ...guest, reservations } });
+    // Outras fichas da mesma pessoa (mesmo email ou telefone e nome), só para mostrar.
+    const related = require('../services/guestGroups').relatedGuests(organizationId, guest.id);
+    res.json({ success: true, data: { ...guest, reservations, related } });
   } catch (err) {
     next(err);
   }
