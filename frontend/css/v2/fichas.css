@@ -42,6 +42,9 @@ html[data-look] .hf2-row + .hf2-row { border-top: 1px solid var(--v2-divider); }
 html[data-look] .hf2-row span { color: var(--v2-muted); }
 html[data-look] .hf2-row b { font-weight: 600; text-align: right; }
 html[data-look] .hf2-empty { margin: 8px 0; color: var(--v2-muted); font-size: 13px; }
+html[data-look] .hf2-side { display: grid; gap: var(--v2-gap); }
+html[data-look] .hf2-card-h .btn { margin: -6px -8px -6px 0; }
+html[data-look] .hf2-note { margin: 4px 0 0; white-space: pre-wrap; font-size: 14px; line-height: 1.5; }
 @media (max-width: 1100px) { html[data-look] .hf2-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } html[data-look] .hf2-grid { grid-template-columns: 1fr; } }
 @media (max-width: 600px) {
   html[data-look] .hf2-kpis { gap: 10px; }

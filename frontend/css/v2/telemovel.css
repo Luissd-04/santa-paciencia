@@ -275,6 +275,8 @@ html[data-look] .v2-aviso-ic.is-success { background: var(--v2-ok-bg); color: va
 html[data-look] .v2-aviso-ic.is-error { background: var(--v2-bad-bg); color: var(--v2-bad); }
 html[data-look] .v2-aviso-ic.is-warning { background: var(--v2-warn-bg); color: var(--v2-warn); }
 html[data-look] .v2-aviso-ic.is-info { background: var(--v2-info-bg); color: var(--v2-info); }
+html[data-look] .v2-aviso-t { flex: 1; }
+html[data-look] .toast-action { border: 0; padding: 4px 2px; color: var(--v2-accent-ink-on, var(--v2-ink)); text-decoration: underline; text-underline-offset: 3px; }
 
 /* Grelhas da V1 com campos lado a lado: na V2 viram uma lista. */
 html[data-look] .modal-bg.v2-janela .modal-body :is(.form-grid, div[style*="grid"]):has(> .v2-linha) { display: flex !important; flex-direction: column; gap: 0 !important; }

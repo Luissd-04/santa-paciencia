@@ -245,11 +245,25 @@ function badgePrecheckin(p) {
   return `<span class="badge ${S.precheckinBadge(p)}">${escapeHtml(S.precheckinLabel(p))}</span>`;
 }
 
-function toast(msg, type = 'info', dur = 3500) {
+// `abrir`: põe «Abrir» no aviso (o que se acabou de criar); com ele, o aviso
+// fica mais tempo.
+function toast(msg, type = 'info', dur = 3500, abrir = null) {
   const c = document.getElementById('toast-container');
   const t = document.createElement('div');
   t.className = 'toast ' + type;
-  t.textContent = msg;
+  const text = document.createElement('span');
+  text.className = 'toast-msg';
+  text.textContent = msg;
+  t.appendChild(text);
+  if (abrir) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'toast-action';
+    btn.textContent = 'Abrir';
+    btn.addEventListener('click', () => { t.remove(); abrir(); });
+    t.appendChild(btn);
+    dur = Math.max(dur, 7000);
+  }
   c.appendChild(t);
   setTimeout(() => {
     t.style.opacity = '0';

@@ -291,13 +291,31 @@ async function main() {
   await page.locator('#hv2-chips .rv2-chip', { hasText: 'Todos' }).click();
   await expect(guestRows).toHaveCount(2);
   // Ficha do hóspede (maqueta inter-02): o resumo por cima e o formulário só ao «Editar».
+  // Últimas mensagens enviadas a este email, com quem as enviou.
+  db.prepare(`INSERT INTO invoice_messages(id,organization_id,to_email,subject,body_html,reservation_id,sent_by_user_id)
+    VALUES('m1',?,'chega@example.invalid','Confirmação da reserva','<p>Olá</p>','chega',?)`).run(org.id, user.id);
   await guestRows.filter({ hasText: 'Beatriz Pinto' }).click();
   const fichaH = page.locator('#hf2-ficha');
   await expect(fichaH.locator('.hf2-kpi')).toHaveCount(4);
-  await expect(fichaH.locator('.hf2-res')).toHaveCount(1);
+  await expect(fichaH.locator('.hf2-grid > .hf2-card .hf2-res')).toHaveCount(1);
   await expect(page.locator('#view-hospede-detalhe > section.card')).toBeHidden();
-  await fichaH.getByRole('button', { name: 'Editar' }).click();
+  const msgs = page.locator('#hf2-msgs');
+  await expect(msgs.locator('.hf2-res')).toHaveCount(1);
+  await expect(msgs).toContainText('Confirmação da reserva');
+  await expect(msgs).toContainText('Célia Pinto');
+  // Notas: «Adicionar» abre o formulário no campo das notas; guardadas, ficam
+  // na ficha do hóspede e na ficha de cada reserva dele.
+  await expect(fichaH.locator('.hf2-notes .hf2-empty')).toBeVisible();
+  await fichaH.locator('.hf2-notes').getByRole('button', { name: 'Adicionar' }).click();
+  await expect(page.locator('#gedit-notes')).toBeFocused();
   await expect(page.locator('#gedit-first-name')).toHaveValue('Beatriz');
+  await page.locator('#gedit-notes').fill('Alérgica a frutos secos.');
+  await page.locator('#btn-guardar-hospede').click();
+  await expect.poll(() => db.prepare("SELECT notes FROM guests WHERE id='g-chega'").get().notes).toBe('Alérgica a frutos secos.');
+  await page.evaluate(() => AppModules.hospedes.openGuestEdit('g-chega'));
+  await expect(page.locator('#hf2-ficha .hf2-note')).toHaveText('Alérgica a frutos secos.');
+  await page.evaluate(() => AppModules.core.abrirReserva('chega'));
+  await expect(page.locator('.rf-card', { hasText: 'Notas do hóspede' })).toContainText('Alérgica a frutos secos.');
 
   // Preços: alojamentos em pílula; abre no primeiro e tocar noutro troca.
   db.prepare(`INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests) VALUES('u2',?,'Quarto Monsaraz','quarto',95,2)`).run(org.id);
@@ -491,6 +509,12 @@ async function main() {
   await expect(despesa).not.toHaveClass(/open/);
   await expect.poll(() => db.prepare("SELECT category, payment_method, amount FROM expenses WHERE description = 'Torneira da cozinha'").get())
     .toEqual({ category: 'manutencao', payment_method: 'cartao', amount: 42.5 });
+  // O aviso tem «Abrir», que abre a despesa acabada de criar.
+  const abrirAviso = page.locator('.toast', { hasText: 'Despesa adicionada' }).getByRole('button', { name: 'Abrir' });
+  await abrirAviso.click();
+  await expect(despesa).toHaveClass(/open/);
+  await expect(despesa.locator('#despesa-description')).toHaveValue('Torneira da cozinha');
+  await despesa.locator('.modal-close').click();
   // Voucher: «Gerar» e o bilhete ao vivo.
   await abrirCriar();
   await criar.locator('.v2c-tile', { hasText: 'Voucher' }).click();
@@ -519,7 +543,7 @@ async function main() {
   assert.notEqual(await page.locator('.auth-card-premium').evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(255, 255, 255, 0.15)', 'página de entrar ainda na V1');
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha na V2), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto de capa, foto partida, «Calendário» da plataforma), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos, total gasto e ficha com resumo), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, a minha conta e avisos; formulários grandes e página de entrar na V2.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha na V2), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto de capa, foto partida, «Calendário» da plataforma), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos, total gasto e ficha com resumo, notas e últimas mensagens), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, a minha conta e avisos (com «Abrir» no que se criou); formulários grandes e página de entrar na V2.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
