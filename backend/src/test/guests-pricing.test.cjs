@@ -58,6 +58,23 @@ test('pedido público e backoffice calculam o mesmo total, com voucher', async (
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM voucher_redemptions').get().n, 1);
 });
 
+test('cotação traz as linhas do total e o sinal, que batem com o total', async () => {
+  const quote = await call(write.quote, { accommodation_id: 'casa', ...stay, voucher_code: 'DESC10', channel: 'direto' });
+  const { total_amount: total, breakdown: b, deposit_amount: deposit } = quote.body.data;
+  assert.equal(b.accommodation, 450);
+  // DESC10: 10% do total da estadia (com a taxa turística).
+  assert.equal(b.voucher, Math.round((b.accommodation + b.breakfast + b.extra_occupancy + b.tourist_tax) * 10) / 100);
+  assert.equal(b.adjustment, 0);
+  assert.equal(Math.round((b.accommodation + b.breakfast + b.extra_occupancy + b.tourist_tax - b.voucher + b.adjustment) * 100) / 100, total);
+  assert.ok(deposit > 0 && deposit <= total);
+  // Total editado à mão: a diferença aparece como acerto.
+  const manual = await call(write.quote, { accommodation_id: 'casa', ...stay, total_amount: 400 });
+  assert.equal(manual.body.data.breakdown.adjustment, Math.round((400 - (manual.body.data.standard_total)) * 100) / 100);
+  // Plataformas cobram por conta própria: sem sinal.
+  const airbnb = await call(write.quote, { accommodation_id: 'casa', ...stay, channel: 'airbnb' });
+  assert.equal(airbnb.body.data.deposit_amount, 0);
+});
+
 test('pedido público ignora preços por noite e recusa vouchers inválidos', async () => {
   const forged = await publicRequest({ nightly_prices: [{ date: '2035-08-10', price: 0 }] });
   assert.equal(forged.statusCode, 201);

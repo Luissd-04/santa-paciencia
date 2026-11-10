@@ -6,6 +6,7 @@ AppModules.define('reservas', {
   wizGuestSearch: { get: () => wizGuestSearch },
   resetMobileSteps: { get: () => resetMobileSteps },
   showMobileStep: { get: () => showMobileStep },
+  showStepFor: { get: () => showStepFor },
   goToMobileStep: { get: () => goToMobileStep },
   mobileStepNext: { get: () => mobileStepNext },
   mobileStepPrev: { get: () => mobileStepPrev },
@@ -15,6 +16,7 @@ AppModules.define('reservas', {
   setMobileBreakfast: { get: () => setMobileBreakfast },
   renderMobileStay: { get: () => renderMobileStay },
   wizardCapacity: { get: () => wizardCapacity },
+  selectedRoomNames: { get: () => selectedRoomNames },
   capacityMessage: { get: () => capacityMessage },
 });
 
@@ -36,6 +38,11 @@ function capacityMessage({ capacity, rooms }) {
 // sua parte (atributos data-mstep, ver views/reservas.css). Documentos e
 // acompanhantes ficam recolhidos: o hóspede preenche-os no pré-check-in.
 const MOBILE_STEP_NAMES = ['Estadia', 'Hóspede', 'Preço e confirmação'];
+// No computador, na V2, a reserva nova tem quatro passos (atributos
+// data-dstep) e o resumo ao lado (resumo.js). A edição continua numa página só.
+const DESK_STEP_NAMES = ['Datas e hóspedes', 'Alojamento', 'Hóspede', 'Pagamento e confirmação'];
+const deskSteps = () => Boolean(document.documentElement.dataset.look) && !document.documentElement.classList.contains('v2-tel') && !AppModules.core.editingId;
+const stepNames = () => deskSteps() ? DESK_STEP_NAMES : MOBILE_STEP_NAMES;
 const SHORT_MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const SHORT_WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 const OPTIONAL_GUEST_FIELDS = ['f-nascimento', 'f-local-nascimento', 'f-doc-tipo', 'f-doc-num', 'f-doc-emissor', 'f-nif', 'f-empresa', 'f-cidade'];
@@ -62,11 +69,18 @@ function resetMobileSteps() {
 
 // Mostra um passo sem validar (ex.: a gravação encontrou um campo em falta).
 function showMobileStep(step) {
-  if (!(step >= 1 && step <= MOBILE_STEP_NAMES.length)) return;
+  if (!(step >= 1 && step <= stepNames().length)) return;
   mobileStep = step;
   renderMobileSteps();
   const modal = document.querySelector('#modal-bg .resf-modal');
   if (modal) modal.scrollTop = 0;
+  document.querySelector('#modal-bg .resf-body')?.scrollTo?.(0, 0);
+}
+
+// O passo onde está cada parte do formulário (a gravação mostra a que falta).
+function showStepFor(part) {
+  const steps = deskSteps() ? { dates: 1, room: 2, guest: 3 } : { dates: 1, room: 1, guest: 2 };
+  showMobileStep(steps[part]);
 }
 
 // Numa reserva nova, avançar valida os passos pelo caminho; na edição pode
@@ -176,22 +190,28 @@ function renderMobileSteps() {
   const bg = document.getElementById('modal-bg');
   if (!bg) return;
   const editing = !!AppModules.core.editingId;
+  const desk = deskSteps();
+  const names = stepNames();
+  if (mobileStep > names.length) mobileStep = names.length;
   bg.dataset.mstep = String(mobileStep);
   bg.classList.toggle('resf-mobile-editing', editing);
-  document.querySelectorAll('#resf-mstepper [data-mstep-tab]').forEach(tab => {
+  bg.classList.toggle('resf-dsteps', desk);
+  if (desk) bg.dataset.dstep = String(mobileStep); else delete bg.dataset.dstep;
+  document.querySelectorAll(desk ? '#resf-dstepper [data-mstep-tab]' : '#resf-mstepper [data-mstep-tab]').forEach(tab => {
     const step = Number(tab.dataset.mstepTab);
     tab.classList.toggle('done', step < mobileStep);
     if (step === mobileStep) tab.setAttribute('aria-current', 'step');
     else tab.removeAttribute('aria-current');
   });
   const label = document.getElementById('resf-mstepper-label');
-  if (label) label.textContent = `Passo ${mobileStep} de ${MOBILE_STEP_NAMES.length} · ${MOBILE_STEP_NAMES[mobileStep - 1]}`;
+  if (label) label.textContent = `Passo ${mobileStep} de ${names.length} · ${names[mobileStep - 1]}`;
   const prev = document.getElementById('resf-mstep-prev');
   const next = document.getElementById('resf-mstep-next');
   if (prev) prev.hidden = editing || mobileStep === 1;
-  if (next) next.hidden = editing || mobileStep === MOBILE_STEP_NAMES.length;
-  if (mobileStep === MOBILE_STEP_NAMES.length) buildMobileSummary();
+  if (next) next.hidden = editing || mobileStep === names.length;
+  if (!desk && mobileStep === names.length) buildMobileSummary();
   renderMobileControls();
+  if (desk) AppModules.reservas.renderDeskSummary?.(mobileStep, names);
 }
 
 // Resumo do último passo, com atalhos para corrigir a estadia ou o hóspede.
@@ -217,29 +237,39 @@ function buildMobileSummary() {
   box.innerHTML = row(selectedRoomNames() || 'Alojamento por escolher', stay, 1) + row(value('f-nome-completo') || 'Hóspede por indicar', contact, 2);
 }
 
+// O que cada passo confere: no telemóvel o 1.º passo junta datas e alojamento.
 function validateWizStep(step) {
-  if (step === 1) {
-    const ci = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkin').value);
-    const co = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkout').value);
-    if (!ci) { AppModules.core.toast('⚠️ Seleciona a data de check-in.', 'error'); return false; }
-    if (!co) { AppModules.core.toast('⚠️ Seleciona a data de check-out.', 'error'); return false; }
-    if (new Date(co) <= new Date(ci)) { AppModules.core.toast('⚠️ O check-out deve ser depois do check-in.', 'error'); return false; }
-    const alojVal = document.getElementById('f-aloj').value;
-    if (!alojVal) { AppModules.core.toast('⚠️ Seleciona um alojamento.', 'error'); return false; }
-    if (AppModules.reservas._unavailableSuites.has(alojVal)) { AppModules.core.toast('⚠️ Este alojamento está ocupado nas datas selecionadas.', 'error'); return false; }
-    const requestedGuests = parseInt(document.getElementById('f-num-hospedes')?.value, 10) || 1;
-    const room = wizardCapacity();
-    if (room.capacity > 0 && requestedGuests > room.capacity) {
-      AppModules.core.toast(`⚠️ ${capacityMessage(room)}`, 'error');
-      return false;
-    }
-    return true;
+  const checks = deskSteps()
+    ? [[validateDates], [validateRoom], [validateGuest]]
+    : [[validateDates, validateRoom], [validateGuest]];
+  return (checks[step - 1] || []).every(check => check());
+}
+
+function validateDates() {
+  const ci = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkin').value);
+  const co = AppModules.core.normalizeIsoDateValue(document.getElementById('f-checkout').value);
+  if (!ci) { AppModules.core.toast('⚠️ Seleciona a data de check-in.', 'error'); return false; }
+  if (!co) { AppModules.core.toast('⚠️ Seleciona a data de check-out.', 'error'); return false; }
+  if (new Date(co) <= new Date(ci)) { AppModules.core.toast('⚠️ O check-out deve ser depois do check-in.', 'error'); return false; }
+  return true;
+}
+
+function validateRoom() {
+  const alojVal = document.getElementById('f-aloj').value;
+  if (!alojVal) { AppModules.core.toast('⚠️ Seleciona um alojamento.', 'error'); return false; }
+  if (AppModules.reservas._unavailableSuites.has(alojVal)) { AppModules.core.toast('⚠️ Este alojamento está ocupado nas datas selecionadas.', 'error'); return false; }
+  const requestedGuests = parseInt(document.getElementById('f-num-hospedes')?.value, 10) || 1;
+  const room = wizardCapacity();
+  if (room.capacity > 0 && requestedGuests > room.capacity) {
+    AppModules.core.toast(`⚠️ ${capacityMessage(room)}`, 'error');
+    return false;
   }
-  if (step === 2) {
-    if (!document.getElementById('f-nome-completo').value.trim())
-      { AppModules.core.toast('⚠️ Introduz o nome completo do hóspede.', 'error'); return false; }
-    return true;
-  }
+  return true;
+}
+
+function validateGuest() {
+  if (!document.getElementById('f-nome-completo').value.trim())
+    { AppModules.core.toast('⚠️ Introduz o nome completo do hóspede.', 'error'); return false; }
   return true;
 }
 
@@ -257,6 +287,7 @@ function updateWizSummary() {
   set('ws-nights', nights > 0 ? nights + ' noite' + (nights !== 1 ? 's' : '') : '—');
   set('ws-total', total && Number(total) > 0 ? ReservationMoney.format(total) : '—');
   renderMobileStay();
+  if (deskSteps()) AppModules.reservas.renderDeskSummary?.(mobileStep, DESK_STEP_NAMES);
 }
 
 // Nomes dos quartos escolhidos (principal primeiro), para os resumos.
@@ -296,7 +327,7 @@ function renderSuiteCards() {
     return `<div class="${cls}" ${click} title="${title}">
       <div class="suite-check"><i data-lucide="check" style="width:10px;height:10px;color:#fff;"></i></div>
       ${coverUrl
-        ? `<img src="${AppModules.core.escapeHtml(AppModules.core.mediaThumb(coverUrl, 480))}" class="suite-card-cover" alt="${AppModules.core.escapeHtml(a.name)}" loading="lazy" decoding="async">`
+        ? `<img src="${AppModules.core.escapeHtml(AppModules.core.mediaThumb(coverUrl, 480))}" class="suite-card-cover" alt="${AppModules.core.escapeHtml(a.name)}" loading="lazy" decoding="async" ${AppActions.attrs('error', 'reserva-foto-falhou')}>`
         : blocked
           ? `<div class="suite-card-dot" style="font-size:16px;margin-bottom:6px;">🔒</div>`
           : `<div class="suite-card-dot" style="width:10px;height:10px;border-radius:50%;background:${cor};margin-bottom:8px;"></div>`}

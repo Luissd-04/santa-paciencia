@@ -75,3 +75,65 @@ html[data-look] #view-reservas[data-v2] .reservas-mobile-search { display: flex;
   html[data-look] #view-reservas[data-v2] .rv2-sub .acc-chip { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
   html[data-look] #view-reservas[data-v2] .rv2-sub > span:last-child { flex-shrink: 0; }
 }
+
+/* ══ Nova reserva no computador: quatro passos e o resumo ao lado ══
+   (maquetas nr1–nr4; passos.js põe .resf-dsteps e data-dstep no #modal-bg). */
+html[data-look] #modal-bg.resf-dsteps .resf-modal { width: min(1160px, calc(100vw - 48px)); max-width: none; }
+html[data-look] #modal-bg.resf-dsteps .resf-dstepper { display: flex; align-items: center; gap: 8px; padding: 4px 24px 14px; border-bottom: 1px solid var(--v2-divider); }
+html[data-look] #modal-bg.resf-dsteps .resf-dstepper > i { flex: 1; min-width: 12px; height: 1px; background: var(--v2-line); }
+html[data-look] .resf-dstep-tab { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 5px; border: 0; border-radius: 999px; background: none; color: var(--v2-muted);
+  font: 500 13.5px var(--v2-font); white-space: nowrap; cursor: pointer; }
+html[data-look] .resf-dstep-tab span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--v2-surface-2); font-size: 12.5px; font-weight: 600; }
+html[data-look] .resf-dstep-tab.done span { background: var(--v2-ok-bg); color: var(--v2-ok); font-size: 0; }
+html[data-look] .resf-dstep-tab.done span::before { content: "✓"; font-size: 13px; }
+html[data-look] .resf-dstep-tab[aria-current="step"] { background: var(--v2-accent-soft); color: var(--v2-ink); font-weight: 600; }
+html[data-look] .resf-dstep-tab[aria-current="step"] span { background: var(--v2-accent); color: var(--v2-accent-ink); }
+html[data-look="classico"] .resf-dstep-tab[aria-current="step"] span { background: #843424; color: #fff; }
+html[data-look] .resf-dstep-tab:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
+
+html[data-look] #modal-bg.resf-dsteps .resf-body { display: grid; grid-template-columns: minmax(0, 1fr) 320px; column-gap: 22px; align-items: start; }
+html[data-look] #modal-bg.resf-dsteps .resf-body > * { grid-column: 1; min-width: 0; }
+html[data-look] #modal-bg.resf-dsteps .resf-dsummary { display: block; grid-column: 2; grid-row: 1 / span 40; position: sticky; top: 0; }
+html[data-look] #modal-bg.resf-dsteps .resf-footer { display: none; }
+html[data-look] #modal-bg.resf-dsteps .resf-section-title { display: none; }
+/* Só a parte do passo atual. */
+html[data-look] #modal-bg.resf-dsteps[data-dstep="1"] [data-dstep]:not([data-dstep="1"]),
+html[data-look] #modal-bg.resf-dsteps[data-dstep="2"] [data-dstep]:not([data-dstep="2"]),
+html[data-look] #modal-bg.resf-dsteps[data-dstep="3"] [data-dstep]:not([data-dstep="3"]),
+html[data-look] #modal-bg.resf-dsteps[data-dstep="4"] [data-dstep]:not([data-dstep="4"]) { display: none !important; }
+html[data-look] #modal-bg.resf-dsteps:is([data-dstep="3"], [data-dstep="4"]) .resf-section:not([data-dstep]) { display: none; }
+/* Canal em pílulas (os mesmos botões do telemóvel). */
+html[data-look] #modal-bg.resf-dsteps #resf-canal-group { grid-column: 1 / -1; }
+html[data-look] #modal-bg.resf-dsteps #resf-canal-group [data-channel-chips] { display: flex; flex-wrap: wrap; gap: 8px; }
+html[data-look] #modal-bg.resf-dsteps #f-canal { display: none; }
+html[data-look] #modal-bg.resf-dsteps .resf-chip { min-height: 36px; padding: 0 14px; border: 1px solid var(--v2-line); border-radius: 999px; background: var(--v2-surface); color: var(--v2-ink);
+  font: 500 13.5px var(--v2-font); cursor: pointer; }
+html[data-look] #modal-bg.resf-dsteps .resf-chip[aria-pressed="true"] { border-color: var(--v2-accent); background: var(--v2-accent); color: var(--v2-accent-ink); font-weight: 600; }
+html[data-look="classico"] #modal-bg.resf-dsteps .resf-chip[aria-pressed="true"] { border-color: #843424; background: #843424; color: #fff; }
+
+/* O resumo. */
+html[data-look] .resf-ds-card { display: grid; gap: 12px; padding: 18px; }
+html[data-look] .resf-ds-h { display: flex; align-items: center; justify-content: space-between; }
+html[data-look] .resf-ds-h h3 { margin: 0; font-size: 17px; }
+html[data-look] .resf-ds-chip { padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+html[data-look] .resf-ds-chip.is-ok { background: var(--v2-ok-bg); color: var(--v2-ok); }
+html[data-look] .resf-ds-chip.is-bad { background: var(--v2-bad-bg); color: var(--v2-bad); }
+html[data-look] .resf-ds-room { display: flex; align-items: center; gap: 12px; }
+html[data-look] .resf-ds-room b { display: block; font-weight: 600; }
+html[data-look] .resf-ds-room small { display: block; margin-top: 2px; color: var(--v2-muted); font-size: 12.5px; }
+html[data-look] .resf-ds-ph { flex: none; width: 64px; height: 52px; overflow: hidden; border-radius: 12px; background: linear-gradient(135deg, color-mix(in srgb, var(--acc) 45%, #fff), var(--acc)); }
+html[data-look] .resf-ds-ph img { width: 100%; height: 100%; object-fit: cover; }
+html[data-look] .resf-ds-keys { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; padding: 12px 0; border-block: 1px solid var(--v2-divider); font-size: 13.5px; }
+html[data-look] .resf-ds-keys span { color: var(--v2-muted); }
+html[data-look] .resf-ds-keys b { font-weight: 600; text-align: right; }
+html[data-look] .resf-ds-lines { display: grid; gap: 8px; font-size: 14px; }
+html[data-look] .resf-ds-line { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+html[data-look] .resf-ds-line small { color: var(--v2-muted); font-size: 12.5px; }
+html[data-look] .resf-ds-line b { font-weight: 500; white-space: nowrap; }
+html[data-look] .resf-ds-line.is-ok b { color: var(--v2-ok); }
+html[data-look] .resf-ds-total { display: flex; justify-content: space-between; padding-top: 10px; border-top: 1px solid var(--v2-divider); font-size: 17px; font-weight: 700; }
+html[data-look] .resf-ds-empty { margin: 0; padding: 16px; border: 1.5px dashed var(--v2-line); border-radius: 14px; color: var(--v2-muted); font-size: 13px; text-align: center; }
+html[data-look] .resf-ds-empty.is-warn { border-style: solid; border-color: transparent; background: var(--v2-warn-bg); color: var(--v2-warn); }
+html[data-look] .resf-ds-card .btn { width: 100%; justify-content: center; }
+html[data-look] .resf-ds-hint { margin: 0; color: var(--v2-muted); font-size: 12px; text-align: center; }
+@media (max-width: 1000px) { html[data-look] #modal-bg.resf-dsteps .resf-body { grid-template-columns: minmax(0, 1fr) 270px; } html[data-look] .resf-dstep-tab { font-size: 0; gap: 0; } html[data-look] .resf-dstep-tab[aria-current="step"] { font-size: 13.5px; gap: 8px; } }
