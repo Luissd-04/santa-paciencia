@@ -357,7 +357,8 @@ async function saveReserva() {
       if (wasPage && retId && typeof AppModules.reservas.showDetail === 'function') AppModules.reservas.showDetail(retId);
     } else {
       // replayed: a primeira tentativa já tinha criado a reserva (resposta perdida).
-      AppModules.core.toast(res.replayed ? '✅ A reserva já tinha sido criada; não foi duplicada.' : '✅ Reserva criada com sucesso!', 'success');
+      AppModules.core.toast(res.replayed ? '✅ A reserva já tinha sido criada; não foi duplicada.' : '✅ Reserva criada com sucesso!', 'success', undefined,
+        res.data?.id ? () => AppModules.core.abrirReserva(res.data.id) : null);
       AppModules.reservas._createIntentKey = null;
       AppModules.reservas.clearReservaDraft();
       AppModules.reservas.closeModal();

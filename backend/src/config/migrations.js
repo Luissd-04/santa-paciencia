@@ -73,6 +73,8 @@ function runMigrations(db) {
   );
   CREATE INDEX IF NOT EXISTS idx_audit_org_created ON audit_events(organization_id, created_at);`);
   if (!db.pragma('table_info(guests)').some(c => c.name === 'anonymized_at')) db.exec('ALTER TABLE guests ADD COLUMN anonymized_at TEXT');
+  // Notas internas da equipa sobre o hóspede (alergias, preferências…).
+  if (!db.pragma('table_info(guests)').some(c => c.name === 'notes')) db.exec('ALTER TABLE guests ADD COLUMN notes TEXT');
   db.exec(`CREATE TABLE IF NOT EXISTS reservation_create_intents (
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     intent_key TEXT NOT NULL, fingerprint TEXT NOT NULL,

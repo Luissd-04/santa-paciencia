@@ -45,7 +45,7 @@ async function getById(req, res, next) {
     const reservation = db.prepare(`
       SELECT r.*, g.name as guest_name, g.email as guest_email, g.phone as guest_phone,
              g.document_number, g.nationality, g.rgpd_consent,
-             g.company as guest_company, g.nif as guest_nif,
+             g.company as guest_company, g.nif as guest_nif, g.notes as guest_notes,
              a.name as accommodation_name, a.license_number
       FROM reservations r
       JOIN guests g ON r.guest_id = g.id

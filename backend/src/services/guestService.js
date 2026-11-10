@@ -40,7 +40,7 @@ function upsertByEmail(organizationId, guest = {}) {
   return load(organizationId, existing.id);
 }
 
-const PATCH_FIELDS = ['name', 'first_name', 'last_name', 'email', 'email_personal', 'phone', 'birth_date', 'birth_city', 'birth_country', 'nif', 'nationality', 'country', 'document_type', 'document_number', 'document_issuer_country', 'address', 'postal_code', 'city', 'residence_country', 'company', 'company_nif', 'is_favorite', 'is_vip', 'is_unwanted'];
+const PATCH_FIELDS = ['name', 'first_name', 'last_name', 'email', 'email_personal', 'phone', 'birth_date', 'birth_city', 'birth_country', 'nif', 'nationality', 'country', 'document_type', 'document_number', 'document_issuer_country', 'address', 'postal_code', 'city', 'residence_country', 'company', 'company_nif', 'notes', 'is_favorite', 'is_vip', 'is_unwanted'];
 function updateGuest(id, organizationId, patch) {
   const existing = db.prepare('SELECT * FROM guests WHERE id=? AND organization_id=?').get(id, organizationId);
   if (!existing) throw httpError('Hóspede não encontrado', 404);

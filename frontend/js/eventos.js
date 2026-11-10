@@ -928,7 +928,8 @@ async function saveEvento() {
       ? await AppModules.core.apiPut(`/api/events/${eventosEditingId}`, body)
       : await AppModules.core.apiPost('/api/events', body);
     closeEventoModal();
-    AppModules.core.toast(isEdit ? '✅ Evento atualizado.' : '✅ Evento criado.', 'success');
+    const createdId = !isEdit && payload?.data?.id;
+    AppModules.core.toast(isEdit ? '✅ Evento atualizado.' : '✅ Evento criado.', 'success', undefined, createdId ? () => { if (findEvento(createdId)) openEventoModal(createdId); } : null);
     await refreshEventos();
   } catch (err) {
     AppModules.core.toast('❌ ' + (err?.payload?.error || err.message || 'Erro ao guardar evento.'), 'error');

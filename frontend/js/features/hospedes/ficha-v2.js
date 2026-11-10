@@ -1,8 +1,9 @@
 // Hóspede na V2 (maqueta inter-02): por cima do formulário, o resumo — quem
 // é (iniciais, VIP, país, email, telefone, repetente), quatro números
 // (estadias, total gasto, última visita e próxima estadia), as reservas e os
-// dados pessoais. O formulário da V1 fica escondido até «Editar». Os dados
-// são os que a ficha já carrega (/api/guests/:id); na V1 nada muda.
+// dados pessoais, as notas da equipa e as últimas mensagens enviadas. O
+// formulário da V1 fica escondido até «Editar». Os dados são os que a ficha
+// já carrega (/api/guests/:id), mais as mensagens; na V1 nada muda.
 (() => {
 AppModules.define('hospedes', {
   renderFichaV2: { get: () => renderFichaV2 },
@@ -73,18 +74,53 @@ function renderFichaV2(g) {
             <span class="hf2-res-t"><b>${esc(dia(r.check_in))} → ${esc(dia(r.check_out))}</b><small>${esc([r.accommodation_name, r.id].filter(Boolean).join(' · '))}</small></span>
             ${core.badgeEstado(r.status)}<b class="hf2-res-v">${eur(r.total_amount || 0)}</b></div>`).join('')
           : '<p class="hf2-empty">Ainda sem reservas.</p>'}</div>
-      <div class="card hf2-card"><div class="hf2-card-h"><h3>Dados pessoais</h3></div>
-        ${pessoais.length ? pessoais.map(([k, v]) => `<div class="hf2-row"><span>${k}</span><b>${esc(v)}</b></div>`).join('') : '<p class="hf2-empty">Sem dados pessoais.</p>'}</div>
+      <div class="hf2-side">
+        <div class="card hf2-card hf2-notes"><div class="hf2-card-h"><h3>Notas</h3>
+          <button type="button" class="btn btn-ghost btn-sm" data-on-click="hospedes-v2-editar-notas">${core.lcIcon('pencil', 14)} ${g.notes ? 'Editar' : 'Adicionar'}</button></div>
+          ${g.notes ? `<p class="hf2-note">${esc(g.notes)}</p>` : '<p class="hf2-empty">Sem notas. Alergias, preferências ou pedidos habituais ficam aqui e aparecem na ficha de cada reserva.</p>'}</div>
+        <div class="card hf2-card"><div class="hf2-card-h"><h3>Dados pessoais</h3></div>
+          ${pessoais.length ? pessoais.map(([k, v]) => `<div class="hf2-row"><span>${k}</span><b>${esc(v)}</b></div>`).join('') : '<p class="hf2-empty">Sem dados pessoais.</p>'}</div>
+        ${email && core.currentUser?.role !== 'staff' ? '<div class="card hf2-card" id="hf2-msgs"><div class="hf2-card-h"><h3>Últimas mensagens</h3></div><p class="hf2-empty">A carregar…</p></div>' : ''}
+      </div>
     </div>`;
+  if (window.lucide) lucide.createIcons();
+  if (email && core.currentUser?.role !== 'staff') loadMensagens(g.id, email, nome);
+}
+
+// As três últimas mensagens enviadas a este email (o histórico das Mensagens).
+// Tocar numa abre a conversa da reserva; «Ver todas» abre a mais recente.
+async function loadMensagens(guestId, email, nome) {
+  const core = AppModules.core;
+  const esc = core.escapeHtml;
+  let messages = [];
+  try {
+    const res = await core.apiGet(`/auth/email/messages?to_email=${encodeURIComponent(email)}&limit=3`);
+    messages = res?.data?.messages || [];
+  } catch { /* sem mensagens: o cartão diz que não há */ }
+  const box = document.getElementById('hf2-msgs');
+  // Entretanto pode ter sido aberto outro hóspede.
+  if (!box || AppModules.hospedes.editingGuestId !== guestId) return;
+  const abrir = m => AppActions.attrs('click', 'hospedes-v2-abrir-mensagem', [String(m.reservation_id || ''), email, nome]);
+  box.innerHTML = `<div class="hf2-card-h"><h3>Últimas mensagens</h3>${messages.length ? `<button type="button" class="btn btn-ghost btn-sm" ${abrir(messages[0])}>Ver todas</button>` : ''}</div>
+    ${messages.length ? messages.map(m => `<div class="hf2-res" role="button" tabindex="0" ${core.KEY_ACTIVATE} ${abrir(m)}>
+        <span class="hf2-ic">${core.lcIcon('mail', 16)}</span>
+        <span class="hf2-res-t"><b>${esc(m.subject || '(sem assunto)')}</b><small>${esc([window.ReservationDates.formatDateTime(m.sent_at), m.sent_by_name].filter(Boolean).join(' · '))}</small></span></div>`).join('')
+      : '<p class="hf2-empty">Ainda não foram enviadas mensagens a este hóspede.</p>'}`;
   if (window.lucide) lucide.createIcons();
 }
 
+function editar(focusId) {
+  const view = document.getElementById('view-hospede-detalhe');
+  view?.classList.add('hf2-a-editar');
+  const field = focusId && document.getElementById(focusId);
+  (field || view?.querySelector('section.card'))?.scrollIntoView({ behavior: 'smooth', block: field ? 'center' : 'start' });
+  field?.focus({ preventScroll: true });
+}
+
 AppActions.register({
-  'hospedes-v2-editar': () => {
-    const view = document.getElementById('view-hospede-detalhe');
-    view?.classList.add('hf2-a-editar');
-    view?.querySelector('section.card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  },
+  'hospedes-v2-editar': () => editar(),
+  'hospedes-v2-editar-notas': () => editar('gedit-notes'),
+  'hospedes-v2-abrir-mensagem': (el, event, [reservationId, email, nome]) => AppModules.core.abrirMensagensDaReserva(reservationId, email, nome),
 }, 'click');
 
 })();

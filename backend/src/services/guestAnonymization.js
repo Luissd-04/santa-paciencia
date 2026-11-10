@@ -68,7 +68,7 @@ function anonymizeGuest(organizationId, guestId, userId, expectedReservations) {
     if (Number(expectedReservations) !== ids.length) fail('As reservas do hóspede mudaram desde a pré-visualização. Reveja antes de anonimizar.');
     const now = new Date().toISOString();
     const placeholder = id => `anonimizado-${id}@sem-email.local`;
-    const wipeGuest = (id, name) => db.prepare(`UPDATE guests SET name = ?, email = ?, ${GUEST_FIELDS.map(f => `${f} = NULL`).join(', ')},
+    const wipeGuest = (id, name) => db.prepare(`UPDATE guests SET name = ?, email = ?, ${GUEST_FIELDS.map(f => `${f} = NULL`).join(', ')}, notes = NULL,
       is_favorite = 0, is_vip = 0, is_unwanted = 0, anonymized_at = ?, updated_at = datetime('now')
       WHERE id = ? AND organization_id = ?`).run(name, placeholder(id), now, id, organizationId);
     wipeGuest(guest.id, 'Hóspede anonimizado');

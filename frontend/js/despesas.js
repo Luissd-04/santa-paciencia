@@ -502,14 +502,16 @@ async function saveDespesa() {
       ? await AppModules.core.apiPut(`/api/expenses/${despesaEditId}`, body)
       : await AppModules.core.apiPost('/api/expenses', body);
     if (res.success) {
+      // Só abre se estiver na lista carregada (outro mês abriria um formulário vazio).
+      const abrir = !despesaEditId && res.data?.id ? () => { if (despesasPaged.state.rows.some(x => x.id === res.data.id)) openDespesaModal(res.data.id); } : null;
       if (res.propagated > 0) {
-        AppModules.core.toast(`✅ Nº de fatura atualizado em mais ${res.propagated} despesa${res.propagated !== 1 ? 's' : ''} da mesma fatura.`, 'success');
+        AppModules.core.toast(`✅ Nº de fatura atualizado em mais ${res.propagated} despesa${res.propagated !== 1 ? 's' : ''} da mesma fatura.`, 'success', undefined, abrir);
       } else if (res.nif_propagated > 0) {
-        AppModules.core.toast(`✅ Estado do NIF aplicado a mais ${res.nif_propagated} linha${res.nif_propagated !== 1 ? 's' : ''} da mesma fatura.`, 'success');
+        AppModules.core.toast(`✅ Estado do NIF aplicado a mais ${res.nif_propagated} linha${res.nif_propagated !== 1 ? 's' : ''} da mesma fatura.`, 'success', undefined, abrir);
       } else if (res.inherited_nif) {
-        AppModules.core.toast('✅ Despesa adicionada — herdou o estado Com/Sem NIF da fatura existente.', 'success');
+        AppModules.core.toast('✅ Despesa adicionada — herdou o estado Com/Sem NIF da fatura existente.', 'success', undefined, abrir);
       } else {
-        AppModules.core.toast(despesaEditId ? '✅ Despesa atualizada!' : '✅ Despesa adicionada!', 'success');
+        AppModules.core.toast(despesaEditId ? '✅ Despesa atualizada!' : '✅ Despesa adicionada!', 'success', undefined, abrir);
       }
       closeDespesaModal();
       await loadDespesas();

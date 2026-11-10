@@ -90,6 +90,7 @@ async function openGuestEdit(id) {
     setValue('gedit-residence-country', g.residence_country);
     setValue('gedit-company', g.company);
     setValue('gedit-company-nif', g.company_nif);
+    setValue('gedit-notes', g.notes);
     document.getElementById('gedit-favorito').checked   = !!g.is_favorite;
     document.getElementById('gedit-vip').checked        = !!g.is_vip;
     document.getElementById('gedit-nao-desejado').checked = !!g.is_unwanted;
@@ -224,6 +225,7 @@ async function saveGuestEdit() {
       residence_country: document.getElementById('gedit-residence-country')?.value || null,
       company:         document.getElementById('gedit-company')?.value.trim() || null,
       company_nif:     document.getElementById('gedit-company-nif')?.value.trim() || null,
+      notes:           document.getElementById('gedit-notes')?.value.trim() || null,
       is_favorite:     document.getElementById('gedit-favorito').checked,
       is_vip:          document.getElementById('gedit-vip').checked,
       is_unwanted:     document.getElementById('gedit-nao-desejado').checked,

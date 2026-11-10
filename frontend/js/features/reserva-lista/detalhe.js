@@ -330,6 +330,7 @@ async function showDetail(id, opts = {}) {
           </section>
 
           ${r.notes ? `<section class="rf-card"><div class="rf-card-head"><h3>Notas</h3></div><p class="rf-notes">${esc(r.notes)}</p></section>` : ''}
+          ${r.guest_notes ? `<section class="rf-card"><div class="rf-card-head"><h3>Notas do hóspede</h3></div><p class="rf-notes">${esc(r.guest_notes)}</p></section>` : ''}
         </div>
 
         <aside class="rf-side">

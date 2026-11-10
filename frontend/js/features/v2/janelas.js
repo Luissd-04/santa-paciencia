@@ -126,8 +126,10 @@ new MutationObserver(records => {
   for (const record of records) for (const toast of record.addedNodes) {
     if (!toast.classList?.contains('toast') || toast.querySelector('.v2-aviso-ic')) continue;
     const type = Object.keys(AVISOS).find(key => toast.classList.contains(key)) || 'info';
-    const text = toast.textContent.replace(/^[\p{Extended_Pictographic}️\s]+/u, '');
-    toast.textContent = '';
+    const msg = toast.querySelector('.toast-msg');
+    if (!msg) continue;
+    const text = msg.textContent.replace(/^[\p{Extended_Pictographic}️\s]+/u, '');
+    msg.remove();
     toast.insertAdjacentHTML('afterbegin', `<span class="v2-aviso-ic is-${type}">${core().lcIcon(AVISOS[type], 16)}</span><span class="v2-aviso-t"></span>`);
     toast.querySelector('.v2-aviso-t').textContent = text;
     if (window.lucide) lucide.createIcons();

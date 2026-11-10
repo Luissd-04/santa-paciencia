@@ -767,6 +767,7 @@ select.form-control { cursor:pointer; }
 .toast.success { border-left:4px solid #0f9d58; }
 .toast.error   { border-left:4px solid #ea4335; }
 .toast.info    { border-left:4px solid var(--dourado); }
+.toast-action { margin-left:auto; padding:4px 10px; border:1px solid rgba(255,255,255,.4); border-radius:6px; background:transparent; color:inherit; font:inherit; font-weight:600; cursor:pointer; white-space:nowrap; }
 /* Reservas com alterações por guardar (domain/edit-drafts.js), no topo do conteúdo. */
 .edit-drafts-banner { margin: 12px 24px 0; padding: 12px 14px; border-radius: 10px; background: #fdf3e2; border: 1px solid #f0d9a8; color: #6b4e12; font-size: 13.5px; display: grid; gap: 8px; }
 .edit-drafts-banner[hidden] { display: none; }
