@@ -112,6 +112,7 @@ const FEATURE_MODULES = {
       'js/features/alojamentos/exportacao.js',
       'js/features/alojamentos/configuracao.js',
       'js/features/alojamentos/cartoes-v2.js',
+      'js/features/alojamentos/config-v2.js',
     ],
   },
   despesas: {
