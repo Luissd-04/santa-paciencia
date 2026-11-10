@@ -13,6 +13,7 @@ AppModules.define('core', {
   disconnectGcal: { get: () => disconnectGcal },
   disconnectGmail: { get: () => disconnectGmail },
   disconnectGoogleTasks: { get: () => disconnectGoogleTasks },
+  fillAccommodationControls: { get: () => fillAccommodationControls },
   initApp: { get: () => initApp },
   loadAccommodations: { get: () => loadAccommodations },
   novaReserva: { get: () => novaReserva },
@@ -380,7 +381,7 @@ async function loadAccommodations() {
   try {
     const data = await AppModules.core.apiGet('/api/accommodations');
     AppModules.core.accommodations = data.data || [];
-    populateAccommodationSelects();
+    fillAccommodationControls();
     AppUI.refreshDropdowns(document);
     // A vista de Alojamentos só é redesenhada se já tiver sido aberta.
     if (typeof AppModules.alojamentos.renderAlojamentos === 'function') { AppModules.alojamentos.renderAlojamentos(); AppModules.alojamentos.initAlojDrag(); }
@@ -389,11 +390,14 @@ async function loadAccommodations() {
   }
 }
 
-function populateAccommodationSelects() {
+// Os seletores de alojamento de cada vista. As vistas chegam depois do
+// arranque (domain/features.js), por isso também se preenchem ao chegar.
+function fillAccommodationControls(root = document) {
   ['f-aloj', 'filter-suite', 'cal-suite-filter', 'eventos-list-acc-filter', 'evento-accommodation'].forEach(id => {
-    const el = document.getElementById(id);
+    const el = root.querySelector('#' + id);
     if (!el) return;
     const isFilter = id !== 'f-aloj' && id !== 'evento-accommodation';
+    const kept = el.value;
     el.innerHTML = isFilter
       ? `<option value="">${id === 'eventos-list-acc-filter' ? 'Todos os alojamentos' : 'Todas as suites'}</option>`
       : (id === 'evento-accommodation' ? '<option value="">Sem alojamento</option>' : '');
@@ -405,6 +409,7 @@ function populateAccommodationSelects() {
       frag.appendChild(opt);
     });
     el.appendChild(frag);
+    if (isFilter && kept && [...el.options].some(o => o.value === kept)) el.value = kept;
   });
 }
 

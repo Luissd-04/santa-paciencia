@@ -256,6 +256,24 @@ async function main() {
   await expect(roomCard.locator('.av2-price')).toContainText('/ noite');
   await expect(roomCard.locator('.av2-price small')).toContainText('%');
   await expect(page.locator('#aloj-table')).toBeHidden();
+  // Com uma capa que existe, a foto aparece: a miniatura pedida é uma das
+  // larguras que o servidor gera (antes pedia 640 e levava 400).
+  fs.mkdirSync('data/uploads', { recursive: true });
+  await require('sharp')({ create: { width: 1200, height: 800, channels: 3, background: '#5f7d6a' } }).jpeg().toFile('data/uploads/capa-v2.jpg');
+  db.prepare("UPDATE accommodations SET cover_image='/uploads/capa-v2.jpg' WHERE id='u'").run();
+  await page.reload();
+  const capa = roomCard.locator('.av2-photo img');
+  await expect(capa).toHaveAttribute('src', '/uploads/capa-v2.jpg?w=1024');
+  await expect.poll(() => capa.evaluate(img => img.complete && img.naturalWidth)).toBe(1024);
+  // «Calendário» abre o calendário da plataforma só com esta unidade (mesmo
+  // com um Google Calendar ligado, que na V1 continua a abrir).
+  db.prepare("UPDATE accommodations SET google_calendar_id='suite@group.calendar.google.com' WHERE id='u'").run();
+  await page.reload();
+  await roomCard.getByRole('button', { name: 'Calendário' }).click();
+  await expect(page.locator('#view-calendario')).toBeVisible();
+  await expect(page.locator('#cal-suite-filter')).toHaveValue('u');
+  await expect(page).toHaveURL(/\/calendario/);
+  await page.goto(`${base}/alojamentos`);
   await roomCard.locator('h3').click();
   await expect(page.locator('#view-alojamento-detalhe')).toBeVisible();
 
@@ -501,7 +519,7 @@ async function main() {
   assert.notEqual(await page.locator('.auth-card-premium').evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(255, 255, 255, 0.15)', 'página de entrar ainda na V1');
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha na V2), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto partida), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos, total gasto e ficha com resumo), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, a minha conta e avisos; formulários grandes e página de entrar na V2.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha na V2), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto de capa, foto partida, «Calendário» da plataforma), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos, total gasto e ficha com resumo), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, a minha conta e avisos; formulários grandes e página de entrar na V2.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {

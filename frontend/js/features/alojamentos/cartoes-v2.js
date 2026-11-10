@@ -58,7 +58,7 @@ function cardHtml(a, rates) {
         <div class="av2-price"><span><b>${ReservationMoney.formatShort(a.price_per_night)}</b> / noite</span>${rate != null ? `<small>${rate}% em ${esc(month)}</small>` : ''}</div>
         ${rate != null ? `<div class="av2-bar"><i style="width:${Math.min(100, rate)}%"></i></div>` : ''}
         <div class="av2-actions" data-on-click="alojamentos-stop-propagation-22499e1">
-          <button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'alojamentos-open-aloj-calendar-direct-309a014', [String(a.id), String(a.google_calendar_id || ''), String(a.name)])}>${core.lcIcon('calendar-days', 14)} Calendário</button>
+          <button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'alojamentos-open-aloj-calendar-direct-309a014', [String(a.id)])}>${core.lcIcon('calendar-days', 14)} Calendário</button>
           <button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'alojamentos-open-alojamento-8027257', [String(a.id)])}>${core.lcIcon('pencil', 14)} Editar</button>
         </div>
       </div>

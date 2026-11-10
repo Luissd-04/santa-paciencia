@@ -337,7 +337,9 @@ function safeMediaUrl(value) {
 
 // Pede ao servidor uma miniatura (`?w=`) em vez da foto original, que pode
 // ter vários MB. Só para fotos carregadas na própria aplicação; URLs externos
-// e de outras origens ficam como estão.
+// e de outras origens ficam como estão. O servidor só gera as larguras de
+// THUMB_WIDTHS (imageOptimizer.js): pede-se a primeira que chega à pedida.
+const THUMB_WIDTHS = [160, 480, 1024, 1600];
 function mediaThumb(value, width) {
   const safe = safeMediaUrl(value);
   if (!safe) return '';
@@ -345,7 +347,7 @@ function mediaThumb(value, width) {
     const origin = globalThis.location?.origin || 'http://localhost';
     const parsed = new URL(safe, origin);
     if (parsed.origin !== origin || !/^\/uploads\/[^/]+$/.test(parsed.pathname)) return safe;
-    parsed.searchParams.set('w', String(width));
+    parsed.searchParams.set('w', String(THUMB_WIDTHS.find(w => w >= width) || THUMB_WIDTHS.at(-1)));
     return safe.startsWith('/') ? `${parsed.pathname}${parsed.search}` : parsed.href;
   } catch {
     return safe;
