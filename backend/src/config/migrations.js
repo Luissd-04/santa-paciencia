@@ -67,6 +67,7 @@ function runMigrations(db) {
   migrateNotificationState(db);
   migratePlatformConsole(db);
   migratePlatformUsage(db);
+  migrateSupport(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -622,6 +623,62 @@ function migratePlatformUsage(db) {
     if (!db.pragma('table_info(auth_sessions)').some(c => c.name === 'display_mode')) {
       db.exec("ALTER TABLE auth_sessions ADD COLUMN display_mode TEXT CHECK (display_mode IN ('standalone','browser'))");
     }
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Suporte: pedidos dos proprietários ao dono da instância. A numeração
+// (`number`, mostrada como SP-0001) é global à instância. Os anexos ficam em
+// data/uploads/support/<stored_name> e só se servem pelas rotas autenticadas.
+function migrateSupport(db) {
+  const id = '20261113_support';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`CREATE TABLE IF NOT EXISTS support_tickets (
+      id TEXT PRIMARY KEY,
+      number INTEGER UNIQUE NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      author_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      type TEXT NOT NULL CHECK (type IN ('problem','improvement','question')),
+      subject TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','in_review','needs_customer','resolved')),
+      context_json TEXT,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+      updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+      last_message_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+      customer_confirmed_at TEXT,
+      platform_read_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_support_tickets_org ON support_tickets(organization_id, last_message_at);
+    CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets(status, last_message_at);
+    CREATE INDEX IF NOT EXISTS idx_support_tickets_last ON support_tickets(last_message_at);
+    CREATE TABLE IF NOT EXISTS support_messages (
+      id TEXT PRIMARY KEY,
+      ticket_id TEXT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+      side TEXT NOT NULL CHECK (side IN ('customer','platform')),
+      author_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_support_messages_ticket ON support_messages(ticket_id, created_at);
+    CREATE TABLE IF NOT EXISTS support_attachments (
+      id TEXT PRIMARY KEY,
+      message_id TEXT NOT NULL REFERENCES support_messages(id) ON DELETE CASCADE,
+      ticket_id TEXT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+      original_name TEXT NOT NULL,
+      mime TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      stored_name TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_support_attachments_message ON support_attachments(message_id);
+    CREATE INDEX IF NOT EXISTS idx_support_attachments_ticket ON support_attachments(ticket_id);
+    CREATE TABLE IF NOT EXISTS support_reads (
+      ticket_id TEXT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      read_at TEXT NOT NULL,
+      PRIMARY KEY(ticket_id, user_id)
+    )`);
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }

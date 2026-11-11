@@ -6,6 +6,8 @@ const { platformUnlockLimiter } = require('../middleware/rateLimiter');
 const { unlock, recordPlatformAudit } = require('../services/platformAccess');
 const platform = require('../services/platformService');
 const analytics = require('../services/platformAnalytics');
+const support = require('../services/supportService');
+const supportAttachments = require('../services/supportAttachments');
 
 router.use(requirePlatformAdmin, (_req, res, next) => {
   // Nada disto é da organização aberta: sem avisos em direto às suas páginas.
@@ -35,6 +37,30 @@ router.get('/trends', (req, res) => res.json({ success: true, data: analytics.ge
 router.get('/usage', (req, res) => res.json({ success: true, data: analytics.getUsage(req.query.days) }));
 router.get('/audit', (req, res) => res.json({ success: true, data: analytics.listAudit({ limit: req.query.limit, before: req.query.before }) }));
 router.get('/incidents', (_req, res) => res.json({ success: true, data: platform.listIncidents() }));
+
+// Suporte: caixa de entrada de todos os pedidos (já atrás do requirePlatformAdmin
+// e da consola desbloqueada). O parser de 15 MB das mensagens está em app.js.
+const supportRouter = require('express').Router();
+supportRouter.get('/tickets', async (req, res) => {
+  const { status, type, q, organization_id } = req.query;
+  res.json({ success: true, data: await support.listForPlatform({ status, type, q, organization_id }) });
+});
+supportRouter.get('/tickets/:id', async (req, res) => res.json({ success: true, data: await support.getForPlatform(req.params.id) }));
+supportRouter.post('/tickets/:id/messages', async (req, res) =>
+  res.status(201).json({ success: true, data: await support.addPlatformMessage(req.user, req.params.id, req.body || {}) }));
+supportRouter.put('/tickets/:id', async (req, res) => {
+  const status = req.body?.status;
+  const data = await support.setStatus(req.user, req.params.id, status);
+  recordPlatformAudit({ userId: req.user.id, action: 'support.status', targetType: 'support_ticket', targetId: req.params.id,
+    details: { status }, ip: req.ip });
+  res.json({ success: true, data });
+});
+supportRouter.get('/attachments/:id', (req, res) => {
+  const row = supportAttachments.findAttachment(req.params.id);
+  if (!row) return res.status(404).json({ success: false, error: 'Anexo não encontrado.' });
+  supportAttachments.streamAttachment(res, row);
+});
+router.use('/support', supportRouter);
 
 // 501 sai com a mensagem (o tratamento global esconde mensagens 5xx em produção).
 router.use((err, _req, res, next) => {

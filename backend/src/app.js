@@ -143,6 +143,16 @@ app.use(['/api/accommodations', '/api/expenses'], (req, res, next) => {
   if (!['POST', 'PUT', 'PATCH'].includes(req.method)) return next();
   requireAuth(req, res, () => require('./middleware/requireRole')('manager')(req, res, () => uploadParser(req, res, next)));
 });
+// Suporte: só as rotas que recebem anexos (pedido novo e mensagens); na
+// consola, só depois de confirmar o admin e a consola desbloqueada.
+const SUPPORT_UPLOADS = /^\/api\/(?:support\/tickets(?:\/[^/]+\/messages)?|platform\/support\/tickets\/[^/]+\/messages)\/?$/;
+app.use((req, res, next) => {
+  if (req.method !== 'POST' || !SUPPORT_UPLOADS.test(req.path)) return next();
+  requireAuth(req, res, () => {
+    if (!req.path.startsWith('/api/platform/')) return uploadParser(req, res, next);
+    require('./middleware/requirePlatformAdmin')(req, res, () => uploadParser(req, res, next));
+  });
+});
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '256kb', parameterLimit: 200 }));
 
@@ -234,6 +244,7 @@ app.use('/api/tasks', googleTasksRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/ops', require('./routes/ops'));
 app.use('/api/telemetry', require('./routes/telemetry'));
+app.use('/api/support', require('./routes/support'));
 // Consola da plataforma: depois do requireAuth de /api. O staffResponse só
 // esconde chaves que estas respostas não têm e o liveUpdates é silenciado lá.
 app.use('/api/platform', require('./routes/platform'));

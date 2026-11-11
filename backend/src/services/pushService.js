@@ -137,14 +137,16 @@ function saveUserPushPrefs(organizationId, userId, prefs = {}) {
 // options.excludeUserId — não notificar quem fez a ação.
 // options.type — tipo de notificação; respeita os switches de cada utilizador.
 // options.roles — só estes papéis (ex.: ['owner', 'manager']).
+// options.userIds — só os dispositivos destes utilizadores (lista vazia: nenhum).
 async function sendToOrganization(organizationId, payload, options = {}) {
   getVapidKeys();
-  const { excludeUserId = null, type = null, roles = null } = options;
+  const { excludeUserId = null, type = null, roles = null, userIds = null } = options;
   let rows = db.prepare('SELECT s.endpoint, s.keys_json, s.user_id, s.organization_id, m.role FROM push_subscriptions s JOIN memberships m ON m.user_id=s.user_id AND m.organization_id=s.organization_id JOIN users u ON u.id=s.user_id WHERE s.organization_id = ? AND s.active = 1 AND m.active = 1 AND u.active = 1').all(organizationId);
   // Subscrições gravadas antes da validação também não podem ser usadas.
   rows = rows.filter(r => isValidPushEndpoint(r.endpoint));
   if (excludeUserId) rows = rows.filter(r => r.user_id !== excludeUserId);
   if (roles) rows = rows.filter(r => roles.includes(r.role));
+  if (Array.isArray(userIds)) rows = rows.filter(r => userIds.includes(r.user_id));
   if (type) {
     const prefsCache = {};
     rows = rows.filter(r => {
