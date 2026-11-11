@@ -10,7 +10,7 @@ const { httpError } = require('./httpError');
 // (a consola não é uso da organização). Uma vista nova tem de entrar aqui.
 const KNOWN_VIEWS = new Set([
   'dashboard', 'reservas', 'calendario', 'eventos', 'hospedes', 'notificacoes', 'alojamentos',
-  'invoice', 'despesas', 'relatorios', 'vouchers', 'precos', 'definicoes', 'hospede-detalhe',
+  'invoice', 'despesas', 'relatorios', 'vouchers', 'precos', 'definicoes', 'hospede-detalhe', 'ajuda',
 ]);
 const MAX_VIEWS = 30;
 const MAX_COUNT = 50;

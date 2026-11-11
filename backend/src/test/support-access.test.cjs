@@ -195,22 +195,22 @@ test('consola: anexo de qualquer organização só para o admin com a consola de
   assert.equal((await get(admin, '/api/platform/support/attachments/nao-existe')).status, 404);
 });
 
-test('esqueleto: rotas do contrato respondem 501 e o parser de 15 MB só abre depois de autenticar', async () => {
-  for (const [method, url] of [['GET', '/api/support/tickets'], ['GET', '/api/support/tickets/x'], ['GET', '/api/support/summary'],
-    ['POST', '/api/support/tickets'], ['POST', '/api/support/tickets/x/messages'], ['POST', '/api/support/tickets/x/feedback']]) {
+test('rotas do contrato: respondem com o serviço e o parser de 15 MB só abre depois de autenticar', async () => {
+  for (const [method, url, expected] of [['GET', '/api/support/tickets', 200], ['GET', '/api/support/tickets/x', 404], ['GET', '/api/support/summary', 200],
+    ['POST', '/api/support/tickets', 400], ['POST', '/api/support/tickets/x/messages', 404], ['POST', '/api/support/tickets/x/feedback', 404]]) {
     const r = await get(staffA, url, { method, body: method === 'POST' ? '{}' : undefined });
-    assert.equal(r.status, 501, `${method} ${url}`);
-    assert.equal((await r.json()).success, false);
+    assert.equal(r.status, expected, `${method} ${url}`);
+    assert.equal((await r.json()).success, expected < 400);
   }
-  for (const [method, url] of [['GET', '/api/platform/support/tickets'], ['GET', '/api/platform/support/tickets/x'],
-    ['POST', '/api/platform/support/tickets/x/messages'], ['PUT', '/api/platform/support/tickets/x']]) {
-    assert.equal((await get(admin, url, { method, body: method === 'GET' ? undefined : '{}' })).status, 501, `${method} ${url}`);
+  for (const [method, url, expected] of [['GET', '/api/platform/support/tickets', 200], ['GET', '/api/platform/support/tickets/x', 404],
+    ['POST', '/api/platform/support/tickets/x/messages', 404], ['PUT', '/api/platform/support/tickets/x', 400]]) {
+    assert.equal((await get(admin, url, { method, body: method === 'GET' ? undefined : '{}' })).status, expected, `${method} ${url}`);
     assert.equal((await get(ownerA, url, { method, body: method === 'GET' ? undefined : '{}' })).status, 404, `${method} ${url}`);
   }
   const big = JSON.stringify({ body: 'x', attachments: [{ name: 'a.png', data_base64: 'A'.repeat(12 * 1024 * 1024) }] });
-  assert.equal((await get(staffA, '/api/support/tickets', { method: 'POST', body: big })).status, 501);
-  assert.equal((await get(staffA, '/api/support/tickets/x/messages', { method: 'POST', body: big })).status, 501);
-  assert.equal((await get(admin, '/api/platform/support/tickets/x/messages', { method: 'POST', body: big })).status, 501);
+  assert.equal((await get(staffA, '/api/support/tickets', { method: 'POST', body: big })).status, 400);
+  assert.equal((await get(staffA, '/api/support/tickets/x/messages', { method: 'POST', body: big })).status, 404);
+  assert.equal((await get(admin, '/api/platform/support/tickets/x/messages', { method: 'POST', body: big })).status, 404);
   assert.equal((await get(ownerA, '/api/platform/support/tickets/x/messages', { method: 'POST', body: big })).status, 404);
   assert.equal((await get(staffA, '/api/support/tickets/x/feedback', { method: 'POST', body: big })).status, 413);
   assert.equal((await fetch(base + '/api/support/tickets', { method: 'POST', body: big, headers: { 'Content-Type': 'application/json' } })).status, 401);

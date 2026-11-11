@@ -43,6 +43,7 @@ function collect(onlyId = null) {
   const members = countBy('SELECT organization_id, COUNT(*) AS n FROM memberships WHERE active = 1 GROUP BY organization_id');
   const accommodations = countBy('SELECT organization_id, COUNT(*) AS n FROM accommodations GROUP BY organization_id');
   const reservations30 = countBy("SELECT organization_id, COUNT(*) AS n FROM reservations WHERE created_at >= datetime('now', '-30 days') GROUP BY organization_id");
+  const openRequests = countBy("SELECT organization_id, COUNT(*) AS n FROM support_tickets WHERE status != 'resolved' GROUP BY organization_id");
   const reservationsAll = countBy('SELECT organization_id, COUNT(*) AS n FROM reservations GROUP BY organization_id');
   const lastSeen = new Map(db.prepare(`SELECT s.organization_id, MAX(s.last_seen_at) AS last_seen FROM auth_sessions s
     JOIN memberships m ON m.organization_id = s.organization_id AND m.user_id = s.user_id AND m.active = 1
@@ -72,6 +73,7 @@ function collect(onlyId = null) {
       reservations_30d: reservations30.get(org.id) || 0,
       integrations: { google, gmail: mail, stripe },
       open_problems: own.length,
+      open_requests: openRequests.get(org.id) || 0,
     };
     return { row, problems: own, notes: org.platform_notes ?? null, hasReservation: (reservationsAll.get(org.id) || 0) > 0 };
   });
@@ -111,7 +113,7 @@ function getOverview() {
   return {
     organizations: orgs.length,
     active_incidents: incidentsFrom(orgs).length + problems.length,
-    open_requests: 0,
+    open_requests: db.prepare("SELECT COUNT(*) AS n FROM support_tickets WHERE status != 'resolved'").get().n,
     inactive_14d: inactive,
     instance: {
       app_build: status.process.app_build, uptime_seconds: status.process.uptime_seconds,
@@ -158,4 +160,4 @@ function listIncidents() {
   return { incidents: incidentsFrom(orgs), instance: instanceProblems(instanceStatus).problems };
 }
 
-module.exports = { getOverview, listOrganizations, getOrganization, updateOrganization, listIncidents, isInstanceKey };
+module.exports = { getOverview, listOrganizations, getOrganization, updateOrganization, listIncidents, isInstanceKey, providerOf };
