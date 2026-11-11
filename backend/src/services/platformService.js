@@ -133,6 +133,7 @@ function getOrganization(id) {
     problems: problems.map(({ key, title, detail }) => ({ key, title, detail })),
     onboarding: { google: row.integrations.google !== 'off' || row.integrations.gmail !== 'off', accommodation: row.accommodations > 0, reservation: hasReservation },
     notes,
+    ...require('./platformAnalytics').organizationInsights(row.id),
   };
 }
 

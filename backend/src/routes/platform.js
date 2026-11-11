@@ -5,6 +5,7 @@ const requirePlatformAdmin = require('../middleware/requirePlatformAdmin');
 const { platformUnlockLimiter } = require('../middleware/rateLimiter');
 const { unlock, recordPlatformAudit } = require('../services/platformAccess');
 const platform = require('../services/platformService');
+const analytics = require('../services/platformAnalytics');
 
 router.use(requirePlatformAdmin, (_req, res, next) => {
   // Nada disto é da organização aberta: sem avisos em direto às suas páginas.
@@ -30,6 +31,9 @@ router.put('/organizations/:id', (req, res) => {
     details: { status: status ?? null, notes_changed: notes !== undefined }, ip: req.ip });
   res.json({ success: true, data });
 });
+router.get('/trends', (req, res) => res.json({ success: true, data: analytics.getTrends(req.query.weeks) }));
+router.get('/usage', (req, res) => res.json({ success: true, data: analytics.getUsage(req.query.days) }));
+router.get('/audit', (req, res) => res.json({ success: true, data: analytics.listAudit({ limit: req.query.limit, before: req.query.before }) }));
 router.get('/incidents', (_req, res) => res.json({ success: true, data: platform.listIncidents() }));
 
 // 501 sai com a mensagem (o tratamento global esconde mensagens 5xx em produção).
