@@ -5,6 +5,7 @@ AppModules.define('core', {
   closeChangePasswordModal: { get: () => closeChangePasswordModal },
   closeProfileModal: { get: () => closeProfileModal },
   closeSessionsModal: { get: () => closeSessionsModal },
+  handlePlatformOnly: { get: () => handlePlatformOnly },
   handleUnauthorized: { get: () => handleUnauthorized },
   logout: { get: () => logout },
   openChangePasswordModal: { get: () => openChangePasswordModal },
@@ -57,8 +58,8 @@ function friendlyAuthError(err) {
   // Fallback for network/unexpected errors
   const raw = (err?.message || '').toLowerCase();
   if (raw.includes('failed to fetch') || raw.includes('network') || raw.includes('load'))
-    return 'Sem ligação ao servidor. Verifica a tua ligação à internet e tenta de novo.';
-  return err?.message || 'Não foi possível completar a operação. Tenta novamente.';
+    return 'Sem ligação ao servidor. Verifique a ligação à internet e tente de novo.';
+  return err?.message || 'Não foi possível completar a operação. Tente novamente.';
 }
 
 function setFieldError(inputId, hasError, hintText) {
@@ -144,6 +145,7 @@ function pickSavedAccount(email) {
 }
 
 function renderSavedAccounts() {
+  renderGreeting();
   const wrap = document.getElementById('auth-saved-accounts');
   if (!wrap) return;
   const accounts = authMode === 'login' ? getSavedAccounts() : [];
@@ -183,6 +185,208 @@ function prefillLastAccount() {
   }
 }
 
+// ── Página de entrar: saudação, frase do dia a dia, números da semana ──
+const QUOTES = [
+  { tag: '03:12 · Check-in', line: '«Cheguei. Onde está a chave?»', answer: 'Santa paciência. As instruções de chegada já seguiram por email às 15h.' },
+  { tag: 'Domingo · Limpeza', line: 'Saída às 11h, entrada às 15h.', answer: 'Santa paciência. A tarefa de limpeza já está na agenda da equipa.' },
+  { tag: 'Agosto · Booking + Airbnb', line: 'Duas reservas para a mesma noite?', answer: 'Santa paciência. O calendário sincronizado não deixa acontecer.' },
+  { tag: 'Fim do mês · Contas', line: 'Quanto rendeu a Casa do Largo?', answer: 'Santa paciência. O relatório do mês está pronto, com despesas e tudo.' },
+  { tag: 'Sexta · 18:40 · Hóspedes', line: '«Podemos fazer o check-in mais cedo?»', answer: 'Santa paciência. Vê a disponibilidade do dia antes de responder.' },
+  { tag: 'Sábado · Wi-Fi', line: '«Qual é a palavra-passe do Wi-Fi?»', answer: 'Santa paciência. Está no guia do hóspede, que já seguiu por email.' },
+  { tag: 'Terça · Lavandaria', line: 'Faltam toalhas para as chegadas de amanhã.', answer: 'Santa paciência. A reposição já está na lista de tarefas da equipa.' },
+  { tag: 'Janeiro · Preços', line: 'E se subíssemos o preço na semana do festival?', answer: 'Santa paciência. As épocas e os preços ficam definidos de uma só vez.' },
+];
+let quoteIndex = -1;
+
+function showQuote() {
+  const tag = document.getElementById('entrar-frase-tag');
+  const line = document.getElementById('entrar-frase-linha');
+  const answer = document.getElementById('entrar-frase-resposta');
+  if (!tag || !line || !answer) return;
+  // Aleatória a cada visita; «Outra frase» nunca repete a que está à vista.
+  let next = Math.floor(Math.random() * QUOTES.length);
+  if (next === quoteIndex) next = (next + 1) % QUOTES.length;
+  quoteIndex = next;
+  tag.textContent = QUOTES[next].tag;
+  line.textContent = QUOTES[next].line;
+  answer.textContent = QUOTES[next].answer;
+}
+
+function firstName(full) {
+  return String(full || '').trim().split(/\s+/)[0] || '';
+}
+
+function initialsOf(text) {
+  const parts = String(text || '').trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() || '?';
+}
+
+// Título do ecrã: «Bom dia, Maria» (pela hora do dia e pela conta guardada neste
+// aparelho) no login; nos outros modos, o nome do passo.
+function renderGreeting(mode = authMode) {
+  const el = document.getElementById('auth-title');
+  if (!el) return;
+  const titles = { register: 'Crie o seu espaço', invite: 'Seja bem-vindo', forgot: 'Recuperar a palavra-passe', reset: 'Nova palavra-passe' };
+  if (titles[mode]) { el.textContent = titles[mode]; return; }
+  const hour = new Date().getHours();
+  const hello = hour >= 6 && hour < 12 ? 'Bom dia' : hour >= 12 && hour < 20 ? 'Boa tarde' : 'Boa noite';
+  const typed = (document.getElementById('login-email')?.value || '').trim().toLowerCase();
+  const accounts = getSavedAccounts();
+  const account = typed ? accounts.find(a => a.email === typed) : accounts[0];
+  const name = firstName(account?.name);
+  el.textContent = name ? `${hello}, ${name}` : hello;
+}
+
+let publicStatsDone = false;
+async function loadPublicStats() {
+  const box = document.getElementById('entrar-numeros');
+  const grid = document.getElementById('entrar-numeros-grelha');
+  const line = document.getElementById('entrar-semana');
+  if (!box || !grid || !line || publicStatsDone) return;
+  const hide = () => { box.hidden = true; line.hidden = true; };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
+  try {
+    const res = await fetch(AppModules.core.API_BASE + '/auth/public-stats', { signal: controller.signal });
+    if (!res.ok) throw new Error('Números indisponíveis.');
+    const week = (await res.json())?.data?.week;
+    const items = [['reservations_created', 'reservas criadas'], ['emails_sent', 'emails enviados'], ['accommodations', 'alojamentos']]
+      .map(([key, label]) => [week?.[key], label])
+      .filter(([value]) => typeof value === 'number' && Number.isFinite(value) && value >= 0);
+    // Sem reservas nem emails na semana, os números não dizem nada: esconde-se.
+    if (!items.length || !items.slice(0, 2).some(([value]) => value > 0)) throw new Error('Números indisponíveis.');
+    const esc = AppModules.core.escapeHtml;
+    grid.innerHTML = items.map(([value, label]) => `<div><strong>${esc(value.toLocaleString('pt-PT'))}</strong><span>${esc(label)}</span></div>`).join('');
+    line.textContent = `Esta semana: ${items.map(([value, label]) => `${value.toLocaleString('pt-PT')} ${label}`).join(' · ')}`;
+    box.hidden = false;
+    line.hidden = false;
+    publicStatsDone = true;
+  } catch {
+    hide();   // sem números não se mostra o bloco
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ── Para onde ir depois do login (destinations) ──
+const ENTRY_KEY = 'sp:entrada';   // 'platform' ou o id da organização escolhida
+let pendingChoiceUser = null;
+
+function readEntryChoice() {
+  try { return localStorage.getItem(ENTRY_KEY) || ''; } catch { return ''; }
+}
+
+function saveEntryChoice(value) {
+  try {
+    if (value) localStorage.setItem(ENTRY_KEY, String(value));
+    else localStorage.removeItem(ENTRY_KEY);
+  } catch { /* storage bloqueado: a escolha vale só desta vez */ }
+}
+
+let redirectingToPlatform = false;
+function goToPlatform() {
+  if (redirectingToPlatform) return;
+  redirectingToPlatform = true;
+  location.href = '/plataforma';
+}
+
+// 403 {platform_only:true}: a sessão aberta na SPA é só da consola (helpers.js).
+function handlePlatformOnly() {
+  goToPlatform();
+}
+
+const ROLE_LABELS_ENTRADA = { owner: 'Proprietário', manager: 'Gestor', staff: 'Equipa' };
+
+function hideChoice() {
+  const box = document.getElementById('auth-choice');
+  const card = document.querySelector('#auth-shell .auth-card-premium');
+  pendingChoiceUser = null;
+  if (box) { box.hidden = true; box.innerHTML = ''; }
+  if (card) card.hidden = false;
+}
+
+function showChoice(user, destinations) {
+  const box = document.getElementById('auth-choice');
+  const card = document.querySelector('#auth-shell .auth-card-premium');
+  if (!box || !card) return false;
+  const esc = AppModules.core.escapeHtml;
+  const name = firstName(user?.name);
+  const orgs = destinations.organizations || [];
+  pendingChoiceUser = user;
+  box.innerHTML = `
+    <div class="entrar-escolha-topo">
+      <span class="entrar-escolha-avatar" aria-hidden="true">${esc(initialsOf(user?.name || user?.email))}</span>
+      <div><h2 id="auth-choice-title">${name ? `Olá, ${esc(name)}` : 'Olá'}</h2><p>Onde quer entrar?</p></div>
+    </div>
+    <button type="button" class="entrar-destino entrar-destino-plataforma" id="auth-choice-platform" data-dest="platform" data-on-click="auth-choose-destination">
+      <span class="entrar-destino-icone" aria-hidden="true">S</span>
+      <span class="entrar-destino-texto"><strong>Consola da plataforma</strong><small>Clientes, suporte e tarefas da equipa</small></span>
+      <span class="entrar-destino-seta" aria-hidden="true">→</span>
+    </button>
+    <div class="entrar-escolha-lista">
+      <span class="entrar-escolha-secao">Alojamentos</span>
+      ${orgs.map(o => `<button type="button" class="entrar-destino" data-dest="${esc(String(o.id))}" data-on-click="auth-choose-destination">
+        <span class="entrar-destino-icone" aria-hidden="true">${esc(initialsOf(o.name))}</span>
+        <span class="entrar-destino-texto"><strong>${esc(o.name)}</strong><small>${esc(ROLE_LABELS_ENTRADA[o.role] || o.role || '')}</small></span>
+        <span class="entrar-destino-seta" aria-hidden="true">→</span>
+      </button>`).join('')}
+    </div>
+    <label class="entrar-lembrar"><input type="checkbox" id="auth-choice-remember"> Lembrar a escolha neste aparelho</label>
+    <p class="entrar-escolha-erro" id="auth-choice-erro" role="alert" hidden></p>
+    <button type="button" class="auth-link-btn entrar-escolha-sair" data-on-click="auth-choice-logout">Não é você? Sair</button>`;
+  card.hidden = true;
+  box.hidden = false;
+  focusAuthField(document.getElementById('auth-choice-platform'));
+  return true;
+}
+
+async function enterOrganization(organizationId) {
+  const payload = await AppModules.core.apiPost('/auth/switch-org', { organization_id: organizationId, display_mode: window.AppTelemetry?.displayMode?.() }, { skipAuthRedirect: true });
+  const user = payload?.data?.user || pendingChoiceUser;
+  AppModules.core.currentUser = user;
+  rememberAccount(user);
+  setAuthenticatedLayout(true);
+  await bootstrapApp();
+  setAuthScreenMessage('');
+}
+
+async function chooseDestination(el) {
+  const value = el.dataset.dest;
+  const remember = document.getElementById('auth-choice-remember')?.checked === true;
+  const errorEl = document.getElementById('auth-choice-erro');
+  const buttons = document.querySelectorAll('#auth-choice .entrar-destino');
+  if (errorEl) errorEl.hidden = true;
+  saveEntryChoice(remember ? value : '');
+  if (value === 'platform') { goToPlatform(); return; }
+  buttons.forEach(b => { b.disabled = true; });
+  try {
+    await enterOrganization(value);
+  } catch (err) {
+    buttons.forEach(b => { b.disabled = false; });
+    saveEntryChoice('');
+    if (errorEl) { errorEl.textContent = friendlyAuthError(err); errorEl.hidden = false; }
+  }
+}
+
+// Devolve true se tratou o destino (redireciono ou ecrã de escolha); false
+// para seguir o fluxo normal de uma organização.
+async function routeByDestinations(data) {
+  const destinations = data?.destinations;
+  if (!destinations || typeof destinations !== 'object') return false;
+  const orgs = Array.isArray(destinations.organizations) ? destinations.organizations : [];
+  if (!destinations.platform) return false;
+  if (!orgs.length) { goToPlatform(); return true; }
+  const user = data.user || null;
+  const saved = readEntryChoice();
+  if (saved === 'platform') { goToPlatform(); return true; }
+  if (saved && orgs.some(o => String(o.id) === saved)) {
+    pendingChoiceUser = user;
+    try { await enterOrganization(saved); return true; } catch { saveEntryChoice(''); }
+  }
+  AppModules.core.currentUser = null;
+  return showChoice(user, { ...destinations, organizations: orgs });
+}
+
 function updateUserBadge() {
   const menuName = document.getElementById('user-menu-name');
   const menuEmail = document.getElementById('user-menu-email');
@@ -207,6 +411,7 @@ function setAuthenticatedLayout(isAuthenticated) {
   const shell = document.getElementById('auth-shell');
   const bg = document.getElementById('auth-bg-pattern');
   const layout = document.getElementById('app-layout');
+  if (isAuthenticated) hideChoice();
   if (shell) shell.style.display = isAuthenticated ? 'none' : 'flex';
   if (bg) bg.style.display = isAuthenticated ? 'none' : 'block';
   if (layout) layout.style.display = isAuthenticated ? 'flex' : 'none';
@@ -221,7 +426,9 @@ function setAuthenticatedLayout(isAuthenticated) {
   if (window.lucide) lucide.createIcons();
 }
 
-function setAuthMode(mode) {
+// keepFeedback: refresca o ecrã sem apagar a mensagem nem o campo marcado
+// (depois de um pedido que acabou de os mostrar).
+function setAuthMode(mode, keepFeedback = false) {
   authMode = mode;
   const isRegister = mode === 'register';
   const isInvite   = mode === 'invite';
@@ -271,23 +478,25 @@ function setAuthMode(mode) {
 
   if (copy) {
     copy.textContent = isReset
-      ? 'Define uma nova palavra-passe para a tua conta.'
+      ? 'Defina uma nova palavra-passe para a sua conta.'
       : isForgot
-        ? 'Indica o email da tua conta e enviamos-te um link para recuperar a palavra-passe.'
+        ? 'Indique o email da sua conta e enviamos-lhe um link para recuperar a palavra-passe.'
         : isExistingInvite
-          ? 'Já tens conta no Santa Paciência. Confirma a tua identidade com a tua password para aceitar o convite.'
+          ? 'Já tem conta na Santa Paciência. Confirme a sua identidade com a palavra-passe para aceitar o convite.'
           : isInvite
-            ? 'Aceita o convite e entra diretamente no espaço para o qual foste convidado.'
+            ? 'Aceite o convite e entre diretamente no espaço para o qual foi convidado.'
             : isRegister
-              ? 'Cria o teu espaço de proprietário. Depois poderás convidar gestores e funcionários.'
-              : 'Entra na operação, gere a tua equipa e mantém cada propriedade organizada num espaço próprio.';
+              ? 'Crie o seu espaço de proprietário. Depois poderá convidar gestores e equipa.'
+              : 'Entre e deixe a paciência connosco.';
   }
   if (helper) {
     helper.textContent = isForgot || isReset
       ? ''
       : isInvite
-        ? 'O papel é definido pelo proprietário. Só precisas de criar a tua conta.'
-        : 'Cada proprietário cria o seu próprio espaço. Gestores e funcionários entram por convite.';
+        ? 'O papel é definido pelo proprietário. Só precisa de criar a sua conta.'
+        : isRegister
+          ? 'Cada proprietário cria o seu próprio espaço. Gestores e equipa entram por convite.'
+          : 'Recebeu um convite? Abra o link do email.';
   }
   if (submitBtn) submitBtn.innerHTML = isReset
     ? `${AppModules.core.lcIcon('key-round', 14)} Guardar nova palavra-passe`
@@ -297,7 +506,7 @@ function setAuthMode(mode) {
         ? `${AppModules.core.lcIcon('user-check', 14)} Aceitar convite`
         : isRegister
           ? `${AppModules.core.lcIcon('building-2', 14)} Criar espaço`
-          : `${AppModules.core.lcIcon('log-in', 14)} Entrar`;
+          : `${AppModules.core.lcIcon('key-round', 14)} Entrar`;
 
   const hideTabs = isInvite || isForgot || isReset;
   if (tabLogin)    { tabLogin.classList.toggle('active', mode === 'login'); tabLogin.style.display = hideTabs ? 'none' : ''; }
@@ -317,7 +526,7 @@ function setAuthMode(mode) {
       btn.type = 'button';
       btn.id = 'auth-back-btn';
       btn.className = 'auth-link-btn';
-      btn.textContent = '← Voltar ao login';
+      btn.textContent = '← Voltar a entrar';
       btn.onclick = () => { setAuthMode('login'); btn.remove(); };
       submitBtn?.after(btn);
     }
@@ -333,15 +542,20 @@ function setAuthMode(mode) {
   });
   renderSavedAccounts();
 
-  setAuthScreenMessage('');
-  clearFieldErrors();
+  renderGreeting(mode);
+  if (!keepFeedback) {
+    setAuthScreenMessage('');
+    clearFieldErrors();
+  }
   if (window.lucide) lucide.createIcons();
 }
 
+let sessionDestinations = null;
 async function fetchCurrentUser() {
   const res = await fetch(AppModules.core.API_BASE + '/auth/me', { credentials: 'include' });
   if (!res.ok) return null;
   const payload = await res.json();
+  sessionDestinations = payload?.data?.destinations || null;
   return payload?.data?.user || null;
 }
 
@@ -439,7 +653,7 @@ async function handleLoginSubmit(event) {
     } catch {
       setAuthScreenMessage('Não foi possível processar o pedido. Tenta de novo.', 'error');
     } finally {
-      if (submitBtn) { submitBtn.disabled = false; setAuthMode('forgot'); }
+      if (submitBtn) { submitBtn.disabled = false; setAuthMode('forgot', true); }
     }
     return;
   }
@@ -460,9 +674,10 @@ async function handleLoginSubmit(event) {
       await AppModules.core.apiPost('/auth/reset-password', { token: resetToken, password: newPw, confirm_password: cfmPw }, { skipAuthRedirect: true });
       resetToken = null;
       history.replaceState({}, '', '/');
-      setAuthScreenMessage('Palavra-passe alterada com sucesso! Podes entrar agora.', 'success');
       setAuthMode('login');
+      setAuthScreenMessage('Palavra-passe alterada com sucesso! Já pode entrar.', 'success');
     } catch (err) {
+      setAuthMode('reset', true);
       setAuthScreenMessage(friendlyAuthError(err), 'error');
     } finally {
       if (submitBtn) { submitBtn.disabled = false; }
@@ -491,22 +706,27 @@ async function handleLoginSubmit(event) {
         await navigator.credentials.store(cred);
       } catch (_) {}
     }
+    // Contas só da plataforma, ou da plataforma e de organizações: o destino vem do servidor.
+    if (authMode === 'login' && await routeByDestinations(payload?.data)) return;
     setAuthenticatedLayout(true);
     await bootstrapApp();
     setAuthScreenMessage('');
   } catch (err) {
-    const msg = friendlyAuthError(err);
+    // 401 no login: palavra-passe errada. Outros erros (suspensa, limite de tentativas…) trazem a mensagem do servidor.
+    const wrongPassword = authMode === 'login' && err?.status === 401;
+    const msg = wrongPassword ? 'Palavra-passe errada. Respire fundo e tente outra vez.' : friendlyAuthError(err);
     setAuthScreenMessage(msg, 'error');
     // Highlight likely field based on error content
     const raw = (err?.payload?.error || err?.message || '').toLowerCase();
-    if (raw.includes('email')) setFieldError('login-email', true);
+    if (wrongPassword) setFieldError('login-password', true);
+    else if (raw.includes('email')) setFieldError('login-email', true);
     else if (raw.includes('password') || raw.includes('credentials')) setFieldError('login-password', true);
     AppModules.core.currentUser = null;
     setAuthenticatedLayout(false);
   } finally {
     if (submitBtn) {
       submitBtn.disabled = false;
-      setAuthMode(authMode);
+      setAuthMode(authMode, true);
     }
   }
 }
@@ -532,8 +752,10 @@ async function logout() {
 
   AppModules.core.currentUser = null;
   setAuthenticatedLayout(false);
+  hideChoice();
   setAuthMode(inviteToken ? 'invite' : 'login');
   prefillLastAccount();
+  loadPublicStats();
   setAuthScreenMessage('Sessão terminada.', 'info');
 }
 
@@ -545,7 +767,7 @@ async function switchAccount() {
   const input = document.getElementById('login-email');
   if (input) input.value = '';
   renderSavedAccounts();
-  setAuthScreenMessage(getSavedAccounts().length ? 'Escolhe uma conta ou escreve outro email.' : '', 'info');
+  setAuthScreenMessage(getSavedAccounts().length ? 'Escolha uma conta ou escreva outro email.' : '', 'info');
   focusAuthField(input);
 }
 
@@ -553,9 +775,11 @@ async function handleUnauthorized() {
   if (typeof AppModules.core.resetPrivateLists === 'function') AppModules.core.resetPrivateLists({ keepDraft: true });
   AppModules.core.currentUser = null;
   setAuthenticatedLayout(false);
+  hideChoice();
   setAuthMode(inviteToken ? 'invite' : 'login');
   prefillLastAccount();
-  setAuthScreenMessage('A tua sessão expirou. Entra novamente para continuar.', 'error');
+  loadPublicStats();
+  setAuthScreenMessage('A sua sessão expirou. Entre novamente para continuar.', 'error');
 }
 
 let _userMemberships = [];
@@ -892,6 +1116,8 @@ async function boot() {
   if (form) form.addEventListener('submit', handleLoginSubmit);
   document.getElementById('tab-login')?.addEventListener('click', () => setAuthMode('login'));
   document.getElementById('tab-register')?.addEventListener('click', () => setAuthMode('register'));
+  document.getElementById('login-email')?.addEventListener('input', () => renderGreeting());
+  showQuote();
   document.addEventListener('click', function(e) {
     const userMenu = document.getElementById('user-menu');
     if (userMenu && userMenu.style.display !== 'none') {
@@ -911,7 +1137,14 @@ async function boot() {
   }
 
   AppModules.core.currentUser = await fetchCurrentUser();
+  // Sessão só da plataforma: não há app de alojamento para abrir.
+  if (AppModules.core.currentUser && !AppModules.core.currentUser.organization_id && sessionDestinations?.platform) {
+    AppModules.core.currentUser = null;
+    goToPlatform();
+    return;
+  }
   if (!AppModules.core.currentUser && !inviteParam && !resetParam) prefillLastAccount();
+  if (!AppModules.core.currentUser) loadPublicStats();
   if (AppModules.core.currentUser) {
     setAuthenticatedLayout(true);
     await bootstrapApp();
@@ -927,6 +1160,9 @@ AppActions.register({
   "auth-switch-org-afb0d97": (el, event, args) => { switchOrg(el.dataset.org) },
   "auth-pick-saved-account-a182baa": (el, event, args) => { pickSavedAccount(el.dataset.email) },
   "auth-forget-saved-account-1d31cae": (el, event, args) => { forgetSavedAccount(el.dataset.email) },
+  "auth-next-quote": () => { showQuote() },
+  "auth-choose-destination": (el) => chooseDestination(el),
+  "auth-choice-logout": () => logout(),
 }, "click");
 
 // Limpeza da funcionalidade ao sair ou trocar de organização.

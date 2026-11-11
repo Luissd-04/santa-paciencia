@@ -296,3 +296,23 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
 }
 .kpi-value.kpi-animated { animation: kpiEnter .8s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 
+
+/* ─── Novo alojamento (js/features/alojamentos/novo-alojamento.js) ─── */
+.aloj-v1-card :is(.table-wrap, .aloj-mobile-cards)[hidden] { display: none !important; }
+.aloj-empty { padding: 40px 20px; }
+.aloj-empty p { max-width: 460px; margin: 0 auto 18px; }
+.modal.anv { max-width: 520px; }
+.anv .anv-bloco { margin: 0 0 16px; }
+.anv .anv-bloco[hidden] { display: none; }
+.anv .anv-bloco > .form-label { display: block; margin-bottom: 6px; }
+.anv-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 3px; border: 1px solid var(--cinza-claro); border-radius: 10px; background: var(--cinza-claro); }
+.anv-seg button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 6px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--cinza); font: inherit; font-size: 13px; line-height: 1.25; text-align: left; cursor: pointer; }
+.anv-seg button svg { flex: none; width: 16px; height: 16px; }
+.anv-seg button[aria-checked="true"] { background: #fff; color: var(--azul); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .14); }
+.anv-seg button:focus-visible { outline: 2px solid var(--azul-claro, #4a7fa5); outline-offset: 1px; }
+.anv-dica { margin: 6px 0 0; font-size: 12.5px; color: var(--cinza); }
+.anv-erro { margin: 0; padding: 10px 12px; border-radius: 8px; background: rgba(192, 57, 43, .1); color: var(--vermelho, #c0392b); font-size: 13.5px; line-height: 1.4; }
+.anv-erro[hidden] { display: none; }
+@media (max-width: 480px) {
+  .anv-seg { grid-template-columns: 1fr; }
+}

@@ -67,6 +67,10 @@ async function apiRequest(path, options = {}, config = {}) {
     if (res.status === 401 && !config.skipAuthRedirect && typeof AppModules.core.handleUnauthorized === 'function') {
       AppModules.core.handleUnauthorized();
     }
+    // Sessão só da consola da plataforma: a app de alojamento não a serve.
+    if (res.status === 403 && payload?.platform_only && typeof AppModules.core.handlePlatformOnly === 'function') {
+      AppModules.core.handlePlatformOnly();
+    }
     if (!res.ok) {
       const err = new Error(payload?.error || `HTTP ${res.status}`);
       err.status = res.status;

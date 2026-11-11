@@ -109,6 +109,7 @@ const FEATURE_MODULES = {
       'js/alojamentos.js',
       'js/features/alojamentos/galeria.js',
       'js/features/alojamentos/servicos-heranca.js',
+      'js/features/alojamentos/novo-alojamento.js',
       'js/features/alojamentos/exportacao.js',
       'js/features/alojamentos/configuracao.js',
       'js/features/alojamentos/cartoes-v2.js',

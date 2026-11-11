@@ -48,76 +48,115 @@
 
 <div class="bg-pattern" id="auth-bg-pattern"></div>
 <div class="auth-container" id="auth-shell">
-  <div class="auth-card auth-card-premium">
-    <div class="auth-card-content">
-      <div class="auth-header">
-        <div class="brand-icon"><i data-lucide="castle"></i></div>
-        <h1>Santa Paciência</h1>
-        <p id="auth-copy">Entra na operação, gere a tua equipa e mantém cada propriedade organizada num espaço próprio.</p>
-      </div>
-      <div class="auth-tabs" id="auth-tabs">
-        <button class="tab-btn active" id="tab-login" type="button">Entrar</button>
-        <button class="tab-btn" id="tab-register" type="button">Criar Espaço</button>
-      </div>
-      <div class="auth-invite-banner" id="auth-invite-banner" style="display:none;"></div>
-      <form id="login-form" class="auth-premium-form" method="post" action="/auth/login">
-        <label class="auth-field auth-register-only is-hidden" id="register-name-wrap">
-          <span>Nome</span>
-          <input class="form-input" type="text" id="register-name" name="name" placeholder="O teu nome completo" autocomplete="name">
-        </label>
-        <label class="auth-field auth-register-only is-hidden" id="register-org-wrap">
-          <span>Nome do Espaço</span>
-          <input class="form-input" type="text" id="register-organization-name" name="organization" placeholder="Ex: Casas da Serra" autocomplete="organization">
-        </label>
-        <!-- Contas guardadas neste dispositivo (só o email; a password fica no Keychain/gestor do browser) -->
-        <div class="auth-saved-accounts" id="auth-saved-accounts" style="display:none;"></div>
-        <label class="auth-field">
-          <span>Email</span>
-          <input class="form-input" type="email" id="login-email" name="username" placeholder="gestao@santapaciencia.xyz" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="email" required>
-        </label>
-        <label class="auth-field auth-no-reset" id="auth-password-wrap">
-          <span>Password</span>
-          <div class="pw-wrap">
-            <input class="form-input" type="password" id="login-password" name="password" placeholder="A tua password" autocomplete="current-password" required>
-            <button type="button" class="pw-toggle" data-on-click="index-toggle-pw-e64aa5e" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button>
-          </div>
-        </label>
-        <label class="auth-field auth-register-only is-hidden" id="register-confirm-wrap">
-          <span>Confirmar password</span>
-          <div class="pw-wrap">
-            <input class="form-input" type="password" id="register-confirm-password" name="confirm-password" placeholder="Repete a password" autocomplete="new-password">
-            <button type="button" class="pw-toggle" data-on-click="index-toggle-pw-91c28cb" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button>
-          </div>
-        </label>
-        <!-- Reset mode: new password fields -->
-        <label class="auth-field is-hidden" id="reset-password-wrap">
-          <span>Nova palavra-passe</span>
-          <div class="pw-wrap">
-            <input class="form-input" type="password" id="reset-password" name="reset-password" placeholder="Mín. 8 char., 1 maiúscula, 1 número" autocomplete="new-password">
-            <button type="button" class="pw-toggle" data-on-click="index-toggle-pw-b15d284" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button>
-          </div>
-        </label>
-        <label class="auth-field is-hidden" id="reset-confirm-wrap">
-          <span>Confirmar nova palavra-passe</span>
-          <div class="pw-wrap">
-            <input class="form-input" type="password" id="reset-confirm-password" name="reset-confirm-password" placeholder="Repete a nova password" autocomplete="new-password">
-            <button type="button" class="pw-toggle" data-on-click="index-toggle-pw-60cd192" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button>
-          </div>
-        </label>
-        <!-- Forgot mode: link -->
-        <div id="forgot-link-wrap" style="text-align:right;margin-top:-4px;">
-          <button type="button" class="auth-link-btn" id="forgot-link" data-on-click="index-set-auth-mode-76dbe1b">Esqueci a palavra-passe</button>
-        </div>
-        <button class="btn btn-primary auth-submit" id="login-submit" type="submit">
-          <i data-lucide="log-in"></i> Entrar
-        </button>
-        <p class="auth-helper-text" id="auth-helper-text">Cada proprietário cria o seu próprio espaço. Gestores e funcionários entram por convite.</p>
-        <div class="login-feedback" id="login-feedback">
-          <p class="login-message" id="login-message"></p>
-          <pre class="login-message-detail" id="login-message-detail"></pre>
-        </div>
-      </form>
+  <!-- Painel da marca: azulejo, frase do dia a dia e os números da semana -->
+  <aside class="entrar-marca" aria-label="Santa Paciência">
+    <svg class="entrar-azulejo" aria-hidden="true" focusable="false">
+      <defs>
+        <pattern id="entrar-azulejo" width="96" height="96" patternUnits="userSpaceOnUse">
+          <rect x="0.5" y="0.5" width="95" height="95" fill="none" stroke="currentColor" stroke-width="1"></rect>
+          <circle cx="48" cy="48" r="15" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+          <circle cx="48" cy="48" r="5" fill="currentColor"></circle>
+          <path d="M48 12 L84 48 L48 84 L12 48 Z" fill="none" stroke="currentColor" stroke-width="1.2"></path>
+          <path d="M0 26 A26 26 0 0 0 26 0 M70 0 A26 26 0 0 0 96 26 M96 70 A26 26 0 0 0 70 96 M26 96 A26 26 0 0 0 0 70" fill="none" stroke="currentColor" stroke-width="1.6"></path>
+          <path d="M48 0 V10 M48 86 V96 M0 48 H10 M86 48 H96" stroke="currentColor" stroke-width="1.2"></path>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#entrar-azulejo)"></rect>
+    </svg>
+    <div class="entrar-logo">
+      <svg class="entrar-logo-icone" viewBox="0 0 46 46" aria-hidden="true" focusable="false"><rect width="46" height="46" rx="12" fill="currentColor" fill-opacity=".16"></rect><ellipse cx="23" cy="11" rx="9" ry="3" fill="none" stroke="currentColor" stroke-opacity=".8" stroke-width="1.6"></ellipse><path d="M14 36 V22 a9 9 0 0 1 18 0 V36" fill="none" stroke="currentColor" stroke-width="2"></path><circle cx="27" cy="29" r="1.6" fill="currentColor"></circle></svg>
+      <span class="entrar-logo-nome">Santa Paciência</span>
     </div>
+    <div class="entrar-frase" id="entrar-frase">
+      <span class="entrar-frase-tag" id="entrar-frase-tag"></span>
+      <p class="entrar-frase-linha" id="entrar-frase-linha"></p>
+      <p class="entrar-frase-resposta" id="entrar-frase-resposta"></p>
+      <button type="button" class="entrar-frase-botao" data-on-click="auth-next-quote">Outra frase <i data-lucide="refresh-cw"></i></button>
+    </div>
+    <div class="entrar-numeros" id="entrar-numeros" hidden>
+      <span class="entrar-numeros-titulo">Esta semana na Santa Paciência</span>
+      <div class="entrar-numeros-grelha" id="entrar-numeros-grelha"></div>
+    </div>
+  </aside>
+
+  <div class="entrar-col">
+    <svg class="entrar-azulejo-canto" width="160" height="96" aria-hidden="true" focusable="false">
+      <defs><pattern id="entrar-azulejo-canto" width="48" height="48" patternUnits="userSpaceOnUse"><circle cx="24" cy="24" r="8" fill="none" stroke="currentColor" stroke-width="1.2"></circle><path d="M24 4 L44 24 L24 44 L4 24 Z" fill="none" stroke="currentColor" stroke-width="1"></path></pattern></defs>
+      <rect width="160" height="96" fill="url(#entrar-azulejo-canto)"></rect>
+    </svg>
+    <div class="auth-card auth-card-premium">
+      <div class="auth-card-content">
+        <div class="auth-header">
+          <h1 id="auth-title">Santa Paciência</h1>
+          <p id="auth-copy">Entre e deixe a paciência connosco.</p>
+        </div>
+        <div class="auth-tabs" id="auth-tabs">
+          <button class="tab-btn active" id="tab-login" type="button">Entrar</button>
+          <button class="tab-btn" id="tab-register" type="button">Criar espaço</button>
+        </div>
+        <div class="auth-invite-banner" id="auth-invite-banner" style="display:none;"></div>
+        <form id="login-form" class="auth-premium-form" method="post" action="/auth/login" aria-labelledby="auth-title">
+          <label class="auth-field auth-register-only is-hidden" id="register-name-wrap">
+            <span>Nome</span>
+            <input class="form-input" type="text" id="register-name" name="name" placeholder="O seu nome completo" autocomplete="name">
+          </label>
+          <label class="auth-field auth-register-only is-hidden" id="register-org-wrap">
+            <span>Nome do espaço</span>
+            <input class="form-input" type="text" id="register-organization-name" name="organization" placeholder="Ex.: Casas da Serra" autocomplete="organization">
+          </label>
+          <!-- Contas guardadas neste dispositivo (só o email; a password fica no Keychain/gestor do browser) -->
+          <div class="auth-saved-accounts" id="auth-saved-accounts" style="display:none;"></div>
+          <label class="auth-field">
+            <span>Email</span>
+            <input class="form-input" type="email" id="login-email" name="username" placeholder="gestao@santapaciencia.xyz" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="email" required>
+          </label>
+          <div class="auth-field auth-no-reset" id="auth-password-wrap">
+            <div class="auth-field-head">
+              <label for="login-password">Palavra-passe</label>
+              <span id="forgot-link-wrap"><button type="button" class="auth-link-btn" id="forgot-link" data-on-click="index-set-auth-mode-76dbe1b">Esqueceu-se? Acontece.</button></span>
+            </div>
+            <div class="pw-wrap">
+              <input class="form-input" type="password" id="login-password" name="password" placeholder="A sua palavra-passe" autocomplete="current-password" aria-describedby="login-message" required>
+              <button type="button" class="pw-toggle" data-on-click="index-toggle-pw-e64aa5e" tabindex="-1" aria-label="Mostrar palavra-passe"><i data-lucide="eye"></i></button>
+            </div>
+          </div>
+          <label class="auth-field auth-register-only is-hidden" id="register-confirm-wrap">
+            <span>Confirmar palavra-passe</span>
+            <div class="pw-wrap">
+              <input class="form-input" type="password" id="register-confirm-password" name="confirm-password" placeholder="Repita a palavra-passe" autocomplete="new-password">
+              <button type="button" class="pw-toggle" data-on-click="index-toggle-pw-91c28cb" tabindex="-1" aria-label="Mostrar palavra-passe"><i data-lucide="eye"></i></button>
+            </div>
+          </label>
+          <!-- Reset mode: new password fields -->
+          <label class="auth-field is-hidden" id="reset-password-wrap">
+            <span>Nova palavra-passe</span>
+            <div class="pw-wrap">
+              <input class="form-input" type="password" id="reset-password" name="reset-password" placeholder="Mín. 8 caracteres, 1 maiúscula, 1 número" autocomplete="new-password">
+              <button type="button" class="pw-toggle" data-on-click="index-toggle-pw-b15d284" tabindex="-1" aria-label="Mostrar palavra-passe"><i data-lucide="eye"></i></button>
+            </div>
+          </label>
+          <label class="auth-field is-hidden" id="reset-confirm-wrap">
+            <span>Confirmar nova palavra-passe</span>
+            <div class="pw-wrap">
+              <input class="form-input" type="password" id="reset-confirm-password" name="reset-confirm-password" placeholder="Repita a nova palavra-passe" autocomplete="new-password">
+              <button type="button" class="pw-toggle" data-on-click="index-toggle-pw-60cd192" tabindex="-1" aria-label="Mostrar palavra-passe"><i data-lucide="eye"></i></button>
+            </div>
+          </label>
+          <div class="login-feedback" id="login-feedback">
+            <p class="login-message" id="login-message" role="alert"></p>
+            <pre class="login-message-detail" id="login-message-detail"></pre>
+          </div>
+          <button class="btn btn-primary auth-submit" id="login-submit" type="submit">
+            <i data-lucide="key-round"></i> Entrar
+          </button>
+          <p class="auth-helper-text" id="auth-helper-text">Recebeu um convite? Abra o link do email.</p>
+        </form>
+        <p class="entrar-semana" id="entrar-semana" hidden></p>
+      </div>
+    </div>
+
+    <!-- «Onde quer entrar?»: contas com a plataforma e organizações (js/auth.js) -->
+    <section class="entrar-escolha" id="auth-choice" aria-labelledby="auth-choice-title" hidden></section>
   </div>
 </div>
 
@@ -1114,6 +1153,7 @@
 <script src="js/domain/edit-drafts.js"></script>
 <script src="js/domain/features.js?v=v1-20261024-2"></script>
 <script src="js/domain/telemetry.js?v=v1-20261111-2"></script>
+<script src="js/domain/announcements.js?v=v1-20261111-1"></script>
 <script src="js/ui.js"></script>
 <script src="js/ui-blocks.js"></script>
 <script src="js/menu.js"></script>
