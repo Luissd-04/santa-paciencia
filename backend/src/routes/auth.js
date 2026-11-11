@@ -91,6 +91,7 @@ function serializeUser(user) {
     organization_slug: user.organization_slug,
     menu_prefs: user.organization_id ? require('../services/menuPrefs').get(user.id, user.organization_id) : null,
     appearance: require('../services/appearancePrefs').get(user.id),
+    is_platform_admin: require('../services/platformAccess').isPlatformAdmin(user),
   };
 }
 

@@ -233,6 +233,9 @@ app.use('/api/vouchers', voucherRoutes);
 app.use('/api/tasks', googleTasksRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/ops', require('./routes/ops'));
+// Consola da plataforma: depois do requireAuth de /api. O staffResponse só
+// esconde chaves que estas respostas não têm e o liveUpdates é silenciado lá.
+app.use('/api/platform', require('./routes/platform'));
 
 // Health check
 app.get('/health', (req, res) => {

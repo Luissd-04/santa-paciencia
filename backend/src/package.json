@@ -6,6 +6,7 @@
     "dev": "node --watch server.js",
     "test": "node --test",
     "create-admin": "node scripts/create-admin.js",
+    "platform-admin": "node scripts/platform-admin.js",
     "test:http": "node scripts/check-http.cjs",
     "check": "node scripts/check-source.cjs",
     "test:browser": "node scripts/check-browser.cjs",

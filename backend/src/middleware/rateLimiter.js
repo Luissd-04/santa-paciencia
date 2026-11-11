@@ -95,7 +95,15 @@ const receiptLimiter = rateLimit({
   keyGenerator: req => req.user.organization_id,
   message: { success: false, error: 'Limite de leitura de talões atingido. Tente mais tarde.' },
 });
+// Desbloqueio da consola da plataforma: só contam as palavras-passe erradas,
+// por conta (a rota já exige sessão de dono da instância).
+const platformUnlockLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  keyGenerator: req => `plataforma:${req.user.id}`,
+  message: { success: false, error: 'Demasiadas tentativas. Tente novamente em 15 minutos.' },
+});
 module.exports = {
-  sensitiveAccountLimiter, receiptLimiter, loginLimiter, loginAccountLimiter, publicApiLimiter, publicBookingLimiter, voucherLimiter, preCheckinLookupLimiter,
+  platformUnlockLimiter, sensitiveAccountLimiter, receiptLimiter, loginLimiter, loginAccountLimiter, publicApiLimiter, publicBookingLimiter, voucherLimiter, preCheckinLookupLimiter,
   preCheckinSubmitLimiter, forgotPasswordLimiter, oauthCallbackLimiter,
 };

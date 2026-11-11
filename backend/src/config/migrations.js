@@ -65,6 +65,7 @@ function runMigrations(db) {
   migrateOpsAlerts(db);
   migrateAppearance(db);
   migrateNotificationState(db);
+  migratePlatformConsole(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -571,6 +572,29 @@ function migrateScheduledTaskRuns(db) {
       last_started_at TEXT, last_finished_at TEXT, last_ok_at TEXT,
       last_error_at TEXT, last_error TEXT, last_skipped_at TEXT, last_duration_ms INTEGER
     )`);
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Consola da plataforma (só para o dono da instância): quem a pode abrir, o
+// estado comercial de cada organização, o desbloqueio por sessão e o registo
+// próprio, que não pertence a nenhuma organização.
+function migratePlatformConsole(db) {
+  const id = '20261111_platform_console';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  const has = (table, column) => db.pragma(`table_info(${table})`).some(c => c.name === column);
+  db.transaction(() => {
+    if (!has('users', 'platform_admin')) db.exec('ALTER TABLE users ADD COLUMN platform_admin INTEGER NOT NULL DEFAULT 0');
+    if (!has('organizations', 'status')) db.exec("ALTER TABLE organizations ADD COLUMN status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','trial','suspended'))");
+    if (!has('organizations', 'platform_notes')) db.exec('ALTER TABLE organizations ADD COLUMN platform_notes TEXT');
+    if (!has('auth_sessions', 'platform_unlocked_until')) db.exec('ALTER TABLE auth_sessions ADD COLUMN platform_unlocked_until TEXT');
+    db.exec(`CREATE TABLE IF NOT EXISTS platform_audit_events (
+      id TEXT PRIMARY KEY,
+      user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      action TEXT NOT NULL, target_type TEXT, target_id TEXT, details_json TEXT, ip TEXT,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_platform_audit_created ON platform_audit_events(created_at)`);
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }
