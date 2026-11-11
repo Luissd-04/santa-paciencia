@@ -19,6 +19,9 @@ const ROUTES = [
   { key: 'incidentes', path: '/plataforma/incidentes', title: 'Incidentes', page: 'incidentes' },
   { key: 'suporte', path: '/plataforma/suporte', title: 'Suporte', page: 'suporte' },
   { key: 'registo', path: '/plataforma/registo', title: 'Registo', page: 'registo' },
+  { key: 'tarefas', path: '/plataforma/tarefas', title: 'Tarefas', page: 'tarefas' },
+  { key: 'comunicados', path: '/plataforma/comunicados', title: 'Comunicados', page: 'comunicados' },
+  { key: 'pacotes', path: '/plataforma/pacotes', title: 'Pacotes', page: 'pacotes' },
 ];
 const LOOKS = [['classico', 'classico', 'auto', 'Clássico'], ['claro', 'vidro', 'claro', 'Vidro claro'], ['escuro', 'vidro', 'escuro', 'Vidro escuro']];
 

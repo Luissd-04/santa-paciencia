@@ -61,6 +61,9 @@ supportRouter.get('/attachments/:id', (req, res) => {
   supportAttachments.streamAttachment(res, row);
 });
 router.use('/support', supportRouter);
+router.use('/tasks', require('./platformTasks'));
+router.use('/announcements', require('./platformAnnouncements'));
+router.use('/plans', require('./platformPlans'));
 
 // 501 sai com a mensagem (o tratamento global esconde mensagens 5xx em produção).
 router.use((err, _req, res, next) => {

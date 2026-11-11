@@ -250,6 +250,7 @@ app.use('/api/push', pushRoutes);
 app.use('/api/ops', require('./routes/ops'));
 app.use('/api/telemetry', require('./routes/telemetry'));
 app.use('/api/support', require('./routes/support'));
+app.use('/api/announcements', require('./routes/announcements'));
 // Consola da plataforma: depois do requireAuth de /api. O staffResponse só
 // esconde chaves que estas respostas não têm e o liveUpdates é silenciado lá.
 app.use('/api/platform', require('./routes/platform'));
