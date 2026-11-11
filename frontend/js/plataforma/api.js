@@ -66,6 +66,9 @@ const api = {
   incidents: () => cached('/api/platform/incidents').then(data => ({ incidents: list(data?.incidents), instance: list(data?.instance) })),
   trends: (weeks = 12) => soft(`/api/platform/trends?weeks=${weeks}`),
   usage: (days = 30) => soft(`/api/platform/usage?days=${days}`),
+  health: () => soft('/api/platform/health').then(list),
+  attention: () => soft('/api/platform/attention').then(list),
+  supportStats: () => soft('/api/platform/support-stats'),
   org: id => soft(`/api/platform/organizations/${encodeURIComponent(id)}`),
   async audit({ before = null, limit = 50 } = {}) {
     const query = `limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ''}`;

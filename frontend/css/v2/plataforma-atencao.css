@@ -1,1 +1,87 @@
-/* Consola da plataforma: atencao. Só tokens --v2-*. */
+/* Consola da plataforma: «Precisa de atenção», saúde dos clientes e filtros da
+   lista de clientes. Só tokens --v2-*; vale para o Clássico, o Vidro claro e o
+   Vidro escuro porque os tokens mudam com o aspeto. Sem estilos inline (CSP):
+   a barra de saúde é um <progress>. */
+
+/* ── Barra «Atualizado há…» ── */
+.pl-refresh { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; }
+.pl-refresh .pl-muted { min-width: 0; }
+.pl-refresh .v2-btn:disabled { opacity: .55; cursor: default; }
+
+/* ── Precisa de atenção ── */
+.pl-att-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 11px 0; }
+.pl-att-row + .pl-att-row { border-top: 1px solid var(--v2-divider); }
+.pl-att-tag { justify-content: center; min-width: 0; }
+.pl-att-text { display: grid; min-width: 0; gap: 2px; }
+.pl-att-text b { color: var(--v2-ink); font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.pl-att-text span { color: var(--v2-muted); font-size: 13px; overflow-wrap: anywhere; }
+.pl-att-cta { text-decoration: none; }
+a.pl-att-cta:hover { background: var(--v2-accent-soft); }
+.pl-att-ok { margin: 0; }
+
+/* ── KPIs: cinco blocos ── */
+.pl-kpis-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.pl-tile-wrap { display: grid; min-width: 0; }
+.pl-tile-wrap > .pl-tile { min-width: 0; }
+
+/* ── Saúde: barra e número ── */
+.pl-meter-wrap { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.pl-meter { appearance: none; -webkit-appearance: none; flex: 1 1 auto; width: 100%; min-width: 48px; max-width: 120px; height: 6px; border: 0; border-radius: 999px; background: var(--v2-surface-2); overflow: hidden; }
+.pl-meter::-webkit-progress-bar { background: var(--v2-surface-2); border-radius: 999px; }
+.pl-meter::-webkit-progress-value { border-radius: 999px; background: var(--v2-ok); }
+.pl-meter::-moz-progress-bar { border-radius: 999px; background: var(--v2-ok); }
+.pl-meter.pl-medium::-webkit-progress-value { background: var(--v2-warn); }
+.pl-meter.pl-medium::-moz-progress-bar { background: var(--v2-warn); }
+.pl-meter.pl-high::-webkit-progress-value { background: var(--v2-bad); }
+.pl-meter.pl-high::-moz-progress-bar { background: var(--v2-bad); }
+.pl-score { min-width: 26px; color: var(--v2-ink); font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.pl-score-none { color: var(--v2-muted); }
+
+/* ── Tabela «Saúde dos clientes» ── */
+.pl-hs { display: grid; }
+.pl-hs-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(150px, 1.1fr) 110px 110px 84px; align-items: center; gap: 10px; padding: 11px 8px; border-radius: 10px; text-decoration: none; color: inherit; }
+.pl-hs-row + .pl-hs-row { border-top: 1px solid var(--v2-divider); }
+a.pl-hs-row:hover { background: var(--v2-accent-soft); }
+.pl-hs-head { padding-top: 0; padding-bottom: 8px; border-bottom: 1px solid var(--v2-divider); color: var(--v2-muted); font-size: 12px; font-weight: 600; }
+.pl-hs-head + .pl-hs-row { border-top: 0; }
+.pl-hs-name { display: grid; min-width: 0; gap: 2px; }
+.pl-hs-name b { overflow: hidden; color: var(--v2-ink); text-overflow: ellipsis; white-space: nowrap; }
+.pl-hs-name span { overflow: hidden; color: var(--v2-muted); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.pl-hs-foot { margin: 12px 0 0; }
+
+/* ── Lista de clientes: Saúde, Pacote, filtros e ordenação ── */
+.pl-client.pl-client-h { grid-template-columns: minmax(130px, 1.3fr) 92px 84px 54px 96px 78px 78px minmax(130px, 1.1fr) 120px 56px; }
+.pl-plan { overflow: hidden; color: var(--v2-ink); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.pl-plan-none { color: var(--v2-muted); }
+.pl-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.pl-sort { white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; color: var(--v2-muted); font-size: 13px; }
+.pl-sort select { width: auto; min-width: 150px; }
+
+@media (max-width: 1199px) {
+  .pl-kpis-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pl-client.pl-client-h { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nome saude" "resumo resumo" "ints ints"; row-gap: 6px; }
+  .pl-client.pl-client-h > .v2-row-text { grid-area: nome; }
+  .pl-client.pl-client-h > .pl-health { grid-area: saude; }
+  .pl-client.pl-client-h > .pl-sub-line { grid-area: resumo; }
+  .pl-client.pl-client-h > .pl-ints { grid-area: ints; }
+  .pl-client.pl-client-h > :is(.pl-plan, .pl-prob) { display: none; }
+}
+
+@media (max-width: 767px) {
+  .pl-kpis-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pl-att-row { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "tag cta" "text text"; row-gap: 6px; }
+  .pl-att-row > .pl-att-tag { grid-area: tag; justify-self: start; padding-left: 10px; padding-right: 10px; }
+  .pl-att-row > .pl-att-cta { grid-area: cta; justify-self: end; }
+  .pl-att-row > .pl-att-text { grid-area: text; }
+  .pl-hs-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nome risco" "saude saude"; row-gap: 6px; }
+  .pl-hs-head { display: none; }
+  .pl-hs-row > .pl-hs-name { grid-area: nome; }
+  .pl-hs-row > .pl-hs-risk { grid-area: risco; }
+  .pl-hs-row > .pl-meter-wrap { grid-area: saude; }
+  .pl-hs-row > :is(.pl-hs-trend, .pl-hs-last) { display: none; }
+  .pl-meter { max-width: none; }
+  .pl-refresh { justify-content: space-between; }
+  .pl-filters { align-items: stretch; }
+  .pl-sort { flex: 1 1 100%; }
+  .pl-sort select { flex: 1; min-width: 0; }
+}

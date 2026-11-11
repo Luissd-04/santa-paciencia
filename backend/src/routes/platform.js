@@ -8,6 +8,7 @@ const platform = require('../services/platformService');
 const analytics = require('../services/platformAnalytics');
 const support = require('../services/supportService');
 const supportAttachments = require('../services/supportAttachments');
+const health = require('../services/platformHealth');
 
 router.use(requirePlatformAdmin, (_req, res, next) => {
   // Nada disto é da organização aberta: sem avisos em direto às suas páginas.
@@ -27,16 +28,19 @@ router.get('/overview', (_req, res) => res.json({ success: true, data: platform.
 router.get('/organizations', (_req, res) => res.json({ success: true, data: platform.listOrganizations() }));
 router.get('/organizations/:id', (req, res) => res.json({ success: true, data: platform.getOrganization(req.params.id) }));
 router.put('/organizations/:id', (req, res) => {
-  const { status, notes } = req.body || {};
-  const data = platform.updateOrganization(req.params.id, { status, notes });
+  const { status, notes, plan_id: planId } = req.body || {};
+  const data = platform.updateOrganization(req.params.id, { status, notes, planId });
   recordPlatformAudit({ userId: req.user.id, action: 'organization.update', targetType: 'organization', targetId: req.params.id,
-    details: { status: status ?? null, notes_changed: notes !== undefined }, ip: req.ip });
+    details: { status: status ?? null, notes_changed: notes !== undefined, ...(planId !== undefined ? { plan_id: planId ?? null } : {}) }, ip: req.ip });
   res.json({ success: true, data });
 });
 router.get('/trends', (req, res) => res.json({ success: true, data: analytics.getTrends(req.query.weeks) }));
 router.get('/usage', (req, res) => res.json({ success: true, data: analytics.getUsage(req.query.days) }));
 router.get('/audit', (req, res) => res.json({ success: true, data: analytics.listAudit({ limit: req.query.limit, before: req.query.before }) }));
 router.get('/incidents', (_req, res) => res.json({ success: true, data: platform.listIncidents() }));
+router.get('/health', (_req, res) => res.json({ success: true, data: health.getHealth() }));
+router.get('/attention', (req, res) => res.json({ success: true, data: health.getAttention({ userId: req.user.id }) }));
+router.get('/support-stats', (_req, res) => res.json({ success: true, data: health.getSupportStats() }));
 
 // Suporte: caixa de entrada de todos os pedidos (já atrás do requirePlatformAdmin
 // e da consola desbloqueada). O parser de 15 MB das mensagens está em app.js.
