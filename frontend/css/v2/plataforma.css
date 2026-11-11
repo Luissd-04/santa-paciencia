@@ -98,6 +98,7 @@ a.v2-chip:hover { background: var(--v2-accent-soft); }
 .pl-num { font-variant-numeric: tabular-nums; }
 .pl-sub { color: var(--v2-muted); font-size: 12.5px; }
 .pl-lead { margin: 0; color: var(--v2-muted); }
+.pl-note { margin: 8px 0 0; color: var(--v2-muted); font-size: 12.5px; }
 .pl-ok { background: var(--v2-ok); } .pl-warn { background: var(--v2-warn); } .pl-bad { background: var(--v2-bad); } .pl-neutral { background: var(--v2-soft); }
 .pl-state { display: inline-flex; align-items: center; color: var(--v2-ink); font-size: 13.5px; white-space: nowrap; }
 .pl-since { flex-shrink: 0; color: var(--v2-muted); font-size: 12.5px; font-weight: 600; text-align: right; }

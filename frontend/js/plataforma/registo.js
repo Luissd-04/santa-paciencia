@@ -13,8 +13,9 @@ const ACTIONS = {
   'platform.unlock': 'Consola desbloqueada',
   'platform.unlock_failed': 'Tentativa de desbloqueio falhada',
   'organization.update': 'Cliente atualizado',
+  'support.status': 'Estado do pedido alterado',
 };
-const TARGETS = { organization: 'Cliente', user: 'Utilizador' };
+const TARGETS = { organization: 'Cliente', user: 'Utilizador', support_ticket: 'Pedido' };
 const state = { rows: [], orgs: new Map(), more: false, busy: false };
 
 function actionLabel(action) {
@@ -28,7 +29,10 @@ function detailsOf(row) {
   if (typeof details === 'string') { try { details = JSON.parse(details); } catch { details = null; } }
   if (!details || typeof details !== 'object') return '';
   const parts = [];
-  if (details.status) parts.push(`Estado: ${fmt.STATUS[details.status]?.label || details.status}`);
+  if (details.status) {
+    const labels = row.target_type === 'support_ticket' ? fmt.TICKET_STATUS : fmt.STATUS;
+    parts.push(`Estado: ${labels[details.status]?.label || details.status}`);
+  }
   if (details.notes_changed) parts.push('Notas alteradas');
   return parts.join(' · ');
 }
@@ -39,6 +43,9 @@ function targetHtml(row) {
   if (row.target_type === 'organization' && row.target_id != null) {
     const name = state.orgs.get(String(row.target_id));
     return fmt.link(fmt.orgHref(row.target_id), esc(name || `${kind} ${row.target_id}`), 'pl-target');
+  }
+  if (row.target_type === 'support_ticket' && row.target_id != null) {
+    return fmt.link(`/plataforma/suporte/${encodeURIComponent(row.target_id)}`, esc(`${kind} ${String(row.target_id).slice(0, 8)}`), 'pl-target');
   }
   return `<span>${esc([kind, row.target_id].filter(v => v !== '' && v != null).join(' '))}</span>`;
 }

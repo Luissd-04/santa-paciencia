@@ -110,7 +110,19 @@ const telemetryLimiter = rateLimit({
   keyGenerator: req => `telemetria:${require('../services/authService').digestToken(req.sessionId)}`,
   message: { success: false, error: 'Demasiados pedidos. Tente novamente mais tarde.' },
 });
+// Suporte, por conta: pedidos novos e mensagens (cada um pode levar anexos de
+// vários MB), para ninguém encher o disco da instância.
+const supportTicketLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: req => `suporte-pedido:${req.user.id}`,
+  message: { success: false, error: 'Enviou demasiados pedidos de suporte. Tente novamente dentro de uma hora.' },
+});
+const supportMessageLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: req => `suporte-mensagem:${req.user.id}`,
+  message: { success: false, error: 'Enviou demasiadas mensagens de suporte. Tente novamente dentro de uma hora.' },
+});
 module.exports = {
-  telemetryLimiter, platformUnlockLimiter, sensitiveAccountLimiter, receiptLimiter, loginLimiter, loginAccountLimiter, publicApiLimiter, publicBookingLimiter, voucherLimiter, preCheckinLookupLimiter,
+  supportTicketLimiter, supportMessageLimiter, telemetryLimiter, platformUnlockLimiter, sensitiveAccountLimiter, receiptLimiter, loginLimiter, loginAccountLimiter, publicApiLimiter, publicBookingLimiter, voucherLimiter, preCheckinLookupLimiter,
   preCheckinSubmitLimiter, forgotPasswordLimiter, oauthCallbackLimiter,
 };

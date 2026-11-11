@@ -312,8 +312,9 @@ const INCIDENT_TEXT = {
   'Google Calendar': ['Google Calendar', 'A sincronização com o Google Calendar está atrasada. Já estamos a tratar.'],
   'Google Tasks': ['Google Tasks', 'A limpeza das tarefas no Google Tasks está atrasada. Já estamos a tratar.'],
   Stripe: ['Pagamentos online', 'Alguns pagamentos online estão demorados a processar. Já estamos a tratar.'],
-  Pagamentos: ['Pagamentos', 'Há cancelamentos que precisam de revisão. Já estamos a tratar.'],
 };
+// Trabalho do proprietário, não falha da plataforma: o cliente não o vê.
+const OWNER_ONLY_KEYS = new Set(['cancellation_review', 'email_decision']);
 const toIso = value => {
   if (!value) return null;
   const d = new Date(/^\d{4}-\d{2}-\d{2} /.test(value) ? `${value.replace(' ', 'T')}Z` : value);
@@ -323,7 +324,7 @@ const toIso = value => {
 function incidentsFor(orgId) {
   try {
     const platform = require('./platformService');
-    const found = require('./opsAlerts').problems(require('./opsStatus').opsStatus(orgId)).filter(p => !platform.isInstanceKey(p.key));
+    const found = require('./opsAlerts').problems(require('./opsStatus').opsStatus(orgId)).filter(p => !platform.isInstanceKey(p.key) && !OWNER_ONLY_KEYS.has(p.key));
     const since = new Map(db.prepare('SELECT key, notified_at FROM ops_alerts WHERE organization_id = ? AND resolved_at IS NULL').all(orgId)
       .map(r => [r.key, toIso(r.notified_at)]));
     return found.map(p => {

@@ -33,7 +33,8 @@ const page = {
         ${donut('Browsers', charts.topN(usage.browsers, 'sessions', 5))}
         ${donut('Sistemas', charts.topN(usage.os, 'sessions', 5))}
         ${donut('Dispositivos', pairs(usage.devices, fmt.DEVICES))}
-        ${donut('App ou browser', pairs(usage.display, fmt.DISPLAY))}
+        <div class="pl-col">${donut('App ou browser', pairs(usage.display, fmt.DISPLAY))}
+          <p class="pl-note">Sem informação: sessões anteriores à recolha ou sem envio.</p></div>
       </div>
       <div class="pl-charts pl-start">
         ${charts.card({ title: 'Páginas mais usadas', sub: `visitas, ${DAYS} dias`, kind: 'hbar', height: Math.max(180, views.length * 32 + 40), labels: views.map(v => fmt.viewName(v.view)), datasets: [{ label: 'Visitas', data: views.map(v => Number(v.count) || 0) }], emptyText: 'Ainda sem visitas.' })}

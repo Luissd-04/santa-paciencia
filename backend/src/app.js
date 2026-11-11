@@ -149,7 +149,12 @@ const SUPPORT_UPLOADS = /^\/api\/(?:support\/tickets(?:\/[^/]+\/messages)?|platf
 app.use((req, res, next) => {
   if (req.method !== 'POST' || !SUPPORT_UPLOADS.test(req.path)) return next();
   requireAuth(req, res, () => {
-    if (!req.path.startsWith('/api/platform/')) return uploadParser(req, res, next);
+    if (!req.path.startsWith('/api/platform/')) {
+      // Limite por conta antes de ler o corpo (até 15 MB).
+      const limiters = require('./middleware/rateLimiter');
+      const limiter = /\/messages\/?$/.test(req.path) ? limiters.supportMessageLimiter : limiters.supportTicketLimiter;
+      return limiter(req, res, () => uploadParser(req, res, next));
+    }
     require('./middleware/requirePlatformAdmin')(req, res, () => uploadParser(req, res, next));
   });
 });

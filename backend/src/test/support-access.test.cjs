@@ -216,6 +216,22 @@ test('rotas do contrato: respondem com o serviço e o parser de 15 MB só abre d
   assert.equal((await fetch(base + '/api/support/tickets', { method: 'POST', body: big, headers: { 'Content-Type': 'application/json' } })).status, 401);
 });
 
+test('limite por conta: 10 pedidos novos e 30 mensagens por hora, com 429 em português', async () => {
+  const who = person(orgA, 'staff');
+  const other = person(orgA, 'staff');
+  for (let i = 0; i < 10; i++) assert.equal((await get(who, '/api/support/tickets', { method: 'POST', body: '{}' })).status, 400);
+  const blocked = await get(who, '/api/support/tickets', { method: 'POST', body: '{}' });
+  assert.equal(blocked.status, 429);
+  assert.match((await blocked.json()).error, /demasiados pedidos de suporte/);
+  // O limite é por conta e as mensagens têm contagem própria.
+  assert.equal((await get(other, '/api/support/tickets', { method: 'POST', body: '{}' })).status, 400);
+  for (let i = 0; i < 30; i++) assert.equal((await get(who, '/api/support/tickets/x/messages', { method: 'POST', body: '{}' })).status, 404);
+  const blockedMessage = await get(who, '/api/support/tickets/x/messages', { method: 'POST', body: '{}' });
+  assert.equal(blockedMessage.status, 429);
+  assert.match((await blockedMessage.json()).error, /demasiadas mensagens de suporte/);
+  assert.equal((await get(other, '/api/support/tickets/x/messages', { method: 'POST', body: '{}' })).status, 404);
+});
+
 test('ficheiros órfãos: os anexos com linha ficam, os sem linha são detetados', () => {
   const t = ticket(orgA, staffA);
   const [kept] = attach(t, [{ name: 'a.png', data_base64: b64(PNG) }]);

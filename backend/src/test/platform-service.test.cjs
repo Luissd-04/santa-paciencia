@@ -142,6 +142,17 @@ test('visão geral e inatividade a 14 dias', () => {
   session(users[0], alfa, new Date().toISOString());
   assert.equal(platform.getOverview().inactive_14d, 0);
 
+  // Sem sessões (terminou sessão), mas com atividade registada ontem: não é inativa.
+  db.prepare('DELETE FROM auth_sessions').run();
+  assert.equal(platform.getOverview().inactive_14d, 2);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  db.prepare('INSERT INTO platform_daily_stats (day, organization_id, active_users) VALUES (?,?,1)').run(yesterday, alfa.id);
+  assert.equal(platform.getOverview().inactive_14d, 1);
+  assert.ok(byName('Alfa').last_activity_at);
+  db.prepare('DELETE FROM platform_daily_stats').run();
+  session(users[0], alfa, new Date().toISOString());
+  session(users[2], beta, new Date().toISOString());
+
   const o = platform.getOverview();
   assert.equal(o.organizations, 2);
   assert.equal(o.open_requests, 0);

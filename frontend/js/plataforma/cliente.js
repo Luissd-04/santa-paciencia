@@ -23,7 +23,8 @@ function statusCard(org) {
     <label class="pl-label" for="pl-notas">Notas internas</label>
     <textarea class="form-control" id="pl-notas" rows="5" maxlength="5000" placeholder="Só visível para a plataforma.">${esc(org.notes || '')}</textarea>
     <div class="pl-save"><button type="button" class="btn btn-primary" id="pl-guardar" ${AppActions.attrs('click', 'pl-org-guardar', [String(org.id)])}>Guardar</button>
-      <span class="pl-msg" id="pl-msg" role="status"></span></div>`);
+      <span class="pl-msg" id="pl-msg" role="status"></span></div>
+    <p class="pl-note">«Suspensa» é só uma etiqueta: por agora não corta o acesso ao cliente.</p>`);
 }
 
 function stepsCard(org) {
@@ -62,7 +63,8 @@ function usageCards(org) {
       ${charts.card({ title: 'Browsers', sub: 'sessões, 30 dias', kind: 'donut', height: 210, labels: browsers.map(b => b.name), datasets: [{ label: 'Sessões', data: browsers.map(b => b.value) }], emptyText: 'Ainda sem sessões.' })}
       ${charts.card({ title: 'Dispositivos', sub: 'sessões, 30 dias', kind: 'donut', height: 210, labels: devices.map(d => d.label), datasets: [{ label: 'Sessões', data: devices.map(d => d.value) }], emptyText: 'Ainda sem sessões.' })}
     </div>
-    ${display.length ? `<div class="pl-chips pl-display">${display.map(d => fmt.chip('neutral', `${d.label}: ${num(d.value)}`)).join('')}</div>` : ''}
+    ${display.length ? `<div class="pl-chips pl-display">${display.map(d => fmt.chip('neutral', `${d.label}: ${num(d.value)}`)).join('')}</div>
+    ${display.some(d => d.label === fmt.DISPLAY.unknown) ? `<p class="pl-note">${esc(fmt.DISPLAY.unknown)}: sessões anteriores à recolha ou sem envio.</p>` : ''}` : ''}
     ${charts.card({ title: 'Páginas mais usadas', sub: 'visitas, 30 dias', kind: 'hbar', height: Math.max(140, views.length * 32 + 40), labels: views.map(v => fmt.viewName(v.view)), datasets: [{ label: 'Visitas', data: views.map(v => Number(v.count) || 0) }], emptyText: 'Ainda sem visitas.' })}`;
 }
 

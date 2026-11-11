@@ -63,7 +63,7 @@ const page = {
       <div class="v2-kpis">
         ${tile('Organizações', overview.organizations, 'na plataforma', '/plataforma/clientes')}
         ${tile('Incidentes ativos', overview.active_incidents, 'por resolver', '/plataforma/incidentes')}
-        ${tile('Pedidos abertos', overview.open_requests, 'à espera de resposta', '/plataforma/suporte')}
+        ${tile('Pedidos abertos', overview.open_requests, 'por resolver', '/plataforma/suporte')}
         ${tile('Inativos há 14+ dias', overview.inactive_14d, 'organizações sem atividade', '/plataforma/clientes')}
       </div>
       <div class="pl-charts">${trendCards(trends)}</div>

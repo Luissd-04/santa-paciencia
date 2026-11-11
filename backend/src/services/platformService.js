@@ -48,6 +48,12 @@ function collect(onlyId = null) {
   const lastSeen = new Map(db.prepare(`SELECT s.organization_id, MAX(s.last_seen_at) AS last_seen FROM auth_sessions s
     JOIN memberships m ON m.organization_id = s.organization_id AND m.user_id = s.user_id AND m.active = 1
     GROUP BY s.organization_id`).all().map(r => [r.organization_id, toIso(r.last_seen)]));
+  // Recurso: as sessões apagam-se ao terminar sessão e aos 14 dias, por isso o
+  // último dia com utilizadores ativos (platform_daily_stats) também conta.
+  for (const r of db.prepare('SELECT organization_id, MAX(day) AS day FROM platform_daily_stats WHERE active_users > 0 GROUP BY organization_id').all()) {
+    const fallback = toIso(`${r.day}T00:00:00Z`);
+    if (fallback && (!lastSeen.get(r.organization_id) || lastSeen.get(r.organization_id) < fallback)) lastSeen.set(r.organization_id, fallback);
+  }
   // Só a existência das ligações: os tokens nunca são lidos.
   const calendar = idSet('SELECT DISTINCT organization_id FROM google_calendar_connections');
   const tasks = idSet('SELECT DISTINCT organization_id FROM google_tasks_connections');

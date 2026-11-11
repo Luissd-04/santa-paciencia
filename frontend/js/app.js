@@ -203,6 +203,10 @@ async function handleDeepLinkUrl(raw) {
   const u = new URL(raw, window.location.origin);
   const view = viewFromPath(u.pathname);
   const reservaId = u.searchParams.get('reserva');
+  // Email e push do Suporte: /ajuda?pedido=<id>. O showView troca o endereço,
+  // por isso o pedido segue por aqui e não pelo endereço.
+  const pedidoId = u.searchParams.get('pedido');
+  if (view === 'ajuda' && pedidoId && await AppModules.core.ensureFeature('ajuda')) AppModules.ajuda.requestTicket(pedidoId);
   if (view === 'reservas' && reservaId) {
     if (await AppModules.core.ensureFeature('reservas')) { AppModules.reservas.showDetail(reservaId); return; }
   }

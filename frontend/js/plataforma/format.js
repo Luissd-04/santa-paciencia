@@ -25,7 +25,7 @@ const VIEW_NAMES = {
   'hospede-detalhe': 'Ficha de hóspede', 'alojamento-detalhe': 'Ficha de alojamento',
 };
 const DEVICES = { desktop: 'Computador', mobile: 'Telemóvel', tablet: 'Tablet' };
-const DISPLAY = { standalone: 'App instalada', browser: 'Browser', unknown: 'Desconhecido' };
+const DISPLAY = { standalone: 'App instalada', browser: 'Browser', unknown: 'Sem informação' };
 const ROLES = { owner: 'Proprietários', manager: 'Gestores', staff: 'Equipa' };
 const BUCKETS = { '1': '1 pessoa', '2-3': '2 a 3', '4-6': '4 a 6', '7+': '7 ou mais' };
 

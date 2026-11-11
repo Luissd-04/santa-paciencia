@@ -277,7 +277,7 @@ test('summary: não lidas, precisa de si e incidentes só da organização, em l
 
   const real = opsStatusModule.opsStatus;
   opsStatusModule.opsStatus = () => ({
-    email: { failed: 2 }, payments: { stripe_stuck_over_1h: 1 },
+    email: { failed: 2, deliveries_needing_decision: 1 }, payments: { stripe_stuck_over_1h: 1, cancellations_manual_review: 1 },
     tasks: [{ name: 'backup', label: 'Cópia', last_error_at: '2026-01-02', last_ok_at: null, last_error: 'x' }],
   });
   db.prepare("INSERT INTO ops_alerts (organization_id, key, notified_at) VALUES (?, 'effects_failed', '2026-11-10 09:30:00')").run(orgA.id);
@@ -289,6 +289,8 @@ test('summary: não lidas, precisa de si e incidentes só da organização, em l
     assert.match(incidents[0].detail, /Gmail/);
     assert.deepEqual(Object.keys(incidents[0]), ['provider', 'title', 'detail', 'since']);
     assert.ok(!JSON.stringify(incidents).includes('backup'));
+    // Revisão de cancelamentos e emails por decidir são trabalho do proprietário.
+    assert.ok(!incidents.some(i => i.provider === 'Pagamentos' || /decidir|cancelamentos/i.test(i.detail)));
     // Se o cálculo falhar, lista vazia.
     opsStatusModule.opsStatus = () => { throw new Error('boom'); };
     const log = console.error; console.error = () => {};

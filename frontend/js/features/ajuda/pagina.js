@@ -10,6 +10,7 @@ AppModules.define('ajuda', {
   addFiles: { get: () => addFiles },
   fileChipsHtml: { get: () => fileChipsHtml },
   openPage: { get: () => openPage },
+  requestTicket: { get: () => requestTicket },
   openTicket: { get: () => openTicket },
   pageLabel: { get: () => pageLabel },
   quando: { get: () => quando },
@@ -372,7 +373,26 @@ function renderAll() {
   renderDetail();
 }
 
+// Pedido a abrir vindo de /ajuda?pedido=<id> (email e push ao cliente). O
+// endereço limpa-se logo, para recarregar a página não o reabrir.
+let pendingTicket = null;
+function requestTicket(id) { pendingTicket = id ? String(id) : null; }
+function takeTicketFromUrl() {
+  let id = pendingTicket;
+  pendingTicket = null;
+  try {
+    const url = new URL(window.location.href);
+    const param = url.searchParams.get('pedido');
+    if (param !== null && url.pathname.replace(/\/+$/, '') === '/ajuda') {
+      id = id || param;
+      history.replaceState(history.state, '', '/ajuda');
+    }
+  } catch { /* sem endereço utilizável */ }
+  return id && /^[\w-]{1,64}$/.test(id) ? id : null;
+}
+
 async function openPage() {
+  const wanted = takeTicketFromUrl();
   shell();
   // Cada vez que se abre a página volta à lista (no telemóvel) e atualiza.
   if (!wide()) { selectedId = null; detail = null; detailState = 'idle'; }
@@ -380,7 +400,8 @@ async function openPage() {
   renderAvisos();
   const wasSelected = selectedId;
   await Promise.all([loadList(), loadSummary()]);
-  if (wasSelected !== null) openTicket(wasSelected, { quiet: true });
+  if (wanted) openTicket(wanted);
+  else if (wasSelected !== null) openTicket(wasSelected, { quiet: true });
   else if (wide() && tickets.length) openTicket(tickets[0].id);
 }
 
