@@ -5,6 +5,73 @@ aplicado. Junta a revisão feita pelo Fable 5.2 (só por leitura do código), as
 decisões que ficaram em aberto e as fases seguintes. Serve de ponto de partida
 para continuar.
 
+## Pedidos do dono da instância (11/11/2026)
+
+- **App instalada ou browser.** Já se distingue. «Desconhecido» são sessões sem
+  essa informação: as anteriores à telemetria e as da própria consola, que não
+  a envia. Correção (lote A):
+  - gravar o modo no login;
+  - a consola também o envia;
+  - o gráfico chama a «desconhecido» «Sem informação».
+- **Consola sem conta de alojamento.** Hoje o login exige pertencer a uma
+  organização (`authService.createSession`). Contas só de plataforma passam a
+  entrar com uma sessão sem organização, que só serve `/plataforma`. Junta-se
+  com a nova página de login (maqueta primeiro) e é feito pelo Opus.
+- **Nova página de login.** Remake da entrada (maqueta primeiro). Depois do
+  login, uma conta só de plataforma vai para `/plataforma`; quem tem as duas
+  escolhe.
+- **Email da empresa (para mais tarde).** A consola deve enviar e receber pelo
+  email da empresa, que ainda não existe. Hoje os avisos do Suporte saem pelo
+  Gmail de cada organização. Quando o email existir: uma caixa da plataforma
+  (Gmail OAuth ou SMTP), usada para os avisos do Suporte, os comunicados e as
+  respostas aos clientes. A seguir, poder responder ao pedido diretamente por
+  email.
+- **Tarefas internas da equipa** (página nova; maqueta primeiro). Quadro para o
+  dono da instância e a colega de marketing:
+  - ideias, sugestões, bugs, melhorias e marketing;
+  - responsável, prioridade, prazo e estado (Ideias, A fazer, Em curso, Feito);
+  - ligação a um cliente ou a um pedido de suporte, e comentários;
+  - um pedido de suporte pode virar tarefa.
+- **Papéis na consola.** Duas pessoas com acesso. Mais tarde, distinguir
+  «Administração» de «Marketing», por exemplo para o marketing não mudar o
+  estado dos clientes.
+- **Marketing dos alojamentos.** A colega gere o marketing dos clientes que o
+  pedirem: uma marca «serviço de marketing ativo» por cliente, notas e tarefas
+  ligadas. O acesso aos dados de um cliente fica sempre dependente do
+  consentimento dele.
+- **LLM (só informação, não fazer agora).** A app já usa a API da Anthropic
+  para ler talões (`ANTHROPIC_API_KEY`). Ideias:
+  - rascunhos de resposta a hóspedes e a pedidos de suporte;
+  - resumo e triagem dos pedidos na consola;
+  - textos de marketing para os alojamentos;
+  - sugestões de preço.
+  Cuidados: custo por pedido, minimizar os dados enviados (RGPD; a Anthropic já
+  consta como subcontratante) e a revisão humana antes de enviar.
+
+## Lotes de execução
+
+- **A (já, sem páginas novas):**
+  - correções F1 a F7;
+  - limite de pedidos no Suporte;
+  - modo app ou browser no login e na consola;
+  - atividade contada no acesso;
+  - problemas da instância só para os admins da plataforma, mais alertas a eles
+    (pedido sem resposta há mais de 24 horas, incidente novo).
+- **B (maquetas primeiro):**
+  - nova página de login (com contas só de plataforma);
+  - Tarefas internas;
+  - Comunicados;
+  - Pacotes;
+  - «Precisa de atenção» e saúde dos clientes na visão geral e na lista.
+- **C (depois):**
+  - erros da app e tempos da API;
+  - adoção de cada funcionalidade e primeiros passos;
+  - respostas guardadas e tempo até à primeira resposta;
+  - retenção e eliminação de pedidos;
+  - email da empresa;
+  - papéis na consola;
+  - LLM.
+
 ## Decisões em aberto
 
 - **Anexos em PDF.** São servidos com `Content-Security-Policy: sandbox`, e o
