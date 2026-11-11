@@ -66,6 +66,7 @@ function runMigrations(db) {
   migrateAppearance(db);
   migrateNotificationState(db);
   migratePlatformConsole(db);
+  migratePlatformUsage(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -595,6 +596,32 @@ function migratePlatformConsole(db) {
       created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     );
     CREATE INDEX IF NOT EXISTS idx_platform_audit_created ON platform_audit_events(created_at)`);
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Utilização para a consola da plataforma, só em totais diários por
+// organização: nunca utilizador, IP nem nada que identifique uma pessoa.
+function migratePlatformUsage(db) {
+  const id = '20261112_platform_usage';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`CREATE TABLE IF NOT EXISTS usage_daily (
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      day TEXT NOT NULL, view TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY(organization_id, day, view)
+    );
+    CREATE INDEX IF NOT EXISTS idx_usage_daily_day ON usage_daily(day);
+    CREATE TABLE IF NOT EXISTS platform_daily_stats (
+      day TEXT NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      active_users INTEGER NOT NULL DEFAULT 0, sessions_active INTEGER NOT NULL DEFAULT 0,
+      reservations_created INTEGER NOT NULL DEFAULT 0, open_problems INTEGER,
+      PRIMARY KEY(day, organization_id)
+    )`);
+    if (!db.pragma('table_info(auth_sessions)').some(c => c.name === 'display_mode')) {
+      db.exec("ALTER TABLE auth_sessions ADD COLUMN display_mode TEXT CHECK (display_mode IN ('standalone','browser'))");
+    }
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }

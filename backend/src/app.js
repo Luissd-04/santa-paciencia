@@ -233,6 +233,7 @@ app.use('/api/vouchers', voucherRoutes);
 app.use('/api/tasks', googleTasksRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/ops', require('./routes/ops'));
+app.use('/api/telemetry', require('./routes/telemetry'));
 // Consola da plataforma: depois do requireAuth de /api. O staffResponse só
 // esconde chaves que estas respostas não têm e o liveUpdates é silenciado lá.
 app.use('/api/platform', require('./routes/platform'));
@@ -261,6 +262,13 @@ if (process.env.FRONTEND_PATH) {
   });
   app.get('/pre-checkin/:token', (req, res) => {
     res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'pre-checkin.html'));
+  });
+  // Consola da plataforma: página própria, sem segredos (a proteção é a API,
+  // requirePlatformAdmin). Sem o ficheiro, 404 em vez da aplicação.
+  app.get(['/plataforma', '/plataforma/*rest'], (req, res) => {
+    const file = path.join(path.resolve(process.env.FRONTEND_PATH), 'plataforma.html');
+    if (!require('fs').existsSync(file)) return res.status(404).end();
+    res.sendFile(file);
   });
   app.use((req, res) => {
     res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'index.html'));

@@ -103,7 +103,14 @@ const platformUnlockLimiter = rateLimit({
   keyGenerator: req => `plataforma:${req.user.id}`,
   message: { success: false, error: 'Demasiadas tentativas. Tente novamente em 15 minutos.' },
 });
+// Totais de utilização: 60 envios por minuto por sessão (o browser junta as
+// vistas e envia de vez em quando; isto só trava abusos).
+const telemetryLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: req => `telemetria:${require('../services/authService').digestToken(req.sessionId)}`,
+  message: { success: false, error: 'Demasiados pedidos. Tente novamente mais tarde.' },
+});
 module.exports = {
-  platformUnlockLimiter, sensitiveAccountLimiter, receiptLimiter, loginLimiter, loginAccountLimiter, publicApiLimiter, publicBookingLimiter, voucherLimiter, preCheckinLookupLimiter,
+  telemetryLimiter, platformUnlockLimiter, sensitiveAccountLimiter, receiptLimiter, loginLimiter, loginAccountLimiter, publicApiLimiter, publicBookingLimiter, voucherLimiter, preCheckinLookupLimiter,
   preCheckinSubmitLimiter, forgotPasswordLimiter, oauthCallbackLimiter,
 };

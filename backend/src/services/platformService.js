@@ -157,4 +157,4 @@ function listIncidents() {
   return { incidents: incidentsFrom(orgs), instance: instanceProblems(instanceStatus).problems };
 }
 
-module.exports = { getOverview, listOrganizations, getOrganization, updateOrganization, listIncidents };
+module.exports = { getOverview, listOrganizations, getOrganization, updateOrganization, listIncidents, isInstanceKey };

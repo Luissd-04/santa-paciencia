@@ -34,22 +34,14 @@ function getPublicKey() {
   return getVapidKeys().publicKey;
 }
 
-// Nome legível do dispositivo a partir do User-Agent (ex.: "iPhone · Safari").
+// Nome legível do dispositivo a partir do User-Agent (ex.: "iPhone · Safari"),
+// com a mesma leitura das estatísticas (services/userAgent.js).
 // Nota: a PWA instalada no iOS não inclui o token "Safari" — fica só "iPhone".
+const DEVICE_NAMES = { iOS: 'iPhone', iPadOS: 'iPad', macOS: 'Mac', Outro: 'Dispositivo' };
 function deviceLabelFromUA(ua = '') {
-  const os = /iPhone/.test(ua) ? 'iPhone'
-    : /iPad/.test(ua) ? 'iPad'
-    : /Android/.test(ua) ? 'Android'
-    : /Macintosh|Mac OS X/.test(ua) ? 'Mac'
-    : /Windows/.test(ua) ? 'Windows'
-    : /Linux/.test(ua) ? 'Linux'
-    : 'Dispositivo';
-  const browser = /Edg\//.test(ua) ? 'Edge'
-    : /Firefox\//.test(ua) ? 'Firefox'
-    : /Chrome\//.test(ua) && !/Chromium/.test(ua) ? 'Chrome'
-    : /Safari\//.test(ua) && !/Chrome/.test(ua) ? 'Safari'
-    : '';
-  return browser ? `${os} · ${browser}` : os;
+  const { browser, os } = require('./userAgent').parseUserAgent(ua);
+  const name = DEVICE_NAMES[os] || os;
+  return browser === 'Outro' ? name : `${name} · ${browser}`;
 }
 
 // O servidor faz POST ao endpoint recebido: aceitar só os serviços de push

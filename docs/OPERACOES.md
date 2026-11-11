@@ -301,6 +301,10 @@ de alterar `PLATFORM_ADMIN_EMAILS` é preciso recriar o contentor com
 volta a ler o `.env`. No Docker, o script corre dentro do contentor:
 `docker compose exec backend node scripts/platform-admin.js list`.
 
+Privacidade: para melhorar o produto, são guardados totais diários de páginas
+abertas por organização, sem identificar pessoas (sem utilizador, IP nem
+browser), e apagados ao fim de 400 dias.
+
 ## Dados pessoais: anonimização
 
 Um hóspede cujas reservas têm movimentos de pagamento não pode ser apagado (são

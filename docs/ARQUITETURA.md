@@ -106,6 +106,7 @@ e correm pelo executor único (`services/taskRunner.js`):
 | `google_calendar` | 1 min | Repetições pendentes do Google Calendar |
 | `email` | 1 h | Emails pela estadia na hora: emite `email.due` |
 | `daily_summary` | 15 min | Resumo diário por push, uma vez por dia |
+| `platform_stats` | 1 h | Totais diários por organização para a consola da plataforma (hoje e ontem); apaga o que tem mais de 400 dias |
 
 Cada execução usa reserva de execução (`scheduler_leases`, `task:<nome>`): com
 mais do que uma instância sobre a mesma base, só uma corre a tarefa e as outras
@@ -158,7 +159,8 @@ exige `users.platform_admin = 1`, dado só por script, e o email em
 30 minutos por sessão, com limite de 5 tentativas falhadas por 15 minutos. As
 ações ficam em `platform_audit_events`. A API devolve apenas metadados (contagens,
 datas e estados), nunca dados pessoais. Para quem não é admin, as rotas respondem
-como um endpoint inexistente.
+como um endpoint inexistente. A utilização (`POST /api/telemetry`) guarda só
+totais diários de páginas abertas por organização, sem utilizador nem IP.
 
 Consultar [Segurança](../SECURITY.md) para operação e reporte.
 
