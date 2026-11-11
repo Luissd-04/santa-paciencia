@@ -75,7 +75,7 @@ test('palavra-passe errada: 400, continua bloqueado e fica no registo com o IP r
   assert.doesNotMatch(JSON.stringify(failed), /Errada123/);
 });
 
-test('desbloqueio: 200, as rotas respondem 501 e ao fim de 30 minutos volta a 423', async () => {
+test('desbloqueio: 200, as rotas respondem 200 e ao fim de 30 minutos volta a 423', async () => {
   const r = await call(owner, 'POST', '/unlock', { password: PASSWORD });
   assert.equal(r.status, 200);
   const until = Date.parse((await r.json()).data.unlocked_until);
@@ -87,13 +87,13 @@ test('desbloqueio: 200, as rotas respondem 501 e ao fim de 30 minutos volta a 42
   assert.equal((await call(other, 'GET', '/overview')).status, 423);
 
   for (const [method, url, body] of [['GET', '/overview'], ['GET', '/organizations'], ['GET', `/organizations/${org.id}`],
-    ['PUT', `/organizations/${org.id}`, { status: 'trial', notes: 'x' }], ['GET', '/incidents']]) {
+    ['PUT', `/organizations/${org.id}`, { status: 'active', notes: 'x' }], ['GET', '/incidents']]) {
     const res = await call(owner, method, url, body);
-    assert.equal(res.status, 501, `${method} ${url}`);
-    assert.deepEqual(await res.json(), { success: false, error: 'Ainda não implementado.' });
+    assert.equal(res.status, 200, `${method} ${url}`);
+    assert.equal((await res.json()).success, true);
   }
-  // Sem sucesso, o PUT não fica registado.
-  assert.equal(audits('organization.update').length, 0);
+  // O PUT com sucesso fica registado.
+  assert.equal(audits('organization.update').length, 1);
 
   db.prepare('UPDATE auth_sessions SET platform_unlocked_until = ? WHERE id = ?')
     .run(new Date(Date.now() - 1000).toISOString(), auth.digestToken(owner.session));
