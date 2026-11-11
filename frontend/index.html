@@ -187,6 +187,9 @@
               <i data-lucide="monitor-smartphone" style="width:14px;height:14px;"></i> Sessões ativas
             </button>
             <div id="user-menu-orgs"></div>
+            <button class="user-menu-item" data-platform-admin data-on-click="menu-open-plataforma" style="display:none;">
+              <i data-lucide="layout-list" style="width:14px;height:14px;"></i> Consola da plataforma
+            </button>
             <div class="user-menu-sep"></div>
             <button class="user-menu-item" data-on-click="index-switch-account-80fec7e">
               <i data-lucide="users-round" style="width:14px;height:14px;"></i> Trocar de conta
@@ -424,6 +427,10 @@
 
       <!-- ══ DEFINIÇÕES ══ -->
       <div class="view" id="view-definicoes" data-v2>
+      </div>
+
+      <!-- ══ CONSOLA DA PLATAFORMA (só administradores da plataforma) ══ -->
+      <div class="view" id="view-plataforma" data-v2>
       </div>
 
       <!-- ══ FICHA DE HÓSPEDE (página completa) ══ -->
@@ -1068,6 +1075,9 @@
       </button>
       <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-f44ae7e">
         <i data-lucide="monitor-smartphone"></i> Sessões ativas
+      </button>
+      <button type="button" class="side-drawer-item" data-platform-admin data-on-click="menu-open-plataforma" style="display:none;">
+        <i data-lucide="layout-list"></i> Consola da plataforma
       </button>
       <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-b4bebaf">
         <i data-lucide="users-round"></i> Trocar de conta

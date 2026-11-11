@@ -160,6 +160,7 @@ const FEATURE_ASSETS = [
   '/js/features/vouchers/bilhetes-v2.js',
   '/js/precos.js',
   '/js/features/notificacoes/pagina.js',
+  '/js/features/plataforma/consola.js',
   '/js/features/v2/folha.js',
   '/js/features/v2/barra.js',
   '/js/features/v2/formularios.js',
@@ -198,6 +199,7 @@ const VIEW_ASSETS = [
   '/views/vouchers.html',
   '/views/precos.html',
   '/views/definicoes.html',
+  '/views/plataforma.html',
 ];
 
 /* ─── Install: pré-cachear assets estáticos ─── */

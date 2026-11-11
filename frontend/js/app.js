@@ -46,6 +46,7 @@ const VIEW_TITLES = {
   vouchers:   'Vouchers',
   precos:     'Preços Dinâmicos',
   definicoes: 'Definições',
+  plataforma: 'Consola da plataforma',
   'hospede-detalhe': 'Ficha de Hóspede'
 };
 
@@ -161,6 +162,7 @@ async function initView(v) {
   if (v === 'vouchers') AppModules.vouchers.loadVouchers();
   if (v === 'precos') AppModules.precos.initPrecos();
   if (v === 'definicoes') renderSettingsView();
+  if (v === 'plataforma') AppModules.plataforma.loadPlataforma();
 }
 
 // Nome da vista a partir do caminho do endereço ("/reservas/" → "reservas").

@@ -196,6 +196,9 @@ function updateUserBadge() {
     const role = AppModules.core.currentUser?.role || '';
     roleEl.textContent = [org, role].filter(Boolean).join(' · ');
   }
+  // «Consola da plataforma»: só para administradores da plataforma.
+  const platformAdmin = AppModules.core.currentUser?.is_platform_admin === true;
+  document.querySelectorAll('[data-platform-admin]').forEach(el => { el.style.display = platformAdmin ? '' : 'none'; });
   // Nome e cargo também na conta fixa no fundo do menu do telemóvel.
   AppModules.core.renderNavigation();
 }
