@@ -20,7 +20,27 @@ const TYPE_PILLS = [['', 'Todos os tipos'], ['problem', 'Problema'], ['improveme
 
 const filter = { status: 'all', type: '', q: '' };
 const inboxState = { tickets: [], counts: {} };
-const cur = { ctx: null, id: '', data: null, files: [], error: '', busy: false };
+// Rascunho da resposta (texto e nomes dos anexos) por pedido, para não se perder
+// quando a consola bloqueia ou a página recarrega. Os ficheiros em si não ficam.
+const draftKey = id => `pl-sup-rascunho:${id}`;
+function loadDraft(id) {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(draftKey(id)) || 'null');
+    return { text: typeof raw?.text === 'string' ? raw.text : '', names: Array.isArray(raw?.names) ? raw.names.map(String) : [] };
+  } catch { return { text: '', names: [] }; }
+}
+function saveDraft() {
+  if (!cur.id) return;
+  const text = document.getElementById('pl-resp')?.value || '';
+  const names = cur.files.map(f => f.name);
+  try {
+    if (!text && !names.length) sessionStorage.removeItem(draftKey(cur.id));
+    else sessionStorage.setItem(draftKey(cur.id), JSON.stringify({ text, names }));
+  } catch { /* sem armazenamento: só não guarda */ }
+}
+function clearDraft() { try { sessionStorage.removeItem(draftKey(cur.id)); } catch { /* nada */ } }
+
+const cur = { ctx: null, id: '', data: null, files: [], lost: [], error: '', busy: false };
 
 const statusInfo = status => fmt.TICKET_STATUS[status] || { label: String(status || '—'), tone: 'neutral' };
 const statusChip = status => fmt.chip(statusInfo(status).tone, statusInfo(status).label);
@@ -176,7 +196,8 @@ function messageHtml(m) {
 }
 
 function filesHtml() {
-  return cur.files.map((f, i) => `<span class="pl-file">${fmt.icon('paperclip', 14)}<span class="pl-att-name">${esc(f.name)}</span><span class="pl-sub">${esc(fmt.bytes(f.size))}</span>
+  const lost = cur.lost.length ? `<p class="pl-sub pl-lost">Rascunho anterior com anexos (volte a anexar): ${esc(cur.lost.join(', '))}</p>` : '';
+  return lost + cur.files.map((f, i) => `<span class="pl-file">${fmt.icon('paperclip', 14)}<span class="pl-att-name">${esc(f.name)}</span><span class="pl-sub">${esc(fmt.bytes(f.size))}</span>
     <button type="button" class="pl-file-x" aria-label="Remover ${esc(f.name)}" ${AppActions.attrs('click', 'pl-sup-anexo-remover', [i])}>${fmt.icon('x', 14)}</button></span>`).join('');
 }
 
@@ -184,7 +205,7 @@ function replyHtml(ticket, draft) {
   const options = STATUS_ORDER.map(key => `<option value="${key}">${esc(statusInfo(key).label)}</option>`).join('');
   return `<section class="v2-card v2-dense"><div class="v2-card-h"><h3>Responder</h3></div>
     <label class="pl-label" for="pl-resp">Mensagem para ${esc(ticket.author?.name || 'o cliente')}</label>
-    <textarea class="form-control" id="pl-resp" rows="5" maxlength="5000" placeholder="Escreva a resposta…">${esc(draft.text)}</textarea>
+    <textarea class="form-control" id="pl-resp" rows="5" maxlength="5000" placeholder="Escreva a resposta…" ${AppActions.attrs('input', 'pl-sup-rascunho')}>${esc(draft.text)}</textarea>
     <div class="pl-files" id="pl-anexos">${filesHtml()}</div>
     <div class="pl-reply-bar">
       <label class="btn btn-ghost btn-sm pl-attach">${fmt.icon('paperclip', 14)}<span>Anexar</span>
@@ -214,6 +235,7 @@ function sideHtml(ticket, org, context) {
       ${kv('Atualizado', esc(fmt.dateTime(ticket.updated_at)))}
       ${ticket.customer_confirmed_at ? kv('Confirmado pelo cliente', `${fmt.icon('check-circle', 14)} ${esc(fmt.dateTime(ticket.customer_confirmed_at))}`) : ''}
       </div>
+      <div class="pl-save"><button type="button" class="btn btn-ghost btn-sm" id="pl-criar-tarefa" ${AppActions.attrs('click', 'pl-sup-tarefa')}>${fmt.icon('kanban-square', 14)}<span>Criar tarefa</span></button></div>
       ${org?.id != null ? `<div class="pl-save">${fmt.link(fmt.orgHref(org.id), `${fmt.icon('building-2', 14)}<span>Ficha do cliente</span>`, 'btn btn-ghost btn-sm')}</div>` : ''}
     </section>
     ${contextCard(context)}</aside>`;
@@ -262,12 +284,14 @@ async function reload(ctx = cur.ctx, draft = null) {
 
 const ticketPage = {
   async render(ctx) {
-    Object.assign(cur, { ctx, id: ctx.route.id, files: [], error: '', busy: false });
+    Object.assign(cur, { ctx, id: ctx.route.id, files: [], lost: [], error: '', busy: false });
     const data = await api.supportTicket(cur.id);
     if (ctx.stale()) return;
     if (!data?.ticket) { notFound(ctx); return; }
     cur.data = data;
-    paint({ text: '' });
+    const saved = loadDraft(cur.id);
+    cur.lost = saved.names;
+    paint({ text: saved.text });
     api.supportTickets().then(list => { if (list && !ctx.stale()) setBadge(list.tickets); }).catch(() => {});
   },
 };
@@ -298,11 +322,12 @@ async function addFiles(input) {
     if (cur.files.length >= MAX_FILES) { showError(`No máximo ${MAX_FILES} anexos por mensagem.`); break; }
     if (!MIMES.includes(file.type)) { showError(`«${file.name}»: só PNG, JPEG, WEBP, GIF ou PDF.`); continue; }
     if (file.size > MAX_BYTES) { showError(`«${file.name}» tem mais de 10 MB.`); continue; }
-    try { cur.files.push(await readFile(file)); }
+    try { cur.files.push(await readFile(file)); cur.lost = []; }
     catch { showError(`Não foi possível ler «${file.name}».`); }
   }
   const box = document.getElementById('pl-anexos');
   if (box) { box.innerHTML = filesHtml(); if (window.lucide) lucide.createIcons(); }
+  saveDraft();
 }
 
 async function send(button) {
@@ -320,6 +345,8 @@ async function send(button) {
   try {
     await api.supportReply(cur.id, body);
     cur.files = [];
+    cur.lost = [];
+    clearDraft();
     AppModules.core.toast('Resposta enviada.', 'success');
     await reload(ctx, { text: '' });
   } catch (error) {
@@ -357,10 +384,25 @@ AppActions.register({
     cur.files.splice(Number(index), 1);
     const box = document.getElementById('pl-anexos');
     if (box) { box.innerHTML = filesHtml(); if (window.lucide) lucide.createIcons(); }
+    saveDraft();
   },
+  'pl-sup-tarefa': () => createTask(),
   'pl-sup-enviar': el => send(el),
 }, 'click');
+// Abre a nova tarefa já ligada a este pedido e ao cliente.
+function createTask() {
+  const ticket = cur.data?.ticket;
+  if (!ticket) return;
+  const org = cur.data.organization || ticket.organization;
+  const prefill = { title: `Pedido ${ticket.number}: ${ticket.subject}`.slice(0, 140), ticket_id: ticket.id, ticket_number: ticket.number,
+    organization_id: org?.id != null ? String(org.id) : '', type: ticket.type === 'problem' ? 'bug' : 'improvement' };
+  try { sessionStorage.setItem('pl-tarefa-prefill', JSON.stringify(prefill)); } catch { /* sem armazenamento */ }
+  history.pushState({}, '', '/plataforma/tarefas');
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
 AppActions.register({
+  'pl-sup-rascunho': () => saveDraft(),
   'pl-sup-pesquisa': el => {
     filter.q = el.value;
     const list = document.getElementById('pl-lista');

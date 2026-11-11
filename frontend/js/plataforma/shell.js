@@ -5,6 +5,7 @@
 AppModules.define('consola', {
   mostrarBloqueio: { get: () => showLocked },
   contadorSuporte: { get: () => setSupportBadge },
+  contadorTarefas: { get: () => setTasksBadge },
 });
 
 const fmt = AppModules.consola.fmt;
@@ -75,6 +76,22 @@ async function refreshSupportBadge() {
   } catch { setSupportBadge(0); }
 }
 
+// Contador de Tarefas: as minhas tarefas abertas (GET /api/platform/tasks/summary).
+function setTasksBadge(count) {
+  const badge = $('pl-badge-tarefas');
+  if (!badge) return;
+  const n = Number(count) || 0;
+  badge.textContent = n > 99 ? '99+' : String(n);
+  badge.hidden = n < 1;
+  badge.setAttribute('aria-label', `${n} tarefas abertas`);
+}
+async function refreshTasksBadge() {
+  try {
+    const payload = await AppModules.core.apiGet('/api/platform/tasks/summary');
+    setTasksBadge(payload?.data?.mine_open);
+  } catch { setTasksBadge(0); }
+}
+
 function show(html) {
   charts.disposeAll();
   content().innerHTML = html;
@@ -93,6 +110,7 @@ async function load(route) {
   show(loadingHtml);
   const ctx = { host: content(), route, stale: () => token !== st.token };
   if (route.key !== 'suporte') refreshSupportBadge();
+  if (route.key !== 'tarefas') refreshTasksBadge();
   try {
     await AppModules.consola[route.page].render(ctx);
     if (ctx.stale()) return;
