@@ -1,0 +1,16 @@
+/* Barra de comunicados na app (js/domain/announcements.js). Só com o aspeto novo
+   (html[data-look]); só tokens --v2-*. Sem ele, valem as regras base de shell.css. */
+html[data-look] .ann-bar { gap: 8px; padding: 10px 32px 0; background: transparent; }
+html[data-look] .ann-item { padding: 10px 14px 10px 16px; border: 1px solid var(--v2-line); border-radius: var(--v2-radius-sm); background: var(--v2-info-bg); color: var(--v2-info); font-family: var(--v2-font); }
+html[data-look] .ann-item.is-bad { background: var(--v2-bad-bg); color: var(--v2-bad); }
+html[data-look] .ann-item.is-ok { background: var(--v2-ok-bg); color: var(--v2-ok); }
+html[data-look] .ann-item.is-warn { background: var(--v2-warn-bg); color: var(--v2-warn); }
+html[data-look] .ann-x:hover { background: var(--v2-surface-2); }
+@media (max-width: 767px) {
+  html[data-look] .ann-bar { padding: 8px 12px 0; }
+}
+
+/* «Ajuda e feedback»: comunicados com o mesmo desenho dos avisos de incidente. */
+html[data-look] .ajv2-aviso.is-bad { background: var(--v2-bad-bg); color: var(--v2-bad); }
+html[data-look] .ajv2-aviso.is-ok { background: var(--v2-ok-bg); color: var(--v2-ok); }
+html[data-look] .ajv2-aviso.is-warn { background: var(--v2-warn-bg); color: var(--v2-warn); }

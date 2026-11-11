@@ -847,3 +847,17 @@ select.form-control { cursor:pointer; }
 .detail-row { display:flex; flex-direction:column; gap:4px; }
 .detail-label { font-size:10.5px; font-weight:600; text-transform:uppercase; color:var(--cinza); letter-spacing:.5px; }
 .detail-val { font-size:14px; color:var(--texto); }
+
+/* ── Comunicados da plataforma (js/domain/announcements.js) ── */
+.ann-bar { display: grid; gap: 1px; background: rgba(26,46,74,.08); }
+.ann-bar[hidden] { display: none; }
+.ann-item { display: flex; align-items: center; gap: 12px; padding: 8px 32px; background: #e3edf5; color: #2f5f86; font-size: 13.5px; line-height: 1.4; }
+.ann-item.is-bad { background: #f8e1df; color: var(--vermelho); }
+.ann-item.is-ok { background: #e2eee5; color: var(--verde); }
+.ann-item.is-warn { background: #f6ead0; color: var(--laranja); }
+.ann-ic { flex-shrink: 0; width: 18px; height: 18px; }
+.ann-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ann-x { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.ann-x:hover { background: rgba(0,0,0,.07); }
+.ann-x:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+@media (max-width: 767px) { .ann-item { padding: 8px 16px; } }

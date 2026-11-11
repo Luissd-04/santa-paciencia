@@ -59,6 +59,7 @@ const FILE_ACCEPT = '.png,.jpg,.jpeg,.webp,.gif,.pdf,image/png,image/jpeg,image/
 let tickets = [];
 let counts = { all: 0, open: 0, in_review: 0, resolved: 0 };
 let summary = null;
+let notices = [];
 let filter = 'all';
 let selectedId = null;
 let detail = null; // { ticket, messages, context }
@@ -143,8 +144,17 @@ function fileChipsHtml(files, scope) {
 }
 
 // ── Dados ──
+// Comunicados da plataforma para «Ajuda e feedback» (show_help); falhar não estraga a página.
+async function loadNotices() {
+  try {
+    const payload = await core().apiGet('/api/announcements', { skipAuthRedirect: true });
+    notices = (Array.isArray(payload?.data) ? payload.data : []).filter(item => item.show_help);
+  } catch { /* Fica o que já havia. */ }
+}
+
 async function loadSummary() {
-  summary = await core().refreshSupportSummary?.() || summary;
+  const [latest] = await Promise.all([core().refreshSupportSummary?.(), loadNotices()]);
+  summary = latest || summary;
   renderAvisos();
 }
 
@@ -222,14 +232,23 @@ function shell() {
   if (window.lucide) lucide.createIcons();
 }
 
+// [tom, ícone] dos comunicados, como na barra da app.
+const NOTICE_KINDS = { maintenance: ['info', 'wrench'], incident: ['bad', 'triangle-alert'], news: ['ok', 'sparkles'], notice: ['warn', 'info'] };
+
 function renderAvisos() {
   const box = document.getElementById('ajv2-avisos');
   if (!box) return;
   const incidents = Array.isArray(summary?.incidents) ? summary.incidents : [];
-  box.innerHTML = incidents.map(item => `<div class="ajv2-aviso" role="status">${ic('info', 18)}
+  const announcements = notices.map(item => {
+    const [tone, icon] = NOTICE_KINDS[item.kind] || NOTICE_KINDS.notice;
+    return `<div class="ajv2-aviso is-${tone}" role="status">${ic(icon, 18)}
+      <span><b>${esc(item.title)}.</b> ${esc(item.body)}</span>
+      ${item.starts_at ? `<time datetime="${esc(item.starts_at)}">Desde ${esc(quando(item.starts_at).replace(/^Hoje, /, 'hoje, ').replace(/^Ontem, /, 'ontem, '))}</time>` : ''}</div>`;
+  });
+  box.innerHTML = announcements.join('') + incidents.map(item => `<div class="ajv2-aviso" role="status">${ic('info', 18)}
       <span><b>${esc(item.title)}</b>${item.detail ? ` ${esc(item.detail)}` : ''}</span>
       ${item.since ? `<time datetime="${esc(item.since)}">Desde ${esc(quando(item.since).replace(/^Hoje, /, 'hoje, ').replace(/^Ontem, /, 'ontem, '))}</time>` : ''}</div>`).join('');
-  box.hidden = !incidents.length;
+  box.hidden = !incidents.length && !announcements.length;
   if (window.lucide) lucide.createIcons();
 }
 
