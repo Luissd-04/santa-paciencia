@@ -290,6 +290,14 @@ pagamentos continuam no histórico de cada reserva. O registo leva utilizador,
 data, alvo e contagens — nunca dados pessoais. O prazo de conservação destes
 registos é uma decisão pendente.
 
+## Dono da instância
+
+A consola da plataforma só abre para quem tem a marca na base e o email em
+`PLATFORM_ADMIN_EMAILS`. Em `backend/src`, `npm run platform-admin -- grant email`
+dá a marca, `npm run platform-admin -- revoke email` tira-a e fecha os
+desbloqueios ativos, e `npm run platform-admin -- list` lista quem a tem. Depois
+de alterar `PLATFORM_ADMIN_EMAILS` é preciso reiniciar a aplicação.
+
 ## Dados pessoais: anonimização
 
 Um hóspede cujas reservas têm movimentos de pagamento não pode ser apagado (são

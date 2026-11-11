@@ -2,7 +2,8 @@
 
 Plataforma de operação de alojamento local. Centraliza reservas, alojamentos,
 hóspedes, calendário, preços, despesas, fornecedores, equipa, comunicações,
-vouchers, relatórios e tarefas operacionais.
+vouchers, relatórios e tarefas operacionais. Inclui ainda uma consola da
+plataforma para o dono da instância: clientes, incidentes e saúde da instância.
 
 ## Estado do projeto
 

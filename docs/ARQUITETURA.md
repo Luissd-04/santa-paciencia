@@ -88,7 +88,7 @@ Depois de `/api`, a sessão é obrigatória. As famílias autenticadas são:
 ```text
 reservations  accommodations  calendar  guests  email-templates
 expenses      suppliers       backup    team      reports
-events        vouchers        tasks     push
+events        vouchers        tasks     push      platform
 ```
 
 Os detalhes de cada endpoint devem ser obtidos nas respetivas rotas. Esta lista
@@ -151,6 +151,14 @@ Papéis: `staff` consulta e opera o dia a dia (reservas, hóspedes, eventos,
 check-in/out); `manager` gere reservas, pagamentos, alojamentos, despesas,
 modelos de email e definições da organização, e apaga hóspedes/reservas;
 `owner` gere equipa e backups.
+
+Consola da plataforma (`/api/platform`): só para o dono da instância. O acesso
+exige `users.platform_admin = 1`, dado só por script, e o email em
+`PLATFORM_ADMIN_EMAILS`. A palavra-passe é pedida de novo e a consola fica aberta
+30 minutos por sessão, com limite de 5 tentativas falhadas por 15 minutos. As
+ações ficam em `platform_audit_events`. A API devolve apenas metadados (contagens,
+datas e estados), nunca dados pessoais. Para quem não é admin, as rotas respondem
+como um endpoint inexistente.
 
 Consultar [Segurança](../SECURITY.md) para operação e reporte.
 

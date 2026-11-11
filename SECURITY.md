@@ -82,6 +82,15 @@ regras de rate limiting/WAF no Cloudflare como primeira barreira; cópias de
 segurança fora do servidor com ensaio de restauro periódico; mencionar o OCR de
 talões (Anthropic) entre os subcontratantes no texto RGPD.
 
+## Dono da instância
+
+O acesso à consola da plataforma é dado só no servidor, em `backend/src`:
+`npm run platform-admin -- grant email` marca o utilizador,
+`npm run platform-admin -- revoke email` retira a marca e fecha os desbloqueios
+ativos, e `npm run platform-admin -- list` mostra quem a tem. Além da marca,
+o email tem de estar em `PLATFORM_ADMIN_EMAILS`; alterar esta variável exige
+reiniciar a aplicação. Ao revogar, retirar também o email da variável.
+
 ## Segredos e chaves
 
 Configurar segredos apenas por ambiente protegido. A chave de encriptação dos
