@@ -37,8 +37,9 @@ function problemsOf(status) {
 // Base partilhada por visão geral, lista e incidentes: linhas das organizações
 // com agregados (um GROUP BY por contagem) e problemas calculados uma só vez.
 function collect(onlyId = null) {
-  const where = onlyId ? 'WHERE id = ?' : '';
-  const orgs = db.prepare(`SELECT id, name, slug, status, platform_notes, created_at FROM organizations ${where} ORDER BY name COLLATE NOCASE, id`)
+  const where = onlyId ? 'WHERE o.id = ?' : '';
+  const orgs = db.prepare(`SELECT o.id, o.name, o.slug, o.status, o.platform_notes, o.created_at, p.id AS plan_id, p.name AS plan_name
+    FROM organizations o LEFT JOIN plans p ON p.id = o.plan_id ${where} ORDER BY o.name COLLATE NOCASE, o.id`)
     .all(...(onlyId ? [onlyId] : []));
   const members = countBy('SELECT organization_id, COUNT(*) AS n FROM memberships WHERE active = 1 GROUP BY organization_id');
   const accommodations = countBy('SELECT organization_id, COUNT(*) AS n FROM accommodations GROUP BY organization_id');
@@ -72,7 +73,7 @@ function collect(onlyId = null) {
     const mail = !gmail.has(org.id) ? 'off' : (open('Gmail') ? 'error' : 'ok');
     const stripe = open('Stripe') ? 'error' : (stripeKey.key && stripeKey.organizationId === org.id ? 'ok' : 'off');
     const row = {
-      id: org.id, name: org.name, slug: org.slug, status: org.status, plan: null, created_at: org.created_at,
+      id: org.id, name: org.name, slug: org.slug, status: org.status, plan: org.plan_id ? { id: org.plan_id, name: org.plan_name } : null, created_at: org.created_at,
       last_activity_at: lastSeen.get(org.id) || null,
       members: members.get(org.id) || 0,
       accommodations: accommodations.get(org.id) || 0,
@@ -145,17 +146,23 @@ function getOrganization(id) {
   };
 }
 
-// status: active | trial | suspended; notes: texto livre só da plataforma.
-// A suspensão ainda não é aplicada ao acesso.
-function updateOrganization(id, { status, notes } = {}) {
+// status: active | trial | suspended; notes: texto livre só da plataforma;
+// planId: id de um pacote, ou null para tirar o pacote (sem limites).
+// Com 'suspended', as sessões nessa organização passam a responder 403
+// (middleware/requireAuth.js) e o login deixa de a oferecer.
+function updateOrganization(id, { status, notes, planId } = {}) {
   if (!db.prepare('SELECT 1 FROM organizations WHERE id = ?').get(String(id ?? ''))) throw httpError('Organização não encontrada.', 404);
   if (status !== undefined && !STATUSES.includes(status)) throw httpError('Estado inválido.', 400);
   if (notes !== undefined && notes !== null && (typeof notes !== 'string' || notes.length > NOTES_MAX)) {
     throw httpError(`As notas têm de ser texto até ${NOTES_MAX} caracteres.`, 400);
   }
+  if (planId !== undefined && planId !== null && (typeof planId !== 'string' || !db.prepare('SELECT 1 FROM plans WHERE id = ?').get(planId))) {
+    throw httpError('Pacote inválido.', 400);
+  }
   const sets = [];
   const params = [];
   if (status !== undefined) { sets.push('status = ?'); params.push(status); }
+  if (planId !== undefined) { sets.push('plan_id = ?'); params.push(planId); }
   if (notes !== undefined) { sets.push('platform_notes = ?'); params.push(notes === null || notes.trim() === '' ? null : notes); }
   if (sets.length) db.prepare(`UPDATE organizations SET ${sets.join(', ')}, updated_at = datetime('now') WHERE id = ?`).run(...params, id);
   return getOrganization(id);
@@ -166,4 +173,24 @@ function listIncidents() {
   return { incidents: incidentsFrom(orgs), instance: instanceProblems(instanceStatus).problems };
 }
 
-module.exports = { getOverview, listOrganizations, getOrganization, updateOrganization, listIncidents, isInstanceKey, providerOf };
+// Números da semana para a página de entrada (GET /auth/public-stats, sem
+// sessão): só três totais da instância, nunca dados de uma organização ou de
+// uma pessoa. Reservas criadas e emails entregues nos últimos 7 dias e o
+// total atual de alojamentos. Guardados 10 minutos em memória.
+const PUBLIC_STATS_TTL_MS = 10 * 60000;
+let publicStatsCache = null;
+function publicWeekStats({ now = Date.now(), fresh = false } = {}) {
+  if (!fresh && publicStatsCache && now - publicStatsCache.at < PUBLIC_STATS_TTL_MS) return publicStatsCache.value;
+  const since = new Date(now - 7 * 86400000).toISOString().replace('T', ' ').slice(0, 19);
+  const value = {
+    week: {
+      reservations_created: db.prepare('SELECT COUNT(*) AS n FROM reservations WHERE datetime(created_at) >= datetime(?)').get(since).n,
+      emails_sent: db.prepare("SELECT COUNT(*) AS n FROM email_deliveries WHERE state = 'sent' AND updated_at >= ?").get(now - 7 * 86400000).n,
+      accommodations: db.prepare('SELECT COUNT(*) AS n FROM accommodations').get().n,
+    },
+  };
+  publicStatsCache = { at: now, value };
+  return value;
+}
+
+module.exports = { publicWeekStats, PUBLIC_STATS_TTL_MS, getOverview, listOrganizations, getOrganization, updateOrganization, listIncidents, isInstanceKey, providerOf };

@@ -232,6 +232,15 @@ function create(req, res) {
   const name = String(req.body.name || '').trim();
   if (!name) return res.status(400).json({ error: 'Nome obrigatório' });
 
+  // Limite de alojamentos do pacote (sem pacote, sem limite). A verificação e
+  // o INSERT correm sem await pelo meio, por isso não há corrida.
+  try {
+    require('../services/plansService').assertWithinLimit(req.user.organization_id, 'accommodations');
+  } catch (err) {
+    if (err.limit) return res.status(403).json({ success: false, error: err.message, limit: err.limit });
+    throw err;
+  }
+
   if (parent_id) {
     const parent = db.prepare(`
       SELECT id FROM accommodations

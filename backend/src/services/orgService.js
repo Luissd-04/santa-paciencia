@@ -90,7 +90,7 @@ function getPrimaryMembership(userId) {
     SELECT m.*, o.name as organization_name, o.slug as organization_slug
     FROM memberships m
     JOIN organizations o ON o.id = m.organization_id
-    WHERE m.user_id = ? AND m.active = 1
+    WHERE m.user_id = ? AND m.active = 1 AND o.status != 'suspended'
     ORDER BY CASE m.role WHEN 'owner' THEN 1 WHEN 'manager' THEN 2 ELSE 3 END, m.created_at ASC
     LIMIT 1
   `).get(userId);
@@ -169,12 +169,16 @@ function acceptInvitation({ invitationId, userId }) {
   if (invitation.accepted_at) throw new Error('Este convite já foi utilizado.');
   if (new Date(invitation.expires_at).getTime() <= Date.now()) throw new Error('Este convite expirou.');
 
-  if (!getMembershipByUserAndOrganization(userId, invitation.organization_id)) createMembership({
-    organizationId: invitation.organization_id,
-    userId,
-    role: invitation.role,
-    invitedByUserId: invitation.invited_by_user_id || null,
-  });
+  if (!getMembershipByUserAndOrganization(userId, invitation.organization_id)) {
+    // Limite de membros do pacote: 403 { limit: 'members' } e o convite fica por usar.
+    require('./plansService').assertWithinLimit(invitation.organization_id, 'members');
+    createMembership({
+      organizationId: invitation.organization_id,
+      userId,
+      role: invitation.role,
+      invitedByUserId: invitation.invited_by_user_id || null,
+    });
+  }
 
   db.prepare(`
     UPDATE invitations SET accepted_at = datetime('now') WHERE id = ?

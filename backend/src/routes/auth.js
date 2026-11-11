@@ -5,16 +5,20 @@ const requireAuth = require('../middleware/requireAuth');
 const requireRole = require('../middleware/requireRole');
 const {
   SESSION_COOKIE,
+  SUSPENDED_MESSAGE,
   consumeResetTokenAsync,
+  createPlatformSession,
   createPasswordResetToken,
   createSession,
   createUserAsync,
   deleteSession,
   digestToken,
+  getDestinations,
   getResetToken,
   getUserByEmail,
   hashPasswordAsync,
   isValidEmail,
+  onlySuspendedMemberships,
   publicUser,
   validatePassword,
   verifyPasswordAsync,
@@ -85,10 +89,18 @@ function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
+// Erros do createSession/limites com estado e marca próprios (suspended, limit).
+function sendFlagged(res, err, fallbackStatus = 400) {
+  if (err?.suspended) return res.status(403).json({ success: false, error: SUSPENDED_MESSAGE, suspended: true });
+  if (err?.limit) return res.status(403).json({ success: false, error: err.message, limit: err.limit });
+  const status = Number(err?.status) >= 400 && Number(err?.status) < 500 ? Number(err.status) : fallbackStatus;
+  return res.status(status).json({ success: false, error: err?.message || 'Pedido inválido.' });
+}
+
 function serializeUser(user) {
   return {
     ...publicUser(user),
-    organization_id: user.organization_id,
+    organization_id: user.organization_id || null,
     organization_name: user.organization_name,
     organization_slug: user.organization_slug,
     menu_prefs: user.organization_id ? require('../services/menuPrefs').get(user.id, user.organization_id) : null,
@@ -137,13 +149,20 @@ router.post('/login', loginLimiter, require('../middleware/rateLimiter').loginAc
   const valid = await verifyPasswordAsync(String(password || ''), user?.active ? user.password_hash : dummyPasswordHash());
   if (!user?.active || !valid) return res.status(401).json(genericError);
 
+  // Para onde pode entrar: a organização principal (não suspensa) ou, sem
+  // nenhuma, uma sessão só da consola se for dona da instância.
+  const destinations = getDestinations(user.id);
   try {
-    const { sessionId } = createSession(user.id, null, null, sessionMeta(req));
+    let sessionId;
+    if (destinations.organizations.length) ({ sessionId } = createSession(user.id, null, null, sessionMeta(req)));
+    else if (destinations.platform) ({ sessionId } = createPlatformSession(user.id, null, sessionMeta(req)));
+    else if (onlySuspendedMemberships(user.id)) return res.status(403).json({ success: false, error: SUSPENDED_MESSAGE, suspended: true });
+    else return res.status(403).json({ success: false, error: 'O utilizador não pertence a nenhuma organização ativa.' });
     setSessionCookie(res, sessionId);
     const sessionUser = require('../services/authService').getSessionUser(sessionId);
-    res.json({ success: true, data: { user: serializeUser(sessionUser) } });
+    res.json({ success: true, data: { user: serializeUser(sessionUser), destinations } });
   } catch (err) {
-    res.status(403).json({ success: false, error: err.message });
+    sendFlagged(res, err, 403);
   }
 });
 
@@ -160,6 +179,11 @@ router.post('/invitations/accept', loginLimiter, async (req, res) => {
   if (invitation.accepted_at) return res.status(410).json({ success: false, error: 'Este convite já foi aceite.' });
   if (new Date(invitation.expires_at).getTime() <= Date.now()) {
     return res.status(410).json({ success: false, error: 'Este convite expirou.' });
+  }
+
+  // Organização suspensa: o convite fica por usar.
+  if (db.prepare('SELECT status FROM organizations WHERE id = ?').get(invitation.organization_id)?.status === 'suspended') {
+    return res.status(403).json({ success: false, error: SUSPENDED_MESSAGE, suspended: true });
   }
 
   const normalizedEmail = normalizeEmail(invitation.email);
@@ -185,7 +209,7 @@ router.post('/invitations/accept', loginLimiter, async (req, res) => {
       const sessionUser = require('../services/authService').getSessionUser(sessionId);
       return res.json({ success: true, data: { user: serializeUser(sessionUser) } });
     } catch (err) {
-      return res.status(400).json({ success: false, error: err.message });
+      return sendFlagged(res, err);
     }
   }
 
@@ -221,7 +245,7 @@ router.post('/invitations/accept', loginLimiter, async (req, res) => {
       }
     });
   } catch (err) {
-    res.status(400).json({ success: false, error: err.message });
+    sendFlagged(res, err);
   }
 });
 
@@ -230,7 +254,7 @@ router.get('/memberships', requireAuth, (req, res) => {
     SELECT m.organization_id, m.role, o.name as organization_name, o.slug as organization_slug
     FROM memberships m
     JOIN organizations o ON o.id = m.organization_id
-    WHERE m.user_id = ? AND m.active = 1
+    WHERE m.user_id = ? AND m.active = 1 AND o.status != 'suspended'
     ORDER BY CASE m.role WHEN 'owner' THEN 1 WHEN 'manager' THEN 2 ELSE 3 END, m.created_at ASC
   `).all(req.user.id);
   res.json({ success: true, data: { memberships } });
@@ -245,13 +269,31 @@ router.post('/switch-org', requireAuth, (req, res) => {
   if (!membership) {
     return res.status(403).json({ success: false, error: 'Não tens acesso a este espaço.' });
   }
+  // Também a partir de uma sessão só da consola ou de uma organização suspensa.
   try {
     const { sessionId } = createSession(req.user.id, organization_id, req.sessionId, sessionMeta(req));
     setSessionCookie(res, sessionId);
     const sessionUser = require('../services/authService').getSessionUser(sessionId);
-    res.json({ success: true, data: { user: serializeUser(sessionUser) } });
+    res.json({ success: true, data: { user: serializeUser(sessionUser), destinations: getDestinations(req.user.id) } });
   } catch (err) {
-    res.status(400).json({ success: false, error: err.message });
+    sendFlagged(res, err);
+  }
+});
+
+// Da aplicação para uma sessão só da consola (organization_id NULL). Para
+// quem não é dono da instância, 404, como a consola. A consola continua a
+// pedir a palavra-passe nesta sessão nova.
+router.post('/platform-session', requireAuth, (req, res) => {
+  if (!require('../services/platformAccess').isPlatformAdmin(req.user)) {
+    return res.status(404).json({ success: false, error: 'Endpoint não encontrado.' });
+  }
+  try {
+    const { sessionId } = createPlatformSession(req.user.id, req.sessionId, sessionMeta(req));
+    setSessionCookie(res, sessionId);
+    const sessionUser = require('../services/authService').getSessionUser(sessionId);
+    res.json({ success: true, data: { user: serializeUser(sessionUser), destinations: getDestinations(req.user.id) } });
+  } catch (err) {
+    sendFlagged(res, err);
   }
 });
 
@@ -262,7 +304,21 @@ router.post('/logout', requireAuth, (req, res) => {
 });
 
 router.get('/me', requireAuth, (req, res) => {
-  res.json({ success: true, data: { user: serializeUser(req.user) } });
+  res.json({ success: true, data: {
+    user: serializeUser(req.user),
+    destinations: getDestinations(req.user.id),
+    organization_plan: require('../services/plansService').organizationPlan(req.user.organization_id),
+  } });
+});
+
+// Números da semana para a página de entrada, sem sessão: três totais da
+// instância (services/platformService.publicWeekStats), com cache de 10 minutos.
+const publicStatsLimiter = require('express-rate-limit').rateLimit({
+  windowMs: 15 * 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false,
+  message: { success: false, error: 'Demasiados pedidos. Tente novamente mais tarde.' },
+});
+router.get('/public-stats', publicStatsLimiter, (_req, res) => {
+  res.json({ success: true, data: require('../services/platformService').publicWeekStats() });
 });
 
 // Menu do telemóvel desta pessoa nesta organização; null repõe o original.
