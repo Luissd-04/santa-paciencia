@@ -27,6 +27,34 @@ function statusCard(org) {
     <p class="pl-note">«Suspensa» é só uma etiqueta: por agora não corta o acesso ao cliente.</p>`);
 }
 
+const limitOf = value => (value == null ? 'sem limite' : num(value));
+
+// Uso atual contra os limites do pacote (alojamentos e membros vêm na ficha).
+function useRow(text, used, max) {
+  const count = Number(used) || 0;
+  if (max == null) return kv(text, `${num(count)} · sem limite`);
+  const pct = max === 0 ? 100 : Math.min(100, Math.round((count / max) * 100));
+  const tone = pct >= 100 ? ' pl-high' : pct >= 80 ? ' pl-medium' : '';
+  return `<div class="pl-cli-use"><div class="pl-kv"><span>${esc(text)}</span><b>${num(count)} de ${limitOf(max)}</b></div>
+    <progress class="pl-meter${tone}" max="100" value="${pct}" aria-label="${esc(text)}: ${num(count)} de ${limitOf(max)}"></progress></div>`;
+}
+
+function planUseHtml(org, plans) {
+  const plan = plans.find(p => org.plan && p.id === org.plan.id);
+  if (!org.plan) return `<p class="pl-note" id="pl-pacote-uso">Sem pacote: sem limites.</p>`;
+  if (!plan) return `<p class="pl-note" id="pl-pacote-uso">Pacote atual: ${esc(fmt.planName(org.plan))}.</p>`;
+  return `<div class="pl-cli-plan" id="pl-pacote-uso">${useRow('Alojamentos', org.accommodations, plan.max_accommodations)}${useRow('Pessoas na equipa', org.members, plan.max_members)}</div>`;
+}
+
+function planCard(org, plans) {
+  const current = org.plan?.id || '';
+  return card('Pacote', `<label class="pl-label" for="pl-pacote">Pacote</label>
+    <select class="form-control" id="pl-pacote"><option value="">Sem pacote (sem limites)</option>${plans.map(p => `<option value="${esc(p.id)}"${p.id === current ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select>
+    <div class="pl-save"><button type="button" class="btn btn-primary" id="pl-pacote-guardar" ${AppActions.attrs('click', 'pl-org-pacote', [String(org.id)])}>Guardar pacote</button>
+      <span class="pl-msg" id="pl-pacote-msg" role="status"></span></div>
+    ${planUseHtml(org, plans)}`);
+}
+
 function stepsCard(org) {
   const done = org.onboarding || {};
   return card('Primeiros passos', STEPS.map(([key, label]) => `<div class="pl-step${done[key] ? ' is-done' : ''}">${fmt.icon(done[key] ? 'check-circle' : 'circle', 18)}<span>${esc(label)}</span></div>`).join(''));
@@ -81,10 +109,13 @@ function headHtml(org) {
       <div class="pl-org-chips">${fmt.stateHtml(org)}${fmt.planHtml(org)}<span class="pl-muted">Último acesso: ${esc(fmt.relativo(org.last_activity_at))}</span></div></header>`;
 }
 
+let plansList = [];
 const page = {
   async render(ctx) {
-    const org = await api.org(ctx.route.id);
+    const [org, plans] = await Promise.all([api.org(ctx.route.id),
+      AppModules.core.apiGet('/api/platform/plans').then(r => r?.data || []).catch(() => [])]);
     if (ctx.stale()) return;
+    plansList = Array.isArray(plans) ? plans : [];
     if (!org) {
       ctx.host.innerHTML = `<div class="pl-page"><div class="v2-card pl-notice"><h3>Cliente não encontrado</h3>
         <p class="v2-empty">Esta organização já não existe ou o endereço está errado.</p>${fmt.link('/plataforma/clientes', 'Ver todos os clientes', 'btn btn-ghost btn-sm')}</div></div>`;
@@ -92,7 +123,7 @@ const page = {
     }
     ctx.host.innerHTML = `<div class="pl-page">${headHtml(org)}
       <div class="pl-detail">
-        <div class="pl-col">${statusCard(org)}${stepsCard(org)}${integrationsCard(org)}${teamCard(org)}</div>
+        <div class="pl-col">${statusCard(org)}${planCard(org, plansList)}${stepsCard(org)}${integrationsCard(org)}${teamCard(org)}</div>
         <div class="pl-col">${trendCard(org)}${usageCards(org)}</div>
       </div></div>`;
     charts.flush(ctx.host);
@@ -118,7 +149,32 @@ async function save(id, button) {
   }
 }
 
+async function savePlan(id, button) {
+  const value = document.getElementById('pl-pacote')?.value || '';
+  const msg = document.getElementById('pl-pacote-msg');
+  if (button) button.disabled = true;
+  if (msg) { msg.textContent = 'A guardar…'; msg.className = 'pl-msg'; }
+  try {
+    const org = await api.saveOrg(id, { plan_id: value || null });
+    if (msg) { msg.textContent = 'Guardado.'; msg.className = 'pl-msg is-ok'; }
+    if (org) {
+      const uso = document.getElementById('pl-pacote-uso');
+      if (uso) uso.outerHTML = planUseHtml(org, plansList);
+      const chips = document.querySelector('.pl-org-chips');
+      const old = chips?.querySelector('.v2-chip');
+      if (old) old.outerHTML = fmt.planHtml(org);
+    }
+    AppModules.core.toast('Pacote atualizado.', 'success');
+  } catch (error) {
+    if (error?.status === 423 && error.payload?.locked === true) { AppModules.consola.mostrarBloqueio(); return; }
+    if (msg) { msg.textContent = error?.payload?.error || 'Não foi possível guardar.'; msg.className = 'pl-msg is-bad'; }
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
 AppActions.register({
+  'pl-org-pacote': (el, event, [id]) => savePlan(id, el),
   'pl-org-guardar': (el, event, [id]) => save(id, el),
 }, 'click');
 })();

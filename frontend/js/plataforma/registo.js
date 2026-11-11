@@ -14,8 +14,19 @@ const ACTIONS = {
   'platform.unlock_failed': 'Tentativa de desbloqueio falhada',
   'organization.update': 'Cliente atualizado',
   'support.status': 'Estado do pedido alterado',
+  'plan.create': 'Pacote criado',
+  'plan.update': 'Pacote alterado',
+  'plan.delete': 'Pacote apagado',
+  'task.create': 'Tarefa criada',
+  'task.update': 'Tarefa alterada',
+  'task.delete': 'Tarefa apagada',
+  'task.comment': 'Comentário numa tarefa',
+  'announcement.create': 'Comunicado criado',
+  'announcement.update': 'Comunicado alterado',
+  'announcement.end': 'Comunicado terminado',
+  'announcement.delete': 'Comunicado apagado',
 };
-const TARGETS = { organization: 'Cliente', user: 'Utilizador', support_ticket: 'Pedido' };
+const TARGETS = { organization: 'Cliente', user: 'Utilizador', support_ticket: 'Pedido', plan: 'Pacote', platform_task: 'Tarefa', task: 'Tarefa', announcement: 'Comunicado' };
 const state = { rows: [], orgs: new Map(), more: false, busy: false };
 
 function actionLabel(action) {
@@ -31,10 +42,19 @@ function detailsOf(row) {
   const parts = [];
   if (details.status) {
     const labels = row.target_type === 'support_ticket' ? fmt.TICKET_STATUS : fmt.STATUS;
-    parts.push(`Estado: ${labels[details.status]?.label || details.status}`);
+    const taskLabel = { ideas: 'Ideias', todo: 'A fazer', doing: 'Em curso', done: 'Feito' }[details.status];
+    parts.push(`Estado: ${(row.target_type === 'platform_task' ? taskLabel : labels[details.status]?.label) || details.status}`);
   }
   if (details.notes_changed) parts.push('Notas alteradas');
   return parts.join(' · ');
+}
+
+// Nome do alvo, quando a ação o guardou nos detalhes (pacote, tarefa, comunicado).
+function targetName(row) {
+  let details = row.details;
+  if (typeof details === 'string') { try { details = JSON.parse(details); } catch { details = null; } }
+  const name = details && typeof details === 'object' ? (details.name || details.title) : '';
+  return typeof name === 'string' ? name : '';
 }
 
 function targetHtml(row) {
@@ -46,6 +66,11 @@ function targetHtml(row) {
   }
   if (row.target_type === 'support_ticket' && row.target_id != null) {
     return fmt.link(`/plataforma/suporte/${encodeURIComponent(row.target_id)}`, esc(`${kind} ${String(row.target_id).slice(0, 8)}`), 'pl-target');
+  }
+  const PAGES = { platform_task: ['/plataforma/tarefas', 'Tarefa'], task: ['/plataforma/tarefas', 'Tarefa'], announcement: ['/plataforma/comunicados', 'Comunicado'], plan: ['/plataforma/pacotes', 'Pacote'] };
+  if (PAGES[row.target_type]) {
+    const name = targetName(row);
+    return fmt.link(PAGES[row.target_type][0], esc(name || PAGES[row.target_type][1]), 'pl-target');
   }
   return `<span>${esc([kind, row.target_id].filter(v => v !== '' && v != null).join(' '))}</span>`;
 }

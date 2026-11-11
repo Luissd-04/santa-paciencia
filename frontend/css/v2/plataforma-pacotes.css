@@ -1,1 +1,34 @@
 /* Consola da plataforma: pacotes. Só tokens --v2-*. */
+.pl-pac-intro { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 18px; }
+.pl-pac-intro .pl-lead { flex: 1 1 320px; min-width: 0; }
+.pl-pac-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; align-items: stretch; }
+.pl-pac-card { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.pl-pac-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pl-pac-top h3 { margin: 0; font-family: var(--v2-head); font-size: 20px; letter-spacing: var(--v2-head-track); color: var(--v2-ink); overflow-wrap: anywhere; }
+.pl-pac-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pl-pac-card .pl-kv b { white-space: nowrap; }
+.pl-pac-card .pl-pac-actions { margin-top: auto; }
+.pl-pac-lbl { display: none; font-style: normal; }
+.pl-pac-card .pl-note { margin: 0; }
+
+.pl-pac-form { display: grid; gap: 14px; }
+.pl-pac-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 14px 16px; }
+.pl-pac-grid > div { min-width: 0; }
+.pl-pac-check { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--v2-ink); font-size: 13px; cursor: pointer; }
+.pl-pac-check input { width: 16px; height: 16px; margin: 0; accent-color: var(--v2-accent); }
+
+.pl-pac-near { grid-template-columns: minmax(120px, 1.2fr) minmax(90px, .8fr) minmax(160px, 1.2fr) minmax(130px, 1fr) auto; }
+.pl-pac-page .pl-meter-wrap { width: 100%; }
+.pl-pac-page .pl-num { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--v2-ink); white-space: nowrap; }
+
+.pl-cli-plan { display: grid; gap: 10px; margin-top: 14px; }
+#pl-pacote-uso.pl-note { margin-top: 14px; }
+.pl-cli-use { display: grid; gap: 6px; }
+.pl-cli-use .pl-meter { max-width: none; }
+
+@media (max-width: 760px) {
+  .pl-pac-page .pl-th.pl-pac-near { display: none; }
+  .pl-pac-near { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .pl-pac-lbl { display: block; margin-bottom: 2px; color: var(--v2-muted); font-size: 12px; font-weight: 600; }
+  .pl-pac-near > span:first-child { font-size: 14.5px; }
+}

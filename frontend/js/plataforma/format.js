@@ -125,7 +125,9 @@ const icon = (name, size = 16) => core().lcIcon(name, size);
 const statusOf = org => STATUS[org?.status] || { label: org?.status || '—', tone: 'neutral' };
 const chip = (tone, text) => `<span class="v2-chip ${tone}">${esc(text)}</span>`;
 const stateHtml = org => { const s = statusOf(org); return `<span class="pl-state"><i class="v2-dot pl-${s.tone}"></i>${esc(s.label)}</span>`; };
-const planHtml = org => (org.plan ? chip('info', org.plan) : chip('neutral', 'Sem pacote'));
+// O pacote chega como {id, name}, texto (versões antigas) ou null.
+const planName = plan => String((plan && typeof plan === 'object' ? plan.name : plan) || '').trim();
+const planHtml = org => { const name = planName(org?.plan); return name ? chip('info', name) : chip('neutral', 'Sem pacote'); };
 const empty = (text, name = '') => `<p class="v2-empty">${name ? icon(name, 16) : ''}<span>${esc(text)}</span></p>`;
 const orgHref = id => `/plataforma/clientes/${encodeURIComponent(id)}`;
 // Ligação interna: o clique passa pelo router (shell.js), o href fica para abrir noutro separador.
@@ -141,6 +143,6 @@ function integrationsHtml(org) {
 const fmt = {
   STATUS, TICKET_STATUS, TICKET_TYPE, INTEGRATIONS, INTEGRATION_STATE, PROVIDERS, DEVICES, DISPLAY, ROLES, BUCKETS,
   esc, num, parseDate, relativo, since, dateTime, dateLong, weekLabel, bytes, duration,
-  providerKey, providerLabel, viewName, icon, statusOf, chip, stateHtml, planHtml, empty, orgHref, link, integrationsHtml,
+  providerKey, providerLabel, viewName, icon, statusOf, chip, stateHtml, planName, planHtml, empty, orgHref, link, integrationsHtml,
 };
 })();
