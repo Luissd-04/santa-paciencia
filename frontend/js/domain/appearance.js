@@ -9,7 +9,7 @@
   const dark = window.matchMedia('(prefers-color-scheme: dark)');
   const BAR_COLORS = { atual: '#843424', classico: '#843424', claro: '#eceef2', escuro: '#0a0a0c' };
   // CSS da V2: só se descarrega quando há um aspeto novo escolhido.
-  const STYLES = ['aparencia', 'componentes', 'painel', 'reservas', 'calendario', 'eventos', 'notificacoes', 'mensagens', 'hospedes', 'alojamentos', 'despesas', 'precos', 'vouchers', 'definicoes', 'fichas', 'entrar', 'telemovel'].map(name => `/css/v2/${name}.css`);
+  const STYLES = ['aparencia', 'componentes', 'painel', 'reservas', 'calendario', 'eventos', 'notificacoes', 'mensagens', 'hospedes', 'alojamentos', 'despesas', 'precos', 'vouchers', 'definicoes', 'ajuda', 'fichas', 'entrar', 'telemovel'].map(name => `/css/v2/${name}.css`);
   // Páginas com o seu próprio CSS (plataforma.html) declaram-no no <head>:
   // «appearance-styles=own» não descarrega o CSS da app e «appearance-fallback»
   // dá-lhes um aspeto novo quando a conta ainda está na V1.

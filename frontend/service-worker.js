@@ -161,6 +161,8 @@ const FEATURE_ASSETS = [
   '/js/features/vouchers/bilhetes-v2.js',
   '/js/precos.js',
   '/js/features/notificacoes/pagina.js',
+  '/js/features/ajuda/pagina.js',
+  '/js/features/ajuda/novo-pedido.js',
   '/js/features/v2/folha.js',
   '/js/features/v2/barra.js',
   '/js/features/v2/formularios.js',
@@ -198,6 +200,7 @@ const VIEW_ASSETS = [
   '/views/relatorios.html',
   '/views/vouchers.html',
   '/views/precos.html',
+  '/views/ajuda.html',
   '/views/definicoes.html',
 ];
 

@@ -1,0 +1,153 @@
+/* ══ V2: Ajuda e feedback (js/features/ajuda/) ══
+   Só tokens --v2-*: serve o Clássico, o Vidro claro e o Vidro escuro.
+   Reutiliza .v2-card, .v2-chip, .v2-pills, .v2-empty e .v2-head (painel.css). */
+
+/* ── Item do menu ── */
+html[data-look] .nav-badge[data-nav-badge="ajuda"] { background: var(--v2-side-ink); color: var(--v2-bg); }
+html[data-look="classico"] .nav-badge[data-nav-badge="ajuda"] { background: #fbefe9; color: #6f2b1d; }
+html[data-look] .nav-badge[data-nav-badge="ajuda"].is-attn { background: var(--v2-bad); color: #fff; }
+html[data-look] .v2d-ajuda .nav-badge { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--v2-accent); color: var(--v2-accent-ink); font-size: 11.5px; font-weight: 700; display: grid; place-items: center; }
+html[data-look="classico"] .v2d-ajuda .nav-badge { background: #843424; color: #fff; }
+html[data-look] .v2d-ajuda .nav-badge.is-attn { background: var(--v2-bad); color: #fff; }
+html[data-look] .v2d-ajuda { justify-content: flex-start; }
+
+/* ── Página ── */
+html[data-look] .ajv2 { min-width: 0; }
+html[data-look] .ajv2 .v2-head h2 { overflow-wrap: anywhere; }
+html[data-look] .ajv2-aviso { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid var(--v2-line); border-radius: var(--v2-radius-sm); background: var(--v2-info-bg); color: var(--v2-info); font-size: 13.5px; }
+html[data-look] .ajv2-aviso > :is(svg, i[data-lucide]) { flex-shrink: 0; }
+html[data-look] .ajv2-aviso > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+html[data-look] .ajv2-aviso time { font-size: 12px; white-space: nowrap; }
+html[data-look] #ajv2-avisos { display: grid; gap: 10px; }
+html[data-look] #ajv2-avisos[hidden] { display: none; }
+
+html[data-look] .ajv2-acoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+html[data-look] .ajv2-acao { display: flex; align-items: center; gap: 14px; min-width: 0; min-height: 76px; padding: 16px 18px; border: 1px solid var(--v2-line); border-radius: var(--v2-radius); background: var(--v2-surface); box-shadow: var(--v2-shadow);
+  backdrop-filter: var(--v2-blur); -webkit-backdrop-filter: var(--v2-blur); color: var(--v2-ink); font: inherit; text-align: left; cursor: pointer; transition: transform .15s ease; }
+html[data-look] .ajv2-acao:hover { transform: translateY(-1px); }
+html[data-look] .ajv2-acao:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 3px; }
+html[data-look] .ajv2-acao > :is(svg, i[data-lucide]) { flex-shrink: 0; color: var(--v2-muted); }
+html[data-look] .ajv2-acao-ic { display: grid; place-items: center; flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; background: var(--v2-accent-soft); color: var(--v2-accent); }
+html[data-look="classico"] .ajv2-acao-ic { color: #843424; }
+html[data-look] .ajv2-acao-t { flex: 1; min-width: 0; display: grid; gap: 2px; }
+html[data-look] .ajv2-acao-t b { font-size: 15px; font-weight: 600; }
+html[data-look] .ajv2-acao-t small { color: var(--v2-muted); font-size: 12.5px; }
+
+html[data-look] .ajv2-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 18px; align-items: start; }
+html[data-look] .ajv2-main.is-solo { grid-template-columns: minmax(0, 1fr); }
+html[data-look] .ajv2-main.is-solo .ajv2-conversa { display: none; }
+html[data-look] .ajv2-lista { padding: 18px 16px 10px; }
+html[data-look] .ajv2-lista-h { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 0 4px 12px; border-bottom: 1px solid var(--v2-divider); }
+html[data-look] .ajv2-lista-h h3 { margin: 0; font-family: var(--v2-head); font-size: 19px; letter-spacing: var(--v2-head-track); color: var(--v2-ink); }
+html[data-look] .ajv2-filtros button { min-height: 32px; padding: 0 12px; font-size: 12.5px; font-weight: 600; }
+html[data-look] .ajv2-filtros em { font-style: normal; font-weight: 500; opacity: .7; font-variant-numeric: tabular-nums; }
+html[data-look] #ajv2-linhas { display: grid; gap: 2px; padding-top: 6px; }
+html[data-look] #ajv2-linhas .v2-empty { margin: 14px 8px; }
+
+html[data-look] .ajv2-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; width: 100%; min-height: 58px; padding: 8px 12px; border: 0; border-radius: 12px; background: transparent; color: var(--v2-ink); font: inherit; text-align: left; cursor: pointer; }
+html[data-look] .ajv2-row:hover { background: var(--v2-surface-2); }
+html[data-look] .ajv2-row.is-on { background: var(--v2-accent-soft); }
+html[data-look] .ajv2-row:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: -2px; }
+html[data-look] .ajv2-row-t { display: flex; align-items: center; gap: 10px; min-width: 0; }
+html[data-look] .ajv2-row-t > :is(svg, i[data-lucide]) { flex-shrink: 0; color: var(--v2-muted); }
+html[data-look] .ajv2-row-x { display: grid; grid-template-columns: minmax(0, auto) auto; justify-content: start; align-items: center; column-gap: 7px; min-width: 0; }
+html[data-look] .ajv2-row-x b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; }
+html[data-look] .ajv2-row.is-unread .ajv2-row-x b { font-weight: 700; }
+html[data-look] .ajv2-row-x small { grid-column: 1 / -1; color: var(--v2-muted); font-size: 12px; }
+html[data-look] .ajv2-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--v2-accent); }
+html[data-look="classico"] .ajv2-dot { background: #843424; }
+html[data-look] .ajv2-when { min-width: 64px; text-align: right; color: var(--v2-muted); font-size: 12.5px; white-space: nowrap; }
+
+/* ── Conversa ── */
+html[data-look] .ajv2-conversa { display: flex; flex-direction: column; padding: 20px 22px; }
+html[data-look] .ajv2-conversa:empty { display: none; }
+html[data-look] .ajv2-voltar { display: none; align-items: center; gap: 4px; align-self: flex-start; min-height: 36px; margin: -6px 0 8px -8px; padding: 0 10px 0 4px; border: 0; border-radius: 999px; background: none; color: var(--v2-muted); font: 600 13.5px var(--v2-font); cursor: pointer; }
+html[data-look] .ajv2-cab { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--v2-divider); }
+html[data-look] .ajv2-cab-t { flex: 1; min-width: 0; display: grid; gap: 2px; }
+html[data-look] .ajv2-cab-t small, html[data-look] .ajv2-cab-t > span { color: var(--v2-muted); font-size: 12.5px; }
+html[data-look] .ajv2-cab-t h3 { margin: 2px 0; font-family: var(--v2-head); font-size: 21px; line-height: 1.2; letter-spacing: var(--v2-head-track); color: var(--v2-ink); overflow-wrap: anywhere; }
+html[data-look] .ajv2-precisa { margin-top: 14px; padding: 10px 14px; border-radius: var(--v2-radius-sm); background: var(--v2-violet-bg); color: var(--v2-violet); font-size: 13px; font-weight: 500; }
+html[data-look] .ajv2-msg { display: flex; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--v2-divider); }
+html[data-look] .ajv2-av { display: grid; place-items: center; flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: var(--v2-accent-soft); color: var(--v2-ink); font-size: 12px; font-weight: 700; }
+html[data-look] .ajv2-av.is-team { background: var(--v2-accent); color: var(--v2-accent-ink); }
+html[data-look="classico"] .ajv2-av.is-team { background: #843424; color: #fff; }
+html[data-look] .ajv2-msg-b { flex: 1; min-width: 0; }
+html[data-look] .ajv2-msg-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+html[data-look] .ajv2-msg-h b { font-size: 13.5px; color: var(--v2-ink); }
+html[data-look] .ajv2-msg-h time { color: var(--v2-muted); font-size: 12px; }
+html[data-look] .ajv2-msg-b p { margin: 4px 0 0; font-size: 13.5px; line-height: 1.55; white-space: pre-line; overflow-wrap: anywhere; color: var(--v2-ink); }
+html[data-look] .ajv2-msg-x { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+html[data-look] .ajv2-ctx { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; padding: 5px 10px; border-radius: 14px; background: var(--v2-surface-2); color: var(--v2-muted); font-size: 11.5px; overflow-wrap: anywhere; }
+html[data-look] .ajv2-ctx > :is(svg, i[data-lucide]) { flex-shrink: 0; }
+html[data-look] .ajv2-file { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; padding: 5px 10px; border: 1px solid var(--v2-line); border-radius: 999px; background: none; color: var(--v2-ink); font: 500 11.5px var(--v2-font); text-decoration: none; }
+html[data-look] a.ajv2-file:hover { background: var(--v2-surface-2); }
+html[data-look] a.ajv2-file:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
+html[data-look] .ajv2-file > :is(svg, i[data-lucide]) { flex-shrink: 0; }
+html[data-look] .ajv2-file-n { min-width: 0; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-look] .ajv2-file small { color: var(--v2-muted); font-size: 11px; }
+html[data-look] .ajv2-file button { display: grid; place-items: center; width: 20px; height: 20px; margin-right: -4px; padding: 0; border: 0; border-radius: 50%; background: var(--v2-surface-2); color: var(--v2-muted); cursor: pointer; }
+html[data-look] .ajv2-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+html[data-look] .ajv2-chips:empty { display: none; }
+
+html[data-look] .ajv2-resolveu { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; padding: 12px 14px; border-radius: var(--v2-radius-sm); background: var(--v2-ok-bg); color: var(--v2-ok); }
+html[data-look] .ajv2-resolveu > span { flex: 1 1 160px; font-size: 13.5px; font-weight: 500; }
+html[data-look] .ajv2-resolveu button { min-height: 38px; padding: 0 16px; border-radius: 999px; font: 600 13px var(--v2-font); cursor: pointer; }
+html[data-look] .ajv2-sim { border: 1px solid var(--v2-ok); background: var(--v2-ok); color: #fff; }
+html[data-look="vidro"][data-mode="escuro"] .ajv2-sim { color: #0a0a0c; }
+html[data-look] .ajv2-nao { border: 1px solid var(--v2-line); background: var(--v2-surface); color: var(--v2-ink); }
+
+html[data-look] .ajv2-resp { display: grid; gap: 10px; margin-top: 16px; }
+html[data-look] .ajv2-resp > label { color: var(--v2-muted); font-size: 12px; font-weight: 600; }
+html[data-look] .ajv2-resp textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+html[data-look] .ajv2-nota { color: var(--v2-muted); font-size: 12px; }
+html[data-look] .ajv2-resp-b { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+html[data-look] .ajv2-anexar { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border-radius: 12px; color: var(--v2-ink); font: 500 13px var(--v2-font); cursor: pointer; }
+html[data-look] .ajv2-anexar:hover { background: var(--v2-surface-2); }
+html[data-look] .ajv2-anexar small { color: var(--v2-muted); font-size: 13px; }
+html[data-look] :is(.ajv2-anexar, .ajv2-drop):focus-within { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
+html[data-look] .ajv2-resp-b .btn { margin-left: auto; }
+html[data-look] .ajv2-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* ── Novo pedido (janela V2; folha no telemóvel) ── */
+html[data-look] .ajv2-novo { max-width: 100%; }
+html[data-look]:not(.v2-tel) .modal-bg.v2-janela .ajv2-novo { width: min(560px, calc(100vw - 24px)); }
+html[data-look] .ajv2-novo .modal-body { display: grid; gap: 0; }
+html[data-look] .ajv2-novo .ajv2-sub { margin: 0 0 14px; color: var(--v2-muted); font-size: 13px; }
+html[data-look] .ajv2-novo .v2-bloco { min-width: 0; }
+html[data-look] .ajv2-novo textarea.form-control { width: 100%; box-sizing: border-box; resize: vertical; line-height: 1.5; }
+html[data-look] .ajv2-drop { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 64px; padding: 10px 14px; border: 1.5px dashed var(--v2-line); border-radius: var(--v2-radius-sm); background: var(--v2-surface-2); color: var(--v2-ink); font: 500 13px var(--v2-font); text-align: center; cursor: pointer; }
+html[data-look] .ajv2-drop > :is(svg, i[data-lucide]) { flex-shrink: 0; }
+html[data-look] .ajv2-drop small { color: var(--v2-muted); font-size: 13px; }
+html[data-look] .ajv2-novo .ajv2-chips { margin-top: 8px; }
+html[data-look] .ajv2-tec { display: grid; gap: 6px; padding: 12px 14px; border: 1px solid var(--v2-line); border-radius: var(--v2-radius-sm); }
+html[data-look] .ajv2-check { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--v2-ink); cursor: pointer; }
+html[data-look] .ajv2-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--v2-accent); }
+html[data-look="classico"] .ajv2-check input { accent-color: #843424; }
+html[data-look] .ajv2-tec p { margin: 0; padding-left: 28px; color: var(--v2-muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+
+/* ── Ecrãs estreitos: lista e conversa passam a páginas ── */
+@media (max-width: 960px) {
+  html[data-look] .ajv2-main { grid-template-columns: minmax(0, 1fr); }
+  html[data-look] .ajv2-main:not(.is-detail) .ajv2-conversa { display: none; }
+  html[data-look] .ajv2-main.is-detail .ajv2-lista { display: none; }
+  html[data-look] .ajv2-voltar { display: inline-flex; }
+  /* A conversa é uma página: sem o cabeçalho nem os atalhos por cima. */
+  html[data-look] .ajv2.is-detail > :is(.v2-head, #ajv2-avisos, .ajv2-acoes) { display: none; }
+}
+@media (max-width: 767px) {
+  html[data-look] .ajv2-lista, html[data-look] .ajv2-conversa { padding: 16px; }
+  html[data-look] .ajv2-acao { min-height: 68px; padding: 14px 16px; }
+  html[data-look] .ajv2-aviso { align-items: flex-start; flex-wrap: wrap; }
+  html[data-look] .ajv2-aviso time { flex-basis: 100%; padding-left: 30px; }
+  html[data-look] .ajv2-resp-b .btn { flex: 1 1 100%; margin-left: 0; }
+  html[data-look] .ajv2-resolveu button { flex: 1 1 120px; }
+}
+@media (max-width: 560px) {
+  html[data-look] .ajv2-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
+  html[data-look] .ajv2-row .v2-chip { grid-row: 2; grid-column: 1; justify-self: start; margin-left: 26px; }
+  html[data-look] .ajv2-row .ajv2-when { grid-row: 2; grid-column: 2; min-width: 0; }
+  html[data-look] .ajv2-row-t { grid-column: 1 / -1; }
+  html[data-look] .ajv2-cab { flex-wrap: wrap; }
+  html[data-look] .ajv2-file-n { max-width: 150px; }
+}
+@media (prefers-reduced-motion: reduce) { html[data-look] .ajv2-acao { transition: none; } }

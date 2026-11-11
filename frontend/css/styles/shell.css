@@ -52,6 +52,8 @@ i[data-lucide] { display:inline-flex; align-items:center; justify-content:center
   padding: 10px 12px 8px;
   border-top: 1px solid rgba(255,255,255,.08);
 }
+/* «Ajuda e feedback» só existe na V2 (usa os tokens dela). */
+html:not([data-look]) [data-ajuda] { display: none; }
 
 .nav-section {
   font-size: 9px;

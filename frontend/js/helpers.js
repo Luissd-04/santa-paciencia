@@ -8,6 +8,7 @@ AppModules.define('core', {
   apiPost: { get: () => apiPost },
   apiPut: { get: () => apiPut },
   apiRequest: { get: () => apiRequest },
+  appBuild: { get: () => appBuild },
   appUpdateAvailable: { get: () => appUpdateAvailable },
   badgeEstado: { get: () => badgeEstado },
   badgePagamento: { get: () => badgePagamento },

@@ -146,6 +146,10 @@ const FEATURE_MODULES = {
       'js/features/invoice/contexto-v2.js',
     ],
   },
+  // «Ajuda e feedback»: pedidos ao dono da instância (só na V2).
+  ajuda: {
+    scripts: ['js/features/ajuda/pagina.js', 'js/features/ajuda/novo-pedido.js'],
+  },
   definicoes: {
     actions: ['saveAppearance'],
     scripts: [
@@ -183,6 +187,7 @@ const VIEW_FEATURE = {
   precos: 'precos',
   invoice: 'invoice',
   notificacoes: 'notificacoes',
+  ajuda: 'ajuda',
   definicoes: 'definicoes',
 };
 
@@ -203,6 +208,7 @@ const VIEW_MARKUP = {
   relatorios: 'views/relatorios.html',
   vouchers: 'views/vouchers.html',
   precos: 'views/precos.html',
+  ajuda: 'views/ajuda.html',
   definicoes: 'views/definicoes.html',
 };
 

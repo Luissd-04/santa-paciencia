@@ -5,8 +5,10 @@ AppModules.define('core', {
   closeDrawerAccount: { get: () => () => toggleDrawerAccount(false) },
   markActiveNavigation: { get: () => markActiveNavigation },
   openMenuEditor: { get: () => openMenuEditor },
+  refreshSupportSummary: { get: () => refreshSupportSummary },
   renderNavigation: { get: () => renderNavigation },
   setNavBadge: { get: () => setNavBadge },
+  supportSummary: { get: () => supportSummary },
 });
 
 /* ═══════════════════════════════════════════════════════════════
@@ -33,6 +35,8 @@ const NAV_ITEMS = [
   { id: 'modelos-email', label: 'Modelos de email', icon: 'mail-open', section: 'gestao', view: 'definicoes', tab: 'emails', mobileOnly: true },
 ];
 const SETTINGS_ITEM = { id: 'definicoes', label: 'Definições', icon: 'settings' };
+// Em baixo, logo acima de Definições (só na V2: a página usa os seus tokens).
+const AJUDA_ITEM = { id: 'ajuda', label: 'Ajuda e feedback', icon: 'circle-help', badge: 'ajuda' };
 const SECTIONS = [['principal', 'Principal'], ['gestao', 'Gestão']];
 const DEFAULT_BAR = ['dashboard', 'reservas', 'calendario', 'eventos', 'despesas'];
 const BAR_SIZE = 5;
@@ -47,13 +51,52 @@ const badgeHtml = item => item.badge ? `<span class="nav-badge" data-nav-badge="
 // Contadores (ex.: mensagens novas) nos três menus; voltam a aparecer
 // depois de os menus serem redesenhados.
 const navBadges = {};
-function setNavBadge(name, count) {
+const navAttention = {};
+function setNavBadge(name, count, attention = false) {
   navBadges[name] = Number(count) || 0;
+  navAttention[name] = Boolean(attention);
   document.querySelectorAll(`[data-nav-badge="${name}"]`).forEach(el => {
     el.textContent = navBadges[name] > 9 ? '9+' : String(navBadges[name]);
     el.style.display = navBadges[name] > 0 ? '' : 'none';
+    el.classList.toggle('is-attn', navAttention[name]);
   });
 }
+
+// ── «Ajuda e feedback»: contador de respostas por ler ──
+// GET /api/support/summary ao arrancar a sessão e de 5 em 5 minutos; a página
+// também o pede depois de abrir um pedido. Sem API (404/501) o contador
+// esconde-se e deixa de pedir, sem avisos.
+const SUPPORT_POLL_MS = 5 * 60 * 1000;
+let supportSummary = null;
+let supportTimer = null;
+let supportOff = false;
+async function refreshSupportSummary() {
+  if (supportOff || !AppModules.core.currentUser) return supportSummary;
+  try {
+    const payload = await AppModules.core.apiGet('/api/support/summary', { skipAuthRedirect: true });
+    supportSummary = payload?.data || null;
+    setNavBadge('ajuda', supportSummary?.unread, Number(supportSummary?.needs_customer) > 0);
+  } catch (error) {
+    if (error?.status === 404 || error?.status === 501) {
+      supportOff = true;
+      supportSummary = null;
+      setNavBadge('ajuda', 0);
+    }
+  }
+  return supportSummary;
+}
+function startSupportPolling() {
+  if (supportTimer || supportOff || !AppModules.core.currentUser) return;
+  supportTimer = setInterval(() => { if (!document.hidden) refreshSupportSummary(); }, SUPPORT_POLL_MS);
+  setTimeout(refreshSupportSummary, 1500);
+}
+AppModules.onReset('menu.js', () => {
+  clearInterval(supportTimer);
+  supportTimer = null;
+  supportOff = false;
+  supportSummary = null;
+  setNavBadge('ajuda', 0);
+});
 
 // Preferências guardadas, sem ids que já não existam e com os novos itens
 // (acrescentados depois da última edição) no fim.
@@ -80,11 +123,18 @@ function renderSidebar() {
     .map(item => `<button type="button" class="nav-item" data-view="${item.id}" ${AppActions.attrs('click', 'menu-open', [item.id])}>
         <span class="icon">${icon(item.icon, 18)}</span><span class="nav-label"> ${esc(item.label)}</span>${badgeHtml(item)}
       </button>`).join('')}`).join('');
+  // Ajuda e feedback: acima de Definições, no fundo do menu.
+  const settings = document.querySelector('#main-sidebar .sidebar-settings-nav');
+  if (settings && !settings.querySelector('[data-ajuda]')) {
+    settings.insertAdjacentHTML('afterbegin', `<button type="button" class="nav-item" data-ajuda data-view="${AJUDA_ITEM.id}" ${AppActions.attrs('click', 'menu-open', [AJUDA_ITEM.id])}>
+        <span class="icon">${icon(AJUDA_ITEM.icon, 18)}</span><span class="nav-label"> ${esc(AJUDA_ITEM.label)}</span>${badgeHtml(AJUDA_ITEM)}
+      </button>`);
+  }
 }
 
 // ── Telemóvel: o menu de cada pessoa e a conta fixa no fundo ──
 function drawerItemHtml(item) {
-  return `<button type="button" class="side-drawer-item" data-view="${viewOf(item)}" data-nav-id="${item.id}" ${AppActions.attrs('click', 'menu-open', [item.id])}>
+  return `<button type="button" class="side-drawer-item"${item === AJUDA_ITEM ? ' data-ajuda' : ''} data-view="${viewOf(item)}" data-nav-id="${item.id}" ${AppActions.attrs('click', 'menu-open', [item.id])}>
     ${icon(item.icon)} ${esc(item.label)}${badgeHtml(item)}
   </button>`;
 }
@@ -97,7 +147,7 @@ function renderDrawer() {
   list.innerHTML = prefs.custom
     ? `<div class="side-drawer-section">O meu menu</div>${visible.map(drawerItemHtml).join('')}`
     : SECTIONS.map(([section, title]) => `<div class="side-drawer-section">${title}</div>${visible.filter(item => item.section === section).map(drawerItemHtml).join('')}`).join('');
-  list.insertAdjacentHTML('beforeend', `<div class="side-drawer-settings">${drawerItemHtml(SETTINGS_ITEM)}</div>`);
+  list.insertAdjacentHTML('beforeend', `<div class="side-drawer-settings">${drawerItemHtml(AJUDA_ITEM)}${drawerItemHtml(SETTINGS_ITEM)}</div>`);
   const user = AppModules.core.currentUser || {};
   const name = document.getElementById('side-drawer-user-name');
   const sub = document.getElementById('side-drawer-user-sub');
@@ -128,7 +178,8 @@ function renderNavigation() {
   renderSidebar();
   renderDrawer();
   renderBottomBar();
-  Object.entries(navBadges).forEach(([name, count]) => setNavBadge(name, count));
+  Object.entries(navBadges).forEach(([name, count]) => setNavBadge(name, count, navAttention[name]));
+  startSupportPolling();
   const active = document.querySelector('.view.active')?.id?.replace(/^view-/, '');
   if (active) markActiveNavigation(active);
   if (window.lucide) lucide.createIcons();
@@ -145,7 +196,7 @@ function markActiveNavigation(view) {
 }
 
 function openNavItem(id, { fromDrawer = true } = {}) {
-  const item = byId.get(id) || (id === SETTINGS_ITEM.id ? SETTINGS_ITEM : null);
+  const item = byId.get(id) || [SETTINGS_ITEM, AJUDA_ITEM].find(extra => extra.id === id);
   if (!item) return;
   if (fromDrawer) AppModules.core.closeSideDrawer();
   AppModules.core.showView(viewOf(item));

@@ -86,6 +86,7 @@ function prepararMenu() {
       `<button type="button" class="v2d-search" data-on-click="v2-menu-pesquisar">${ic('search', 17)}<span>Pesquisar hóspede, reserva…</span></button>`);
     drawer.insertAdjacentHTML('beforeend', `<div class="v2d-foot">
         <span class="v2d-modes-slot"></span>
+        <div class="v2d-row"><button type="button" class="btn btn-ghost v2d-ajuda" data-on-click="v2-menu-ajuda">${ic('circle-help', 16)} Ajuda e feedback<span class="nav-badge" data-nav-badge="ajuda" style="display:none;"></span></button></div>
         <div class="v2d-row"><button type="button" class="btn btn-ghost" data-on-click="v2-menu-definicoes">${ic('settings', 16)} Definições</button>
           <button type="button" class="btn btn-ghost" data-on-click="index-close-side-drawer-4a3b8ba">${ic('log-out', 16)} Sair</button></div>
       </div>`);
@@ -93,6 +94,7 @@ function prepararMenu() {
   const avatar = document.getElementById('side-drawer-avatar');
   if (avatar) avatar.textContent = core().initials(core().currentUser?.name || '?');
   drawer.querySelector('.v2d-modes-slot').innerHTML = modesHtml();
+  core().setNavBadge('ajuda', core().supportSummary?.unread, Number(core().supportSummary?.needs_customer) > 0);
   // Avisos por ler ao lado de «Notificações», como no sino.
   const bell = document.getElementById('notif-badge');
   const unread = bell && bell.style.display !== 'none' ? bell.textContent : '';
@@ -175,6 +177,7 @@ AppActions.register({
   'v2-sino-push': () => { v2().fecharFolha(); return AppModules.notificacoes.openPushSettings(); },
   'v2-sino-todas': () => { v2().fecharFolha(); core().showView('notificacoes'); },
   'v2-menu-pesquisar': () => pesquisar(),
+  'v2-menu-ajuda': () => { core().closeSideDrawer(); core().showView('ajuda'); },
   'v2-menu-definicoes': () => { core().closeSideDrawer(); core().showView('definicoes'); },
   'v2-menu-modo': async (el, event, args) => {
     await core().featureAction('saveAppearance', { ...window.AppAppearance.current(), mode: args[0] });

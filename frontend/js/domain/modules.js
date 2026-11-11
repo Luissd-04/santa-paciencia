@@ -4,7 +4,7 @@ const AppModules = (() => {
   const modules = Object.fromEntries([
     'core', 'reservas', 'calendario', 'eventos', 'hospedes', 'alojamentos',
     'bloqueios', 'despesas', 'relatorios', 'precos', 'invoice', 'definicoes', 'consola',
-    'vouchers', 'notificacoes', 'v2', 'booking', 'precheckin', 'publicFlow', 'demo',
+    'vouchers', 'notificacoes', 'ajuda', 'v2', 'booking', 'precheckin', 'publicFlow', 'demo',
   ].map(name => [name, Object.create(null)]));
   const resets = new Map();
   let sessionVersion = 0;

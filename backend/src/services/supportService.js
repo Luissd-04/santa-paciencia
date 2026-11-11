@@ -47,6 +47,15 @@ function cleanStatus(value) {
 const text = value => (typeof value === 'string' || (typeof value === 'number' && Number.isFinite(value)))
   ? String(value).replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, CONTEXT_MAX) || null : null;
 
+// A página manda { width, height }; guarda-se como «1440×900».
+const viewportText = value => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const w = Math.round(Number(value.width)), h = Math.round(Number(value.height));
+    return w > 0 && w < 100000 ? (h > 0 && h < 100000 ? `${w}×${h}` : String(w)) : null;
+  }
+  return text(value);
+};
+
 // Só as chaves conhecidas; o IP nunca entra. Sem contexto do cliente: null
 // (o utilizador desligou a opção) e o user agent também não é guardado.
 function buildContext(context, userAgent) {
@@ -56,7 +65,7 @@ function buildContext(context, userAgent) {
   const merged = {
     page: text(context.page), app_build: text(context.app_build),
     browser: text(ua.browser), os: text(ua.os), device: text(ua.device),
-    display_mode: text(context.display_mode), viewport: text(context.viewport),
+    display_mode: text(context.display_mode), viewport: viewportText(context.viewport),
   };
   return Object.fromEntries(CONTEXT_KEYS.map(k => [k, merged[k]]));
 }

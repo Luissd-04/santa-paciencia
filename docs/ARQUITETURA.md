@@ -89,6 +89,7 @@ Depois de `/api`, a sessão é obrigatória. As famílias autenticadas são:
 reservations  accommodations  calendar  guests  email-templates
 expenses      suppliers       backup    team      reports
 events        vouchers        tasks     push      platform
+support
 ```
 
 Os detalhes de cada endpoint devem ser obtidos nas respetivas rotas. Esta lista
@@ -163,6 +164,14 @@ conta está na V1. As ações ficam em `platform_audit_events`. A API devolve ap
 datas e estados), nunca dados pessoais. Para quem não é admin, as rotas respondem
 como um endpoint inexistente. A utilização (`POST /api/telemetry`) guarda só
 totais diários de páginas abertas por organização, sem utilizador nem IP.
+
+Suporte: cada pessoa vê apenas os seus pedidos; owner e manager veem os da
+organização, e a consola da plataforma vê todos. Os anexos são PNG, JPEG, WEBP,
+GIF ou PDF até 10 MB, validados pelos primeiros bytes e guardados em
+`data/uploads/support`, fora do `/uploads` público, servidos só a quem tem
+acesso ao pedido. A plataforma responde como «Equipa Santa Paciência». O
+contexto técnico só é guardado se o utilizador o deixar ligado, e nunca inclui o
+IP.
 
 Consultar [Segurança](../SECURITY.md) para operação e reporte.
 

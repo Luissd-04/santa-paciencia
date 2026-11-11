@@ -45,6 +45,7 @@ const VIEW_TITLES = {
   relatorios: 'Relatórios Financeiros',
   vouchers:   'Vouchers',
   precos:     'Preços Dinâmicos',
+  ajuda:      'Ajuda e feedback',
   definicoes: 'Definições',
   'hospede-detalhe': 'Ficha de Hóspede'
 };
@@ -72,6 +73,9 @@ async function showView(v, pushState = true) {
     switchSettingsTab('emails', false);
     v = 'definicoes';
   }
+  // A vista de onde se vem (Ajuda e feedback junta-a ao contexto técnico).
+  const previousView = document.querySelector('.view.active')?.id?.replace(/^view-/, '');
+  if (previousView && previousView !== v) document.body.dataset.previousView = previousView;
   document.querySelectorAll('.view').forEach(x => x.classList.remove('active', 'view-entering'));
   const nextView = document.getElementById('view-' + v);
   if (!nextView) return;
@@ -161,6 +165,7 @@ async function initView(v) {
   else if (typeof AppModules.invoice._stopInvoicePoll === 'function') AppModules.invoice._stopInvoicePoll();
   if (v === 'vouchers') AppModules.vouchers.loadVouchers();
   if (v === 'precos') AppModules.precos.initPrecos();
+  if (v === 'ajuda') AppModules.ajuda.openPage();
   if (v === 'definicoes') renderSettingsView();
 }
 

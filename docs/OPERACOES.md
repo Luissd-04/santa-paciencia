@@ -305,6 +305,13 @@ Privacidade: para melhorar o produto, são guardados totais diários de páginas
 abertas por organização, sem identificar pessoas (sem utilizador, IP nem
 browser), e apagados ao fim de 400 dias.
 
+Suporte: os pedidos de «Ajuda e feedback» chegam à página «Suporte» da consola.
+Os estados são Aberto, Em análise, Precisa de si e Resolvido. Quando o cliente
+responde, o pedido reabre. Os avisos seguem por push e, se o Gmail da
+organização estiver ligado, por email. O botão do email só funciona com
+`PUBLIC_APP_URL` definido. Os pedidos e anexos não entram nas cópias de
+segurança por organização.
+
 ## Dados pessoais: anonimização
 
 Um hóspede cujas reservas têm movimentos de pagamento não pode ser apagado (são
