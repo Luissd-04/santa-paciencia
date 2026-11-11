@@ -296,7 +296,10 @@ A consola da plataforma só abre para quem tem a marca na base e o email em
 `PLATFORM_ADMIN_EMAILS`. Em `backend/src`, `npm run platform-admin -- grant email`
 dá a marca, `npm run platform-admin -- revoke email` tira-a e fecha os
 desbloqueios ativos, e `npm run platform-admin -- list` lista quem a tem. Depois
-de alterar `PLATFORM_ADMIN_EMAILS` é preciso reiniciar a aplicação.
+de alterar `PLATFORM_ADMIN_EMAILS` é preciso recriar o contentor com
+`docker compose up -d --force-recreate backend`; `docker compose restart` não
+volta a ler o `.env`. No Docker, o script corre dentro do contentor:
+`docker compose exec backend node scripts/platform-admin.js list`.
 
 ## Dados pessoais: anonimização
 

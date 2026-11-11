@@ -89,7 +89,8 @@ O acesso à consola da plataforma é dado só no servidor, em `backend/src`:
 `npm run platform-admin -- revoke email` retira a marca e fecha os desbloqueios
 ativos, e `npm run platform-admin -- list` mostra quem a tem. Além da marca,
 o email tem de estar em `PLATFORM_ADMIN_EMAILS`; alterar esta variável exige
-reiniciar a aplicação. Ao revogar, retirar também o email da variável.
+recriar o contentor (`docker compose up -d --force-recreate backend`):
+`docker compose restart` não volta a ler o `.env`. Ao revogar, retirar também o email da variável.
 
 ## Segredos e chaves
 
