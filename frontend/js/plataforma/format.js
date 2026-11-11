@@ -29,6 +29,18 @@ const DISPLAY = { standalone: 'App instalada', browser: 'Browser', unknown: 'Des
 const ROLES = { owner: 'Proprietários', manager: 'Gestores', staff: 'Equipa' };
 const BUCKETS = { '1': '1 pessoa', '2-3': '2 a 3', '4-6': '4 a 6', '7+': '7 ou mais' };
 
+const TICKET_STATUS = {
+  open: { label: 'Aberto', tone: 'info' },
+  in_review: { label: 'Em análise', tone: 'warn' },
+  needs_customer: { label: 'Precisa do cliente', tone: 'violet' },
+  resolved: { label: 'Resolvido', tone: 'ok' },
+};
+const TICKET_TYPE = {
+  problem: { label: 'Problema', icon: 'bug' },
+  improvement: { label: 'Melhoria', icon: 'lightbulb' },
+  question: { label: 'Pergunta', icon: 'help-circle' },
+};
+
 const num = value => (Number(value) || 0).toLocaleString('pt-PT');
 
 function parseDate(value) {
@@ -127,7 +139,7 @@ function integrationsHtml(org) {
 }
 
 const fmt = {
-  STATUS, INTEGRATIONS, INTEGRATION_STATE, PROVIDERS, DEVICES, DISPLAY, ROLES, BUCKETS,
+  STATUS, TICKET_STATUS, TICKET_TYPE, INTEGRATIONS, INTEGRATION_STATE, PROVIDERS, DEVICES, DISPLAY, ROLES, BUCKETS,
   esc, num, parseDate, relativo, since, dateTime, dateLong, weekLabel, bytes, duration,
   providerKey, providerLabel, viewName, icon, statusOf, chip, stateHtml, planHtml, empty, orgHref, link, integrationsHtml,
 };

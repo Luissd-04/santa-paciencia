@@ -4,6 +4,7 @@
 (() => {
 AppModules.define('consola', {
   mostrarBloqueio: { get: () => showLocked },
+  contadorSuporte: { get: () => setSupportBadge },
 });
 
 const fmt = AppModules.consola.fmt;
@@ -16,6 +17,7 @@ const ROUTES = [
   { key: 'clientes', path: '/plataforma/clientes', title: 'Clientes', page: 'clientes' },
   { key: 'utilizacao', path: '/plataforma/utilizacao', title: 'Utilização', page: 'utilizacao' },
   { key: 'incidentes', path: '/plataforma/incidentes', title: 'Incidentes', page: 'incidentes' },
+  { key: 'suporte', path: '/plataforma/suporte', title: 'Suporte', page: 'suporte' },
   { key: 'registo', path: '/plataforma/registo', title: 'Registo', page: 'registo' },
 ];
 const LOOKS = [['classico', 'classico', 'auto', 'Clássico'], ['claro', 'vidro', 'claro', 'Vidro claro'], ['escuro', 'vidro', 'escuro', 'Vidro escuro']];
@@ -36,6 +38,12 @@ function match(pathname) {
     try { id = decodeURIComponent(id); } catch { /* fica como veio */ }
     return { key: 'clientes', path, title: 'Clientes', page: 'cliente', id };
   }
+  const ticket = /^\/plataforma\/suporte\/([^/]+)$/.exec(path);
+  if (ticket) {
+    let id = ticket[1];
+    try { id = decodeURIComponent(id); } catch { /* fica como veio */ }
+    return { key: 'suporte', path, title: 'Suporte', page: 'pedido', id };
+  }
   return { key: '', path, title: 'Página não encontrada', page: null };
 }
 
@@ -45,6 +53,23 @@ function mark(route) {
   });
   $('pl-title').textContent = route.title;
   document.title = `${route.title} · Plataforma · Santa Paciência`;
+}
+
+// Contador do Suporte na barra lateral: pedidos com mensagem do cliente por ler.
+function setSupportBadge(count) {
+  const badge = $('pl-badge-suporte');
+  if (!badge) return;
+  const n = Number(count) || 0;
+  badge.textContent = n > 99 ? '99+' : String(n);
+  badge.hidden = n < 1;
+  badge.setAttribute('aria-label', `${n} por ler`);
+}
+// Falhas (423, 404, rede) ficam para a página; o contador só não aparece.
+async function refreshSupportBadge() {
+  try {
+    const data = await api.supportTickets();
+    setSupportBadge(data ? data.tickets.filter(t => t.unread).length : 0);
+  } catch { setSupportBadge(0); }
 }
 
 function show(html) {
@@ -64,6 +89,7 @@ async function load(route) {
   if (!route.page) { showNotFound(); return; }
   show(loadingHtml);
   const ctx = { host: content(), route, stale: () => token !== st.token };
+  if (route.key !== 'suporte') refreshSupportBadge();
   try {
     await AppModules.consola[route.page].render(ctx);
     if (ctx.stale()) return;

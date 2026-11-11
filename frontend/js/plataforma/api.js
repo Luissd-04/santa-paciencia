@@ -45,6 +45,19 @@ async function soft(path) {
 
 const list = value => (Array.isArray(value) ? value : []);
 
+// Suporte: o estado de «por ler» muda a cada resposta, por isso não há memória
+// longa. A mesma lista pedida duas vezes em 4 s (página + contador da barra
+// lateral) reaproveita o pedido; qualquer escrita apaga-o. 404/501 = null.
+let supportMemo = null;
+const supportUrl = id => `/api/platform/support/tickets${id ? `/${encodeURIComponent(id)}` : ''}`;
+async function supportSoft(run) {
+  try { return (await guard(run))?.data ?? null; }
+  catch (error) {
+    if (error?.status === 404 || error?.status === 501) return null;
+    throw error;
+  }
+}
+
 const api = {
   reset: () => cache.clear(),
   me: () => guard(() => core().apiGet('/auth/me')).then(payload => payload?.data?.user || null),
@@ -75,6 +88,19 @@ const api = {
     if (row) Object.assign(row, updated && typeof updated === 'object' ? updated : { status: body.status });
     return updated || null;
   },
+  supportTickets() {
+    if (!supportMemo || Date.now() - supportMemo.at > 4000) {
+      const request = supportSoft(() => core().apiGet(`${supportUrl()}?status=all`))
+        .then(data => (data ? { tickets: list(data.tickets), counts: data.counts || {} } : null));
+      supportMemo = { at: Date.now(), request };
+      request.catch(() => { if (supportMemo?.request === request) supportMemo = null; });
+    }
+    return supportMemo.request;
+  },
+  // Abrir o pedido marca-o como lido: nunca vem da memória.
+  supportTicket(id) { supportMemo = null; return supportSoft(() => core().apiGet(supportUrl(id))); },
+  async supportReply(id, body) { supportMemo = null; return (await guard(() => core().apiPost(`${supportUrl(id)}/messages`, body)))?.data ?? null; },
+  async supportStatus(id, status) { supportMemo = null; return (await guard(() => core().apiPut(supportUrl(id), { status })))?.data ?? null; },
   // 400 = palavra-passe incorreta; sem redirecionar para o início de sessão.
   unlock: password => core().apiPost('/api/platform/unlock', { password }, { skipAuthRedirect: true }),
 };
