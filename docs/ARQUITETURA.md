@@ -89,7 +89,7 @@ Depois de `/api`, a sessão é obrigatória. As famílias autenticadas são:
 reservations  accommodations  calendar  guests  email-templates
 expenses      suppliers       backup    team      reports
 events        vouchers        tasks     push      platform
-support
+support       announcements
 ```
 
 Os detalhes de cada endpoint devem ser obtidos nas respetivas rotas. Esta lista
@@ -148,6 +148,24 @@ num só processo, como o resto da instância.
 - uploads validados por magic bytes (alojamentos, talões e importação de
   backups), servidos com `nosniff`;
 - subscrições push aceites apenas para serviços de push dos browsers.
+
+As contas só de plataforma (dono da instância sem organização) entram com uma
+sessão sem `organization_id`. O `requireAuth` bloqueia essa sessão de forma
+central: fora de `/api/platform/*`, `/api/telemetry` e `/auth/*`, qualquer
+`/api/*` responde 403 com `platform_only`. Ou seja, só serve a consola.
+
+Uma organização suspensa (`status = 'suspended'`) deixa de contar nas
+memberships ativas, e todos os pedidos da sessão dessa organização respondem
+403 com `suspended`. Quem só tem organizações suspensas também não consegue
+entrar.
+
+Os limites de alojamentos e de membros do pacote aplicam-se ao criar um
+alojamento, ao convidar uma pessoa e ao aceitar um convite. Os convites por
+aceitar contam como membros já prometidos. Quem atinge o limite recebe 403 com
+`limit`. As organizações sem pacote não têm limites.
+
+`GET /auth/public-stats`, sem sessão, devolve só totais da instância dos últimos 7 dias (reservas criadas e emails enviados) e o
+total atual de alojamentos. Tem cache de 10 minutos e rate limit próprio.
 
 Papéis: `staff` consulta e opera o dia a dia (reservas, hóspedes, eventos,
 check-in/out); `manager` gere reservas, pagamentos, alojamentos, despesas,

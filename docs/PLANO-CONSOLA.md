@@ -1,7 +1,8 @@
 # Plano pendente: consola da plataforma e Suporte
 
-Estado a 11/11/2026, no ramo `claude/adoring-ride-pchzjc`. Nada deste plano está
-aplicado. Junta a revisão feita pelo Fable 5.2 (só por leitura do código), as
+Estado a 11/11/2026, no ramo `claude/adoring-ride-pchzjc`. Os lotes A e B e as
+correções F1 a F7 já estão aplicados; por fazer ficam o lote C e as decisões em
+aberto. Junta a revisão feita pelo Fable 5.2 (só por leitura do código), as
 decisões que ficaram em aberto e as fases seguintes. Serve de ponto de partida
 para continuar.
 
@@ -50,20 +51,20 @@ para continuar.
 
 ## Lotes de execução
 
-- **A (já, sem páginas novas):**
+- **A (feito):**
   - correções F1 a F7;
   - limite de pedidos no Suporte;
   - modo app ou browser no login e na consola;
   - atividade contada no acesso;
   - problemas da instância só para os admins da plataforma, mais alertas a eles
     (pedido sem resposta há mais de 24 horas, incidente novo).
-- **B (maquetas primeiro):**
+- **B (feito):**
   - nova página de login (com contas só de plataforma);
   - Tarefas internas;
   - Comunicados;
   - Pacotes;
   - «Precisa de atenção» e saúde dos clientes na visão geral e na lista.
-- **C (depois):**
+- **C (por fazer):**
   - erros da app e tempos da API;
   - adoção de cada funcionalidade e primeiros passos;
   - respostas guardadas e tempo até à primeira resposta;
@@ -84,19 +85,28 @@ para continuar.
   Clássico como reserva (como na consola), ou se aceita que só existe na V2.
 - **Mudar o estado de um pedido sem escrever mensagem não avisa o cliente.**
   Falta decidir se deve avisar, pelo menos ao passar a «Resolvido».
+- **Arranque no limite do orçamento.** A app já chega aos 65 pedidos no
+  arranque, por isso o orçamento está no limite.
+- **Reativar um membro não aplica o limite do pacote.** Só se verificam criar
+  alojamento, convidar e aceitar convite.
+- **Importar um backup não aplica os limites.** Uma organização pode ficar acima
+  do pacote depois de importar.
+- **As contas só de plataforma não podem mudar de email.**
 
 ## Fases seguintes
 
-1. **Pacotes e estado do cliente.** Tabela `plans`, atribuição de pacote a
+1. **Pacotes e estado do cliente.** Feita no lote B. Tabela `plans`, atribuição de pacote a
    cada cliente e limites (alojamentos, membros da equipa). Os clientes
    suspensos ficam realmente bloqueados: a verificação vai para o `requireAuth`
    e é feita pelo Opus. A interface fica com o Sonnet e a documentação com o
    Haiku.
-2. **Comunicados e manutenção programada.** O dono da instância escreve avisos
+2. **Comunicados e manutenção programada.** Feita no lote B (comunicados). O dono da instância escreve avisos
    na faixa da «Ajuda e feedback», para todos os clientes ou só para alguns,
    com hora de início e de fim.
 
 ## Revisão (Fable 5.2): correções pequenas e seguras
+
+Feitas (F1 a F7, lote A).
 
 | # | Ficheiro | O quê | Teste |
 |---|---|---|---|

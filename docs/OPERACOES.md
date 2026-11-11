@@ -301,6 +301,33 @@ de alterar `PLATFORM_ADMIN_EMAILS` é preciso recriar o contentor com
 volta a ler o `.env`. No Docker, o script corre dentro do contentor:
 `docker compose exec backend node scripts/platform-admin.js list`.
 
+As tarefas internas (`/plataforma/tarefas`) são só para a equipa da plataforma
+e nunca aparecem aos clientes. Os comunicados (`/plataforma/comunicados`)
+aparecem na faixa do topo da app e, se marcados, em «Ajuda e feedback», entre a
+hora de início e a de fim. A opção de email fica gravada mas ainda não envia
+nada: só passa a funcionar quando houver o email da empresa. Os pacotes
+(`/plataforma/pacotes`) definem os limites de alojamentos e de membros. Os
+clientes antigos ficam sem pacote, ou seja, sem limites, até lhes ser atribuído
+um. Ao atingir um limite, criar alojamento, convidar ou aceitar um convite
+falha com uma mensagem que pede para falar connosco. A suspensão, na ficha do
+cliente, corta o acesso de imediato: todos os pedidos da organização respondem
+403.
+
+Conta só de plataforma para a colega, em `backend/src`:
+
+1. Criar o utilizador sem organização com
+   `node scripts/create-admin.js "Nome" "email" "palavra-passe"` (no Docker,
+   `docker compose exec backend node scripts/create-admin.js ...`). O script só
+   cria o utilizador, sem membership, e recusa um email que já exista. Depois,
+   apagar do histórico do shell a linha com a palavra-passe.
+2. `npm run platform-admin -- grant email` (no Docker,
+   `docker compose exec backend node scripts/platform-admin.js grant email`).
+3. Acrescentar o email a `PLATFORM_ADMIN_EMAILS` no `.env`, separado por vírgulas
+   dos restantes.
+4. Recriar o contentor com `docker compose up -d --force-recreate backend`.
+5. Confirmar com `npm run platform-admin -- list`: o email deve aparecer sem a
+   nota de falta.
+
 Privacidade: para melhorar o produto, são guardados totais diários de páginas
 abertas por organização, sem identificar pessoas (sem utilizador, IP nem
 browser), e apagados ao fim de 400 dias.

@@ -3,8 +3,8 @@
 Plataforma de operação de alojamento local. Centraliza reservas, alojamentos,
 hóspedes, calendário, preços, despesas, fornecedores, equipa, comunicações,
 vouchers, relatórios e tarefas operacionais. Inclui ainda uma consola da
-plataforma para o dono da instância: clientes, utilização, incidentes, suporte e
-registo. A app tem também «Ajuda e feedback», para a equipa falar com a
+plataforma para o dono da instância: clientes, utilização, incidentes, suporte, tarefas internas,
+comunicados, pacotes e registo. A app tem também «Ajuda e feedback», para a equipa falar com a
 plataforma.
 
 ## Estado do projeto
