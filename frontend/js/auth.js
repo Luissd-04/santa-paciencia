@@ -609,6 +609,7 @@ async function switchOrg(organizationId) {
 }
 
 async function bootstrapApp() {
+  window.AppTelemetry?.start();
   if (!appBootstrapped) {
     appBootstrapped = true;
     await AppModules.core.initApp();

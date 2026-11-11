@@ -156,8 +156,10 @@ modelos de email e definições da organização, e apaga hóspedes/reservas;
 Consola da plataforma (`/api/platform`): só para o dono da instância. O acesso
 exige `users.platform_admin = 1`, dado só por script, e o email em
 `PLATFORM_ADMIN_EMAILS`. A palavra-passe é pedida de novo e a consola fica aberta
-30 minutos por sessão, com limite de 5 tentativas falhadas por 15 minutos. As
-ações ficam em `platform_audit_events`. A API devolve apenas metadados (contagens,
+30 minutos por sessão, com limite de 5 tentativas falhadas por 15 minutos. A
+consola é uma página própria (`frontend/plataforma.html`, `frontend/js/plataforma/`),
+servida em `/plataforma`, que segue o aspeto da conta e usa o Clássico quando a
+conta está na V1. As ações ficam em `platform_audit_events`. A API devolve apenas metadados (contagens,
 datas e estados), nunca dados pessoais. Para quem não é admin, as rotas respondem
 como um endpoint inexistente. A utilização (`POST /api/telemetry`) guarda só
 totais diários de páginas abertas por organização, sem utilizador nem IP.

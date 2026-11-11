@@ -183,7 +183,7 @@ AppActions.register({
   'v2-conta-perfil': () => { v2().fecharFolha(); core().openProfileModal(); },
   'v2-conta-sessoes': () => { v2().fecharFolha(); core().openSessionsModal(); },
   'v2-conta-definicoes': () => { v2().fecharFolha(); core().showView('definicoes'); },
-  'v2-conta-plataforma': () => { v2().fecharFolha(); core().showView('plataforma'); },
+  'v2-conta-plataforma': () => { location.href = '/plataforma'; },
 }, 'click');
 AppActions.register({
   'v2-criar-talao': el => lerTalao(el),

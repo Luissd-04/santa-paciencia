@@ -5,8 +5,8 @@
                offline). Cache-first apenas para CDNs (fontes, libs).
 ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 102;
+const CACHE_NAME = 'sp-v42';
+const CACHE_VERSION = 103;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -81,6 +81,7 @@ const STATIC_ASSETS = [
   '/js/domain/channels.js',
   '/js/domain/edit-drafts.js',
   '/js/domain/features.js',
+  '/js/domain/telemetry.js',
   '/js/domain/libraries.js',
   '/js/domain/dates.js',
   '/js/domain/money.js',
@@ -160,7 +161,6 @@ const FEATURE_ASSETS = [
   '/js/features/vouchers/bilhetes-v2.js',
   '/js/precos.js',
   '/js/features/notificacoes/pagina.js',
-  '/js/features/plataforma/consola.js',
   '/js/features/v2/folha.js',
   '/js/features/v2/barra.js',
   '/js/features/v2/formularios.js',
@@ -199,7 +199,6 @@ const VIEW_ASSETS = [
   '/views/vouchers.html',
   '/views/precos.html',
   '/views/definicoes.html',
-  '/views/plataforma.html',
 ];
 
 /* ─── Install: pré-cachear assets estáticos ─── */
@@ -344,7 +343,7 @@ self.addEventListener('notificationclick', (event) => {
     /* Só janelas da app (excluir páginas públicas, que não têm o handler de message) */
     const isApp = (w) => {
       const p = new URL(w.url).pathname;
-      return !p.startsWith('/pre-checkin') && !p.startsWith('/reservar') && !/^\/reserva\//.test(p);
+      return !p.startsWith('/pre-checkin') && !p.startsWith('/plataforma') && !p.startsWith('/reservar') && !/^\/reserva\//.test(p);
     };
     const client = windowClients.find((w) => new URL(w.url).origin === self.location.origin && isApp(w));
     if (client) {

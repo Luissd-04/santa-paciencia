@@ -160,11 +160,6 @@ const FEATURE_MODULES = {
       'js/appearance-settings.js',
     ],
   },
-  // Consola da plataforma: só para administradores; abre numa folha (v2).
-  plataforma: {
-    deps: ['v2'],
-    scripts: ['js/features/plataforma/consola.js'],
-  },
   // V2 no telemóvel: menu, sino e «Criar». Carregado só com um aspeto novo
   // (auth.js e appearance-settings.js); não tem vista.
   v2: {
@@ -189,7 +184,6 @@ const VIEW_FEATURE = {
   invoice: 'invoice',
   notificacoes: 'notificacoes',
   definicoes: 'definicoes',
-  plataforma: 'plataforma',
 };
 
 // Vista → marcação HTML carregada em runtime (mesma ideia do ensureFeature,
@@ -210,7 +204,6 @@ const VIEW_MARKUP = {
   vouchers: 'views/vouchers.html',
   precos: 'views/precos.html',
   definicoes: 'views/definicoes.html',
-  plataforma: 'views/plataforma.html',
 };
 
 // Função exportada → funcionalidade que a define.

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Plataforma · Santa Paciência</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#843424">
+<!-- A consola tem o seu próprio CSS (abaixo) e segue o aspeto da conta; na V1 usa o Clássico. -->
+<meta name="appearance-styles" content="own">
+<meta name="appearance-fallback" content="classico">
+<link rel="icon" type="image/png" href="/favicon.png?v=2">
+<link rel="apple-touch-icon" href="/img/app/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/v2/aparencia.css">
+<link rel="stylesheet" href="/css/v2/componentes.css">
+<link rel="stylesheet" href="/css/v2/painel.css">
+<link rel="stylesheet" href="/css/v2/plataforma.css">
+<script src="/js/domain/appearance.js"></script>
+<script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js" integrity="sha384-bdZtphetAEBgkGZvhZXOFDWc55tHGLqaSo1f4qZtgvEiolEBqlJ9u6FTk+CoLfj0" crossorigin="anonymous"></script>
+</head>
+<body class="pl-body">
+
+<div class="pl-app">
+  <aside class="pl-side" id="pl-side" aria-label="Navegação da consola">
+    <div class="pl-brand">
+      <span class="pl-mark" aria-hidden="true">S</span>
+      <span class="pl-brand-text"><b>Santa Paciência</b><small>Plataforma</small></span>
+      <button type="button" class="pl-icon-btn pl-close" aria-label="Fechar menu" data-on-click="pl-gaveta-fechar"><i data-lucide="x"></i></button>
+    </div>
+    <nav class="pl-nav" id="pl-nav">
+      <a class="pl-nav-item" href="/plataforma" data-nav="geral" data-on-click="pl-ir"><i data-lucide="layout-list"></i><span>Visão geral</span></a>
+      <a class="pl-nav-item" href="/plataforma/clientes" data-nav="clientes" data-on-click="pl-ir"><i data-lucide="building-2"></i><span>Clientes</span></a>
+      <a class="pl-nav-item" href="/plataforma/utilizacao" data-nav="utilizacao" data-on-click="pl-ir"><i data-lucide="bar-chart-2"></i><span>Utilização</span></a>
+      <a class="pl-nav-item" href="/plataforma/incidentes" data-nav="incidentes" data-on-click="pl-ir"><i data-lucide="alert-triangle"></i><span>Incidentes</span></a>
+      <a class="pl-nav-item" href="/plataforma/registo" data-nav="registo" data-on-click="pl-ir"><i data-lucide="history"></i><span>Registo</span></a>
+      <span class="pl-nav-item is-off" aria-disabled="true"><i data-lucide="inbox"></i><span>Suporte</span><em>Em breve</em></span>
+      <span class="pl-nav-item is-off" aria-disabled="true"><i data-lucide="tag"></i><span>Pacotes</span><em>Em breve</em></span>
+    </nav>
+    <div class="pl-side-foot">
+      <div class="pl-look">
+        <span class="pl-look-label" id="pl-look-label">Aspeto</span>
+        <div class="pl-look-opts" id="pl-aspeto" role="group" aria-labelledby="pl-look-label">
+          <button type="button" data-look="classico" aria-pressed="false" data-on-click="pl-aspeto" data-args-click="[&quot;classico&quot;]">Clássico</button>
+          <button type="button" data-look="claro" aria-pressed="false" data-on-click="pl-aspeto" data-args-click="[&quot;claro&quot;]">Vidro claro</button>
+          <button type="button" data-look="escuro" aria-pressed="false" data-on-click="pl-aspeto" data-args-click="[&quot;escuro&quot;]">Vidro escuro</button>
+        </div>
+      </div>
+      <a class="pl-back" href="/dashboard"><i data-lucide="arrow-left"></i><span>Voltar à app</span></a>
+    </div>
+  </aside>
+  <div class="pl-scrim" id="pl-scrim" data-on-click="pl-gaveta-fechar" hidden></div>
+
+  <div class="pl-main" id="pl-main">
+    <header class="pl-top">
+      <button type="button" class="pl-icon-btn pl-burger" id="pl-menu" aria-label="Abrir menu" aria-controls="pl-side" aria-expanded="false" data-on-click="pl-gaveta"><i data-lucide="menu"></i></button>
+      <h1 id="pl-title">Visão geral</h1>
+      <div class="pl-user">
+        <span class="pl-avatar" id="pl-avatar" aria-hidden="true"></span>
+        <span class="pl-user-copy"><strong id="pl-user-name"></strong><span id="pl-user-mail"></span></span>
+      </div>
+    </header>
+    <main class="view pl-content" id="pl-content" data-v2 tabindex="-1" aria-live="polite"></main>
+  </div>
+</div>
+<div id="toast-container" class="pl-toasts" aria-live="polite"></div>
+
+<script src="/js/domain/modules.js"></script>
+<script src="/js/state.js"></script>
+<script src="/js/domain/actions.js"></script>
+<script src="/js/helpers.js"></script>
+<script src="/js/domain/libraries.js"></script>
+<script src="/js/plataforma/api.js"></script>
+<script src="/js/plataforma/format.js"></script>
+<script src="/js/plataforma/graficos.js"></script>
+<script src="/js/plataforma/geral.js"></script>
+<script src="/js/plataforma/clientes.js"></script>
+<script src="/js/plataforma/cliente.js"></script>
+<script src="/js/plataforma/utilizacao.js"></script>
+<script src="/js/plataforma/incidentes.js"></script>
+<script src="/js/plataforma/registo.js"></script>
+<script src="/js/plataforma/shell.js"></script>
+</body>
+</html>

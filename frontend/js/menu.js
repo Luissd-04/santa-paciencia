@@ -295,12 +295,8 @@ async function saveMenuPrefs(prefs) {
 AppActions.register({
   'menu-open': (el, event, args) => { openNavItem(args[0], { fromDrawer: Boolean(el.closest('#side-drawer')) }) },
   'menu-open-bar': (el, event, args) => { openNavItem(args[0], { fromDrawer: false }) },
-  'menu-open-plataforma': () => {
-    AppModules.core.closeSideDrawer();
-    const menu = document.getElementById('user-menu');
-    if (menu) menu.style.display = 'none';
-    AppModules.core.showView('plataforma');
-  },
+  // A consola da plataforma é uma página à parte (plataforma.html).
+  'menu-open-plataforma': () => { location.href = '/plataforma'; },
   'menu-open-editor': () => { openMenuEditor() },
   'menu-toggle-account': () => { toggleDrawerAccount() },
   'menu-editor-cancel': () => { closeMenuEditor() },
