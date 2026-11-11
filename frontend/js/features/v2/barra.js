@@ -120,7 +120,10 @@ function abrirConta(anchor) {
     sub: user.email || '',
     lead: `<span class="v2-av v2f-av">${esc(core().initials(user.name || '?'))}</span>`,
     body: `${orgs ? `<div class="v2k-orgs">${orgs}</div>` : ''}${modesHtml()}
-      <div class="v2c-list">${[['user-round', 'A minha conta', 'v2-conta-perfil'], ['monitor-smartphone', 'Sessões ativas', 'v2-conta-sessoes'], ['settings', 'Definições', 'v2-conta-definicoes'], ['log-out', 'Sair', 'index-logout-34b5979']]
+      <div class="v2c-list">${[['user-round', 'A minha conta', 'v2-conta-perfil'], ['monitor-smartphone', 'Sessões ativas', 'v2-conta-sessoes'],
+        // Só para o dono da instância (a API volta a confirmar).
+        ...(user.is_platform_admin === true ? [['layout-list', 'Consola da plataforma', 'v2-conta-plataforma']] : []),
+        ['settings', 'Definições', 'v2-conta-definicoes'], ['log-out', 'Sair', 'index-logout-34b5979']]
         .map(([icon, label, action]) => `<button type="button" data-on-click="${action}">${ic(icon, 18)}<span>${label}</span></button>`).join('')}</div>`,
   });
 }
@@ -180,6 +183,7 @@ AppActions.register({
   'v2-conta-perfil': () => { v2().fecharFolha(); core().openProfileModal(); },
   'v2-conta-sessoes': () => { v2().fecharFolha(); core().openSessionsModal(); },
   'v2-conta-definicoes': () => { v2().fecharFolha(); core().showView('definicoes'); },
+  'v2-conta-plataforma': () => { v2().fecharFolha(); core().showView('plataforma'); },
 }, 'click');
 AppActions.register({
   'v2-criar-talao': el => lerTalao(el),
