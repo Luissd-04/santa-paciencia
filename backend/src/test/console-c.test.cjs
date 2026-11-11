@@ -1,0 +1,63 @@
+const { test, before, after } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
+const previous = process.cwd(), temp = fs.mkdtempSync(path.join(os.tmpdir(),'sp-console-c-'));
+process.chdir(temp);
+Object.assign(process.env,{DB_PATH:':memory:',NODE_ENV:'test',EMAIL_ENABLED:'false',PLATFORM_ADMIN_EMAILS:'admin@example.invalid,marketing@example.invalid'});
+const app = require('../app'), { db } = require('../config/database');
+const auth = require('../services/authService'), orgs = require('../services/orgService'), tools = require('../services/platformSupportTools');
+const PASSWORD = 'SyntheticConsola123!', org = orgs.createOrganization('Testes');
+function person(email,role) { const user=auth.createUser({name:role,email,password:PASSWORD}); db.prepare('UPDATE users SET platform_admin=1,platform_role=? WHERE id=?').run(role,user.id); return {user,session:auth.createPlatformSession(user.id).sessionId}; }
+const admin=person('admin@example.invalid','admin'), marketing=person('marketing@example.invalid','marketing');
+let server,base;
+before(async()=>{server=app.listen(0,'127.0.0.1'); await new Promise((resolve,reject)=>{server.on('listening',resolve);server.on('error',reject);});base=`http://127.0.0.1:${server.address().port}`;});
+after(()=>{server?.close();db.close();process.chdir(previous);fs.rmSync(temp,{recursive:true,force:true});});
+const call=(who,method,url,body)=>fetch(base+url,{method,headers:{Cookie:`${auth.SESSION_COOKIE}=${who.session}`,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
+const pl=(who,method,url,body)=>call(who,method,'/api/platform'+url,body);
+test('criação exige desbloqueio e convite; administrador não recebe acesso ao cliente',async()=>{
+ assert.equal((await pl(admin,'POST','/organizations',{name:'Novo',owner_email:'novo@example.invalid'})).status,423);
+ assert.equal((await pl(admin,'POST','/unlock',{password:PASSWORD})).status,200);
+ const r=await pl(admin,'POST','/organizations',{name:'Novo',owner_email:'novo@example.invalid'});assert.equal(r.status,201);
+ const {data}=await r.json();assert.equal(db.prepare('SELECT COUNT(*) n FROM memberships WHERE organization_id=?').get(data.id).n,0);
+ const token=new URL(data.invitation_url).searchParams.get('invite'); assert.notEqual(db.prepare('SELECT token FROM invitations WHERE organization_id=?').get(data.id).token,token);
+ const accept=await fetch(base+'/auth/invitations/accept',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,name:'Proprietário',password:PASSWORD,confirm_password:PASSWORD})});assert.equal(accept.status,201);
+ assert.equal(db.prepare('SELECT role FROM memberships WHERE organization_id=?').get(data.id).role,'owner');
+ assert.equal((await pl(admin,'POST','/organizations',{name:'Erro',owner_email:'invalido'})).status,400);
+ const n=db.prepare('SELECT COUNT(*) n FROM organizations').get().n;
+ assert.equal((await pl(admin,'POST','/organizations',{name:'Erro',owner_email:'x@example.invalid',plan_id:'missing'})).status,404);
+ assert.equal(db.prepare('SELECT COUNT(*) n FROM organizations').get().n,n);
+});
+test('marketing pode ler e criar tarefas; administração bloqueada inclusive após mudar papel',async()=>{
+ await pl(marketing,'POST','/unlock',{password:PASSWORD});
+ for(const [method,url,body] of [['POST','/organizations',{name:'Não',owner_email:'x@example.invalid'}],['PUT',`/organizations/${org.id}`,{status:'suspended'}],['POST','/plans',{name:'Não'}],['POST','/support/saved-replies',{title:'Não',body:'Não'}],['PUT','/support/retention',{days:30}],['DELETE','/support/tickets/missing'],['DELETE','/support/attachments/missing']]) assert.equal((await pl(marketing,method,url,body)).status,403,method+url);
+ assert.equal((await pl(marketing,'GET','/diagnostics')).status,200);
+ assert.equal((await pl(marketing,'POST','/tasks',{title:'Marketing',type:'marketing'})).status,201);
+ assert.equal((await(await call(marketing,'GET','/auth/me')).json()).data.user.platform_role,'marketing');
+ db.prepare("UPDATE users SET platform_role='marketing' WHERE id=?").run(admin.user.id);assert.equal((await pl(admin,'PUT','/support/retention',{days:30})).status,403);db.prepare("UPDATE users SET platform_role='admin' WHERE id=?").run(admin.user.id);
+});
+test('respostas, conservação e eliminação de ficheiros; nunca limpar pedidos abertos',async()=>{
+ const r=await pl(admin,'POST','/support/saved-replies',{title:'Saudação',body:'Bom dia.'});assert.equal(r.status,201);const reply=(await r.json()).data;
+ assert.equal((await pl(admin,'PUT',`/support/saved-replies/${reply.id}`,{title:'Olá',body:'Obrigado.'})).status,200);
+ assert.equal((await pl(admin,'DELETE',`/support/saved-replies/${reply.id}`)).status,204);
+ assert.equal((await pl(admin,'PUT','/support/retention',{days:1})).status,400);
+ assert.equal((await pl(admin,'PUT','/support/retention',{days:30})).status,200);assert.equal(tools.retentionDays(),30);
+ orgs.createMembership({organizationId:org.id,userId:admin.user.id,role:'owner'});
+ const data=await require('../services/supportService').create({...admin.user,organization_id:org.id,role:'owner'},{subject:'Teste de limpeza',body:'Texto sintético',type:'question',attachments:[{name:'teste.pdf',data_base64:Buffer.from('%PDF-1.4\nSynthetic').toString('base64')}]});
+ const id=data.id, stored=db.prepare('SELECT stored_name FROM support_attachments WHERE ticket_id=?').get(id).stored_name;
+ const file=path.join(require('../services/supportAttachments').SUPPORT_DIR,stored);assert.ok(fs.existsSync(file));
+ db.prepare("UPDATE support_tickets SET updated_at='2000-01-01T00:00:00Z' WHERE id=?").run(id);assert.equal(tools.cleanup().deleted,0);
+ db.prepare("UPDATE support_tickets SET status='resolved' WHERE id=?").run(id);assert.equal(tools.cleanup().deleted,1);assert.equal(fs.existsSync(file),false);
+ assert.equal(db.prepare('SELECT COUNT(*) n FROM support_messages WHERE ticket_id=?').get(id).n,0);
+ assert.equal(db.prepare('SELECT COUNT(*) n FROM support_file_deletions').get().n,0);
+ assert.equal((await pl(admin,'PUT','/support/retention',{days:0})).status,200);
+});
+test('diagnósticos e adoção só agregam tipos permitidos, sem dados privados',async()=>{
+ const member={session:auth.createSession(admin.user.id,org.id).sessionId};await call(member,'GET','/api/accommodations?private=secret');
+ await call(member,'POST','/api/telemetry',{views:{reservas:3},errors:{script:999,promise:2,secret:9},message:'private-secret'});
+ const data=(await(await pl(admin,'GET','/diagnostics')).json()).data;
+ assert.equal(data.diagnostics.find(r=>r.kind==='frontend'&&r.name==='script').count,50);
+ assert.ok(data.diagnostics.some(r=>r.kind==='api'&&r.name==='accommodations'&&r.count===1&&r.avg_ms>=0));
+ assert.ok(!data.diagnostics.some(r=>r.kind==='api'&&r.name==='other'),'consola não conta como utilização do cliente');
+ assert.equal(data.adoption.find(r=>r.view==='reservas').organizations,1);assert.doesNotMatch(JSON.stringify(data),/private-secret|private=secret/);
+ assert.ok(data.onboarding.find(r=>r.id===org.id).owner);
+});

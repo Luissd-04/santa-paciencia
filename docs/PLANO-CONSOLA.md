@@ -1,10 +1,29 @@
 # Plano pendente: consola da plataforma e Suporte
 
 Estado a 11/11/2026, no ramo `claude/adoring-ride-pchzjc`. Os lotes A e B e as
-correções F1 a F7 já estão aplicados; por fazer ficam o lote C e as decisões em
-aberto. Junta a revisão feita pelo Fable 5.2 (só por leitura do código), as
+correções F1 a F7 já estão aplicados. O lote C disponível foi entretanto
+implementado; veja a atualização abaixo. As restantes decisões continuam em aberto. Junta a revisão feita pelo Fable 5.2 (só por leitura do código), as
 decisões que ficaram em aberto e as fases seguintes. Serve de ponto de partida
 para continuar.
+
+## Atualização de implementação — 11/11/2026
+
+O lote C disponível foi implementado no ramo `codex/consola-estabelecimentos`:
+diagnóstico agregado, adoção/primeiros passos, respostas guardadas, primeira
+resposta visível no Suporte, conservação/eliminação e papéis Administração/Marketing.
+Também foi acrescentada a criação de estabelecimentos com convite e o login
+fixo no Clássico. Email da empresa e LLM ficam adiados por decisão do proprietário.
+Detalhes, limites e comandos: [Consola — lote C](CONSOLA-LOTE-C.md).
+As secções abaixo preservam o plano de origem; as decisões não relacionadas
+continuam em aberto.
+
+## Consola por áreas — 11/11/2026
+
+Implementadas as áreas internas Comercial, Clientes, Suporte, Marketing,
+Finanças, Produto, Operações e Administração, com subpáginas e ligações comuns.
+Incluídos acessos de demonstração isolados e testes privados por convite.
+Apenas a configuração guiada fica adiada, além da IA e email da empresa.
+Detalhes e validação: [Áreas internas da consola](CONSOLA-AREAS.md).
 
 ## Pedidos do dono da instância (11/11/2026)
 
@@ -64,7 +83,7 @@ para continuar.
   - Comunicados;
   - Pacotes;
   - «Precisa de atenção» e saúde dos clientes na visão geral e na lista.
-- **C (por fazer):**
+- **C (implementado, exceto email da empresa e LLM):**
   - erros da app e tempos da API;
   - adoção de cada funcionalidade e primeiros passos;
   - respostas guardadas e tempo até à primeira resposta;

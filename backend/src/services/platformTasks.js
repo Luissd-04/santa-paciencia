@@ -5,6 +5,7 @@ const { db } = require('../config/database');
 const { httpError } = require('./httpError');
 const { admins } = require('./platformNotifier');
 
+const { DEPARTMENTS } = require('./platformCatalog');
 const TYPES = ['idea', 'bug', 'improvement', 'marketing', 'client'];
 const STATUSES = ['ideas', 'todo', 'doing', 'done'];
 const PRIORITIES = ['normal', 'urgent'];
@@ -67,16 +68,18 @@ function cleanPosition(value) {
   return n;
 }
 
-const SELECT = `SELECT t.*, a.name AS assignee_name, c.name AS creator_name, o.name AS organization_name, s.number AS ticket_number,
+const SELECT = `SELECT t.*, a.name AS assignee_name, c.name AS creator_name, o.name AS organization_name, s.number AS ticket_number, w.title AS record_title, w.kind AS record_kind,
   (SELECT COUNT(*) FROM platform_task_comments k WHERE k.task_id = t.id) AS comments
   FROM platform_tasks t
   LEFT JOIN users a ON a.id = t.assignee_user_id
   LEFT JOIN users c ON c.id = t.created_by_user_id
   LEFT JOIN organizations o ON o.id = t.organization_id
-  LEFT JOIN support_tickets s ON s.id = t.ticket_id`;
+  LEFT JOIN support_tickets s ON s.id = t.ticket_id
+  LEFT JOIN platform_records w ON w.id = t.record_id`;
 
 function shape(r) {
   return {
+    department: r.department, record: r.record_id ? { id:r.record_id, kind:r.record_kind, title:r.record_title } : null,
     id: r.id, title: r.title, description: r.description, type: r.type, status: r.status, priority: r.priority,
     due_date: r.due_date, position: r.position, created_at: r.created_at, updated_at: r.updated_at, done_at: r.done_at,
     assignee: r.assignee_user_id ? { id: r.assignee_user_id, name: r.assignee_name || '—' } : null,
@@ -87,14 +90,17 @@ function shape(r) {
   };
 }
 
-function list(user, { assignee = 'all', type = '' } = {}) {
+function list(user, { assignee = 'all', type = '', department = '', organization_id = '', record_id = '' } = {}) {
   const where = [];
   const args = [];
   if (assignee === 'me') { where.push('t.assignee_user_id = ?'); args.push(user.id); }
   else if (assignee && assignee !== 'all') { where.push('t.assignee_user_id = ?'); args.push(String(assignee)); }
   if (type) { where.push('t.type = ?'); args.push(cleanEnum(String(type), TYPES, 'Tipo')); }
+  if (department) { if (!Object.hasOwn(DEPARTMENTS,department)) throw httpError('Área inválida.',400); where.push('t.department=?'); args.push(department); }
+  if (organization_id) { where.push('t.organization_id=?'); args.push(String(organization_id)); }
+  if (record_id) { where.push('t.record_id=?'); args.push(String(record_id)); }
   const rows = db.prepare(`${SELECT}${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY t.position, t.created_at`).all(...args);
-  return { tasks: rows.map(shape), people: people() };
+  return { tasks: rows.filter(r => require('./platformAccess').platformRole(user)==='admin' || (r.department!=='finance' && r.department!=='administration' && (!r.record_kind || require('./platformWorkspace').permitted(user,r.record_kind)))).map(shape), people: people() };
 }
 
 function load(id) {
@@ -103,8 +109,9 @@ function load(id) {
   return row;
 }
 
-function get(id) {
-  const task = shape(load(id));
+function get(id, user = null) {
+  const raw=load(id); if(user) taskAccess(user,raw);
+  const task = shape(raw);
   const comments = db.prepare(`SELECT k.id, k.user_id, k.body, k.created_at, u.name FROM platform_task_comments k
     LEFT JOIN users u ON u.id = k.user_id WHERE k.task_id = ? ORDER BY k.created_at, k.rowid`).all(id)
     .map(k => ({ id: k.id, author: { id: k.user_id, name: k.name || '—' }, body: k.body, created_at: k.created_at }));
@@ -113,11 +120,27 @@ function get(id) {
 
 const nextPosition = status => (db.prepare('SELECT MAX(position) AS m FROM platform_tasks WHERE status = ?').get(status).m ?? 0) + 1;
 
+function taskAccess(user, task) {
+  if (require('./platformAccess').platformRole(user)==='marketing' && (['finance','administration'].includes(task.department) || (task.record_kind && !require('./platformWorkspace').permitted(user,task.record_kind)))) throw httpError('Tarefa reservada à Administração.',403);
+}
+function cleanDepartment(value) { if(!Object.hasOwn(DEPARTMENTS,value)) throw httpError('Área inválida.',400);return value; }
+function taskRecord(user, value, organizationId) {
+  if(!value) return {id:null,organizationId};
+  const row=db.prepare('SELECT id,kind,organization_id FROM platform_records WHERE id=?').get(String(value));
+  if(!row||!require('./platformWorkspace').permitted(user,row.kind)) throw httpError('Registo relacionado indisponível.',400);
+  if(organizationId&&row.organization_id&&organizationId!==row.organization_id) throw httpError('O registo pertence a outro cliente.',400);
+  return {id:row.id,organizationId:organizationId||row.organization_id};
+}
+
 function create(user, body = {}) {
   const status = hasOwn(body, 'status') ? cleanEnum(body.status, STATUSES, 'Estado') : 'todo';
   const ticket = cleanTicket(body.ticket_id);
   let organization = cleanOrg(body.organization_id);
   if (ticket && !organization) organization = ticket.organization_id;
+  const department=cleanDepartment(body.department || (body.type==='marketing'?'marketing':body.type==='client'?'clients':'product'));
+  taskAccess(user,{department});
+  const linked=taskRecord(user,body.record_id,organization);organization=linked.organizationId;
+  if(ticket && organization!==ticket.organization_id) throw httpError('O pedido pertence a outro cliente.',400);
   const row = {
     id: crypto.randomUUID(), title: cleanTitle(body.title), description: cleanDescription(body.description),
     type: hasOwn(body, 'type') ? cleanEnum(body.type, TYPES, 'Tipo') : 'improvement', status,
@@ -131,13 +154,17 @@ function create(user, body = {}) {
     due_date, organization_id, ticket_id, position, created_at, updated_at, done_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(row.id, row.title, row.description, row.type, row.status, row.priority, row.assignee, user.id, row.due, row.organization,
       row.ticket, row.position, row.at, row.at, status === 'done' ? row.at : null);
+  db.prepare('UPDATE platform_tasks SET department=?,record_id=? WHERE id=?').run(department,linked.id,row.id);
   return get(row.id);
 }
 
 // Devolve { task, changes } com os nomes dos campos alterados (para a auditoria).
 function update(user, id, body = {}) {
   const cur = load(id);
+  taskAccess(user,cur);
   const next = {};
+  if (hasOwn(body,'department')) { next.department=cleanDepartment(body.department);taskAccess(user,{...cur,...next}); }
+  if (hasOwn(body,'record_id') || hasOwn(body,'organization_id')) { const link=taskRecord(user,hasOwn(body,'record_id')?body.record_id:cur.record_id,hasOwn(body,'organization_id')?cleanOrg(body.organization_id):cur.organization_id); next.record_id=link.id; next.organization_id=link.organizationId; }
   if (hasOwn(body, 'title')) next.title = cleanTitle(body.title);
   if (hasOwn(body, 'description')) next.description = cleanDescription(body.description);
   if (hasOwn(body, 'type')) next.type = cleanEnum(body.type, TYPES, 'Tipo');
@@ -145,12 +172,15 @@ function update(user, id, body = {}) {
   if (hasOwn(body, 'status')) next.status = cleanEnum(body.status, STATUSES, 'Estado');
   if (hasOwn(body, 'assignee_user_id')) next.assignee_user_id = cleanAssignee(body.assignee_user_id);
   if (hasOwn(body, 'due_date')) next.due_date = cleanDue(body.due_date);
-  if (hasOwn(body, 'organization_id')) next.organization_id = cleanOrg(body.organization_id);
+
   if (hasOwn(body, 'ticket_id')) {
     const ticket = cleanTicket(body.ticket_id);
     next.ticket_id = ticket?.id || null;
     if (ticket && !next.organization_id && !cur.organization_id) next.organization_id = ticket.organization_id;
   }
+  const linkedTicket = hasOwn(next,'ticket_id') ? next.ticket_id : cur.ticket_id;
+  const linkedOrg = hasOwn(next,'organization_id') ? next.organization_id : cur.organization_id;
+  if(linkedTicket && cleanTicket(linkedTicket).organization_id !== linkedOrg) throw httpError('O pedido pertence a outro cliente.',400);
   if (hasOwn(body, 'position')) next.position = cleanPosition(body.position);
   else if (next.status && next.status !== cur.status) next.position = nextPosition(next.status);
   const changes = Object.keys(next).filter(k => next[k] !== cur[k]);
@@ -163,14 +193,14 @@ function update(user, id, body = {}) {
   return { task: get(id), changes, from: cur.status };
 }
 
-function remove(id) {
-  const cur = load(id);
+function remove(id, user = null) {
+  const cur = load(id); if(user) taskAccess(user,cur);
   db.prepare('DELETE FROM platform_tasks WHERE id = ?').run(id);
   return { id, title: cur.title };
 }
 
 function addComment(user, id, body = {}) {
-  load(id);
+  taskAccess(user,load(id));
   const text = typeof body.body === 'string' ? body.body.trim() : '';
   if (!text) throw httpError('Escreva o comentário.', 400);
   if (text.length > COMMENT_MAX) throw httpError(`O comentário pode ter no máximo ${COMMENT_MAX} caracteres.`, 400);
@@ -184,9 +214,9 @@ function addComment(user, id, body = {}) {
 function summary(user) {
   const today = new Date();
   const week = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
-  const open = db.prepare("SELECT COUNT(*) n FROM platform_tasks WHERE assignee_user_id = ? AND status != 'done'").get(user.id).n;
-  const due = db.prepare("SELECT COUNT(*) n FROM platform_tasks WHERE assignee_user_id = ? AND status != 'done' AND due_date IS NOT NULL AND due_date <= ?")
-    .get(user.id, ymd(week)).n;
+  const tasks=list(user).tasks.filter(t=>t.assignee?.id===user.id&&t.status!=='done');
+  const open=tasks.length;
+  const due=tasks.filter(t=>t.due_date&&t.due_date<=ymd(week)).length;
   return { mine_open: open, mine_due_week: due };
 }
 

@@ -18,13 +18,14 @@ const card = (title, body, cls = '') => `<section class="v2-card v2-dense ${cls}
 const pairs = (obj, labels) => Object.entries(labels).map(([key, label]) => ({ label, value: Number(obj?.[key]) || 0 }));
 
 function statusCard(org) {
+  if (!AppModules.consola.canManage) return card('Estado e notas', `${fmt.stateHtml(org)}<p>${esc(org.notes || 'Sem notas.')}</p><p class="pl-note">Alterações reservadas à Administração.</p>`);
   return card('Estado e notas', `<label class="pl-label" for="pl-estado">Estado</label>
     <select class="form-control" id="pl-estado">${Object.entries(fmt.STATUS).map(([key, s]) => `<option value="${key}"${org.status === key ? ' selected' : ''}>${esc(s.label)}</option>`).join('')}</select>
     <label class="pl-label" for="pl-notas">Notas internas</label>
     <textarea class="form-control" id="pl-notas" rows="5" maxlength="5000" placeholder="Só visível para a plataforma.">${esc(org.notes || '')}</textarea>
     <div class="pl-save"><button type="button" class="btn btn-primary" id="pl-guardar" ${AppActions.attrs('click', 'pl-org-guardar', [String(org.id)])}>Guardar</button>
       <span class="pl-msg" id="pl-msg" role="status"></span></div>
-    <p class="pl-note">«Suspensa» é só uma etiqueta: por agora não corta o acesso ao cliente.</p>`);
+    <p class="pl-note">«Suspensa» bloqueia o acesso do cliente à organização.</p>`);
 }
 
 const limitOf = value => (value == null ? 'sem limite' : num(value));
@@ -47,6 +48,7 @@ function planUseHtml(org, plans) {
 }
 
 function planCard(org, plans) {
+  if (!AppModules.consola.canManage) return card('Pacote', planUseHtml(org, plans));
   const current = org.plan?.id || '';
   return card('Pacote', `<label class="pl-label" for="pl-pacote">Pacote</label>
     <select class="form-control" id="pl-pacote"><option value="">Sem pacote (sem limites)</option>${plans.map(p => `<option value="${esc(p.id)}"${p.id === current ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select>
@@ -109,11 +111,26 @@ function headHtml(org) {
       <div class="pl-org-chips">${fmt.stateHtml(org)}${fmt.planHtml(org)}<span class="pl-muted">Último acesso: ${esc(fmt.relativo(org.last_activity_at))}</span></div></header>`;
 }
 
+function hubHtml(org,hub,area) {
+ const groups={sales:['lead','proposal'],clients:['profile'],marketing:['campaign','content','material'],finance:['subscription','entry'],product:['issue','release'],operations:['maintenance']};
+ const titles={sales:'Comercial',clients:'Acompanhamento',support:'Suporte',marketing:'Marketing',finance:'Subscrição e pagamentos',product:'Produto',operations:'Operações',tasks:'Tarefas'};
+ const selected=area||'summary';
+ const tabs=[['summary','Resumo'],...Object.entries(titles)].filter(([k])=>AppModules.consola.canManage||k!=='finance');
+ const nav=`<nav class="ws-tabs" aria-label="Áreas do cliente">${tabs.map(([key,title])=>`<a href="${fmt.orgHref(org.id)}?area=${key}" data-on-click="pl-ir"${selected===key?' aria-current="page"':''}>${esc(title)}</a>`).join('')}</nav>`;
+ if(selected==='summary')return {nav,body:''};
+ let body='';
+ if(selected==='tasks')body=hub.tasks.map(t=>`<p>${fmt.link('/plataforma/tarefas?task='+encodeURIComponent(t.id),esc(t.title))} · ${esc(t.status==='done'?'Feita':'Em aberto')}</p>`).join('')+fmt.link('/plataforma/tarefas?organization_id='+encodeURIComponent(org.id),'Ver tarefas deste cliente','btn btn-ghost');
+ else if(selected==='support')body=hub.tickets.map(t=>`<p>${fmt.link('/plataforma/suporte/'+encodeURIComponent(t.id),esc('SP-'+String(t.number).padStart(4,'0')+' · '+t.subject))} · ${esc(fmt.TICKET_STATUS[t.status]?.label||t.status)}</p>`).join('');
+ else if(groups[selected] && (selected!=='finance'||AppModules.consola.canManage))body=groups[selected].map(kind=>{const route=AppModules.consola.areas.routes.find(r=>r.kind===kind);if(!route)return '';const records=hub.records.filter(r=>r.kind===kind);return `<h3>${esc(route.title)}</h3>${records.map(r=>`<p>${fmt.link(AppModules.consola.areas.recordHref(kind,r.id),esc(r.title))}</p>`).join('')||'<p class="pl-muted">Sem registos.</p>'}${fmt.link(route.path+'?organization_id='+encodeURIComponent(org.id),'Abrir '+esc(route.title.toLowerCase()),'btn btn-ghost btn-sm')}`;}).join('');
+ if(selected==='sales'&&hub.access)body=`<p>Acesso: ${hub.access.mode==='demo'?'Demonstração':'Teste privado'} · ${esc(({pending:'Convite por aceitar',active:'Em teste',expired:'Prazo terminado',closed:'Encerrado',converted:'Cliente ativo'})[hub.access.status]||'')}</p>${fmt.link('/plataforma/comercial/acessos','Gerir acesso','btn btn-ghost')}`+body;
+ return {nav,body:`<section class="v2-card v2-dense"><h2>${esc(titles[selected]||'Área')}</h2>${body||fmt.empty('Sem registos nesta área.')}</section>`};
+}
+
 let plansList = [];
 const page = {
   async render(ctx) {
-    const [org, plans] = await Promise.all([api.org(ctx.route.id),
-      AppModules.core.apiGet('/api/platform/plans').then(r => r?.data || []).catch(() => [])]);
+    const [org, plans, hub] = await Promise.all([api.org(ctx.route.id),
+      AppModules.core.apiGet('/api/platform/plans').then(r => r?.data || []).catch(error=>{if([401,423].includes(error.status))throw error;return [];}),AppModules.core.apiGet('/api/platform/workspace/clients/'+encodeURIComponent(ctx.route.id)).then(r=>r.data)]);
     if (ctx.stale()) return;
     plansList = Array.isArray(plans) ? plans : [];
     if (!org) {
@@ -121,7 +138,10 @@ const page = {
         <p class="v2-empty">Esta organização já não existe ou o endereço está errado.</p>${fmt.link('/plataforma/clientes', 'Ver todos os clientes', 'btn btn-ghost btn-sm')}</div></div>`;
       return;
     }
-    ctx.host.innerHTML = `<div class="pl-page">${headHtml(org)}
+    const area=new URLSearchParams(location.search).get('area')||'summary';
+    const connected=hubHtml(org,hub,area);
+    if(area!=='summary'){ctx.host.innerHTML=`<div class="pl-page">${headHtml(org)}${connected.nav}${connected.body}</div>`;return;}
+    ctx.host.innerHTML = `<div class="pl-page">${headHtml(org)}${connected.nav}
       <div class="pl-detail">
         <div class="pl-col">${statusCard(org)}${planCard(org, plansList)}${stepsCard(org)}${integrationsCard(org)}${teamCard(org)}</div>
         <div class="pl-col">${trendCard(org)}${usageCards(org)}</div>

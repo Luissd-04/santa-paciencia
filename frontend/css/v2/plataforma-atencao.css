@@ -57,7 +57,7 @@ a.pl-hs-row:hover { background: var(--v2-accent-soft); }
 .pl-sort { white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; color: var(--v2-muted); font-size: 13px; }
 .pl-sort select { width: auto; min-width: 150px; }
 
-@media (max-width: 1199px) {
+@media (max-width: 1499px) {
   .pl-kpis-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .pl-client.pl-client-h { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nome saude" "resumo resumo" "ints ints"; row-gap: 6px; }
   .pl-client.pl-client-h > .v2-row-text { grid-area: nome; }

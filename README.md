@@ -83,6 +83,12 @@ hóspedes, tokens OAuth ou a chave de encriptação no repositório.
 
 ## Documentação
 
+- [Ambiente de testes separado no TrueNAS](docs/AMBIENTE-TESTES-TRUENAS.md)
+
+- [Áreas internas, Comercial e acessos de teste](docs/CONSOLA-AREAS.md)
+
+- [Consola — lote C, estabelecimentos, papéis e conservação](docs/CONSOLA-LOTE-C.md)
+
 - [Arquitetura e módulos](docs/ARQUITETURA.md)
 - [Operações, configuração e recuperação](docs/OPERACOES.md)
 - [Roadmap de produto](docs/ROADMAP.md)

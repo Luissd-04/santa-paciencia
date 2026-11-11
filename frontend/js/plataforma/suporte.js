@@ -121,13 +121,16 @@ function refreshInbox() {
 
 const inbox = {
   async render(ctx) {
-    const data = await api.supportTickets();
+    const [data, retention, stats] = await Promise.all([api.supportTickets(), AppModules.core.apiGet('/api/platform/support/retention').then(r => r.data), api.supportStats()]);
     if (ctx.stale()) return;
     if (!data) { unavailable(ctx); return; }
     inboxState.tickets = data.tickets;
     inboxState.counts = data.counts;
     setBadge(data.tickets);
     ctx.host.innerHTML = `<div class="pl-page">
+      <p class="pl-note">Conservação: ${retention.days ? `pedidos resolvidos sem alterações há ${num(retention.days)} dias são eliminados automaticamente, com os anexos.` : 'limpeza automática desligada. A Administração pode apagar pedidos e anexos individualmente.'}</p>
+      ${AppModules.consola.canManage ? `<form class="v2-card v2-dense" ${AppActions.attrs('submit','pl-sup-conservacao')}><label class="pl-label" for="pl-retencao">Prazo de conservação dos pedidos resolvidos (dias)</label><input class="form-control" id="pl-retencao" type="number" min="0" max="3650" step="1" value="${retention.days}" required><p class="pl-note">0 desliga a limpeza. Entre 30 e 3650 dias, elimina definitivamente os pedidos resolvidos sem alterações nesse prazo e os anexos. Os pedidos em aberto são conservados.</p><button type="submit" class="btn btn-ghost">Guardar prazo</button><p role="status" id="pl-retencao-estado"></p></form>` : ''}
+      <p class="pl-note">Primeira resposta (30 dias): ${stats?.avg_first_response_hours == null ? 'ainda sem dados' : `${num(stats.avg_first_response_hours)} horas em média · ${num(stats.answered_30d)} pedidos respondidos`}.</p>
       <div class="pl-toolbar">
         <div class="search-box pl-search"><i data-lucide="search"></i>
           <input type="search" id="pl-pesquisa" value="${esc(filter.q)}" placeholder="Pesquisar assunto ou número…" autocomplete="off" aria-label="Pesquisar por assunto ou número" ${AppActions.attrs('input', 'pl-sup-pesquisa')}></div>
@@ -192,7 +195,7 @@ function messageHtml(m) {
   return `<article class="pl-bubble${platform ? ' is-platform' : ''}">
     <header><b>${esc(author)}</b><span class="pl-sub">${platform ? 'Plataforma' : 'Cliente'} · ${esc(fmt.dateTime(m.created_at))}</span></header>
     <p class="pl-bubble-body">${esc(m.body)}</p>
-    ${files.length ? `<div class="pl-atts">${files.map(attachmentHtml).join('')}</div>` : ''}</article>`;
+    ${files.length ? `<div class="pl-atts">${files.map(a => attachmentHtml(a) + (AppModules.consola.canManage ? `<button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click','pl-sup-apagar-anexo',[a.id])}>Apagar anexo</button>` : '')).join('')}</div>` : ''}</article>`;
 }
 
 function filesHtml() {
@@ -201,9 +204,53 @@ function filesHtml() {
     <button type="button" class="pl-file-x" aria-label="Remover ${esc(f.name)}" ${AppActions.attrs('click', 'pl-sup-anexo-remover', [i])}>${fmt.icon('x', 14)}</button></span>`).join('');
 }
 
+let savedReplies = [];
+let selectedReply = '';
+let deleteConfirm = '';
+const supportToolsUrl = '/api/platform/support';
+function savedRepliesHtml() {
+  return `<details><summary>Respostas guardadas</summary><label class="pl-label" for="pl-saved-reply">Escolher resposta</label>
+    <select class="form-control" id="pl-saved-reply" ${AppActions.attrs('change','pl-sup-modelo')}><option value="">Nova resposta guardada</option>${savedReplies.map(r => `<option value="${esc(r.id)}"${selectedReply === r.id ? ' selected' : ''}>${esc(r.title)}</option>`).join('')}</select>
+    <label class="pl-label" for="pl-saved-title">Título da resposta guardada</label><input class="form-control" id="pl-saved-title" maxlength="80" value="${esc(savedReplies.find(r => r.id === selectedReply)?.title || '')}">
+    <p class="pl-note">Reveja a mensagem antes de enviar. Guardar usa o texto atual da mensagem.</p>
+    <button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click','pl-sup-modelo-guardar')}>Guardar resposta</button>
+    <button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click','pl-sup-modelo-apagar')}>Apagar resposta guardada</button></details>`;
+}
+async function saveReply(button) {
+  const title = document.getElementById('pl-saved-title')?.value || '';
+  const body = document.getElementById('pl-resp')?.value || '';
+  button.disabled = true;
+  try {
+    const url = `${supportToolsUrl}/saved-replies`;
+    const payload = selectedReply ? await AppModules.core.apiPut(`${url}/${encodeURIComponent(selectedReply)}`, { title, body }) : await AppModules.core.apiPost(url, { title, body });
+    selectedReply = payload.data.id;
+    savedReplies = (await AppModules.core.apiGet(url)).data;
+    paint(); AppModules.core.toast('Resposta guardada.', 'success');
+  } catch (error) { if (!locked(error)) showError(error?.payload?.error || 'Não foi possível guardar.'); }
+  finally { button.disabled = false; }
+}
+async function removeItem(button, kind, id) {
+  if (!id) return;
+  const key = `${kind}:${id}`;
+  if (deleteConfirm !== key) { deleteConfirm = key; button.textContent = 'Confirmar eliminação definitiva'; return; }
+  button.disabled = true;
+  try {
+    await AppModules.core.apiDelete(`${supportToolsUrl}/${kind}/${encodeURIComponent(id)}`);
+    deleteConfirm = '';
+    if (kind === 'tickets') { location.assign('/plataforma/suporte'); return; }
+    if (kind === 'saved-replies') { selectedReply = ''; savedReplies = (await AppModules.core.apiGet(`${supportToolsUrl}/saved-replies`)).data; paint(); }
+    else await reload();
+    AppModules.core.toast('Eliminado.', 'success');
+  } catch (error) { if (!locked(error)) showError(error?.payload?.error || 'Não foi possível eliminar.'); }
+  finally { button.disabled = false; }
+}
+
 function replyHtml(ticket, draft) {
+  if (!AppModules.consola.canManage) return '<section class="v2-card v2-dense"><p>A resposta aos pedidos é da Administração.</p></section>';
   const options = STATUS_ORDER.map(key => `<option value="${key}">${esc(statusInfo(key).label)}</option>`).join('');
   return `<section class="v2-card v2-dense"><div class="v2-card-h"><h3>Responder</h3></div>
+    ${savedRepliesHtml()}
+    <button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click','pl-sup-apagar-pedido')}>Apagar pedido e anexos</button>
     <label class="pl-label" for="pl-resp">Mensagem para ${esc(ticket.author?.name || 'o cliente')}</label>
     <textarea class="form-control" id="pl-resp" rows="5" maxlength="5000" placeholder="Escreva a resposta…" ${AppActions.attrs('input', 'pl-sup-rascunho')}>${esc(draft.text)}</textarea>
     <div class="pl-files" id="pl-anexos">${filesHtml()}</div>
@@ -225,7 +272,7 @@ function sideHtml(ticket, org, context) {
   return `<aside class="pl-col pl-aside" aria-label="Detalhes do pedido">
     <section class="v2-card v2-dense"><div class="v2-card-h"><h3>Pedido</h3></div>
       <label class="pl-label" for="pl-estado-pedido">Estado</label>
-      <select class="form-control" id="pl-estado-pedido" ${AppActions.attrs('change', 'pl-sup-mudar-estado')}>${options}</select>
+      <select class="form-control" id="pl-estado-pedido"${AppModules.consola.canManage ? '' : ' disabled'} ${AppActions.attrs('change', 'pl-sup-mudar-estado')}>${options}</select>
       <p class="pl-error" id="pl-estado-erro" role="alert" hidden></p>
       <div class="pl-side-kv">
       ${kv('Tipo', esc(type.label))}
@@ -235,7 +282,7 @@ function sideHtml(ticket, org, context) {
       ${kv('Atualizado', esc(fmt.dateTime(ticket.updated_at)))}
       ${ticket.customer_confirmed_at ? kv('Confirmado pelo cliente', `${fmt.icon('check-circle', 14)} ${esc(fmt.dateTime(ticket.customer_confirmed_at))}`) : ''}
       </div>
-      <div class="pl-save"><button type="button" class="btn btn-ghost btn-sm" id="pl-criar-tarefa" ${AppActions.attrs('click', 'pl-sup-tarefa')}>${fmt.icon('kanban-square', 14)}<span>Criar tarefa</span></button></div>
+      <div class="pl-save"><button type="button" class="btn btn-ghost btn-sm" id="pl-criar-tarefa" ${AppActions.attrs('click', 'pl-sup-tarefa')}>${fmt.icon('kanban-square', 14)}<span>Criar tarefa</span></button><button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click','pl-sup-produto')}>Registar bug ou sugestão</button></div>
       ${org?.id != null ? `<div class="pl-save">${fmt.link(fmt.orgHref(org.id), `${fmt.icon('building-2', 14)}<span>Ficha do cliente</span>`, 'btn btn-ghost btn-sm')}</div>` : ''}
     </section>
     ${contextCard(context)}</aside>`;
@@ -285,7 +332,8 @@ async function reload(ctx = cur.ctx, draft = null) {
 const ticketPage = {
   async render(ctx) {
     Object.assign(cur, { ctx, id: ctx.route.id, files: [], lost: [], error: '', busy: false });
-    const data = await api.supportTicket(cur.id);
+    const [data, replies] = await Promise.all([api.supportTicket(cur.id), AppModules.core.apiGet(`${supportToolsUrl}/saved-replies`).then(r => r.data)]);
+    savedReplies = replies || []; selectedReply = ''; deleteConfirm = '';
     if (ctx.stale()) return;
     if (!data?.ticket) { notFound(ctx); return; }
     cur.data = data;
@@ -378,6 +426,10 @@ async function changeStatus(select) {
 }
 
 AppActions.register({
+  'pl-sup-modelo-guardar': el => saveReply(el),
+  'pl-sup-modelo-apagar': el => removeItem(el, 'saved-replies', selectedReply),
+  'pl-sup-apagar-pedido': el => removeItem(el, 'tickets', cur.id),
+  'pl-sup-apagar-anexo': (el, event, [id]) => removeItem(el, 'attachments', id),
   'pl-sup-estado-filtro': (el, event, [key]) => { filter.status = key; refreshInbox(); },
   'pl-sup-tipo-filtro': (el, event, [key]) => { filter.type = key; refreshInbox(); },
   'pl-sup-anexo-remover': (el, event, [index]) => {
@@ -386,6 +438,7 @@ AppActions.register({
     if (box) { box.innerHTML = filesHtml(); if (window.lucide) lucide.createIcons(); }
     saveDraft();
   },
+  'pl-sup-produto': () => { const t=cur.data?.ticket;if(!t)return;sessionStorage.setItem('pl-product-prefill',JSON.stringify({title:t.subject,ticket_id:t.id,organization_id:(cur.data.organization||t.organization)?.id||'',description:'Pedido de suporte '+t.number}));history.pushState({},'', '/plataforma/produto/pedidos');window.dispatchEvent(new PopStateEvent('popstate')); },
   'pl-sup-tarefa': () => createTask(),
   'pl-sup-enviar': el => send(el),
 }, 'click');
@@ -413,5 +466,12 @@ AppActions.register({
 AppActions.register({
   'pl-sup-anexar': el => addFiles(el),
   'pl-sup-mudar-estado': el => changeStatus(el),
+  'pl-sup-modelo': el => { selectedReply = el.value; const reply = savedReplies.find(r => r.id === selectedReply); if (reply) { const area = document.getElementById('pl-resp'); area.value = reply.body; saveDraft(); } const title = document.getElementById('pl-saved-title'); if (title) title.value = reply?.title || ''; },
 }, 'change');
+AppActions.register({ 'pl-sup-conservacao': async (form, event) => {
+  event.preventDefault(); const button = form.querySelector('button'); button.disabled = true;
+  try { const days = Number(document.getElementById('pl-retencao').value); await AppModules.core.apiPut(`${supportToolsUrl}/retention`, { days }); document.getElementById('pl-retencao-estado').textContent = days ? 'Prazo guardado. A limpeza corre de hora a hora.' : 'Limpeza automática desligada.'; }
+  catch (error) { if (!locked(error)) document.getElementById('pl-retencao-estado').textContent = error?.payload?.error || 'Não foi possível guardar.'; }
+  finally { button.disabled = false; }
+} }, 'submit');
 })();

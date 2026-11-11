@@ -33,7 +33,7 @@ function planCard(plan) {
   const n = Number(plan.organizations) || 0;
   const row = (name, value) => `<div class="pl-kv"><span>${esc(name)}</span><b>${esc(value)}</b></div>`;
   const confirming = state.confirmDelete === plan.id;
-  const del = n === 0
+  const del = AppModules.consola.canManage && n === 0
     ? `<button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'pl-pac-apagar', [plan.id])}>${confirming ? 'Confirmar: apagar' : 'Apagar'}</button>`
     : '';
   return `<section class="v2-card v2-dense pl-pac-card" aria-label="${esc(plan.name)}">
@@ -41,7 +41,7 @@ function planCard(plan) {
     <div>${row('Alojamentos', limitText(plan.max_accommodations))}${row('Pessoas na equipa', limitText(plan.max_members))}
       ${row('Pagamentos online', f.payments ? 'Sim' : '—')}${row('Relatórios e exportação', f.reports ? label(REPORTS, f.reports) : '—')}
       ${row('Serviço de marketing', f.marketing ? label(MARKETING, f.marketing) : '—')}</div>
-    <div class="pl-pac-actions"><button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'pl-pac-editar', [plan.id])}>Editar</button>${del}</div>
+    <div class="pl-pac-actions">${AppModules.consola.canManage ? `<button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'pl-pac-editar', [plan.id])}>Editar</button>` : ''}${del}</div>
     ${confirming ? `<p class="pl-note">Apagar «${esc(plan.name)}» não pode ser desfeito.</p>` : ''}
   </section>`;
 }
@@ -138,7 +138,7 @@ function nearHtml() {
 function pageHtml() {
   return `<div class="pl-page pl-pac-page">
     <div class="pl-pac-intro"><p class="pl-lead">Cada cliente tem um pacote. Os limites aplicam-se quando o cliente cria alojamentos ou convida pessoas; nada é apagado se baixar de pacote.</p>
-      <button type="button" class="btn btn-primary" ${AppActions.attrs('click', 'pl-pac-novo')}>${fmt.icon('plus', 16)}<span>Novo pacote</span></button></div>
+      ${AppModules.consola.canManage ? `<button type="button" class="btn btn-primary" ${AppActions.attrs('click', 'pl-pac-novo')}>${fmt.icon('plus', 16)}<span>Novo pacote</span></button>` : ''}</div>
     <div id="pl-pac-editor">${state.draft ? formHtml() : ''}</div>
     <div class="pl-pac-cards" id="pl-pac-cards">${state.plans.length ? state.plans.map(planCard).join('') : `<div class="v2-card v2-dense">${fmt.empty('Ainda sem pacotes.', 'package')}</div>`}</div>
     <div id="pl-pac-near">${nearHtml()}</div>

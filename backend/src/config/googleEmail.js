@@ -19,6 +19,7 @@ function getEmailOAuth2Client() {
 }
 
 function getStoredEmailTokens(organizationId) {
+  if(require('../services/stagingPolicy').isStaging())return null;
   const row = db.prepare(
     'SELECT tokens FROM google_email_connections WHERE organization_id = ?'
   ).get(organizationId);
@@ -84,6 +85,8 @@ function encodeFromHeader(from) {
 }
 
 async function sendViaGmail(organizationId, { to, subject, html, from, bcc, threadId, inReplyTo, references }) {
+  if(require('../services/platformTrials').isDemo(organizationId) || require('../services/platformTrials').blocked(organizationId)) throw httpError('Envio indisponível neste acesso de teste.',403);
+  if(require('../services/stagingPolicy').isStaging())throw httpError('Envios externos desligados no ambiente de testes.',403);
   const invalid = () => { throw httpError('Cabeçalho ou endereço de email inválido.', 400); };
   for (const value of [to, subject, from, bcc, threadId, inReplyTo, references]) {
     if (value != null && (typeof value !== 'string' || /[\x00-\x1f\x7f]/.test(value))) invalid();

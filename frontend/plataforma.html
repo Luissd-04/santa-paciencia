@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="/css/v2/plataforma-tarefas.css">
 <link rel="stylesheet" href="/css/v2/plataforma-comunicados.css">
 <link rel="stylesheet" href="/css/v2/plataforma-pacotes.css">
+<link rel="stylesheet" href="/css/v2/plataforma-areas.css">
 <script src="/js/domain/appearance.js"></script>
 <script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js" integrity="sha384-bdZtphetAEBgkGZvhZXOFDWc55tHGLqaSo1f4qZtgvEiolEBqlJ9u6FTk+CoLfj0" crossorigin="anonymous"></script>
 </head>
@@ -34,18 +35,7 @@
       <span class="pl-brand-text"><b>Santa Paciência</b><small>Plataforma</small></span>
       <button type="button" class="pl-icon-btn pl-close" aria-label="Fechar menu" data-on-click="pl-gaveta-fechar"><i data-lucide="x"></i></button>
     </div>
-    <nav class="pl-nav" id="pl-nav">
-      <a class="pl-nav-item" href="/plataforma" data-nav="geral" data-on-click="pl-ir"><i data-lucide="layout-list"></i><span>Visão geral</span></a>
-      <a class="pl-nav-item" href="/plataforma/clientes" data-nav="clientes" data-on-click="pl-ir"><i data-lucide="building-2"></i><span>Clientes</span></a>
-      <a class="pl-nav-item" href="/plataforma/utilizacao" data-nav="utilizacao" data-on-click="pl-ir"><i data-lucide="bar-chart-2"></i><span>Utilização</span></a>
-      <a class="pl-nav-item" href="/plataforma/incidentes" data-nav="incidentes" data-on-click="pl-ir"><i data-lucide="alert-triangle"></i><span>Incidentes</span></a>
-      <a class="pl-nav-item" href="/plataforma/registo" data-nav="registo" data-on-click="pl-ir"><i data-lucide="history"></i><span>Registo</span></a>
-      <a class="pl-nav-item" href="/plataforma/suporte" data-nav="suporte" data-on-click="pl-ir"><i data-lucide="inbox"></i><span>Suporte</span><em id="pl-badge-suporte" hidden></em></a>
-      <span class="pl-nav-sec">Equipa</span>
-      <a class="pl-nav-item" href="/plataforma/tarefas" data-nav="tarefas" data-on-click="pl-ir"><i data-lucide="kanban-square"></i><span>Tarefas</span><em id="pl-badge-tarefas" hidden></em></a>
-      <a class="pl-nav-item" href="/plataforma/comunicados" data-nav="comunicados" data-on-click="pl-ir"><i data-lucide="megaphone"></i><span>Comunicados</span></a>
-      <a class="pl-nav-item" href="/plataforma/pacotes" data-nav="pacotes" data-on-click="pl-ir"><i data-lucide="tag"></i><span>Pacotes</span></a>
-    </nav>
+    <nav class="pl-nav" id="pl-nav" aria-label="Áreas de trabalho"></nav>
     <div class="pl-side-foot">
       <div class="pl-look">
         <span class="pl-look-label" id="pl-look-label">Aspeto</span>
@@ -55,6 +45,7 @@
           <button type="button" data-look="escuro" aria-pressed="false" data-on-click="pl-aspeto" data-args-click="[&quot;escuro&quot;]">Vidro escuro</button>
         </div>
       </div>
+      <button type="button" class="pl-back" data-on-click="pl-logout">Terminar sessão</button>
       <a class="pl-back" href="/dashboard"><i data-lucide="arrow-left"></i><span>Voltar à app</span></a>
     </div>
   </aside>
@@ -79,6 +70,7 @@
 <script src="/js/domain/actions.js"></script>
 <script src="/js/helpers.js"></script>
 <script src="/js/domain/libraries.js"></script>
+<script src="/js/plataforma/areas.js"></script>
 <script src="/js/plataforma/api.js"></script>
 <script src="/js/plataforma/format.js"></script>
 <script src="/js/plataforma/graficos.js"></script>
@@ -92,6 +84,8 @@
 <script src="/js/plataforma/tarefas.js"></script>
 <script src="/js/plataforma/comunicados.js"></script>
 <script src="/js/plataforma/pacotes.js"></script>
+<script src="/js/plataforma/workspace.js"></script>
+<script src="/js/plataforma/trials.js"></script>
 <script src="/js/plataforma/shell.js"></script>
 </body>
 </html>

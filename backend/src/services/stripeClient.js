@@ -15,13 +15,13 @@ function stripeConfig() {
   // Cobranças reais exigem duas decisões explícitas: modo live e ambiente de
   // produção. Isto impede uma chave live colada por engano no desenvolvimento.
   const environmentAllowed = !livemode || process.env.NODE_ENV === 'production';
-  const ready = keyMatchesMode && environmentAllowed && webhookSecret.startsWith('whsec_')
+  const ready = !require('./stagingPolicy').isStaging() && keyMatchesMode && environmentAllowed && webhookSecret.startsWith('whsec_')
     && !!organizationId && !!configuredOrigin();
   return { key, organizationId, webhookSecret, mode, livemode, ready };
 }
 function stripeEnabled(organizationId) {
   const config = stripeConfig();
-  return config.ready && config.organizationId === organizationId;
+  return config.ready && config.organizationId === organizationId && !require('./platformTrials').isDemo(organizationId) && !require('./platformTrials').blocked(organizationId);
 }
 function getStripe() {
   const config = stripeConfig();

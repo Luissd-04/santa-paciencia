@@ -12,6 +12,10 @@ const LIMIT = 50;
 const ACTIONS = {
   'platform.unlock': 'Consola desbloqueada',
   'platform.unlock_failed': 'Tentativa de desbloqueio falhada',
+  'workspace.create':'Registo interno criado','workspace.update':'Registo interno alterado','workspace.delete':'Registo interno eliminado','workspace.comment':'Comentário interno adicionado','workspace.export':'Gestão interna exportada','workspace.role':'Papel da equipa alterado','workspace.settings':'Configurações internas alteradas','trial.create':'Acesso de teste criado','trial.extend':'Teste prolongado','trial.close':'Teste encerrado','trial.convert':'Teste convertido em cliente','trial.invite':'Convite de teste renovado',
+  'organization.create': 'Estabelecimento criado',
+  'support.delete': 'Pedido eliminado',
+  'support.attachment_delete': 'Anexo eliminado',
   'organization.update': 'Cliente atualizado',
   'support.status': 'Estado do pedido alterado',
   'plan.create': 'Pacote criado',
@@ -60,6 +64,7 @@ function targetName(row) {
 function targetHtml(row) {
   if (!row.target_type && !row.target_id) return '<span class="pl-muted">—</span>';
   const kind = TARGETS[row.target_type] || (row.target_type ? String(row.target_type) : '');
+  if(row.target_type==='workspace'&&row.target_id){let d=row.details;if(typeof d==='string'){try{d=JSON.parse(d);}catch{d=null;}}return fmt.link(AppModules.consola.areas.recordHref(d?.kind,row.target_id),'Registo interno','pl-target');}
   if (row.target_type === 'organization' && row.target_id != null) {
     const name = state.orgs.get(String(row.target_id));
     return fmt.link(fmt.orgHref(row.target_id), esc(name || `${kind} ${row.target_id}`), 'pl-target');

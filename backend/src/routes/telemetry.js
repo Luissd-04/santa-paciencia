@@ -11,6 +11,7 @@ router.post('/', telemetryLimiter, (req, res) => {
   if (!req.user.organization_id) return res.status(204).end();
   const { views, display_mode: displayMode } = req.body || {};
   recordUsage({ organizationId: req.user.organization_id, sessionId: req.sessionId, views, displayMode });
+  require('../services/platformDiagnostics').recordErrors(req.user.organization_id, req.body?.errors);
   res.status(204).end();
 });
 

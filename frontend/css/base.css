@@ -134,3 +134,5 @@ body.auth-ready::before {
   /* o scrim do bottom-sheet nunca ocupa espaço no desktop */
   .m-sheet-backdrop { display: none; }
 }
+
+.trial-access-banner { position:fixed; bottom:12px; left:50%; transform:translateX(-50%); z-index:1500; width:max-content; max-width:calc(100vw - 24px); padding:10px 16px; border-radius:12px; background:#843424; color:#fff; box-shadow:0 4px 20px #0002; font:500 13px system-ui,sans-serif; text-align:center; }

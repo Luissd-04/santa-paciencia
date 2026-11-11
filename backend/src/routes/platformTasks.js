@@ -6,9 +6,9 @@ const { recordPlatformAudit } = require('../services/platformAccess');
 const audit = (req, action, id, details = null) =>
   recordPlatformAudit({ userId: req.user.id, action, targetType: 'platform_task', targetId: id, details, ip: req.ip });
 
-router.get('/', (req, res) => res.json({ success: true, data: tasks.list(req.user, { assignee: req.query.assignee, type: req.query.type }) }));
+router.get('/', (req, res) => res.json({ success: true, data: tasks.list(req.user, { assignee: req.query.assignee, type: req.query.type, department: req.query.department, organization_id:req.query.organization_id, record_id:req.query.record_id }) }));
 router.get('/summary', (req, res) => res.json({ success: true, data: tasks.summary(req.user) }));
-router.get('/:id', (req, res) => res.json({ success: true, data: tasks.get(req.params.id) }));
+router.get('/:id', (req, res) => res.json({ success: true, data: tasks.get(req.params.id, req.user) }));
 router.post('/', (req, res) => {
   const data = tasks.create(req.user, req.body || {});
   audit(req, 'task.create', data.id, { type: data.type, status: data.status });
@@ -20,7 +20,7 @@ router.put('/:id', (req, res) => {
   res.json({ success: true, data: task });
 });
 router.delete('/:id', (req, res) => {
-  const { id } = tasks.remove(req.params.id);
+  const { id } = tasks.remove(req.params.id, req.user);
   audit(req, 'task.delete', id);
   res.json({ success: true, data: { id } });
 });

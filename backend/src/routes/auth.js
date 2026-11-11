@@ -106,6 +106,8 @@ function serializeUser(user) {
     menu_prefs: user.organization_id ? require('../services/menuPrefs').get(user.id, user.organization_id) : null,
     appearance: require('../services/appearancePrefs').get(user.id),
     is_platform_admin: require('../services/platformAccess').isPlatformAdmin(user),
+    trial_access: user.trial_access || null,
+    platform_role: require('../services/platformAccess').platformRole(user),
   };
 }
 
@@ -157,6 +159,7 @@ router.post('/login', loginLimiter, require('../middleware/rateLimiter').loginAc
     if (destinations.organizations.length) ({ sessionId } = createSession(user.id, null, null, sessionMeta(req)));
     else if (destinations.platform) ({ sessionId } = createPlatformSession(user.id, null, sessionMeta(req)));
     else if (onlySuspendedMemberships(user.id)) return res.status(403).json({ success: false, error: SUSPENDED_MESSAGE, suspended: true });
+    else if(db.prepare('SELECT organization_id FROM memberships WHERE user_id=? AND active=1').all(user.id).some(m=>require('../services/platformTrials').blocked(m.organization_id))) return res.status(403).json({success:false,error:'O período de teste terminou ou foi encerrado. Contacte a equipa Santa Paciência.',trial_expired:true});
     else return res.status(403).json({ success: false, error: 'O utilizador não pertence a nenhuma organização ativa.' });
     setSessionCookie(res, sessionId);
     const sessionUser = require('../services/authService').getSessionUser(sessionId);
@@ -256,7 +259,7 @@ router.get('/memberships', requireAuth, (req, res) => {
     JOIN organizations o ON o.id = m.organization_id
     WHERE m.user_id = ? AND m.active = 1 AND o.status != 'suspended'
     ORDER BY CASE m.role WHEN 'owner' THEN 1 WHEN 'manager' THEN 2 ELSE 3 END, m.created_at ASC
-  `).all(req.user.id);
+  `).all(req.user.id).filter(m => !require('../services/platformTrials').blocked(m.organization_id));
   res.json({ success: true, data: { memberships } });
 });
 

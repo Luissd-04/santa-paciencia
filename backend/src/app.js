@@ -1,3 +1,4 @@
+require('./services/stagingPolicy').assertStagingEnvironment();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -40,6 +41,7 @@ if (/^(true|false)$/i.test(trustProxy)) throw new Error('TRUST_PROXY deve indica
 if (trustProxy) app.set('trust proxy', trustProxy.split(',').map(value => value.trim()).filter(Boolean));
 if (IS_PROD) configuredOrigin();
 app.disable('x-powered-by');
+if(require('./services/stagingPolicy').isStaging())app.use((_req,res,next)=>{res.set({'X-App-Environment':'staging','X-Robots-Tag':'noindex, nofollow, noarchive'});next();});
 
 // Eventos e scripts da aplicação são externos. CSS inline continua necessário
 // nos componentes e nos modelos; não dá permissão para executar JavaScript.

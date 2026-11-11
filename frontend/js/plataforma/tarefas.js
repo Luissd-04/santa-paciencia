@@ -14,13 +14,14 @@ const core = () => AppModules.core;
 const BASE = '/api/platform/tasks';
 const PREFILL_KEY = 'pl-tarefa-prefill';
 
+const DEPARTMENTS={sales:'Comercial',clients:'Clientes',support:'Suporte',marketing:'Marketing',finance:'Finanças',product:'Produto',operations:'Operações',administration:'Administração'};
 const COLUMNS = [['ideas', 'Ideias'], ['todo', 'A fazer'], ['doing', 'Em curso'], ['done', 'Feito']];
 const TYPES = { idea: ['Ideia', 'violet'], bug: ['Bug', 'bad'], improvement: ['Melhoria', 'info'], marketing: ['Marketing', 'warn'], client: ['Cliente', 'ok'] };
 const colName = key => COLUMNS.find(c => c[0] === key)?.[1] || key;
 
 const st = {
   ctx: null, me: null, tasks: [], people: [], orgs: [],
-  person: 'all', type: 'all', q: '', col: 'todo',
+  department: '', recordFilter:'', orgFilter:'', person: 'all', type: 'all', q: '', col: 'todo',
   selected: null, detail: null, mode: 'none', draft: null, error: '', busy: false, confirmDelete: false,
 };
 
@@ -36,6 +37,8 @@ function linkText(t) {
   const parts = [];
   if (t.ticket?.number) parts.push(t.ticket.number);
   if (t.organization?.name) parts.push(t.organization.name);
+  if(t.record?.title)parts.push(t.record.title);
+  if(t.department)parts.push(DEPARTMENTS[t.department]||'');
   return parts.join(' · ');
 }
 const typeChip = type => { const [label, tone] = TYPES[type] || [String(type), 'neutral']; return fmt.chip(tone, label); };
@@ -58,6 +61,7 @@ function visible() {
   const term = st.q.trim().toLowerCase();
   return st.tasks.filter(t => (st.person === 'all' || (st.person === 'me' ? t.assignee?.id === st.me : t.assignee?.id === st.person))
     && (st.type === 'all' || t.type === st.type)
+    && (!st.department || t.department===st.department) && (!st.orgFilter || t.organization?.id===st.orgFilter) && (!st.recordFilter || t.record?.id===st.recordFilter)
     && (!term || `${t.title} ${t.description || ''} ${t.ticket?.number || ''} ${t.organization?.name || ''}`.toLowerCase().includes(term)));
 }
 
@@ -107,6 +111,7 @@ function formHtml() {
     ${field('Título', 'tk-f-title', `<input class="form-control" id="tk-f-title" name="title" maxlength="140" required value="${esc(d.title)}">`)}
     ${field('Descrição', 'tk-f-desc', `<textarea class="form-control" id="tk-f-desc" name="description" rows="4" maxlength="4000">${esc(d.description)}</textarea>`)}
     <div class="tk-two">
+      ${field('Área', 'tk-f-department', sel('tk-f-department','department',Object.entries(DEPARTMENTS).filter(([k])=>AppModules.consola.canManage||!['finance','administration'].includes(k)),d.department))}
       ${field('Tipo', 'tk-f-type', sel('tk-f-type', 'type', Object.entries(TYPES).map(([k, v]) => [k, v[0]]), d.type))}
       ${field('Prioridade', 'tk-f-prio', sel('tk-f-prio', 'priority', [['normal', 'Normal'], ['urgent', 'Urgente']], d.priority))}
       ${field('Coluna', 'tk-f-status', sel('tk-f-status', 'status', COLUMNS, d.status))}
@@ -130,7 +135,8 @@ function detailHtml() {
   const moves = COLUMNS.filter(([k]) => k !== t.status);
   const ticket = t.ticket ? fmt.link(`/plataforma/suporte/${encodeURIComponent(t.ticket.id)}`, esc(t.ticket.number || 'Pedido'), 'v2-link') : '';
   const org = t.organization ? fmt.link(fmt.orgHref(t.organization.id), esc(t.organization.name), 'v2-link') : '';
-  const linked = [ticket, org].filter(Boolean).join(' · ') || '—';
+  const record=t.record?fmt.link(AppModules.consola.areas.recordHref(t.record.kind,t.record.id),esc(t.record.title),'v2-link'):'';
+  const linked = [ticket, org, record].filter(Boolean).join(' · ') || '—';
   return `<div class="tk-chips">${typeChip(t.type)}${t.priority === 'urgent' ? fmt.chip('bad', 'Urgente') : ''}${fmt.chip('neutral', colName(t.status))}</div>
     <h2>${esc(t.title)}</h2>
     <p class="tk-desc">${t.description ? esc(t.description) : '<span class="pl-muted">Sem descrição.</span>'}</p>
@@ -185,6 +191,7 @@ function paintFilters() {
 const page = {
   async render(ctx) {
     st.ctx = ctx;
+    const query=new URLSearchParams(location.search);st.department=query.get('department')||'';st.orgFilter=query.get('organization_id')||'';st.recordFilter=query.get('record_id')||'';if(ctx.route.key==='minhas')st.person='me';
     Object.assign(st, { selected: null, detail: null, mode: 'none', draft: null, error: '', busy: false, confirmDelete: false });
     const [me, data, orgs] = await Promise.all([api.me(), core().apiGet(BASE), api.orgs().catch(() => [])]);
     if (ctx.stale()) return;
@@ -195,6 +202,7 @@ const page = {
     if (st.person !== 'all' && st.person !== 'me' && !st.people.some(p => p.id === st.person)) st.person = 'all';
     ctx.host.innerHTML = `<div class="pl-page tk-page">
       <div class="pl-toolbar tk-toolbar">
+        <label class="pl-label" for="tk-area">Área</label><select class="form-control" id="tk-area" ${AppActions.attrs('change','tk-area')}><option value="">Todas as áreas</option>${Object.entries(DEPARTMENTS).filter(([k])=>AppModules.consola.canManage||!['finance','administration'].includes(k)).map(([k,v])=>`<option value="${k}"${st.department===k?' selected':''}>${esc(v)}</option>`).join('')}</select>
         <div id="tk-f-pessoa">${pillsPessoa()}</div>
         <div id="tk-f-tipo">${pillsTipo()}</div>
         <div class="search-box pl-search"><i data-lucide="search"></i>
@@ -207,6 +215,7 @@ const page = {
       </div></div>`;
     refreshBadge();
     consumePrefill();
+    if(query.get('task'))await open(query.get('task'));
   },
 };
 
@@ -219,7 +228,7 @@ function consumePrefill() {
 }
 
 function blankDraft(status, extra = {}) {
-  return { title: '', description: '', type: 'improvement', priority: 'normal', status, assignee_user_id: st.me || '', due_date: '', organization_id: '', ticket_id: '', ticket_number: '', ...extra };
+  return { department:st.department||'product',record_id:'',record_title:'', title: '', description: '', type: 'improvement', priority: 'normal', status, assignee_user_id: st.me || '', due_date: '', organization_id: '', ticket_id: '', ticket_number: '', ...extra };
 }
 function openNew(status, extra = {}) {
   st.selected = null; st.detail = null; st.mode = 'new'; st.error = ''; st.confirmDelete = false;
@@ -259,7 +268,7 @@ async function save(form) {
   const body = {
     title: String(f.get('title') || '').trim(), description: String(f.get('description') || ''), type: f.get('type'), priority: f.get('priority'),
     status: f.get('status'), assignee_user_id: f.get('assignee_user_id') || null, due_date: f.get('due_date') || null,
-    organization_id: f.get('organization_id') || null,
+    organization_id: f.get('organization_id') || null, department:f.get('department'), record_id:st.draft.record_id||null,
   };
   if (!body.title) { st.draft = { ...st.draft, ...body, due_date: body.due_date || '', assignee_user_id: body.assignee_user_id || '', organization_id: body.organization_id || '' }; st.error = 'Escreva o título da tarefa.'; paintPanel(); return; }
   if (st.mode === 'new' && st.draft.ticket_id) body.ticket_id = st.draft.ticket_id;
@@ -331,7 +340,7 @@ async function remove() {
 
 function edit() {
   const t = st.detail;
-  st.draft = { title: t.title, description: t.description || '', type: t.type, priority: t.priority, status: t.status,
+  st.draft = { department:t.department||'product',record_id:t.record?.id||'',record_title:t.record?.title||'', title: t.title, description: t.description || '', type: t.type, priority: t.priority, status: t.status,
     assignee_user_id: t.assignee?.id || '', due_date: t.due_date || '', organization_id: t.organization?.id || '', ticket_id: t.ticket?.id || '', ticket_number: t.ticket?.number || '' };
   st.mode = 'edit'; st.error = '';
   paintPanel({ focus: true });
@@ -357,6 +366,6 @@ AppActions.register({
   'tk-apagar': () => remove(),
 }, 'click');
 AppActions.register({ 'tk-pesquisa': el => { st.q = el.value; paintBoard(); } }, 'input');
-AppActions.register({ 'tk-mover': el => move(el) }, 'change');
+AppActions.register({ 'tk-mover': el => move(el), 'tk-area':el=>{st.department=el.value;paintBoard();} }, 'change');
 AppActions.register({ 'tk-guardar': (el, event) => { event.preventDefault(); return save(el); } }, 'submit');
 })();

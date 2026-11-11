@@ -36,6 +36,8 @@ runner.register('daily_summary', {
   intervalMs: fromEnv('PUSH_SUMMARY_INTERVAL_MS', 15 * MINUTE),
   run: () => require('./pushScheduler').sendDailySummaries(),
 });
+runner.register('trial_followups',{label:'Acompanhamento dos acessos de teste',intervalMs:60*MINUTE,run:()=>require('./platformTrials').followups()});
+runner.register('support_retention', { label: 'Conservação dos pedidos de suporte', intervalMs: 60 * MINUTE, run: () => require('./platformSupportTools').cleanup() });
 runner.register('platform_stats', {
   label: 'Estatísticas da plataforma',
   intervalMs: fromEnv('PLATFORM_STATS_INTERVAL_MS', 60 * MINUTE),

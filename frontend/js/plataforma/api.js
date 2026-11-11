@@ -80,6 +80,7 @@ const api = {
       throw error;
     }
   },
+  async createOrg(body) { const payload = await guard(() => core().apiPost('/api/platform/organizations', body)); cache.clear(); return payload?.data; },
   async saveOrg(id, body) {
     const payload = await guard(() => core().apiPut(`/api/platform/organizations/${encodeURIComponent(id)}`, body));
     const updated = payload?.data;

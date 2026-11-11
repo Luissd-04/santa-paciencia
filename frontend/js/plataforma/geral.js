@@ -129,9 +129,9 @@ function trendCards(trends) {
 const page = {
   async render(ctx) {
     live.ctx = ctx;
-    const [overview, orgs, incidents, trends, support, health, attention, stats] = await Promise.all([api.overview(), api.orgs(), api.incidents(), api.trends(12),
+    const [overview, orgs, incidents, trends, support, health, attention, stats, workspace] = await Promise.all([api.overview(), api.orgs(), api.incidents(), api.trends(12),
       // O Suporte não pode partir a visão geral: só o desbloqueio sobe à moldura.
-      optional(api.supportTickets()), optional(api.health()), optional(api.attention()), optional(api.supportStats())]);
+      optional(api.supportTickets()), optional(api.health()), optional(api.attention()), optional(api.supportStats()), optional(AppModules.core.apiGet('/api/platform/workspace/summary').then(r=>r.data))]);
     if (ctx.stale()) return;
     live.at = Date.now();
     live.busy = false;
@@ -156,6 +156,7 @@ const page = {
         ${tile('Incidentes ativos', overview.active_incidents, providers.length ? providers.slice(0, 3).join(' · ') : 'sem incidentes', '/plataforma/incidentes')}
         ${tile('Inativos há 14+ dias', overview.inactive_14d, 'organizações sem atividade', '/plataforma/clientes', 'inactive')}
       </div>
+      ${workspace?`<section class="v2-card v2-dense"><div class="v2-card-h"><h3>Gestão do negócio</h3></div><div class="ws-tabs">${fmt.link('/plataforma/comercial/contactos',`${num(workspace.counts.lead)} contactos comerciais`)}${fmt.link('/plataforma/marketing/campanhas',`${num(workspace.counts.campaign)} campanhas`)}${fmt.link('/plataforma/produto/pedidos',`${num(workspace.counts.issue)} bugs e sugestões`)}${workspace.finance?fmt.link('/plataforma/financas',`${(workspace.finance.overdue_cents/100).toLocaleString('pt-PT',{style:'currency',currency:'EUR'})} por receber em atraso`):''}</div></section>`:''}
       ${healthHtml(health || [], orgs)}
       <div class="pl-charts">${trendCards(trends)}</div>
       <div class="pl-three">

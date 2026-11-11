@@ -45,6 +45,12 @@ Definir no `.env` um `DB_PATH` local e o caminho absoluto de `FRONTEND_PATH`.
 Desativar email com `EMAIL_ENABLED=false` quando não se pretende enviar mensagens
 reais. As chaves de teste oficiais do Turnstile estão comentadas no template.
 
+## Ambiente de testes no TrueNAS
+
+Para a instalação independente de testes, consultar
+[Ambiente de testes no TrueNAS](AMBIENTE-TESTES-TRUENAS.md).
+Usar o Compose e as pastas exclusivos desse ambiente.
+
 ## Publicação com Docker
 
 O Compose monta `./data` em `/app/data` (base, uploads, chave dos tokens) e

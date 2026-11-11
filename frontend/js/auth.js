@@ -417,7 +417,14 @@ function setAuthenticatedLayout(isAuthenticated) {
   if (layout) layout.style.display = isAuthenticated ? 'flex' : 'none';
   document.body.classList.toggle('auth-locked', !isAuthenticated);
   document.body.classList.toggle('auth-ready', isAuthenticated);
-  // Aspeto da pessoa; sem sessão fica o deste aparelho.
+  let trialBanner=document.getElementById('trial-access-banner');
+  const trial=AppModules.core.currentUser?.trial_access;
+  if(isAuthenticated && trial && !trial.converted_at) {
+    if(!trialBanner){trialBanner=document.createElement('div');trialBanner.id='trial-access-banner';trialBanner.className='trial-access-banner';trialBanner.setAttribute('role','status');document.body.prepend(trialBanner);}
+    trialBanner.textContent=(trial.mode==='demo'?'Demonstração — dados fictícios. Email, pagamentos e integrações externas desligados.':'Acesso de teste privado.')+(trial.expires_at?' Válido até '+new Date(trial.expires_at).toLocaleDateString('pt-PT')+'.':'');
+  }else trialBanner?.remove();
+  // O login fica sempre no Clássico, sem alterar a preferência da conta.
+  window.AppAppearance?.setLogin(!isAuthenticated);
   if (isAuthenticated) window.AppAppearance?.apply(AppModules.core.currentUser?.appearance);
   if (isAuthenticated && document.documentElement.dataset.look) AppModules.core.ensureFeature('v2');
   updateUserBadge();

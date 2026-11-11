@@ -94,6 +94,7 @@ function refreshDailyStats(now = new Date()) {
         upsert.run(day, id, users.get(id) || 0, sessions.get(id) || 0, created.get(id) || 0, day === today ? problems.get(id) : null);
       }
     }
+    db.prepare('DELETE FROM platform_diagnostics_daily WHERE day < ?').run(limit);
     db.prepare('DELETE FROM usage_daily WHERE day < ?').run(limit);
     db.prepare('DELETE FROM daily_activity WHERE day < ?').run(limit);
     db.prepare('DELETE FROM platform_daily_stats WHERE day < ?').run(limit);

@@ -25,6 +25,11 @@ router.post('/unlock', platformUnlockLimiter, async (req, res) => {
 });
 
 router.get('/overview', (_req, res) => res.json({ success: true, data: platform.getOverview() }));
+router.post('/organizations', (req, res) => {
+  const data = require('../services/platformOnboarding').create(req.body, req.user.id);
+  recordPlatformAudit({ userId: req.user.id, action: 'organization.create', targetType: 'organization', targetId: data.id, ip: req.ip });
+  res.status(201).json({ success: true, data });
+});
 router.get('/organizations', (_req, res) => res.json({ success: true, data: platform.listOrganizations() }));
 router.get('/organizations/:id', (req, res) => res.json({ success: true, data: platform.getOrganization(req.params.id) }));
 router.put('/organizations/:id', (req, res) => {
@@ -38,6 +43,7 @@ router.get('/trends', (req, res) => res.json({ success: true, data: analytics.ge
 router.get('/usage', (req, res) => res.json({ success: true, data: analytics.getUsage(req.query.days) }));
 router.get('/audit', (req, res) => res.json({ success: true, data: analytics.listAudit({ limit: req.query.limit, before: req.query.before }) }));
 router.get('/incidents', (_req, res) => res.json({ success: true, data: platform.listIncidents() }));
+router.get('/diagnostics', (_req, res) => res.json({ success: true, data: require('../services/platformDiagnostics').summary() }));
 router.get('/health', (_req, res) => res.json({ success: true, data: health.getHealth() }));
 router.get('/attention', (req, res) => res.json({ success: true, data: health.getAttention({ userId: req.user.id }) }));
 router.get('/support-stats', (_req, res) => res.json({ success: true, data: health.getSupportStats() }));
@@ -45,6 +51,15 @@ router.get('/support-stats', (_req, res) => res.json({ success: true, data: heal
 // Suporte: caixa de entrada de todos os pedidos (já atrás do requirePlatformAdmin
 // e da consola desbloqueada). O parser de 15 MB das mensagens está em app.js.
 const supportRouter = require('express').Router();
+const tools = require('../services/platformSupportTools');
+supportRouter.get('/saved-replies', (_req, res) => res.json({ success: true, data: tools.listReplies() }));
+supportRouter.post('/saved-replies', (req, res) => res.status(201).json({ success: true, data: tools.saveReply(null, req.body) }));
+supportRouter.put('/saved-replies/:id', (req, res) => res.json({ success: true, data: tools.saveReply(req.params.id, req.body) }));
+supportRouter.delete('/saved-replies/:id', (req, res) => { tools.deleteReply(req.params.id); res.status(204).end(); });
+supportRouter.put('/retention', (req, res) => res.json({ success: true, data: tools.setRetention(req.body?.days, req.user.id) }));
+supportRouter.get('/retention', (_req, res) => res.json({ success: true, data: { days: tools.retentionDays() } }));
+supportRouter.delete('/tickets/:id', (req, res) => { tools.removeTicket(req.params.id, req.user.id); res.status(204).end(); });
+supportRouter.delete('/attachments/:id', (req, res) => { tools.removeAttachment(req.params.id, req.user.id); res.status(204).end(); });
 supportRouter.get('/tickets', async (req, res) => {
   const { status, type, q, organization_id } = req.query;
   res.json({ success: true, data: await support.listForPlatform({ status, type, q, organization_id }) });
@@ -65,6 +80,7 @@ supportRouter.get('/attachments/:id', (req, res) => {
   supportAttachments.streamAttachment(res, row);
 });
 router.use('/support', supportRouter);
+router.use('/workspace', require('./platformWorkspace'));
 router.use('/tasks', require('./platformTasks'));
 router.use('/announcements', require('./platformAnnouncements'));
 router.use('/plans', require('./platformPlans'));

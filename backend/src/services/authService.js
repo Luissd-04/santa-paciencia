@@ -111,6 +111,8 @@ function createSession(userId, organizationId, oldSessionId = null, meta = {}) {
     throw new Error('O utilizador não pertence a nenhuma organização ativa.');
   }
   if (organizationStatus(membership.organization_id) === 'suspended') throw suspendedError();
+  require('./platformTrials').assertAllowed(membership.organization_id);
+  require('./platformTrials').begin(membership.organization_id);
 
   return insertSession(userId, membership.organization_id, oldSessionId, meta);
 }
@@ -134,7 +136,7 @@ function getDestinations(userId) {
     JOIN organizations o ON o.id = m.organization_id
     WHERE m.user_id = ? AND m.active = 1 AND o.status != 'suspended'
     ORDER BY CASE m.role WHEN 'owner' THEN 1 WHEN 'manager' THEN 2 ELSE 3 END, m.created_at ASC
-  `).all(userId);
+  `).all(userId).filter(o => !require('./platformTrials').blocked(o.id));
   return { platform: require('./platformAccess').isPlatformAdmin({ id: userId }), organizations };
 }
 
@@ -201,6 +203,7 @@ function getSessionUser(sessionId) {
     organization_name: platformOnly ? null : row.organization_name,
     organization_slug: platformOnly ? null : row.organization_slug,
     organization_status: platformOnly ? null : row.organization_status,
+    trial_access: platformOnly ? null : require('./platformTrials').access(row.organization_id),
     platform_only: platformOnly,
   };
 }

@@ -255,7 +255,7 @@ a.pl-att:hover { background: var(--v2-accent-soft); }
   .pl-reply-bar .btn-primary { width: 100%; }
 }
 
-@media (max-width: 1199px) {
+@media (max-width: 1499px) {
   .pl-th.pl-client { display: none; }
   .pl-client { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nome prob" "resumo resumo" "ints ints"; row-gap: 6px; }
   .pl-client > .v2-row-text { grid-area: nome; }

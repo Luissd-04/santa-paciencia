@@ -4,6 +4,16 @@ const {
   publicBookingLimiter, voucherLimiter, preCheckinLookupLimiter, preCheckinSubmitLimiter,
 } = require('../middleware/rateLimiter');
 
+router.use((req,res,next)=>{
+  const match=/^\/(booking|reservation|pre-checkin)\/([^/]+)/.exec(req.path);
+  if(!match)return next();
+  let key;try{key=decodeURIComponent(match[2]);}catch{return res.status(404).end();}
+  const {db}=require('../config/database');
+  const row=match[1]==='booking'?db.prepare('SELECT organization_id FROM accommodations WHERE public_slug=?').get(key):match[1]==='reservation'?db.prepare('SELECT organization_id FROM reservations WHERE public_token=?').get(key):db.prepare('SELECT organization_id FROM reservations WHERE precheckin_token=?').get(key);
+  const trials=require('../services/platformTrials');
+  if(row&&(trials.isDemo(row.organization_id)||trials.blocked(row.organization_id)))return res.status(404).json({success:false,error:'Página indisponível.'});
+  next();
+});
 router.get('/booking/:slug', ctrl.getLanding);
 router.get('/booking/:slug/availability', ctrl.getAvailability);
 router.get('/booking/:slug/voucher', voucherLimiter, ctrl.validatePublicVoucher);

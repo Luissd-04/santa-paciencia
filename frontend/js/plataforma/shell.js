@@ -3,6 +3,7 @@
 // consola depois de api, format, gráficos e páginas estarem carregados.
 (() => {
 AppModules.define('consola', {
+  canManage: { get: () => st.user?.platform_role !== 'marketing' },
   mostrarBloqueio: { get: () => showLocked },
   contadorSuporte: { get: () => setSupportBadge },
   contadorTarefas: { get: () => setTasksBadge },
@@ -13,17 +14,7 @@ const api = AppModules.consola.api;
 const charts = AppModules.consola.charts;
 const { esc } = fmt;
 
-const ROUTES = [
-  { key: 'geral', path: '/plataforma', title: 'Visão geral', page: 'geral' },
-  { key: 'clientes', path: '/plataforma/clientes', title: 'Clientes', page: 'clientes' },
-  { key: 'utilizacao', path: '/plataforma/utilizacao', title: 'Utilização', page: 'utilizacao' },
-  { key: 'incidentes', path: '/plataforma/incidentes', title: 'Incidentes', page: 'incidentes' },
-  { key: 'suporte', path: '/plataforma/suporte', title: 'Suporte', page: 'suporte' },
-  { key: 'registo', path: '/plataforma/registo', title: 'Registo', page: 'registo' },
-  { key: 'tarefas', path: '/plataforma/tarefas', title: 'Tarefas', page: 'tarefas' },
-  { key: 'comunicados', path: '/plataforma/comunicados', title: 'Comunicados', page: 'comunicados' },
-  { key: 'pacotes', path: '/plataforma/pacotes', title: 'Pacotes', page: 'pacotes' },
-];
+const ROUTES = AppModules.consola.areas.routes;
 const LOOKS = [['classico', 'classico', 'auto', 'Clássico'], ['claro', 'vidro', 'claro', 'Vidro claro'], ['escuro', 'vidro', 'escuro', 'Vidro escuro']];
 
 const $ = id => document.getElementById(id);
@@ -36,25 +27,31 @@ function match(pathname) {
   const path = pathname.replace(/\/+$/, '') || '/';
   const found = ROUTES.find(r => r.path === path);
   if (found) return { ...found };
+  const record = ROUTES.find(r => r.kind && path.startsWith(r.path + '/') && !path.slice(r.path.length + 1).includes('/'));
+  if (record) { let id; try { id=decodeURIComponent(path.slice(record.path.length+1)); } catch { return {path,page:null,key:''}; } return {...record,path,page:'workspaceRecord',id}; }
   const detail = /^\/plataforma\/clientes\/([^/]+)$/.exec(path);
   if (detail) {
     let id = detail[1];
     try { id = decodeURIComponent(id); } catch { /* fica como veio */ }
-    return { key: 'clientes', path, title: 'Clientes', page: 'cliente', id };
+    return { area: 'clients', key: 'clientes', path, title: 'Clientes', page: 'cliente', id };
   }
   const ticket = /^\/plataforma\/suporte\/([^/]+)$/.exec(path);
   if (ticket) {
     let id = ticket[1];
     try { id = decodeURIComponent(id); } catch { /* fica como veio */ }
-    return { key: 'suporte', path, title: 'Suporte', page: 'pedido', id };
+    return { area: 'support', key: 'suporte', path, title: 'Suporte', page: 'pedido', id };
   }
   return { key: '', path, title: 'Página não encontrada', page: null };
 }
 
+function renderNavigation() {
+  $('pl-nav').innerHTML = AppModules.consola.areas.groups.filter(([area])=>AppModules.consola.canManage || !['finance','administration'].includes(area)).map(([area,title,icon,items])=>`<details class="pl-nav-group" data-area="${area}"><summary>${fmt.icon(icon,18)}<span>${esc(title)}</span></summary>${items.filter(([key])=>AppModules.consola.canManage||key!=='exports').map(([key,path,label])=>`<a class="pl-nav-item" href="${path}" data-nav="${key}" data-on-click="pl-ir"><span>${esc(label)}</span>${key==='suporte'?'<em id="pl-badge-suporte" hidden></em>':key==='tarefas'?'<em id="pl-badge-tarefas" hidden></em>':''}</a>`).join('')}</details>`).join('');
+}
 function mark(route) {
   document.querySelectorAll('#pl-nav [data-nav]').forEach(a => {
     if (a.dataset.nav === route.key) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
+  document.querySelectorAll('#pl-nav details').forEach(el => { if(el.dataset.area===route.area) el.open=true; });
   $('pl-title').textContent = route.title;
   document.title = `${route.title} · Plataforma · Santa Paciência`;
 }
@@ -107,6 +104,7 @@ async function load(route) {
   closeDrawer();
   if (st.denied) { showDenied(); return; }
   if (!route.page) { showNotFound(); return; }
+  if(!AppModules.consola.canManage && (['finance','administration'].includes(route.area)||route.key==='exports')) { show(`<div class="v2-card"><h3>Acesso reservado à Administração</h3></div>`);return; }
   show(loadingHtml);
   const ctx = { host: content(), route, stale: () => token !== st.token };
   if (route.key !== 'suporte') refreshSupportBadge();
@@ -122,7 +120,7 @@ async function load(route) {
 }
 
 function go(path, { replace = false } = {}) {
-  const route = match(path);
+  const route = match(new URL(path,location.origin).pathname);
   if (replace) history.replaceState({}, '', path); else history.pushState({}, '', path);
   window.scrollTo(0, 0);
   return load(route);
@@ -131,7 +129,7 @@ function go(path, { replace = false } = {}) {
 // ── Estados que ocupam a página toda ──
 function fail(error) {
   if (error?.status === 423 && error.payload?.locked === true) { showLocked(); return; }
-  if (error?.status === 404) { st.denied = true; showDenied(); return; }
+  if (error?.status === 404) { if(st.user?.is_platform_admin){showNotFound();return;}st.denied = true; showDenied(); return; }
   show(`<div class="pl-page"><div class="v2-card pl-notice"><h3>Não foi possível carregar</h3>
     <p class="v2-empty">${esc(error?.status === 501 ? 'Ainda sem dados.' : 'Verifique a ligação e tente novamente.')}</p>
     <button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'pl-recarregar')}>Tentar novamente</button></div></div>`);
@@ -244,6 +242,7 @@ AppActions.register({
     go(href);
     return false;
   },
+  'pl-logout': async () => { await AppModules.core.apiPost('/auth/logout', {}); location.replace('/'); },
   'pl-gaveta': () => (st.drawer ? closeDrawer() : openDrawer()),
   'pl-gaveta-fechar': () => closeDrawer({ focus: true }),
   'pl-recarregar': () => { api.reset(); return load(st.route || match(location.pathname)); },
@@ -266,6 +265,7 @@ async function boot() {
   catch (error) { fail(error); return; }
   if (!user) { location.replace('/'); return; }
   st.user = user;
+  renderNavigation();
   // Modo app ou browser desta sessão, uma vez (a consola não carrega a telemetria da app).
   try {
     const mode = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true ? 'standalone' : 'browser';

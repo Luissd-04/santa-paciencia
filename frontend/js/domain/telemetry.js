@@ -7,6 +7,7 @@
   // Sem protótipo: um nome de vista nunca colide com propriedades de Object.
   const pending = Object.create(null);
   let started = false;
+  const errors = Object.create(null);
   let firstSendDone = false;
 
   // «standalone» quando a app está instalada (PWA); senão «browser». Também
@@ -25,10 +26,11 @@
 
   function flush() {
     const views = { ...pending };
-    if (!Object.keys(views).length) return;
+    if (!Object.keys(views).length && !Object.keys(errors).length) return;
     for (const name in pending) delete pending[name];
 
-    const body = { views };
+    const body = { views, errors: { ...errors } };
+    for (const kind in errors) delete errors[kind];
     if (!firstSendDone) {
       body.display_mode = displayMode();
       firstSendDone = true;
@@ -59,6 +61,8 @@
     if (started) return;
     started = true;
     setInterval(flush, FLUSH_MS);
+    window.addEventListener('error', event => { if (!document.body.classList.contains('auth-ready')) return; const kind = event.target && event.target !== window ? 'resource' : 'script'; errors[kind] = Math.min(50, (errors[kind] || 0) + 1); }, true);
+    window.addEventListener('unhandledrejection', () => { if (document.body.classList.contains('auth-ready')) errors.promise = Math.min(50, (errors.promise || 0) + 1); });
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') flush();
     });

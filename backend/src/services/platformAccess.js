@@ -21,6 +21,11 @@ function isPlatformAdmin(user) {
   return !!row?.active && row.platform_admin === 1 && adminEmails().has(normalizeEmail(row.email));
 }
 
+function platformRole(user) {
+  if (!isPlatformAdmin(user)) return null;
+  return db.prepare('SELECT platform_role FROM users WHERE id = ?').get(user.id)?.platform_role === 'marketing' ? 'marketing' : 'admin';
+}
+
 // Confirma a palavra-passe (como o login) e abre a consola nesta sessão.
 // Devolve { unlockedUntil } ou null se a palavra-passe ou a sessão não servirem.
 async function unlock(sessionId, userId, password) {
@@ -54,4 +59,4 @@ function recordPlatformAudit({ userId = null, action, targetType = null, targetI
   }
 }
 
-module.exports = { UNLOCK_MINUTES, isPlatformAdmin, unlock, isUnlocked, recordPlatformAudit };
+module.exports = { UNLOCK_MINUTES, platformRole, isPlatformAdmin, unlock, isUnlocked, recordPlatformAudit };

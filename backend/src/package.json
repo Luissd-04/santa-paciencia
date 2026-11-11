@@ -10,6 +10,8 @@
     "test:http": "node scripts/check-http.cjs",
     "check": "node scripts/check-source.cjs",
     "test:browser": "node scripts/check-browser.cjs",
+    "test:departments": "node scripts/check-departments.cjs",
+    "test:console": "node scripts/check-console-c.cjs",
     "test:mobile": "node scripts/check-mobile-ux.cjs",
     "test:stripe": "node scripts/run-stripe-local-checkout.cjs",
     "measure:frontend": "node scripts/measure-frontend.cjs"

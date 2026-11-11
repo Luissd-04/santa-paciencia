@@ -1,5 +1,5 @@
 // Lido em cada envio: desligar o email (EMAIL_ENABLED=false) não exige reiniciar módulos.
-const emailDisabled = () => process.env.EMAIL_ENABLED === 'false';
+const emailDisabled = () => process.env.EMAIL_ENABLED === 'false' || require('./stagingPolicy').isStaging();
 const { httpError } = require('./httpError');
 
 // Lido no momento do envio (e não desestruturado), para a ligação Gmail poder
@@ -10,7 +10,7 @@ const composer = require('./emailComposer');
 const { isDeliverableEmail, isPlaceholderEmail } = require('./emailAddress');
 
 async function sendMail(organizationId, { to, subject, html, bcc, threadId, inReplyTo, references }) {
-  if (emailDisabled()) return null;
+  if (emailDisabled() || require('./platformTrials').isDemo(organizationId) || require('./platformTrials').blocked(organizationId)) return null;
   if (isPlaceholderEmail(to)) {
     console.warn('⚠️ Email não enviado: destinatário sem endereço real');
     return null;

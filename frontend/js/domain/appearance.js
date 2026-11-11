@@ -17,6 +17,7 @@
   const OWN_STYLES = meta('appearance-styles') === 'own';
   const FALLBACK = meta('appearance-fallback') === 'classico' ? 'classico' : null;
   let stylesLoaded = false;
+  let login = meta('appearance-login') === 'classico';
   let prefs = null;
   try { prefs = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { prefs = null; }
 
@@ -38,7 +39,7 @@
   }
 
   function resolve() {
-    const look = prefs?.look === 'classico' || prefs?.look === 'vidro' ? prefs.look : FALLBACK;
+    const look = login ? 'classico' : (prefs?.look === 'classico' || prefs?.look === 'vidro' ? prefs.look : FALLBACK);
     if (look && !OWN_STYLES) loadStyles();
     if (look) root.dataset.look = look; else delete root.dataset.look;
     const mode = look === 'vidro' ? (prefs.mode === 'escuro' || (prefs.mode !== 'claro' && dark.matches) ? 'escuro' : 'claro') : null;
@@ -61,6 +62,7 @@
   resolve();
   window.AppAppearance = Object.freeze({
     apply,
+    setLogin: value => { login = value === true; resolve(); },
     current: () => (prefs ? { ...prefs } : { look: 'atual', mode: 'auto' }),
   });
 })();

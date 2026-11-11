@@ -11,7 +11,7 @@ const api = AppModules.consola.api;
 const { esc, num } = fmt;
 const INACTIVE_MS = 14 * 86400000;
 const RISK = { high: ['bad', 'Alto'], medium: ['warn', 'Médio'], low: ['ok', 'Baixo'] };
-const state = { orgs: [], health: new Map(), search: '', filter: '', extra: '', sort: '' };
+const state = { orgs: [], health: new Map(), search: '', filter: '', extra: '', sort: '', plans: [], draft: null, created: null, busy: false };
 
 // `plan` é {id, name} ou null; aceita também o texto antigo.
 const planName = org => (org.plan && typeof org.plan === 'object' ? org.plan.name : org.plan) || '';
@@ -90,17 +90,51 @@ function refresh() {
   if (window.lucide) lucide.createIcons();
 }
 
+function creationHtml() {
+  if (!AppModules.consola.canManage) return '';
+  if (state.created) return `<section class="v2-card v2-dense"><h3>Estabelecimento criado</h3><p>Partilhe este convite com o proprietário. É válido durante 7 dias; o envio não é automático.</p><label class="pl-label" for="pl-cli-convite">Ligação de convite</label><input class="form-control" id="pl-cli-convite" readonly value="${esc(new URL(state.created.invitation_url, location.origin).href)}"><p>${fmt.link(fmt.orgHref(state.created.id), 'Abrir ficha do estabelecimento', 'btn btn-ghost')}</p><button type="button" class="btn btn-ghost" ${AppActions.attrs('click', 'pl-cli-fechar')}>Fechar</button></section>`;
+  if (!state.draft) return `<button type="button" class="btn btn-primary" ${AppActions.attrs('click', 'pl-cli-novo')}>Novo estabelecimento</button>`;
+  const d = state.draft;
+  return `<form class="v2-card v2-dense" ${AppActions.attrs('submit', 'pl-cli-criar')}>
+    <h3>Novo estabelecimento</h3><p>Cria um novo cliente, com espaço próprio e convite para o proprietário.</p>
+    <div class="pl-pac-grid">
+      <div><label class="pl-label" for="pl-cli-nome">Nome do estabelecimento</label><input class="form-control" id="pl-cli-nome" name="name" required maxlength="120" value="${esc(d.name)}" ${AppActions.attrs('input', 'pl-cli-campo', ['name'])}></div>
+      <div><label class="pl-label" for="pl-cli-email">Email do proprietário</label><input class="form-control" id="pl-cli-email" name="owner_email" type="email" required maxlength="254" value="${esc(d.owner_email)}" ${AppActions.attrs('input', 'pl-cli-campo', ['owner_email'])}></div>
+      <div><label class="pl-label" for="pl-cli-pacote">Pacote</label><select class="form-control" id="pl-cli-pacote" name="plan_id" ${AppActions.attrs('change', 'pl-cli-campo', ['plan_id'])}><option value="">Sem pacote</option>${state.plans.map(p => `<option value="${esc(p.id)}"${d.plan_id === p.id ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>
+      <div><label class="pl-label" for="pl-cli-estado">Estado inicial</label><select class="form-control" id="pl-cli-estado" name="status" ${AppActions.attrs('change', 'pl-cli-campo', ['status'])}><option value="trial"${d.status === 'trial' ? ' selected' : ''}>Em teste</option><option value="active"${d.status === 'active' ? ' selected' : ''}>Ativo</option></select></div>
+    </div><p class="pl-error" id="pl-cli-erro" role="alert"></p>
+    <button type="submit" class="btn btn-primary"${state.busy ? ' disabled' : ''}>Criar e gerar convite</button>
+    <button type="button" class="btn btn-ghost"${state.busy ? ' disabled' : ''} ${AppActions.attrs('click', 'pl-cli-fechar')}>Cancelar</button></form>`;
+}
+function paintCreation() { const el = document.getElementById('pl-cli-editor'); if (el) el.innerHTML = creationHtml(); }
+async function createClient(form) {
+  if (state.busy || !state.draft) return;
+  state.busy = true;
+  form.querySelectorAll('button').forEach(b => { b.disabled = true; });
+  try {
+    state.created = await api.createOrg({ ...state.draft });
+    state.draft = null;
+    paintCreation();
+    state.orgs = await api.orgs(); refresh();
+  } catch (error) {
+    if (error?.status === 423) { AppModules.consola.mostrarBloqueio(); return; }
+    const el = document.getElementById('pl-cli-erro'); if (el) el.textContent = error?.payload?.error || 'Não foi possível criar o estabelecimento.';
+  } finally { state.busy = false; form.querySelectorAll('button').forEach(b => { b.disabled = false; }); }
+}
+
 const page = {
   async render(ctx) {
-    const [orgs, health] = await Promise.all([api.orgs(),
+    const [orgs, plans, health] = await Promise.all([api.orgs(), AppModules.core.apiGet('/api/platform/plans').then(r => r.data || []),
       // A saúde é um extra: se falhar, a lista mostra «—». Só o desbloqueio (423) e a sessão (401) sobem.
       api.health().catch(error => { if (error?.status === 423 || error?.status === 401) throw error; return []; })]);
     if (ctx.stale()) return;
     state.orgs = orgs;
+    state.plans = plans;
     state.health = new Map(health.map(h => [String(h.organization_id), h]));
     // Vindo da visão geral: abre já filtrada (uma só vez).
     if (page.preset) { state.extra = EXTRA[page.preset] ? page.preset : ''; state.sort = page.preset === 'risk' ? 'health' : state.sort; state.filter = ''; state.search = ''; page.preset = ''; }
     ctx.host.innerHTML = `<div class="pl-page">
+      <div id="pl-cli-editor">${creationHtml()}</div>
       <div class="pl-toolbar">
         <div class="search-box pl-search"><i data-lucide="search"></i>
           <input type="search" id="pl-pesquisa" value="${esc(state.search)}" placeholder="Pesquisar organização…" autocomplete="off" aria-label="Pesquisar organização" ${AppActions.attrs('input', 'pl-cli-pesquisa')}></div>
@@ -118,18 +152,23 @@ const page = {
 };
 
 AppActions.register({
+  'pl-cli-novo': () => { state.created = null; state.draft = { name: '', owner_email: '', plan_id: '', status: 'trial' }; paintCreation(); document.getElementById('pl-cli-nome')?.focus(); },
+  'pl-cli-fechar': () => { if (state.busy) return; state.draft = null; state.created = null; paintCreation(); },
   'pl-cli-filtro': (el, event, [key]) => { state.filter = key; refresh(); },
   // Carregar outra vez no mesmo botão tira o filtro.
   'pl-cli-extra': (el, event, [key]) => { state.extra = state.extra === key ? '' : key; refresh(); },
 }, 'click');
 AppActions.register({
+  'pl-cli-campo': (el, event, [key]) => { if (state.draft) state.draft[key] = el.value; },
   'pl-cli-ordem': el => { state.sort = el.value === 'health' ? 'health' : ''; refresh(); },
 }, 'change');
 AppActions.register({
+  'pl-cli-campo': (el, event, [key]) => { if (state.draft) state.draft[key] = el.value; },
   'pl-cli-pesquisa': el => {
     state.search = el.value;
     const list = document.getElementById('pl-lista');
     if (list) list.innerHTML = listHtml();
   },
 }, 'input');
+AppActions.register({ 'pl-cli-criar': (form, event) => { event.preventDefault(); return createClient(form); } }, 'submit');
 })();
