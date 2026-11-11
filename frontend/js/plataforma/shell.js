@@ -245,6 +245,12 @@ async function boot() {
   catch (error) { fail(error); return; }
   if (!user) { location.replace('/'); return; }
   st.user = user;
+  // Modo app ou browser desta sessão, uma vez (a consola não carrega a telemetria da app).
+  try {
+    const mode = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true ? 'standalone' : 'browser';
+    fetch('/api/telemetry', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ views: {}, display_mode: mode }) }).catch(() => {});
+  } catch { /* nunca incomoda a consola */ }
   // O aspeto da conta; na V1 a consola fica no Clássico (appearance-fallback).
   AppAppearance.apply(user.appearance);
   markLook();

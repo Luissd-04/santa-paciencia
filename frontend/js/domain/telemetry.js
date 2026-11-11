@@ -9,7 +9,8 @@
   let started = false;
   let firstSendDone = false;
 
-  // «standalone» quando a app está instalada (PWA); senão «browser».
+  // «standalone» quando a app está instalada (PWA); senão «browser». Também
+  // vai no login (auth.js), para a sessão nascer já com o modo.
   function displayMode() {
     try {
       const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -63,5 +64,5 @@
     });
   }
 
-  window.AppTelemetry = Object.freeze({ start, view });
+  window.AppTelemetry = Object.freeze({ start, view, displayMode });
 })();

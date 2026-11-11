@@ -125,6 +125,7 @@ test('tarefa platform_stats: active_users, sessões, reservas de hoje e de ontem
   const yesterday = addDays(today, -1);
   const at = (day, time) => zonedDateTime(day, time).toISOString().slice(0, 19).replace('T', ' ');
   const touch = (who, when) => db.prepare('UPDATE auth_sessions SET last_seen_at = ? WHERE id = ?').run(when, auth.digestToken(who.session));
+  const active = (who, day) => db.prepare('INSERT OR IGNORE INTO daily_activity (organization_id, day, user_id) VALUES (?, ?, ?)').run(org.id, day, who.user.id);
   // Organização à parte para contas limpas.
   const org = orgs.createOrganization('Estatísticas');
   const p1 = person(org), p2 = person(org), p3 = person(org), gone = person(org);
@@ -134,6 +135,8 @@ test('tarefa platform_stats: active_users, sessões, reservas de hoje e de ontem
   touch(p2, at(today, '00:10'));
   touch(p3, at(yesterday, '23:50'));
   touch(gone, at(today, '11:00'));
+  for (const who of [p1, p2, gone]) active(who, today);
+  active(p3, yesterday);
   db.prepare('UPDATE memberships SET active = 0 WHERE organization_id = ? AND user_id = ?').run(org.id, gone.user.id);
   db.prepare("INSERT INTO guests (id, organization_id, name, email) VALUES ('g-stats', ?, 'Sintético', 'g@example.invalid')").run(org.id);
   db.prepare(`INSERT INTO accommodations (id, organization_id, name, type, price_per_night, max_guests, public_slug, min_nights)
@@ -161,6 +164,7 @@ test('tarefa platform_stats: active_users, sessões, reservas de hoje e de ontem
 
   // Ontem nunca desce: a pessoa de ontem voltou hoje, mas o dia de ontem já a contou.
   touch(p3, at(today, '12:00'));
+  active(p3, today);
   await require('../services/scheduledTasks').runTask('platform_stats');
   assert.equal(row(yesterday).active_users, 1);
   assert.equal(row(today).active_users, 3);
@@ -169,6 +173,81 @@ test('tarefa platform_stats: active_users, sessões, reservas de hoje e de ontem
   assert.equal(row(addDays(today, -401)), undefined);
   // As outras organizações também têm linha de hoje.
   assert.ok(db.prepare('SELECT 1 FROM platform_daily_stats WHERE organization_id = ? AND day = ?').get(orgB.id, today));
+});
+
+test('atividade no acesso: quem entra e sai conta no dia, uma vez por pessoa, sem misturar organizações', async () => {
+  const today = localDay();
+  const org = orgs.createOrganization('Atividade');
+  const other = orgs.createOrganization('Atividade B');
+  const rows = id => db.prepare('SELECT user_id FROM daily_activity WHERE organization_id = ? AND day = ?').all(id, today);
+  const stats = id => db.prepare('SELECT active_users FROM platform_daily_stats WHERE organization_id = ? AND day = ?').get(id, today)?.active_users;
+  // Entra (login pela API) e sai logo, entre duas passagens da tarefa.
+  const p = person(org);
+  const login = await fetch(base + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: p.user.email, password: 'SyntheticUser123!' }) });
+  assert.equal(login.status, 200);
+  const cookie = login.headers.get('set-cookie').split(';')[0];
+  assert.equal((await fetch(base + '/auth/logout', { method: 'POST', headers: { Cookie: cookie } })).status, 200);
+  assert.equal(db.prepare('SELECT 1 FROM auth_sessions WHERE id = ?').get(auth.digestToken(cookie.split('=')[1])), undefined);
+  assert.deepEqual(rows(org.id).map(r => r.user_id), [p.user.id]);
+  // A mesma pessoa noutra sessão e muitos pedidos: uma linha só.
+  for (let i = 0; i < 3; i++) auth.getSessionUser(p.session);
+  // Uma escrita por sessão e por dia: a cache em memória não volta a escrever.
+  db.prepare('DELETE FROM daily_activity WHERE organization_id = ?').run(org.id);
+  auth.getSessionUser(p.session);
+  assert.deepEqual(rows(org.id), []);
+  db.prepare('INSERT INTO daily_activity VALUES (?, ?, ?)').run(org.id, today, p.user.id);
+  // A mesma pessoa na outra organização conta lá, não aqui.
+  orgs.createMembership({ organizationId: other.id, userId: p.user.id, role: 'staff' });
+  auth.getSessionUser(auth.createSession(p.user.id, other.id).sessionId);
+  auth.getSessionUser(person(other).session);
+  assert.equal(rows(org.id).length, 1);
+  assert.equal(rows(other.id).length, 2);
+  require('../services/usageTelemetry').refreshDailyStats();
+  assert.equal(stats(org.id), 1);
+  assert.equal(stats(other.id), 2);
+  // Nunca desce: sem linhas, fica o valor já visto.
+  db.prepare('DELETE FROM daily_activity WHERE organization_id = ?').run(other.id);
+  require('../services/usageTelemetry').refreshDailyStats();
+  assert.equal(stats(other.id), 2);
+  // Retenção de 400 dias, como usage_daily.
+  db.prepare('INSERT INTO daily_activity VALUES (?, ?, ?)').run(org.id, addDays(today, -401), p.user.id);
+  db.prepare('INSERT INTO daily_activity VALUES (?, ?, ?)').run(org.id, addDays(today, -400), p.user.id);
+  require('../services/usageTelemetry').refreshDailyStats();
+  assert.deepEqual(db.prepare('SELECT day FROM daily_activity WHERE organization_id = ? ORDER BY day').all(org.id).map(r => r.day), [addDays(today, -400), today]);
+  // Apagar a organização apaga a atividade.
+  db.prepare('DELETE FROM organizations WHERE id = ?').run(other.id);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM daily_activity WHERE organization_id = ?').get(other.id).n, 0);
+});
+
+test('login e troca de espaço gravam o display_mode; valores fora da lista ficam vazios', async () => {
+  const org = orgs.createOrganization('Modo');
+  const second = orgs.createOrganization('Modo B');
+  const p = person(org);
+  orgs.createMembership({ organizationId: second.id, userId: p.user.id, role: 'staff' });
+  const mode = cookie => db.prepare('SELECT display_mode FROM auth_sessions WHERE id = ?').get(auth.digestToken(cookie.split('=')[1])).display_mode;
+  const login = async display_mode => {
+    const r = await fetch(base + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: p.user.email, password: 'SyntheticUser123!', display_mode }) });
+    assert.equal(r.status, 200);
+    return r.headers.get('set-cookie').split(';')[0];
+  };
+  assert.equal(mode(await login('standalone')), 'standalone');
+  assert.equal(mode(await login('browser')), 'browser');
+  assert.equal(mode(await login('fullscreen')), null);
+  assert.equal(mode(await login(undefined)), null);
+  const switched = await fetch(base + '/auth/switch-org', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: await login('browser') },
+    body: JSON.stringify({ organization_id: second.id, display_mode: 'standalone' }) });
+  assert.equal(switched.status, 200);
+  assert.equal(mode(switched.headers.get('set-cookie').split(';')[0]), 'standalone');
+});
+
+test('a consola envia só o modo: views vazio e display_mode dão 204 sem contar vistas', async () => {
+  const who = person(orgA);
+  reset();
+  assert.equal((await send(who, { views: {}, display_mode: 'standalone' })).status, 204);
+  assert.equal(db.prepare('SELECT display_mode FROM auth_sessions WHERE id = ?').get(auth.digestToken(who.session)).display_mode, 'standalone');
+  assert.deepEqual(counts(orgA), {});
 });
 
 test('parseUserAgent acerta user agents reais', () => {

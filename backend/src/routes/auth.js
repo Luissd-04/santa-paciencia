@@ -54,8 +54,10 @@ function dummyPasswordHash() {
   return dummyHash;
 }
 
+// `display_mode` (opcional, no corpo do login e da troca de espaço): app
+// instalada ou browser; outros valores são ignorados em createSession.
 function sessionMeta(req) {
-  return { userAgent: req.get('user-agent') || '', ip: req.ip || '' };
+  return { userAgent: req.get('user-agent') || '', ip: req.ip || '', displayMode: req.body?.display_mode };
 }
 
 function setSessionCookie(res, sessionId) {

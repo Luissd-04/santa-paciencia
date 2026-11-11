@@ -481,7 +481,7 @@ async function handleLoginSubmit(event) {
       ? await AppModules.core.apiPost('/auth/invitations/accept', { token: inviteToken, name, password, confirm_password: confirm }, { skipAuthRedirect: true })
       : authMode === 'register'
         ? await AppModules.core.apiPost('/auth/register', { name, organization_name: orgName, email, password, confirm_password: confirm }, { skipAuthRedirect: true })
-        : await AppModules.core.apiPost('/auth/login', { email, password }, { skipAuthRedirect: true });
+        : await AppModules.core.apiPost('/auth/login', { email, password, display_mode: window.AppTelemetry?.displayMode?.() }, { skipAuthRedirect: true });
     AppModules.core.currentUser = payload?.data?.user || null;
     rememberAccount(AppModules.core.currentUser);
     // Tell the browser to offer to save/update credentials
@@ -600,7 +600,7 @@ async function switchOrg(organizationId) {
     if (typeof AppModules.core.cancelApiRequests === 'function') AppModules.core.cancelApiRequests();
     if (typeof AppModules.core.resetPrivateLists === 'function') AppModules.core.resetPrivateLists();
     if (typeof AppModules.invoice._stopInvoicePoll === 'function') AppModules.invoice._stopInvoicePoll();
-    const payload = await AppModules.core.apiPost('/auth/switch-org', { organization_id: organizationId });
+    const payload = await AppModules.core.apiPost('/auth/switch-org', { organization_id: organizationId, display_mode: window.AppTelemetry?.displayMode?.() });
     AppModules.core.currentUser = payload?.data?.user || null;
     window.location.reload();
   } catch (err) {

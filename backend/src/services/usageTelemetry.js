@@ -1,6 +1,9 @@
 // Utilização da aplicação para a consola da plataforma, só em totais: páginas
 // abertas por organização e por dia (usage_daily) e um resumo diário por
 // organização (platform_daily_stats). Nunca utilizador, IP nem User-Agent.
+// Os utilizadores ativos contam-se em daily_activity (gravada no acesso, em
+// authService.getSessionUser), cujo user_id só serve para contar pessoas
+// distintas: nunca sai daqui.
 const { db } = require('../config/database');
 const { digestToken } = require('./authService');
 const { localDay, addDays, zonedDateTime } = require('./dates');
@@ -22,6 +25,7 @@ const upsertView = db.prepare(`INSERT INTO usage_daily (organization_id, day, vi
 
 // `views`: { vista: n }. Vistas desconhecidas e contagens que não são inteiros
 // ≥ 1 são ignoradas; acima de 50 conta 50. Mais de 30 vistas é pedido inválido.
+// `views: {}` grava só o display_mode da sessão (é o que a consola envia).
 // Devolve o número de vistas somadas.
 function recordUsage({ organizationId, sessionId, views, displayMode, now = new Date() }) {
   if (!views || typeof views !== 'object' || Array.isArray(views)) throw httpError('Pedido inválido.');
@@ -43,24 +47,23 @@ function recordUsage({ organizationId, sessionId, views, displayMode, now = new 
 const sqliteUtc = date => date.toISOString().slice(0, 19).replace('T', ' ');
 const dayBounds = day => [sqliteUtc(zonedDateTime(day)), sqliteUtc(zonedDateTime(addDays(day, 1)))];
 
-// Por organização: membros ativos e sessões com atividade no dia, e reservas
-// criadas nesse dia. last_seen_at só guarda a última atividade, por isso o dia
-// já passado (ontem) nunca desce: fica o maior valor visto (MAX no UPSERT).
+// Por organização: membros ativos com acesso no dia (daily_activity), sessões
+// com atividade no dia e reservas criadas nesse dia. last_seen_at só guarda a
+// última atividade e as sessões apagam-se ao terminar sessão, por isso nenhum
+// dos dois desce: fica o maior valor visto (MAX no UPSERT).
 function dayCounts(day) {
   const [from, to] = dayBounds(day);
-  const activity = db.prepare(`SELECT s.organization_id,
-      COUNT(DISTINCT CASE WHEN m.active = 1 AND u.active = 1 THEN s.user_id END) AS active_users, COUNT(*) AS sessions_active
-    FROM auth_sessions s
-    JOIN users u ON u.id = s.user_id
-    LEFT JOIN memberships m ON m.organization_id = s.organization_id AND m.user_id = s.user_id
-    WHERE s.organization_id IS NOT NULL AND datetime(s.last_seen_at) >= ? AND datetime(s.last_seen_at) < ?
-    GROUP BY s.organization_id`).all(from, to);
+  const users = db.prepare(`SELECT a.organization_id, COUNT(*) AS n FROM daily_activity a
+    JOIN users u ON u.id = a.user_id AND u.active = 1
+    JOIN memberships m ON m.organization_id = a.organization_id AND m.user_id = a.user_id AND m.active = 1
+    WHERE a.day = ? GROUP BY a.organization_id`).all(day);
+  const sessions = db.prepare(`SELECT organization_id, COUNT(*) AS n FROM auth_sessions
+    WHERE organization_id IS NOT NULL AND datetime(last_seen_at) >= ? AND datetime(last_seen_at) < ?
+    GROUP BY organization_id`).all(from, to);
   const created = db.prepare(`SELECT organization_id, COUNT(*) AS n FROM reservations
     WHERE datetime(created_at) >= ? AND datetime(created_at) < ? GROUP BY organization_id`).all(from, to);
-  return {
-    activity: new Map(activity.map(r => [r.organization_id, r])),
-    created: new Map(created.map(r => [r.organization_id, r.n])),
-  };
+  const byOrg = rows => new Map(rows.map(r => [r.organization_id, r.n]));
+  return { users: byOrg(users), sessions: byOrg(sessions), created: byOrg(created) };
 }
 
 // Tarefa `platform_stats` (de hora a hora): linhas de hoje e de ontem para
@@ -86,13 +89,13 @@ function refreshDailyStats(now = new Date()) {
   const limit = addDays(today, -RETENTION_DAYS);
   db.transaction(() => {
     for (const day of days) {
-      const { activity, created } = counts.get(day);
+      const { users, sessions, created } = counts.get(day);
       for (const id of orgIds) {
-        const a = activity.get(id);
-        upsert.run(day, id, a?.active_users || 0, a?.sessions_active || 0, created.get(id) || 0, day === today ? problems.get(id) : null);
+        upsert.run(day, id, users.get(id) || 0, sessions.get(id) || 0, created.get(id) || 0, day === today ? problems.get(id) : null);
       }
     }
     db.prepare('DELETE FROM usage_daily WHERE day < ?').run(limit);
+    db.prepare('DELETE FROM daily_activity WHERE day < ?').run(limit);
     db.prepare('DELETE FROM platform_daily_stats WHERE day < ?').run(limit);
   })();
   return { days, organizations: orgIds.length };

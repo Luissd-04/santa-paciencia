@@ -370,28 +370,14 @@ function mailBody(orgId, ticket, headline, path) {
   });
 }
 
-function platformAdmins() {
-  const access = require('./platformAccess');
-  return db.prepare('SELECT id FROM users WHERE platform_admin = 1 AND active = 1').all().filter(u => access.isPlatformAdmin(u));
-}
-
 function notifyPlatform(ticket, kind) {
-  track((async () => {
-    const headline = kind === 'new' ? 'Novo pedido de suporte' : 'Nova mensagem num pedido';
-    const path = `/plataforma/suporte/${ticket.id}`;
-    for (const admin of await attempt('admins', ticket, platformAdmins) || []) {
-      const adminOrgs = db.prepare('SELECT organization_id FROM memberships WHERE user_id = ? AND active = 1 ORDER BY rowid').all(admin.id).map(r => r.organization_id);
-      for (const orgId of adminOrgs) {
-        await attempt('push_platform', ticket, () => require('./pushService')
-          .sendToOrganization(orgId, pushBody(ticket, `${numberLabel(ticket.number)}: ${headline.toLowerCase()}`, path), { userIds: [admin.id] }));
-      }
-      const email = db.prepare('SELECT email FROM users WHERE id = ?').get(admin.id)?.email;
-      for (const orgId of email ? adminOrgs : []) {
-        const sent = await attempt('email_platform', ticket, () => require('./emailService').sendMail(orgId, { to: email, ...mailBody(orgId, ticket, headline, path) }));
-        if (sent) break;
-      }
-    }
-  })());
+  const headline = kind === 'new' ? 'Novo pedido de suporte' : 'Nova mensagem num pedido';
+  const path = `/plataforma/suporte/${ticket.id}`;
+  track(require('./platformNotifier').notifyAdmins({
+    push: pushBody(ticket, `${numberLabel(ticket.number)}: ${headline.toLowerCase()}`, path),
+    email: orgId => mailBody(orgId, ticket, headline, path),
+    onError: (step, err) => warn(step, err, ticket),
+  }));
 }
 
 function notifyCustomer(ticket) {

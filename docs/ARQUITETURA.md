@@ -163,7 +163,12 @@ servida em `/plataforma`, que segue o aspeto da conta e usa o Clássico quando a
 conta está na V1. As ações ficam em `platform_audit_events`. A API devolve apenas metadados (contagens,
 datas e estados), nunca dados pessoais. Para quem não é admin, as rotas respondem
 como um endpoint inexistente. A utilização (`POST /api/telemetry`) guarda só
-totais diários de páginas abertas por organização, sem utilizador nem IP.
+totais diários de páginas abertas por organização, sem utilizador nem IP. Os
+utilizadores ativos contam-se no acesso (`daily_activity`, 400 dias): o
+`user_id` só serve para contar pessoas distintas e nunca sai da base. Os
+problemas da instância (tarefas automáticas, disco) e os pedidos de suporte sem
+resposta há mais de 24 horas são avisados só aos admins da plataforma
+(`opsAlerts`, `platformNotifier`), nunca às organizações.
 
 Suporte: cada pessoa vê apenas os seus pedidos; owner e manager veem os da
 organização, e a consola da plataforma vê todos. Os anexos são PNG, JPEG, WEBP,

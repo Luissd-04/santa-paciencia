@@ -68,6 +68,8 @@ function runMigrations(db) {
   migratePlatformConsole(db);
   migratePlatformUsage(db);
   migrateSupport(db);
+  migrateDailyActivity(db);
+  migratePlatformAlerts(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -343,7 +345,6 @@ function migrateDocumentTypes(db) {
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }
-module.exports = { runMigrations };
 
 function migrateManualPaymentIntents(db) {
   db.exec(`CREATE TABLE IF NOT EXISTS manual_payment_intents (
@@ -682,3 +683,40 @@ function migrateSupport(db) {
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }
+
+// Quem usou a app em cada dia, por organização (authService.getSessionUser),
+// para contar utilizadores ativos sem depender das sessões, que se apagam ao
+// terminar sessão. O user_id só serve para contar pessoas distintas e nunca sai
+// da base. Guardado 400 dias, como usage_daily.
+function migrateDailyActivity(db) {
+  const id = '20261114_daily_activity';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`CREATE TABLE IF NOT EXISTS daily_activity (
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      day TEXT NOT NULL,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      PRIMARY KEY(organization_id, day, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_daily_activity_day ON daily_activity(day)`);
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Alertas já avisados aos admins da plataforma (services/opsAlerts): problemas
+// da instância (task_*, disk_low) e pedidos de suporte sem resposta. Não são de
+// nenhuma organização, por isso não cabem em ops_alerts.
+function migratePlatformAlerts(db) {
+  const id = '20261114_platform_alerts';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`CREATE TABLE IF NOT EXISTS platform_alerts (
+      key TEXT PRIMARY KEY,
+      notified_at TEXT NOT NULL,
+      resolved_at TEXT
+    )`);
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+module.exports = { runMigrations };

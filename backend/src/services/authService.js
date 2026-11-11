@@ -67,7 +67,9 @@ async function createUserAsync(input) {
   return createUser(input, await hashPasswordAsync(input.password));
 }
 
-// meta = { userAgent, ip } do pedido — só para mostrar em "Sessões ativas".
+// meta = { userAgent, ip } do pedido — só para mostrar em "Sessões ativas" —
+// e displayMode ('standalone' | 'browser'), para a consola da plataforma.
+const DISPLAY_MODES = new Set(['standalone', 'browser']);
 function createSession(userId, organizationId, oldSessionId = null, meta = {}) {
   const membership = organizationId
     ? getMembershipByUserAndOrganization(userId, organizationId)
@@ -86,12 +88,26 @@ function createSession(userId, organizationId, oldSessionId = null, meta = {}) {
   const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 86400000).toISOString();
 
   db.prepare(`
-    INSERT INTO auth_sessions (id, user_id, organization_id, expires_at, created_at, last_seen_at, user_agent, ip)
-    VALUES (?, ?, ?, ?, datetime('now'), datetime('now'), ?, ?)
+    INSERT INTO auth_sessions (id, user_id, organization_id, expires_at, created_at, last_seen_at, user_agent, ip, display_mode)
+    VALUES (?, ?, ?, ?, datetime('now'), datetime('now'), ?, ?, ?)
   `).run(digestToken(sessionId), userId, membership.organization_id, expiresAt,
-    meta.userAgent ? String(meta.userAgent).slice(0, 400) : null, meta.ip || null);
+    meta.userAgent ? String(meta.userAgent).slice(0, 400) : null, meta.ip || null,
+    DISPLAY_MODES.has(meta.displayMode) ? meta.displayMode : null);
 
   return { sessionId, expiresAt };
+}
+
+// Atividade do dia (daily_activity), para os utilizadores ativos da consola:
+// uma escrita por sessão e por dia, lembrada em memória. O user_id só serve
+// para contar pessoas distintas e nunca sai da base.
+const activitySeen = new Map(); // digest da sessão → dia
+let activityDay = null;
+function markActive(sessionDigest, organizationId, userId) {
+  const day = require('./dates').localDay();
+  if (day !== activityDay) { activitySeen.clear(); activityDay = day; }
+  if (activitySeen.get(sessionDigest) === day) return;
+  db.prepare('INSERT OR IGNORE INTO daily_activity (organization_id, day, user_id) VALUES (?, ?, ?)').run(organizationId, day, userId);
+  activitySeen.set(sessionDigest, day);
 }
 
 function getSessionUser(sessionId) {
@@ -116,7 +132,8 @@ function getSessionUser(sessionId) {
     return null;
   }
 
-  db.prepare(`UPDATE auth_sessions SET last_seen_at = datetime('now') WHERE id = ? AND datetime(last_seen_at) < datetime('now', '-5 minutes')`).run(digestToken(sessionId));
+  db.prepare(`UPDATE auth_sessions SET last_seen_at = datetime('now') WHERE id = ? AND datetime(last_seen_at) < datetime('now', '-5 minutes')`).run(row.id);
+  if (row.organization_id) markActive(row.id, row.organization_id, row.user_id);
 
   return {
     id: row.user_id,
