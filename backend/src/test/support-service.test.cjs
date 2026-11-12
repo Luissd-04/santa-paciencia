@@ -104,7 +104,8 @@ test('numeração seguida e única; anexo inválido não deixa nada', () => {
   const nums = db.prepare('SELECT number FROM support_tickets ORDER BY number').all().map(r => r.number);
   assert.equal(new Set(nums).size, nums.length);
   assert.deepEqual(nums, nums.map((_, i) => i + 1));
-  assert.equal(Number(b.number.slice(3)), Number(a.number.slice(3)) + 1);
+  const globalOf = t => Number(support.getForPlatform(t.id).ticket.number.slice(3));
+  assert.equal(globalOf(b), globalOf(a) + 1);
   const count = db.prepare('SELECT COUNT(*) AS n FROM support_tickets').get().n;
   const files = () => (fs.existsSync(attachments.SUPPORT_DIR) ? fs.readdirSync(attachments.SUPPORT_DIR).length : 0);
   const before = files();
@@ -365,4 +366,55 @@ test('avisos nunca falham o pedido: push e email a lançar erro, log em JSON; se
     await settle();
     assert.deepEqual(logs, []);
   } finally { console.error = log; pushService.sendToOrganization = realPush; emailService.sendMail = realMail; }
+});
+
+test('numeração por organização: cada uma começa em SP-0001 e o cliente nunca vê o número global', async () => {
+  db.prepare('DELETE FROM support_tickets').run();
+  const a1 = newTicket(staffA), b1 = newTicket(ownerB), a2 = newTicket(staffA), b2 = newTicket(ownerB);
+  assert.deepEqual([a1.number, a2.number, b1.number, b2.number], ['SP-0001', 'SP-0002', 'SP-0001', 'SP-0002']);
+  assert.equal(support.listForUser(ownerB, {}).tickets.find(t => t.id === b2.id).number, 'SP-0002');
+  assert.equal(support.getForUser(ownerB, b2.id).ticket.number, 'SP-0002');
+  assert.ok(!JSON.stringify(support.getForUser(ownerB, b2.id)).includes('SP-0004'));
+  assert.ok(!JSON.stringify(support.listForUser(ownerB, {})).includes('SP-0004'));
+  // Consola: número global (único) + o do cliente; pesquisa pelos dois.
+  const detail = support.getForPlatform(b2.id).ticket;
+  assert.equal(detail.number, 'SP-0004');
+  assert.equal(detail.client_number, 'SP-0002');
+  assert.deepEqual(support.listForPlatform({ q: 'SP-0004' }).tickets.map(t => t.id), [b2.id]);
+  assert.deepEqual(support.listForPlatform({ q: 'SP-0003' }).tickets.map(t => t.id), [a2.id]);
+  assert.deepEqual(support.listForPlatform({ q: 'SP-0002' }).tickets.map(t => t.id).sort(), [a2.id, b1.id, b2.id].sort());
+  assert.equal(db.prepare('SELECT org_number FROM support_tickets WHERE id = ?').get(b2.id).org_number, 2);
+  assert.throws(() => db.prepare('UPDATE support_tickets SET org_number = 1 WHERE id = ?').run(b2.id), /UNIQUE/);
+  await settle();
+});
+
+test('setStatus: avisa o autor ao resolver, marca não lido e não mexe em last_message_at', async () => {
+  const t = newTicket(staffA);
+  await settle();
+  support.getForUser(staffA, t.id);
+  reset();
+  const before = db.prepare('SELECT last_message_at FROM support_tickets WHERE id = ?').get(t.id).last_message_at;
+  assert.equal(support.listForUser(staffA, {}).tickets.find(x => x.id === t.id).unread, false);
+  support.setStatus(admin, t.id, 'resolved');
+  await settle();
+  assert.equal(db.prepare('SELECT last_message_at FROM support_tickets WHERE id = ?').get(t.id).last_message_at, before);
+  assert.equal(pushes.length, 1);
+  assert.ok(pushes[0].options.userIds.includes(staffA.id));
+  assert.equal(pushes[0].payload.title, `O seu pedido ${t.number} foi marcado como resolvido.`);
+  assert.equal(mails.length, 1);
+  assert.equal(support.summary(staffA).unread, 1);
+  assert.equal(support.listForUser(staffA, {}).tickets.find(x => x.id === t.id).unread, true);
+  assert.equal(support.getForUser(staffA, t.id).ticket.unread, false);
+  assert.equal(support.summary(staffA).unread, 0);
+  // Sem mudança de estado, sem aviso.
+  reset();
+  support.setStatus(admin, t.id, 'resolved');
+  await settle();
+  assert.equal(pushes.length, 0);
+  assert.equal(mails.length, 0);
+  assert.equal(support.summary(staffA).unread, 0);
+  // Outros estados não avisam.
+  support.setStatus(admin, t.id, 'in_review');
+  await settle();
+  assert.equal(pushes.length, 0);
 });

@@ -26,6 +26,9 @@ function now() {
 }
 
 const numberLabel = n => 'SP-' + String(n).padStart(4, '0');
+// O cliente vê a numeração da sua organização (SP-0001…); a consola vê a global,
+// única na instância. Pedidos antigos sem org_number caem no número global.
+const customerLabel = t => numberLabel(t.org_number ?? t.number);
 
 // ---------- validação ----------
 function cleanBody(value) {
@@ -72,22 +75,25 @@ function buildContext(context, userAgent) {
 
 // ---------- apresentação ----------
 function unreadCustomerSql(alias = 't') {
-  return `EXISTS (SELECT 1 FROM support_messages m WHERE m.ticket_id = ${alias}.id AND m.side = 'platform'
-    AND m.created_at > COALESCE((SELECT r.read_at FROM support_reads r WHERE r.ticket_id = ${alias}.id AND r.user_id = ?), ''))`;
+  // Não lido: mensagem da equipa ou mudança de estado notificada depois da última leitura.
+  return `EXISTS (SELECT 1 FROM (SELECT COALESCE((SELECT r.read_at FROM support_reads r WHERE r.ticket_id = ${alias}.id AND r.user_id = ?), '') AS ra) rd
+    WHERE ${alias}.status_notified_at > rd.ra
+      OR EXISTS (SELECT 1 FROM support_messages m WHERE m.ticket_id = ${alias}.id AND m.side = 'platform' AND m.created_at > rd.ra))`;
 }
 const unreadPlatformSql = (alias = 't') => `EXISTS (SELECT 1 FROM support_messages m WHERE m.ticket_id = ${alias}.id AND m.side = 'customer'
     AND m.created_at > COALESCE(${alias}.platform_read_at, ''))`;
 
-function shape(row) {
+function shape(row, platform = false) {
   return {
-    id: row.id, number: numberLabel(row.number), type: row.type, subject: row.subject, status: row.status,
+    id: row.id, number: platform ? numberLabel(row.number) : customerLabel(row), type: row.type, subject: row.subject, status: row.status,
     created_at: row.created_at, updated_at: row.updated_at, last_message_at: row.last_message_at,
     unread: !!row.unread,
     author: row.author_user_id && row.author_name != null ? { name: row.author_name } : null,
     customer_confirmed_at: row.customer_confirmed_at || null,
+    ...(platform ? { client_number: customerLabel(row) } : {}),
   };
 }
-const withOrganization = row => ({ ...shape(row), organization: { id: row.organization_id, name: row.organization_name } });
+const withOrganization = row => ({ ...shape(row, true), organization: { id: row.organization_id, name: row.organization_name } });
 
 const SELECT_BASE = `SELECT t.*, u.name AS author_name, o.name AS organization_name`;
 const JOINS = `FROM support_tickets t LEFT JOIN users u ON u.id = t.author_user_id JOIN organizations o ON o.id = t.organization_id`;
@@ -168,9 +174,10 @@ function create(user, input, meta = {}) {
   try {
     db.transaction(() => {
       const number = (db.prepare('SELECT COALESCE(MAX(number), 0) AS n FROM support_tickets').get().n || 0) + 1;
-      db.prepare(`INSERT INTO support_tickets (id, number, organization_id, author_user_id, type, subject, status, context_json, created_at, updated_at, last_message_at)
-        VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`)
-        .run(id, number, user.organization_id, user.id, data.type, subject, context ? JSON.stringify(context) : null, at, at, at);
+      const orgNumber = (db.prepare('SELECT COALESCE(MAX(COALESCE(org_number, number)), 0) AS n FROM support_tickets WHERE organization_id = ?').get(user.organization_id).n || 0) + 1;
+      db.prepare(`INSERT INTO support_tickets (id, number, org_number, organization_id, author_user_id, type, subject, status, context_json, created_at, updated_at, last_message_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`)
+        .run(id, number, orgNumber, user.organization_id, user.id, data.type, subject, context ? JSON.stringify(context) : null, at, at, at);
       db.prepare("INSERT INTO support_messages (id, ticket_id, side, author_user_id, body, created_at) VALUES (?, ?, 'customer', ?, ?, ?)")
         .run(messageId, id, user.id, body, at);
       for (const f of stored) {
@@ -229,13 +236,17 @@ function addPlatformMessage(admin, id, input) {
   return messageById(messageId, PLATFORM_FILES);
 }
 
+// Só o estado e updated_at: last_message_at fica (a ordem da lista é das mensagens).
+// Ao passar a «resolvido» avisa o autor e marca o pedido como não lido para o cliente.
 function setStatus(_admin, id, status) {
   cleanStatus(status);
   const ticket = db.prepare('SELECT * FROM support_tickets WHERE id = ?').get(typeof id === 'string' ? id : '');
   if (!ticket) throw httpError('Pedido não encontrado.', 404);
   const at = now();
-  db.prepare('UPDATE support_tickets SET status = ?, customer_confirmed_at = CASE WHEN ? = \'resolved\' THEN customer_confirmed_at ELSE NULL END, updated_at = ?, last_message_at = ? WHERE id = ?')
-    .run(status, status, at, at, ticket.id);
+  const notify = status === 'resolved' && ticket.status !== 'resolved';
+  db.prepare('UPDATE support_tickets SET status = ?, customer_confirmed_at = CASE WHEN ? = \'resolved\' THEN customer_confirmed_at ELSE NULL END, updated_at = ?, status_notified_at = CASE WHEN ? THEN ? ELSE status_notified_at END WHERE id = ?')
+    .run(status, status, at, notify ? 1 : 0, at, ticket.id);
+  if (notify) notifyCustomer(db.prepare('SELECT * FROM support_tickets WHERE id = ?').get(ticket.id), 'resolved');
   return ticketForPlatform(ticket.id);
 }
 
@@ -281,8 +292,9 @@ function listForPlatform({ status, type, q, organization_id } = {}) {
   const term = typeof q === 'string' ? q.trim().slice(0, 120) : '';
   if (term) {
     const like = `%${term.replace(/[\\%_]/g, '\\$&')}%`;
-    where.push(`(t.subject LIKE ? ESCAPE '\\' OR ('SP-' || printf('%04d', t.number)) LIKE ? ESCAPE '\\')`);
-    params.push(like, like);
+    where.push(`(t.subject LIKE ? ESCAPE '\\' OR ('SP-' || printf('%04d', t.number)) LIKE ? ESCAPE '\\'
+      OR ('SP-' || printf('%04d', COALESCE(t.org_number, t.number))) LIKE ? ESCAPE '\\')`);
+    params.push(like, like, like);
   }
   const base = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const rows = db.prepare(`${SELECT_BASE}, ${unreadPlatformSql()} AS unread ${JOINS} ${base}${filter !== 'all' ? `${base ? ' AND' : 'WHERE'} t.status = ?` : ''}
@@ -362,10 +374,10 @@ function pushBody(ticket, title, url) {
   const payload = require('./staffNotifier').pushPayload({ title, body: ticket.subject, url, tag: `sp-support-${ticket.id}` });
   return { ...payload, actions: [{ action: 'open', title: 'Abrir pedido' }] };
 }
-function mailBody(orgId, ticket, headline, path) {
+function mailBody(orgId, ticket, headline, path, label = numberLabel(ticket.number)) {
   return require('./accountEmails').compose(orgId, {
-    subject: `${numberLabel(ticket.number)}: ${headline}`, title: headline, eyebrow: 'Suporte',
-    paragraphs: [`${numberLabel(ticket.number)} · ${require('./emailComposer').escapeHtml(ticket.subject)}`],
+    subject: `${label}: ${headline}`, title: headline, eyebrow: 'Suporte',
+    paragraphs: [`${label} · ${require('./emailComposer').escapeHtml(ticket.subject)}`],
     cta: { url: `${origin()}${path}`, label: 'Abrir pedido' },
   });
 }
@@ -380,20 +392,22 @@ function notifyPlatform(ticket, kind) {
   }));
 }
 
-function notifyCustomer(ticket) {
+function notifyCustomer(ticket, kind = 'reply') {
   track((async () => {
     const path = `/ajuda?pedido=${ticket.id}`;
-    const headline = 'Tem uma resposta ao seu pedido';
+    const label = customerLabel(ticket);
+    const resolved = kind === 'resolved';
+    const headline = resolved ? `O seu pedido ${label} foi marcado como resolvido.` : 'Tem uma resposta ao seu pedido';
     const userIds = await attempt('recipients', ticket, () => {
       const ids = new Set(db.prepare("SELECT user_id FROM memberships WHERE organization_id = ? AND role IN ('owner', 'manager') AND active = 1").all(ticket.organization_id).map(r => r.user_id));
       if (ticket.author_user_id) ids.add(ticket.author_user_id);
       return [...ids];
     }) || [];
     await attempt('push_customer', ticket, () => require('./pushService')
-      .sendToOrganization(ticket.organization_id, pushBody(ticket, `${numberLabel(ticket.number)}: resposta da equipa`, path), { userIds }));
+      .sendToOrganization(ticket.organization_id, pushBody(ticket, resolved ? headline : `${label}: resposta da equipa`, path), { userIds }));
     const email = ticket.author_user_id && db.prepare('SELECT email FROM users WHERE id = ? AND active = 1').get(ticket.author_user_id)?.email;
     if (email) {
-      await attempt('email_customer', ticket, () => require('./emailService').sendMail(ticket.organization_id, { to: email, ...mailBody(ticket.organization_id, ticket, headline, path) }));
+      await attempt('email_customer', ticket, () => require('./emailService').sendMail(ticket.organization_id, { to: email, ...mailBody(ticket.organization_id, ticket, headline, path, label) }));
     }
   })());
 }
