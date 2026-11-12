@@ -9,6 +9,7 @@ const { exportData, prepareImport, restoreData, uploadUrls } = require('../servi
 const { extractArchive } = require('../services/backupArchive');
 const { UPLOADS_DIR, uploadPath, removeUnreferencedImage, detectImageMagicType } = require('../services/mediaStorage');
 const { recordAudit } = require('../services/auditLog');
+const { validateImage } = require('../services/imageOptimizer');
 router.use(requireRole('owner'));
 
 router.get('/export', async (req, res, next) => {
@@ -50,15 +51,25 @@ router.post('/import', async (req, res) => {
     const tables = prepareImport(payload, org);
     const previous = uploadUrls(exportData(org).tables);
     const replacements = new Map();
-    // Ficheiros novos imutáveis: nunca substituir um caminho de outra organização.
+    // Validar TODAS as imagens antes de copiar ou gravar o que quer que seja:
+    // um ficheiro corrompido recusa o restauro inteiro, sem tocar no que já existe.
     for (const url of uploadUrls(tables)) {
       const source = path.join(temporary, url.slice(1));
       if (!fs.existsSync(source)) throw new Error('Backup incompleto: ficheiro referenciado em falta.');
       // Os uploads são servidos na origem da aplicação: só imagens verdadeiras,
       // nunca HTML/SVG ou outro conteúdo com extensão arbitrária.
-      if (!/\.(jpe?g|png|gif|webp|avif)$/i.test(url) || !detectImageMagicType(fs.readFileSync(source))) {
+      const content = fs.readFileSync(source);
+      if (!/\.(jpe?g|png|gif|webp|avif)$/i.test(url) || !detectImageMagicType(content)) {
         throw new Error('Backup inválido: ficheiro que não é uma imagem suportada.');
       }
+      // Mesma validação dos uploads normais: descodificação completa e limite de pixéis.
+      try { await validateImage(content); } catch {
+        throw new Error('Backup inválido: imagem corrompida, incompleta ou com dimensões excessivas.');
+      }
+    }
+    // Ficheiros novos imutáveis: nunca substituir um caminho de outra organização.
+    for (const url of uploadUrls(tables)) {
+      const source = path.join(temporary, url.slice(1));
       const relative = `${url.startsWith('/uploads/receipts/') ? 'receipts/' : ''}import_${randomUUID()}${path.extname(url)}`;
       const target = path.join(UPLOADS_DIR, relative);
       fs.mkdirSync(path.dirname(target), { recursive: true });
