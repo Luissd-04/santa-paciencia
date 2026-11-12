@@ -93,7 +93,7 @@ function getPrimaryMembership(userId) {
     JOIN organizations o ON o.id = m.organization_id
     WHERE m.user_id = ? AND m.active = 1 AND o.status != 'suspended'
     ORDER BY CASE m.role WHEN 'owner' THEN 1 WHEN 'manager' THEN 2 ELSE 3 END, m.created_at ASC
-  `).all(userId).find(m => !require('./platformTrials').blocked(m.organization_id));
+  `).all(userId).find(m => !require('./orgPolicy').isBlocked(m.organization_id));
 }
 
 function getMembershipByUserAndOrganization(userId, organizationId) {

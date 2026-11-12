@@ -21,7 +21,7 @@ function stripeConfig() {
 }
 function stripeEnabled(organizationId) {
   const config = stripeConfig();
-  return config.ready && config.organizationId === organizationId && !require('./platformTrials').isDemo(organizationId) && !require('./platformTrials').blocked(organizationId);
+  return config.ready && config.organizationId === organizationId && require('./orgPolicy').externalAllowed(organizationId);
 }
 function getStripe() {
   const config = stripeConfig();

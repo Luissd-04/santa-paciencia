@@ -115,7 +115,7 @@ test('anexo PNG e PDF: gravados com o tipo real e servidos com os cabeçalhos se
       assert.equal(r.headers.get('cache-control'), 'no-store');
       assert.equal(r.headers.get('content-security-policy'), "default-src 'none'; sandbox");
       assert.equal(r.headers.get('content-disposition'),
-        `inline; filename="${meta.original_name.replace(/[^\x20-\x7e]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(meta.original_name)}`);
+        `${meta.mime === 'application/pdf' ? 'attachment' : 'inline'}; filename="${meta.original_name.replace(/[^\x20-\x7e]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(meta.original_name)}`);
       assert.deepEqual(Buffer.from(await r.arrayBuffer()), bytes);
     }
   }
@@ -230,6 +230,17 @@ test('limite por conta: 10 pedidos novos e 30 mensagens por hora, com 429 em por
   assert.equal(blockedMessage.status, 429);
   assert.match((await blockedMessage.json()).error, /demasiadas mensagens de suporte/);
   assert.equal((await get(other, '/api/support/tickets/x/messages', { method: 'POST', body: '{}' })).status, 404);
+});
+
+test('limite por conta não se contorna com maiúsculas nem barra final (A04)', async () => {
+  const who = person(orgA, 'staff');
+  for (let i = 0; i < 10; i++) assert.equal((await get(who, '/api/support/tickets', { method: 'POST', body: '{}' })).status, 400);
+  for (const url of ['/api/Support/Tickets', '/API/SUPPORT/TICKETS/', '/api/support/tickets/']) {
+    assert.equal((await get(who, url, { method: 'POST', body: '{}' })).status, 429, url);
+  }
+  const mixed = person(orgA, 'staff');
+  for (let i = 0; i < 30; i++) await get(mixed, i % 2 ? '/api/Support/Tickets/x/Messages' : '/api/support/tickets/x/messages', { method: 'POST', body: '{}' });
+  assert.equal((await get(mixed, '/api/SUPPORT/tickets/x/messages', { method: 'POST', body: '{}' })).status, 429);
 });
 
 test('ficheiros órfãos: os anexos com linha ficam, os sem linha são detetados', () => {

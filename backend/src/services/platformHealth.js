@@ -146,7 +146,8 @@ const plural = (n, one, many) => (n === 1 ? one : many);
 const joinNames = (names, max = 3) => names.slice(0, max).join(', ') + (names.length > max ? ` e mais ${names.length - max}` : '');
 
 // Itens por gravidade: incidentes, suporte, risco alto, instância, tarefas.
-function getAttention({ userId = null, now = new Date() } = {}) {
+// `includeSupport`: só quem tem o cargo Suporte (ou Administração) vê os pedidos.
+function getAttention({ userId = null, now = new Date(), includeSupport = true } = {}) {
   const items = [];
   const { incidents, instance } = platform.listIncidents();
 
@@ -155,7 +156,7 @@ function getAttention({ userId = null, now = new Date() } = {}) {
       detail: g.since ? `${g.title} · desde ${g.since.slice(0, 16).replace('T', ' ')}` : g.title, href: '/plataforma/incidentes' });
   }
 
-  const tickets = unansweredTickets(now);
+  const tickets = includeSupport ? unansweredTickets(now) : [];
   if (tickets.length) {
     const labels = tickets.map(t => `${ticketLabel(t.number)} ${t.organization_name}`);
     items.push({ kind: 'support', tone: 'violet',

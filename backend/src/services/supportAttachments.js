@@ -93,10 +93,12 @@ function findAttachment(id) {
 }
 
 // filename* com UTF-8 e um filename ASCII de recurso, sem aspas nem barras.
-function contentDisposition(name) {
+// Imagens abrem no browser; PDFs descarregam: o visualizador de PDF dos
+// browsers não funciona dentro da CSP `sandbox` com que os anexos são servidos.
+function contentDisposition(name, type = 'inline') {
   const fallback = String(name).replace(/[^\x20-\x7e]|["\\%;]/g, '_');
   const encoded = encodeURIComponent(name).replace(/['()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
-  return `inline; filename="${fallback}"; filename*=UTF-8''${encoded}`;
+  return `${type}; filename="${fallback}"; filename*=UTF-8''${encoded}`;
 }
 
 // Só depois de verificado o acesso. O tipo vem da lista fechada; o ficheiro
@@ -112,7 +114,7 @@ function streamAttachment(res, row) {
   res.set({
     'Content-Type': type.mime,
     'Content-Length': String(stat.size),
-    'Content-Disposition': contentDisposition(row.original_name || `anexo.${type.ext}`),
+    'Content-Disposition': contentDisposition(row.original_name || `anexo.${type.ext}`, type.ext === 'pdf' ? 'attachment' : 'inline'),
     'X-Content-Type-Options': 'nosniff',
     'Cache-Control': 'no-store',
     'Content-Security-Policy': "default-src 'none'; sandbox",

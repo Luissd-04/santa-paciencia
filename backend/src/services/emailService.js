@@ -10,7 +10,7 @@ const composer = require('./emailComposer');
 const { isDeliverableEmail, isPlaceholderEmail } = require('./emailAddress');
 
 async function sendMail(organizationId, { to, subject, html, bcc, threadId, inReplyTo, references }) {
-  if (emailDisabled() || require('./platformTrials').isDemo(organizationId) || require('./platformTrials').blocked(organizationId)) return null;
+  if (emailDisabled() || !require('./orgPolicy').externalAllowed(organizationId)) return null;
   if (isPlaceholderEmail(to)) {
     console.warn('⚠️ Email não enviado: destinatário sem endereço real');
     return null;

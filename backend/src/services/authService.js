@@ -137,7 +137,7 @@ function getDestinations(userId) {
     JOIN organizations o ON o.id = m.organization_id
     WHERE m.user_id = ? AND m.active = 1 AND o.status != 'suspended'
     ORDER BY CASE m.role WHEN 'owner' THEN 1 WHEN 'manager' THEN 2 ELSE 3 END, m.created_at ASC
-  `).all(userId).filter(o => !require('./platformTrials').blocked(o.id));
+  `).all(userId).filter(o => !require('./orgPolicy').isBlocked(o.id));
   return { platform: require('./platformAccess').isPlatformAdmin({ id: userId }), organizations };
 }
 

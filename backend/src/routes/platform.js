@@ -45,7 +45,7 @@ router.get('/audit', (req, res) => res.json({ success: true, data: analytics.lis
 router.get('/incidents', (_req, res) => res.json({ success: true, data: platform.listIncidents() }));
 router.get('/diagnostics', (_req, res) => res.json({ success: true, data: require('../services/platformDiagnostics').summary() }));
 router.get('/health', (_req, res) => res.json({ success: true, data: health.getHealth() }));
-router.get('/attention', (req, res) => res.json({ success: true, data: health.getAttention({ userId: req.user.id }) }));
+router.get('/attention', (req, res) => res.json({ success: true, data: health.getAttention({ userId: req.user.id, includeSupport: require('../services/platformAccess').can(req.user, 'support') }) }));
 router.get('/support-stats', (_req, res) => res.json({ success: true, data: health.getSupportStats() }));
 
 // Suporte: caixa de entrada de todos os pedidos (já atrás do requirePlatformAdmin

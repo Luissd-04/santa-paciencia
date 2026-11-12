@@ -4,14 +4,25 @@ const {
   publicBookingLimiter, voucherLimiter, preCheckinLookupLimiter, preCheckinSubmitLimiter,
 } = require('../middleware/rateLimiter');
 
-router.use((req,res,next)=>{
-  const match=/^\/(booking|reservation|pre-checkin)\/([^/]+)/.exec(req.path);
-  if(!match)return next();
-  let key;try{key=decodeURIComponent(match[2]);}catch{return res.status(404).end();}
-  const {db}=require('../config/database');
-  const row=match[1]==='booking'?db.prepare('SELECT organization_id FROM accommodations WHERE public_slug=?').get(key):match[1]==='reservation'?db.prepare('SELECT organization_id FROM reservations WHERE public_token=?').get(key):db.prepare('SELECT organization_id FROM reservations WHERE precheckin_token=?').get(key);
-  const trials=require('../services/platformTrials');
-  if(row&&(trials.isDemo(row.organization_id)||trials.blocked(row.organization_id)))return res.status(404).json({success:false,error:'Página indisponível.'});
+// Demonstrações e testes terminados não têm páginas públicas (services/orgPolicy.js).
+// router.param corre para as rotas que o Express de facto encaminha — sem
+// reconhecer caminhos à parte, que divergiam em maiúsculas — e procura a
+// organização como os controladores: o slug do alojamento, ou o token da
+// reserva em qualquer das formas aceites (public_token, precheckin_token).
+function hidePublicPage(res) {
+  return res.status(404).json({ success: false, error: 'Página indisponível.' });
+}
+router.param('slug', (req, res, next, slug) => {
+  const { db } = require('../config/database');
+  const row = db.prepare('SELECT organization_id FROM accommodations WHERE public_slug = ?').get(String(slug));
+  if (row && !require('../services/orgPolicy').publicPagesAllowed(row.organization_id)) return hidePublicPage(res);
+  next();
+});
+router.param('token', (req, res, next, token) => {
+  const { db } = require('../config/database');
+  const value = String(token).trim();
+  const rows = db.prepare('SELECT DISTINCT organization_id FROM reservations WHERE public_token = ? OR precheckin_token = ?').all(value, value);
+  if (rows.some(row => !require('../services/orgPolicy').publicPagesAllowed(row.organization_id))) return hidePublicPage(res);
   next();
 });
 router.get('/booking/:slug', ctrl.getLanding);

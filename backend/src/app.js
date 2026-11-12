@@ -41,7 +41,13 @@ if (/^(true|false)$/i.test(trustProxy)) throw new Error('TRUST_PROXY deve indica
 if (trustProxy) app.set('trust proxy', trustProxy.split(',').map(value => value.trim()).filter(Boolean));
 if (IS_PROD) configuredOrigin();
 app.disable('x-powered-by');
-if(require('./services/stagingPolicy').isStaging())app.use((_req,res,next)=>{res.set({'X-App-Environment':'staging','X-Robots-Tag':'noindex, nofollow, noarchive'});next();});
+// Ambiente de testes: identificado nas respostas e fora dos motores de busca.
+if (require('./services/stagingPolicy').isStaging()) {
+  app.use((_req, res, next) => {
+    res.set({ 'X-App-Environment': 'staging', 'X-Robots-Tag': 'noindex, nofollow, noarchive' });
+    next();
+  });
+}
 
 // Eventos e scripts da aplicação são externos. CSS inline continua necessário
 // nos componentes e nos modelos; não dá permissão para executar JavaScript.
@@ -147,15 +153,17 @@ app.use(['/api/accommodations', '/api/expenses'], (req, res, next) => {
 });
 // Suporte: só as rotas que recebem anexos (pedido novo e mensagens); na
 // consola, só depois de confirmar o admin e a consola desbloqueada.
-const SUPPORT_UPLOADS = /^\/api\/(?:support\/tickets(?:\/[^/]+\/messages)?|platform\/support\/tickets\/[^/]+\/messages)\/?$/;
+// Sem distinguir maiúsculas, como o encaminhamento do Express. As rotas voltam
+// a aplicar o limite se este reconhecedor falhar (routes/support.js).
+const SUPPORT_UPLOADS = /^\/api\/(?:support\/tickets(?:\/[^/]+\/messages)?|platform\/support\/tickets\/[^/]+\/messages)\/?$/i;
 app.use((req, res, next) => {
   if (req.method !== 'POST' || !SUPPORT_UPLOADS.test(req.path)) return next();
   requireAuth(req, res, () => {
-    if (!req.path.startsWith('/api/platform/')) {
+    if (!/^\/api\/platform\//i.test(req.path)) {
       // Limite por conta antes de ler o corpo (até 15 MB).
       const limiters = require('./middleware/rateLimiter');
-      const limiter = /\/messages\/?$/.test(req.path) ? limiters.supportMessageLimiter : limiters.supportTicketLimiter;
-      return limiter(req, res, () => uploadParser(req, res, next));
+      const limiter = /\/messages\/?$/i.test(req.path) ? limiters.supportMessageLimiter : limiters.supportTicketLimiter;
+      return limiter(req, res, () => { req.supportLimitApplied = true; uploadParser(req, res, next); });
     }
     require('./middleware/requirePlatformAdmin')(req, res, () => uploadParser(req, res, next));
   });

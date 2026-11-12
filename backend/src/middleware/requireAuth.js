@@ -1,4 +1,8 @@
 const { SESSION_COOKIE, SUSPENDED_MESSAGE, PLATFORM_ONLY_MESSAGE, getSessionUser } = require('../services/authService');
+const orgPolicy = require('../services/orgPolicy');
+const { isStaging } = require('../services/stagingPolicy');
+
+const TRIAL_ENDED_MESSAGE = 'O período de teste terminou ou foi encerrado. Contacte a equipa Santa Paciência.';
 
 function parseCookies(header = '') {
   return header.split(';').reduce((acc, entry) => {
@@ -56,15 +60,25 @@ function requireAuth(req, res, next) {
     }
   }
 
-  if(require('../services/stagingPolicy').isStaging() && (/^\/auth\/(?:google|email)/.test(path) || path==='/api/expenses/scan-receipt' || /^\/api\/backup\/import(?:\/|$)/.test(path) || /^\/api\/push(?:\/|$)/.test(path)&&!['GET','HEAD'].includes(req.method))) return res.status(403).json({success:false,error:'Integrações externas e importação de dados reais estão desligadas no ambiente de testes.'});
-  const trials=require('../services/platformTrials');
-  if(user.organization_id && trials.blocked(user.organization_id) && !SUSPENDED_ALLOWED.some(rule=>rule.test(path)) && !(/^\/api\/platform(?:\/|$)/.test(path) && require('../services/platformAccess').isPlatformAdmin(user))) return res.status(403).json({success:false,error:'O período de teste terminou ou foi encerrado. Contacte a equipa Santa Paciência.',trial_expired:true});
-  if(user.organization_id && trials.isDemo(user.organization_id)) {
-    // A demonstração pode explorar dados locais, mas não liga serviços nem importa bases reais.
-    if (/^\/auth\/(?:google|email)/.test(path) || /^\/api\/(?:tasks|push)(?:\/|$)/.test(path) && !['GET','HEAD'].includes(req.method) || (/^\/api\/backup\/import(?:\/|$)/.test(path) || path==='/api/expenses/scan-receipt')) return res.status(403).json({success:false,error:'Esta operação externa está desligada na demonstração.'});
+  // Demonstrações, testes terminados e ambiente de testes (services/orgPolicy.js).
+  // O estado do teste já veio com a sessão (user.trial_access): sem nova consulta.
+  const policy = orgPolicy.fromAccess(user.trial_access);
+  const staging = isStaging();
+  if (orgPolicy.isExternalOperation(req.method, path) && (staging || policy.demo)) {
+    const error = staging
+      ? 'Integrações externas e importação de dados reais estão desligadas no ambiente de testes.'
+      : 'Esta operação externa está desligada na demonstração.';
+    return res.status(403).json({ success: false, error });
   }
+  // Teste terminado: só sair da organização; a equipa da plataforma mantém a consola.
+  if (user.organization_id && policy.blocked && !SUSPENDED_ALLOWED.some(rule => rule.test(path))
+      && !(/^\/api\/platform(?:\/|$)/.test(path) && require('../services/platformAccess').isPlatformAdmin(user))) {
+    return res.status(403).json({ success: false, error: TRIAL_ENDED_MESSAGE, trial_expired: true });
+  }
+
   req.user = user;
   req.sessionId = sessionId;
+  // Carregado aqui: o módulo prepara consultas e a base pode ainda não existir.
   require('../services/platformDiagnostics').observe(req, res);
   next();
 }

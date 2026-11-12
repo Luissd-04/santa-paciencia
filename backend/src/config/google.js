@@ -17,7 +17,7 @@ function getOAuth2Client() {
 }
 
 function getAuthenticatedClient(userId, organizationId) {
-  if(require('../services/platformTrials').isDemo(organizationId) || require('../services/platformTrials').blocked(organizationId)) throw new Error('Integração indisponível neste acesso de teste.');
+  if (!require('../services/orgPolicy').externalAllowed(organizationId)) throw new Error('Integração indisponível neste acesso de teste.');
   const oAuth2Client = getOAuth2Client();
 
   const token = getStoredTokens(userId, organizationId);
@@ -38,7 +38,7 @@ function getAuthenticatedClient(userId, organizationId) {
 }
 
 function getStoredTokens(userId, organizationId) {
-  if(require('../services/stagingPolicy').isStaging())return null;
+  if (require('../services/stagingPolicy').isStaging()) return null;
   if (userId && organizationId) {
     const row = db.prepare(`
       SELECT tokens FROM google_calendar_connections
@@ -79,7 +79,7 @@ function deleteTokens(userId, organizationId) {
 }
 
 function isAuthenticated(userId, organizationId) {
-  if(require('../services/platformTrials').isDemo(organizationId) || require('../services/platformTrials').blocked(organizationId)) return false;
+  if (!require('../services/orgPolicy').externalAllowed(organizationId)) return false;
   return !!getStoredTokens(userId, organizationId);
 }
 

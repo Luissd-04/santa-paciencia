@@ -139,8 +139,8 @@ function saveUserPushPrefs(organizationId, userId, prefs = {}) {
 // options.roles — só estes papéis (ex.: ['owner', 'manager']).
 // options.userIds — só os dispositivos destes utilizadores (lista vazia: nenhum).
 async function sendToOrganization(organizationId, payload, options = {}) {
-  if(require('./stagingPolicy').isStaging())return;
-  if(require('./platformTrials').isDemo(organizationId) || require('./platformTrials').blocked(organizationId)) return;
+  // Ambiente de testes, demonstração ou teste terminado: sem notificações.
+  if (!require('./orgPolicy').externalAllowed(organizationId)) return;
   getVapidKeys();
   const { excludeUserId = null, type = null, roles = null, userIds = null } = options;
   let rows = db.prepare('SELECT s.endpoint, s.keys_json, s.user_id, s.organization_id, m.role FROM push_subscriptions s JOIN memberships m ON m.user_id=s.user_id AND m.organization_id=s.organization_id JOIN users u ON u.id=s.user_id WHERE s.organization_id = ? AND s.active = 1 AND m.active = 1 AND u.active = 1').all(organizationId);

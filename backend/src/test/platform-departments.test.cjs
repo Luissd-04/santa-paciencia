@@ -94,6 +94,13 @@ test('demonstrações bloqueiam integrações, páginas públicas e dados de out
  assert.equal((await call(demoWho,'GET','/api/platform/workspace/trials')).status,404);
  const accommodations=(await(await call(demoWho,'GET','/api/accommodations')).json()).data;assert.ok(accommodations.length);assert.ok(accommodations.every(a=>a.organization_id===demo.id));
  db.prepare("UPDATE accommodations SET public_slug='demo-public' WHERE organization_id=?").run(demo.id);assert.equal((await call(null,'GET','/api/public/booking/demo-public')).status,404);
+ // A05: as rotas públicas aceitam maiúsculas; a regra também (router.param).
+ for(const url of ['/api/public/Booking/demo-public','/api/public/BOOKING/demo-public/availability'])assert.equal((await call(null,'GET',url)).status,404,url);
+ // Tokens de reserva em qualquer das formas aceites pelos controladores, incluindo o public_token antigo no pré-check-in.
+ const reservation=db.prepare('SELECT id FROM reservations WHERE organization_id=? LIMIT 1').get(demo.id).id,legacy='a'.repeat(64);
+ db.prepare('UPDATE reservations SET public_token=?,precheckin_token=NULL WHERE id=?').run(legacy,reservation);
+ for(const url of ['/api/public/pre-checkin/'+legacy,'/api/public/Pre-Checkin/'+legacy,'/api/public/reservation/'+legacy,'/api/public/Reservation/'+legacy])assert.equal((await call(null,'GET',url)).status,404,url);
+ assert.equal((await call(null,'POST','/api/public/PRE-CHECKIN/'+legacy,{})).status,404);
  assert.equal(require('../services/stripeClient').stripeEnabled(demo.id),false);
  assert.equal(await require('../services/emailService').sendMail(demo.id,{to:'x@example.invalid',subject:'Teste',html:'X'}),null);
 });

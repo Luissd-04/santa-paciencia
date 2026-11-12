@@ -10,6 +10,41 @@ function record(organizationId, kind, name, count = 1, ms = 0) {
     ON CONFLICT(organization_id,day,kind,name) DO UPDATE SET count=count+excluded.count,total_ms=total_ms+excluded.total_ms,max_ms=MAX(max_ms,excluded.max_ms)`)
     .run(organizationId, localDay(), kind, name, count, ms, ms);
 }
+// Medições dos pedidos à API: somadas em memória e gravadas de uma vez (no
+// máximo a cada minuto e antes de ler o resumo), em vez de uma escrita na base
+// por pedido. Perder o último minuto num arranque abrupto é aceitável.
+const FLUSH_MS = 60 * 1000;
+const pending = new Map();
+let flushTimer = null;
+function buffer(organizationId, kind, name, ms = 0) {
+  if (!organizationId) return;
+  const key = JSON.stringify([organizationId, localDay(), kind, name]);
+  const item = pending.get(key) || { count: 0, total: 0, max: 0 };
+  item.count += 1; item.total += ms; item.max = Math.max(item.max, ms);
+  pending.set(key, item);
+  if (!flushTimer) {
+    flushTimer = setTimeout(flush, FLUSH_MS);
+    flushTimer.unref?.();
+  }
+}
+function flush() {
+  if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+  if (!pending.size) return;
+  const items = [...pending];
+  pending.clear();
+  try {
+    db.transaction(() => {
+      for (const [key, item] of items) {
+        const [organizationId, day, kind, name] = JSON.parse(key);
+        db.prepare(`INSERT INTO platform_diagnostics_daily(organization_id,day,kind,name,count,total_ms,max_ms) VALUES(?,?,?,?,?,?,?)
+          ON CONFLICT(organization_id,day,kind,name) DO UPDATE SET count=count+excluded.count,total_ms=total_ms+excluded.total_ms,max_ms=MAX(max_ms,excluded.max_ms)`)
+          .run(organizationId, day, kind, name, item.count, item.total, item.max);
+      }
+    })();
+  } catch { /* Organização apagada entretanto, ou base a fechar: o diagnóstico não é crítico. */ }
+}
+process.once('beforeExit', flush);
+
 function recordErrors(orgId, errors) {
   if (!errors || typeof errors !== 'object' || Array.isArray(errors)) return;
   db.transaction(() => {
@@ -25,12 +60,13 @@ function observe(req, res) {
   const name = API_AREAS.has(group) ? group : 'other';
   res.once('finish', () => {
     try {
-      record(req.user.organization_id, 'api', name, 1, Math.min(300000, Math.max(0, performance.now() - start)));
-      if (res.statusCode >= 500) record(req.user.organization_id, 'api_error', name);
+      buffer(req.user.organization_id, 'api', name, Math.min(300000, Math.max(0, performance.now() - start)));
+      if (res.statusCode >= 500) buffer(req.user.organization_id, 'api_error', name);
     } catch { /* O diagnóstico não pode falhar um pedido. */ }
   });
 }
 function summary() {
+  flush();
   const diagnostics = db.prepare(`SELECT kind,name,SUM(count) AS count,ROUND(SUM(total_ms)/SUM(count),1) AS avg_ms,ROUND(MAX(max_ms),1) AS max_ms
     FROM platform_diagnostics_daily WHERE day >= date('now','-29 days') GROUP BY kind,name ORDER BY count DESC`).all();
   const total = db.prepare('SELECT COUNT(*) AS n FROM organizations').get().n;
@@ -47,4 +83,4 @@ function summary() {
     FROM organizations o ORDER BY o.created_at DESC`).all();
   return { diagnostics, adoption, onboarding };
 }
-module.exports = { recordErrors, observe, summary };
+module.exports = { recordErrors, observe, summary, flush };
