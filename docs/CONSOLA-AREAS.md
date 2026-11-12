@@ -75,17 +75,21 @@ não são apagados automaticamente ao expirar.
 
 ## Permissões
 
-Administração mantém acesso completo. Marketing pode gerir contactos,
-propostas, acompanhamento, campanhas, conteúdos, materiais, bugs/sugestões,
-demonstrações/testes, tarefas e comunicados. Pode ler a informação não financeira
-restante; não escreve versões/manutenções e não acede a Finanças, Equipa,
-Configurações ou exportação integral. A API aplica as mesmas regras quando
-alguém tenta abrir um endereço diretamente. Tarefas financeiras/administrativas
-não aparecem a Marketing, nem podem ser abertas/editadas por identificador.
+Cada pessoa pode ter vários cargos (Administração, Marketing e comercial,
+Suporte) e as permissões somam-se (ver `CONSOLA-LOTE-C.md`). Administração
+mantém acesso completo. Marketing pode gerir contactos, propostas,
+acompanhamento, campanhas, conteúdos, materiais, bugs/sugestões,
+demonstrações/testes, tarefas e comunicados. Suporte vê e responde aos pedidos
+de suporte e gere bugs/sugestões e tarefas. Fora da Administração ninguém vê
+Finanças, Equipa, Configurações, exportação integral, registo de ações nem
+diagnóstico; os pedidos de suporte e anexos são só do Suporte. A API aplica as
+mesmas regras quando alguém tenta abrir um endereço diretamente. Tarefas
+financeiras/administrativas só aparecem à Administração, nem podem ser
+abertas/editadas por identificador.
 
-A página Equipa permite mudar papéis de pessoas que já estão autorizadas
+A página Equipa permite escolher um ou mais cargos de pessoas que já estão autorizadas
 pela marca `platform_admin` e por `PLATFORM_ADMIN_EMAILS`. Não permite retirar
-o próprio papel de Administração. Atribuir papéis fecha desbloqueios anteriores.
+o próprio cargo de Administração. Atribuir cargos fecha desbloqueios anteriores.
 Contas novas/autorização no ambiente continuam pelo procedimento de servidor
 em `CONSOLA-LOTE-C.md`; a interface não permite contornar a lista de acesso.
 

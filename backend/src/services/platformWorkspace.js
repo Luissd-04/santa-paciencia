@@ -2,13 +2,16 @@ const { randomUUID } = require('crypto');
 const { db } = require('../config/database');
 const { httpError } = require('./httpError');
 const { definitions, DEPARTMENTS } = require('./platformCatalog');
-const { platformRole, isPlatformAdmin, recordPlatformAudit } = require('./platformAccess');
+const { can, isPlatformAdmin, recordPlatformAudit, platformRoles, setPlatformRoles, cleanRoles } = require('./platformAccess');
 const { isValidEmail } = require('./authService');
 const FINANCIAL = new Set(['subscription','entry']);
-const WRITABLE_MARKETING = new Set(['lead','proposal','profile','campaign','content','material','issue']);
+// Capacidade (services/platformAccess.js) para escrever em cada tipo de registo.
+// Ler: toda a equipa, exceto Finanças (só Administração).
+const WRITE_CAPABILITY = { lead:'sales', proposal:'sales', profile:'sales', campaign:'sales', content:'sales', material:'sales', issue:'product' };
 function permitted(user,kind,write=false) {
-  const role = platformRole(user);
-  return role === 'admin' || (role === 'marketing' && !FINANCIAL.has(kind) && (!write || WRITABLE_MARKETING.has(kind)));
+  if (can(user,'admin')) return true;
+  if (FINANCIAL.has(kind) || !can(user,'read')) return false;
+  return !write || (Object.hasOwn(WRITE_CAPABILITY,kind) && can(user,WRITE_CAPABILITY[kind]));
 }
 function schema(user,kind,write=false) {
   if (!Object.hasOwn(definitions,kind)) throw httpError('Área não encontrada.',404);
@@ -159,21 +162,26 @@ function summary(user,{from='',to=''}={}) {
   if(r.kind==='entry'&&r.status==='pending'&&d.direction==='income'){pending+=d.amount_cents;if(d.due_date&&d.due_date<today)overdue+=d.amount_cents;}
   if(r.kind==='subscription'&&r.status==='active')monthly+=d.billing==='yearly'?d.amount_cents/12:d.amount_cents;
  }
- return {counts,finance:platformRole(user)==='admin'?{income_cents:income,expense_cents:expenses,balance_cents:income-expenses,pending_cents:pending,overdue_cents:overdue,mrr_cents:Math.round(monthly)}:null,
+ return {counts,finance:can(user,'admin')?{income_cents:income,expense_cents:expenses,balance_cents:income-expenses,pending_cents:pending,overdue_cents:overdue,mrr_cents:Math.round(monthly)}:null,
  next:db.prepare(`${SELECT} WHERE r.status NOT IN ('done','cancelled','lost','won','paid','published','released','dismissed','archived','rejected','expired') ORDER BY r.updated_at DESC`).all().filter(r=>permitted(user,r.kind)).map(shape).filter(r=>{const d=r.data;return (d.next_date||d.due_date||d.publish_date||d.start_date||'')<=today&&(d.next_date||d.due_date||d.publish_date||d.start_date);}).slice(0,10)};
 }
 function team(user) {
- if(platformRole(user)!=='admin') throw httpError('Apenas Administração.',403);
- return db.prepare('SELECT id,name,email,active,platform_admin,platform_role FROM users ORDER BY name').all().filter(u=>require('./platformAccess').isPlatformAdmin(u));
+ if(!can(user,'admin')) throw httpError('Apenas Administração.',403);
+ return db.prepare('SELECT id,name,email,active FROM users WHERE platform_admin=1 ORDER BY name').all()
+  .filter(u=>isPlatformAdmin(u)).map(u=>({...u,platform_roles:platformRoles(u)}));
 }
-function setRole(user,id,role) {
- if(platformRole(user)!=='admin')throw httpError('Apenas Administração.',403);
- if(!['admin','marketing'].includes(role)||!isPlatformAdmin({id}))throw httpError('Conta ou papel inválido.',400);
- if(id===user.id&&role!=='admin')throw httpError('Não pode retirar o seu próprio papel de Administração.',400);
- db.transaction(()=>{db.prepare("UPDATE users SET platform_role=?,updated_at=datetime('now') WHERE id=?").run(role,id);db.prepare('UPDATE auth_sessions SET platform_unlocked_until=NULL WHERE user_id=?').run(id);recordPlatformAudit({userId:user.id,action:'workspace.role',targetType:'user',targetId:id,details:{role}});})();return team(user);
+// Cargos de uma pessoa da equipa: um ou mais (ex.: Marketing e Administração).
+// `roles` é uma lista; aceita também um texto único, como antes.
+function setRole(user,id,roles) {
+ if(!can(user,'admin'))throw httpError('Apenas Administração.',403);
+ const list=cleanRoles(Array.isArray(roles)?roles:[roles]);
+ if(!list.length||!isPlatformAdmin({id}))throw httpError('Conta ou cargo inválido.',400);
+ if(id===user.id&&!list.includes('admin'))throw httpError('Não pode retirar o seu próprio cargo de Administração.',400);
+ db.transaction(()=>{setPlatformRoles(id,list);recordPlatformAudit({userId:user.id,action:'workspace.role',targetType:'user',targetId:id,details:{roles:list}});})();
+ return team(user);
 }
 function settings(user,input) {
- if(platformRole(user)!=='admin')throw httpError('Apenas Administração.',403);
+ if(!can(user,'admin'))throw httpError('Apenas Administração.',403);
  if(input!==undefined){const name=text(input.company_name,120,true),email=text(input.contact_email,254),notes=text(input.notes,5000);if(email&&!isValidEmail(email))throw httpError('Email inválido.',400);db.prepare('INSERT INTO platform_business_settings(id,company_name,contact_email,notes) VALUES(1,?,?,?) ON CONFLICT(id) DO UPDATE SET company_name=excluded.company_name,contact_email=excluded.contact_email,notes=excluded.notes').run(name,email,notes);recordPlatformAudit({userId:user.id,action:'workspace.settings'});}
  return db.prepare('SELECT company_name,contact_email,notes FROM platform_business_settings WHERE id=1').get()||{company_name:'Santa Paciência',contact_email:'',notes:''};
 }
@@ -185,7 +193,7 @@ function clientHub(user,id) {
  access:require('./platformTrials').access(id)};
 }
 function exportData(user) {
- if(platformRole(user)!=='admin')throw httpError('Apenas Administração.',403);
+ if(!can(user,'admin'))throw httpError('Apenas Administração.',403);
  recordPlatformAudit({userId:user.id,action:'workspace.export'});
  return {format:'santa-paciencia-internal-v1',created_at:new Date().toISOString(),records:db.prepare('SELECT * FROM platform_records ORDER BY created_at').all(),comments:db.prepare('SELECT * FROM platform_record_comments ORDER BY created_at').all(),tasks:db.prepare('SELECT * FROM platform_tasks').all(),task_comments:db.prepare('SELECT * FROM platform_task_comments').all(),settings:settings(user)};
 }

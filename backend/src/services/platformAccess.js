@@ -1,7 +1,10 @@
-// Acesso à consola da plataforma (só para o dono da instância). São precisas
+// Acesso à consola da plataforma (só para a equipa da instância). São precisas
 // duas coisas: a marca na base (scripts/platform-admin.js) e o email em
 // PLATFORM_ADMIN_EMAILS. Mesmo assim, a consola só abre depois de confirmar a
 // palavra-passe nesta sessão, e fica aberta 30 minutos.
+//
+// Cargos: cada pessoa tem um ou mais (platform_roles, separados por vírgulas).
+// As permissões são a soma dos cargos; Administração inclui todas.
 const { randomUUID } = require('crypto');
 const { db } = require('../config/database');
 const { digestToken, normalizeEmail, verifyPasswordAsync } = require('./authService');
@@ -9,21 +12,91 @@ const { digestToken, normalizeEmail, verifyPasswordAsync } = require('./authServ
 const UNLOCK_MINUTES = 30;
 const SESSION_TOKEN = /^[a-f0-9]{64}$/;
 
+const PLATFORM_ROLES = {
+  admin: 'Administração',
+  marketing: 'Marketing e comercial',
+  support: 'Suporte',
+};
+
+// O que cada capacidade exige (qualquer um dos cargos indicados; admin vale sempre).
+//  - read: ver a consola (visão geral, clientes, pacotes, tarefas, comunicados)
+//  - sales: comercial, marketing, demonstrações/testes e comunicados
+//  - support: caixa de pedidos de suporte, anexos e respostas guardadas
+//  - product: bugs e sugestões
+//  - admin: finanças, equipa, configurações, exportação, registo, diagnóstico,
+//    alterações a clientes e pacotes, conservação e eliminações do suporte
+const CAPABILITIES = {
+  read: ['marketing', 'support'],
+  sales: ['marketing'],
+  support: ['support'],
+  product: ['marketing', 'support'],
+  admin: [],
+};
+
 // Lido a cada chamada: mudar o ambiente e reiniciar chega para tirar o acesso.
 function adminEmails() {
   return new Set(String(process.env.PLATFORM_ADMIN_EMAILS || '').split(',').map(normalizeEmail).filter(Boolean));
 }
 
-// `user` só precisa do id: a marca, o email e o estado vêm sempre da base.
-function isPlatformAdmin(user) {
-  if (!user?.id) return false;
-  const row = db.prepare('SELECT email, active, platform_admin FROM users WHERE id = ?').get(user.id);
-  return !!row?.active && row.platform_admin === 1 && adminEmails().has(normalizeEmail(row.email));
+// Lista válida, ordenada e sem repetidos; vazia se nada servir.
+function cleanRoles(value) {
+  const list = Array.isArray(value) ? value : String(value ?? '').split(',');
+  const roles = new Set(list.map(role => String(role).trim().toLowerCase()).filter(role => Object.hasOwn(PLATFORM_ROLES, role)));
+  return Object.keys(PLATFORM_ROLES).filter(role => roles.has(role));
 }
 
+// Resultado por objeto `user` (um por pedido): as permissões leem-se uma vez,
+// mesmo que muitas linhas de uma lista as consultem.
+const cache = new WeakMap();
+
+function lookup(user) {
+  if (!user?.id) return { admin: false, roles: [] };
+  if (typeof user === 'object' && cache.has(user)) return cache.get(user);
+  const row = db.prepare('SELECT email, active, platform_admin, platform_role, platform_roles FROM users WHERE id = ?').get(user.id);
+  const admin = !!row?.active && row.platform_admin === 1 && adminEmails().has(normalizeEmail(row.email));
+  const roles = admin ? cleanRoles(row.platform_roles ?? row.platform_role ?? 'admin') : [];
+  // Sem nenhum cargo válido, fica só com leitura (nunca com Administração por omissão).
+  const result = { admin, roles };
+  if (typeof user === 'object') cache.set(user, result);
+  return result;
+}
+
+// `user` só precisa do id: a marca, o email e o estado vêm sempre da base.
+function isPlatformAdmin(user) {
+  return lookup(user).admin;
+}
+
+function platformRoles(user) {
+  return lookup(user).roles;
+}
+
+function can(user, capability) {
+  const { admin, roles } = lookup(user);
+  if (!admin) return false;
+  if (roles.includes('admin')) return true;
+  const needed = CAPABILITIES[capability];
+  if (!needed) return false;
+  // `read` também serve a quem ficou sem cargos válidos: é da equipa.
+  if (capability === 'read') return true;
+  return needed.some(role => roles.includes(role));
+}
+
+// Compatibilidade: o cargo «principal» (admin se o tiver).
 function platformRole(user) {
-  if (!isPlatformAdmin(user)) return null;
-  return db.prepare('SELECT platform_role FROM users WHERE id = ?').get(user.id)?.platform_role === 'marketing' ? 'marketing' : 'admin';
+  const { admin, roles } = lookup(user);
+  if (!admin) return null;
+  return roles.includes('admin') ? 'admin' : roles[0] || 'marketing';
+}
+
+// Grava os cargos (pelo menos um) e fecha as consolas abertas dessa pessoa.
+function setPlatformRoles(userId, value) {
+  const roles = cleanRoles(value);
+  if (!roles.length) return null;
+  db.transaction(() => {
+    db.prepare("UPDATE users SET platform_roles = ?, updated_at = datetime('now') WHERE id = ?").run(roles.join(','), userId);
+    db.prepare('UPDATE auth_sessions SET platform_unlocked_until = NULL WHERE user_id = ?').run(userId);
+  })();
+  return roles;
 }
 
 // Confirma a palavra-passe (como o login) e abre a consola nesta sessão.
@@ -59,4 +132,8 @@ function recordPlatformAudit({ userId = null, action, targetType = null, targetI
   }
 }
 
-module.exports = { UNLOCK_MINUTES, platformRole, isPlatformAdmin, unlock, isUnlocked, recordPlatformAudit };
+module.exports = {
+  UNLOCK_MINUTES, PLATFORM_ROLES, CAPABILITIES,
+  cleanRoles, platformRoles, platformRole, setPlatformRoles, can,
+  isPlatformAdmin, unlock, isUnlocked, recordPlatformAudit,
+};

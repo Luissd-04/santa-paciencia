@@ -100,7 +100,7 @@ function list(user, { assignee = 'all', type = '', department = '', organization
   if (organization_id) { where.push('t.organization_id=?'); args.push(String(organization_id)); }
   if (record_id) { where.push('t.record_id=?'); args.push(String(record_id)); }
   const rows = db.prepare(`${SELECT}${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY t.position, t.created_at`).all(...args);
-  return { tasks: rows.filter(r => require('./platformAccess').platformRole(user)==='admin' || (r.department!=='finance' && r.department!=='administration' && (!r.record_kind || require('./platformWorkspace').permitted(user,r.record_kind)))).map(shape), people: people() };
+  return { tasks: rows.filter(r => require('./platformAccess').can(user,'admin') || (r.department!=='finance' && r.department!=='administration' && (!r.record_kind || require('./platformWorkspace').permitted(user,r.record_kind)))).map(shape), people: people() };
 }
 
 function load(id) {
@@ -121,7 +121,7 @@ function get(id, user = null) {
 const nextPosition = status => (db.prepare('SELECT MAX(position) AS m FROM platform_tasks WHERE status = ?').get(status).m ?? 0) + 1;
 
 function taskAccess(user, task) {
-  if (require('./platformAccess').platformRole(user)==='marketing' && (['finance','administration'].includes(task.department) || (task.record_kind && !require('./platformWorkspace').permitted(user,task.record_kind)))) throw httpError('Tarefa reservada à Administração.',403);
+  if (!require('./platformAccess').can(user,'admin') && (['finance','administration'].includes(task.department) || (task.record_kind && !require('./platformWorkspace').permitted(user,task.record_kind)))) throw httpError('Tarefa reservada à Administração.',403);
 }
 function cleanDepartment(value) { if(!Object.hasOwn(DEPARTMENTS,value)) throw httpError('Área inválida.',400);return value; }
 function taskRecord(user, value, organizationId) {

@@ -19,6 +19,12 @@
 .ws-row { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:14px 0; border-top:1px solid var(--v2-divider); min-width:0; }
 .ws-row-main { flex:1; min-width:140px; overflow-wrap:anywhere; }
 .ws-row-main p { margin:3px 0; }
+/* Equipa: vários cargos por pessoa */
+.ws-roles { flex:2; min-width:220px; border:0; margin:0; padding:0; display:grid; gap:8px; }
+.ws-role { display:flex; align-items:flex-start; gap:8px; cursor:pointer; }
+.ws-role input { margin-top:3px; }
+.ws-role span { display:grid; gap:2px; }
+.ws-role small { color:var(--v2-muted, inherit); opacity:.8; }
 .ws-value { font-variant-numeric:tabular-nums; }
 .ws-actions { margin-top:14px; }
 .ws-description { white-space:pre-wrap; overflow-wrap:anywhere; }

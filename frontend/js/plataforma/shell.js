@@ -3,7 +3,10 @@
 // consola depois de api, format, gráficos e páginas estarem carregados.
 (() => {
 AppModules.define('consola', {
-  canManage: { get: () => st.user?.platform_role !== 'marketing' },
+  // Cargos (podem ser vários) → capacidades, como em services/platformAccess.js.
+  // Esconder é só conveniência: a API aplica as mesmas regras.
+  pode: { get: () => can },
+  canManage: { get: () => can('admin') },
   mostrarBloqueio: { get: () => showLocked },
   contadorSuporte: { get: () => setSupportBadge },
   contadorTarefas: { get: () => setTasksBadge },
@@ -18,6 +21,18 @@ const ROUTES = AppModules.consola.areas.routes;
 const LOOKS = [['classico', 'classico', 'auto', 'Clássico'], ['claro', 'vidro', 'claro', 'Vidro claro'], ['escuro', 'vidro', 'escuro', 'Vidro escuro']];
 
 const $ = id => document.getElementById(id);
+const CAPABILITIES = { read: ['marketing', 'support'], sales: ['marketing'], support: ['support'], product: ['marketing', 'support'], admin: [] };
+function can(capability) {
+  const roles = st.user?.platform_roles || (st.user?.platform_role ? [st.user.platform_role] : []);
+  if (roles.includes('admin')) return true;
+  if (capability === 'read') return !!st.user?.is_platform_admin;
+  return (CAPABILITIES[capability] || []).some(role => roles.includes(role));
+}
+// Que capacidade cada área da barra lateral exige para aparecer.
+const AREA_CAPABILITY = { sales: 'sales', support: 'support', marketing: 'sales', finance: 'admin', administration: 'admin' };
+const ITEM_CAPABILITY = { exports: 'admin', utilizacao: 'admin' };
+const allowedArea = area => can(AREA_CAPABILITY[area] || 'read');
+const allowedItem = key => can(ITEM_CAPABILITY[key] || 'read');
 const content = () => $('pl-content');
 const mobile = window.matchMedia('(max-width: 900px)');
 const st = { token: 0, route: null, user: null, denied: false, busy: false, unlockError: '', drawer: false };
@@ -45,7 +60,7 @@ function match(pathname) {
 }
 
 function renderNavigation() {
-  $('pl-nav').innerHTML = AppModules.consola.areas.groups.filter(([area])=>AppModules.consola.canManage || !['finance','administration'].includes(area)).map(([area,title,icon,items])=>`<details class="pl-nav-group" data-area="${area}"><summary>${fmt.icon(icon,18)}<span>${esc(title)}</span></summary>${items.filter(([key])=>AppModules.consola.canManage||key!=='exports').map(([key,path,label])=>`<a class="pl-nav-item" href="${path}" data-nav="${key}" data-on-click="pl-ir"><span>${esc(label)}</span>${key==='suporte'?'<em id="pl-badge-suporte" hidden></em>':key==='tarefas'?'<em id="pl-badge-tarefas" hidden></em>':''}</a>`).join('')}</details>`).join('');
+  $('pl-nav').innerHTML = AppModules.consola.areas.groups.filter(([area])=>allowedArea(area)).map(([area,title,icon,items])=>`<details class="pl-nav-group" data-area="${area}"><summary>${fmt.icon(icon,18)}<span>${esc(title)}</span></summary>${items.filter(([key])=>allowedItem(key)).map(([key,path,label])=>`<a class="pl-nav-item" href="${path}" data-nav="${key}" data-on-click="pl-ir"><span>${esc(label)}</span>${key==='suporte'?'<em id="pl-badge-suporte" hidden></em>':key==='tarefas'?'<em id="pl-badge-tarefas" hidden></em>':''}</a>`).join('')}</details>`).join('');
 }
 function mark(route) {
   document.querySelectorAll('#pl-nav [data-nav]').forEach(a => {
@@ -104,10 +119,10 @@ async function load(route) {
   closeDrawer();
   if (st.denied) { showDenied(); return; }
   if (!route.page) { showNotFound(); return; }
-  if(!AppModules.consola.canManage && (['finance','administration'].includes(route.area)||route.key==='exports')) { show(`<div class="v2-card"><h3>Acesso reservado à Administração</h3></div>`);return; }
+  if (route.area && (!allowedArea(route.area) || !allowedItem(route.key))) { show(`<div class="v2-card"><h3>Esta área não faz parte dos seus cargos</h3><p>Peça a quem tem o cargo Administração para lhe dar acesso.</p></div>`); return; }
   show(loadingHtml);
   const ctx = { host: content(), route, stale: () => token !== st.token };
-  if (route.key !== 'suporte') refreshSupportBadge();
+  if (route.key !== 'suporte' && can('support')) refreshSupportBadge();
   if (route.key !== 'tarefas') refreshTasksBadge();
   try {
     await AppModules.consola[route.page].render(ctx);

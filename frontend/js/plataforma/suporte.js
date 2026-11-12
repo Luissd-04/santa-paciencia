@@ -246,7 +246,7 @@ async function removeItem(button, kind, id) {
 }
 
 function replyHtml(ticket, draft) {
-  if (!AppModules.consola.canManage) return '<section class="v2-card v2-dense"><p>A resposta aos pedidos é da Administração.</p></section>';
+  if (!AppModules.consola.pode('support')) return '<section class="v2-card v2-dense"><p>A resposta aos pedidos é do Suporte.</p></section>';
   const options = STATUS_ORDER.map(key => `<option value="${key}">${esc(statusInfo(key).label)}</option>`).join('');
   return `<section class="v2-card v2-dense"><div class="v2-card-h"><h3>Responder</h3></div>
     ${savedRepliesHtml()}
@@ -272,7 +272,7 @@ function sideHtml(ticket, org, context) {
   return `<aside class="pl-col pl-aside" aria-label="Detalhes do pedido">
     <section class="v2-card v2-dense"><div class="v2-card-h"><h3>Pedido</h3></div>
       <label class="pl-label" for="pl-estado-pedido">Estado</label>
-      <select class="form-control" id="pl-estado-pedido"${AppModules.consola.canManage ? '' : ' disabled'} ${AppActions.attrs('change', 'pl-sup-mudar-estado')}>${options}</select>
+      <select class="form-control" id="pl-estado-pedido"${AppModules.consola.pode('support') ? '' : ' disabled'} ${AppActions.attrs('change', 'pl-sup-mudar-estado')}>${options}</select>
       <p class="pl-error" id="pl-estado-erro" role="alert" hidden></p>
       <div class="pl-side-kv">
       ${kv('Tipo', esc(type.label))}

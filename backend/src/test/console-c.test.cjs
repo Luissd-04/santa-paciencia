@@ -30,10 +30,14 @@ test('criação exige desbloqueio e convite; administrador não recebe acesso ao
 test('marketing pode ler e criar tarefas; administração bloqueada inclusive após mudar papel',async()=>{
  await pl(marketing,'POST','/unlock',{password:PASSWORD});
  for(const [method,url,body] of [['POST','/organizations',{name:'Não',owner_email:'x@example.invalid'}],['PUT',`/organizations/${org.id}`,{status:'suspended'}],['POST','/plans',{name:'Não'}],['POST','/support/saved-replies',{title:'Não',body:'Não'}],['PUT','/support/retention',{days:30}],['DELETE','/support/tickets/missing'],['DELETE','/support/attachments/missing']]) assert.equal((await pl(marketing,method,url,body)).status,403,method+url);
- assert.equal((await pl(marketing,'GET','/diagnostics')).status,200);
+ // Registo (tem IPs), diagnóstico e pedidos de suporte não são do Marketing.
+ for(const url of ['/diagnostics','/audit','/support/tickets','/support/saved-replies','/support-stats']) assert.equal((await pl(marketing,'GET',url)).status,403,url);
  assert.equal((await pl(marketing,'POST','/tasks',{title:'Marketing',type:'marketing'})).status,201);
  assert.equal((await(await call(marketing,'GET','/auth/me')).json()).data.user.platform_role,'marketing');
- db.prepare("UPDATE users SET platform_role='marketing' WHERE id=?").run(admin.user.id);assert.equal((await pl(admin,'PUT','/support/retention',{days:30})).status,403);db.prepare("UPDATE users SET platform_role='admin' WHERE id=?").run(admin.user.id);
+ const access=require('../services/platformAccess');
+ access.setPlatformRoles(admin.user.id,['marketing']);await pl(admin,'POST','/unlock',{password:PASSWORD});
+ assert.equal((await pl(admin,'PUT','/support/retention',{days:30})).status,403);
+ access.setPlatformRoles(admin.user.id,['admin']);await pl(admin,'POST','/unlock',{password:PASSWORD});
 });
 test('respostas, conservação e eliminação de ficheiros; nunca limpar pedidos abertos',async()=>{
  const r=await pl(admin,'POST','/support/saved-replies',{title:'Saudação',body:'Bom dia.'});assert.equal(r.status,201);const reply=(await r.json()).data;

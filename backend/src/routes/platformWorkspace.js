@@ -10,7 +10,7 @@ router.get('/clients/:id',(req,res)=>ok(res,service.clientHub(req.user,req.param
 router.get('/catalog',(req,res)=>ok(res,service.catalog(req.user)));
 router.get('/summary',(req,res)=>ok(res,service.summary(req.user,{from:req.query.from,to:req.query.to})));
 router.get('/team',(req,res)=>ok(res,service.team(req.user)));
-router.put('/team/:id',(req,res)=>ok(res,service.setRole(req.user,req.params.id,req.body?.role)));
+router.put('/team/:id',(req,res)=>ok(res,service.setRole(req.user,req.params.id,req.body?.roles??req.body?.role)));
 router.get('/settings',(req,res)=>ok(res,service.settings(req.user)));
 router.put('/settings',(req,res)=>ok(res,service.settings(req.user,req.body||{})));
 router.get('/export',(req,res)=>{const data=service.exportData(req.user);res.set('Content-Disposition','attachment; filename="gestao-interna.json"');res.json(data);});

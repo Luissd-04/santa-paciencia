@@ -21,7 +21,7 @@ if (auth.getUserByEmail(email)) {
 const password = randomBytes(18).toString('base64url') + 'Aa1!';
 db.transaction(() => {
   const user = auth.createUser({ name: 'Administração — TESTES', email, password });
-  db.prepare("UPDATE users SET platform_admin=1,platform_role='admin' WHERE id=?").run(user.id);
+  db.prepare("UPDATE users SET platform_admin=1,platform_role='admin',platform_roles='admin' WHERE id=?").run(user.id);
   const org = orgs.createOrganization('Estabelecimento de TESTES');
   orgs.createMembership({ organizationId: org.id, userId: user.id, role: 'owner' });
 })();

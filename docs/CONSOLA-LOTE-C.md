@@ -67,26 +67,34 @@ Os diagnósticos são conservados por 400 dias, como a restante utilização.
 
 O acesso continua a exigir a marca `platform_admin`, email em
 `PLATFORM_ADMIN_EMAILS`, conta ativa e desbloqueio por palavra-passe.
-O novo `platform_role` tem dois valores:
+Cada pessoa tem **um ou mais cargos** (`platform_roles`); as permissões
+somam-se. Por exemplo, uma pessoa de Marketing que também gere a plataforma
+fica com `marketing,admin`.
 
-| Papel | Leitura | Escrita |
+| Cargo | Leitura | Escrita |
 | --- | --- | --- |
-| Administração (`admin`) | Toda a consola | Clientes, pacotes, suporte, tarefas, comunicados |
-| Marketing (`marketing`) | Consola sem Finanças/Administração | Comercial, Marketing, acompanhamento, sugestões, tarefas e comunicados (ver CONSOLA-AREAS.md) |
+| Administração (`admin`) | Toda a consola | Tudo: clientes, pacotes, finanças, equipa, configurações, exportação, conservação e eliminações do suporte |
+| Marketing e comercial (`marketing`) | Consola sem Finanças, Administração, Suporte, registo e diagnóstico | Comercial, demonstrações/testes, Marketing, acompanhamento, sugestões, tarefas e comunicados (ver CONSOLA-AREAS.md) |
+| Suporte (`support`) | Consola sem Finanças, Administração, Comercial, registo e diagnóstico; caixa de pedidos e anexos | Responder e mudar o estado dos pedidos, respostas guardadas, sugestões e tarefas |
 
-Não concede acesso aos dados de operação dentro das organizações. O papel é
-verificado na base a cada pedido; esconder botões não é a proteção de acesso.
-Os administradores existentes mantêm `admin`. Atribuir pelo comando de operação,
-na pasta `backend/src` (email continua a ter de estar na lista do ambiente):
+Os pedidos de suporte, os anexos (podem ter dados de hóspedes) e o registo de
+ações (tem IPs) só são vistos por quem precisa deles: Suporte ou Administração.
+
+Não concede acesso aos dados de operação dentro das organizações. Os cargos
+são verificados na base a cada pedido; esconder botões não é a proteção de acesso.
+Os administradores existentes mantêm `admin`. Atribuir na página
+**Administração → Equipa e permissões** ou pelo comando de operação, na pasta
+`backend/src` (o email continua a ter de estar na lista do ambiente):
 
 ```sh
 npm run platform-admin -- grant colega@example.com marketing
+npm run platform-admin -- grant colega@example.com marketing,admin
 npm run platform-admin -- grant dono@example.com admin
 npm run platform-admin -- list
 ```
 
-Mudar o papel pelo comando fecha os desbloqueios anteriores da conta. A gestão
-dos papéis é feita por este comando, não há editor de permissões na interface.
+Mudar os cargos (pela página ou pelo comando) fecha os desbloqueios anteriores
+da conta. Ninguém pode retirar o próprio cargo de Administração.
 
 ## Validação
 

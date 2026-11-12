@@ -1,7 +1,7 @@
 const { randomUUID }=require('crypto');
 const {db}=require('../config/database');
 const {httpError}=require('./httpError');
-const {recordPlatformAudit,platformRole}=require('./platformAccess');
+const {recordPlatformAudit,can}=require('./platformAccess');
 const orgs=require('./orgService');
 const DAY=86400000;
 function access(orgId){if(!orgId)return null;const r=db.prepare('SELECT * FROM platform_trial_access WHERE organization_id=?').get(orgId);if(!r)return null;return {...r,status:r.converted_at?'converted':r.closed_at?'closed':r.expires_at&&Date.parse(r.expires_at)<=Date.now()?'expired':r.started_at?'active':'pending'};}
@@ -10,7 +10,7 @@ function blocked(orgId){const r=access(orgId);return r&&['expired','closed'].inc
 function begin(orgId){db.prepare(`UPDATE platform_trial_access SET started_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),expires_at=strftime('%Y-%m-%dT%H:%M:%fZ','now','+'||days||' days') WHERE organization_id=? AND started_at IS NULL AND closed_at IS NULL AND converted_at IS NULL`).run(orgId);return access(orgId);}
 function assertAllowed(orgId){if(blocked(orgId))throw httpError('O período de teste terminou ou foi encerrado. Contacte a equipa Santa Paciência.',403);}
 function list(){return db.prepare(`SELECT t.*,o.name,p.title AS lead_title FROM platform_trial_access t JOIN organizations o ON o.id=t.organization_id LEFT JOIN platform_records p ON p.id=t.lead_id ORDER BY t.created_at DESC`).all().map(r=>({...r,status:access(r.organization_id).status}));}
-function authorize(user){if(!['admin','marketing'].includes(platformRole(user)))throw httpError('Sem acesso ao Comercial.',403);}
+function authorize(user){if(!can(user,'sales'))throw httpError('Sem acesso ao Comercial.',403);}
 function seedDemo(orgId){
  const unit=randomUUID();db.prepare("INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests) VALUES(?,?,?,'alojamento',120,4)").run(unit,orgId,'Casa Exemplo — demonstração');
  const guests=[['Ana Exemplo','ana@example.invalid'],['João Exemplo','joao@example.invalid'],['Maria Exemplo','maria@example.invalid']];
@@ -42,7 +42,7 @@ function change(user,orgId,input){authorize(user);return db.transaction(()=>{
  }else if(action==='close'){
   if(r.converted_at)throw httpError('O teste já foi convertido.',400);db.prepare("UPDATE platform_trial_access SET closed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE organization_id=?").run(orgId);
  }else if(action==='convert'){
-  if(platformRole(user)!=='admin')throw httpError('A conversão em cliente requer Administração.',403);
+  if(!can(user,'admin'))throw httpError('A conversão em cliente requer Administração.',403);
   if(r.mode==='demo')throw httpError('Crie um teste privado para começar sem os dados fictícios da demonstração.',400);
   db.prepare("UPDATE platform_trial_access SET converted_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),closed_at=NULL WHERE organization_id=?").run(orgId);db.prepare("UPDATE organizations SET status='active',updated_at=datetime('now') WHERE id=?").run(orgId);
   if(r.lead_id)db.prepare("UPDATE platform_records SET status='won',organization_id=?,revision=revision+1 WHERE id=?").run(orgId,r.lead_id);

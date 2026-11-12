@@ -108,6 +108,7 @@ function serializeUser(user) {
     is_platform_admin: require('../services/platformAccess').isPlatformAdmin(user),
     trial_access: user.trial_access || null,
     platform_role: require('../services/platformAccess').platformRole(user),
+    platform_roles: require('../services/platformAccess').platformRoles(user),
   };
 }
 
