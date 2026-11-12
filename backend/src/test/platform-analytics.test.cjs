@@ -54,9 +54,15 @@ person('Gama Três', 'gama3@example.invalid', gama, 'staff');
 person('Gama Quatro', 'gama4@example.invalid', gama, 'staff');
 db.prepare('UPDATE memberships SET active = 0 WHERE user_id = (SELECT id FROM users WHERE email = ?)').run('gama3@example.invalid');
 
+// Browser/dispositivo e «ativos» saem de tabelas diárias duráveis, não das sessões:
+// as criadas acima (sem user agent) descartam-se e cada sessão regista o seu dia.
+db.prepare('DELETE FROM platform_device_daily').run();
 function setSession(who, org, ua, mode, ageDays) {
   db.prepare(`UPDATE auth_sessions SET user_agent = ?, display_mode = ?, last_seen_at = datetime('now', ?) WHERE id = ?`)
     .run(ua, mode, `-${ageDays} days`, auth.digestToken(who.session));
+  const day = localDay(new Date(), -ageDays);
+  require('../services/deviceDaily').recordSession({ organizationId: org.id, userAgent: ua, displayMode: mode, day });
+  db.prepare('INSERT OR IGNORE INTO daily_activity (organization_id, day, user_id) VALUES (?, ?, ?)').run(org.id, day, who.user.id);
 }
 setSession(owner, alfa, UA.chromeWin, 'browser', 0);
 setSession(regular, alfa, UA.safariIphone, 'standalone', 3);
@@ -245,4 +251,18 @@ test('rotas: 404 a não-admin, 423 sem desbloqueio, 200 depois e o contrato da f
   assert.equal(page.some(e => audit.some(a => a.id === e.id)), false);
   const org = (await (await call(owner, `/organizations/${alfa.id}`)).json()).data;
   assert.ok(org.team && org.usage && org.trend);
+});
+
+test('terminar sessão não altera ativos nem browsers: vêm de tabelas diárias duráveis', () => {
+  const before = { usage: analytics.getUsage(30), org: platform.getOrganization(alfa.id) };
+  for (const who of [owner, regular, s3, b1]) auth.deleteSession(who.session);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM auth_sessions WHERE user_id = ?').get(owner.user.id).n, 0);
+  const after = { usage: analytics.getUsage(30), org: platform.getOrganization(alfa.id) };
+  assert.deepEqual(after.usage.browsers, before.usage.browsers);
+  assert.deepEqual(after.usage.devices, before.usage.devices);
+  assert.equal(after.org.team.active_7d, 2);
+  assert.deepEqual(after.org.usage.browsers, before.org.usage.browsers);
+  // Nada em bruto na tabela: só grupos.
+  const cols = db.pragma('table_info(platform_device_daily)').map(c => c.name);
+  assert.deepEqual(cols, ['organization_id', 'day', 'browser', 'os', 'device', 'display_mode', 'sessions']);
 });

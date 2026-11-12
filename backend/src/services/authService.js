@@ -96,6 +96,7 @@ function insertSession(userId, organizationId, oldSessionId, meta) {
   `).run(digestToken(sessionId), userId, organizationId, expiresAt,
     meta.userAgent ? String(meta.userAgent).slice(0, 400) : null, meta.ip || null,
     DISPLAY_MODES.has(meta.displayMode) ? meta.displayMode : null);
+  if (organizationId) require('./deviceDaily').recordSession({ organizationId, userAgent: meta.userAgent, displayMode: meta.displayMode });
 
   return { sessionId, expiresAt };
 }
@@ -168,7 +169,7 @@ function getSessionUser(sessionId) {
 
   const row = db.prepare(`
     SELECT
-      s.id, s.expires_at, s.organization_id,
+      s.id, s.expires_at, s.organization_id, s.last_seen_at, s.user_agent, s.display_mode,
       u.id as user_id, u.name, u.email, u.role as system_role, u.active,
       m.role as membership_role, m.active as membership_active,
       o.name as organization_name, o.slug as organization_slug, o.status as organization_status
@@ -191,6 +192,11 @@ function getSessionUser(sessionId) {
     return null;
   }
 
+  // Primeira vez que a sessão é vista neste dia: entra no agregado diário de dispositivos.
+  const deviceDaily = require('./deviceDaily');
+  if (row.organization_id && deviceDaily.dayOfStamp(row.last_seen_at) !== require('./dates').localDay()) {
+    deviceDaily.recordSession({ organizationId: row.organization_id, userAgent: row.user_agent, displayMode: row.display_mode });
+  }
   db.prepare(`UPDATE auth_sessions SET last_seen_at = datetime('now') WHERE id = ? AND datetime(last_seen_at) < datetime('now', '-5 minutes')`).run(row.id);
   if (row.organization_id && row.organization_status !== 'suspended') markActive(row.id, row.organization_id, row.user_id);
 

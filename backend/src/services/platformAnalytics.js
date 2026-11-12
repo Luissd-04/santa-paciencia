@@ -2,7 +2,6 @@
 // Apenas metadados agregados: nunca nomes, emails, user agents em bruto nem IPs.
 const { db } = require('../config/database');
 const { localDay, addDays } = require('./dates');
-const { parseUserAgent } = require('./userAgent');
 
 const clamp = (value, min, max, fallback) => {
   const n = Number.parseInt(value, 10);
@@ -82,21 +81,21 @@ function getTrends(weeksParam) {
 const byCountDesc = (a, b, key) => b[key] - a[key] || String(a.name ?? a.view).localeCompare(String(b.name ?? b.view));
 const ranked = (map, key = 'sessions') => [...map].map(([name, n]) => ({ name, [key]: n })).sort((a, b) => byCountDesc(a, b, key));
 
-// Sessões vistas no período, de membros ativos, por browser/sistema/dispositivo/modo.
+// Sessões do período por browser/sistema/dispositivo/modo, a partir do
+// agregado diário durável (platform_device_daily): não depende de as sessões
+// ainda existirem, por isso terminar sessão não apaga o histórico.
 function sessionBreakdown(days, orgId = null) {
-  const rows = db.prepare(`SELECT s.user_agent, s.display_mode FROM auth_sessions s
-    JOIN memberships m ON m.organization_id = s.organization_id AND m.user_id = s.user_id AND m.active = 1
-    WHERE datetime(s.last_seen_at) >= datetime('now', ?) ${orgId ? 'AND s.organization_id = ?' : ''}`)
-    .all(`-${days} days`, ...(orgId ? [orgId] : []));
+  const rows = db.prepare(`SELECT browser, os, device, display_mode, SUM(sessions) AS n FROM platform_device_daily
+    WHERE day >= ? ${orgId ? 'AND organization_id = ?' : ''} GROUP BY browser, os, device, display_mode`)
+    .all(localDay(new Date(), -(days - 1)), ...(orgId ? [orgId] : []));
   const browsers = new Map(); const systems = new Map();
   const devices = { desktop: 0, mobile: 0, tablet: 0 };
   const display = { standalone: 0, browser: 0, unknown: 0 };
   for (const r of rows) {
-    const ua = parseUserAgent(r.user_agent);
-    browsers.set(ua.browser, (browsers.get(ua.browser) || 0) + 1);
-    systems.set(ua.os, (systems.get(ua.os) || 0) + 1);
-    devices[ua.device] += 1;
-    display[r.display_mode === 'standalone' || r.display_mode === 'browser' ? r.display_mode : 'unknown'] += 1;
+    browsers.set(r.browser, (browsers.get(r.browser) || 0) + r.n);
+    systems.set(r.os, (systems.get(r.os) || 0) + r.n);
+    if (r.device in devices) devices[r.device] += r.n;
+    display[r.display_mode in display ? r.display_mode : 'unknown'] += r.n;
   }
   return { browsers: ranked(browsers), os: ranked(systems), devices, display };
 }
@@ -132,9 +131,11 @@ function getUsage(daysParam) {
 // Extras da ficha de uma organização.
 function organizationInsights(orgId) {
   const roles = rolesOf(db.prepare('SELECT role, COUNT(*) AS n FROM memberships WHERE organization_id = ? AND active = 1 GROUP BY role').all(orgId));
-  const active7d = db.prepare(`SELECT COUNT(DISTINCT m.user_id) AS n FROM memberships m
-    JOIN auth_sessions s ON s.user_id = m.user_id AND s.organization_id = m.organization_id
-    WHERE m.organization_id = ? AND m.active = 1 AND datetime(s.last_seen_at) >= datetime('now', '-7 days')`).get(orgId).n;
+  // Pessoas distintas com atividade nos últimos 7 dias (daily_activity, que
+  // não se apaga ao terminar sessão).
+  const active7d = db.prepare(`SELECT COUNT(DISTINCT a.user_id) AS n FROM daily_activity a
+    JOIN memberships m ON m.organization_id = a.organization_id AND m.user_id = a.user_id AND m.active = 1
+    WHERE a.organization_id = ? AND a.day >= ?`).get(orgId, localDay(new Date(), -6)).n;
   const { browsers, devices, display } = sessionBreakdown(30, orgId);
   const weeks = weekStarts(12);
   return {
