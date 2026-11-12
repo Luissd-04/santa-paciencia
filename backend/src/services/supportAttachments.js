@@ -125,6 +125,6 @@ function streamAttachment(res, row) {
 }
 
 module.exports = {
-  SUPPORT_DIR, MAX_FILES, MAX_BYTES,
+  SUPPORT_DIR, MAX_FILES, MAX_BYTES, STORED_NAME,
   validateAndStore, removeStored, findAttachment, streamAttachment, sanitizeName, detectType,
 };

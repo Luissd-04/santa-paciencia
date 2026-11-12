@@ -1,12 +1,25 @@
+const path = require('path');
 const { randomUUID } = require('crypto');
 const { db } = require('../config/database');
 const { accommodationUrls, uploadPath } = require('./mediaStorage');
+const { STORED_NAME } = require('./supportAttachments');
 
 // Ordem das dependências; deletes usam a ordem inversa, numa única transação.
 const TABLES = ['organization_settings', 'organization_email_templates', 'accommodations',
   'pricing_periods', 'accommodation_blocks', 'suppliers', 'vouchers', 'guests', 'expenses',
   'reservations', 'stripe_payment_attempts', 'voucher_redemptions', 'reservation_payments', 'reservation_history', 'operational_events',
   'invoice_messages', 'conversation_archives', 'organization_email_log', 'organization_email_queue', 'manual_payment_intents', 'email_deliveries'];
+// Pedidos de suporte da organização (versão 10): só têm organization_id os
+// pedidos; mensagens e anexos seguem-nos por ticket_id. Os ficheiros dos anexos
+// vão no ZIP em uploads/support/<nome guardado>.
+const SUPPORT_TABLES = ['support_tickets', 'support_messages', 'support_attachments'];
+const SUPPORT_COLUMNS = {
+  support_tickets: ['type', 'subject', 'status', 'context_json', 'author_user_id', 'created_at', 'updated_at', 'last_message_at', 'customer_confirmed_at', 'platform_read_at'],
+  support_messages: ['side', 'author_user_id', 'body', 'created_at'],
+  support_attachments: ['original_name', 'mime', 'size', 'created_at'],
+};
+// Numeração e chaves próprias da instância: nunca vêm do backup.
+const SUPPORT_IGNORED = ['id', 'number', 'org_number', 'organization_id', 'ticket_id', 'message_id', 'stored_name'];
 const REFERENCES = { parent_id: 'accommodations', accommodation_id: 'accommodations',
   guest_id: 'guests', reservation_id: 'reservations', used_in_reservation_id: 'reservations',
   supplier_id: 'suppliers', voucher_id: 'vouchers' };
@@ -17,15 +30,87 @@ function uploadUrls(tables) {
   return urls;
 }
 
+function supportRows(organizationId) {
+  const tickets = db.prepare('SELECT * FROM support_tickets WHERE organization_id = ? ORDER BY number').all(organizationId);
+  const where = 'WHERE ticket_id IN (SELECT id FROM support_tickets WHERE organization_id = ?)';
+  return {
+    support_tickets: tickets,
+    support_messages: db.prepare(`SELECT * FROM support_messages ${where} ORDER BY created_at, rowid`).all(organizationId),
+    support_attachments: db.prepare(`SELECT * FROM support_attachments ${where} ORDER BY created_at, rowid`).all(organizationId),
+  };
+}
+
+// Ficheiros dos anexos (nomes guardados) referenciados pelas linhas exportadas.
+function supportFileNames(tables) {
+  return (tables.support_attachments || []).map(row => row.stored_name).filter(name => typeof name === 'string');
+}
+
 function exportData(organizationId) {
-  return db.transaction(() => ({ version: 9, scope: 'client-data', exported_at: new Date().toISOString(),
-    tables: Object.fromEntries(TABLES.map(table => [table,
-      db.prepare(`SELECT * FROM ${table} WHERE organization_id = ?`).all(organizationId)])) }))();
+  return db.transaction(() => ({ version: 10, scope: 'client-data', exported_at: new Date().toISOString(),
+    tables: { ...Object.fromEntries(TABLES.map(table => [table,
+      db.prepare(`SELECT * FROM ${table} WHERE organization_id = ?`).all(organizationId)])), ...supportRows(organizationId) } }))();
+}
+
+// Valida e prepara os pedidos de suporte do backup: ids novos, ligações
+// remapeadas, autores só se forem membros ativos, numeração atribuída no
+// restauro. Devolve null se o backup não os traz (versões anteriores): nesse
+// caso o restauro não mexe nos pedidos existentes.
+function prepareSupport(payload, organizationId) {
+  const present = SUPPORT_TABLES.filter(table => Object.hasOwn(payload.tables, table));
+  if (!present.length && payload.version < 10) return null;
+  if (present.length !== SUPPORT_TABLES.length) throw new Error('O backup não contém os pedidos de suporte; restauro recusado.');
+  for (const table of SUPPORT_TABLES) {
+    const rows = payload.tables[table];
+    if (!Array.isArray(rows) || rows.length > 100000) throw new Error(`Dados inválidos: ${table}.`);
+  }
+  const memberCache = new Map();
+  const author = id => {
+    if (typeof id !== 'string' || !id) return null;
+    if (!memberCache.has(id)) memberCache.set(id, !!db.prepare('SELECT 1 FROM memberships WHERE organization_id = ? AND user_id = ? AND active = 1').get(organizationId, id));
+    return memberCache.get(id) ? id : null;
+  };
+  const build = (table, input) => {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error(`Dados inválidos: ${table}.`);
+    const allowed = new Set([...SUPPORT_COLUMNS[table], ...SUPPORT_IGNORED]);
+    if (Object.keys(input).some(key => !allowed.has(key))) throw new Error(`Colunas inválidas: ${table}.`);
+    const row = {};
+    for (const key of SUPPORT_COLUMNS[table]) if (Object.hasOwn(input, key)) row[key] = input[key];
+    if ('author_user_id' in row) row.author_user_id = author(row.author_user_id);
+    if (typeof input.id !== 'string' || !input.id) throw new Error(`Identificador inválido ou repetido: ${table}.`);
+    return row;
+  };
+  const tickets = new Map(); const messages = new Map(); const seen = { support_tickets: new Set(), support_messages: new Set(), support_attachments: new Set() };
+  const claim = (table, id) => { if (seen[table].has(id)) throw new Error(`Identificador inválido ou repetido: ${table}.`); seen[table].add(id); };
+  const ordered = [...payload.tables.support_tickets].sort((a, b) => (Number(a?.number) || 0) - (Number(b?.number) || 0));
+  const outTickets = ordered.map(input => {
+    const row = build('support_tickets', input); claim('support_tickets', input.id);
+    row.id = randomUUID(); row.organization_id = organizationId; tickets.set(input.id, row.id);
+    return row;
+  });
+  const outMessages = payload.tables.support_messages.map(input => {
+    const row = build('support_messages', input); claim('support_messages', input.id);
+    if (!tickets.has(input.ticket_id)) throw new Error('Referência inválida: ticket_id.');
+    row.id = randomUUID(); row.ticket_id = tickets.get(input.ticket_id); messages.set(input.id, { id: row.id, ticket: row.ticket_id });
+    return row;
+  });
+  const files = []; const names = new Set();
+  const outAttachments = payload.tables.support_attachments.map(input => {
+    const row = build('support_attachments', input); claim('support_attachments', input.id);
+    const message = messages.get(input.message_id);
+    if (!message || tickets.get(input.ticket_id) !== message.ticket) throw new Error('Referência inválida: anexo de suporte.');
+    if (typeof input.stored_name !== 'string' || !STORED_NAME.test(input.stored_name) || names.has(input.stored_name)) throw new Error('Backup inválido: nome de anexo de suporte inválido.');
+    names.add(input.stored_name);
+    row.id = randomUUID(); row.message_id = message.id; row.ticket_id = message.ticket;
+    row.stored_name = `${randomUUID()}${path.extname(input.stored_name)}`;
+    files.push({ from: input.stored_name, to: row.stored_name, row });
+    return row;
+  });
+  return { tickets: outTickets, messages: outMessages, attachments: outAttachments, files };
 }
 
 function prepareImport(payload, organizationId) {
-  if (![3, 4, 5, 6, 7, 8, 9].includes(payload.version) || !payload.tables || Array.isArray(payload.tables)) throw new Error('Versão ou estrutura de backup inválida.');
-  if (Object.keys(payload.tables).some(table => !TABLES.includes(table))) throw new Error('Backup contém tabelas não permitidas.');
+  if (![3, 4, 5, 6, 7, 8, 9, 10].includes(payload.version) || !payload.tables || Array.isArray(payload.tables)) throw new Error('Versão ou estrutura de backup inválida.');
+  if (Object.keys(payload.tables).some(table => !TABLES.includes(table) && !SUPPORT_TABLES.includes(table))) throw new Error('Backup contém tabelas não permitidas.');
   if (payload.version < 6 && !Object.hasOwn(payload.tables, 'stripe_payment_attempts')) {
     if (db.prepare('SELECT 1 FROM stripe_payment_attempts WHERE organization_id=?').get(organizationId)) {
       throw new Error('O backup não contém o histórico Stripe; restauro recusado.');
@@ -131,7 +216,31 @@ function prepareImport(payload, organizationId) {
     }
     if (table === 'conversation_archives' && row.key_type === 'reservation') row.thread_key = maps.reservations.get(row.thread_key) || row.thread_key;
   }
+  const support = prepareSupport(payload, organizationId);
+  if (support) {
+    tables.support_tickets = support.tickets; tables.support_messages = support.messages;
+    tables.support_attachments = support.attachments; tables.support_files = support.files;
+  }
   return tables;
+}
+
+// Substitui os pedidos de suporte da organização. A numeração é atribuída como
+// na criação (MAX+1, global à instância; e por organização se existir
+// org_number), pela ordem original, dentro da mesma transação.
+function restoreSupport(tables, organizationId) {
+  const owned = '(SELECT id FROM support_tickets WHERE organization_id = ?)';
+  for (const table of ['support_reads', 'support_attachments', 'support_messages']) db.prepare(`DELETE FROM ${table} WHERE ticket_id IN ${owned}`).run(organizationId);
+  db.prepare('DELETE FROM support_tickets WHERE organization_id = ?').run(organizationId);
+  const perOrganization = db.pragma('table_info(support_tickets)').some(column => column.name === 'org_number');
+  let number = db.prepare('SELECT COALESCE(MAX(number), 0) AS n FROM support_tickets').get().n;
+  let orgNumber = perOrganization ? db.prepare('SELECT COALESCE(MAX(org_number), 0) AS n FROM support_tickets WHERE organization_id = ?').get(organizationId).n : 0;
+  const insert = (table, row) => {
+    const cols = Object.keys(row);
+    db.prepare(`INSERT INTO ${table} (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`).run(...cols.map(col => row[col] ?? null));
+  };
+  for (const row of tables.support_tickets) insert('support_tickets', { ...row, number: ++number, ...(perOrganization ? { org_number: ++orgNumber } : {}) });
+  for (const row of tables.support_messages) insert('support_messages', row);
+  for (const row of tables.support_attachments) insert('support_attachments', row);
 }
 
 function restoreData(tables, organizationId) {
@@ -167,7 +276,8 @@ function restoreData(tables, organizationId) {
       const cols = Object.keys(row);
       db.prepare(`INSERT INTO ${table} (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`).run(...cols.map(col => row[col] ?? null));
     }
+    if (tables.support_tickets) restoreSupport(tables, organizationId);
   })();
 }
 
-module.exports = { TABLES, exportData, prepareImport, restoreData, uploadUrls };
+module.exports = { TABLES, SUPPORT_TABLES, exportData, prepareImport, restoreData, uploadUrls, supportFileNames };

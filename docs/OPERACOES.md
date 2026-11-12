@@ -190,7 +190,7 @@ Há dois mecanismos com âmbitos diferentes:
 
 | Mecanismo | Âmbito | Serve para |
 |---|---|---|
-| «Exportar dados» na aplicação (ZIP) | Uma organização: alojamentos, reservas, hóspedes, pagamentos, vouchers, emails, uploads referenciados | Levar ou repor os dados de um cliente. **Não** inclui contas, sessões, ligações Google, chaves VAPID nem a chave dos tokens. |
+| «Exportar dados» na aplicação (ZIP) | Uma organização: alojamentos, reservas, hóspedes, pagamentos, vouchers, emails, pedidos de suporte com mensagens e anexos, uploads referenciados | Levar ou repor os dados de um cliente. O restauro respeita os limites do pacote (403 com `limit` se excedesse alojamentos ou membros), gera ids e números novos para os pedidos de suporte e revalida cada anexo; backups antigos, sem suporte, importam sem tocar nos pedidos existentes. **Não** inclui contas, sessões, ligações Google, chaves VAPID nem a chave dos tokens. |
 | `scripts/instance-backup.cjs` | A instância inteira: base SQLite (todas as organizações, contas, sessões, ligações Google, VAPID, filas), todos os uploads, tokens Google legados e a chave que os desencripta | Recuperação de desastre. |
 
 ### Backup da instância
