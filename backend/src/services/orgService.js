@@ -72,6 +72,7 @@ function createOrganization(name) {
     VALUES (?, ?, ?, datetime('now'), datetime('now'))
   `).run(id, trimmedName, slug);
   seedOrganizationDefaults(id);
+  require('./platformService').invalidateSnapshot();
   return db.prepare('SELECT * FROM organizations WHERE id = ?').get(id);
 }
 

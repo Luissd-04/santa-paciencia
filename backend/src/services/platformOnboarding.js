@@ -19,6 +19,7 @@ function create(input = {}, userId) {
     const org = orgs.createOrganization(name);
     db.prepare('UPDATE organizations SET status = ?, plan_id = ? WHERE id = ?').run(status, planId, org.id);
     const invitation = orgs.createInvitation({ organizationId: org.id, email: normalizeEmail(input.owner_email), role: 'owner', invitedByUserId: userId });
+    require('./platformService').invalidateSnapshot();
     return { id: org.id, name, status, invitation_url: orgs.buildInvitationUrl(invitation.token), expires_at: invitation.expires_at };
   }).immediate();
 }
