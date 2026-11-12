@@ -92,26 +92,25 @@ Detalhes e validação: [Áreas internas da consola](CONSOLA-AREAS.md).
   - papéis na consola;
   - LLM.
 
-## Decisões em aberto
+## Decisões tomadas (12/11/2026)
 
-- **Anexos em PDF.** São servidos com `Content-Security-Policy: sandbox`, e o
-  leitor de PDF do Chrome pode recusar-se a mostrá-los dentro da página. É
-  preciso confirmar num browser real; se falhar, tira-se o `sandbox` só ao PDF
-  ou serve-se como descarga.
-- **Cópias de segurança.** Decidido: os pedidos de suporte (pedidos, mensagens
-  e anexos) entram nas cópias de cada organização (versão 10 do ZIP). No
-  restauro recebem ids e números novos e os anexos são revalidados.
-- **«Ajuda e feedback» no aspeto V1.** Hoje fica escondida. Ou se mostra com o
-  Clássico como reserva (como na consola), ou se aceita que só existe na V2.
-- **Mudar o estado de um pedido sem escrever mensagem não avisa o cliente.**
-  Falta decidir se deve avisar, pelo menos ao passar a «Resolvido».
-- **Arranque no limite do orçamento.** A app já chega aos 65 pedidos no
-  arranque, por isso o orçamento está no limite.
-- **Reativar um membro não aplica o limite do pacote.** Só se verificam criar
-  alojamento, convidar e aceitar convite.
-- **Importar um backup não aplica os limites.** Uma organização pode ficar acima
-  do pacote depois de importar.
-- **As contas só de plataforma não podem mudar de email.**
+- **Anexos em PDF.** Descarregam em vez de abrir no browser (o leitor de PDF
+  não funciona dentro da CSP `sandbox`). As imagens continuam a abrir.
+- **Cópias de segurança.** Os pedidos de suporte (pedidos, mensagens e anexos)
+  entram nas cópias de cada organização (versão 10 do ZIP). No restauro
+  recebem ids e números novos e os anexos são revalidados.
+- **«Ajuda e feedback» no aspeto V1.** Fica como está (só na V2), por agora.
+- **Mudar o estado de um pedido.** Passar a «Resolvido» avisa o cliente (push
+  ao autor e aos gestores, email ao autor) e marca o pedido como por ler. Não
+  mexe em `last_message_at`. Os outros estados não avisam.
+- **Numeração dos pedidos.** Cada cliente tem a sua (`SP-0001`, …); a consola
+  mostra o número global e o do cliente.
+- **Arranque.** A página de entrar só descarrega 2 folhas da V2 (antes 18):
+  67 pedidos no arranque, orçamento em 70.
+- **Reativar um membro.** Não existe esse caminho: remover apaga a ligação e
+  voltar só por convite, que já verifica o limite do pacote.
+- **Importar um backup** verifica os limites do pacote antes de gravar.
+- **Contas só de plataforma não mudam de email**, por agora.
 
 ## Fases seguintes
 

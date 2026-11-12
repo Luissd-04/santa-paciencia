@@ -14,7 +14,7 @@ const TABLES = ['organization_settings', 'organization_email_templates', 'accomm
 // vão no ZIP em uploads/support/<nome guardado>.
 const SUPPORT_TABLES = ['support_tickets', 'support_messages', 'support_attachments'];
 const SUPPORT_COLUMNS = {
-  support_tickets: ['type', 'subject', 'status', 'context_json', 'author_user_id', 'created_at', 'updated_at', 'last_message_at', 'customer_confirmed_at', 'platform_read_at'],
+  support_tickets: ['type', 'subject', 'status', 'context_json', 'author_user_id', 'created_at', 'updated_at', 'last_message_at', 'customer_confirmed_at', 'platform_read_at', 'status_notified_at'],
   support_messages: ['side', 'author_user_id', 'body', 'created_at'],
   support_attachments: ['original_name', 'mime', 'size', 'created_at'],
 };
