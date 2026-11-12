@@ -71,7 +71,7 @@ function runMigrations(db) {
   migrateDailyActivity(db);
   migratePlatformAlerts(db);
   // Uma migração por funcionalidade da plataforma, cada uma no seu ficheiro.
-  for (const name of ['plans', 'tasks', 'announcements', 'console-c', 'departments']) require(`./migrations-platform/${name}`)(db);
+  for (const name of ['plans', 'tasks', 'announcements', 'console-c', 'departments', 'device-daily']) require(`./migrations-platform/${name}`)(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,

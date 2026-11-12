@@ -36,8 +36,10 @@ function recordUsage({ organizationId, sessionId, views, displayMode, now = new 
   db.transaction(() => {
     if (organizationId) for (const [view, n] of valid) upsertView.run(organizationId, day, view, Math.min(n, MAX_COUNT));
     if (sessionId && DISPLAY_MODES.has(displayMode)) {
+      const before = db.prepare('SELECT organization_id, user_agent, display_mode FROM auth_sessions WHERE id = ?').get(digestToken(sessionId));
       db.prepare('UPDATE auth_sessions SET display_mode = ? WHERE id = ? AND display_mode IS NOT ?')
         .run(displayMode, digestToken(sessionId), displayMode);
+      if (before) require('./deviceDaily').changeMode({ organizationId: before.organization_id, userAgent: before.user_agent, from: before.display_mode, to: displayMode });
     }
   })();
   return organizationId ? valid.length : 0;
