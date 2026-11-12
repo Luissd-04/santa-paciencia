@@ -98,8 +98,9 @@ Detalhes e validação: [Áreas internas da consola](CONSOLA-AREAS.md).
   leitor de PDF do Chrome pode recusar-se a mostrá-los dentro da página. É
   preciso confirmar num browser real; se falhar, tira-se o `sandbox` só ao PDF
   ou serve-se como descarga.
-- **Cópias de segurança.** Os pedidos de suporte e os anexos não entram nas
-  cópias de cada organização. Falta decidir se devem entrar.
+- **Cópias de segurança.** Decidido: os pedidos de suporte (pedidos, mensagens
+  e anexos) entram nas cópias de cada organização (versão 10 do ZIP). No
+  restauro recebem ids e números novos e os anexos são revalidados.
 - **«Ajuda e feedback» no aspeto V1.** Hoje fica escondida. Ou se mostra com o
   Clássico como reserva (como na consola), ou se aceita que só existe na V2.
 - **Mudar o estado de um pedido sem escrever mensagem não avisa o cliente.**
