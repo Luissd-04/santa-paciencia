@@ -201,9 +201,16 @@ router.post('/invitations/accept', loginLimiter, async (req, res) => {
     if (!existingUser.active) {
       return res.status(403).json({ success: false, error: 'Esta conta está desativada.' });
     }
+    // Mesmo orçamento de falhas por conta que o /login; a conta é a do email
+    // do convite (existingUser), nunca um campo do corpo do pedido.
+    const limiter = require('../middleware/rateLimiter');
+    if (!limiter.consumeAccountAttempt(existingUser.email)) {
+      return res.status(429).json(limiter.ACCOUNT_LOGIN_MESSAGE);
+    }
     if (!await verifyPasswordAsync(String(password), existingUser.password_hash)) {
       return res.status(401).json({ success: false, error: 'Password incorreta.' });
     }
+    limiter.refundAccountAttempt(existingUser.email);
 
     const alreadyMember = getMembershipByUserAndOrganization(existingUser.id, invitation.organization_id);
     try {
@@ -400,10 +407,15 @@ router.post('/change-password', requireAuth, loginLimiter, require('../middlewar
   } catch (err) {
     return res.status(400).json({ success: false, error: err.message });
   }
-  db.prepare(`UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?`)
-    .run(await hashPasswordAsync(password), req.user.id);
-  // Termina as sessões noutros dispositivos; a atual continua ativa.
-  db.prepare('DELETE FROM auth_sessions WHERE user_id = ? AND id != ?').run(req.user.id, digestToken(req.sessionId));
+  const newHash = await hashPasswordAsync(password);
+  db.transaction(() => {
+    db.prepare(`UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?`).run(newHash, req.user.id);
+    // Termina as sessões noutros dispositivos; a atual continua ativa.
+    db.prepare('DELETE FROM auth_sessions WHERE user_id = ? AND id != ?').run(req.user.id, digestToken(req.sessionId));
+    // Links de recuperação já emitidos deixam de valer (senão quem tivesse um
+    // link antigo repunha a palavra-passe sem saber a atual).
+    db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ?').run(req.user.id);
+  }).immediate();
   res.json({ success: true });
 });
 

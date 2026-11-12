@@ -12,6 +12,7 @@ const sharp = require('sharp');
 const { UPLOADS_DIR, uploadPath } = require('./mediaStorage');
 
 const MAX_SIDE = 2000;
+const MAX_INPUT_PIXELS = 40000000;
 const THUMB_WIDTHS = new Set([160, 480, 1024, 1600]);
 const THUMBS_DIR = path.join(UPLOADS_DIR, '.thumbs');
 
@@ -21,7 +22,7 @@ const THUMBS_DIR = path.join(UPLOADS_DIR, '.thumbs');
 async function validateImage(buffer) {
   if (!Buffer.isBuffer(buffer) || buffer.length > 10 * 1024 * 1024) throw httpError('Imagem demasiado grande (máximo 10 MB).', 400);
   try {
-    await sharp(buffer, { failOn: 'warning', limitInputPixels: 40000000 }).resize({ width: 1, height: 1, fit: 'inside' }).png().toBuffer();
+    await sharp(buffer, { failOn: 'warning', limitInputPixels: MAX_INPUT_PIXELS }).resize({ width: 1, height: 1, fit: 'inside' }).png().toBuffer();
   } catch { throw httpError('Imagem inválida, incompleta ou com dimensões excessivas.', 400); }
 }
 async function optimizeLogoUpload(buffer, ext) {
@@ -71,7 +72,7 @@ async function thumbnail(url, width) {
   const job = (async () => {
     await fs.promises.mkdir(path.dirname(target), { recursive: true });
     const tmp = `${target}.${process.pid}.tmp`;
-    await sharp(source, { failOn: 'error' })
+    await sharp(source, { failOn: 'error', limitInputPixels: MAX_INPUT_PIXELS })
       .rotate()
       .resize({ width, height: width, fit: 'inside', withoutEnlargement: true })
       .webp({ quality: 78 })
