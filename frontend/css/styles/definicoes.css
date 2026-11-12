@@ -281,3 +281,9 @@
   .appearance-option { grid-template-columns: 96px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 12px; align-items: center; }
   .appearance-swatch { grid-row: 1 / 3; height: 64px; margin: 0; }
 }
+
+/* Definições → Versão da aplicação */
+.about-list { display: grid; gap: 10px; margin: 12px 0; }
+.about-list div { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.about-list dt { opacity: .7; }
+.about-list dd { margin: 0; font: 600 14px ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }

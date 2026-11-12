@@ -37,16 +37,7 @@
     </div>
     <nav class="pl-nav" id="pl-nav" aria-label="Áreas de trabalho"></nav>
     <div class="pl-side-foot">
-      <p class="pl-versao" id="pl-versao" hidden></p>
-      <div class="pl-look">
-        <span class="pl-look-label" id="pl-look-label">Aspeto</span>
-        <div class="pl-look-opts" id="pl-aspeto" role="group" aria-labelledby="pl-look-label">
-          <button type="button" data-look="classico" aria-pressed="false" data-on-click="pl-aspeto" data-args-click="[&quot;classico&quot;]">Clássico</button>
-          <button type="button" data-look="claro" aria-pressed="false" data-on-click="pl-aspeto" data-args-click="[&quot;claro&quot;]">Vidro claro</button>
-          <button type="button" data-look="escuro" aria-pressed="false" data-on-click="pl-aspeto" data-args-click="[&quot;escuro&quot;]">Vidro escuro</button>
-        </div>
-      </div>
-      <button type="button" class="pl-back" data-on-click="pl-logout">Terminar sessão</button>
+      <a class="pl-back" href="/plataforma/definicoes" data-nav="definicoes" data-on-click="pl-ir"><i data-lucide="settings"></i><span>Definições</span></a>
       <a class="pl-back" href="/dashboard"><i data-lucide="arrow-left"></i><span>Voltar à app</span></a>
     </div>
   </aside>
@@ -56,10 +47,10 @@
     <header class="pl-top">
       <button type="button" class="pl-icon-btn pl-burger" id="pl-menu" aria-label="Abrir menu" aria-controls="pl-side" aria-expanded="false" data-on-click="pl-gaveta"><i data-lucide="menu"></i></button>
       <h1 id="pl-title">Visão geral</h1>
-      <div class="pl-user">
+      <a class="pl-user" href="/plataforma/definicoes" data-on-click="pl-ir" title="Definições da conta">
         <span class="pl-avatar" id="pl-avatar" aria-hidden="true"></span>
         <span class="pl-user-copy"><strong id="pl-user-name"></strong><span id="pl-user-mail"></span></span>
-      </div>
+      </a>
     </header>
     <main class="view pl-content" id="pl-content" data-v2 tabindex="-1"></main>
   </div>
@@ -87,6 +78,7 @@
 <script src="/js/plataforma/pacotes.js"></script>
 <script src="/js/plataforma/workspace.js"></script>
 <script src="/js/plataforma/trials.js"></script>
+<script src="/js/plataforma/definicoes.js"></script>
 <script src="/js/plataforma/shell.js"></script>
 </body>
 </html>

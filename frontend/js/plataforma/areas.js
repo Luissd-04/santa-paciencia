@@ -12,6 +12,8 @@ const groups=[
  ['administration','Administração','settings',[[ 'team','/plataforma/administracao/equipa','Equipa e permissões','workspaceTeam'],['pacotes','/plataforma/pacotes','Pacotes','pacotes'],['settings','/plataforma/administracao/configuracoes','Configurações','workspaceSettings'],['registo','/plataforma/registo','Registo de ações','registo']]],
 ];
 const routes=groups.flatMap(([area,,,items])=>items.map(([key,path,title,page,kind,preset])=>({area,key,path,title,page,kind,preset})));
+// Definições da pessoa (conta, aspeto, versão, sessão): não é uma área de trabalho.
+routes.push({area:null,key:'definicoes',path:'/plataforma/definicoes',title:'Definições',page:'definicoes'});
 const recordRoute=kind=>routes.find(r=>r.kind===kind);
 function recordHref(kind,id){const route=recordRoute(kind);return route?`${route.path}/${encodeURIComponent(id)}`:'/plataforma';}
 AppModules.define('consola',{areas:{get:()=>({groups,routes,recordHref})}});

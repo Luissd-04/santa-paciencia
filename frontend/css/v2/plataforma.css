@@ -317,5 +317,13 @@ a.pl-att:hover { background: var(--v2-accent-soft); }
 /* Título de secção no menu da consola. */
 .pl-nav-sec { display: block; padding: 14px 12px 4px; font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; opacity: .7; }
 
-/* Versão instalada, no rodapé da barra lateral */
-.pl-versao { margin: 0; font-size: 12px; opacity: .7; overflow-wrap: anywhere; }
+/* Definições da consola: cartões em coluna; aspeto em botões grandes */
+.pl-def { display: grid; gap: 16px; max-width: 760px; }
+.pl-def-looks { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+.pl-def-look { display: grid; gap: 3px; padding: 12px 14px; border: 1px solid var(--v2-line); border-radius: 14px; background: var(--v2-surface); color: var(--v2-ink); font: 500 14px var(--v2-font); text-align: left; cursor: pointer; }
+.pl-def-look small { opacity: .7; font-size: 12px; }
+.pl-def-look[aria-pressed="true"] { border-color: var(--v2-accent, currentColor); box-shadow: inset 0 0 0 1px var(--v2-accent, currentColor); }
+.pl-def-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.pl-def code { font: 600 13px ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+a.pl-user { color: inherit; text-decoration: none; }
+a.pl-user:hover { background: var(--v2-side-active, rgba(0,0,0,.05)); }

@@ -321,7 +321,7 @@ let settingsSectionOpen = false;
 
 function switchSettingsTab(tab, render = true) {
   if (tab === 'equipa' && AppModules.core.currentUser?.role !== 'owner') tab = 'gcal';
-  settingsTab = ['gcal', 'database', 'operations', 'emails', 'fornecedores', 'push', 'equipa', 'payments', 'aparencia'].includes(tab) ? tab : 'gcal';
+  settingsTab = ['gcal', 'database', 'operations', 'emails', 'fornecedores', 'push', 'equipa', 'payments', 'aparencia', 'sobre'].includes(tab) ? tab : 'gcal';
   AppModules.core.SS.set('settings:tab', settingsTab);
   settingsSectionOpen = true;
   applySettingsTab();
@@ -372,6 +372,7 @@ function renderSettingsView() {
   if (settingsTab === 'push' && typeof AppModules.definicoes.initPushSettings === 'function') AppModules.definicoes.initPushSettings();
   if (settingsTab === 'equipa' && AppModules.core.currentUser?.role === 'owner') AppModules.definicoes.loadTeamOverview();
   if (settingsTab === 'aparencia' && typeof AppModules.definicoes.renderAppearance === 'function') AppModules.definicoes.renderAppearance();
+  if (settingsTab === 'sobre' && typeof AppModules.definicoes.renderAbout === 'function') AppModules.definicoes.renderAbout();
   if (window.lucide) lucide.createIcons();
 }
 

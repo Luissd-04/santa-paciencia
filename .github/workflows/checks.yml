@@ -46,6 +46,8 @@ jobs:
         working-directory: backend/src
       - run: npm run test:departments && BROWSER_ENGINE=webkit npm run test:departments
         working-directory: backend/src
+      - run: node scripts/check-definicoes.cjs && BROWSER_ENGINE=webkit node scripts/check-definicoes.cjs
+        working-directory: backend/src
       - run: npm run measure:frontend
         working-directory: backend/src
       - uses: actions/upload-artifact@v4

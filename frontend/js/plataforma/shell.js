@@ -7,6 +7,8 @@ AppModules.define('consola', {
   // Esconder é só conveniência: a API aplica as mesmas regras.
   pode: { get: () => can },
   canManage: { get: () => can('admin') },
+  utilizador: { get: () => st.user },
+  marcarAspeto: { get: () => markLook },
   mostrarBloqueio: { get: () => showLocked },
   contadorSuporte: { get: () => setSupportBadge },
   contadorTarefas: { get: () => setTasksBadge },
@@ -63,7 +65,7 @@ function renderNavigation() {
   $('pl-nav').innerHTML = AppModules.consola.areas.groups.filter(([area])=>allowedArea(area)).map(([area,title,icon,items])=>`<details class="pl-nav-group" data-area="${area}"><summary>${fmt.icon(icon,18)}<span>${esc(title)}</span></summary>${items.filter(([key])=>allowedItem(key)).map(([key,path,label])=>`<a class="pl-nav-item" href="${path}" data-nav="${key}" data-on-click="pl-ir"><span>${esc(label)}</span>${key==='suporte'?'<em id="pl-badge-suporte" hidden></em>':key==='tarefas'?'<em id="pl-badge-tarefas" hidden></em>':''}</a>`).join('')}</details>`).join('');
 }
 function mark(route) {
-  document.querySelectorAll('#pl-nav [data-nav]').forEach(a => {
+  document.querySelectorAll('#pl-side [data-nav]').forEach(a => {
     if (a.dataset.nav === route.key) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
   document.querySelectorAll('#pl-nav details').forEach(el => { if(el.dataset.area===route.area) el.open=true; });
@@ -242,13 +244,6 @@ async function setLook(key) {
 function fillUser(user) {
   const name = user?.name || user?.email || 'Utilizador';
   $('pl-user-name').textContent = name;
-  // Versão instalada (commit do Git), para confirmar que a atualização entrou.
-  const version = user?.app_version;
-  if (version?.commit) {
-    const since = version.started_at ? new Date(version.started_at).toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' }) : '';
-    $('pl-versao').textContent = `Versão ${version.commit}${since ? ` · desde ${since}` : ''}`;
-    $('pl-versao').hidden = false;
-  }
   $('pl-user-mail').textContent = user?.email && user.email !== name ? user.email : '';
   $('pl-avatar').textContent = AppModules.core.initials(name);
 }

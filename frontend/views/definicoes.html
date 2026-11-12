@@ -65,6 +65,11 @@
                 <span class="settings-tab-text"><strong>Menu do telemóvel</strong><small>Ordem, itens escondidos e atalhos da barra</small></span>
                 <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
               </button>
+              <button type="button" class="settings-tab" data-settings-tab="sobre" data-on-click="about-open">
+                <i data-lucide="info"></i>
+                <span class="settings-tab-text"><strong>Versão da aplicação</strong><small>Versão instalada e desde quando</small></span>
+                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
+              </button>
             </div>
           </nav>
           <button type="button" class="settings-back" data-on-click="settings-open-index">
@@ -72,6 +77,17 @@
           </button>
 
           <div class="settings-panel" id="settings-payments"><div id="pp-content"></div></div>
+          <!-- Versão instalada (js/appearance-settings.js): commit do Git e arranque do servidor. -->
+          <div class="settings-panel" id="settings-sobre">
+            <div class="card about-card">
+              <h3>Versão da aplicação</h3>
+              <dl class="about-list">
+                <div><dt>Versão</dt><dd id="about-commit">—</dd></div>
+                <div><dt>Em execução desde</dt><dd id="about-started">—</dd></div>
+              </dl>
+              <p class="appearance-note"><i data-lucide="info"></i> A versão é o início do commit do Git. Se acabou de atualizar e a hora não mudou, a atualização ainda não entrou.</p>
+            </div>
+          </div>
           <!-- Aparência (js/appearance-settings.js): vale para a conta, em todos os aparelhos. -->
           <div class="settings-panel" id="settings-aparencia">
             <div class="card appearance-card">
