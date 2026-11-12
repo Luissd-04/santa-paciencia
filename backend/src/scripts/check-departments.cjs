@@ -27,6 +27,30 @@ async function main(){
  const demoContext=await browser.newContext();await demoContext.route('**/*',r=>new URL(r.request().url()).origin===base?r.continue():r.abort());const accepted=await demoContext.request.post(base+'/auth/invitations/accept',{data:{token:new URL(await page.locator('#tr-invite').inputValue()).searchParams.get('invite'),name:'Interessado UI',password:PASSWORD,confirm_password:PASSWORD}});assert.equal(accepted.status(),201);const demoPage=await demoContext.newPage();await demoPage.goto(base+'/dashboard');await expect(demoPage.locator('body')).toHaveClass(/auth-ready/);await expect(demoPage.locator('#trial-access-banner')).toContainText('Demonstração');await demoContext.close();
  const issue=ws.save(user,'issue',null,{title:'Problema de calendário',organization_id:org.id,data:{type:'bug'}});
  await visit('/plataforma/produto/pedidos/'+issue.id);await page.locator('#ws-comment').fill('Verificado no telemóvel');await page.getByRole('button',{name:'Adicionar comentário'}).click();await expect(page.locator('#pl-content')).toContainText('Verificado no telemóvel');
+ // A01: navegação A→B com a resposta de A a chegar por último; as ações têm de visar B.
+ const leadA=ws.save(user,'lead',null,{title:'Contacto A lento',status:'new',data:{email:'a@example.invalid'}});
+ const leadB=ws.save(user,'lead',null,{title:'Contacto B rápido',status:'new',data:{email:'b@example.invalid'}});
+ await visit('/plataforma/comercial/contactos');
+ let releaseA;const holdA=new Promise(resolve=>{releaseA=resolve;});let aRequested;const aSeen=new Promise(resolve=>{aRequested=resolve;});
+ await page.route('**/api/platform/workspace/records/lead/'+leadA.id,async route=>{aRequested();await holdA;await route.continue();});
+ const deletes=[];
+ await page.route('**/api/platform/workspace/records/lead/*',route=>{if(route.request().method()==='DELETE'){deletes.push(route.request().url());return route.abort();}return route.fallback();});
+ const go=p=>page.evaluate(x=>{history.pushState({},'',x);window.dispatchEvent(new PopStateEvent('popstate'));},p);
+ await go('/plataforma/comercial/contactos/'+leadA.id);await aSeen;
+ await go('/plataforma/comercial/contactos/'+leadB.id);await expect(page.locator('#pl-content h2')).toHaveText('Contacto B rápido');
+ releaseA();await page.waitForTimeout(500);
+ await expect(page.locator('#pl-content h2')).toHaveText('Contacto B rápido');
+ await page.getByRole('button',{name:'Apagar',exact:true}).click();await page.getByRole('button',{name:'Confirmar: apagar definitivamente'}).click();
+ await expect.poll(()=>deletes.length).toBe(1);
+ assert.ok(deletes[0].endsWith('/records/lead/'+leadB.id),'o apagar visa o registo apresentado: '+deletes[0]);
+ await page.unroute('**/api/platform/workspace/records/lead/'+leadA.id);await page.unroute('**/api/platform/workspace/records/lead/*');
+ // A11: dois acessos seguidos sem recarregar; o botão do segundo formulário fica ativo.
+ await visit('/plataforma/comercial/acessos');
+ for(const n of ['Primeiro','Segundo']){
+  await page.locator('#pl-content details').first().evaluate(d=>{d.open=true;});await page.locator('#tr-name').fill('Estabelecimento '+n);await page.locator('#tr-email').fill(n.toLowerCase()+'@example.invalid');
+  await page.getByRole('button',{name:'Criar acesso e convite'}).click();await expect(page.getByRole('article').filter({hasText:'Estabelecimento '+n})).toHaveCount(1);
+  await page.locator('#pl-content details').first().evaluate(d=>{d.open=true;});await expect(page.getByRole('button',{name:'Criar acesso e convite'})).toBeEnabled();
+ }
  const routes=['/plataforma','/plataforma/comercial/contactos','/plataforma/comercial/propostas','/plataforma/comercial/acessos','/plataforma/clientes/acompanhamento','/plataforma/marketing','/plataforma/marketing/campanhas','/plataforma/marketing/conteudos','/plataforma/marketing/materiais','/plataforma/financas','/plataforma/financas/subscricoes','/plataforma/financas/pagamentos','/plataforma/financas/despesas','/plataforma/produto/pedidos','/plataforma/produto/versoes','/plataforma/operacoes','/plataforma/operacoes/manutencoes','/plataforma/operacoes/exportacoes','/plataforma/administracao/equipa','/plataforma/administracao/configuracoes','/plataforma/suporte/respostas','/plataforma/tarefas'];
  for(const width of [1280,360]) for(const look of [{look:'classico',mode:'auto'},{look:'vidro',mode:'claro'},{look:'vidro',mode:'escuro'}]){
   await page.setViewportSize({width,height:900});for(const route of routes){await visit(route);await page.evaluate(p=>AppAppearance.apply(p),look);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`overflow ${route} ${width} ${look.mode}`);if(process.env.DEPARTMENT_ARTIFACTS_DIR&&look.look==='classico'&&['/plataforma/marketing','/plataforma/comercial/acessos','/plataforma/financas'].includes(route)){fs.mkdirSync(process.env.DEPARTMENT_ARTIFACTS_DIR,{recursive:true});await page.screenshot({path:path.join(process.env.DEPARTMENT_ARTIFACTS_DIR,`${width}-${route.replaceAll('/','-')}.png`)});}}
