@@ -25,7 +25,11 @@ const VIEWS = ['reservas', 'calendario', 'eventos', 'hospedes', 'alojamentos',
 // novembro de 2026 passou de 1100 para 1150 KB: o núcleo estava encostado ao
 // limite e o código da V2 já vai para um módulo que só carrega com ela.
 const BUDGETS = {
-  bootRequests: Number(process.env.FRONTEND_BOOT_REQUEST_BUDGET || 65),
+  // Novembro de 2026: 65 → 70. A página de entrar tem desenho próprio no
+  // Clássico (2 folhas da V2, carregadas antes de se saber se há sessão) e
+  // entraram os módulos de comunicados e de telemetria. O resto da V2 só
+  // descarrega com um aspeto novo escolhido (js/domain/appearance.js).
+  bootRequests: Number(process.env.FRONTEND_BOOT_REQUEST_BUDGET || 70),
   bootKb: Number(process.env.FRONTEND_BOOT_KB_BUDGET || 1150),
   totalKb: Number(process.env.FRONTEND_TOTAL_KB_BUDGET || 2200),
 };

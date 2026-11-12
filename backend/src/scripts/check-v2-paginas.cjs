@@ -647,12 +647,13 @@ async function main() {
   assert.equal(await page.locator('#manual-notification-date').inputValue(), dates.addDays(dates.localDay(), 1));
   assert.equal(await page.locator('#manual-notification-time').inputValue(), '09:00');
 
-  // Entrar (maqueta inter-08): ao sair, a página de entrar fica com o aspeto deste aparelho.
+  // Entrar: ao sair, a página de entrar tem o desenho próprio do login, sempre
+  // no Clássico (<meta name="appearance-login">), qualquer que seja o aspeto da conta.
   await page.goto(`${base}/`);
   await page.locator('#mobile-menu-trigger').click();
   await page.locator('.v2d-row .btn', { hasText: 'Sair' }).click();
   await expect(page.locator('#auth-shell')).toBeVisible();
-  await expect(page.locator('html')).toHaveAttribute('data-look', 'vidro');
+  await expect(page.locator('html')).toHaveAttribute('data-look', 'classico');
   assert.notEqual(await page.locator('.auth-card-premium').evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(255, 255, 255, 0.15)', 'página de entrar ainda na V1');
 
   assert.deepEqual(errors, []);
