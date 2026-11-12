@@ -90,17 +90,31 @@ function shape(r) {
   };
 }
 
-function list(user, { assignee = 'all', type = '', department = '', organization_id = '', record_id = '' } = {}) {
+// Lista tarefas. A permissão é aplicada em SQL (sem consultas por linha);
+// `limit` limita o resultado e `withPeople` evita carregar a equipa quando não é precisa.
+function list(user, { assignee = 'all', type = '', department = '', organization_id = '', record_id = '', limit = 0, withPeople = true } = {}) {
   const where = [];
   const args = [];
   if (assignee === 'me') { where.push('t.assignee_user_id = ?'); args.push(user.id); }
   else if (assignee && assignee !== 'all') { where.push('t.assignee_user_id = ?'); args.push(String(assignee)); }
   if (type) { where.push('t.type = ?'); args.push(cleanEnum(String(type), TYPES, 'Tipo')); }
-  if (department) { if (!Object.hasOwn(DEPARTMENTS,department)) throw httpError('Área inválida.',400); where.push('t.department=?'); args.push(department); }
+  if (department) {
+    if (!Object.hasOwn(DEPARTMENTS, department)) throw httpError('Área inválida.', 400);
+    where.push('t.department=?');
+    args.push(department);
+  }
   if (organization_id) { where.push('t.organization_id=?'); args.push(String(organization_id)); }
   if (record_id) { where.push('t.record_id=?'); args.push(String(record_id)); }
-  const rows = db.prepare(`${SELECT}${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY t.position, t.created_at`).all(...args);
-  return { tasks: rows.filter(r => require('./platformAccess').can(user,'admin') || (r.department!=='finance' && r.department!=='administration' && (!r.record_kind || require('./platformWorkspace').permitted(user,r.record_kind)))).map(shape), people: people() };
+  // Quem não é Administração não vê Finanças nem registos financeiros.
+  const { can } = require('./platformAccess');
+  if (!can(user, 'admin')) {
+    where.push("t.department NOT IN ('finance','administration')");
+    where.push(can(user, 'read') ? "(w.kind IS NULL OR w.kind NOT IN ('subscription','entry'))" : 'w.kind IS NULL');
+  }
+  const take = Number(limit) > 0 ? Number(limit) : 0;
+  if (take) args.push(take);
+  const rows = db.prepare(`${SELECT}${where.length ? ` WHERE ${where.join(' AND ')}` : ''} ORDER BY t.position, t.created_at${take ? ' LIMIT ?' : ''}`).all(...args);
+  return { tasks: rows.map(shape), people: withPeople ? people() : [] };
 }
 
 function load(id) {
@@ -214,10 +228,10 @@ function addComment(user, id, body = {}) {
 function summary(user) {
   const today = new Date();
   const week = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7);
-  const tasks=list(user).tasks.filter(t=>t.assignee?.id===user.id&&t.status!=='done');
+  const tasks=list(user,{assignee:'me',withPeople:false}).tasks.filter(t=>t.status!=='done');
   const open=tasks.length;
   const due=tasks.filter(t=>t.due_date&&t.due_date<=ymd(week)).length;
   return { mine_open: open, mine_due_week: due };
 }
 
-module.exports = { TYPES, STATUSES, PRIORITIES, list, get, create, update, remove, addComment, summary };
+module.exports = { TYPES, STATUSES, PRIORITIES, people, list, get, create, update, remove, addComment, summary };
