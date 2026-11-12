@@ -24,6 +24,8 @@ async function main() {
   const errors = [];
   for (const [label, width] of [['computador', 1280], ['telemovel', 390]]) {
     const context = await browser.newContext({ viewport: { width, height: 900 } });
+    // Sem rede externa (CDNs), como as outras verificações: um CDN lento não pode prender o teste.
+    await context.route('**/*', route => (new URL(route.request().url()).origin === base ? route.continue() : route.abort()));
     const page = await context.newPage();
     page.on('pageerror', e => errors.push(String(e)));
     const session = auth.createSession(user.id, org.id).sessionId;
