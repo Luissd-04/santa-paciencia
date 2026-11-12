@@ -200,9 +200,16 @@ router.post('/invitations/accept', loginLimiter, async (req, res) => {
     if (!existingUser.active) {
       return res.status(403).json({ success: false, error: 'Esta conta está desativada.' });
     }
+    // Mesmo orçamento de falhas por conta que o /login; a conta é a do email
+    // do convite (existingUser), nunca um campo do corpo do pedido.
+    const limiter = require('../middleware/rateLimiter');
+    if (!limiter.consumeAccountAttempt(existingUser.email)) {
+      return res.status(429).json(limiter.ACCOUNT_LOGIN_MESSAGE);
+    }
     if (!await verifyPasswordAsync(String(password), existingUser.password_hash)) {
       return res.status(401).json({ success: false, error: 'Password incorreta.' });
     }
+    limiter.refundAccountAttempt(existingUser.email);
 
     const alreadyMember = getMembershipByUserAndOrganization(existingUser.id, invitation.organization_id);
     try {
