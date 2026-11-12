@@ -294,7 +294,7 @@ function ticketHtml(data, draft) {
   const messages = Array.isArray(data.messages) ? data.messages : [];
   return `<div class="pl-page">
     <div class="pl-crumb">${fmt.link('/plataforma/suporte', `${fmt.icon('arrow-left', 14)}<span>Suporte</span>`, 'pl-backlink')}</div>
-    <header class="pl-org-head"><div><h2>${esc(ticket.subject)}</h2><span class="pl-muted">${esc(ticket.number)} · ${esc(typeInfo(ticket.type).label)}</span></div>
+    <header class="pl-org-head"><div><h2>${esc(ticket.subject)}</h2><span class="pl-muted">${esc(ticket.number)}${ticket.client_number ? ` (${esc(ticket.client_number)} do cliente)` : ""} · ${esc(typeInfo(ticket.type).label)}</span></div>
       <div class="pl-org-chips">${statusChip(ticket.status)}${ticket.customer_confirmed_at ? fmt.chip('ok', 'Confirmado pelo cliente') : ''}</div></header>
     <div class="pl-ticket">
       <div class="pl-col">
