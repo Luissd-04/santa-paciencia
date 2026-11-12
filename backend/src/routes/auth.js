@@ -109,6 +109,8 @@ function serializeUser(user) {
     trial_access: user.trial_access || null,
     platform_role: require('../services/platformAccess').platformRole(user),
     platform_roles: require('../services/platformAccess').platformRoles(user),
+    // Versão em execução (só com sessão iniciada): commit do Git e arranque.
+    app_version: (({ commit, startedAt }) => ({ commit, started_at: startedAt }))(require('../services/appBuild')),
   };
 }
 

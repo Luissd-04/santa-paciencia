@@ -242,6 +242,13 @@ async function setLook(key) {
 function fillUser(user) {
   const name = user?.name || user?.email || 'Utilizador';
   $('pl-user-name').textContent = name;
+  // Versão instalada (commit do Git), para confirmar que a atualização entrou.
+  const version = user?.app_version;
+  if (version?.commit) {
+    const since = version.started_at ? new Date(version.started_at).toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' }) : '';
+    $('pl-versao').textContent = `Versão ${version.commit}${since ? ` · desde ${since}` : ''}`;
+    $('pl-versao').hidden = false;
+  }
   $('pl-user-mail').textContent = user?.email && user.email !== name ? user.email : '';
   $('pl-avatar').textContent = AppModules.core.initials(name);
 }

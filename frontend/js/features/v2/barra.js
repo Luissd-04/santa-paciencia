@@ -108,6 +108,14 @@ function prepararMenu() {
   if (window.lucide) lucide.createIcons();
 }
 
+// Versão instalada (commit do Git e hora do arranque), para confirmar uma atualização.
+function versionHtml(user, esc) {
+  const info = user.app_version;
+  if (!info?.commit) return '';
+  const since = info.started_at ? new Date(info.started_at).toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' }) : '';
+  return `<p class="v2-versao">Versão <code>${esc(info.commit)}</code>${since ? ` · desde ${esc(since)}` : ''}</p>`;
+}
+
 // ── Conta (computador) ──
 function abrirConta(anchor) {
   const ic = core().lcIcon;
@@ -126,7 +134,8 @@ function abrirConta(anchor) {
         // Só para o dono da instância (a API volta a confirmar).
         ...(user.is_platform_admin === true ? [['layout-list', 'Consola da plataforma', 'v2-conta-plataforma']] : []),
         ['settings', 'Definições', 'v2-conta-definicoes'], ['log-out', 'Sair', 'index-logout-34b5979']]
-        .map(([icon, label, action]) => `<button type="button" data-on-click="${action}">${ic(icon, 18)}<span>${label}</span></button>`).join('')}</div>`,
+        .map(([icon, label, action]) => `<button type="button" data-on-click="${action}">${ic(icon, 18)}<span>${label}</span></button>`).join('')}</div>
+      ${versionHtml(user, esc)}`,
   });
 }
 

@@ -66,6 +66,8 @@ html[data-look] .v2c-tile.is-ok > span { background: var(--v2-ok-bg); color: var
 html[data-look] .v2c-tile.is-bad > span { background: var(--v2-bad-bg); color: var(--v2-bad); }
 html[data-look] .v2c-list { border: 1px solid var(--v2-line); border-radius: 16px; background: var(--v2-surface); overflow: hidden; }
 html[data-look] .v2c-list button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 50px; padding: 0 14px; border: 0; background: none; color: var(--v2-ink); font: 500 14.5px var(--v2-font); text-align: left; cursor: pointer; }
+html[data-look] .v2-versao { margin: 10px 4px 0; font-size: 12px; color: var(--v2-muted, var(--v2-ink)); opacity: .75; }
+html[data-look] .v2-versao code { font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
 html[data-look] .v2c-list button + button { border-top: 1px solid var(--v2-divider); }
 html[data-look] .v2c-list button span { flex: 1; }
 html[data-look] .v2c-list svg { color: var(--v2-muted); }
