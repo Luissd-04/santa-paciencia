@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="/css/public-reservation.css?v=publicas-novas-20261104-1">
   <link rel="stylesheet" href="/css/components/date-picker.css?v=public-flow-20261001-2">
   <link rel="stylesheet" href="/css/vendor/flag-icons.min.css?v=public-flow-20261001-2">
-  <link rel="stylesheet" href="/css/public-novo.css?v=publicas-novas-20261104-1">
+  <link rel="stylesheet" href="/css/public-novo.css?v=portal-20261115-1">
   <script src="/js/domain/public-layout.js?v=publicas-novas-20261104-1"></script>
 </head>
 <body class="precheckin-page">
@@ -20,7 +20,7 @@
     <div class="ambient-bg" id="pc-bg"></div>
     <div class="ambient-overlay"></div>
 
-    <div class="pn-topbar novo-only"><span class="pn-mark" aria-hidden="true">S</span><strong>Santa Paciência</strong><span class="pn-ref">Pré-check-in</span></div>
+    <div class="pn-topbar novo-only"><span class="pn-mark" aria-hidden="true">S</span><strong>Santa Paciência</strong><span class="pn-ref" id="pn-pc-ref">Pré-check-in</span></div>
     <header class="booking-hero">
       <div class="brand-pill" id="pc-reservation-ref">Pré check-in</div>
       <h1 id="pc-title">Complete os dados da chegada</h1>
@@ -29,6 +29,11 @@
 
     <main class="booking-shell">
       <section class="booking-card precheckin-card">
+        <!-- Portal do hóspede (versão nova): o pré-check-in é um passo da página da reserva. -->
+        <div class="pn-rs-help-head pn-pc-head novo-only">
+          <a class="pn-back" id="pn-pc-back" href="#" hidden>‹ Voltar à reserva</a>
+          <h1>Pré-check-in</h1>
+        </div>
         <div class="pc-closed" id="pc-closed" hidden>
           <strong>Pré check-in indisponível</strong>
           <p id="pc-closed-message"></p>
@@ -108,6 +113,6 @@
   <script src="/js/domain/dates.js?v=publicas-novas-20261104-1"></script>
   <script src="/js/domain/date-picker.js?v=mobile-20261026-1"></script>
   <script src="/js/public-flow.js?v=public-flow-20261001-2"></script>
-  <script src="/js/pre-checkin.js?v=publicas-20261103-1"></script>
+  <script src="/js/pre-checkin.js?v=portal-20261115-1"></script>
 </body>
 </html>

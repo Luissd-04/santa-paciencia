@@ -591,10 +591,19 @@ function setupArrivalTime() {
   $('pc-other-time').addEventListener('click', () => { $('pc-custom-time').hidden = false; input.focus(); });
 }
 
+// Página da reserva (portal do hóspede), validada antes de servir de destino.
+function portalPath(reservation) {
+  const path = reservation?.reservation_path;
+  return /^\/reserva\/[a-f0-9]{64}$/i.test(path || '') ? path : '';
+}
+
 function render(data) {
   reservationData = data;
   const r = data.reservation;
   $('pc-reservation-ref').textContent = r.id;
+  // Versão nova: o pré-check-in é um passo do portal do hóspede.
+  $('pn-pc-ref').textContent = `Reserva ${r.id}`;
+  if (portalPath(r)) { $('pn-pc-back').href = portalPath(r); $('pn-pc-back').hidden = false; }
   $('pc-stay').textContent = `${r.accommodation_name} · ${fmtDate(r.check_in)} a ${fmtDate(r.check_out)}`;
   $('pc-accommodation').textContent = r.accommodation_name;
   $('pc-checkin').textContent = fmtDate(r.check_in);
@@ -694,7 +703,13 @@ $('precheckin-form').addEventListener('submit', async event => {
         guests_data: guests.slice(1),
       }),
     });
-    AppModules.publicFlow.complete(result.data?.resubmission ? 'alteracoes' : 'dados', {
+    const kind = result.data?.resubmission ? 'alteracoes' : 'dados';
+    // Versão nova: volta ao portal, que mostra ali a confirmação.
+    if (window.PublicLayout?.isNew && portalPath(reservationData.reservation)) {
+      location.replace(`${portalPath(reservationData.reservation)}?feito=${kind}`);
+      return;
+    }
+    AppModules.publicFlow.complete(kind, {
       reference: reservationData.reservation.id,
       returnPath: location.pathname,
       paymentPath: reservationData.reservation.payment_path,

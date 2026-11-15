@@ -12,7 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Playfair+Display:wght@600;700&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/public-reservation.css?v=publicas-novas-20261104-1">
   <link rel="stylesheet" href="/css/reservation-status.css?v=publicas-20261103-1">
-  <link rel="stylesheet" href="/css/public-novo.css?v=publicas-novas-20261104-1">
+  <link rel="stylesheet" href="/css/public-novo.css?v=portal-20261115-1">
   <script src="/js/domain/public-layout.js?v=publicas-novas-20261104-1"></script>
 </head>
 <body>
@@ -24,7 +24,7 @@
     <div class="pn-topbar novo-only"><span class="pn-mark" aria-hidden="true">S</span><strong>Santa Paciência</strong><span class="pn-ref" id="pn-rs-ref"></span></div>
     <section class="pn-hero pn-rs-hero novo-only" id="pn-rs-hero" hidden>
       <div class="pn-hero-copy">
-        <span class="pn-pill ok">✓ Reserva confirmada</span>
+        <span class="pn-pill ok" id="pn-rs-hero-pill">Reserva confirmada</span>
         <h1 id="pn-rs-hero-title"></h1>
       </div>
     </section>
@@ -38,40 +38,58 @@
     <main class="booking-shell">
       <section class="booking-card reservation-status-card" aria-live="polite">
         <div class="rs-loading" id="rs-loading">A carregar…</div>
+        <!-- Portal do hóspede (versão nova): cabeçalho por estado e vista de ajuda. -->
+        <div class="pn-rs-head novo-only" id="pn-rs-head"></div>
+        <div class="pn-rs-help-head novo-only">
+          <a class="pn-back" href="#">‹ Voltar à reserva</a>
+          <h1>Ajuda e cancelamento</h1>
+        </div>
         <div id="rs-content" hidden>
-          <div class="rs-stay">
-            <div class="rs-status-line">
-              <span class="rs-status" id="rs-status"></span>
-              <span class="rs-payment" id="rs-payment"></span>
+          <div class="pn-wrap pn-side">
+            <div class="rs-stay">
+              <div class="rs-status-line">
+                <span class="rs-status" id="rs-status"></span>
+                <span class="rs-payment" id="rs-payment"></span>
+              </div>
+              <h2 id="rs-accommodation">—</h2>
+              <dl class="rs-grid">
+                <div><dt>Check-in</dt><dd id="rs-checkin">—</dd></div>
+                <div><dt>Check-out</dt><dd id="rs-checkout">—</dd></div>
+                <div><dt>Hóspedes</dt><dd id="rs-guests">—</dd></div>
+                <div><dt>Total</dt><dd id="rs-total">—</dd></div>
+                <div><dt>Pago</dt><dd id="rs-paid">—</dd></div>
+              </dl>
+              <div class="pn-rs-stay novo-only" id="pn-rs-stay"></div>
             </div>
-            <h2 id="rs-accommodation">—</h2>
-            <dl class="rs-grid">
-              <div><dt>Check-in</dt><dd id="rs-checkin">—</dd></div>
-              <div><dt>Check-out</dt><dd id="rs-checkout">—</dd></div>
-              <div><dt>Hóspedes</dt><dd id="rs-guests">—</dd></div>
-              <div><dt>Total</dt><dd id="rs-total">—</dd></div>
-              <div><dt>Pago</dt><dd id="rs-paid">—</dd></div>
-            </dl>
-            <div class="pn-rs-stay novo-only" id="pn-rs-stay"></div>
+            <section class="pn-card novo-only" id="pn-rs-contact"></section>
+            <a class="pn-help-link novo-only" id="pn-rs-help-link" href="#ajuda">Ajuda e cancelamento<span aria-hidden="true">›</span></a>
           </div>
-          <section class="pn-card novo-only" id="pn-rs-steps"></section>
-          <section class="pn-card novo-only" id="pn-rs-payments"></section>
-          <div class="rs-checkout rs-precheckin" id="rs-precheckin" hidden>
-            <p id="rs-precheckin-text"></p>
-            <a class="primary-btn" id="rs-precheckin-link" href="#">Fazer o pré-check-in</a>
+          <div class="pn-wrap pn-main">
+            <div class="pn-done novo-only" id="pn-rs-done" role="status" hidden></div>
+            <section class="pn-card novo-only" id="pn-rs-steps"></section>
+            <section class="pn-card novo-only" id="pn-rs-payments"></section>
+            <div class="rs-checkout rs-precheckin" id="rs-precheckin" hidden>
+              <p id="rs-precheckin-text"></p>
+              <a class="primary-btn" id="rs-precheckin-link" href="#">Fazer o pré-check-in</a>
+            </div>
+            <section id="rs-policy" class="rs-policy" hidden aria-label="Condições de pagamento e cancelamento"></section>
+            <div class="rs-checkout" id="rs-payment-panel" hidden>
+              <div class="pn-due novo-only" id="pn-rs-due"></div>
+              <p id="rs-payment-message" role="status"></p>
+              <label id="rs-consent-label" class="rs-consent" hidden><input type="checkbox" id="rs-consent"> Li e aceito as condições de pagamento e cancelamento apresentadas acima.</label>
+              <label id="rs-auto-label" class="rs-consent" hidden><input type="checkbox" id="rs-auto"> Autorizo a Stripe a guardar o cartão para cobrar o restante desta reserva na data indicada. Com MB WAY, pagarei através de um novo link.</label>
+              <button class="primary-btn" id="rs-pay" type="button" hidden>Pagar online</button>
+              <p class="rs-note" id="rs-test-note" hidden>Modo de teste — não são efetuadas cobranças reais.</p>
+            </div>
+            <div id="rs-cancellation" class="rs-policy" hidden>
+              <h3 class="novo-only">Cancelar a reserva</h3>
+              <p id="rs-refund-quote"></p>
+              <p class="pn-note novo-only">O cancelamento é imediato e liberta as datas. O reembolso volta para o meio de pagamento usado.</p>
+              <button type="button" class="ghost-btn" id="rs-cancel">Cancelar reserva</button>
+            </div>
+            <button class="ghost-btn rs-refresh" id="rs-refresh" type="button">Atualizar estado</button>
+            <p class="rs-note pn-keep-note">Guarde este link. Por segurança, não apresenta dados pessoais dos hóspedes.</p>
           </div>
-          <section id="rs-policy" class="rs-policy" hidden aria-label="Condições de pagamento e cancelamento"></section>
-          <div class="rs-checkout" id="rs-payment-panel" hidden>
-            <div class="pn-due novo-only" id="pn-rs-due"></div>
-            <p id="rs-payment-message" role="status"></p>
-            <label id="rs-consent-label" class="rs-consent" hidden><input type="checkbox" id="rs-consent"> Li e aceito as condições de pagamento e cancelamento apresentadas acima.</label>
-            <label id="rs-auto-label" class="rs-consent" hidden><input type="checkbox" id="rs-auto"> Autorizo a Stripe a guardar o cartão para cobrar o restante desta reserva na data indicada. Com MB WAY, pagarei através de um novo link.</label>
-            <button class="primary-btn" id="rs-pay" type="button" hidden>Pagar online</button>
-            <p class="rs-note" id="rs-test-note" hidden>Modo de teste — não são efetuadas cobranças reais.</p>
-          </div>
-          <div id="rs-cancellation" class="rs-policy" hidden><p id="rs-refund-quote"></p><button type="button" class="ghost-btn" id="rs-cancel">Cancelar reserva</button></div>
-          <button class="ghost-btn rs-refresh" id="rs-refresh" type="button">Atualizar estado</button>
-          <p class="rs-note">Guarde este link. Por segurança, não apresenta dados pessoais dos hóspedes.</p>
         </div>
         <div class="step-error rs-error" id="rs-error" role="alert" hidden></div>
       </section>
@@ -80,7 +98,7 @@
   <script src="/js/domain/money.js?v=centralizacao-20261024-2"></script>
   <script src="/js/domain/dates.js?v=publicas-novas-20261104-1"></script>
   <script src="/js/domain/reservation-status.js?v=mobile-20261026-1"></script>
-  <script src="/js/reservation-status-novo.js?v=publicas-novas-20261104-1"></script>
-  <script src="/js/reservation-status.js?v=publicas-novas-20261104-1"></script>
+  <script src="/js/reservation-status-novo.js?v=portal-20261115-1"></script>
+  <script src="/js/reservation-status.js?v=portal-20261115-1"></script>
 </body>
 </html>

@@ -443,6 +443,10 @@ function getReservationStatus(req, res) {
       // Link para o pré-check-in (antes só chegava por email): só depois de a
       // reserva ser aceite e enquanto o pré-check-in estiver aberto.
       precheckin: precheckinLink(reservation),
+      // Portal do hóspede: contacto do alojamento e, nas reservas de
+      // plataforma, onde se tratam alterações e cancelamentos.
+      contact: { email: getEmailSettings(null, reservation.organization_id).email_contact || '' },
+      platform: require('../services/paymentPolicy').PLATFORM_CHANNELS.includes(reservation.channel) ? reservation.channel : null,
       cover_image: imageUrl(req, reservation.cover_image),
       images: normalizeImages(req, reservation).map(img => img.url).filter(Boolean),
     },
@@ -523,6 +527,8 @@ function getPreCheckin(req, res) {
         precheckin_updated_at: reservation.precheckin_updated_at || null,
         editable_until: reservation.check_in,
         payment_path: onlinePayment.available && reservation.public_token ? `/reserva/${reservation.public_token}` : null,
+        // Página da reserva, para voltar do pré-check-in ao portal do hóspede.
+        reservation_path: reservation.public_token ? `/reserva/${reservation.public_token}` : null,
       },
       guest: {
         name: (shared ? snapshot.name : reservation.guest_name) || '',

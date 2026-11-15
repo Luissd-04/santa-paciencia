@@ -150,7 +150,9 @@ async function submitReservation() {
       body: JSON.stringify(payload)
     });
 
-    if (result.data.online_payment_available && /^[a-f0-9]{64}$/i.test(result.data.public_token || '')) {
+    // Com pagamento online, ou na versão nova (portal do hóspede), segue para a
+    // página da reserva; senão, para a confirmação.
+    if ((result.data.online_payment_available || window.PublicLayout?.isNew) && /^[a-f0-9]{64}$/i.test(result.data.public_token || '')) {
       location.assign(`/reserva/${result.data.public_token}`);
       return;
     }
