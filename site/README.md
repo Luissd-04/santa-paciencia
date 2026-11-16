@@ -38,6 +38,14 @@ ficheiros; entra sozinha no sitemap e é verificada por `check.cjs`.
 
 ## Antes de publicar
 
+A indexação está **desligada por omissão** (`noindex` em todas as páginas e
+`robots.txt` a bloquear tudo), como decidido em `docs/SITE-MAPA-SEO.md`, enquanto a
+marca e o domínio forem provisórios. No domínio definitivo:
+
+```bash
+INDEXAR=true SITE_URL=https://dominio-final.pt node site/build.cjs
+```
+
 Estão marcados `POR CONFIRMAR` em `src/config.cjs`:
 
 - **Domínio** (`siteUrl`) e **email** de contacto;

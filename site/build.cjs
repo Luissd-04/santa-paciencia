@@ -47,7 +47,7 @@ function build() {
 ${indexable.map((p) => `  <url><loc>${cfg.siteUrl}${p.path}</loc><lastmod>${p.updated || cfg.updated}</lastmod></url>`).join('\n')}
 </urlset>
 `);
-  fs.writeFileSync(path.join(OUT, 'robots.txt'), `User-agent: *\nAllow: /\n\nSitemap: ${cfg.siteUrl}/sitemap.xml\n`);
+  fs.writeFileSync(path.join(OUT, 'robots.txt'), cfg.indexar ? `User-agent: *\nAllow: /\n\nSitemap: ${cfg.siteUrl}/sitemap.xml\n` : 'User-agent: *\nDisallow: /\n');
 
   // Redirecionamentos e cabeçalhos no formato de Netlify / Cloudflare Pages.
   // Noutros alojamentos, as mesmas regras passam para a configuração do servidor (ver README).
@@ -62,7 +62,7 @@ ${indexable.map((p) => `  <url><loc>${cfg.siteUrl}${p.path}</loc><lastmod>${p.up
   fs.writeFileSync(path.join(OUT, '_headers'), `/assets/*
   Cache-Control: public, max-age=31536000, immutable
 /*
-  X-Content-Type-Options: nosniff
+${cfg.indexar ? '' : '  X-Robots-Tag: noindex, nofollow\n'}  X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
   Permissions-Policy: camera=(), microphone=(), geolocation=()
@@ -75,5 +75,5 @@ module.exports = { pages, build, OUT, ogName };
 
 if (require.main === module) {
   const r = build();
-  console.log(`Site construído em ${path.relative(process.cwd(), OUT) || '.'}: ${r.pages.length} páginas, domínio ${cfg.siteUrl}`);
+  console.log(`Site construído em ${path.relative(process.cwd(), OUT) || '.'}: ${r.pages.length} páginas, domínio ${cfg.siteUrl}, indexação ${cfg.indexar ? 'LIGADA' : 'desligada (INDEXAR=true para ligar)'}`);
 }

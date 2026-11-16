@@ -2,14 +2,18 @@
 // «POR CONFIRMAR» é um valor de referência e deve ser revisto antes de publicar.
 module.exports = {
   // Domínio final (sem barra no fim). Pode ser dado na construção: SITE_URL=https://… node build.cjs
-  siteUrl: (process.env.SITE_URL || 'https://www.santapaciencia.pt').replace(/\/+$/, ''), // POR CONFIRMAR
+  // santapaciencia.xyz é o domínio de testes (docs/SITE-MAPA-SEO.md). santapaciencia.pt é de uma cliente: não usar.
+  siteUrl: (process.env.SITE_URL || 'https://santapaciencia.xyz').replace(/\/+$/, ''), // POR CONFIRMAR
+  // Interruptor de indexação. Desligado por omissão enquanto a marca e o domínio forem provisórios:
+  // todas as páginas levam noindex e o robots.txt bloqueia tudo. Ligar com INDEXAR=true no domínio definitivo.
+  indexar: process.env.INDEXAR === 'true',
   name: 'Santa Paciência',
   tagline: 'Software de gestão de alojamento local',
   locale: 'pt-PT',
   updated: '2026-11-16',
 
   // Contactos — POR CONFIRMAR
-  email: 'ola@santapaciencia.pt',
+  email: process.env.CONTACT_EMAIL || 'ola@santapaciencia.xyz',
   // Endereço que recebe o formulário por POST (JSON). Vazio = o formulário abre o email do visitante.
   contactEndpoint: process.env.CONTACT_ENDPOINT || '',
   // Endereço da aplicação, para o botão «Entrar». Vazio = o botão não aparece.

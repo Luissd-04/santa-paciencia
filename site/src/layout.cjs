@@ -119,7 +119,7 @@ function jsonLd(page) {
 }
 
 function render(page, assets) {
-  const robots = page.noindex ? 'noindex, follow' : 'index, follow, max-image-preview:large';
+  const robots = !cfg.indexar ? 'noindex, nofollow' : page.noindex ? 'noindex, follow' : 'index, follow, max-image-preview:large';
   return `<!doctype html>
 <html lang="${cfg.locale}">
 <head>

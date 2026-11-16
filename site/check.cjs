@@ -36,7 +36,7 @@ for (const p of pages) {
   if (!/<html lang="pt-PT">/.test(html)) fail(p.path, 'sem lang="pt-PT"');
   if (!p.noindex) {
     if (one(/<link rel="canonical" href="([^"]*)"/) !== cfg.siteUrl + p.path) fail(p.path, 'canonical errado');
-    if (/noindex/.test(one(/<meta name="robots" content="([^"]*)"/) || '')) fail(p.path, 'noindex inesperado');
+    if (/noindex/.test(one(/<meta name="robots" content="([^"]*)"/) || '') === cfg.indexar) fail(p.path, cfg.indexar ? 'noindex inesperado' : 'devia ter noindex (indexação desligada)');
   }
   const og = one(/<meta property="og:image" content="([^"]*)"/);
   if (!og || !exists(og.replace(cfg.siteUrl, ''))) fail(p.path, 'og:image em falta');
@@ -77,7 +77,8 @@ for (const p of pages) {
   if (!p.noindex && !p.noSitemap && !inMap) fail(p.path, 'falta no sitemap');
   if ((p.noindex || p.noSitemap) && inMap) fail(p.path, 'não devia estar no sitemap');
 }
-if (!fs.readFileSync(path.join(OUT, 'robots.txt'), 'utf8').includes(`Sitemap: ${cfg.siteUrl}/sitemap.xml`)) fail('robots.txt', 'não aponta para o sitemap');
+const robots = fs.readFileSync(path.join(OUT, 'robots.txt'), 'utf8');
+if (cfg.indexar ? !robots.includes(`Sitemap: ${cfg.siteUrl}/sitemap.xml`) : !/Disallow: \/\n/.test(robots)) fail('robots.txt', cfg.indexar ? 'não aponta para o sitemap' : 'devia bloquear tudo (indexação desligada)');
 
 if (errors.length) { console.error(`${errors.length} problema(s):\n` + errors.map((e) => '  ✗ ' + e).join('\n')); process.exit(1); }
-console.log(`✓ ${pages.length} páginas verificadas: metas únicas, um h1 por página, JSON-LD válido, sem ligações partidas, sem páginas órfãs, sitemap com ${locs.length} URLs.`);
+console.log(`✓ ${pages.length} páginas verificadas: metas únicas, um h1 por página, JSON-LD válido, sem ligações partidas, sem páginas órfãs, sitemap com ${locs.length} URLs. Indexação ${cfg.indexar ? 'ligada' : 'desligada'}.`);
