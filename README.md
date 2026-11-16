@@ -106,3 +106,8 @@ A documentação de base foi revista em 5 de outubro de 2026; o relatório de
 8 de outubro acrescenta os achados sobre o código local e atualiza prioridades.
 A revisão local não confirma o estado da publicação. Atualizar estas páginas
 no mesmo pull request que alterar arquitetura, operação, segurança ou prioridades.
+
+## Site público
+
+O site de apresentação da plataforma vive em [`site/`](site/README.md): é estático,
+constrói-se com `node site/build.cjs` e verifica-se com `node site/check.cjs`.
