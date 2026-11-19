@@ -228,16 +228,79 @@ function buildBlocks(vars, settings, reservation) {
   // O que o hóspede faz a seguir, segundo o estado da reserva.
   const nextStep = {
     confirmada: () => (vars.link_pre_checkin && !precheckinDone
-      ? composer.buildNote({ heading: 'Próximo passo', html: 'Complete o pré-check-in: hora de chegada e dados dos hóspedes. Demora cerca de 2 minutos.' })
+      ? composer.buildNote({ heading: 'Próximo passo', html: 'Complete o pré-check-in: hora de chegada e dados dos hóspedes.' })
         + button(vars.link_pre_checkin, 'Fazer o pré-check-in')
       : '') + mapButton,
     aguardar_pagamento: () => button(vars.link_reserva, vars.valor_sinal ? `Pagar o sinal · ${vars.valor_sinal}` : 'Pagar o sinal'),
-    pendente: () => composer.buildSteps(['Confirmamos a disponibilidade', 'Enviamos a confirmação e os próximos passos', 'Prepara a sua chegada com o pré-check-in']),
+    pendente: () => composer.buildSteps(['Confirmamos a disponibilidade', 'Enviamos o link para pagar o sinal', 'Prepara a chegada com o pré-check-in'])
+      + button(vars.link_reserva, 'Acompanhar o pedido', { secondary: true }),
     pre_reserva: () => button(vars.link_reserva, 'Ver a reserva', { secondary: true }),
   };
   nextStep.check_in = nextStep.confirmada;
 
+  const para = composer.buildParagraph;
+  const label = composer.buildSectionLabel;
+  const strong = value => `<strong>${esc(value)}</strong>`;
+  const depositDue = Boolean(vars.valor_sinal);
+  const reason = vars.motivo_cancelamento;
+  const checkoutSteps = String(s.checkout_instructions || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const entryCodes = [
+    { label: 'Código da porta', value: vars.codigo_porta && vars.codigo_porta !== '—' ? vars.codigo_porta : '' },
+    ...(!s.no_wifi && vars.wifi_password && vars.wifi_password !== '—' ? [
+      { label: 'Rede Wi-Fi', value: vars.wifi_nome && vars.wifi_nome !== '—' ? vars.wifi_nome : '' },
+      { label: 'Senha do Wi-Fi', value: vars.wifi_password },
+    ] : []),
+  ];
+  const cancellation = {
+    ttl: { eyebrow: 'Pedido expirado', headline: 'Não conseguimos confirmar o seu pedido',
+      text: `O seu pedido para ${strong(vars.datas_curtas)} em ${strong(vars.alojamento)} não chegou a ser confirmado e as datas ficaram livres. Não lhe foi cobrado nada.`, rebook: true },
+    deposit: { eyebrow: 'Prazo terminado', headline: 'As datas voltaram a ficar livres',
+      text: `Não recebemos o sinal da sua reserva para ${strong(vars.datas_curtas)} em ${strong(vars.alojamento)} dentro do prazo, por isso as datas voltaram a ficar livres. Não lhe foi cobrado nada.`, rebook: true },
+    staff: { eyebrow: 'Reserva cancelada', headline: 'A sua reserva foi cancelada',
+      text: `A sua reserva em ${strong(vars.alojamento)} foi cancelada. Se não esperava este email ou tem alguma pergunta, responda a esta mensagem.` },
+    guest: { eyebrow: 'Reserva cancelada', headline: 'A sua reserva foi cancelada',
+      text: `Confirmamos o cancelamento da sua reserva em ${strong(vars.alojamento)}.` },
+  }[reason] || { eyebrow: 'Reserva cancelada', headline: 'A sua reserva foi cancelada',
+    text: `A sua reserva em ${strong(vars.alojamento)} foi cancelada.` };
+
   return {
+    // ── Reserva aceite (pedido aprovado pela equipa) ──
+    titulo_aceite: composer.buildTitle(depositDue
+      ? { eyebrow: 'Reserva aceite', tone: 'ok', headline: 'As datas são suas' }
+      : { eyebrow: 'Reserva confirmada', tone: 'ok', headline: 'Está tudo marcado' }),
+    mensagem_aceite: depositDue
+      ? para(`Aceitámos o seu pedido. Para confirmar a reserva, falta pagar o sinal de ${strong(vars.valor_sinal)}${vars.prazo_sinal ? ` até ${strong(vars.prazo_sinal)}. Depois disso, as datas voltam a ficar livres` : ''}.`)
+      : para(`Aceitámos o seu pedido e a sua reserva em ${strong(vars.alojamento)} está confirmada.`),
+    botao_pagar_sinal: depositDue && vars.pagamento_online
+      ? button(vars.link_reserva, `Pagar o sinal · ${vars.valor_sinal}`)
+        + para('Pagamento seguro através da Stripe.', 'font-size:13.5px;text-align:center;margin:6px 0 0;')
+      : '',
+    proximo_pre_checkin: vars.link_pre_checkin && !precheckinDone && status !== 'cancelada'
+      ? label('A seguir') + para('Complete o pré-check-in: hora de chegada e dados de cada hóspede, que a lei nos obriga a registar.')
+        + button(vars.link_pre_checkin, 'Fazer o pré-check-in', { secondary: true })
+      : '',
+
+    // ── Pagamento recebido ──
+    mensagem_pagamento: vars.pagamento_confirma
+      ? para(`Obrigado. Recebemos o sinal de ${strong(vars.valor_pagamento)} e a sua reserva em ${strong(vars.alojamento)} está confirmada.`)
+      : para(`Obrigado. Registámos o pagamento de ${strong(vars.valor_pagamento)} da sua reserva em ${strong(vars.alojamento)}.${vars.pagamento_liquidado ? ' Não falta pagar nada.' : ''}`),
+
+    // ── Tudo para a sua chegada ──
+    como_chegar: s.property_address || s.arrival_instructions
+      ? label('Como chegar') + para([s.property_address ? strong(s.property_address) : '', esc(s.arrival_instructions || '')].filter(Boolean).join('<br>')) + mapButton
+      : '',
+    como_entrar: s.entry_instructions || entryCodes.some(c => c.value)
+      ? label('Como entrar') + (s.entry_instructions ? para(esc(s.entry_instructions)) : '') + composer.buildCodes(entryCodes)
+      : '',
+    dia_saida: label(vars.hora_checkout ? `No dia da saída · até às ${vars.hora_checkout}` : 'No dia da saída')
+      + (checkoutSteps.length ? composer.buildChecklist(checkoutSteps) : '')
+      + para('Precisa de sair mais tarde? Responda a este email: se o alojamento estiver livre, tentamos ajudar.'),
+
+    // ── Cancelamento, segundo o motivo ──
+    titulo_cancelamento: composer.buildTitle({ eyebrow: cancellation.eyebrow, tone: 'muted', headline: cancellation.headline }),
+    mensagem_cancelamento: para(cancellation.text),
+    botao_novo_pedido: cancellation.rebook ? button(s.booking_url, 'Fazer um novo pedido') : '',
+
     // ── Título segundo o estado (modelo da reserva) ──
     titulo_reserva: composer.buildTitle({ eyebrow: pres.eyebrow, tone: pres.tone, headline: pres.headline(vars) }),
     estadia: stay,
@@ -282,7 +345,9 @@ function buildBlocks(vars, settings, reservation) {
     lista_checkout: composer.buildChecklist(['Deixe as chaves conforme o combinado', 'Feche as janelas e desligue as luzes e o ar condicionado', 'Verifique se não fica nada esquecido']),
     nota_checkout_tardio: composer.buildNote({ heading: 'Precisa de mais tempo?', html: 'Responda a este email: se o alojamento estiver livre, tentamos ajudar com um check-out mais tarde.' }),
     titulo_obrigado: composer.buildTitle({ eyebrow: 'Obrigado', tone: 'brand', headline: vars.primeiro_nome ? `Obrigado pela visita, ${vars.primeiro_nome}` : 'Obrigado pela visita' }),
-    botao_avaliar: button(s.tripadvisor, 'Avaliar no TripAdvisor'),
+    botao_avaliar: composer.buildButtonPair(
+      { url: s.review_url || s.tripadvisor, label: 'Deixar uma avaliação' },
+      { url: s.booking_url, label: 'Voltar a reservar' }),
 
     // ── Cancelamento ──
     resumo_cancelamento: composer.buildRows([
@@ -297,7 +362,9 @@ function buildBlocks(vars, settings, reservation) {
     ]),
 
     // ── Pagamentos ──
-    titulo_pagamento: composer.buildTitle(vars.pagamento_liquidado
+    titulo_pagamento: composer.buildTitle(vars.pagamento_confirma && !vars.pagamento_liquidado
+      ? { eyebrow: 'Reserva confirmada', tone: 'ok', headline: vars.valor_pagamento ? `Recebemos o sinal de ${vars.valor_pagamento}` : 'Recebemos o sinal' }
+      : vars.pagamento_liquidado
       ? { eyebrow: 'Pagamento concluído', tone: 'ok', headline: 'A reserva está paga na totalidade' }
       : { eyebrow: 'Pagamento recebido', tone: 'ok', headline: vars.valor_pagamento ? `Recebemos ${vars.valor_pagamento}` : 'Pagamento recebido' }),
     titulo_aviso_pagamento: composer.buildTitle({ eyebrow: 'Pagamento em falta', tone: 'warn', headline: vars.valor_em_falta ? `Faltam ${vars.valor_em_falta} para concluir` : 'Pagamento em falta' }),
@@ -554,7 +621,7 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation, extra
   }
 
   let vars_extra = extraVars || {};
-  if (slug === 'pre_checkin' && !vars_extra.link_pre_checkin && reservation.precheckin_token) {
+  if (['pre_checkin', 'reserva_aceite', 'pagamento'].includes(slug) && !vars_extra.link_pre_checkin && reservation.precheckin_token) {
     vars_extra = { ...vars_extra, link_pre_checkin: require('./publicLinks').precheckinUrl(reservation) };
   }
 
@@ -574,8 +641,13 @@ async function sendConfirmationEmail(guest, reservation, accommodation) {
   return sendTemplatedEmail('confirmacao', guest, reservation, accommodation);
 }
 
-async function sendCancellationEmail(guest, reservation, accommodation) {
-  return sendTemplatedEmail('cancelamento', guest, reservation, accommodation);
+async function sendCancellationEmail(guest, reservation, accommodation, reason = '') {
+  return sendTemplatedEmail('cancelamento', guest, reservation, accommodation, reason ? { motivo_cancelamento: reason } : {});
+}
+
+// Pedido aceite pela equipa: sinal a pagar (com o prazo) e pré-check-in.
+async function sendReservationAcceptedEmail(guest, reservation, accommodation, preCheckinUrl) {
+  return sendTemplatedEmail('reserva_aceite', guest, reservation, accommodation, preCheckinUrl ? { link_pre_checkin: preCheckinUrl } : {});
 }
 
 // Valores de pagamento e da política, calculados a partir da reserva, para
@@ -605,7 +677,23 @@ function paymentVars(reservation) {
     prazo_pagamento: reservation.balance_deadline ? formatDateTimeLisbon(reservation.balance_deadline) : '',
     valor_reembolso: refund,
     link_reserva: link,
+    prazo_sinal: depositCents > paidCents && reservation.deposit_deadline ? formatDeadline(reservation.deposit_deadline) : '',
+    titulo_aceite_assunto: depositCents > paidCents ? 'Reserva aceite — falta o sinal' : 'Reserva confirmada',
+    pagamento_online: onlinePaymentEnabled(reservation.organization_id) ? '1' : '',
   };
+}
+
+// «sáb, 21 nov, às 10:30», na hora do alojamento.
+function formatDeadline(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const dates = require('./dates');
+  const time = date.toLocaleTimeString('pt-PT', { timeZone: dates.businessTimeZone(), hour: '2-digit', minute: '2-digit' });
+  return `${dates.weekdayDate(dates.localDay(date))}, às ${time}`;
+}
+
+function onlinePaymentEnabled(organizationId) {
+  try { return Boolean(organizationId) && require('./stripeClient').stripeEnabled(organizationId); } catch { return false; }
 }
 
 function formatDateTimeLisbon(value) {
@@ -616,6 +704,14 @@ function formatDateTimeLisbon(value) {
 // `payment.amount` é o valor deste pagamento.
 async function sendPaymentConfirmationEmail(guest, reservation, accommodation, payment = {}) {
   const extra = payment.amount != null ? { valor_pagamento: composer.formatCurrency(Number(payment.amount)) } : {};
+  // O pagamento que completa o sinal confirma a reserva: o email diz isso.
+  if (payment.amount != null) {
+    const { cents } = require('./money');
+    let depositCents = 0;
+    try { depositCents = require('./paymentPolicy').requiredDepositCents(reservation); } catch { /* sem política */ }
+    const before = cents(reservation.amount_paid || 0) - cents(Number(payment.amount));
+    if (depositCents > 0 && before < depositCents && cents(reservation.amount_paid || 0) >= depositCents) extra.pagamento_confirma = '1';
+  }
   return sendTemplatedEmail('pagamento', guest, reservation, accommodation, extra);
 }
 
@@ -637,7 +733,7 @@ function ownerNewReservationMessage(guest, reservation, accommodation, appUrl) {
   const [eyebrow, tone] = STAFF_NEW_LABEL[reservation.status] || ['Nova reserva', 'ok'];
   const nights = Number(reservation.nights) || dates.daysBetween(reservation.check_in, reservation.check_out);
   return {
-    subject: `Nova reserva — ${guest.name} · ${reservation.id}`,
+    subject: `${reservation.status === 'pendente' ? 'Novo pedido' : 'Nova reserva'} — ${guest.name} · ${reservation.id}`,
     eyebrow, tone,
     headline: `${guest.name || 'Hóspede'} · ${dates.shortRange(reservation.check_in, reservation.check_out)}`,
     accommodation,
@@ -671,6 +767,7 @@ module.exports = {
   sendCancellationEmail,
   sendPaymentConfirmationEmail,
   sendPreCheckinEmail,
+  sendReservationAcceptedEmail,
   sendReservationRequestApprovedEmail,
   sendOwnerNewReservationEmail,
   ownerNewReservationMessage,

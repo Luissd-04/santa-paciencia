@@ -31,18 +31,18 @@ module.exports = function createMigrations(db) {
 
     const insLegacy = db.prepare(`
       INSERT OR IGNORE INTO email_templates (slug,name,subject,body,timing_offset,timing_unit,timing_direction,timing_event,active)
-      VALUES (?,?,?,?,?,?,?,?,1)
+      VALUES (?,?,?,?,?,?,?,?,?)
     `);
-    DEFAULTS.forEach(t => insLegacy.run(t.slug, t.name, t.subject, t.body, t.timing_offset, t.timing_unit, t.timing_direction, t.timing_event));
+    DEFAULTS.forEach(t => insLegacy.run(t.slug, t.name, t.subject, t.body, t.timing_offset, t.timing_unit, t.timing_direction, t.timing_event, t.active));
 
     const orgs = db.prepare('SELECT id FROM organizations').all();
     const insOrg = db.prepare(`
       INSERT OR IGNORE INTO organization_email_templates (
         organization_id, slug, name, subject, body, timing_offset, timing_unit, timing_direction, timing_event, active, updated_at
-      ) VALUES (?,?,?,?,?,?,?,?,?,1,datetime('now'))
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,datetime('now'))
     `);
     for (const org of orgs) {
-      DEFAULTS.forEach(t => insOrg.run(org.id, t.slug, t.name, t.subject, t.body, t.timing_offset, t.timing_unit, t.timing_direction, t.timing_event));
+      DEFAULTS.forEach(t => insOrg.run(org.id, t.slug, t.name, t.subject, t.body, t.timing_offset, t.timing_unit, t.timing_direction, t.timing_event, t.active));
     }
   }
 
@@ -93,10 +93,10 @@ module.exports = function createMigrations(db) {
   function seedEmailTemplates() {
     const ins = db.prepare(`
       INSERT INTO email_templates (slug,name,subject,body,timing_offset,timing_unit,timing_direction,timing_event,active)
-      VALUES (?,?,?,?,?,?,?,?,1)
+      VALUES (?,?,?,?,?,?,?,?,?)
     `);
     defaultsList().forEach(t =>
-      ins.run(t.slug, t.name, t.subject, t.body, t.timing_offset, t.timing_unit, t.timing_direction, t.timing_event));
+      ins.run(t.slug, t.name, t.subject, t.body, t.timing_offset, t.timing_unit, t.timing_direction, t.timing_event, t.active));
   }
 
   return { migrateOrganizationEmailTemplates, ensureNewEmailTemplateDefaults, migrateEmailTemplates, seedEmailTemplates };

@@ -19,7 +19,7 @@ initDatabase();
 
 const log = [];
 const emailService = require('../services/emailService');
-for (const name of ['sendConfirmationEmail', 'sendCancellationEmail', 'sendPaymentConfirmationEmail', 'sendPreCheckinEmail', 'sendOwnerNewReservationEmail']) {
+for (const name of ['sendConfirmationEmail', 'sendCancellationEmail', 'sendPaymentConfirmationEmail', 'sendPreCheckinEmail', 'sendReservationAcceptedEmail', 'sendOwnerNewReservationEmail']) {
   emailService[name] = async () => { log.push(`guest:${name}`.replace('guest:sendOwnerNewReservationEmail', 'staff:email_new_request')); return { id: 'mail' }; };
 }
 const staff = require('../services/staffNotifier');
@@ -86,12 +86,12 @@ test('reserva criada no backoffice: email ao hóspede e push à restante equipa'
   assert.deepEqual(await effects(), ['guest:sendConfirmationEmail', 'staff:push:new_reservation!manager']);
 });
 
-test('pedido do site público: só a equipa é avisada (decisão 2)', async () => {
+test('pedido do site público: o hóspede recebe «Pedido recebido» e a equipa é avisada', async () => {
   const res = await call(publicBooking.createReservation, { accommodation_id: 'unit', check_in: '2035-08-01', check_out: '2035-08-03',
     num_guests: 1, guest: { name: 'Site', email: 'site@example.com' }, rgpd_consent: true, elapsed_ms: 9000 }, { slug: 'quarto' });
   assert.equal(res.statusCode, 201, JSON.stringify(res.body));
   assert.deepEqual(types(), ['reservation.requested']);
-  assert.deepEqual(await effects(), ['staff:email_new_request', 'staff:push:new_reservation']);
+  assert.deepEqual(await effects(), ['guest:sendConfirmationEmail', 'staff:email_new_request', 'staff:push:new_reservation']);
 });
 
 test('avisos push: tipo, título direto e datas curtas', async () => {
@@ -218,13 +218,13 @@ test('cancelamento por política regista o reembolso no mesmo histórico', async
   assert.deepEqual(meta, { reason: 'guest', policy: true, refund: 0, refund_percent: quote.refundPercent });
 });
 
-test('aprovar passa o pedido a aguardar o sinal, envia o pré-check-in por acontecimento e só aprova pedidos', async () => {
+test('aprovar passa o pedido a aguardar o sinal, envia «Reserva aceite» por acontecimento e só aprova pedidos', async () => {
   reservation({ status: 'pendente' });
   const res = await call(reservations.approve, {}, { id: 'res' });
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.data.status, 'aguardar_pagamento');
   assert.match(res.body.data.pre_checkin_url, /\/pre-checkin\/[a-f0-9]{64}$/);
-  assert.deepEqual(await effects(), ['guest:sendPreCheckinEmail']);
+  assert.deepEqual(await effects(), ['guest:sendReservationAcceptedEmail']);
   for (const status of ['check_in', 'cancelada', 'confirmada']) {
     db.prepare("UPDATE reservations SET status=?").run(status);
     assert.equal((await call(reservations.approve, {}, { id: 'res' })).statusCode, 409);

@@ -32,7 +32,40 @@ function accommodationGuestInfo(db) {
   }).immediate();
 }
 
+// Emails ao hóspede revistos: os modelos guardados passam ao texto novo (com
+// cópia da versão anterior em organization_email_templates_backup, como em
+// 20261028_email_design); «Boas-vindas» e «Lembrete de check-out» ficam
+// desligados, porque o conteúdo passou para «Tudo para a sua chegada»; o
+// pré-check-in avulso passa a ser enviado só pela equipa. «Reserva aceite» é
+// um modelo novo: entra pelo ensureNewEmailTemplateDefaults do arranque.
+const CHANGED = ['pre_checkin', 'coordenadas', 'cancelamento', 'pagamento', 'obrigado', 'apos_checkin'];
+function guestEmails(db) {
+  const id = '20261119_guest_emails';
+  if (done(db, id)) return;
+  const tables = ['organization_email_templates', 'email_templates']
+    .filter(name => db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name));
+  db.transaction(() => {
+    const { defaultsList, INACTIVE } = require('./emailTemplateDefaults');
+    const defaults = new Map(defaultsList().map(t => [t.slug, t]));
+    if (tables.includes('organization_email_templates')) {
+      const design = require('../services/emailDesign');
+      for (const { id: orgId } of db.prepare('SELECT id FROM organizations').all()) design.apply(db, orgId, { slugs: CHANGED, reason: id });
+    }
+    for (const table of tables) {
+      if (table === 'email_templates') {
+        const update = db.prepare('UPDATE email_templates SET name = ?, subject = ?, body = ? WHERE slug = ?');
+        for (const slug of CHANGED) { const t = defaults.get(slug); update.run(t.name, t.subject, t.body, slug); }
+      }
+      db.prepare(`UPDATE ${table} SET name = ? WHERE slug = 'confirmacao'`).run(defaults.get('confirmacao').name);
+      db.prepare(`UPDATE ${table} SET timing_event = 'manual' WHERE slug = 'pre_checkin'`).run();
+      for (const slug of INACTIVE) db.prepare(`UPDATE ${table} SET active = 0 WHERE slug = ?`).run(slug);
+    }
+    mark(db, id);
+  }).immediate();
+}
+
 module.exports = db => {
   depositDeadline(db);
   accommodationGuestInfo(db);
+  guestEmails(db);
 };

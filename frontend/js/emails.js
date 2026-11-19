@@ -37,19 +37,20 @@ const LANGS = [
 ];
 
 const TEMPLATE_META = {
-  confirmacao:    { icon: '✅', label: 'Agradecimento pela reserva',   eventLabel: 'Imediatamente após a reserva' },
-  pre_checkin:    { icon: '📝', label: 'Preenchimento do formulário', eventLabel: 'Imediatamente após aprovação' },
-  coordenadas:    { icon: '🗺️', label: 'Informações e código de acesso', eventLabel: 'Antes do check-in' },
+  confirmacao:    { icon: '✅', label: 'Pedido recebido',              eventLabel: 'Logo que o pedido ou a reserva é criada' },
+  reserva_aceite: { icon: '🤝', label: 'Reserva aceite',               eventLabel: 'Quando a equipa aceita o pedido (sinal pela Stripe e pré-check-in)' },
+  pagamento:      { icon: '💶', label: 'Pagamento recebido',           eventLabel: 'Em cada pagamento recebido (manual ou online)' },
+  coordenadas:    { icon: '🗺️', label: 'Tudo para a sua chegada',      eventLabel: 'Antes do check-in, com a reserva paga' },
+  obrigado:       { icon: '⭐', label: 'Obrigado pela estadia',        eventLabel: 'Após check-out' },
+  cancelamento:   { icon: '❌', label: 'Cancelamento da reserva',      eventLabel: 'Imediatamente ao cancelar (texto segundo o motivo)' },
+  pre_checkin:    { icon: '📝', label: 'Pré-check-in (envio manual)',  eventLabel: 'Quando a equipa envia o link na reserva' },
   apos_checkin:   { icon: '🏡', label: 'Após check-in',                eventLabel: 'Após check-in' },
   antes_checkout: { icon: '🌅', label: 'Antes do check-out',           eventLabel: 'Antes do check-out' },
-  obrigado:       { icon: '⭐', label: 'Obrigado pela estadia',        eventLabel: 'Após check-out' },
-  cancelamento:   { icon: '❌', label: 'Cancelamento da reserva',      eventLabel: 'Imediatamente ao cancelar' },
-  pagamento:      { icon: '💶', label: 'Pagamento recebido',           eventLabel: 'Em cada pagamento recebido (manual ou online)' },
   aviso_restante: { icon: '⏰', label: 'Pagamento do restante',        eventLabel: 'Quando o restante vence sem pagamento (política de pagamento)' },
   cancelamento_politica: { icon: '↩️', label: 'Cancelamento com reembolso', eventLabel: 'Ao cancelar uma reserva com política de pagamento' },
 };
 
-const FIXED_TIMING_EVENTS = ['booking', 'cancellation', 'approval', 'payment', 'balance_notice', 'policy_cancellation'];
+const FIXED_TIMING_EVENTS = ['booking', 'cancellation', 'approval', 'payment', 'balance_notice', 'policy_cancellation', 'manual'];
 // Avisos com prazo: enviados logo, sem janela horária.
 const IMMEDIATE_TEMPLATES = ['aviso_restante', 'cancelamento_politica'];
 

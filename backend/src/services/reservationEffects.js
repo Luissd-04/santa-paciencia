@@ -26,7 +26,7 @@ const CANCEL_REASONS = {
 function effectsFor(type, payload = {}) {
   switch (type) {
     case 'reservation.created': return ['guest_confirmation_email', 'staff_push_new'];
-    case 'reservation.requested': return ['staff_email_new_request', 'staff_push_new_request'];
+    case 'reservation.requested': return ['guest_confirmation_email', 'staff_email_new_request', 'staff_push_new_request'];
     // Decisões 1 e 3: o hóspede recebe o email em cada pagamento; a equipa é
     // avisada dos pagamentos que não registou ela própria.
     case 'payment.received': return ['guest_payment_email', ...(payload.source === 'manual' ? [] : ['staff_push_payment'])];
@@ -37,7 +37,7 @@ function effectsFor(type, payload = {}) {
       'staff_push_cancelled',
       ...(payload.reason === 'staff' ? [] : ['staff_email_cancelled']),
     ];
-    case 'reservation.approved': return ['guest_precheckin_email'];
+    case 'reservation.approved': return ['guest_accepted_email'];
     case 'precheckin.submitted': return ['staff_push_precheckin'];
     case 'email.due': return ['guest_template_email'];
     case 'policy.notice_due': return ['guest_policy_notice'];
@@ -107,7 +107,8 @@ async function guestEmail(ctx, send) {
 
 const HANDLERS = {
   guest_confirmation_email: (ctx) => guestEmail(ctx, mail => mail.sendConfirmationEmail(ctx.guest, ctx.reservation, ctx.accommodation)),
-  guest_cancellation_email: (ctx) => guestEmail(ctx, mail => mail.sendCancellationEmail(ctx.guest, ctx.reservation, ctx.accommodation)),
+  guest_cancellation_email: (ctx, event) => guestEmail(ctx, mail => mail.sendCancellationEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload.reason)),
+  guest_accepted_email: (ctx, event) => guestEmail(ctx, mail => mail.sendReservationAcceptedEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload.precheckinUrl)),
   guest_precheckin_email: (ctx, event) => guestEmail(ctx, mail => mail.sendPreCheckinEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload.precheckinUrl)),
   guest_payment_email: (ctx, event) => guestEmail(ctx, mail => mail.sendPaymentConfirmationEmail(ctx.guest, ctx.reservation, ctx.accommodation, { amount: event.payload.amount })),
   guest_template_email: (ctx, event) => guestEmail(ctx, mail => mail.sendTemplatedEmail(event.payload.slug, ctx.guest, ctx.reservation, ctx.accommodation)),
