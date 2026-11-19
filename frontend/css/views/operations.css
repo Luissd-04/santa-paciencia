@@ -905,9 +905,8 @@ body.tl-is-panning * {
 
 .notifications-page-copy small {
   color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 
 @media (max-width: 760px) {
@@ -1663,8 +1662,6 @@ body.tl-is-panning * {
 #voucher-history-modal-bg .modal-header,
 #voucher-history-modal-bg .modal-footer { flex-shrink: 0; }
 
-/* Emails retidos: o que falta ao alojamento e as ações Enviar/Ignorar. */
-.notif-missing { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; justify-content: flex-end; }
-.notif-missing-chip { font-size: 12px; padding: 2px 9px; border-radius: 999px; border: 1px dashed rgba(163, 48, 31, .6); color: #a3301f; background: rgba(255, 255, 255, .7); }
+/* Emails retidos: ações Enviar/Ignorar no menu do sino. */
 .notif-item-actions { display: flex; gap: 6px; margin-top: 8px; }
 .notif-item-actions .btn { padding: 4px 10px; font-size: 12.5px; }

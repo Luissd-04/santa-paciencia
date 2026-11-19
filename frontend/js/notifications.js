@@ -365,7 +365,6 @@ function notifActionsHtml(n) {
         </span>
       ` : n.type === 'email_held' || n.type === 'config_incomplete' ? `
         <span class="notifications-page-actions">
-          ${n.missing?.length ? `<span class="notif-missing">${n.missing.map(m => `<span class="notif-missing-chip">${AppModules.core.escapeHtml(m)}</span>`).join('')}</span>` : ''}
           <button class="btn btn-primary btn-sm" ${AppActions.attrs("click", "notifications-open-accommodation", [String(n.accommodation_id ?? '')])}>
             <i data-lucide="building-2"></i> Completar o alojamento
           </button>

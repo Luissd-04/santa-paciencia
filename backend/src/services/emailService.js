@@ -281,13 +281,16 @@ function buildBlocks(vars, settings, reservation) {
       : '',
 
     // ── Pagamento recebido ──
-    mensagem_pagamento: vars.pagamento_confirma
+    mensagem_pagamento: vars.pagamento_confirma && vars.pagamento_liquidado
+      ? para(`Obrigado. Recebemos o pagamento de ${strong(vars.valor_pagamento)}: a sua reserva em ${strong(vars.alojamento)} está confirmada e paga na totalidade.`)
+      : vars.pagamento_confirma
       ? para(`Obrigado. Recebemos o sinal de ${strong(vars.valor_pagamento)} e a sua reserva em ${strong(vars.alojamento)} está confirmada.`)
       : para(`Obrigado. Registámos o pagamento de ${strong(vars.valor_pagamento)} da sua reserva em ${strong(vars.alojamento)}.${vars.pagamento_liquidado ? ' Não falta pagar nada.' : ''}`),
 
     // ── Tudo para a sua chegada ──
     como_chegar: s.property_address || s.arrival_instructions
-      ? label('Como chegar') + para([s.property_address ? strong(s.property_address) : '', esc(s.arrival_instructions || '')].filter(Boolean).join('<br>')) + mapButton
+      ? label('Como chegar') + para([s.property_address ? strong(s.property_address) : '', esc(s.arrival_instructions || '')].filter(Boolean).join('<br>'))
+        + button(vars.link_mapa, 'Abrir no mapa', { secondary: true })
       : '',
     como_entrar: s.entry_instructions || entryCodes.some(c => c.value)
       ? label('Como entrar') + (s.entry_instructions ? para(esc(s.entry_instructions)) : '') + composer.buildCodes(entryCodes)
