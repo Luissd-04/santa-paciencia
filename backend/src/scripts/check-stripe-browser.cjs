@@ -59,7 +59,7 @@ async function main() {
   const url = `${origin}/reserva/${token}`;
   await page.goto(url);
   await expect(page.getByRole('button', { name: /Pagar.*200/ })).toBeVisible();
-  await expect(page.locator('#rs-checkout')).toContainText('2035');
+  await expect(page.locator('#pn-rs-stay')).toContainText('Saída');
   await expect(page.locator('#rs-test-note')).toBeVisible();
   await page.screenshot({ path: path.join(artifacts, 'desktop.png'), fullPage: true, animations: 'disabled' });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -81,7 +81,7 @@ async function main() {
   await payments.processWebhook({ id: 'evt_browser_paid', type: 'checkout.session.completed', livemode: false,
     created: Math.floor(Date.now() / 1000), data: { object: session } });
   await page.goto(url + '?payment=return');
-  await expect(page.locator('#rs-title')).toHaveText('Reserva confirmada');
+  await expect(page.locator('#rs-status')).toHaveText('Reserva confirmada');
   await expect(page.locator('#rs-payment')).toHaveText('Pago');
   await expect(page.locator('#rs-pay')).toBeHidden();
   await page.screenshot({ path: path.join(artifacts, 'paid-mobile.png'), fullPage: true, animations: 'disabled' });

@@ -16,8 +16,6 @@
   if (brand) {
     $('pn-brand').textContent = brand;
     $('pn-mark').textContent = brand.trim().charAt(0).toUpperCase();
-    $('brand-pill').textContent = brand;
-    $('brand-pill').hidden = false;
   }
   $('confirmation-title').textContent = title;
   $('confirmation-message').textContent = message;

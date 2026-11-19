@@ -62,8 +62,6 @@ const state = {
   availability: [],
   selectedUnitId: '',
   step: 1,
-  bgIndex: 0,
-  lastBgChange: 0,
   // Anti-bot: timestamp de quando a página foi carregada. Usado para
   // calcular elapsed_ms no payload e rejeitar submits demasiado rápidos.
   pageLoadedAt: Date.now()

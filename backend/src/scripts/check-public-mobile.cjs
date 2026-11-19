@@ -32,7 +32,7 @@ async function main() {
   page.on('pageerror', error => errors.push(error.message));
   const url = `http://127.0.0.1:${server.address().port}/reservar/teste-mobile`;
   await page.goto(url);
-  await expect(page.locator('#property-name')).toHaveText('Casa de teste');
+  await expect(page.locator('#pn-name')).toHaveText('Casa de teste');
   await expect(page.locator('[data-flow-mobile] #next-btn')).toBeVisible();
   const chooseDate = (input, iso) => pickDate(page, input, iso);
   // O calendário move o foco; selecionar datas testa a interação real em Safari.

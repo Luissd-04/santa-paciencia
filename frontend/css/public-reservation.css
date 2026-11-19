@@ -24,105 +24,9 @@ body {
   padding: 36px min(5vw, 64px) 56px;
 }
 
-.ambient-bg,
-.ambient-overlay {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-}
-
-.ambient-bg {
-  background-size: cover;
-  background-position: center;
-  transition: background-image 1200ms ease, opacity 1200ms ease;
-  will-change: background-image;
-  filter: blur(6px);
-  transform: scale(1.04);
-}
-
-.ambient-overlay {
-  background:
-    linear-gradient(180deg, rgba(8,7,6,.42), rgba(8,7,6,.22) 34%, rgba(8,7,6,.58)),
-    radial-gradient(circle at 50% 45%, rgba(255,255,255,.26), transparent 38%);
-}
-
-.booking-hero {
-  position: relative;
-  z-index: 2;
-  max-width: 820px;
-  margin: 0 auto 22px;
-  text-align: center;
-  color: #fff;
-  animation: riseIn .55s ease both;
-}
-
-.brand-pill {
-  display: inline-flex;
-  padding: 8px 14px;
-  border: 1px solid rgba(255,255,255,.28);
-  border-radius: 999px;
-  background: rgba(255,255,255,.12);
-  backdrop-filter: blur(12px);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-}
-
-.booking-hero h1 {
-  margin: 18px 0 10px;
-  font-family: "Playfair Display", serif;
-  font-size: clamp(42px, 7vw, 82px);
-  line-height: .95;
-  letter-spacing: 0;
-}
-
-.booking-hero p {
-  max-width: 680px;
-  margin: 0 auto;
-  color: rgba(255,255,255,.84);
-  font-size: 16px;
-  line-height: 1.65;
-}
-
 .booking-shell {
   position: relative;
   z-index: 2;
-}
-
-.gallery-rail {
-  max-width: 1180px;
-  margin: 0 auto 18px;
-  overflow: hidden;
-  border-radius: 22px;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
-}
-
-.gallery-rail.bottom { margin-top: 18px; margin-bottom: 0; }
-
-.rail-track {
-  display: flex;
-  gap: 12px;
-  width: max-content;
-  min-width: 100%;
-  animation: railMove 180s linear infinite;
-  will-change: transform;
-  animation-play-state: running !important;
-}
-
-.rail-track.reverse {
-  animation-direction: reverse;
-  animation-duration: 220s;
-}
-
-.rail-img {
-  width: clamp(160px, 20vw, 260px);
-  height: 120px;
-  object-fit: cover;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,.2);
-  box-shadow: 0 16px 36px rgba(0,0,0,.24);
 }
 
 .booking-card {
@@ -135,36 +39,6 @@ body {
   box-shadow: 0 30px 90px rgba(0,0,0,.12);
   animation: riseIn .65s .1s ease both;
   will-change: transform;
-}
-
-.stepbar {
-  display: flex;
-  align-items: center;
-  max-width: 320px;
-  margin: 4px auto 18px;
-}
-
-.step-dot {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: rgba(255,255,255,.7);
-  color: var(--brand);
-  display: grid;
-  place-items: center;
-  font-weight: 800;
-  font-size: 12px;
-}
-
-.step-dot.active {
-  background: var(--brand);
-  color: #fff;
-}
-
-.step-line {
-  flex: 1;
-  height: 1px;
-  background: rgba(255,255,255,.42);
 }
 
 .booking-grid {
@@ -188,7 +62,6 @@ body {
 .form-step { display: none; }
 .form-step.active { display: block; animation: softIn .25s ease both; }
 
-.step-heading span,
 .summary-kicker {
   color: var(--brand);
   font-size: 11px;
@@ -601,7 +474,6 @@ textarea { resize: vertical; }
 .voucher-input-row button { min-height: 48px; white-space: nowrap; }
 
 .public-success-page { background: #f2ece5; }
-.public-success-page .booking-hero { color: var(--brand); }
 .confirmation-card { max-width: 600px; padding: clamp(24px, 6vw, 48px); text-align: center; }
 .confirmation-icon { width: 56px; height: 56px; color: #1c6040; }
 .confirmation-card h1 { font-family: "Playfair Display", serif; font-size: clamp(28px, 5vw, 38px); }
@@ -845,8 +717,6 @@ textarea { resize: vertical; }
 
 /* Percurso público de pré-check-in. */
 .precheckin-page .booking-shell { max-width: 980px; margin-inline: auto; }
-.precheckin-page .booking-hero h1 { font-size: clamp(30px, 5vw, 48px); }
-.precheckin-page .booking-hero { margin-bottom: 20px; }
 .precheckin-page .pc-summary-photo { min-height: 150px; }
 .precheckin-page .pc-summary-copy { padding: 20px 24px; }
 .precheckin-page .pc-summary-copy h3 { font-size: 28px; margin: 6px 0 16px; }
@@ -904,7 +774,7 @@ textarea { resize: vertical; }
 }
 @media (prefers-reduced-motion: reduce) {
   .precheckin-page *, .precheckin-page *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
-  .booking-card, .form-step.active, .booking-hero { animation: none; }
+  .booking-card, .form-step.active { animation: none; }
 }
 
 .pc-time-input {
@@ -998,11 +868,6 @@ textarea { resize: vertical; }
   to { transform: rotate(360deg); }
 }
 
-@keyframes railMove {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-
 @keyframes riseIn {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
@@ -1023,7 +888,6 @@ textarea { resize: vertical; }
   .unit-card { grid-template-columns: 92px 1fr; }
   .unit-price { grid-column: 2; text-align: left; }
   .unit-card img { width: 92px; height: 78px; }
-  .booking-hero h1 { font-size: 43px; }
   .pc-summary-hero { grid-template-columns: 1fr; }
   .pc-summary-photo { min-height: 190px; }
   .pc-summary-grid { grid-template-columns: 1fr; }

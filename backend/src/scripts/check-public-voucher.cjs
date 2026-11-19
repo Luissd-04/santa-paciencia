@@ -60,7 +60,7 @@ async function main() {
   });
 
   await page.goto(`${base}/reservar/casa-teste`, { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('#property-name')).toHaveText('Casa de teste');
+  await expect(page.locator('#pn-name')).toHaveText('Casa de teste');
   assert.deepEqual(actionRequests, [{ status: 200, url: `${base}/js/public-reservation-actions.js` }]);
 
   await page.locator('#pb-checkin').fill('01-02-2035');

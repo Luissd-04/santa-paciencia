@@ -34,18 +34,6 @@
   }
 
 
-  // Pré-check-in: o link deixa de depender só do email.
-  function renderPrecheckin(precheckin) {
-    const path = precheckin?.path;
-    $('rs-precheckin').hidden = !(typeof path === 'string' && /^\/pre-checkin\/[A-Za-z0-9_-]+$/.test(path));
-    if ($('rs-precheckin').hidden) return;
-    $('rs-precheckin-link').href = path;
-    $('rs-precheckin-link').textContent = precheckin.submitted ? 'Rever o pré-check-in' : 'Fazer o pré-check-in';
-    $('rs-precheckin-text').textContent = precheckin.submitted
-      ? 'O pré-check-in está feito. Pode corrigir os dados até ao dia de chegada.'
-      : 'Falta o pré-check-in: hora de chegada e dados dos hóspedes.';
-  }
-
   function renderPayment(reservation) {
     const payment = reservation.online_payment || {};
     renderPolicy(payment);
@@ -108,25 +96,16 @@
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload.success === false) throw new Error(payload.error || 'Não foi possível consultar a reserva.');
       const reservation = payload.data;
-      $('rs-reference').textContent = `Reserva ${reservation.id}`;
       const S = window.ReservationStatus;
-      $('rs-title').textContent = reservation.status ? S.guestLabel(reservation.status) : 'Estado da reserva';
       $('rs-status').textContent = S.guestLabel(reservation.status);
       const chip = S.paymentGuestChip(reservation.status, reservation.payment_status);
       $('rs-payment').hidden = !chip;
       $('rs-payment').textContent = chip?.label || '';
       $('rs-payment').dataset.tone = chip?.tone || '';
       $('rs-accommodation').textContent = reservation.accommodation_name;
-      $('rs-checkin').textContent = fmtDate(reservation.check_in);
-      $('rs-checkout').textContent = fmtDate(reservation.check_out);
-      $('rs-guests').textContent = String(reservation.num_guests || '—');
-      $('rs-total').textContent = fmtMoney(reservation.total_amount);
-      $('rs-paid').textContent = fmtMoney(reservation.amount_paid);
-      renderPrecheckin(reservation.precheckin);
       renderPayment(reservation);
-      const image = mediaThumb(reservation.cover_image || reservation.images?.[0], 1600);
-      if (image) $('rs-bg').style.backgroundImage = `url(${JSON.stringify(image)})`;
-      window.ReservationStatusNovo?.render(reservation);
+      // Passos, pagamentos e a capa da reserva confirmada (reservation-status-novo.js).
+      window.ReservationStatusNovo.render(reservation, mediaThumb(reservation.cover_image || reservation.images?.[0], 1600));
       $('rs-loading').hidden = true;
       $('rs-content').hidden = false;
       $('rs-error').hidden = true;
@@ -134,7 +113,6 @@
       $('rs-loading').hidden = true;
       $('rs-error').textContent = error.message;
       $('rs-error').hidden = false;
-      $('rs-title').textContent = 'Não foi possível abrir a reserva';
     }
   }
 

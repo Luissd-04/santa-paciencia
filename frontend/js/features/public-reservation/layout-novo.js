@@ -1,8 +1,7 @@
-// Versão nova da página de reservas (?layout=novo; ver js/domain/public-layout.js).
-// Só desenha: disponibilidade, preços, validação e envio são os da versão atual,
-// que chama estes ganchos através de AppModules.booking.novo.
+// Página de reservas: capa, quartos com ficha, barra com o total e confirmação.
+// Só desenha: disponibilidade, preços, validação e envio estão nos outros
+// ficheiros desta pasta, que chamam estes ganchos através de AppModules.booking.novo.
 (() => {
-if (!window.PublicLayout?.isNew) return;
 const B = AppModules.booking;
 const esc = value => B.escapeHtml(value);
 const money = value => B.fmtCurrency(value);

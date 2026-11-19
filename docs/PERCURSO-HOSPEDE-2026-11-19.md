@@ -72,9 +72,12 @@ hóspedes» com o estado de cada email
 
 ## Páginas públicas
 
-A versão nova (antes em `?layout=novo`) é a única: `js/domain/public-layout.js`
-fixa `data-layout="novo"` e já não há botão de troca. O código e o CSS da
-versão antiga ficam por agora, sem efeito.
+A versão nova (antes em `?layout=novo`) é a única. Cada página pública tem
+`<html data-layout="novo">` (o CSS de `public-novo.css` está preso a esse
+atributo) e saíram o seletor de versão (`js/domain/public-layout.js`), o
+fundo desfocado, o cabeçalho e as faixas de fotografias da versão antiga, a
+barra de passos antiga, a grelha de dados e o bloco de pré-check-in antigos da
+página da reserva, com o JS e o CSS que os desenhavam.
 
 - O último passo diz «Enviar pedido» e explica que hoje não se paga nada.
 - Depois de enviar, o hóspede vai para a página do pedido (`/reserva/:token`),
@@ -94,4 +97,3 @@ versão antiga ficam por agora, sem efeito.
   legíveis, pré-visualização ao lado com uma reserva real, repor o texto
   original). As 7 línguas do editor continuam sem efeito no envio: decisão
   pendente.
-- Remover o código e o CSS da versão antiga das páginas públicas.

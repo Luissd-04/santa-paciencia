@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v42';
-const CACHE_VERSION = 104;
+const CACHE_VERSION = 105;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -87,7 +87,6 @@ const STATIC_ASSETS = [
   '/js/domain/dates.js',
   '/js/domain/money.js',
   '/js/domain/reservation-status.js',
-  '/js/domain/public-layout.js',
   '/js/domain/appearance.js',
   '/css/v2/aparencia.css',
   '/css/v2/painel.css',

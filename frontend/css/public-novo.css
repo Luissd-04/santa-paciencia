@@ -1,16 +1,12 @@
-/* Versão nova das páginas públicas, em teste ao lado da atual (?layout=novo;
-   ver js/domain/public-layout.js). Tudo o que muda fica preso a
-   html[data-layout="novo"]; a versão atual continua só com o seu CSS. */
-html:not([data-layout="novo"]) .novo-only { display: none !important; }
+/* Desenho das páginas públicas (reservar, reserva, pré-check-in, confirmação).
+   Assenta sobre public-reservation.css (formulários e campos); cada página
+   tem <html data-layout="novo">, a que estas regras estão presas. */
 
-/* Botão para quem está a testar trocar de versão (os hóspedes não o veem). */
-.layout-switch { position: fixed; top: 10px; right: 10px; z-index: 60; padding: 6px 11px; border-radius: 999px; background: rgba(35,49,59,.88); color: #fff; font: 600 12px Inter, system-ui, sans-serif; text-decoration: none; }
 
 /* ── Página de reservas ─────────────────────────────────────────────────── */
 html[data-layout="novo"] { --brand: #843424; --brand-dark: #6c2a1c; --brand-soft: #f3e3dc; --cream: #f7f1e7; --paper: #fffdf9; --sand: #efe6d8;
   --line: #e4d9c9; --ink: #23313b; --muted: #6f665d; --ok: #2f6b4f; --ok-bg: #e2eee5; --wait: #8a5a10; --wait-bg: #f6ead0; }
 html[data-layout="novo"] body { background: var(--cream); color: var(--ink); font-size: 16px; line-height: 1.55; }
-html[data-layout="novo"] .ambient-bg, html[data-layout="novo"] .ambient-overlay, html[data-layout="novo"] .booking-hero, html[data-layout="novo"] .gallery-rail, html[data-layout="novo"] .stepbar, html[data-layout="novo"] .step-heading > span { display: none; }
 html[data-layout="novo"] .booking-page { padding: 0 0 56px; max-width: 1180px; margin: 0 auto; }
 html[data-layout="novo"] .booking-shell { padding: 0 20px; }
 html[data-layout="novo"] .booking-card { max-width: none; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; animation: none;
@@ -147,7 +143,6 @@ html[data-layout="novo"] #rs-policy { order: 5; }
 html[data-layout="novo"] #rs-cancellation { order: 6; }
 html[data-layout="novo"] .rs-refresh { order: 7; justify-self: center; }
 html[data-layout="novo"] #rs-content > .rs-note { order: 8; text-align: center; }
-html[data-layout="novo"] .rs-grid, html[data-layout="novo"] #rs-precheckin { display: none; }
 html[data-layout="novo"] .rs-stay h2 { margin: 12px 0 14px; color: var(--ink); font-size: 24px; }
 html[data-layout="novo"] .rs-status, html[data-layout="novo"] .rs-payment { min-height: 0; padding: 6px 12px; font-weight: 600; }
 html[data-layout="novo"] .rs-status { background: var(--brand-soft); }

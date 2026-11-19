@@ -1,8 +1,7 @@
-// Versão nova da página da reserva (?layout=novo; ver js/domain/public-layout.js).
-// Só desenha a partir do que reservation-status.js já carregou: o pagamento,
-// o cancelamento e o pré-check-in continuam a ser tratados por esse ficheiro.
+// Página da reserva: passos, pagamentos, capa e marca do alojamento. Desenha a
+// partir do que reservation-status.js já carregou; o pagamento online e o
+// cancelamento continuam a ser tratados por esse ficheiro.
 (() => {
-  if (!window.PublicLayout?.isNew) return;
   const $ = id => document.getElementById(id);
   const money = value => window.ReservationMoney.format(value);
   const day = (value, options) => window.ReservationDates.formatDayLabel(value, options);
@@ -74,7 +73,7 @@
     return calendarUrl;
   }
 
-  function render(r) {
+  function render(r, image = '') {
     const payment = r.online_payment || {};
     const plan = payment.policy;
     const total = Number(r.total_amount) || 0;
@@ -91,7 +90,7 @@
     const hero = $('pn-rs-hero');
     hero.hidden = !confirmed;
     $('pn-rs-hero-title').textContent = r.status === 'check_in' ? 'Boa estadia!' : `Até ${day(r.check_in, { long: true })}`;
-    const photo = $('rs-bg').style.backgroundImage;
+    const photo = image ? `url(${JSON.stringify(image)})` : '';
     if (photo) hero.style.backgroundImage = photo;
     hero.classList.toggle('no-photo', !photo);
 

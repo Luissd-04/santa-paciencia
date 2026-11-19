@@ -594,7 +594,6 @@ function setupArrivalTime() {
 function render(data) {
   reservationData = data;
   const r = data.reservation;
-  $('pc-reservation-ref').textContent = r.id;
   $('pc-stay').textContent = `${r.accommodation_name} · ${fmtDate(r.check_in)} a ${fmtDate(r.check_out)}`;
   $('pc-accommodation').textContent = r.accommodation_name;
   // Marca do alojamento no topo (nunca a da plataforma).
@@ -606,7 +605,6 @@ function render(data) {
   $('pc-guest-count').textContent = `${r.num_guests} hóspede${Number(r.num_guests) !== 1 ? 's' : ''}`;
   const image = r.cover_image || r.images?.[0] || '';
   if (safeMediaUrl(image)) {
-    $('pc-bg').style.backgroundImage = `url(${JSON.stringify(mediaThumb(image, 1600))})`;
     $('pc-summary-photo').style.backgroundImage = `url(${JSON.stringify(mediaThumb(image, 1024))})`;
   }
   $('pc-summary-photo').hidden = !safeMediaUrl(image);

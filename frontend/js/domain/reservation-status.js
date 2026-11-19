@@ -44,7 +44,8 @@ const UNDO_LABELS = { check_in: '↩ Desfazer check-in', check_out: '↩ Desfaze
 // nada pago não há pagamento a pedir, por isso não se mostra.
 function paymentGuestChip(status, paymentStatus) {
   const value = normalize(paymentStatus || 'pendente');
-  if (normalize(status) === 'cancelada' && value === 'pendente') return null;
+  // Um pedido por aprovar ou cancelado ainda não tem nada a pagar.
+  if (['cancelada', 'pendente'].includes(normalize(status)) && value === 'pendente') return null;
   return { label: payment(value)?.guestLabel || capitalize(value), tone: payment(value)?.tone || 'neutral' };
 }
 

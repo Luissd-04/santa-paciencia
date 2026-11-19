@@ -44,7 +44,7 @@ async function main() {
   page.on('pageerror', error => errors.push(error.message));
 
   await page.goto(`${base}/reservar/casa-quartos`);
-  await expect(page.locator('#property-name')).toHaveText('Casa da Oliveira');
+  await expect(page.locator('#pn-name')).toHaveText('Casa da Oliveira');
   await chooseDate(page, page.locator('#pb-checkout'), '2035-03-03');
   await chooseDate(page, page.locator('#pb-checkin'), '2035-03-01');
   // Tudo ocupado: sem total (antes ficava a taxa turística com o nome da casa).
@@ -67,7 +67,7 @@ async function main() {
 
   // Página da reserva: link para o pré-check-in só depois de aceite.
   await page.goto(`${base}/reserva/${TOKEN}`);
-  const link = page.locator('#rs-precheckin-link');
+  const link = page.locator('#pn-rs-steps a.pn-step-action');
   await expect(link).toHaveText('Fazer o pré-check-in');
   assert.equal(await link.getAttribute('href'), '/pre-checkin/pc-ok');
   db.prepare("UPDATE reservations SET precheckin_submitted_at = datetime('now') WHERE id = 'r-suite'").run();
@@ -75,7 +75,7 @@ async function main() {
   await expect(link).toHaveText('Rever o pré-check-in');
   await page.goto(`${base}/reserva/${PENDING_TOKEN}`);
   await expect(page.locator('#rs-accommodation')).toHaveText('Quarto Monsaraz');
-  await expect(page.locator('#rs-precheckin')).toBeHidden();
+  await expect(page.locator('#pn-rs-steps a.pn-step-action')).toHaveCount(0);
 
   assert.deepEqual(errors, []);
   console.log('OK: reserva pública com quartos — resumo sem escolha disponível, lotação máxima e link para o pré-check-in.');
