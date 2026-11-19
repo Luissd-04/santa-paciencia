@@ -12,6 +12,8 @@ AppModules.define('definicoes', {
   langField: { get: () => langField },
   emailTemplates: { get: () => emailTemplates, set: value => { emailTemplates = value; } },
   emailSettings: { get: () => emailSettings, set: value => { emailSettings = value; } },
+  emailSender: { get: () => emailSender },
+  emailBlockNames: { get: () => emailBlockNames },
   selectedTemplateSlug: { get: () => selectedTemplateSlug, set: value => { selectedTemplateSlug = value; } },
   emailLang: { get: () => emailLang, set: value => { emailLang = value; } },
   loadEmailTemplates: { get: () => loadEmailTemplates },
@@ -23,6 +25,9 @@ AppModules.define('definicoes', {
 
 let emailTemplates = [];
 let emailSettings  = {};
+let emailSender = {};
+let emailBlockNames = [];
+let paymentPolicyEnabled = false;
 let selectedTemplateSlug = AppModules.core.SS.get('email:slug', null);
 let emailLang = AppModules.core.SS.get('email:lang', 'pt');
 
@@ -64,6 +69,9 @@ async function loadEmailTemplates() {
     const data = await AppModules.core.apiGet('/api/email-templates');
     emailTemplates = data.data || [];
     emailSettings  = data.settings || {};
+    emailSender = data.sender || {};
+    emailBlockNames = data.blocks || [];
+    paymentPolicyEnabled = Boolean(data.payment_policy_enabled);
     renderTemplateList();
     renderEmailSettings();
     if (emailTemplates.length > 0 && !selectedTemplateSlug) {
@@ -77,24 +85,50 @@ async function loadEmailTemplates() {
 }
 
 // ── TEMPLATE LIST ──
+// Pela ordem do percurso do hóspede, com o estado de cada email para o
+// alojamento escolhido na pré-visualização: ligado e pronto, com dados em
+// falta (fica retido), desligado ou sem uso (avisos da política desligada).
+const GROUPS = [
+  ['Antes da estadia', ['confirmacao', 'reserva_aceite']],
+  ['Pagamentos', ['pagamento', 'aviso_restante']],
+  ['Estadia', ['coordenadas', 'obrigado']],
+  ['Cancelamentos', ['cancelamento', 'cancelamento_politica']],
+  ['Enviados pela equipa ou desligados', ['pre_checkin', 'apos_checkin', 'antes_checkout']],
+];
+const POLICY_TEMPLATES = ['aviso_restante', 'cancelamento_politica'];
+
+function templateStatus(t) {
+  if (!t.active) return { label: 'Desligado', tone: 'off' };
+  if (POLICY_TEMPLATES.includes(t.slug) && !paymentPolicyEnabled) return { label: 'Sem uso: política de pagamento desligada', tone: 'off' };
+  const missing = AppModules.definicoes.emailReadiness?.[t.slug]?.missing || [];
+  if (missing.length) return { label: `Falta ${missing.length} dado${missing.length === 1 ? '' : 's'}`, tone: 'missing' };
+  return { label: 'Pronto', tone: 'ok' };
+}
+
 function renderTemplateList() {
   const el = document.getElementById('email-template-list');
   if (!el) return;
-  el.innerHTML = emailTemplates.map((t, i) => {
-    const meta = TEMPLATE_META[t.slug] || {};
-    const isFixed = FIXED_TIMING_EVENTS.includes(t.timing_event);
-    const timingLabel = isFixed
-      ? meta.eventLabel
-      : `${t.timing_offset} ${t.timing_unit === 'days' ? 'dia(s)' : 'hora(s)'} ${t.timing_direction === 'before' ? 'antes' : 'após'} ${t.timing_event === 'checkin' ? 'check-in' : 'check-out'}`;
-    return `
-      <div class="template-item ${selectedTemplateSlug === t.slug ? 'active' : ''}" ${AppActions.attrs("click", "emails-select-template-5b7ac72", [String((t.slug) ?? '')])}>
-        <div class="template-item-top">
-          <span class="template-item-num">${String(i + 1).padStart(2, '0')}</span>
-          <span class="template-item-name">${meta.label || t.name}</span>
-          <span class="template-item-dot ${t.active ? 'on' : 'off'}"></span>
-        </div>
-        <div class="template-item-timing">${timingLabel}</div>
-      </div>`;
+  const bySlug = new Map(emailTemplates.map(t => [t.slug, t]));
+  const grouped = new Set(GROUPS.flatMap(([, slugs]) => slugs));
+  const groups = [...GROUPS, ['Outros', emailTemplates.map(t => t.slug).filter(slug => !grouped.has(slug))]];
+  const esc = AppModules.core.escapeHtml;
+  el.innerHTML = groups.map(([label, slugs]) => {
+    const items = slugs.map(slug => bySlug.get(slug)).filter(Boolean);
+    if (!items.length) return '';
+    return `<div class="template-group">${esc(label)}</div>` + items.map(t => {
+      const meta = TEMPLATE_META[t.slug] || {};
+      const isFixed = FIXED_TIMING_EVENTS.includes(t.timing_event);
+      const timingLabel = isFixed
+        ? meta.eventLabel
+        : `${t.timing_offset} ${t.timing_unit === 'days' ? (Number(t.timing_offset) === 1 ? 'dia' : 'dias') : (Number(t.timing_offset) === 1 ? 'hora' : 'horas')} ${t.timing_direction === 'before' ? 'antes' : 'depois'} ${t.timing_event === 'checkin' ? 'da entrada' : 'da saída'}`;
+      const status = templateStatus(t);
+      return `
+      <button type="button" class="template-item ${selectedTemplateSlug === t.slug ? 'active' : ''} is-${status.tone}" ${AppActions.attrs("click", "emails-select-template-5b7ac72", [String((t.slug) ?? '')])}>
+        <span class="template-item-name">${esc(meta.label || t.name)}</span>
+        <span class="template-item-timing">${esc(timingLabel || '')}</span>
+        <span class="template-item-status">${esc(status.label)}</span>
+      </button>`;
+    }).join('');
   }).join('');
 }
 
@@ -105,6 +139,8 @@ async function toggleTemplateActive(slug) {
     await AppModules.core.apiPut(`/api/email-templates/${slug}`, { active });
     const t = emailTemplates.find(x => x.slug === slug);
     if (t) t.active = active;
+    const label = document.querySelector('#emed2 .email-active-toggle .gtt-label');
+    if (label) label.textContent = active ? 'Ligado' : 'Desligado';
     renderTemplateList();
     AppModules.core.toast(active ? '✅ Email ativado' : '⭕ Email desativado', 'info');
   } catch (e) {
@@ -140,7 +176,8 @@ async function saveTemplate(slug) {
   try {
     const res = await AppModules.core.apiPut(`/api/email-templates/${slug}`, body);
     if (res.success) {
-      AppModules.core.toast('✅ Template guardado!', 'success');
+      AppModules.core.toast('✅ Email guardado.', 'success');
+      AppModules.definicoes.editorDirty = false;
       await loadEmailTemplates();
     } else {
       AppModules.core.toast('❌ ' + (res.error || 'Erro ao guardar.'), 'error');
@@ -150,27 +187,18 @@ async function saveTemplate(slug) {
   }
 }
 
-// ── EMAIL SETTINGS (info: logótipo/social/checkin configuram-se no alojamento) ──
+// ── EMAIL SETTINGS ──
+// Os dados dos emails (logótipo, contactos, horários, instruções) estão no
+// alojamento; o editor mostra o que falta a cada email e liga para lá.
 function renderEmailSettings() {
   const el = document.getElementById('email-settings-panel');
-  if (!el) return;
-  el.innerHTML = `
-    <div style="padding:0 12px 12px;">
-      <div style="font-size:11px;color:var(--cinza);line-height:1.5;background:var(--cinza-claro);border-radius:8px;padding:10px 12px;margin-bottom:12px;">
-        💡 O logótipo, os horários de check-in/out e as redes sociais são configurados em cada alojamento individualmente.
-      </div>
-      <button class="btn btn-ghost btn-sm" style="width:100%;" data-on-click="emails-show-view-4899013">
-        ${AppModules.core.lcIcon('building-2', 13)} Ir para configurações de alojamento
-      </button>
-    </div>`;
+  if (el) el.innerHTML = '';
   // Os exemplos vão, por omissão, para o email de quem está a ver.
   const samplesTo = document.getElementById('email-samples-to');
   if (samplesTo && !samplesTo.value) samplesTo.value = AppModules.core.currentUser?.email || '';
-  if (window.lucide) lucide.createIcons();
 }
 
 AppActions.register({
-  "emails-show-view-4899013": (el, event, args) => { AppModules.core.showView('alojamentos') },
   "emails-save-template-a1efa8c": (el, event, args) => { saveTemplate(args[0]) },
 }, "click");
 

@@ -47,29 +47,7 @@
 .template-item:hover { background: var(--cinza-claro); }
 .template-item.active { background: var(--marca-bg); border-left-color: var(--marca); }
 
-.template-item-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-.template-item-num {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--cinza);
-  min-width: 22px;
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
-}
 .template-item-name { font-size: 13px; font-weight: 600; color: var(--azul); flex: 1; }
-.template-item-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.template-item-dot.on  { background: var(--verde); }
-.template-item-dot.off { background: var(--cinza-claro); border: 1.5px solid var(--cinza); }
 .template-item-timing { font-size: 11.5px; color: var(--cinza); padding-left: 30px; }
 
 .emails-editor {
@@ -79,25 +57,6 @@
   overflow: hidden;
 }
 
-/* ── Email editor redesigned ── */
-.emed-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--cinza-claro);
-  background: var(--creme);
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-.emed-template-name {
-  font-family: 'Playfair Display', serif;
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--azul);
-  flex: 1;
-}
 .email-active-toggle {
   display: inline-flex;
   align-items: center;
@@ -108,171 +67,6 @@
 .email-active-toggle input { display: none; }
 .email-active-toggle input:checked + .gtt-switch { background: var(--verde); }
 .email-active-toggle input:checked + .gtt-switch::after { transform: translateX(16px); }
-
-.emed-top-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  border-bottom: 1px solid var(--cinza-claro);
-}
-.emed-top-grid .emed-envelope-fields {
-  border-bottom: none;
-  border-right: 1px solid var(--cinza-claro);
-}
-.emed-timing-card {
-  padding: 12px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  justify-content: center;
-}
-
-.emed-envelope-fields {
-  border-bottom: 1px solid var(--cinza-claro);
-}
-.emed-env-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 24px;
-  border-bottom: 1px solid var(--cinza-claro);
-}
-.emed-env-row:last-child { border-bottom: none; }
-.emed-env-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--cinza);
-  width: 28px;
-  text-align: right;
-  flex-shrink: 0;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-}
-.emed-env-value {
-  font-size: 13px;
-  color: var(--azul);
-  opacity: .75;
-}
-.emed-env-input {
-  flex: 1;
-  height: 30px;
-  padding: 0 10px;
-  font-size: 13px;
-}
-
-.email-window-fields {
-  align-items: center;
-  gap: 8px;
-  margin-top: 6px;
-  font-size: 12.5px;
-  color: var(--cinza);
-}
-.email-window-fields input[type="time"] {
-  width: 110px;
-  height: 32px;
-  padding: 0 8px;
-  font-size: 13px;
-}
-
-.emed-body-wrap {
-  padding: 20px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.emed-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.emed-section-label {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 10.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .7px;
-  color: var(--cinza);
-}
-
-.emed-subject-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.emed-subject-row .form-control { flex: 1; }
-
-.emed-body-section {
-  display: flex;
-  flex-direction: column;
-  border: 1.5px solid rgba(26,46,74,.12);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.emed-body-section .email-fmt-toolbar {
-  border-radius: 0;
-  border: none;
-  border-bottom: 1px solid rgba(26,46,74,.1);
-  background: #fafafa;
-  margin: 0;
-}
-.emed-body-section .email-body-editor {
-  border: none;
-  border-radius: 0;
-  min-height: 240px;
-}
-.emed-body-footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-top: 1px solid rgba(26,46,74,.08);
-  background: #fafafa;
-}
-.emed-body-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-left: auto;
-}
-.emed-body-actions .btn { white-space: nowrap; }
-
-.email-editor-body {
-  padding: 24px 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.var-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-.var-chip {
-  padding: 4px 10px;
-  background: var(--marca-bg);
-  color: var(--marca);
-  border: 1px solid rgba(132,52,36,.2);
-  border-radius: 20px;
-  font-size: 11.5px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: 'DM Sans', sans-serif;
-  transition: background .15s;
-}
-.var-chip:hover { background: rgba(132,52,36,.18); }
-
-.email-body-textarea {
-  font-family: monospace;
-  font-size: 12.5px;
-  line-height: 1.6;
-  resize: vertical;
-}
 
 .email-body-editor {
   min-height: 240px;
@@ -297,13 +91,6 @@
 
 .emails-editor { overflow: auto; }
 
-/* Language tabs */
-.email-lang-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 2px 0;
-}
 .lang-tab {
   display: inline-flex;
   align-items: center;
@@ -331,24 +118,6 @@
   background: #efe7da;
 }
 
-/* Contexto da pré-visualização: estado da reserva e alojamento. Mudam o que o
-   servidor compõe (título segundo o estado, logótipo/Wi-Fi/redes herdados). */
-.emed-preview-controls {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
-
-.emed-preview-controls label {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: 11px;
-  color: var(--cinza);
-  flex: 1 1 180px;
-}
-
 .emed-preview-notice {
   font-size: 12px;
   line-height: 1.5;
@@ -360,13 +129,115 @@
   margin-bottom: 8px;
 }
 
-.email-timing-fixed {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 14px;
-  background: var(--cinza-claro);
-  border-radius: 8px;
-  font-size: 13px;
-  color: var(--cinza);
-}
 
+/* ── Editor de emails (features/emails/editor.js) ──
+   Lista pelo percurso do hóspede à esquerda; ao lado, o conteúdo em blocos e
+   a pré-visualização com um alojamento e uma reserva reais. */
+.template-group { padding: 14px 16px 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--cinza); }
+button.template-item { display: grid; gap: 2px; width: 100%; padding: 9px 16px; border: 0; border-left: 3px solid transparent; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+button.template-item .template-item-timing { padding-left: 0; }
+.template-item-status { font-size: 11.5px; font-weight: 600; color: var(--verde); }
+.template-item.is-missing .template-item-status { color: #a3301f; }
+.template-item.is-off .template-item-status { color: var(--cinza); font-weight: 500; }
+.template-item.is-off .template-item-name { color: var(--cinza); }
+button.template-item:focus-visible { outline: 2px solid var(--marca); outline-offset: -2px; }
+
+.emails-editor { container-type: inline-size; container-name: emailed; }
+.emed2 [hidden] { display: none !important; }
+.emed2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 440px); min-height: 100%; }
+.emed2-main { display: grid; gap: 18px; align-content: start; padding: 20px 22px; min-width: 0; border-right: 1px solid var(--cinza-claro); }
+.emed2-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.emed2-title { flex: 1; min-width: 0; }
+.emed2-title h3 { margin: 0; font-size: 19px; color: var(--azul); }
+.emed2-title small { color: var(--cinza); font-size: 12px; }
+.emed2-dirty { padding: 3px 10px; border-radius: 999px; background: #f8ecd6; color: #8a5a12; font-size: 12px; font-weight: 600; }
+.emed2-panes { display: none; }
+.emed2-when { display: grid; gap: 8px; padding: 12px 14px; border-radius: 10px; background: var(--cinza-claro); }
+.emed2-when-text { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; font-size: 13.5px; line-height: 1.6; }
+.emed2-window { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--cinza); cursor: pointer; }
+.emed2-inline { width: auto; min-width: 0; padding: 4px 8px; height: auto; font-size: 13.5px; }
+input.emed2-inline[type="number"] { width: 64px; }
+.emed2-missing { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 12px 14px; border: 1px solid rgba(163, 48, 31, .3); border-radius: 10px; background: rgba(248, 225, 220, .45); color: #7c2417; font-size: 13px; }
+.emed2-missing b { display: block; }
+.emed2-section { display: grid; gap: 8px; }
+.emed2-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--cinza); }
+.emed2-label-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.emed2-lang { display: inline-flex; align-items: center; gap: 6px; color: var(--cinza); font-size: 12.5px; }
+.emed2-note { margin: 0; padding: 8px 10px; border-radius: 8px; background: #fdf6e3; color: #8a6d3b; font-size: 12.5px; }
+.emed2-subject { display: flex; gap: 8px; align-items: center; }
+.emed2-subject .form-control { flex: 1; min-width: 0; }
+
+.emb-list { display: grid; gap: 8px; }
+.emb { border: 1px solid var(--cinza-claro); border-radius: 10px; background: var(--branco); }
+.emb-text { overflow: hidden; }
+.emb-tools { display: flex; align-items: center; gap: 4px; padding: 4px 6px; border-bottom: 1px solid var(--cinza-claro); background: rgba(0, 0, 0, .015); }
+.emb-kind { margin-left: auto; padding-right: 4px; color: var(--cinza); font-size: 11.5px; }
+.emb-text-body { min-height: 44px; padding: 10px 14px; font-family: Georgia, 'Times New Roman', serif; font-size: 15px; line-height: 1.6; color: #2f2a25; outline: none; }
+.emb-text-body:focus { box-shadow: inset 0 0 0 2px var(--marca-bg); }
+.emb-text-body p { margin: 0 0 8px; }
+.emb-text-body p:last-child { margin-bottom: 0; }
+.emb-var { display: inline-block; padding: 0 7px; margin: 0 1px; border-radius: 999px; background: var(--marca-bg); color: var(--marca); font-family: Inter, system-ui, sans-serif; font-size: 12.5px; font-weight: 600; line-height: 1.7; white-space: nowrap; user-select: all; }
+.emb-block { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 10px 10px 10px 12px; background: var(--cinza-claro); }
+.emb-block-icon { color: var(--cinza); display: inline-flex; }
+.emb-block-copy b { display: block; font-size: 13.5px; color: var(--azul); }
+.emb-block-copy small { display: block; color: var(--cinza); font-size: 12px; line-height: 1.4; }
+.emb-tag { padding: 2px 9px; border-radius: 999px; background: var(--branco); color: var(--cinza); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.emb-block.is-missing { border-color: rgba(163, 48, 31, .35); background: rgba(248, 225, 220, .45); }
+.emb-block.is-missing small { color: #7c2417; }
+.emb-tag.is-missing { background: #f8e1dc; color: #a3301f; }
+.emb-move { display: inline-flex; gap: 2px; }
+.emb-icon { display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 6px; border: 0; border-radius: 6px; background: none; color: var(--azul); cursor: pointer; font: inherit; font-size: 13px; }
+.emb-icon:hover:not(:disabled) { background: var(--marca-bg); color: var(--marca); }
+.emb-icon:disabled { opacity: .3; cursor: default; }
+.emb-icon:focus-visible, .emb-add-btn:focus-visible, .emb-add-item:focus-visible { outline: 2px solid var(--marca); outline-offset: 1px; }
+.emb-empty { margin: 0; padding: 16px; border: 1px dashed var(--cinza-claro); border-radius: 10px; color: var(--cinza); font-size: 13px; text-align: center; }
+.emb-tools .codes-btn { height: 30px; }
+.emb-add { position: relative; display: grid; gap: 8px; }
+.emb-add-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; border: 1px dashed var(--cinza); border-radius: 10px; background: none; color: var(--marca); font: inherit; font-weight: 600; font-size: 13.5px; cursor: pointer; }
+.emb-add-btn:hover { background: var(--marca-bg); }
+.emb-add-menu { display: grid; gap: 4px; padding: 8px; border: 1px solid var(--cinza-claro); border-radius: 10px; background: var(--branco); box-shadow: var(--sombra); max-height: 420px; overflow-y: auto; }
+.emb-add-group { padding: 8px 8px 2px; font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--cinza); }
+.emb-add-item { display: grid; gap: 1px; width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.emb-add-item:hover { background: var(--cinza-claro); }
+.emb-add-item b { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--azul); }
+.emb-add-item small { color: var(--cinza); font-size: 12px; }
+.emb-add-more summary { padding: 8px 10px; color: var(--marca); font-size: 13px; font-weight: 600; cursor: pointer; }
+
+.emed2-more summary { color: var(--marca); font-size: 13px; font-weight: 600; cursor: pointer; }
+.emed2-env { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 14px; align-items: center; margin-top: 10px; font-size: 13px; }
+.emed2-env > span, .emed2-env > label { color: var(--cinza); font-size: 12px; }
+.emed2-env b { font-weight: 600; overflow-wrap: anywhere; }
+.emed2-foot { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; padding-top: 14px; border-top: 1px solid var(--cinza-claro); }
+.emed2-foot-end { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.emed2-preview { display: grid; gap: 10px; align-content: start; padding: 20px 18px; background: rgba(0, 0, 0, .02); min-width: 0; position: sticky; top: 0; align-self: start; }
+.emed2-preview-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.emed2-preview-controls label { display: grid; gap: 3px; font-size: 11px; color: var(--cinza); min-width: 0; }
+.emed2-preview-controls select { min-width: 0; }
+.emed2-inbox { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--cinza-claro); border-bottom: 0; border-radius: 10px 10px 0 0; background: var(--branco); font-size: 13px; min-width: 0; }
+.emed2-inbox > div { min-width: 0; }
+.emed2-inbox b, .emed2-inbox span:not(.emed2-avatar) { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.emed2-inbox span:not(.emed2-avatar) { color: var(--cinza); }
+.emed2-avatar { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--marca); color: #fff; font-weight: 700; }
+.emed2-preview .email-preview-frame { height: 640px; margin-top: -10px; border-radius: 0 0 10px 10px; }
+
+/* Painel estreito (o editor fica ao lado do menu e da lista): Texto e
+   Pré-visualização em separadores. */
+@container emailed (max-width: 900px) {
+  .emed2 { grid-template-columns: 1fr; }
+  .emed2-main { border-right: 0; }
+  .emed2-panes { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--cinza-claro); justify-self: start; }
+  .emed2-panes button { padding: 6px 14px; border: 0; border-radius: 8px; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--cinza); cursor: pointer; }
+  .emed2-panes button.is-on { background: var(--branco); color: var(--azul); box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
+  .emed2 .emed2-preview { display: none; position: static; }
+  .emed2.show-preview .emed2-preview { display: grid; }
+  .emed2.show-preview .emed2-main > :not(.emed2-head):not(.emed2-panes) { display: none; }
+}
+@container emailed (max-width: 560px) {
+  .emed2-main, .emed2-preview { padding: 16px 14px; }
+  .emed2-preview-controls { grid-template-columns: 1fr; }
+  .emb-block { grid-template-columns: minmax(0, 1fr) auto; }
+  .emb-block-icon { display: none; }
+  .emb-block .emb-tag { grid-column: 1; justify-self: start; }
+  .emed2-missing { grid-template-columns: 1fr; }
+}

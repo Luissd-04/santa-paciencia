@@ -157,6 +157,7 @@ const FEATURE_MODULES = {
     scripts: [
       'js/payment-policy.js',
       'js/emails.js',
+      'js/features/emails/blocos.js',
       'js/features/emails/codes.js',
       'js/features/emails/editor.js',
       'js/features/emails/preview.js',

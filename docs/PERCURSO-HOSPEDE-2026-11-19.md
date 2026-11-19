@@ -91,9 +91,30 @@ página da reserva, com o JS e o CSS que os desenhavam.
 - A localização mostra cidade e país (a região «Continente» vinha de um valor
   por omissão).
 
+## Editor de emails (Definições → Emails aos hóspedes)
+
+- **Lista** pela ordem do percurso (antes da estadia, pagamentos, estadia,
+  cancelamentos, enviados pela equipa ou desligados), com o estado de cada
+  email para o alojamento escolhido: Pronto, «Falta N dados», Desligado ou
+  «Sem uso» (avisos da política, com a política desligada).
+- **Quando sai** numa frase («Enviar 1 dia antes da entrada, só entre as…»).
+- **Conteúdo em blocos** (`js/features/emails/blocos.js`): parágrafos de texto
+  editáveis, com os dados do hóspede e da reserva como etiquetas («Primeiro
+  nome»), e blocos automáticos com nome e descrição («Datas da estadia»,
+  «Como chegar»…). Cada bloco sobe, desce ou sai; «Acrescentar texto ou
+  bloco» mostra primeiro os blocos deste email. Um bloco cujo dado falta no
+  alojamento aparece «Em falta», e um aviso no topo diz se o email ficaria
+  retido. O corpo continua a ser gravado como HTML com marcadores `{{…}}`.
+- **Pré-visualização** ao lado (separadores Texto/Pré-visualização quando o
+  painel é estreito), com um alojamento e uma reserva real dele
+  (`GET /api/email-templates/preview-reservations`), ou um exemplo por estado;
+  com uma reserva real, a composição é a do envio (`emailService.templateContext`).
+- **Repor o texto original** (`POST /api/email-templates/:slug/reset`), com
+  cópia da versão atual em `organization_email_templates_backup`.
+- As línguas ficam num seletor com a nota de que as traduções ainda não são
+  usadas no envio. Teste: `scripts/check-email-editor.cjs`.
+
 ## Por fazer
 
-- Página de Emails nas Definições: redesenho proposto (blocos com nomes
-  legíveis, pré-visualização ao lado com uma reserva real, repor o texto
-  original). As 7 línguas do editor continuam sem efeito no envio: decisão
-  pendente.
+- Línguas: decidir se se escondem até haver envio por língua ou se se
+  implementa a escolha da língua pelo país do hóspede.

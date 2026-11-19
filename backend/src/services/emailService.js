@@ -599,6 +599,19 @@ const IMMEDIATE_TEMPLATES = new Set(['aviso_restante', 'cancelamento_politica'])
 // quando tem de esperar (janela de envio, Gmail indisponível, envio por
 // confirmar): a fila de acontecimentos volta a tentar a essa hora.
 // `ignoreWindow`: envio pedido pela equipa nesse momento.
+// Dados, variáveis e blocos de um modelo para uma reserva: os mesmos no envio
+// e na pré-visualização com uma reserva real (o editor de emails).
+// `accommodation` já com a herança resolvida.
+function templateContext(slug, guest, reservation, accommodation, extraVars, orgId) {
+  let extra = extraVars || {};
+  if (['pre_checkin', 'reserva_aceite', 'pagamento'].includes(slug) && !extra.link_pre_checkin && reservation.precheckin_token) {
+    extra = { ...extra, link_pre_checkin: require('./publicLinks').precheckinUrl(reservation) };
+  }
+  const settings = getEmailSettings(accommodation, orgId);
+  const vars = sanitizeUrlVars(buildVars(guest, reservation, accommodation, settings, extra));
+  return { settings, vars, blocks: buildBlocks(vars, settings, reservation) };
+}
+
 async function sendTemplatedEmail(slug, guest, reservation, accommodation, extraVars, { ignoreWindow = false, fromHold = false } = {}) {
   if (emailDisabled()) { console.log(`Email ${slug} ignorado (EMAIL_ENABLED=false)`); return null; }
   const { db } = require('../config/database');
@@ -623,12 +636,7 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation, extra
     return { queued: true, delivery_status: 'window', until: nextWindowStart(template) };
   }
 
-  let vars_extra = extraVars || {};
-  if (['pre_checkin', 'reserva_aceite', 'pagamento'].includes(slug) && !vars_extra.link_pre_checkin && reservation.precheckin_token) {
-    vars_extra = { ...vars_extra, link_pre_checkin: require('./publicLinks').precheckinUrl(reservation) };
-  }
-
-  const settings = getEmailSettings(accommodation, orgId);
+  const { settings, vars, blocks } = templateContext(slug, guest, reservation, accommodation, extraVars, orgId);
   // Sem os dados obrigatórios do alojamento, o email fica retido e o sino diz
   // o que falta (emailReadiness); não sai incompleto.
   const readiness = require('./emailReadiness');
@@ -640,8 +648,6 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation, extra
       return { held: true, missing };
     }
   }
-  const vars = sanitizeUrlVars(buildVars(guest, reservation, accommodation, settings, vars_extra));
-  const blocks = buildBlocks(vars, settings, reservation);
   const rendered = renderEmail({ subject: template.subject, body: template.body, vars, blocks, settings });
   const delivery = require('./emailDelivery');
   const result = await delivery.deliverTemplate({ orgId, slug, reservation, to, rendered }, () => sendMail(orgId, {
@@ -805,6 +811,7 @@ module.exports = {
   sendPreCheckinEmail,
   sendReservationAcceptedEmail,
   sendHeldEmail,
+  templateContext,
   sendReservationRequestApprovedEmail,
   sendOwnerNewReservationEmail,
   ownerNewReservationMessage,

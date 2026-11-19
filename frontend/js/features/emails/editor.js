@@ -1,289 +1,417 @@
 // Estado privado; interface partilhada em AppModules.definicoes.
-// Edição do modelo selecionado: painel completo, idiomas e barra de
-// formatação. O estado da lista de modelos vive em emails.js.
+// Edição do modelo selecionado: quando sai, o assunto e o conteúdo em blocos
+// (parágrafos de texto e blocos automáticos com nomes legíveis), ao lado da
+// pré-visualização com um alojamento e uma reserva reais. O corpo continua a
+// ser guardado como HTML com marcadores {{…}} (ver features/emails/blocos.js).
 (() => {
 AppModules.define('definicoes', {
   selectTemplate: { get: () => selectTemplate },
   switchEmailLang: { get: () => switchEmailLang },
   syncEditorToTemplate: { get: () => syncEditorToTemplate },
   toggleEmailWindow: { get: () => toggleEmailWindow },
+  editorDirty: { get: () => dirty, set: value => setDirty(value) },
+  renderEditorStatus: { get: () => renderEditorStatus },
+  editorDraft: { get: () => editorDraft },
 });
 
-function escapeAttr(s) {
-  return (s || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+let segments = [];
+let dirty = false;
+let addOpen = false;
+
+const D = () => AppModules.definicoes;
+const core = () => AppModules.core;
+const esc = value => core().escapeHtml(value ?? '');
+const ic = (name, size = 14) => core().lcIcon(name, size);
+const current = () => D().emailTemplates.find(x => x.slug === D().selectedTemplateSlug);
+
+function setDirty(value) {
+  dirty = Boolean(value);
+  const el = document.getElementById('et-dirty');
+  if (el) el.hidden = !dirty;
 }
 
-// ── FORMATTING TOOLBAR ──
-// data-on-mousedown="emails-keep-body-focus-*" em todos os botões: são fora
-// do contenteditable, e o browser tira-lhe o foco/seleção ao premir o rato
-// num botão — sem isto, o comando aplicava-se ao sítio errado (ou a lado
-// nenhum), tal como acontecia no menu de códigos.
-function buildFmtToolbar() {
-  const mk = (action, title, label) =>
-    `<button class="fmt-btn" type="button" data-on-click="${action}" data-on-mousedown="emails-keep-body-focus-2f8d6b1" title="${title}">${label}</button>`;
-  const mkWide = (action, title, label) =>
-    `<button class="fmt-btn fmt-btn-wide" type="button" data-on-click="${action}" data-on-mousedown="emails-keep-body-focus-2f8d6b1" title="${title}">${label}</button>`;
-  return `
-    <div class="email-fmt-toolbar">
-      ${mk('emails-exec-command-7a0a29c', 'Negrito', '<b>B</b>')}
-      ${mk('emails-exec-command-94eb21d', 'Itálico', '<i>I</i>')}
-      ${mk('emails-exec-command-e628d3d', 'Sublinhado', '<u>U</u>')}
-      <div class="fmt-btn-sep"></div>
-      ${mkWide('emails-fmt-wrap-93235a9', 'Título', 'H2')}
-      ${mkWide('emails-fmt-wrap-078e552', 'Subtítulo', 'H3')}
-      ${mkWide('emails-fmt-wrap-fa605ad', 'Parágrafo', 'P')}
-      <div class="fmt-btn-sep"></div>
-      ${mk('emails-exec-command-1c9d4a7', 'Alinhar à esquerda', AppModules.core.lcIcon('align-left', 14))}
-      ${mk('emails-exec-command-6b2e9f3', 'Centrar', AppModules.core.lcIcon('align-center', 14))}
-      ${mk('emails-exec-command-d5a83c0', 'Alinhar à direita', AppModules.core.lcIcon('align-right', 14))}
-      ${mk('emails-exec-command-4e71b6a', 'Justificar', AppModules.core.lcIcon('align-justify', 14))}
-      <div class="fmt-btn-sep"></div>
-      ${mkWide('emails-fmt-insert-4fccc2e', 'Lista', '• Lista')}
-      ${mkWide('emails-fmt-insert-0ecf494', 'Lista numerada', '1. Lista')}
-      <div class="fmt-btn-sep"></div>
-      ${mkWide('emails-fmt-insert-bf3077d', 'Separador', '—')}
+// ── Quando sai ──
+function whenHtml(t, meta) {
+  if (D().FIXED_TIMING_EVENTS.includes(t.timing_event)) {
+    return `<p class="emed2-when-text">${ic('zap', 14)} ${esc(meta.eventLabel || '')}</p>`;
+  }
+  const anchor = t.timing_event === 'checkin' ? 'da entrada (check-in)' : 'da saída (check-out)';
+  const windowOn = Boolean(t.window_start);
+  return `<p class="emed2-when-text">${ic('clock-3', 14)} Enviar
+      <input type="number" class="form-control emed2-inline" id="et-offset" value="${esc(t.timing_offset)}" min="0" autocomplete="off" aria-label="Quanto tempo">
+      <select class="form-control emed2-inline" id="et-unit" aria-label="Unidade">
+        <option value="hours" ${t.timing_unit === 'hours' ? 'selected' : ''}>horas</option>
+        <option value="days" ${t.timing_unit === 'days' ? 'selected' : ''}>dias</option>
+      </select>
+      <select class="form-control emed2-inline" id="et-direction" aria-label="Antes ou depois">
+        <option value="before" ${t.timing_direction === 'before' ? 'selected' : ''}>antes</option>
+        <option value="after" ${t.timing_direction === 'after' ? 'selected' : ''}>depois</option>
+      </select>
+      ${anchor}.</p>
+    <label class="emed2-window" id="et-window-fields">
+      <input type="checkbox" id="et-window-toggle" ${windowOn ? 'checked' : ''} data-on-change="emails-toggle-email-window-90fd802">
+      Só entre as
+      <input type="time" class="form-control emed2-inline" id="et-window-start" value="${esc(t.window_start || '09:00')}" ${windowOn ? '' : 'disabled'}>
+      e as
+      <input type="time" class="form-control emed2-inline" id="et-window-end" value="${esc(t.window_end || '20:00')}" ${windowOn ? '' : 'disabled'}>
+    </label>`;
+}
+
+function toggleEmailWindow() {
+  const on = document.getElementById('et-window-toggle')?.checked;
+  for (const id of ['et-window-start', 'et-window-end']) {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !on;
+  }
+  setDirty(true);
+}
+
+// ── Conteúdo em blocos ──
+function moveButtons(i) {
+  return `<span class="emb-move">
+    <button type="button" class="emb-icon" title="Subir" aria-label="Subir" ${i === 0 ? 'disabled' : ''} ${AppActions.attrs('click', 'emails-segment-move', [String(i), '-1'])}>${ic('arrow-up', 14)}</button>
+    <button type="button" class="emb-icon" title="Descer" aria-label="Descer" ${i === segments.length - 1 ? 'disabled' : ''} ${AppActions.attrs('click', 'emails-segment-move', [String(i), '1'])}>${ic('arrow-down', 14)}</button>
+    <button type="button" class="emb-icon" title="Tirar do email" aria-label="Tirar do email" ${AppActions.attrs('click', 'emails-segment-remove', [String(i)])}>${ic('x', 14)}</button>
+  </span>`;
+}
+
+function missingFields() {
+  const r = D().emailReadiness?.[D().selectedTemplateSlug];
+  return r ? r.missing : [];
+}
+
+function segmentHtml(seg, i) {
+  if (seg.type === 'text') {
+    return `<div class="emb emb-text" data-i="${i}">
+      <div class="emb-tools">
+        <button type="button" class="emb-icon" title="Negrito" data-on-mousedown="emails-keep-body-focus-2f8d6b1" ${AppActions.attrs('click', 'emails-segment-format', ['bold'])}><b>B</b></button>
+        <button type="button" class="emb-icon" title="Itálico" data-on-mousedown="emails-keep-body-focus-2f8d6b1" ${AppActions.attrs('click', 'emails-segment-format', ['italic'])}><i>I</i></button>
+        <button type="button" class="emb-icon" title="Sublinhado" data-on-mousedown="emails-keep-body-focus-2f8d6b1" ${AppActions.attrs('click', 'emails-segment-format', ['underline'])}><u>U</u></button>
+        ${D().buildCodesDropdown(`et-text-${i}`)}
+        <span class="emb-kind">Texto</span>
+        ${moveButtons(i)}
+      </div>
+      <div class="emb-text-body" id="et-text-${i}" contenteditable="true" data-i="${i}" data-on-input="emails-segment-input">${D().textSegmentHtml(seg.html)}</div>
     </div>`;
-}
-
-function fmtWrap(open, close) {
-  const editor = document.getElementById('et-body');
-  if (!editor) return;
-  editor.focus();
-  const sel = window.getSelection();
-  const selText = (sel?.rangeCount > 0 ? sel.getRangeAt(0).toString() : '') || 'texto aqui';
-  document.execCommand('insertHTML', false, open + selText + close);
-  AppModules.definicoes.emailBodyChanged();
-}
-
-function fmtInsert(html) {
-  const editor = document.getElementById('et-body');
-  if (!editor) return;
-  editor.focus();
-  document.execCommand('insertHTML', false, html);
-  AppModules.definicoes.emailBodyChanged();
-}
-
-// ── LANGUAGE TABS ──
-function buildLangTabs(slug) {
-  return `<div class="email-lang-tabs">
-    ${AppModules.definicoes.LANGS.map(l => `
-      <button class="lang-tab${AppModules.definicoes.emailLang === l.code ? ' active' : ''}"
-              data-lang="${l.code}"
-              ${AppActions.attrs("click", "emails-switch-email-lang-8e428f1", [String((l.code) ?? ''), String((slug) ?? '')])}>
-        ${AppModules.core.flagHtml(l.cc, { size: 16 })} ${l.label}
-      </button>`).join('')}
+  }
+  const info = D().blockInfo(seg.key);
+  const missing = missingFields().filter(m => info.fields.includes(m.field));
+  return `<div class="emb emb-block${missing.length ? ' is-missing' : ''}" data-i="${i}">
+    <span class="emb-block-icon" aria-hidden="true">${ic('blocks', 16)}</span>
+    <div class="emb-block-copy"><b>${esc(info.name)}</b><small>${missing.length ? `Falta no alojamento: ${esc(missing.map(m => m.label).join(', '))}` : esc(info.desc)}</small></div>
+    <span class="emb-tag${missing.length ? ' is-missing' : ''}">${missing.length ? 'Em falta' : 'Automático'}</span>
+    ${moveButtons(i)}
   </div>`;
 }
 
-function switchEmailLang(lang, slug) {
+function renderSegments() {
+  const list = document.getElementById('et-blocks');
+  if (!list) return;
+  list.innerHTML = segments.length ? segments.map(segmentHtml).join('')
+    : '<p class="emb-empty">Este email está vazio. Acrescente um texto ou um bloco.</p>';
+  renderAddMenu();
+  if (window.lucide) lucide.createIcons();
+}
+
+function renderAddMenu() {
+  const menu = document.getElementById('et-add-menu');
+  if (!menu) return;
+  menu.hidden = !addOpen;
+  if (!addOpen) return;
+  const used = new Set(segments.filter(s => s.type === 'block').map(s => s.key));
+  const { top, rest } = D().suggestedBlocks(D().selectedTemplateSlug, D().emailBlockNames);
+  const item = key => {
+    const info = D().blockInfo(key);
+    return `<button type="button" class="emb-add-item" ${AppActions.attrs('click', 'emails-segment-add', [key])}>
+      <b>${esc(info.name)}</b><small>${esc(info.desc)}${used.has(key) ? ' · já está no email' : ''}</small></button>`;
+  };
+  menu.innerHTML = `
+    <button type="button" class="emb-add-item is-text" ${AppActions.attrs('click', 'emails-segment-add', ['__text'])}>
+      <b>${ic('type', 14)} Parágrafo de texto</b><small>Texto escrito por si, com dados do hóspede e da reserva</small></button>
+    ${top.length ? `<div class="emb-add-group">Blocos para este email</div>${top.map(item).join('')}` : ''}
+    <details class="emb-add-more"><summary>Outros blocos</summary>${rest.map(item).join('')}</details>`;
+}
+
+function readSegmentsFromDom() {
+  document.querySelectorAll('#et-blocks .emb-text-body').forEach(el => {
+    const i = Number(el.dataset.i);
+    if (segments[i]?.type === 'text') segments[i].html = el.innerHTML;
+  });
+}
+
+function segmentInput(el) {
+  const i = Number(el.dataset.i);
+  if (segments[i]?.type === 'text') segments[i].html = el.innerHTML;
+  setDirty(true);
+  D().emailBodyChanged();
+}
+
+function moveSegment(i, step) {
+  readSegmentsFromDom();
+  const j = i + step;
+  if (j < 0 || j >= segments.length) return;
+  [segments[i], segments[j]] = [segments[j], segments[i]];
+  changed();
+}
+
+function removeSegment(i) {
+  readSegmentsFromDom();
+  segments.splice(i, 1);
+  changed();
+}
+
+function addSegment(key) {
+  readSegmentsFromDom();
+  segments.push(key === '__text' ? { type: 'text', html: '<p>Escreva aqui o seu texto.</p>' } : { type: 'block', key });
+  addOpen = false;
+  changed();
+  const last = document.querySelector(`#et-blocks .emb[data-i="${segments.length - 1}"]`);
+  last?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  if (key === '__text') last?.querySelector('.emb-text-body')?.focus();
+}
+
+function changed() {
+  setDirty(true);
+  renderSegments();
+  D().emailBodyChanged();
+}
+
+function toggleAddMenu() {
+  addOpen = !addOpen;
+  renderAddMenu();
+}
+
+// ── Línguas ──
+// As traduções ainda não são usadas no envio: os hóspedes recebem sempre o
+// texto em português. A nota diz isso enquanto não houver envio por língua.
+function langSelectHtml() {
+  return `<label class="emed2-lang">${ic('languages', 14)}
+    <select class="form-control emed2-inline" id="et-lang" data-on-change="emails-switch-email-lang-select" aria-label="Língua do texto">
+      ${D().LANGS.map(l => `<option value="${l.code}" ${D().emailLang === l.code ? 'selected' : ''}>${esc(l.label)}</option>`).join('')}
+    </select></label>`;
+}
+
+function switchEmailLang(lang) {
   syncEditorToTemplate();
-  AppModules.definicoes.emailLang = lang;
-  AppModules.core.SS.set('email:lang', lang);
-  document.querySelectorAll('.lang-tab').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
-  const t = AppModules.definicoes.emailTemplates.find(x => x.slug === slug);
+  D().emailLang = lang;
+  core().SS.set('email:lang', lang);
+  loadSegments();
+  const t = current();
   const subj = document.getElementById('et-subject');
-  const body = document.getElementById('et-body');
-  if (subj) subj.value = t?.[AppModules.definicoes.langField(lang, 'subject')] || '';
-  if (body) { body.innerHTML = t?.[AppModules.definicoes.langField(lang, 'body')] || ''; AppModules.definicoes.updateEmailPreview(); }
+  if (subj) subj.value = t?.[D().langField(lang, 'subject')] || '';
+  const note = document.getElementById('et-lang-note');
+  if (note) note.hidden = lang === 'pt';
+  D().updateEmailPreview();
+}
+
+function loadSegments() {
+  const t = current();
+  const lang = D().emailLang;
+  const body = t?.[D().langField(lang, 'body')] || (lang === 'pt' ? t?.body : '') || '';
+  segments = D().parseEmailBody(body, D().emailBlockNames);
+  renderSegments();
+}
+
+// Rascunho aberto (para a pré-visualização e o envio de teste), sem gravar.
+function editorDraft() {
+  readSegmentsFromDom();
+  return { subject: document.getElementById('et-subject')?.value ?? '', body: D().serializeEmailBody(segments) };
 }
 
 function syncEditorToTemplate() {
-  const t = AppModules.definicoes.emailTemplates.find(x => x.slug === AppModules.definicoes.selectedTemplateSlug);
-  if (!t) return;
+  const t = current();
+  if (!t || !document.getElementById('et-blocks')) return;
+  readSegmentsFromDom();
+  const lang = D().emailLang;
   const subjEl = document.getElementById('et-subject');
-  const bodyEl = document.getElementById('et-body');
-  const lang = AppModules.definicoes.emailLang;
-  if (subjEl) t[AppModules.definicoes.langField(lang, 'subject')] = subjEl.value;
-  if (bodyEl) t[AppModules.definicoes.langField(lang, 'body')]    = bodyEl.innerHTML;
+  if (subjEl) t[D().langField(lang, 'subject')] = subjEl.value;
+  t[D().langField(lang, 'body')] = D().serializeEmailBody(segments);
 }
 
-// ── SELECT TEMPLATE ──
-function selectTemplate(slug) {
+// ── O que falta no alojamento (dados de todos os emails) ──
+function renderEditorStatus() {
+  const box = document.getElementById('et-missing');
+  if (!box) return;
+  const blockFields = new Set(Object.values(D().BLOCK_FIELDS).flat());
+  const shared = missingFields().filter(m => !blockFields.has(m.field) || !segments.some(s => s.type === 'block' && D().blockInfo(s.key).fields.includes(m.field)));
+  const acc = D().previewAccommodation;
+  box.hidden = !shared.length;
+  box.innerHTML = shared.length ? `${ic('circle-alert', 16)}
+    <div><b>Este email fica retido em ${esc(acc?.name || 'este alojamento')}</b>
+      <span>Falta: ${esc(shared.map(m => m.label).join(', '))}.</span></div>
+    ${acc ? `<button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'emails-open-accommodation', [String(acc.id)])}>Completar o alojamento</button>` : ''}` : '';
+  renderSegments();
+}
+
+// ── Seleção do modelo ──
+async function selectTemplate(slug) {
+  if (dirty && slug !== D().selectedTemplateSlug
+    && !(await core().confirmar('Há alterações por guardar neste email. Sair sem guardar?'))) return;
   syncEditorToTemplate();
-  AppModules.definicoes.selectedTemplateSlug = slug;
-  AppModules.definicoes.emailLang = 'pt';
-  AppModules.core.SS.set('email:slug', slug);
-  AppModules.core.SS.set('email:lang', 'pt');
-  AppModules.definicoes.renderTemplateList();
-  const t = AppModules.definicoes.emailTemplates.find(x => x.slug === slug);
+  setDirty(false);
+  addOpen = false;
+  D().selectedTemplateSlug = slug;
+  D().emailLang = 'pt';
+  core().SS.set('email:slug', slug);
+  core().SS.set('email:lang', 'pt');
+  D().renderTemplateList();
+  const t = current();
   if (!t) return;
   const panel = document.getElementById('email-editor-panel');
-  const meta  = AppModules.definicoes.TEMPLATE_META[slug] || {};
-  const isFixed = AppModules.definicoes.FIXED_TIMING_EVENTS.includes(t.timing_event);
-
-  const timingHtml = isFixed
-    ? `<div class="email-timing-fixed">${meta.eventLabel}</div>`
-    : `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <input type="number" class="form-control" id="et-offset" value="${t.timing_offset}" min="0" style="width:70px;" autocomplete="off">
-        <select class="form-control" id="et-unit" style="width:auto;">
-          <option value="hours" ${t.timing_unit==='hours'?'selected':''}>horas</option>
-          <option value="days"  ${t.timing_unit==='days' ?'selected':''}>dias</option>
-        </select>
-        <select class="form-control" id="et-direction" style="width:auto;">
-          <option value="after"  ${t.timing_direction==='after' ?'selected':''}>após</option>
-          <option value="before" ${t.timing_direction==='before'?'selected':''}>antes de</option>
-        </select>
-        <span style="color:var(--cinza);font-size:13px;">${t.timing_event === 'checkin' ? 'check-in' : 'check-out'}</span>
-      </div>`;
+  const meta = D().TEMPLATE_META[slug] || {};
+  const sender = D().emailSender || {};
 
   panel.innerHTML = `
-    <div class="emed-header">
-      <div class="emed-template-name">${meta.label || t.name}</div>
-      <label class="email-active-toggle">
-        <input type="checkbox" id="et-active" ${t.active ? 'checked' : ''}
-               ${AppActions.attrs("change", "emails-toggle-template-active-6f0ecde", [String((slug) ?? '')])}>
-        <span class="gtt-switch"></span>
-        <span class="gtt-label">Ativo</span>
-      </label>
-    </div>
-
-    <div class="emed-top-grid">
-      <div class="emed-envelope-fields">
-        <div class="emed-env-row">
-          <span class="emed-env-label">De</span>
-          <span class="emed-env-value">Santa Paciência</span>
-        </div>
-        <div class="emed-env-row">
-          <span class="emed-env-label">Para</span>
-          <span class="emed-env-value">{{nome_hospede}}</span>
-        </div>
-        <div class="emed-env-row">
-          <span class="emed-env-label">Bcc</span>
-          <input class="form-control emed-env-input" id="et-bcc" placeholder="email@opcional.com (cópia oculta)" value="${escapeAttr(t.bcc || '')}" autocomplete="off">
-        </div>
-      </div>
-
-      <div class="emed-timing-card">
-        <div class="emed-section-label">${AppModules.core.lcIcon('clock-3', 13)} Momento de envio</div>
-        ${timingHtml}
-        ${AppModules.definicoes.IMMEDIATE_TEMPLATES.includes(slug) ? `<div class="email-timing-fixed" style="font-size:12px;color:var(--cinza);">Enviado logo: o prazo do pagamento conta a partir do envio, por isso não há janela horária.</div>` : `<label class="email-active-toggle" style="margin-top:4px;">
-          <input type="checkbox" id="et-window-toggle" ${t.window_start ? 'checked' : ''} data-on-change="emails-toggle-email-window-90fd802">
-          <span class="gtt-switch"></span>
-          <span class="gtt-label">Restringir a uma janela horária</span>
-        </label>
-        <div id="et-window-fields" class="email-window-fields" style="display:${t.window_start ? 'flex' : 'none'};">
-          <span>Entre as</span>
-          <input type="time" class="form-control" id="et-window-start" value="${t.window_start || '09:00'}">
-          <span>e as</span>
-          <input type="time" class="form-control" id="et-window-end" value="${t.window_end || '20:00'}">
-        </div>`}
-      </div>
-    </div>
-
-    <div class="emed-body-wrap">
-      ${buildLangTabs(slug)}
-
-      <div class="emed-section">
-        <div class="emed-section-label">Assunto</div>
-        <div class="emed-subject-row">
-          <input class="form-control" id="et-subject" placeholder="Assunto do email" value="${escapeAttr(t.subject || '')}" autocomplete="off">
-          ${AppModules.definicoes.buildCodesDropdown('et-subject')}
-        </div>
-      </div>
-
-      <div class="emed-section">
-        <div class="emed-section-label">Mensagem</div>
-        <div class="emed-body-section">
-          ${buildFmtToolbar()}
-          <div class="email-body-editor" id="et-body" contenteditable="true" data-on-input="emails-email-body-changed-90a5e82"></div>
-          <div class="emed-body-footer">
-            ${AppModules.definicoes.buildCodesDropdown('et-body')}
-            <div class="emed-body-actions">
-              <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "emails-preview-email-b9e13c6", [String((slug) ?? '')])}>
-                ${AppModules.core.lcIcon('send', 13)} Enviar preview
-              </button>
-              <button class="btn btn-primary btn-sm" ${AppActions.attrs("click", "emails-save-template-a1efa8c", [String((slug) ?? '')])}>
-                ${AppModules.core.lcIcon('save', 14)} Guardar
-              </button>
-            </div>
+    <div class="emed2" id="emed2">
+      <div class="emed2-main">
+        <header class="emed2-head">
+          <div class="emed2-title">
+            <h3>${esc(meta.label || t.name)}</h3>
+            <small>${t.customized ? 'Texto personalizado' : 'Texto original'}</small>
           </div>
+          <span class="emed2-dirty" id="et-dirty" hidden>Alterações por guardar</span>
+          <label class="email-active-toggle">
+            <input type="checkbox" id="et-active" ${t.active ? 'checked' : ''} ${AppActions.attrs('change', 'emails-toggle-template-active-6f0ecde', [slug])}>
+            <span class="gtt-switch"></span>
+            <span class="gtt-label">${t.active ? 'Ligado' : 'Desligado'}</span>
+          </label>
+        </header>
+
+        <div class="emed2-panes" role="tablist" aria-label="Ver">
+          <button type="button" class="is-on" data-pane="edit" ${AppActions.attrs('click', 'emails-editor-pane', ['edit'])}>Texto</button>
+          <button type="button" data-pane="preview" ${AppActions.attrs('click', 'emails-editor-pane', ['preview'])}>Pré-visualização</button>
         </div>
+
+        <section class="emed2-when" data-on-change="emails-editor-changed">${whenHtml(t, meta)}</section>
+
+        <div class="emed2-missing" id="et-missing" hidden></div>
+
+        <section class="emed2-section">
+          <label class="emed2-label" for="et-subject">Assunto</label>
+          <div class="emed2-subject">
+            <input class="form-control" id="et-subject" value="${esc(t.subject || '')}" autocomplete="off" data-on-input="emails-subject-input">
+            ${D().buildCodesDropdown('et-subject')}
+          </div>
+        </section>
+
+        <section class="emed2-section">
+          <div class="emed2-label-row"><span class="emed2-label">Conteúdo</span>${langSelectHtml()}</div>
+          <p class="emed2-note" id="et-lang-note" hidden>As traduções ainda não são usadas no envio: os hóspedes recebem sempre o texto em português.</p>
+          <div class="emb-list" id="et-blocks"></div>
+          <div class="emb-add">
+            <button type="button" class="emb-add-btn" ${AppActions.attrs('click', 'emails-segment-add-menu', [])}>${ic('plus', 15)} Acrescentar texto ou bloco</button>
+            <div class="emb-add-menu" id="et-add-menu" hidden></div>
+          </div>
+        </section>
+
+        <details class="emed2-more">
+          <summary>Mais opções</summary>
+          <div class="emed2-env">
+            <span>De</span><b>${esc(sender.name || 'O nome do alojamento')}${sender.email ? ` &lt;${esc(sender.email)}&gt;` : ''}</b>
+            <span>Para</span><b>O hóspede da reserva</b>
+            <label for="et-bcc">Cópia oculta</label>
+            <input class="form-control" id="et-bcc" type="email" placeholder="email@exemplo.pt (opcional)" value="${esc(t.bcc || '')}" autocomplete="off" data-on-input="emails-editor-changed">
+          </div>
+        </details>
+
+        <footer class="emed2-foot">
+          <button type="button" class="btn btn-ghost btn-sm" ${t.has_default ? '' : 'disabled'} ${AppActions.attrs('click', 'emails-reset-template', [slug])}>${ic('rotate-ccw', 14)} Repor o texto original</button>
+          <span class="emed2-foot-end">
+            <button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'emails-preview-email-b9e13c6', [slug])}>${ic('send', 14)} Enviar um teste</button>
+            <button type="button" class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'emails-save-template-a1efa8c', [slug])}>${ic('save', 14)} Guardar</button>
+          </span>
+        </footer>
       </div>
 
-      <div class="emed-section">
-        <div class="emed-section-label">${AppModules.core.lcIcon('eye', 13)} Pré-visualização</div>
-        <div class="emed-preview-controls">
-          <label>Estado da reserva
-            <select class="form-control" id="et-preview-status" data-on-change="emails-update-email-preview-34d4f1c">
-              <option value="confirmada">Confirmada</option>
-              <option value="pre_reserva">Pré-reserva</option>
-              <option value="pendente">Pendente</option>
-              <option value="aguardar_pagamento">Aguarda sinal</option>
-              <option value="cancelada">Cancelada</option>
-            </select>
-          </label>
+      <aside class="emed2-preview">
+        <div class="emed2-label">Pré-visualização</div>
+        <div class="emed2-preview-controls">
           <label>Alojamento
-            <select class="form-control" id="et-preview-accommodation" data-on-change="emails-update-email-preview-34d4f1c">
-              <option value="">Definições da organização</option>
-            </select>
+            <select class="form-control" id="et-preview-accommodation" data-on-change="emails-preview-accommodation-changed"></select>
+          </label>
+          <label>Reserva
+            <select class="form-control" id="et-preview-reservation" data-on-change="emails-update-email-preview-34d4f1c"></select>
           </label>
         </div>
         <div id="et-preview-notice" class="emed-preview-notice" style="display:none;"></div>
-        <iframe id="et-preview-frame" class="email-preview-frame" sandbox="allow-same-origin"
-                title="Pré-visualização do email"></iframe>
-      </div>
+        <div class="emed2-inbox"><span class="emed2-avatar" id="et-preview-avatar"></span><div><b id="et-preview-from"></b><span id="et-preview-subject"></span></div></div>
+        <iframe id="et-preview-frame" class="email-preview-frame" sandbox="allow-same-origin" title="Pré-visualização do email"></iframe>
+      </aside>
     </div>`;
 
+  loadSegments();
   if (window.lucide) lucide.createIcons();
-
-  const editor = document.getElementById('et-body');
-  if (editor) {
-    editor.innerHTML = t[AppModules.definicoes.langField(AppModules.definicoes.emailLang, 'body')] || t.body || '';
-    fillPreviewAccommodations();
-    AppModules.definicoes.updateEmailPreview();
-  }
+  await D().fillPreviewContext();
+  renderEditorStatus();
+  D().updateEmailPreview();
 }
 
-// Contexto de alojamento da pré-visualização: logótipo, Wi-Fi, horários e redes
-// sociais variam por alojamento (as suítes herdam do principal). O servidor
-// volta a validar que o id pertence à organização autenticada.
-async function fillPreviewAccommodations() {
-  const sel = document.getElementById('et-preview-accommodation');
-  if (!sel) return;
+function showPane(pane) {
+  const root = document.getElementById('emed2');
+  if (!root) return;
+  root.classList.toggle('show-preview', pane === 'preview');
+  root.querySelectorAll('.emed2-panes button').forEach(b => b.classList.toggle('is-on', b.dataset.pane === pane));
+  if (pane === 'preview') D().updateEmailPreview();
+}
+
+async function resetTemplate(slug) {
+  if (!(await core().confirmar('Repor o assunto e o texto originais deste email? A versão atual fica guardada numa cópia de segurança.'))) return;
   try {
-    const res = await AppModules.core.apiGet('/api/accommodations');
-    const list = res?.data || [];
-    sel.innerHTML = '<option value="">Definições da organização</option>' +
-      list.map(a => `<option value="${escapeAttr(a.id)}">${escapeAttr(a.name || a.id)}</option>`).join('');
-  } catch (e) {
-    /* sem lista, fica só a opção da organização */
+    const res = await core().apiPost(`/api/email-templates/${encodeURIComponent(slug)}/reset`, {});
+    const t = D().emailTemplates.find(x => x.slug === slug);
+    if (t && res?.data) Object.assign(t, res.data, { customized: false });
+    setDirty(false);
+    core().toast('Texto original reposto.', 'success');
+    const keep = D().selectedTemplateSlug;
+    D().selectedTemplateSlug = null;
+    await selectTemplate(keep);
+  } catch (err) {
+    core().toast('❌ ' + (err?.payload?.error || 'Não foi possível repor o texto.'), 'error');
   }
 }
 
-// ── TOGGLE ENVIO WINDOW ──
-function toggleEmailWindow() {
-  const on = document.getElementById('et-window-toggle')?.checked;
-  const el = document.getElementById('et-window-fields');
-  if (el) el.style.display = on ? 'flex' : 'none';
+async function openAccommodation(id) {
+  if (dirty && !(await core().confirmar('Há alterações por guardar neste email. Sair sem guardar?'))) return;
+  setDirty(false);
+  await core().showView('alojamentos');
+  AppModules.alojamentos.openAlojamento(id, 'info');
 }
 
 AppActions.register({
-  "emails-exec-command-7a0a29c": (el, event, args) => { document.execCommand('bold');AppModules.definicoes.emailBodyChanged() },
-  "emails-exec-command-94eb21d": (el, event, args) => { document.execCommand('italic');AppModules.definicoes.emailBodyChanged() },
-  "emails-exec-command-e628d3d": (el, event, args) => { document.execCommand('underline');AppModules.definicoes.emailBodyChanged() },
-  "emails-exec-command-1c9d4a7": (el, event, args) => { document.execCommand('justifyLeft');AppModules.definicoes.emailBodyChanged() },
-  "emails-exec-command-6b2e9f3": (el, event, args) => { document.execCommand('justifyCenter');AppModules.definicoes.emailBodyChanged() },
-  "emails-exec-command-d5a83c0": (el, event, args) => { document.execCommand('justifyRight');AppModules.definicoes.emailBodyChanged() },
-  "emails-exec-command-4e71b6a": (el, event, args) => { document.execCommand('justifyFull');AppModules.definicoes.emailBodyChanged() },
-  "emails-fmt-wrap-93235a9": (el, event, args) => { fmtWrap('<h2 style="font-family:Georgia,serif;font-size:26px;color:#2f2a25;margin:0 0 12px">','</h2>') },
-  "emails-fmt-wrap-078e552": (el, event, args) => { fmtWrap('<h3 style="font-family:Georgia,serif;font-size:19px;color:#2f2a25;margin:0 0 10px">','</h3>') },
-  "emails-fmt-wrap-fa605ad": (el, event, args) => { fmtWrap('<p style="font-family:Georgia,serif;font-size:16px;line-height:1.7;color:#5d554c;margin:0 0 14px">','</p>') },
-  "emails-fmt-insert-4fccc2e": (el, event, args) => { fmtInsert('<ul><li>Item 1</li><li>Item 2</li></ul>') },
-  "emails-fmt-insert-0ecf494": (el, event, args) => { fmtInsert('<ol><li>Item 1</li><li>Item 2</li></ol>') },
-  "emails-fmt-insert-bf3077d": (el, event, args) => { fmtInsert('<hr style="border:none;border-top:1px solid #e0d5c4;margin:24px 0">') },
-  "emails-switch-email-lang-8e428f1": (el, event, args) => { switchEmailLang(args[0],args[1]) },
-  "emails-select-template-5b7ac72": (el, event, args) => { selectTemplate(args[0]) },
+  "emails-select-template-5b7ac72": async (el, event, args) => {
+    await selectTemplate(args[0]);
+    // Num ecrã estreito o editor fica por baixo da lista: levar até ele.
+    if (window.innerWidth < 900) document.getElementById('email-editor-panel')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  },
+  "emails-segment-move": (el, event, args) => { moveSegment(Number(args[0]), Number(args[1])) },
+  "emails-segment-remove": (el, event, args) => { removeSegment(Number(args[0])) },
+  "emails-segment-add": (el, event, args) => { addSegment(args[0]) },
+  "emails-segment-add-menu": () => { toggleAddMenu() },
+  "emails-segment-format": (el, event, args) => { document.execCommand(args[0]); const body = el.closest('.emb')?.querySelector('.emb-text-body'); if (body) segmentInput(body); },
+  "emails-editor-pane": (el, event, args) => { showPane(args[0]) },
+  "emails-reset-template": (el, event, args) => { resetTemplate(args[0]) },
+  "emails-open-accommodation": (el, event, args) => { openAccommodation(args[0]) },
 }, "click");
 
 AppActions.register({
-  "emails-toggle-email-window-90fd802": (el, event, args) => { toggleEmailWindow() },
+  "emails-segment-input": el => { segmentInput(el) },
+  "emails-subject-input": () => { setDirty(true); D().emailBodyChanged() },
+  "emails-editor-changed": () => { setDirty(true) },
+}, "input");
+
+AppActions.register({
+  "emails-toggle-email-window-90fd802": () => { toggleEmailWindow() },
+  "emails-switch-email-lang-select": el => { switchEmailLang(el.value) },
+  "emails-editor-changed": () => { setDirty(true) },
 }, "change");
 
-// Botões da barra de formatação são fora do contenteditable: sem isto, o
-// browser tirava o foco/seleção do corpo ao clicar num botão, e o comando
-// aplicava-se ao sítio errado (o mesmo bug corrigido no menu de códigos).
+// Os botões de formatação ficam fora do texto: sem isto, o browser tirava o
+// foco e a seleção ao premir o rato, e o comando aplicava-se a lado nenhum.
 AppActions.register({
   "emails-keep-body-focus-2f8d6b1": () => false,
 }, "mousedown");
 
+AppModules.onReset('features/emails/editor.js', () => {
+  segments = []; dirty = false; addOpen = false;
+});
 })();

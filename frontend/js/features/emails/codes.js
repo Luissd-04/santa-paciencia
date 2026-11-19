@@ -8,92 +8,9 @@ AppModules.define('definicoes', {
   toggleCodesDropdown: { get: () => toggleCodesDropdown },
 });
 
-const TEMPLATE_VAR_CATS = [
-  {
-    label: 'Hóspede',
-    vars: [
-      { key: 'primeiro_nome', label: 'Primeiro nome' },
-      { key: 'nome_hospede',  label: 'Nome completo' },
-    ]
-  },
-  {
-    label: 'Alojamento',
-    vars: [
-      { key: 'alojamento',    label: 'Nome do alojamento' },
-      { key: 'wifi_nome',     label: 'Wi-Fi — nome da rede' },
-      { key: 'wifi_password', label: 'Wi-Fi — senha' },
-      { key: 'codigo_porta',  label: 'Código de abertura de portas' },
-    ]
-  },
-  {
-    label: 'Reserva',
-    vars: [
-      { key: 'referencia',    label: 'Referência' },
-      { key: 'data_checkin',  label: 'Data de check-in' },
-      { key: 'hora_checkin',  label: 'Hora de check-in' },
-      { key: 'data_checkout', label: 'Data de check-out' },
-      { key: 'hora_checkout', label: 'Hora de check-out' },
-      { key: 'noites',        label: 'Noites' },
-      { key: 'num_hospedes',  label: 'Nº de hóspedes' },
-      { key: 'total',         label: 'Total (€)' },
-    ]
-  },
-  {
-    label: 'Pagamentos',
-    vars: [
-      { key: 'valor_pagamento', label: 'Valor deste pagamento' },
-      { key: 'total_pago',      label: 'Total já pago' },
-      { key: 'valor_em_falta',  label: 'Valor em falta' },
-      { key: 'prazo_pagamento', label: 'Prazo para pagar o restante' },
-      { key: 'valor_reembolso', label: 'Reembolso aplicável' },
-    ]
-  },
-  {
-    label: 'Ligações',
-    vars: [
-      { key: 'link_pre_checkin', label: 'Botão — completar pré check-in' },
-      { key: 'link_reserva',     label: 'Link — página da reserva e pagamento' },
-    ]
-  },
-  {
-    // Blocos: HTML montado pelo servidor a partir das definições e do estado
-    // real da reserva. Garantem o desenho dos modelos de referência mesmo
-    // depois de editar o texto à volta.
-    label: 'Blocos',
-    vars: [
-      { key: 'titulo_reserva',         label: 'Título segundo o estado da reserva' },
-      { key: 'mensagem_estado',        label: 'Mensagem segundo o estado da reserva' },
-      { key: 'titulo_estado',          label: 'Estado da reserva (texto, para o assunto)' },
-      { key: 'estadia',                label: 'Entrada e saída lado a lado' },
-      { key: 'resumo_pagamento',       label: 'Pago, total e o que falta (barra)' },
-      { key: 'proximo_passo',          label: 'Próximo passo segundo o estado' },
-      { key: 'contacto',               label: 'Linha de contacto' },
-      { key: 'botao_mapa',             label: 'Botão — como chegar' },
-      { key: 'titulo_pre_checkin',     label: 'Título — pré-check-in' },
-      { key: 'lista_pre_checkin',      label: 'Lista do que o pré-check-in pede' },
-      { key: 'botao_pre_checkin',      label: 'Botão — completar o pré-check-in' },
-      { key: 'titulo_chegada',         label: 'Título — chegada' },
-      { key: 'codigos_acesso',         label: 'Código da porta e Wi-Fi (só com a reserva paga)' },
-      { key: 'titulo_boas_vindas',     label: 'Título — boas-vindas' },
-      { key: 'info_estadia',           label: 'Wi-Fi e hora do check-out' },
-      { key: 'botao_alojamento',       label: 'Botão — conhecer o alojamento' },
-      { key: 'titulo_checkout',        label: 'Título — lembrete de check-out' },
-      { key: 'lista_checkout',         label: 'Lista do que fazer antes de sair' },
-      { key: 'nota_checkout_tardio',   label: 'Caixa — check-out mais tarde' },
-      { key: 'titulo_obrigado',        label: 'Título — obrigado pela visita' },
-      { key: 'botao_avaliar',          label: 'Botão — avaliar no TripAdvisor' },
-      { key: 'resumo_cancelamento',    label: 'Resumo do cancelamento' },
-      { key: 'titulo_reembolso',       label: 'Título — reembolso' },
-      { key: 'resumo_reembolso',       label: 'Pago e a devolver' },
-      { key: 'titulo_pagamento',       label: 'Título do pagamento (recebido / concluído)' },
-      { key: 'titulo_aviso_pagamento', label: 'Título — pagamento em falta' },
-      { key: 'botao_pagar',            label: 'Botão — pagar o que falta' },
-      { key: 'aviso_prazo',            label: 'Caixa — prazo do restante' },
-      { key: 'botao_reserva',          label: 'Botão — ver a reserva e os pagamentos' },
-      { key: 'localidade',             label: 'Localidade do alojamento' },
-    ]
-  },
-];
+// Os dados vêm do catálogo do editor (features/emails/blocos.js); os blocos
+// automáticos acrescentam-se pelo botão «Acrescentar texto ou bloco».
+const varCats = () => AppModules.definicoes.EMAIL_TEXT_VARS.map(([label, vars]) => ({ label, vars: vars.map(([key, name]) => ({ key, label: name })) }));
 
 document.addEventListener('click', e => {
   if (!e.target.closest('.codes-dropdown-wrap') && !e.target.closest('.codes-dropdown')) {
@@ -109,10 +26,10 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCodesDr
 function buildCodesDropdown(fieldId) {
   return `
     <div class="codes-dropdown-wrap">
-      <button class="codes-btn" type="button"
+      <button class="codes-btn" type="button" title="Inserir um dado do hóspede, da reserva ou do alojamento"
               ${AppActions.attrs("click", "emails-toggle-codes-dropdown-d422067", [String((fieldId) ?? '')])}
               ${AppActions.attrs("mousedown", "emails-keep-field-focus-3a7c1e2", [])}>
-        ${AppModules.core.lcIcon('settings-2', 12)} Códigos
+        ${AppModules.core.lcIcon('plus', 12)} Inserir dado
       </button>
     </div>`;
 }
@@ -165,7 +82,7 @@ let _openedAt = 0;
 function toggleCodesDropdown(fieldId, btn) {
   const el = _codesEl();
   if (_codesField === fieldId && el.style.display !== 'none') { closeCodesDropdown(); return; }
-  el.innerHTML = TEMPLATE_VAR_CATS.map((cat, i) => `
+  el.innerHTML = varCats().map((cat, i) => `
     ${i > 0 ? '<div class="codes-cat-divider"></div>' : ''}
     <div class="codes-cat-title">${cat.label}</div>
     ${cat.vars.map(v => `
@@ -195,15 +112,18 @@ function insertVarInField(fieldId, key) {
   if (!el) return;
   const v = `{{${key}}}`;
   if (el.isContentEditable) {
+    // No texto, o dado aparece pelo nome (etiqueta); volta a {{…}} ao guardar.
     el.focus();
-    document.execCommand('insertText', false, v);
-    AppModules.definicoes.emailBodyChanged();
+    const label = AppModules.core.escapeHtml(AppModules.definicoes.varLabel(key));
+    document.execCommand('insertHTML', false, `<span class="emb-var" contenteditable="false" data-var="${AppModules.core.escapeHtml(key)}">${label}</span>&nbsp;`);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
   } else {
     const start = el.selectionStart ?? el.value.length;
     const end   = el.selectionEnd   ?? el.value.length;
     el.value = el.value.slice(0, start) + v + el.value.slice(end);
     el.selectionStart = el.selectionEnd = start + v.length;
     el.focus();
+    el.dispatchEvent(new Event('input', { bubbles: true }));
   }
   closeCodesDropdown();
 }
