@@ -6,7 +6,7 @@
 //   reservation.created    criada no backoffice
 //   reservation.requested  pedido do site público { appUrl }
 //   payment.received       { amount, source: 'manual' | 'stripe' | 'automatic' }
-//   reservation.cancelled  { reason: 'staff' | 'guest' | 'ttl' | 'nonpayment', policy }
+//   reservation.cancelled  { reason: 'staff' | 'guest' | 'ttl' | 'nonpayment' | 'deposit', policy }
 //   reservation.approved   { precheckinUrl }
 //   precheckin.submitted   { resubmission }
 //   email.due              modelo agendado pela estadia já na hora { slug, key }
@@ -20,6 +20,7 @@ const CANCEL_REASONS = {
   guest: 'Reserva cancelada pelo hóspede',
   ttl: 'Pedido expirado sem pagamento nem aprovação',
   nonpayment: 'Reserva cancelada por falta de pagamento',
+  deposit: 'Sinal não pago no prazo',
 };
 
 function effectsFor(type, payload = {}) {
@@ -32,7 +33,7 @@ function effectsFor(type, payload = {}) {
     // Decisão 4: cancelamentos que a equipa não fez chegam-lhe por push e email.
     // Com política, o aviso ao hóspede sai da automatização da política.
     case 'reservation.cancelled': return [
-      ...(payload.reason === 'ttl' || !payload.policy ? ['guest_cancellation_email'] : []),
+      ...(['ttl', 'deposit'].includes(payload.reason) || !payload.policy ? ['guest_cancellation_email'] : []),
       'staff_push_cancelled',
       ...(payload.reason === 'staff' ? [] : ['staff_email_cancelled']),
     ];

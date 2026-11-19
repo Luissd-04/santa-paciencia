@@ -94,13 +94,14 @@ test('site: pedido pendente com origem pública no histórico e aviso à equipa'
   assert.deepEqual(synced, [r.id]);
 });
 
-test('site com pagamento online: aguarda o pagamento, mesmo com política e sem sinal pago', async () => {
+test('site com pagamento online: o pedido espera pela equipa, com a política guardada', async () => {
   onlinePayment = true;
   policy.savePolicy(ORG, { ...policy.DEFAULT_POLICY, enabled: true });
   const res = await site();
   const r = row(res.body.data.id);
-  assert.equal(r.status, 'aguardar_pagamento');
-  assert.equal(res.body.data.status, 'aguardar_pagamento');
+  assert.equal(r.status, 'pendente');
+  assert.equal(res.body.data.status, 'pendente');
+  assert.equal(res.body.data.online_payment_available, true);
   assert.ok(r.payment_policy_json);
   assert.deepEqual(history(r.id).map(h => h.action), ['created']);
 });

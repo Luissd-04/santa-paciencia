@@ -359,8 +359,9 @@ async function createReservation(req, res, next) {
         nights: totals.nights, num_guests: totals.guests, total_amount: finalTotal,
         breakfast_included: payload.breakfast_included ? 1 : 0, tourist_tax: totals.touristTax,
         channel: 'website', payment_method: null, notes: payload.notes || null, license_number: licenseNumber,
-        // Com pagamento online o pedido aguarda o pagamento; sem ele, a aprovação da equipa.
-        status: onlinePayment && cents(finalTotal) >= MIN_ONLINE_CENTS ? 'aguardar_pagamento' : 'pendente',
+        // Todos os pedidos esperam pela equipa. O sinal (online, com a Stripe)
+        // só se paga depois de aceite, com prazo (reservationLifecycle.approve).
+        status: 'pendente',
         guests_data: JSON.stringify(normalizedGuestsData), public_token: token, precheckin_token: precheckinToken,
         precheckin_token_expires_at: precheckinExpiresAt, arrival_time: arrivalTime,
         guest_snapshot: JSON.stringify({ name: g.name, email: g.email, phone: g.phone }),
@@ -380,6 +381,7 @@ async function createReservation(req, res, next) {
       data: {
         id: reservation.id,
         status: reservation.status,
+        // Pagamento online disponível depois de a equipa aceitar o pedido.
         online_payment_available: onlinePayment && cents(finalTotal) >= MIN_ONLINE_CENTS,
         total_amount: finalTotal,
         public_token: token,

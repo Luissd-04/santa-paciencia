@@ -70,6 +70,7 @@ function runMigrations(db) {
   migrateSupport(db);
   migrateDailyActivity(db);
   migratePlatformAlerts(db);
+  require('./migrations-guest-journey')(db);
   // Uma migração por funcionalidade da plataforma, cada uma no seu ficheiro.
   for (const name of ['plans', 'tasks', 'announcements', 'console-c', 'departments', 'roles', 'device-daily', 'revisions', 'support-org-number']) require(`./migrations-platform/${name}`)(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
