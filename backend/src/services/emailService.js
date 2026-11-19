@@ -596,7 +596,7 @@ const IMMEDIATE_TEMPLATES = new Set(['aviso_restante', 'cancelamento_politica'])
 // quando tem de esperar (janela de envio, Gmail indisponível, envio por
 // confirmar): a fila de acontecimentos volta a tentar a essa hora.
 // `ignoreWindow`: envio pedido pela equipa nesse momento.
-async function sendTemplatedEmail(slug, guest, reservation, accommodation, extraVars, { ignoreWindow = false } = {}) {
+async function sendTemplatedEmail(slug, guest, reservation, accommodation, extraVars, { ignoreWindow = false, fromHold = false } = {}) {
   if (emailDisabled()) { console.log(`Email ${slug} ignorado (EMAIL_ENABLED=false)`); return null; }
   const { db } = require('../config/database');
   const orgId = reservation.organization_id || accommodation.organization_id;
@@ -626,6 +626,17 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation, extra
   }
 
   const settings = getEmailSettings(accommodation, orgId);
+  // Sem os dados obrigatórios do alojamento, o email fica retido e o sino diz
+  // o que falta (emailReadiness); não sai incompleto.
+  const readiness = require('./emailReadiness');
+  if (orgId) {
+    const missing = readiness.missingFor(slug, { settings, accommodation, organizationId: orgId, reservation });
+    if (missing.length) {
+      readiness.hold({ organizationId: orgId, reservationId: reservation.id, slug, missing, extra: extraVars || {} });
+      console.log(`📧 Email ${slug} → reserva ${reservation.id} retido: faltam ${missing.map(m => m.label).join(', ')}`);
+      return { held: true, missing };
+    }
+  }
   const vars = sanitizeUrlVars(buildVars(guest, reservation, accommodation, settings, vars_extra));
   const blocks = buildBlocks(vars, settings, reservation);
   const rendered = renderEmail({ subject: template.subject, body: template.body, vars, blocks, settings });
@@ -633,7 +644,10 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation, extra
   const result = await delivery.deliverTemplate({ orgId, slug, reservation, to, rendered }, () => sendMail(orgId, {
     to, subject: rendered.subject, html: rendered.html, bcc: template.bcc || undefined,
   }));
-  if (result?.id) db.transaction(() => delivery.afterSent({ orgId, reservationId: reservation.id, slug, timingEvent: template.timing_event }))();
+  if (result?.id) {
+    db.transaction(() => delivery.afterSent({ orgId, reservationId: reservation.id, slug, timingEvent: template.timing_event }))();
+    readiness.resolve(orgId, reservation.id, slug, fromHold ? 'sent' : 'sent_later');
+  }
   return result;
 }
 
@@ -643,6 +657,25 @@ async function sendConfirmationEmail(guest, reservation, accommodation) {
 
 async function sendCancellationEmail(guest, reservation, accommodation, reason = '') {
   return sendTemplatedEmail('cancelamento', guest, reservation, accommodation, reason ? { motivo_cancelamento: reason } : {});
+}
+
+// «Enviar» num email retido (sino): repete o envio com os mesmos dados extra,
+// já com o alojamento completo. Recusa se ainda faltar algo.
+async function sendHeldEmail(organizationId, reservationId, slug) {
+  const { db } = require('../config/database');
+  const { httpError } = require('./httpError');
+  const held = db.prepare('SELECT * FROM email_holds WHERE organization_id = ? AND reservation_id = ? AND template_slug = ? AND resolved_at IS NULL').get(organizationId, reservationId, slug);
+  if (!held) throw httpError('Este email já não está retido.', 404);
+  const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservationId, organizationId);
+  if (!reservation) throw httpError('Reserva não encontrada.', 404);
+  const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(reservation.guest_id, organizationId) || {};
+  const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(reservation.accommodation_id, organizationId) || {};
+  let extra = {};
+  try { extra = JSON.parse(held.extra || '{}'); } catch { extra = {}; }
+  const result = await sendTemplatedEmail(slug, guest, reservation, accommodation, extra, { ignoreWindow: true, fromHold: true });
+  if (result?.held) throw httpError(`Ainda falta: ${result.missing.map(m => m.label).join(', ')}.`, 409);
+  if (!result?.id && !result?.queued) throw httpError('O email não pôde ser enviado (Gmail desligado ou a reserva já não o permite).', 409);
+  return result;
 }
 
 // Pedido aceite pela equipa: sinal a pagar (com o prazo) e pré-check-in.
@@ -768,6 +801,7 @@ module.exports = {
   sendPaymentConfirmationEmail,
   sendPreCheckinEmail,
   sendReservationAcceptedEmail,
+  sendHeldEmail,
   sendReservationRequestApprovedEmail,
   sendOwnerNewReservationEmail,
   ownerNewReservationMessage,

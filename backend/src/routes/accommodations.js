@@ -13,6 +13,7 @@ router.post('/settings',            ctrl.saveSettings);
 router.get('/blocks',               ctrl.listBlocks);
 router.put('/blocks/:blockId',      ctrl.updateBlock);
 router.delete('/blocks/:blockId',   ctrl.deleteBlock);
+router.get('/:id/email-readiness',   ctrl.emailReadiness);
 router.get('/:id',                  ctrl.getById);
 router.post('/',                    ctrl.create);
 router.put('/:id',                  ctrl.update);

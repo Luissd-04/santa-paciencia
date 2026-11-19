@@ -325,6 +325,7 @@ async function saveAlojamento() {
     if (res.success) {
       const activeTab = AppModules.alojamentos.getActiveAlojTab();
       AppModules.core.toast('✅ Alojamento guardado!', 'success');
+      AppModules.alojamentos.loadEmailReadiness(id);
       document.getElementById('aloj-detalhe-nome').textContent = body.name;
       await AppModules.core.loadAccommodations();
       await AppModules.alojamentos.openAlojamento(id, activeTab);

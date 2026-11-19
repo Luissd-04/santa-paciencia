@@ -280,6 +280,15 @@ function create(req, res) {
   res.status(201).json({ success: true, data: created });
 }
 
+// ─── EMAILS AO HÓSPEDE: O QUE FALTA ───────────────────────
+// GET /api/accommodations/:id/email-readiness — para o cartão «Emails aos
+// hóspedes» da ficha: cada email ativo e os dados que lhe faltam.
+function emailReadiness(req, res) {
+  const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(req.params.id, req.user.organization_id);
+  if (!accommodation) return res.status(404).json({ error: 'Alojamento não encontrado' });
+  res.json({ success: true, data: require('../services/emailReadiness').forAccommodation(req.user.organization_id, accommodation) });
+}
+
 // ─── UPDATE ────────────────────────────────────────────────
 function update(req, res) {
   const { id } = req.params;
@@ -789,4 +798,5 @@ function deleteBlock(req, res) {
   res.json({ success: true });
 }
 
-module.exports = { getAll, getById, create, update, remove, uploadCover, removeCover, uploadLogo, removeLogo, uploadImages, deleteImage, patchImages, getSettings, saveSettings, getPricingPeriods, createPricingPeriod, updatePricingPeriod, deletePricingPeriod, bulkCreatePricingPeriods, listBlocks, createBlock, updateBlock, deleteBlock, parseImageDataUri, UPLOADS_DIR };
+module.exports = {
+  emailReadiness, getAll, getById, create, update, remove, uploadCover, removeCover, uploadLogo, removeLogo, uploadImages, deleteImage, patchImages, getSettings, saveSettings, getPricingPeriods, createPricingPeriod, updatePricingPeriod, deletePricingPeriod, bulkCreatePricingPeriods, listBlocks, createBlock, updateBlock, deleteBlock, parseImageDataUri, UPLOADS_DIR };

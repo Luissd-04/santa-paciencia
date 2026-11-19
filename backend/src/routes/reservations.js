@@ -30,6 +30,8 @@ router.delete('/:id/payments/:paymentId', requireRole('manager'), ctrl.deletePay
 
 // Resolver envio de email incerto/recusado — manager+
 router.post('/:id/email-deliveries/resolve', requireRole('manager'), ctrl.resolveEmailDelivery);
+// Email retido por faltarem dados do alojamento: enviar ou ignorar — manager+
+router.post('/:id/email-holds/:slug/:action', requireRole('manager'), ctrl.resolveEmailHold);
 
 // Fatura da reserva — manager+
 router.put('/:id/invoice', requireRole('manager'), ctrl.saveInvoice);

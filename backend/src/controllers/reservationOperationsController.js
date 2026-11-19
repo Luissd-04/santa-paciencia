@@ -306,6 +306,27 @@ function getNotifications(req, res, next) {
         ORDER BY f.updated_at DESC LIMIT 50`).all(orgId);
       for (const f of effects) notifications.push({ type: 'notice_failed', priority: 'high', icon: 'bell-off', title: 'Aviso não entregue',
         subtitle: `${f.effect.replace(/_/g, ' ')} · ${f.last_error || 'falhou depois de várias tentativas'}`, reservation_id: f.reservation_id });
+      // Emails retidos por faltarem dados do alojamento, e o que vai faltar às
+      // reservas já aceites (services/emailReadiness).
+      const readiness = require('../services/emailReadiness');
+      for (const h of readiness.openHolds(orgId)) {
+        const labels = h.missing.map(m => m.label);
+        notifications.push(labels.length ? {
+          type: 'email_held', priority: 'high', icon: 'mail', title: `Email retido · ${h.accommodation_name}`,
+          subtitle: `«${h.template_name}» de ${h.guest_name || 'hóspede'} não foi enviado. Falta: ${labels.join(', ')}.`,
+          reservation_id: h.reservation_id, template_slug: h.template_slug, accommodation_id: h.settings_accommodation_id, missing: labels,
+        } : {
+          type: 'email_ready', priority: 'medium', icon: 'mail', title: `Pronto a enviar · ${h.accommodation_name}`,
+          subtitle: `Os dados que faltavam já estão preenchidos. «${h.template_name}» de ${h.guest_name || 'hóspede'} ficou retido.`,
+          reservation_id: h.reservation_id, template_slug: h.template_slug,
+        });
+      }
+      for (const g of readiness.upcomingGaps(orgId)) {
+        const labels = g.missing.map(m => m.label);
+        notifications.push({ type: 'config_incomplete', priority: 'medium', icon: 'circle-alert', title: `Configuração por terminar · ${g.accommodation_name}`,
+          subtitle: `${g.reservations} ${g.reservations === 1 ? 'reserva aceite vai' : 'reservas aceites vão'} precisar de: ${labels.join(', ')}. A primeira chega a ${require('../services/dates').shortDate(g.first)}.`,
+          accommodation_id: g.accommodation_id, missing: labels });
+      }
       for (const d of deliveries) notifications.push({ type: 'email_review', priority: 'high', icon: 'mail', title: d.state === 'blocked' ? 'Email por enviar' : 'Envio de email por confirmar', subtitle: `${d.template_slug} · ${d.last_error || 'Aguarde a conclusão e confirme no Gmail antes de repetir.'}`, reservation_id: d.reservation_id, template_slug: d.template_slug, delivery_state: d.state });
     }
     res.json({ success: true, data: { notifications: notificationState.annotate(req.user.id, orgId, notifications) } });

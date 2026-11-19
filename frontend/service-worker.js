@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v42';
-const CACHE_VERSION = 103;
+const CACHE_VERSION = 104;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -156,6 +156,7 @@ const FEATURE_ASSETS = [
   '/js/features/alojamentos/configuracao.js',
   '/js/features/alojamentos/cartoes-v2.js',
   '/js/features/alojamentos/config-v2.js',
+  '/js/features/alojamentos/prontidao-emails.js',
   '/js/despesas.js',
   '/js/features/despesas/resumo-v2.js',
   '/js/relatorios.js',

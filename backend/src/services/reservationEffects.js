@@ -98,7 +98,8 @@ function staffCancelledMessage(ctx, reason, url) {
 // à fila para essa hora; depois de a estadia acabar, desiste-se em silêncio.
 async function guestEmail(ctx, send) {
   const result = await send(require('./emailService'));
-  if (!result?.queued) return;
+  // Retido por faltarem dados do alojamento: fica no sino, não se repete sozinho.
+  if (result?.held || !result?.queued) return;
   if (ctx.reservation.check_out < dates.localDay(new Date(), -1)) return;
   const { DeferEffect } = require('./reservationEvents');
   const reasons = { window: 'Fora da janela de envio do modelo', blocked: 'Gmail indisponível', uncertain: 'Envio anterior por confirmar no Gmail', sending: 'Envio em curso' };

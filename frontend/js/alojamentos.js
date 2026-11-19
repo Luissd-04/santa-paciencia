@@ -446,6 +446,7 @@ async function openAlojamento(id, preferredTab = 'info') {
     }
     const noWifi = document.getElementById('aloj-no-wifi');
     if (noWifi) noWifi.checked = Boolean(Number(a.no_wifi));
+    AppModules.alojamentos.loadEmailReadiness(a.id);
     const fbEl  = document.getElementById('aloj-social-fb');
     const igEl  = document.getElementById('aloj-social-ig');
     const webEl = document.getElementById('aloj-social-web');

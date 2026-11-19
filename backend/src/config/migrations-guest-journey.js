@@ -64,8 +64,32 @@ function guestEmails(db) {
   }).immediate();
 }
 
+// Emails ao hóspede retidos por faltarem dados do alojamento (emailReadiness).
+// Ficam à espera de quem os resolva no sino: enviar ou ignorar.
+function emailHolds(db) {
+  const id = '20261119_email_holds';
+  if (done(db, id)) return;
+  db.transaction(() => {
+    db.exec(`CREATE TABLE IF NOT EXISTS email_holds (
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      reservation_id TEXT NOT NULL REFERENCES reservations(id) ON DELETE CASCADE,
+      template_slug TEXT NOT NULL,
+      missing TEXT NOT NULL DEFAULT '[]',
+      extra TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      resolved_at TEXT,
+      resolution TEXT,
+      PRIMARY KEY (organization_id, reservation_id, template_slug)
+    );
+    CREATE INDEX IF NOT EXISTS idx_email_holds_open ON email_holds(organization_id, resolved_at);`);
+    mark(db, id);
+  }).immediate();
+}
+
 module.exports = db => {
   depositDeadline(db);
   accommodationGuestInfo(db);
   guestEmails(db);
+  emailHolds(db);
 };

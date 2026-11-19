@@ -158,6 +158,8 @@ function renderNotifBadge() {
 
 function notificationClickAttr(n) {
   if (n.type === 'export_reminder') return "data-on-click=\"notifications-close-notif-0782c93\"";
+  // Configuração por terminar não tem reserva: abre o alojamento.
+  if (n.type === 'config_incomplete' || n.type === 'email_held') return `${AppActions.attrs("click", "notifications-open-accommodation", [String(n.accommodation_id ?? '')])}`;
   return `${AppActions.attrs("click", "notifications-notif-go-to-0365e4e", [String((n.reservation_id) ?? '')])}`;
 }
 
@@ -241,7 +243,7 @@ function playNotifSound() {
   });
 }
 
-const notifKey = n => [n.type, n.reservation_id || '', n.event_id || '', n.template_slug || ''].join('|');
+const notifKey = n => [n.type, n.reservation_id || '', n.event_id || '', n.template_slug || '', n.reservation_id ? '' : (n.accommodation_id || '')].join('|');
 const seenNotifStorageKey = () => `sp:notif-seen:${AppModules.core.currentUser?.id || ''}:${AppModules.core.currentUser?.organization_id || ''}`;
 
 function announceNewNotifications(list) {
@@ -286,6 +288,10 @@ function renderNotifDropdown() {
       <div class="notif-item-body">
         <div class="notif-item-title">${AppModules.core.escapeHtml(n.title)}</div>
         <div class="notif-item-sub">${AppModules.core.escapeHtml(n.subtitle)}</div>
+        ${n.type === 'email_ready' ? `<div class="notif-item-actions">
+          <button type="button" class="btn btn-primary btn-sm" ${AppActions.attrs("click", "notifications-email-hold-send", [String(n.reservation_id ?? ''), String(n.template_slug ?? '')])}>Enviar</button>
+          <button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "notifications-email-hold-dismiss", [String(n.reservation_id ?? ''), String(n.template_slug ?? '')])}>Ignorar</button>
+        </div>` : ''}
       </div>
     </div>
   `).join('');
@@ -355,6 +361,28 @@ function notifActionsHtml(n) {
           </button>
           <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "notifications-refuse-export-reminder-e3d92d6", [String((n.export_key) ?? '')])}>
             <i data-lucide="x"></i> Recusar
+          </button>
+        </span>
+      ` : n.type === 'email_held' || n.type === 'config_incomplete' ? `
+        <span class="notifications-page-actions">
+          ${n.missing?.length ? `<span class="notif-missing">${n.missing.map(m => `<span class="notif-missing-chip">${AppModules.core.escapeHtml(m)}</span>`).join('')}</span>` : ''}
+          <button class="btn btn-primary btn-sm" ${AppActions.attrs("click", "notifications-open-accommodation", [String(n.accommodation_id ?? '')])}>
+            <i data-lucide="building-2"></i> Completar o alojamento
+          </button>
+          ${n.reservation_id ? `<button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "notifications-notif-go-to-0365e4e", [String(n.reservation_id)])}>
+            <i data-lucide="chevron-right"></i> Ver a reserva
+          </button>` : ''}
+        </span>
+      ` : n.type === 'email_ready' ? `
+        <span class="notifications-page-actions">
+          <button class="btn btn-primary btn-sm" ${AppActions.attrs("click", "notifications-email-hold-send", [String(n.reservation_id ?? ''), String(n.template_slug ?? '')])}>
+            <i data-lucide="send"></i> Enviar
+          </button>
+          <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "notifications-email-hold-dismiss", [String(n.reservation_id ?? ''), String(n.template_slug ?? '')])}>
+            <i data-lucide="x"></i> Ignorar
+          </button>
+          <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "notifications-notif-go-to-0365e4e", [String(n.reservation_id ?? '')])}>
+            <i data-lucide="chevron-right"></i> Ver
           </button>
         </span>
       ` : n.type === 'email_review' ? `
@@ -460,6 +488,26 @@ async function saveManualNotification() {
   }
 }
 
+// Email retido que já tem os dados completos: enviar agora ou ignorar (fica
+// por enviar e sai do sino).
+async function resolveEmailHold(reservationId, templateSlug, action) {
+  if (!reservationId || !templateSlug) return;
+  try {
+    await AppModules.core.apiPost(`/api/reservations/${encodeURIComponent(reservationId)}/email-holds/${encodeURIComponent(templateSlug)}/${action}`, {});
+    AppModules.core.toast(action === 'send' ? '✅ Email enviado.' : 'Email ignorado: não vai ser enviado.', 'success');
+    await loadNotifications();
+  } catch (err) {
+    AppModules.core.toast('❌ ' + (err?.payload?.error || 'Não foi possível resolver o email.'), 'error');
+  }
+}
+
+async function openAccommodationFromNotif(accommodationId) {
+  if (!accommodationId) return;
+  closeNotif();
+  await AppModules.core.showView('alojamentos');
+  AppModules.alojamentos.openAlojamento(accommodationId, 'info');
+}
+
 // Envio incerto: só a equipa, depois de verificar a pasta Enviados do Gmail,
 // sabe se a mensagem chegou. Repetir sem verificar pode duplicá-la.
 async function resolveEmailDelivery(reservationId, templateSlug, resolution) {
@@ -517,6 +565,9 @@ AppActions.register({
   "notifications-refuse-export-reminder-e3d92d6": (el, event, args) => { refuseExportReminder(args[0]) },
   "notifications-resolve-email-sent-7d2a1c4": (el, event, args) => { resolveEmailDelivery(args[0], args[1], 'sent') },
   "notifications-resolve-email-retry-9b3e5f0": (el, event, args) => { resolveEmailDelivery(args[0], args[1], 'retry') },
+  "notifications-email-hold-send": (el, event, args) => { event.stopPropagation(); resolveEmailHold(args[0], args[1], 'send') },
+  "notifications-email-hold-dismiss": (el, event, args) => { event.stopPropagation(); resolveEmailHold(args[0], args[1], 'dismiss') },
+  "notifications-open-accommodation": (el, event, args) => { openAccommodationFromNotif(args[0]) },
 }, "click");
 
 // Limpeza da funcionalidade ao sair ou trocar de organização.

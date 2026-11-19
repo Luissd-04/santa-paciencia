@@ -34,7 +34,8 @@ beforeEach(() => {
     DELETE FROM accommodations; DELETE FROM organization_settings WHERE key = 'payment_policy';
     UPDATE organization_email_templates SET active = 1, window_start = NULL, window_end = NULL;
     INSERT INTO guests(id,organization_id,name,email) VALUES ('guest','org-mail','Ana Silva','ana@example.com');
-    INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests) VALUES ('unit','org-mail','Quarto','alojamento',100,2);`);
+    INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests,address,license_number,checkin_time,checkout_time,contact_email)
+      VALUES ('unit','org-mail','Quarto','alojamento',100,2,'Rua A 1','1/AL','15:00','11:00','casa@example.com');`);
   sent.length = 0;
 });
 after(() => { db.close(); process.chdir(originalCwd); fs.rmSync(temp, { recursive: true, force: true }); });
