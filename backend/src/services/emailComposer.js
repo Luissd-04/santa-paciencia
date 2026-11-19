@@ -700,7 +700,7 @@ function normalizeBodyParagraph(bodyHtml) {
 // equipa e de conta).
 function composeEmail(bodyHtml, settings, options = {}) {
   const s = settings || {};
-  const title = escapeHtml(options.title || s.property_name || 'Santa Paciência');
+  const title = escapeHtml(options.title || s.property_name || '');
   bodyHtml = normalizeBodyParagraph(bodyHtml);
   return lockColorsForGmail(`<!DOCTYPE html>
 <html lang="pt" class="sp-email-root" style="color-scheme:light only;supported-color-schemes:light;">

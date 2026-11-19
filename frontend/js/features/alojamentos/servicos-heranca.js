@@ -94,6 +94,12 @@ const INHERITED_FIELDS_MAP = {
   'aloj-social-ig':     'social_instagram',
   'aloj-social-web':    'social_website',
   'aloj-social-ta':     'social_tripadvisor',
+  'aloj-contact-email':         'contact_email',
+  'aloj-contact-phone':         'contact_phone',
+  'aloj-arrival-instructions':  'arrival_instructions',
+  'aloj-entry-instructions':    'entry_instructions',
+  'aloj-checkout-instructions': 'checkout_instructions',
+  'aloj-review-url':            'review_url',
 };
 
 function onAlojTipoChange(accomData) {

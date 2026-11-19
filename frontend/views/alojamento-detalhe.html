@@ -276,7 +276,7 @@
                   </button>
                 </div>
               </div>
-              <span style="font-size:11.5px;color:var(--cinza);">Enviados automaticamente no email de coordenadas</span>
+              <span style="font-size:11.5px;color:var(--cinza);">Enviados no email «Tudo para a sua chegada»</span>
             </div>
 
             <div class="card" data-acfg="acesso">
@@ -289,7 +289,7 @@
                 <label for="aloj-door-code" class="form-label">Código de abertura de portas</label>
                 <input class="form-control" id="aloj-door-code" placeholder="Ex.: 1234#" autocomplete="off">
               </div>
-              <span style="font-size:11.5px;color:var(--cinza);">Enviado automaticamente no email de código de acesso</span>
+              <span style="font-size:11.5px;color:var(--cinza);">Enviado no email «Tudo para a sua chegada», com a reserva paga</span>
             </div>
 
             <div class="card" data-acfg="marca">
@@ -398,6 +398,48 @@
                 <label for="aloj-booking-ical-url" class="form-label">Booking.com iCal</label>
                 <input class="form-control" id="aloj-booking-ical-url" type="url" placeholder="https://admin.booking.com/hotel/hoteladmin/ical.html?..." autocomplete="off">
                 <span style="font-size:11.5px;color:var(--cinza);margin-top:4px;">Link de sincronização iCal do calendário da Booking.com</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dados usados nos emails ao hóspede (services/emailReadiness.js) -->
+          <div class="card aloj-guest-info" data-acfg="emails" style="margin-top:24px;">
+            <div class="card-header">
+              <span class="card-title" style="font-size:14px;">
+                <i data-lucide="mail"></i> Emails aos hóspedes
+              </span>
+              <span class="aloj-ready-chip" id="aloj-email-ready-chip" hidden></span>
+            </div>
+            <p class="aloj-guest-info-hint">Os emails ao hóspede usam estes dados. Sem os obrigatórios, o email não sai e aparece um aviso nas notificações.</p>
+            <div id="aloj-email-readiness" class="aloj-email-readiness"></div>
+            <div class="form-grid aloj-guest-info-grid">
+              <div class="form-group">
+                <label for="aloj-contact-email" class="form-label">Email de contacto <span class="aloj-req">obrigatório</span></label>
+                <input class="form-control" id="aloj-contact-email" type="email" placeholder="reservas@oseualojamento.pt" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label for="aloj-contact-phone" class="form-label">Telefone <span class="aloj-opt">opcional</span></label>
+                <input class="form-control" id="aloj-contact-phone" type="tel" placeholder="+351 912 000 000" autocomplete="off">
+              </div>
+              <div class="form-group aloj-span-2">
+                <label for="aloj-arrival-instructions" class="form-label">Como chegar <span class="aloj-req">obrigatório</span></label>
+                <textarea class="form-control" id="aloj-arrival-instructions" rows="3" placeholder="Ex.: Estacione no largo em frente à casa. A porta verde, à esquerda da oliveira, é a da entrada."></textarea>
+              </div>
+              <div class="form-group aloj-span-2">
+                <label for="aloj-entry-instructions" class="form-label">Como entrar <span class="aloj-req">obrigatório, ou o código da porta</span></label>
+                <textarea class="form-control" id="aloj-entry-instructions" rows="2" placeholder="Ex.: A chave está na caixa ao lado da porta; o código é enviado no email da chegada."></textarea>
+              </div>
+              <div class="form-group aloj-span-2">
+                <label for="aloj-checkout-instructions" class="form-label">No dia da saída <span class="aloj-req">obrigatório · um passo por linha</span></label>
+                <textarea class="form-control" id="aloj-checkout-instructions" rows="3" placeholder="Deixe a chave na caixa ao lado da porta&#10;Feche as janelas e desligue o ar condicionado"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="aloj-review-url" class="form-label">Link de avaliação <span class="aloj-req">obrigatório</span></label>
+                <input class="form-control" id="aloj-review-url" type="url" placeholder="https://g.page/r/…/review" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <span class="form-label">Wi-Fi</span>
+                <label class="aloj-check"><input type="checkbox" id="aloj-no-wifi"> Este alojamento não tem Wi-Fi</label>
               </div>
             </div>
           </div>

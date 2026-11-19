@@ -33,6 +33,7 @@ const ACCOMMODATION_TEXT_LIMITS = Object.freeze({
   social_tripadvisor: 2048, google_calendar_id: 512, rgpd_text: 10000,
   airbnb_ical_url: 4096, booking_ical_url: 4096,
 });
+const guestInfo = require('../services/accommodationGuestInfo');
 const FORBIDDEN_TEXT_CONTROLS = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 
 function validateTextPayload(body, limits = ACCOMMODATION_TEXT_LIMITS) {
@@ -266,7 +267,7 @@ function create(req, res) {
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'sofa_cama', 0, 0, 'per_guest_night', '[]', 2, 0, 12, 0, ?)`)
     .run(id, req.user.organization_id, name, type || 'suite', price_per_night || 100, guestsMax,
-      license_number || (process.env.LICENSE_NUMBER || '12345/AL'),
+      license_number || '',
       parent_id || null, baseGuestsIncluded, publicSlug);
 
   // Calendário Google próprio desde o início — vale tanto para suites como para
@@ -289,6 +290,8 @@ function update(req, res) {
 
   const invalid = validateTextPayload(req.body);
   if (invalid) return res.status(400).json({ error: invalid });
+  // Dados dos emails ao hóspede: validados antes de gravar o resto da ficha.
+  try { guestInfo.normalize(req.body); } catch (error) { return res.status(error.status || 400).json({ error: error.message }); }
 
   const {
     name, type, price_per_night, max_guests, license_number,
@@ -449,6 +452,7 @@ function update(req, res) {
       req.user.organization_id
     );
 
+  guestInfo.save(req.user.organization_id, id, req.body, { hasParent });
   const resolved = getResolvedAccommodationsForOrg(req.user.organization_id).find(a => a.id === id);
   res.json({ success: true, data: resolved });
 

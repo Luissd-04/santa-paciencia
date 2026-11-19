@@ -435,8 +435,17 @@ async function openAlojamento(id, preferredTab = 'info') {
     document.getElementById('aloj-wifi-nome').value     = a.wifi_name     || '';
     document.getElementById('aloj-wifi-password').value = a.wifi_password || '';
     document.getElementById('aloj-door-code').value     = a.door_code    || '';
-    document.getElementById('aloj-checkin-time').value  = a.checkin_time  || '15:00';
-    document.getElementById('aloj-checkout-time').value = a.checkout_time || '11:00';
+    document.getElementById('aloj-checkin-time').value  = a.checkin_time  || '';
+    document.getElementById('aloj-checkout-time').value = a.checkout_time || '';
+    // Dados dos emails ao hóspede.
+    for (const [elId, field] of [['aloj-contact-email', 'contact_email'], ['aloj-contact-phone', 'contact_phone'],
+      ['aloj-arrival-instructions', 'arrival_instructions'], ['aloj-entry-instructions', 'entry_instructions'],
+      ['aloj-checkout-instructions', 'checkout_instructions'], ['aloj-review-url', 'review_url']]) {
+      const el = document.getElementById(elId);
+      if (el) el.value = a[field] || '';
+    }
+    const noWifi = document.getElementById('aloj-no-wifi');
+    if (noWifi) noWifi.checked = Boolean(Number(a.no_wifi));
     const fbEl  = document.getElementById('aloj-social-fb');
     const igEl  = document.getElementById('aloj-social-ig');
     const webEl = document.getElementById('aloj-social-web');

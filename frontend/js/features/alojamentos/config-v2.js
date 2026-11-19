@@ -26,6 +26,7 @@ const SECOES = [
   ]],
   ['Hóspedes', [
     ['marca', 'at-sign', 'Logótipo e redes', 'Nos emails e na página', 'info'],
+    ['emails', 'mail', 'Emails aos hóspedes', 'Contactos, chegada, saída e avaliação', 'info'],
     ['rgpd', 'shield-check', 'RGPD', 'Texto do consentimento', 'rgpd'],
   ]],
 ];

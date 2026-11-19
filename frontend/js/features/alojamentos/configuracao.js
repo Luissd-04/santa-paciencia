@@ -310,6 +310,13 @@ async function saveAlojamento() {
       // omissão em vez de ficar de fora por ter sido adicionado depois desta
       // gravação.
       email_social_links: getEmailSocialLinksSelection(),
+      contact_email:         document.getElementById('aloj-contact-email')?.value.trim() || null,
+      contact_phone:         document.getElementById('aloj-contact-phone')?.value.trim() || null,
+      arrival_instructions:  document.getElementById('aloj-arrival-instructions')?.value.trim() || null,
+      entry_instructions:    document.getElementById('aloj-entry-instructions')?.value.trim() || null,
+      checkout_instructions: document.getElementById('aloj-checkout-instructions')?.value.trim() || null,
+      review_url:            document.getElementById('aloj-review-url')?.value.trim() || null,
+      no_wifi:               Boolean(document.getElementById('aloj-no-wifi')?.checked),
     });
   }
 

@@ -109,8 +109,8 @@ async function sendViaGmail(organizationId, { to, subject, html, from, bcc, thre
 
   const info = getEmailConnectionInfo(organizationId);
   const senderEmail = info.email || 'me';
-  const propertyName = process.env.PROPERTY_NAME || 'Santa Paciência';
-  const effectiveFrom = from || `${propertyName} <${senderEmail}>`;
+  // O nome do remetente vem sempre de quem envia (emailService.sendMail).
+  const effectiveFrom = from || senderEmail;
   if (/[\x00-\x1f\x7f]/.test(effectiveFrom)) invalid();
   addresses(effectiveFrom);
   const fromHeader = encodeFromHeader(effectiveFrom);

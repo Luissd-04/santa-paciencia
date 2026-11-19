@@ -63,26 +63,16 @@ function escapeVars(vars) {
   return out;
 }
 
-const DEFAULT_LOGO_URL = 'https://santapaciencia.pt/wp-content/uploads/2024/04/cropped-Logo-Transparente-Cinza-280x60-1.png';
-
-// Fallback hardcoded do Facebook — usado quando não há alojamento associado
-// (preview do editor de templates) e o valor a nível de organização nunca foi
-// preenchido (não há UI para isso, ao contrário do Instagram/Website que já
-// tinham valor). Sem UI dedicada porque o utilizador decidiu não valer a pena.
-const DEFAULT_FACEBOOK_URL = 'https://www.facebook.com/al.santapaciencia/';
-
 // Logótipo configurável por alojamento (herdado pelas suites do principal —
 // ver services/accommodationInheritance.js). Guardado como caminho relativo
 // (/uploads/...) — resolve para absoluto porque os clientes de email
-// carregam a imagem a partir da internet, não do servidor local. Sem
-// alojamento associado (preview do editor, exports em PDF de todos os
-// alojamentos), usa o logótipo do único alojamento principal da organização.
-// Se houver vários, é necessário selecionar um contexto para evitar escolher
-// a marca de outro alojamento; nesse caso mantém-se o recurso por omissão.
+// carregam a imagem a partir da internet, não do servidor local. Sem logótipo,
+// o cabeçalho mostra o nome do alojamento em texto (emailComposer.buildHeader):
+// nunca a marca de outra organização.
 function resolveLogoUrl(value) {
-  if (!value) return DEFAULT_LOGO_URL;
+  if (!value) return '';
   if (/^https?:\/\//i.test(value)) return value;
-  try { return require('./publicLinks').absoluteUrl(value); } catch { return DEFAULT_LOGO_URL; }
+  try { return require('./publicLinks').absoluteUrl(value); } catch { return ''; }
 }
 
 // Aceita string JSON crua (linha da base) ou já em array (chamadas em teste).
@@ -97,57 +87,65 @@ function parseSocialLinksEnabled(value) {
   }
 }
 
+// Dados de cada email ao hóspede: só os do alojamento (herdados do principal
+// pelas suites) e, quando o alojamento não os tem, os da organização. Nada
+// vem fixo no código: um dado em falta fica vazio, e emailReadiness decide se
+// o email pode sair assim.
 function getEmailSettings(accommodation, organizationId) {
+  const { db } = require('../config/database');
+  const orgId = organizationId || accommodation?.organization_id;
+  const keys = ['checkin_time','checkout_time','social_facebook','social_instagram','social_website','social_tripadvisor',
+                'property_name','property_address','license_number','email_contact'];
+  let s = {};
+  try { if (orgId) s = require('./settingsService').getMany(orgId, keys); } catch { s = {}; }
+  const org = orgId ? db.prepare('SELECT name FROM organizations WHERE id = ?').get(orgId) : null;
+
+  // Sem alojamento (pré-visualização da organização, avisos à equipa): o único
+  // alojamento principal, se houver só um. Com vários, a organização.
+  if (!accommodation && orgId) {
+    const roots = db.prepare(`SELECT * FROM accommodations
+      WHERE organization_id = ? AND (parent_id IS NULL OR parent_id = '') LIMIT 2`).all(orgId);
+    if (roots.length === 1) accommodation = roots[0];
+  }
+  const a = accommodation ? resolveAccommodationInheritance(accommodation, orgId) : {};
+  // A marca é a do alojamento principal: um quarto aparece como «Casa do Monte».
+  const parent = a.parent_id ? db.prepare('SELECT name, license_number FROM accommodations WHERE id = ? AND organization_id = ?').get(a.parent_id, orgId) : null;
+  const brand = parent?.name || (accommodation ? a.name : '') || s.property_name || org?.name || '';
+  const cityLine = [a.postal_code, a.city].filter(Boolean).join(' ');
+  const address = a.address ? [a.address, cityLine].filter(Boolean).join(', ') : '';
+  return {
+    checkin_time:     a.checkin_time  || s.checkin_time  || '',
+    checkout_time:    a.checkout_time || s.checkout_time || '',
+    facebook:         a.social_facebook    || s.social_facebook    || '',
+    instagram:        a.social_instagram   || s.social_instagram   || '',
+    website:          a.social_website     || s.social_website     || '',
+    tripadvisor:      a.social_tripadvisor || s.social_tripadvisor || '',
+    // null = mostrar todos os configurados (omisso, comportamento anterior
+    // a este campo); um array filtra o bloco "Acompanhe-nos" mesmo que o
+    // link esteja preenchido.
+    social_links_enabled: parseSocialLinksEnabled(a.email_social_links),
+    property_name:    brand,
+    property_address: address || s.property_address || '',
+    license_number:   a.license_number || parent?.license_number || s.license_number || '',
+    email_contact:    a.contact_email || s.email_contact || '',
+    phone:            a.contact_phone || '',
+    arrival_instructions:  a.arrival_instructions || '',
+    entry_instructions:    a.entry_instructions || '',
+    checkout_instructions: a.checkout_instructions || '',
+    review_url:       a.review_url || '',
+    no_wifi:          Boolean(a.no_wifi),
+    booking_url:      bookingUrl(a, parent, orgId),
+    logo_url:         resolveLogoUrl(a.logo_url),
+  };
+}
+
+// Página pública de reservas do alojamento (a do principal, num quarto).
+function bookingUrl(a, parent, orgId) {
   try {
     const { db } = require('../config/database');
-    const orgId = organizationId || accommodation?.organization_id;
-    const keys = ['checkin_time','checkout_time','social_facebook','social_instagram','social_website','social_tripadvisor',
-                  'property_name','property_address','license_number','email_contact'];
-    let s = {};
-    if (orgId) s = require('./settingsService').getMany(orgId, keys);
-    else db.prepare(`SELECT key,value FROM settings WHERE key IN (${keys.map(() => '?').join(',')})`).all(...keys).forEach(r => { s[r.key] = r.value; });
-
-    let orgName = s.property_name;
-    if (!orgName && orgId) {
-      const org = db.prepare('SELECT name FROM organizations WHERE id = ?').get(orgId);
-      orgName = org?.name;
-    }
-
-    let logo = accommodation?.logo_url;
-    if (!accommodation && orgId) {
-      const roots = db.prepare(`SELECT logo_url FROM accommodations
-        WHERE organization_id = ? AND (parent_id IS NULL OR parent_id = '') LIMIT 2`).all(orgId);
-      if (roots.length === 1) logo = roots[0].logo_url;
-    }
-
-    return {
-      checkin_time:     accommodation?.checkin_time  || s.checkin_time  || '15:00',
-      checkout_time:    accommodation?.checkout_time || s.checkout_time || '11:00',
-      facebook:         accommodation?.social_facebook  || s.social_facebook  || DEFAULT_FACEBOOK_URL,
-      instagram:        accommodation?.social_instagram || s.social_instagram || '',
-      website:          accommodation?.social_website   || s.social_website   || '',
-      tripadvisor:      accommodation?.social_tripadvisor || s.social_tripadvisor || '',
-      // null = mostrar todos os configurados (omisso, comportamento anterior
-      // a este campo); um array filtra o bloco "Acompanhe-nos" mesmo que o
-      // link esteja preenchido.
-      social_links_enabled: parseSocialLinksEnabled(accommodation?.email_social_links),
-      property_name:    orgName || process.env.PROPERTY_NAME || 'Santa Paciência',
-      property_address: s.property_address || process.env.PROPERTY_ADDRESS || '',
-      license_number:   s.license_number   || process.env.LICENSE_NUMBER   || '',
-      email_contact:    s.email_contact    || '',
-      logo_url:         resolveLogoUrl(logo),
-    };
-  } catch {
-    return {
-      checkin_time: '15:00', checkout_time: '11:00',
-      facebook: DEFAULT_FACEBOOK_URL, instagram: '', website: '', tripadvisor: '',
-      property_name:    process.env.PROPERTY_NAME    || 'Santa Paciência',
-      property_address: process.env.PROPERTY_ADDRESS || '',
-      license_number:   process.env.LICENSE_NUMBER   || '',
-      email_contact:    '',
-      logo_url:         resolveLogoUrl(null),
-    };
-  }
+    const slug = a.public_slug || (a.parent_id ? db.prepare('SELECT public_slug FROM accommodations WHERE id = ? AND organization_id = ?').get(a.parent_id, orgId)?.public_slug : '');
+    return slug ? require('./publicLinks').absoluteUrl(`/reservar/${encodeURIComponent(slug)}`) : '';
+  } catch { return ''; }
 }
 
 // O desenho vive todo em emailComposer.js — envio e pré-visualização usam a
@@ -271,7 +269,7 @@ function buildBlocks(vars, settings, reservation) {
     ]),
 
     // ── Durante a estadia ──
-    titulo_boas_vindas: composer.buildTitle({ headline: vars.primeiro_nome ? `Bem-vindo, ${vars.primeiro_nome}` : `Bem-vindo à ${s.property_name || 'Santa Paciência'}` }),
+    titulo_boas_vindas: composer.buildTitle({ headline: vars.primeiro_nome ? `Boas-vindas, ${vars.primeiro_nome}` : `Boas-vindas a ${s.property_name || vars.alojamento}` }),
     info_estadia: composer.buildRows([
       { label: 'Wi-Fi', value: vars.wifi_nome && vars.wifi_nome !== '—' ? vars.wifi_nome : '' },
       { label: 'Senha', value: vars.wifi_password && vars.wifi_password !== '—' ? vars.wifi_password : '' },
@@ -379,9 +377,9 @@ function buildVars(guest, reservation, accommodation, settings, extra) {
     primeiro_nome: firstName,
     alojamento: accommodation.name || accommodation.accommodation_name || '',
     data_checkin: formatDate(reservation.check_in),
-    hora_checkin: s.checkin_time || '15:00',
+    hora_checkin: s.checkin_time || '',
     data_checkout: formatDate(reservation.check_out),
-    hora_checkout: s.checkout_time || '11:00',
+    hora_checkout: s.checkout_time || '',
     // Formas curtas para os blocos: «sáb, 14 nov» e «14 de novembro».
     data_checkin_curta: formatWeekdayDate(reservation.check_in),
     data_checkout_curta: formatWeekdayDate(reservation.check_out),

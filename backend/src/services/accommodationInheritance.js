@@ -8,6 +8,7 @@ const INHERITED_FIELDS = [
   'wifi_name', 'wifi_password', 'door_code', 'checkin_time', 'checkout_time',
   'social_facebook', 'social_instagram', 'social_website', 'social_tripadvisor', 'logo_url',
   'email_social_links',
+  'contact_email', 'contact_phone', 'arrival_instructions', 'entry_instructions', 'checkout_instructions', 'review_url', 'no_wifi',
 ];
 
 // Para emails e mensagens: os campos vazios da unidade vêm do alojamento
@@ -21,6 +22,8 @@ function withInheritedFields(accommodation, organizationId) {
     if (!parent) return accommodation;
     const resolved = { ...accommodation };
     for (const field of INHERITED_FIELDS) {
+      // «Sem Wi-Fi» é 0/1 (nunca vazio) e só se define no alojamento principal.
+      if (field === 'no_wifi') { resolved[field] = parent[field]; continue; }
       if (resolved[field] === null || resolved[field] === undefined || resolved[field] === '') resolved[field] = parent[field];
     }
     return resolved;
