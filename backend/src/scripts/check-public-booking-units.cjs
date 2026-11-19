@@ -50,16 +50,20 @@ async function main() {
   // Tudo ocupado: sem total (antes ficava a taxa turística com o nome da casa).
   await expect(page.locator('.unit-card.blocked')).toHaveCount(3);
   await expect(page.locator('#summary-unit')).toHaveText('Escolha um quarto');
-  await expect(page.locator('.summary-total')).toBeHidden();
+  await expect(page.locator('#pn-bar-total')).toHaveText('Escolha um quarto');
 
   // Outras datas: a suite mostra a lotação máxima, mesmo sem extra pago.
   await chooseDate(page, page.locator('#pb-checkout'), '2035-04-03');
   await chooseDate(page, page.locator('#pb-checkin'), '2035-04-01');
   const suite = page.locator('.unit-card[data-unit="suite"]');
   await expect(suite).toContainText('Até 3 hóspedes');
-  await suite.click();
+  // O cartão abre a ficha do quarto; escolhe-se lá (depois de chegar a
+  // disponibilidade das datas novas).
+  await expect(suite).not.toHaveClass(/blocked/);
+  await page.locator('[data-pn-unit="suite"]').click();
+  await page.locator('dialog.pn-unit').getByRole('button', { name: 'Escolher este quarto' }).click();
   await expect(page.locator('#summary-unit')).toHaveText('Suite Oliveira');
-  await expect(page.locator('.summary-total')).toBeVisible();
+  await expect(page.locator('#pn-bar-total')).toContainText('€');
 
   // Página da reserva: link para o pré-check-in só depois de aceite.
   await page.goto(`${base}/reserva/${TOKEN}`);

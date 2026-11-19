@@ -31,8 +31,10 @@ function stayLine() {
 function afterLanding() {
   const p = B.state.property;
   B.$('pn-brand').textContent = p.name;
+  if (B.$('pn-mark')) B.$('pn-mark').textContent = (p.name || '').trim().charAt(0).toUpperCase();
   B.$('pn-name').textContent = p.name;
-  B.$('pn-location').textContent = [p.city, p.region].filter(Boolean).join(' · ');
+  // A região («Continente») vem de um valor por omissão: mostra-se a cidade e o país.
+  B.$('pn-location').textContent = [p.city, p.country].filter(Boolean).join(' · ');
   B.$('pn-description').textContent = p.description || '';
   const images = B.allImages();
   const cover = B.mediaThumb(p.cover_image || images[0], 1600);
@@ -212,9 +214,10 @@ function renderBar() {
     sub.textContent = '';
     return;
   }
+  // O pedido não se paga já: o sinal só depois de o alojamento aceitar.
   if (B.state.step === 3 && plan && plan.depositPercent < 100) {
-    total.textContent = money(plan.depositCents / 100);
-    sub.textContent = `sinal · total ${money(info.finalTotal)}`;
+    total.textContent = money(info.finalTotal);
+    sub.textContent = `sinal de ${money(plan.depositCents / 100)} depois de aceite`;
     return;
   }
   total.textContent = money(info.finalTotal);
@@ -248,15 +251,15 @@ function planHtml() {
   if (!plan) return `<p class="pn-note">${esc(B.$('pb-payment-note').textContent)}</p>`;
   const due = plan.dueAt ? day(plan.dueAt.slice(0, 10)) : '';
   const rows = plan.depositPercent >= 100 || !plan.balanceCents
-    ? `<div><span><strong>Hoje</strong> · pagamento total</span><strong>${money(plan.depositCents / 100)}</strong></div>`
-    : `<div><span><strong>Hoje</strong> · sinal de ${plan.depositPercent}%</span><strong>${money(plan.depositCents / 100)}</strong></div>
+    ? `<div><span><strong>Depois de aceite</strong> · pagamento total</span><strong>${money(plan.depositCents / 100)}</strong></div>`
+    : `<div><span><strong>Depois de aceite</strong> · sinal de ${plan.depositPercent}%</span><strong>${money(plan.depositCents / 100)}</strong></div>
        <div><span>Até ${esc(due)} · restante</span><span>${money(plan.balanceCents / 100)}</span></div>`;
   const refunds = [...plan.refundRules].sort((a, b) => b.minDays - a.minDays).map(r => `<div><dt>${esc(refundLabel(r))}</dt><dd>${
     r.percent >= 100 ? 'Reembolso total' : r.percent <= 0 ? 'Sem reembolso' : `${r.percent}% do pago`}</dd></div>`).join('');
   return `<section class="pn-plan-box">
     <h3>Como paga</h3>
     <div class="pn-plan">${rows}</div>
-    <p class="pn-note">Paga com cartão ou MB WAY, na página seguinte.${plan.balanceCents && plan.automaticCharge ? ' Se autorizar, o restante é cobrado no cartão na data indicada; senão, enviamos um link.' : ''}</p>
+    <p class="pn-note">Hoje não paga nada. Primeiro confirmamos a disponibilidade; depois de aceite, recebe por email o link para pagar com cartão ou MB WAY e tem 48 horas para o fazer.${plan.balanceCents && plan.automaticCharge ? ' Se autorizar, o restante é cobrado no cartão na data indicada; senão, enviamos um link.' : ''}</p>
     <h3>Se precisar de cancelar</h3>
     <dl class="pn-lines pn-refunds">${refunds}</dl>
     ${plan.refundBasis === 'booking' ? '<p class="pn-note">Os dias contam-se desde a data da reserva até à chegada.</p>' : ''}
@@ -281,7 +284,7 @@ function schedulePlan() {
 
 function afterStep() {
   const step = B.state.step;
-  B.$('next-btn').textContent = step < 3 ? 'Continuar' : (B.state.onlinePayment ? 'Reservar e pagar' : 'Enviar pedido');
+  B.$('next-btn').textContent = step < 3 ? 'Continuar' : 'Enviar pedido';
   renderBar();
 }
 

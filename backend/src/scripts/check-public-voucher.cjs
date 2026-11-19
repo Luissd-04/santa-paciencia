@@ -81,6 +81,8 @@ async function main() {
   await page.locator('#pb-country').fill('Portugal');
   await page.locator('#next-btn').click();
   assert.equal(await page.evaluate(() => scrollY), 0);
+  // O código de desconto fica num link («Tenho um código de desconto»).
+  await page.locator('summary', { hasText: 'Tenho um código de desconto' }).click();
   await expect(page.locator('[data-step="3"] #pb-voucher')).toBeVisible();
   await page.locator('#pb-voucher').fill('publico10');
   await page.locator('#pb-voucher-btn').click();
@@ -117,12 +119,12 @@ async function main() {
   await expect(page.locator('#pb-voucher')).toHaveValue('publico10');
   await page.unroute(submitRoute);
   await page.locator('#next-btn').click();
-  await expect(page).toHaveURL(`${base}/public-success.html?tipo=reserva`);
-  await expect(page.locator('#confirmation-title')).toContainText('Pedido enviado com sucesso');
-  await expect(page.locator('#confirmation-total')).toContainText(/180,00\s€/);
-  await expect(page.locator('#public-booking-form')).toHaveCount(0);
+  // O hóspede segue para a página do pedido, onde o acompanha.
+  await expect(page).toHaveURL(/\/reserva\/[a-f0-9]{64}$/);
+  await expect(page.locator('#pn-rs-payments')).toContainText(/180,00\s€/);
+  await expect(page.locator('#pn-rs-steps')).toContainText('Aceitação do alojamento');
   await page.reload();
-  await expect(page.locator('#confirmation-title')).toContainText('Pedido enviado com sucesso');
+  await expect(page.locator('#pn-rs-steps')).toContainText('Aceitação do alojamento');
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
 
   const reservation = db.prepare('SELECT total_amount FROM reservations').get();

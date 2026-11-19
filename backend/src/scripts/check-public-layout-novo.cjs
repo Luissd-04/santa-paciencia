@@ -1,7 +1,6 @@
-// Versão nova das páginas públicas (?layout=novo), em teste ao lado da atual:
-// a escolha fica no separador, os hóspedes sem o parâmetro veem a atual, e a
-// nova reserva com a mesma lógica (quarto, ficha, acompanhantes só com o
-// nome, plano de pagamento do servidor, página da reserva). Dados inventados.
+// Páginas públicas na versão nova, que passou a ser a única: capa, ficha do
+// quarto, acompanhantes só com o nome, plano de pagamento do servidor e o
+// percurso com aprovação (pedido → aceite → sinal com prazo). Dados inventados.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -54,17 +53,14 @@ async function main() {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
 
-  // Sem parâmetro: versão atual, sem botão de troca (é o que o hóspede vê).
-  await page.goto(`${base}/reservar/casa-nova`);
-  await expect(page.locator('#property-name')).toHaveText('Casa Nova');
-  assert.equal(await page.locator('html').getAttribute('data-layout'), 'atual');
+  // Uma só versão: sem parâmetro e mesmo com ?layout=atual, sem botão de troca.
+  await page.goto(`${base}/reservar/casa-nova?layout=atual`);
+  assert.equal(await page.locator('html').getAttribute('data-layout'), 'novo');
   await expect(page.locator('.layout-switch')).toHaveCount(0);
-  await expect(page.locator('#pn-hero')).toBeHidden();
-
-  // Versão nova: capa, quartos com ficha, barra com o total.
-  await page.goto(`${base}/reservar/casa-nova?layout=novo`);
+  await page.goto(`${base}/reservar/casa-nova`);
   await expect(page.locator('#pn-name')).toHaveText('Casa Nova');
-  await expect(page.locator('.layout-switch')).toHaveText('Versão nova · ver a atual');
+  await expect(page.locator('#pn-brand')).toHaveText('Casa Nova');
+  assert.equal(await page.title(), 'Reservar Casa Nova');
   await expect(page.locator('#pn-chips')).toContainText('Piscina');
   await chooseDate(page, page.locator('#pb-checkout'), CHECK_OUT);
   await chooseDate(page, page.locator('#pb-checkin'), CHECK_IN);
@@ -100,31 +96,38 @@ async function main() {
   await page.locator('#next-btn').click();
 
   const deposit = policy.calculate(policy.getPolicy(org.id), { total: 318, bookedOn: policy.localDay(), checkIn: CHECK_IN });
-  await expect(page.locator('#pn-confirm .pn-plan')).toContainText(`sinal de ${deposit.depositPercent}%`);
-  await expect(page.locator('#pn-bar-total')).toHaveText(new RegExp((deposit.depositCents / 100).toFixed(2).replace('.', ',')));
-  await expect(page.locator('#next-btn')).toHaveText('Reservar e pagar');
+  // Hoje não se paga nada: o sinal só depois de o alojamento aceitar.
+  await expect(page.locator('#pn-confirm .pn-plan')).toContainText(`Depois de aceite · sinal de ${deposit.depositPercent}%`);
+  await expect(page.locator('#pn-confirm')).toContainText('Hoje não paga nada');
+  await expect(page.locator('#pn-bar-sub')).toContainText(`sinal de ${(deposit.depositCents / 100).toFixed(2).replace('.', ',')}`);
+  await expect(page.locator('#next-btn')).toHaveText('Enviar pedido');
   await page.locator('#pb-rgpd').check();
   await page.evaluate(() => { AppModules.booking.state.pageLoadedAt = Date.now() - 20000; });
   await page.locator('#next-btn').click();
   await page.waitForURL(/\/reserva\/[a-f0-9]{64}$/);
 
-  // A escolha acompanha o percurso: página da reserva na versão nova.
+  // Página do pedido: por aprovar, sem pagamento ainda e com a marca do alojamento.
   assert.equal(await page.locator('html').getAttribute('data-layout'), 'novo');
-  await expect(page.locator('#pn-rs-due')).toContainText('Falta o sinal');
-  await expect(page.locator('#pn-rs-steps')).toContainText('Pré-check-in');
+  await expect(page.locator('#pn-brand')).toHaveText('Casa Nova');
+  await expect(page.locator('#pn-rs-steps')).toContainText('Aceitação do alojamento');
+  await expect(page.locator('#pn-rs-steps')).toContainText('tem 48 horas para o pagar');
+  await expect(page.locator('#pn-rs-due')).toBeEmpty();
   await expect(page.locator('#pn-rs-payments')).toContainText('318,00');
   const reservation = db.prepare("SELECT * FROM reservations WHERE accommodation_id = 'suite'").get();
+  assert.equal(reservation.status, 'pendente');
+  // Depois de aceite: o sinal com o prazo de 48 h.
+  require('../services/reservationLifecycle').approve(org.id, reservation.id, { origin: base });
+  await page.reload();
+  await expect(page.locator('#pn-rs-due')).toContainText('Falta o sinal');
+  await expect(page.locator('#pn-rs-due')).toContainText('as datas voltam a ficar livres');
+  await expect(page.locator('#pn-rs-steps')).toContainText('Pré-check-in');
+  await expect(page.locator('#pn-rs-steps')).not.toContainText('minutos');
   assert.equal(JSON.parse(reservation.guests_data)[0].name, 'João Silva');
   assert.equal(reservation.total_amount, 318);
 
-  // Voltar à atual: os acompanhantes voltam a ter todos os campos.
-  await page.goto(`${base}/reservar/casa-nova?layout=atual`);
-  assert.equal(await page.locator('html').getAttribute('data-layout'), 'atual');
-  await expect(page.locator('.layout-switch')).toHaveText('Versão atual · ver a nova');
-  await expect(page.locator('.extra-guest-box[data-guest-index="2"] [data-field="email"]')).toHaveCount(1);
 
   assert.deepEqual(errors, []);
-  console.log('OK: versão nova das páginas públicas — escolha por separador, capa, ficha do quarto, barra, acompanhantes só com o nome, plano de pagamento e página da reserva.');
+  console.log('OK: páginas públicas (versão única) — capa, ficha do quarto, barra, acompanhantes só com o nome, plano de pagamento, pedido por aprovar e sinal com prazo depois de aceite.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {

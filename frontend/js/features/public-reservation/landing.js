@@ -92,10 +92,11 @@ function renderLanding() {
   AppModules.booking.$('property-location').textContent = location;
   AppModules.booking.$('property-description').textContent = p.description || 'Escolha as datas e envie o pedido de reserva. Confirmaremos a disponibilidade o mais rapidamente possível.';
   const imgs = allImages();
-  const fallback = 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=80';
-  AppModules.booking.$('ambient-bg').style.backgroundImage = `url(${JSON.stringify(imgs[0] ? AppModules.booking.mediaThumb(imgs[0], 1600) : fallback)})`;
-  renderRail('gallery-top', imgs.length ? imgs : [fallback]);
-  renderRail('gallery-bottom', imgs.length ? imgs.slice().reverse() : [fallback]);
+  // Só as fotografias do próprio alojamento: sem fotos, não se mostra nenhuma
+  // (antes aparecia uma casa de um banco de imagens).
+  if (imgs[0]) AppModules.booking.$('ambient-bg').style.backgroundImage = `url(${JSON.stringify(AppModules.booking.mediaThumb(imgs[0], 1600))})`;
+  renderRail('gallery-top', imgs);
+  renderRail('gallery-bottom', imgs.slice().reverse());
   rotateBackground();
   renderUnits();
   AppModules.booking.novo?.afterLanding();

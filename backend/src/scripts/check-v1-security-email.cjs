@@ -45,8 +45,9 @@ async function main() {
   const user = auth.createUser({ name: 'Auditor', email: 'audit@example.invalid', password: 'Synthetic123!' });
   orgs.createMembership({ organizationId: org.id, userId: user.id, role: 'owner' });
   const session = auth.createSession(user.id, org.id).sessionId;
-  db.prepare(`INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests,checkin_time,city,email_social_links,social_tripadvisor)
-    VALUES('unit',?,'Casa sintética','alojamento',100,2,'18:30','Localidade sintética','[]','https://example.invalid/tripadvisor')`).run(org.id);
+  // Alojamento com os dados obrigatórios dos emails (services/emailReadiness).
+  db.prepare(`INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests,checkin_time,checkout_time,city,address,license_number,contact_email,email_social_links,social_tripadvisor)
+    VALUES('unit',?,'Casa sintética','alojamento',100,2,'18:30','11:00','Localidade sintética','Rua sintética 1','1/AL','casa@example.invalid','[]','https://example.invalid/tripadvisor')`).run(org.id);
   db.prepare("INSERT INTO guests(id,organization_id,name,email) VALUES('guest',?,'Hóspede sintético','guest@example.invalid')").run(org.id);
   db.prepare(`INSERT INTO reservations(id,organization_id,guest_id,accommodation_id,check_in,check_out,nights,num_guests,total_amount,status)
     VALUES('booking',?,'guest','unit','2035-06-01','2035-06-03',2,1,200,'confirmada')`).run(org.id);

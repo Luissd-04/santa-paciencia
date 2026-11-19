@@ -101,6 +101,7 @@ hóspedes, tokens OAuth ou a chave de encriptação no repositório.
 - [Sincronização com Google Calendar](docs/GOOGLE-CALENDAR.md)
 - [Âmbito V1/V2](docs/ESCOPO-V1-V2.md) e [fecho da V1 — 24 de outubro](docs/FECHO-V1-2026-10-24.md)
 - [Emails no Gmail para iPhone](docs/EMAIL-GMAIL.md)
+- [Percurso do hóspede: aprovação, sinal com prazo e emails — 19 de novembro](docs/PERCURSO-HOSPEDE-2026-11-19.md)
 
 A documentação de base foi revista em 5 de outubro de 2026; o relatório de
 8 de outubro acrescenta os achados sobre o código local e atualiza prioridades.

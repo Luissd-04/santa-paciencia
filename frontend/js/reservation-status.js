@@ -43,7 +43,7 @@
     $('rs-precheckin-link').textContent = precheckin.submitted ? 'Rever o pré-check-in' : 'Fazer o pré-check-in';
     $('rs-precheckin-text').textContent = precheckin.submitted
       ? 'O pré-check-in está feito. Pode corrigir os dados até ao dia de chegada.'
-      : 'Falta o pré-check-in: hora de chegada e dados dos hóspedes. Demora cerca de 2 minutos.';
+      : 'Falta o pré-check-in: hora de chegada e dados dos hóspedes.';
   }
 
   function renderPayment(reservation) {
