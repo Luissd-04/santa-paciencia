@@ -375,87 +375,120 @@
   background: var(--bg-secondary, #f5f0eb);
 }
 
-/* ── Chat bubbles ── */
-.invoice-bubble {
-  display: flex;
-  flex-direction: column;
-  width: min(720px, 92%);
+/* ── Histórico em conversa ──
+   Linha do tempo à esquerda com os dias; em cada dia, os emails recebidos à
+   esquerda e os enviados à direita, só com o texto (sem o desenho do email). */
+.im-day {
+  position: relative;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  column-gap: 14px;
+  padding-bottom: 18px;
 }
-
-.invoice-bubble--sent   { align-self: flex-end; }
-.invoice-bubble--received { align-self: flex-start; }
-
-/* Botão de responder fica ao lado da bolha, do lado voltado para o centro da
-   conversa — à esquerda quando fomos nós a enviar (bolha à direita), à
-   direita quando é do hóspede (bolha à esquerda) — como num chat normal. */
-.ib-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
-  width: 100%;
+/* A linha vertical que liga os dias. */
+.im-day::before {
+  content: '';
+  position: absolute;
+  left: 28px;
+  top: 66px;
+  bottom: 4px;
+  width: 1px;
+  background: var(--border, #e8ddd0);
 }
-
-.invoice-bubble--sent .ib-row { flex-direction: row-reverse; }
-
-.ib-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  flex: 1;
-}
-
-.ib-meta {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
+.im-day:last-child::before { display: none; }
+.im-day-mark {
+  align-self: start;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 0 0 6px;
+  color: var(--cinza, #6b6460);
   font-size: 11px;
-  color: var(--cinza, #6b6460);
+  line-height: 1.2;
+  text-align: center;
+  z-index: 1;
 }
-
-/* Autor/hora à direita para as nossas mensagens — sem isto herdava o
-   align-items da coluna, que também esticava (ou não) o corpo do email por
-   engano: a caixa de texto tem de esticar sempre para preencher .ib-content,
-   senão o iframe cai para a largura mínima do browser (~300px) e fica com um
-   espaço enorme entre o botão de responder e a bolha. */
-.invoice-bubble--sent .ib-meta { justify-content: flex-end; }
-
-.ib-author { font-weight: 600; }
-
-.ib-reply-btn {
-  border: 1px solid var(--border, #e8ddd0);
-  background: var(--bg-card, #fff);
-  color: var(--cinza, #6b6460);
-  opacity: .6;
-  cursor: pointer;
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
+.im-day-dot {
+  width: 9px;
+  height: 9px;
+  margin: 2px 0 5px;
   border-radius: 50%;
+  background: var(--marca, #843424);
+}
+.im-day-mark b { color: var(--texto, #2a1810); font-size: 17px; font-weight: 600; }
+.im-day-mark small { font-size: 10.5px; text-transform: lowercase; opacity: .8; }
+
+.im-day-msgs { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding-top: 2px; }
+
+.im-msg { display: flex; flex-direction: column; max-width: min(560px, 82%); }
+.im-msg--received { align-self: flex-start; align-items: flex-start; }
+.im-msg--sent { align-self: flex-end; align-items: flex-end; }
+
+.im-bubble {
+  padding: 9px 13px;
+  border-radius: 14px;
+  background: var(--bg-card, #fff);
+  box-shadow: inset 0 0 0 1px var(--border, #e8ddd0);
+  color: var(--texto, #2a1810);
+  font-size: 13.5px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.im-msg--received .im-bubble { border-bottom-left-radius: 4px; }
+.im-msg--sent .im-bubble { border-bottom-right-radius: 4px; background: var(--marca-light, #fdf4f2); box-shadow: none; }
+
+.im-subject { margin-bottom: 3px; font-size: 12px; font-weight: 600; opacity: .75; }
+.im-text p { margin: 0 0 6px; }
+.im-text p:last-child { margin-bottom: 0; }
+.im-text a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.im-text-empty { font-style: italic; opacity: .7; }
+
+.im-foot {
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: opacity 120ms, background 120ms;
+  gap: 10px;
+  margin-top: 3px;
+  padding: 0 4px;
+  color: var(--cinza, #6b6460);
+  font-size: 11px;
 }
-.ib-reply-btn:hover { opacity: 1; background: var(--bg-hover, #faf7f4); }
+.im-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  opacity: .8;
+}
+.im-link:hover { opacity: 1; color: var(--marca, #843424); }
+.im-original { width: 100%; min-width: min(480px, 70vw); margin-top: 6px; border: 1px solid var(--border, #e8ddd0); border-radius: 10px; overflow: hidden; }
+
+@media (max-width: 640px) {
+  .im-day { grid-template-columns: 40px minmax(0, 1fr); column-gap: 8px; }
+  .im-day::before { left: 19px; }
+  .im-msg { max-width: 92%; }
+}
 
 /* ── Anexos ── */
 .ib-attachments {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .ib-attachment {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 9px;
+  padding: 5px 10px;
   border: 1px solid var(--border, #e8ddd0);
   background: var(--bg-secondary, #f5f0eb);
-  border-radius: 7px;
-  font-size: 11px;
+  border-radius: 8px;
+  font-size: 12px;
   color: var(--texto, #2a1810);
   text-decoration: none;
   transition: background 120ms;
@@ -464,46 +497,16 @@
 
 .ib-att-size {
   color: var(--cinza, #6b6460);
-  font-size: 10px;
+  font-size: 10.5px;
 }
 
-.ib-subject {
-  font-size: 11px;
-  font-weight: 600;
-  opacity: .7;
-  margin-bottom: 2px;
-}
-
-.ib-body {
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 13px;
-  line-height: 1.55;
-  word-break: break-word;
-  background: #fff;
-  border: 1px solid var(--border, #e8ddd0);
-  color: var(--texto, #2a1810);
-}
-
-/* Diferença sutil entre enviado/recebido — sem blocos de cor fortes,
-   consistente com o resto da plataforma (cartões claros, borda fina). */
-.invoice-bubble--sent .ib-body {
-  background: var(--marca-light, #fdf4f2);
-  border-bottom-right-radius: 4px;
-}
-
-.invoice-bubble--received .ib-body {
-  border-bottom-left-radius: 4px;
-}
-
-/* Iframe sandbox onde o HTML do email é renderizado (S11) */
+/* Iframe sandbox onde o HTML original do email é mostrado (S11) */
 .ib-body-frame {
   display: block;
   width: 100%;
   min-height: 40px;
   height: 120px;
   border: none;
-  border-radius: 8px;
   background: #fff;
 }
 
@@ -623,6 +626,11 @@
   max-height: 260px;
   border-radius: 0 0 8px 8px;
 }
+
+/* Resposta compacta enquanto está vazia e sem foco: só a linha para escrever,
+   para o histórico ter mais espaço. Ao clicar abre o assunto e a formatação. */
+.invoice-compose-area:not(:focus-within):has(#ica-subject:placeholder-shown):has(#ica-body:empty) :is(#ica-subject, .compose-fmt-toolbar, .ica-footer) { display: none; }
+.invoice-compose-area:not(:focus-within):has(#ica-subject:placeholder-shown):has(#ica-body:empty) #ica-body { min-height: 0; border-radius: 8px; padding-block: 10px; cursor: text; }
 
 .compose-body-editor:empty:before {
   content: attr(data-placeholder);

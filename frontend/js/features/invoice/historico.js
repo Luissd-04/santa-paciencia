@@ -2,6 +2,7 @@
 (() => {
 AppModules.define('invoice', {
   _stripEmailChrome: { get: () => _stripEmailChrome },
+  mailText: { get: () => mailText },
   cancelInvoiceReply: { get: () => cancelInvoiceReply },
   loadThreadMessages: { get: () => loadThreadMessages },
   openInvoiceThread: { get: () => openInvoiceThread },
@@ -161,7 +162,9 @@ function _stripEmailChrome(html) {
   return html;
 }
 
+let _invoiceNeedsReauth = false;
 function _renderInvoiceMessages(area, needsReauth) {
+  _invoiceNeedsReauth = !!needsReauth;
   if (!AppModules.invoice._invoiceCurrentMessages.length) {
     area.innerHTML = `
       <div class="invoice-msgs-empty">
@@ -172,26 +175,119 @@ function _renderInvoiceMessages(area, needsReauth) {
     return;
   }
 
-  area.innerHTML = AppModules.invoice._invoiceCurrentMessages.map((m, i) => `
-    <div class="invoice-bubble invoice-bubble--${m.direction}">
-      <div class="ib-row">
-        <div class="ib-content">
-          <div class="ib-meta">
-            <span class="ib-author">${AppModules.invoice.esc(m.author)}</span>
-            <span class="ib-date">${AppModules.invoice.fmtDateTime(m.date)}</span>
-          </div>
-          <div class="ib-subject">${AppModules.invoice.esc(m.subject)}</div>
-          <div class="ib-body">${AppModules.invoice.renderEmailBodySandboxed(m.direction === 'sent' ? _stripEmailChrome(m.body) : m.body)}</div>
-          ${m.attachments?.length ? renderInvoiceAttachments(m.attachments, m.gmailMessageId) : ''}
-        </div>
-        ${m.messageIdHeader ? `<button class="ib-reply-btn" type="button" title="Responder a esta mensagem" ${AppActions.attrs("click", "historico-reply-to-invoice-message-171e160", [i])}><i data-lucide="corner-up-left" style="width:13px;height:13px;"></i></button>` : ''}
+  // Histórico em conversa: uma linha do tempo à esquerda com os dias e, em
+  // cada dia, os emails recebidos à esquerda e os enviados à direita. Só o
+  // texto (sem o desenho do email); o assunto aparece quando muda.
+  const esc = AppModules.invoice.esc;
+  const msgs = AppModules.invoice._invoiceCurrentMessages;
+  const dayKey = d => { const x = new Date(d); return isNaN(x) ? '' : `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`; };
+  const subjectKey = sub => String(sub || '').replace(/^\s*((re|fw|fwd|enc|res)\s*:\s*)+/i, '').trim().toLowerCase();
+  const groups = [];
+  msgs.forEach((m, i) => {
+    const key = dayKey(m.date);
+    if (!groups.length || groups[groups.length - 1].key !== key) groups.push({ key, date: m.date, items: [] });
+    groups[groups.length - 1].items.push({ m, i });
+  });
+  area.innerHTML = groups.map(g => {
+    const d = new Date(g.date);
+    const valid = !isNaN(d);
+    const thisYear = valid && d.getFullYear() === new Date().getFullYear();
+    return `
+    <section class="im-day" aria-label="${valid ? d.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''}">
+      <div class="im-day-mark" aria-hidden="true">
+        <span class="im-day-dot"></span>
+        ${valid ? `<b>${d.getDate()}</b><span>${d.toLocaleDateString('pt-PT', { month: 'short' }).replace('.', '')}${thisYear ? '' : ' ' + d.getFullYear()}</span><small>${d.toLocaleDateString('pt-PT', { weekday: 'short' }).replace('.', '')}</small>` : ''}
       </div>
-    </div>
-  `).join('');
+      <div class="im-day-msgs">${g.items.map(({ m, i }) => {
+        const sent = m.direction === 'sent';
+        const body = sent ? _stripEmailChrome(m.body) : m.body;
+        const text = mailText(body);
+        const prev = msgs[i - 1];
+        const showSubject = m.subject && (!prev || subjectKey(prev.subject) !== subjectKey(m.subject));
+        const original = _invoiceOriginalOpen.has(m.id);
+        const time = valid ? new Date(m.date).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }) : '';
+        return `
+        <article class="im-msg im-msg--${sent ? 'sent' : 'received'}">
+          <div class="im-bubble">
+            ${showSubject ? `<div class="im-subject">${esc(m.subject)}</div>` : ''}
+            <div class="im-text">${text || '<p class="im-text-empty">Email sem texto.</p>'}</div>
+            ${m.attachments?.length ? renderInvoiceAttachments(m.attachments, m.gmailMessageId) : ''}
+          </div>
+          <div class="im-foot">
+            <span>${esc(m.author)}${time ? ' · ' + time : ''}</span>
+            ${m.messageIdHeader ? `<button class="im-link" type="button" ${AppActions.attrs("click", "historico-reply-to-invoice-message-171e160", [i])}>Responder</button>` : ''}
+            ${!text && body ? `<button type="button" class="im-link" aria-expanded="${original}" ${AppActions.attrs("click", "historico-toggle-original", [i])}>${original ? 'Esconder original' : 'Ver original'}</button>` : ''}
+          </div>
+          ${original && !text ? `<div class="im-original">${AppModules.invoice.renderEmailBodySandboxed(body)}</div>` : ''}
+        </article>`;
+      }).join('')}</div>
+    </section>`;
+  }).join('');
 
   if (needsReauth) {
     area.insertAdjacentHTML('afterbegin', "\n      <div class=\"imb-reauth-banner\">\n        <i data-lucide=\"alert-circle\" style=\"width:14px;height:14px;\"></i>\n        Para ver os emails recebidos, <a href=\"#\" data-on-click=\"historico-prevent-default-e0d5cd5\">re-autoriza o Gmail</a> com permissão de leitura.\n      </div>");
   }
+}
+
+// Emails cujo original (HTML completo) está aberto; sobrevive aos refrescos
+// silenciosos da conversa, que voltam a desenhar a lista.
+const _invoiceOriginalOpen = new Set();
+
+// Texto legível de um email em HTML: parágrafos, quebras de linha, listas e
+// links (só http(s)/mailto). Sem imagens (também não carrega píxeis de
+// rastreio), estilos nem scripts — tudo o resto é escapado. As citações das
+// respostas (o email anterior repetido em baixo) saem, porque esse email já
+// aparece na conversa.
+const _MAIL_BLOCKS = new Set(['P', 'DIV', 'TABLE', 'TR', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'BLOCKQUOTE',
+  'SECTION', 'ARTICLE', 'HEADER', 'FOOTER', 'CENTER', 'PRE', 'HR', 'ADDRESS', 'DL', 'FIGURE']);
+function mailText(html) {
+  if (!html) return '';
+  const esc = AppModules.invoice.esc;
+  let doc;
+  try { doc = new DOMParser().parseFromString(String(html), 'text/html'); } catch { return ''; }
+  doc.querySelectorAll('style, script, noscript, template, head, title, img, svg, picture, video, audio, iframe, object, '
+    + '.gmail_quote, .gmail_attr, blockquote[type="cite"], .yahoo_quoted, #appendonsend, #divRplyFwdMsg, [style*="display:none"], [style*="display: none"]')
+    .forEach(node => node.remove());
+  let out = '';
+  const walk = parent => {
+    for (const node of parent.childNodes) {
+      if (node.nodeType === 3) { out += esc(node.nodeValue.replace(/\s+/g, ' ')); continue; }
+      if (node.nodeType !== 1) continue;
+      const tag = node.tagName;
+      if (tag === 'BR') { out += '\n'; continue; }
+      if (tag === 'A') {
+        const href = (node.getAttribute('href') || '').trim();
+        const label = node.textContent.replace(/\s+/g, ' ').trim();
+        if (label && /^(https?:|mailto:)/i.test(href)) {
+          out += `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`;
+          continue;
+        }
+      }
+      if (tag === 'LI') { out += '\n• '; walk(node); continue; }
+      const block = _MAIL_BLOCKS.has(tag);
+      if (block) out += '\n\n';
+      walk(node);
+      if (block) out += '\n\n';
+      else if (tag === 'TD' || tag === 'TH') out += ' ';
+    }
+  };
+  walk(doc.body || doc.documentElement);
+  return out.split(/\n{2,}/)
+    .map(par => par.split('\n').map(line => line.trim()).filter(Boolean).join('<br>'))
+    .filter(Boolean)
+    .map(par => `<p>${par}</p>`)
+    .join('');
+}
+
+function toggleInvoiceOriginal(el, idx) {
+  const m = AppModules.invoice._invoiceCurrentMessages[idx];
+  const area = el.closest('.invoice-messages-area');
+  if (!m || !area) return;
+  if (_invoiceOriginalOpen.has(m.id)) _invoiceOriginalOpen.delete(m.id); else _invoiceOriginalOpen.add(m.id);
+  const top = area.scrollTop;
+  _renderInvoiceMessages(area, _invoiceNeedsReauth);
+  area.scrollTop = top;
+  if (window.lucide) lucide.createIcons();
 }
 
 function renderInvoiceAttachments(atts, gmailMessageId) {
@@ -342,6 +438,7 @@ AppActions.register({
 
 AppActions.register({
   "historico-reply-to-invoice-message-171e160": (el, event, args) => { replyToInvoiceMessage(args[0]) },
+  "historico-toggle-original": (el, event, args) => { toggleInvoiceOriginal(el, args[0]) },
   "historico-archive-invoice-thread-cdd75e1": (el, event, args) => { AppModules.invoice.archiveInvoiceThread(args[0],args[1]) },
   "historico-restore-invoice-thread-adcb894": (el, event, args) => { AppModules.invoice.restoreInvoiceThread(args[0]) },
   "historico-delete-invoice-thread-history-917ed4c": (el, event, args) => { AppModules.invoice.deleteInvoiceThreadHistory(args[0],args[1],args[2]) },

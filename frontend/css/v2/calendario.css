@@ -73,3 +73,30 @@ html[data-look="classico"] :is(#view-calendario, #view-eventos)[data-v2] .agenda
   html[data-look] #view-calendario[data-v2] .calendar-agenda-mobile .agenda-reservation-name { font-size: 15px; }
   html[data-look] #view-calendario[data-v2] .calendar-agenda-mobile .agenda-reservation-meta { font-size: 13px; color: var(--v2-muted); }
 }
+
+/* ── Hoje ──
+   Destaque leve mas legível em todas as vistas de calendário: a célula do dia
+   (e a coluna, na timeline) fica com um tom muito claro da cor de destaque, o
+   número em círculo cheio e, em ecrã grande, a palavra «Hoje» no canto. */
+html[data-look] #view-eventos[data-v2] .cal-day.today { background: color-mix(in srgb, var(--v2-accent) 7%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--v2-accent) 22%, transparent); }
+html[data-look] #view-eventos[data-v2] .cal-day.today:hover { background: color-mix(in srgb, var(--v2-accent) 11%, transparent); }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .cal-day.today .day-num { font-weight: 700; }
+/* No Calendário o dia e as barras estão em camadas diferentes: o fundo é uma
+   coluna própria (.cal-today-col) por trás de tudo, da linha do dia ao fim da semana. */
+html[data-look] #view-calendario[data-v2] .cal-today-col {
+  display: block; position: absolute; top: 0; bottom: 0; z-index: 0; pointer-events: none; border-radius: 10px;
+  background: color-mix(in srgb, var(--v2-accent) 7%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--v2-accent) 20%, transparent);
+}
+html[data-look] #view-calendario[data-v2] .cal-day.today:not(:hover) { background: transparent; }
+@media (min-width: 901px) {
+  html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .cal-day.today::after {
+    content: 'Hoje'; position: absolute; top: 11px; right: 10px; pointer-events: none;
+    color: var(--v2-accent); font: 700 10.5px/1 var(--v2-font); letter-spacing: .06em; text-transform: uppercase;
+  }
+}
+/* Timeline: cabeçalho do dia marcado por baixo e a coluna toda num tom claro. */
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .tl-day-head.tl-today { background: color-mix(in srgb, var(--v2-accent) 12%, transparent); box-shadow: inset 0 -2px 0 var(--v2-accent); }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .tl-day-head.tl-today :is(.tl-day-name, .tl-day-num) { color: var(--v2-accent); }
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .tl-cell.tl-today-col { background: color-mix(in srgb, var(--v2-accent) 6%, transparent); }
+/* Agenda do telemóvel / painel do dia. */
+html[data-look] :is(#view-calendario, #view-eventos)[data-v2] .agenda-date.is-today:not([aria-pressed="true"]) { border-color: var(--v2-accent); color: var(--v2-accent); background: color-mix(in srgb, var(--v2-accent) 7%, transparent); font-weight: 700; }
