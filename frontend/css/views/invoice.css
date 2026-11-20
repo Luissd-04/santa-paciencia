@@ -375,99 +375,109 @@
   background: var(--bg-secondary, #f5f0eb);
 }
 
-/* ── Mensagens: um cartão por email com o assunto, o texto e os anexos ──
-   O email não é desenhado como foi enviado/recebido (template de marca,
-   botões, cores): fica só o texto, legível e no tipo de letra da aplicação.
-   «Ver original» abre o HTML completo num iframe isolado, quando é preciso. */
-.invoice-mail {
-  width: 100%;
-  max-width: 760px;
-  align-self: center;
-  padding: 14px 18px 16px;
-  border: 1px solid var(--border, #e8ddd0);
-  border-radius: 12px;
-  background: var(--bg-card, #fff);
-  color: var(--texto, #2a1810);
+/* ── Histórico em conversa ──
+   Linha do tempo à esquerda com os dias; em cada dia, os emails recebidos à
+   esquerda e os enviados à direita, só com o texto (sem o desenho do email). */
+.im-day {
+  position: relative;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  column-gap: 14px;
+  padding-bottom: 18px;
 }
-.invoice-mail--sent { border-left: 3px solid var(--marca, #843424); }
+/* A linha vertical que liga os dias. */
+.im-day::before {
+  content: '';
+  position: absolute;
+  left: 28px;
+  top: 66px;
+  bottom: 4px;
+  width: 1px;
+  background: var(--border, #e8ddd0);
+}
+.im-day:last-child::before { display: none; }
+.im-day-mark {
+  align-self: start;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 0 0 6px;
+  color: var(--cinza, #6b6460);
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+  z-index: 1;
+}
+.im-day-dot {
+  width: 9px;
+  height: 9px;
+  margin: 2px 0 5px;
+  border-radius: 50%;
+  background: var(--marca, #843424);
+}
+.im-day-mark b { color: var(--texto, #2a1810); font-size: 17px; font-weight: 600; }
+.im-day-mark small { font-size: 10.5px; text-transform: lowercase; opacity: .8; }
 
-.im-head {
+.im-day-msgs { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding-top: 2px; }
+
+.im-msg { display: flex; flex-direction: column; max-width: min(560px, 82%); }
+.im-msg--received { align-self: flex-start; align-items: flex-start; }
+.im-msg--sent { align-self: flex-end; align-items: flex-end; }
+
+.im-bubble {
+  padding: 9px 13px;
+  border-radius: 14px;
+  background: var(--bg-card, #fff);
+  box-shadow: inset 0 0 0 1px var(--border, #e8ddd0);
+  color: var(--texto, #2a1810);
+  font-size: 13.5px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.im-msg--received .im-bubble { border-bottom-left-radius: 4px; }
+.im-msg--sent .im-bubble { border-bottom-right-radius: 4px; background: var(--marca-light, #fdf4f2); box-shadow: none; }
+
+.im-subject { margin-bottom: 3px; font-size: 12px; font-weight: 600; opacity: .75; }
+.im-text p { margin: 0 0 6px; }
+.im-text p:last-child { margin-bottom: 0; }
+.im-text a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.im-text-empty { font-style: italic; opacity: .7; }
+
+.im-foot {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 26px;
-  font-size: 12px;
+  gap: 10px;
+  margin-top: 3px;
+  padding: 0 4px;
   color: var(--cinza, #6b6460);
+  font-size: 11px;
 }
-.im-dir { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
-.im-dir b { color: var(--texto, #2a1810); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.im-dir-tag {
-  flex-shrink: 0;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--bg-secondary, #f5f0eb);
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-.invoice-mail--sent .im-dir-tag { background: var(--marca-light, #fdf4f2); color: var(--marca, #843424); }
-.im-date { margin-left: auto; white-space: nowrap; }
-
-.im-reply-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 9px;
-  border: 1px solid var(--border, #e8ddd0);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--cinza, #6b6460);
-  font: inherit;
-  font-size: 11.5px;
-  cursor: pointer;
-}
-.im-reply-btn:hover { color: var(--marca, #843424); border-color: currentColor; }
-
-.im-subject {
-  margin: 8px 0 6px;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.im-text {
-  font-size: 13.5px;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-.im-text p { margin: 0 0 8px; }
-.im-text p:last-child { margin-bottom: 0; }
-.im-text a { color: var(--marca, #843424); text-decoration: underline; text-underline-offset: 2px; }
-.im-text-empty { color: var(--cinza, #6b6460); font-style: italic; }
-
-.im-original-btn {
-  margin-top: 10px;
+.im-link {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--cinza, #6b6460);
+  color: inherit;
   font: inherit;
-  font-size: 11.5px;
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
+  opacity: .8;
 }
-.im-original-btn:hover { color: var(--marca, #843424); }
-.im-original { margin-top: 8px; border: 1px solid var(--border, #e8ddd0); border-radius: 10px; overflow: hidden; }
+.im-link:hover { opacity: 1; color: var(--marca, #843424); }
+.im-original { width: 100%; min-width: min(480px, 70vw); margin-top: 6px; border: 1px solid var(--border, #e8ddd0); border-radius: 10px; overflow: hidden; }
+
+@media (max-width: 640px) {
+  .im-day { grid-template-columns: 40px minmax(0, 1fr); column-gap: 8px; }
+  .im-day::before { left: 19px; }
+  .im-msg { max-width: 92%; }
+}
 
 /* ── Anexos ── */
 .ib-attachments {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .ib-attachment {
@@ -616,6 +626,11 @@
   max-height: 260px;
   border-radius: 0 0 8px 8px;
 }
+
+/* Resposta compacta enquanto está vazia e sem foco: só a linha para escrever,
+   para o histórico ter mais espaço. Ao clicar abre o assunto e a formatação. */
+.invoice-compose-area:not(:focus-within):has(#ica-subject:placeholder-shown):has(#ica-body:empty) :is(#ica-subject, .compose-fmt-toolbar, .ica-footer) { display: none; }
+.invoice-compose-area:not(:focus-within):has(#ica-subject:placeholder-shown):has(#ica-body:empty) #ica-body { min-height: 0; border-radius: 8px; padding-block: 10px; cursor: text; }
 
 .compose-body-editor:empty:before {
   content: attr(data-placeholder);

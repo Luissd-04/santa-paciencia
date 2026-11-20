@@ -175,25 +175,53 @@ function _renderInvoiceMessages(area, needsReauth) {
     return;
   }
 
+  // Histórico em conversa: uma linha do tempo à esquerda com os dias e, em
+  // cada dia, os emails recebidos à esquerda e os enviados à direita. Só o
+  // texto (sem o desenho do email); o assunto aparece quando muda.
   const esc = AppModules.invoice.esc;
-  area.innerHTML = AppModules.invoice._invoiceCurrentMessages.map((m, i) => {
-    const sent = m.direction === 'sent';
-    const body = sent ? _stripEmailChrome(m.body) : m.body;
-    const text = mailText(body);
-    const original = _invoiceOriginalOpen.has(m.id);
+  const msgs = AppModules.invoice._invoiceCurrentMessages;
+  const dayKey = d => { const x = new Date(d); return isNaN(x) ? '' : `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`; };
+  const subjectKey = sub => String(sub || '').replace(/^\s*((re|fw|fwd|enc|res)\s*:\s*)+/i, '').trim().toLowerCase();
+  const groups = [];
+  msgs.forEach((m, i) => {
+    const key = dayKey(m.date);
+    if (!groups.length || groups[groups.length - 1].key !== key) groups.push({ key, date: m.date, items: [] });
+    groups[groups.length - 1].items.push({ m, i });
+  });
+  area.innerHTML = groups.map(g => {
+    const d = new Date(g.date);
+    const valid = !isNaN(d);
+    const thisYear = valid && d.getFullYear() === new Date().getFullYear();
     return `
-    <article class="invoice-mail invoice-mail--${sent ? 'sent' : 'received'}">
-      <header class="im-head">
-        <span class="im-dir"><span class="im-dir-tag">${sent ? 'Enviado' : 'Recebido'}</span><b>${esc(m.author)}</b></span>
-        <time class="im-date">${AppModules.invoice.fmtDateTime(m.date)}</time>
-        ${m.messageIdHeader ? `<button class="im-reply-btn" type="button" title="Responder a esta mensagem" ${AppActions.attrs("click", "historico-reply-to-invoice-message-171e160", [i])}><i data-lucide="corner-up-left" style="width:12px;height:12px;"></i> Responder</button>` : ''}
-      </header>
-      <h3 class="im-subject">${esc(m.subject || '(sem assunto)')}</h3>
-      <div class="im-text">${text || '<p class="im-text-empty">Sem texto — veja o email original.</p>'}</div>
-      ${m.attachments?.length ? renderInvoiceAttachments(m.attachments, m.gmailMessageId) : ''}
-      ${body ? `<button type="button" class="im-original-btn" aria-expanded="${original}" ${AppActions.attrs("click", "historico-toggle-original", [i])}>${original ? 'Esconder email original' : 'Ver email original'}</button>` : ''}
-      ${original ? `<div class="im-original">${AppModules.invoice.renderEmailBodySandboxed(body)}</div>` : ''}
-    </article>`;
+    <section class="im-day" aria-label="${valid ? d.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''}">
+      <div class="im-day-mark" aria-hidden="true">
+        <span class="im-day-dot"></span>
+        ${valid ? `<b>${d.getDate()}</b><span>${d.toLocaleDateString('pt-PT', { month: 'short' }).replace('.', '')}${thisYear ? '' : ' ' + d.getFullYear()}</span><small>${d.toLocaleDateString('pt-PT', { weekday: 'short' }).replace('.', '')}</small>` : ''}
+      </div>
+      <div class="im-day-msgs">${g.items.map(({ m, i }) => {
+        const sent = m.direction === 'sent';
+        const body = sent ? _stripEmailChrome(m.body) : m.body;
+        const text = mailText(body);
+        const prev = msgs[i - 1];
+        const showSubject = m.subject && (!prev || subjectKey(prev.subject) !== subjectKey(m.subject));
+        const original = _invoiceOriginalOpen.has(m.id);
+        const time = valid ? new Date(m.date).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }) : '';
+        return `
+        <article class="im-msg im-msg--${sent ? 'sent' : 'received'}">
+          <div class="im-bubble">
+            ${showSubject ? `<div class="im-subject">${esc(m.subject)}</div>` : ''}
+            <div class="im-text">${text || '<p class="im-text-empty">Email sem texto.</p>'}</div>
+            ${m.attachments?.length ? renderInvoiceAttachments(m.attachments, m.gmailMessageId) : ''}
+          </div>
+          <div class="im-foot">
+            <span>${esc(m.author)}${time ? ' · ' + time : ''}</span>
+            ${m.messageIdHeader ? `<button class="im-link" type="button" ${AppActions.attrs("click", "historico-reply-to-invoice-message-171e160", [i])}>Responder</button>` : ''}
+            ${!text && body ? `<button type="button" class="im-link" aria-expanded="${original}" ${AppActions.attrs("click", "historico-toggle-original", [i])}>${original ? 'Esconder original' : 'Ver original'}</button>` : ''}
+          </div>
+          ${original && !text ? `<div class="im-original">${AppModules.invoice.renderEmailBodySandboxed(body)}</div>` : ''}
+        </article>`;
+      }).join('')}</div>
+    </section>`;
   }).join('');
 
   if (needsReauth) {
