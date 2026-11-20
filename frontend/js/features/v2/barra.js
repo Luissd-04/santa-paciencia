@@ -86,6 +86,7 @@ function prepararMenu() {
       `<button type="button" class="v2d-search" data-on-click="v2-menu-pesquisar">${ic('search', 17)}<span>Pesquisar hóspede, reserva…</span></button>`);
     drawer.insertAdjacentHTML('beforeend', `<div class="v2d-foot">
         <span class="v2d-modes-slot"></span>
+        <div class="v2d-row"><button type="button" class="btn btn-ghost v2d-ajuda" data-on-click="v2-menu-ajuda">${ic('circle-help', 16)} Ajuda e feedback<span class="nav-badge" data-nav-badge="ajuda" style="display:none;"></span></button></div>
         <div class="v2d-row"><button type="button" class="btn btn-ghost" data-on-click="v2-menu-definicoes">${ic('settings', 16)} Definições</button>
           <button type="button" class="btn btn-ghost" data-on-click="index-close-side-drawer-4a3b8ba">${ic('log-out', 16)} Sair</button></div>
       </div>`);
@@ -93,6 +94,7 @@ function prepararMenu() {
   const avatar = document.getElementById('side-drawer-avatar');
   if (avatar) avatar.textContent = core().initials(core().currentUser?.name || '?');
   drawer.querySelector('.v2d-modes-slot').innerHTML = modesHtml();
+  core().setNavBadge('ajuda', core().supportSummary?.unread, Number(core().supportSummary?.needs_customer) > 0);
   // Avisos por ler ao lado de «Notificações», como no sino.
   const bell = document.getElementById('notif-badge');
   const unread = bell && bell.style.display !== 'none' ? bell.textContent : '';
@@ -120,7 +122,10 @@ function abrirConta(anchor) {
     sub: user.email || '',
     lead: `<span class="v2-av v2f-av">${esc(core().initials(user.name || '?'))}</span>`,
     body: `${orgs ? `<div class="v2k-orgs">${orgs}</div>` : ''}${modesHtml()}
-      <div class="v2c-list">${[['user-round', 'A minha conta', 'v2-conta-perfil'], ['monitor-smartphone', 'Sessões ativas', 'v2-conta-sessoes'], ['settings', 'Definições', 'v2-conta-definicoes'], ['log-out', 'Sair', 'index-logout-34b5979']]
+      <div class="v2c-list">${[['user-round', 'A minha conta', 'v2-conta-perfil'], ['monitor-smartphone', 'Sessões ativas', 'v2-conta-sessoes'],
+        // Só para o dono da instância (a API volta a confirmar).
+        ...(user.is_platform_admin === true ? [['layout-list', 'Consola da plataforma', 'v2-conta-plataforma']] : []),
+        ['settings', 'Definições', 'v2-conta-definicoes'], ['log-out', 'Sair', 'index-logout-34b5979']]
         .map(([icon, label, action]) => `<button type="button" data-on-click="${action}">${ic(icon, 18)}<span>${label}</span></button>`).join('')}</div>`,
   });
 }
@@ -172,6 +177,7 @@ AppActions.register({
   'v2-sino-push': () => { v2().fecharFolha(); return AppModules.notificacoes.openPushSettings(); },
   'v2-sino-todas': () => { v2().fecharFolha(); core().showView('notificacoes'); },
   'v2-menu-pesquisar': () => pesquisar(),
+  'v2-menu-ajuda': () => { core().closeSideDrawer(); core().showView('ajuda'); },
   'v2-menu-definicoes': () => { core().closeSideDrawer(); core().showView('definicoes'); },
   'v2-menu-modo': async (el, event, args) => {
     await core().featureAction('saveAppearance', { ...window.AppAppearance.current(), mode: args[0] });
@@ -180,6 +186,7 @@ AppActions.register({
   'v2-conta-perfil': () => { v2().fecharFolha(); core().openProfileModal(); },
   'v2-conta-sessoes': () => { v2().fecharFolha(); core().openSessionsModal(); },
   'v2-conta-definicoes': () => { v2().fecharFolha(); core().showView('definicoes'); },
+  'v2-conta-plataforma': () => { location.href = '/plataforma'; },
 }, 'click');
 AppActions.register({
   'v2-criar-talao': el => lerTalao(el),

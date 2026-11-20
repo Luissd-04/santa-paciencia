@@ -88,7 +88,8 @@ Depois de `/api`, a sessão é obrigatória. As famílias autenticadas são:
 ```text
 reservations  accommodations  calendar  guests  email-templates
 expenses      suppliers       backup    team      reports
-events        vouchers        tasks     push
+events        vouchers        tasks     push      platform
+support       announcements
 ```
 
 Os detalhes de cada endpoint devem ser obtidos nas respetivas rotas. Esta lista
@@ -106,6 +107,7 @@ e correm pelo executor único (`services/taskRunner.js`):
 | `google_calendar` | 1 min | Repetições pendentes do Google Calendar |
 | `email` | 1 h | Emails pela estadia na hora: emite `email.due` |
 | `daily_summary` | 15 min | Resumo diário por push, uma vez por dia |
+| `platform_stats` | 1 h | Totais diários por organização para a consola da plataforma (hoje e ontem); apaga o que tem mais de 400 dias |
 
 Cada execução usa reserva de execução (`scheduler_leases`, `task:<nome>`): com
 mais do que uma instância sobre a mesma base, só uma corre a tarefa e as outras
@@ -147,10 +149,52 @@ num só processo, como o resto da instância.
   backups), servidos com `nosniff`;
 - subscrições push aceites apenas para serviços de push dos browsers.
 
+As contas só de plataforma (dono da instância sem organização) entram com uma
+sessão sem `organization_id`. O `requireAuth` bloqueia essa sessão de forma
+central: fora de `/api/platform/*`, `/api/telemetry` e `/auth/*`, qualquer
+`/api/*` responde 403 com `platform_only`. Ou seja, só serve a consola.
+
+Uma organização suspensa (`status = 'suspended'`) deixa de contar nas
+memberships ativas, e todos os pedidos da sessão dessa organização respondem
+403 com `suspended`. Quem só tem organizações suspensas também não consegue
+entrar.
+
+Os limites de alojamentos e de membros do pacote aplicam-se ao criar um
+alojamento, ao convidar uma pessoa e ao aceitar um convite. Os convites por
+aceitar contam como membros já prometidos. Quem atinge o limite recebe 403 com
+`limit`. As organizações sem pacote não têm limites.
+
+`GET /auth/public-stats`, sem sessão, devolve só totais da instância dos últimos 7 dias (reservas criadas e emails enviados) e o
+total atual de alojamentos. Tem cache de 10 minutos e rate limit próprio.
+
 Papéis: `staff` consulta e opera o dia a dia (reservas, hóspedes, eventos,
 check-in/out); `manager` gere reservas, pagamentos, alojamentos, despesas,
 modelos de email e definições da organização, e apaga hóspedes/reservas;
 `owner` gere equipa e backups.
+
+Consola da plataforma (`/api/platform`): só para o dono da instância. O acesso
+exige `users.platform_admin = 1`, dado só por script, e o email em
+`PLATFORM_ADMIN_EMAILS`. A palavra-passe é pedida de novo e a consola fica aberta
+30 minutos por sessão, com limite de 5 tentativas falhadas por 15 minutos. A
+consola é uma página própria (`frontend/plataforma.html`, `frontend/js/plataforma/`),
+servida em `/plataforma`, que segue o aspeto da conta e usa o Clássico quando a
+conta está na V1. As ações ficam em `platform_audit_events`. A API devolve apenas metadados (contagens,
+datas e estados), nunca dados pessoais. Para quem não é admin, as rotas respondem
+como um endpoint inexistente. A utilização (`POST /api/telemetry`) guarda só
+totais diários de páginas abertas por organização, sem utilizador nem IP. Os
+utilizadores ativos contam-se no acesso (`daily_activity`, 400 dias): o
+`user_id` só serve para contar pessoas distintas e nunca sai da base. Os
+problemas da instância (tarefas automáticas, disco) e os pedidos de suporte sem
+resposta há mais de 24 horas são avisados só aos admins da plataforma
+(`opsAlerts`, `platformNotifier`), nunca às organizações.
+
+Suporte: cada pessoa vê apenas os seus pedidos; owner e manager veem os da
+organização, e a consola da plataforma vê todos. Os anexos são PNG, JPEG, WEBP,
+GIF ou PDF até 10 MB, validados pelos primeiros bytes e guardados em
+`data/uploads/support`, fora do `/uploads` público, servidos só a quem tem
+acesso ao pedido. A plataforma responde como «Equipa Santa Paciência». O
+contexto técnico só é guardado se o utilizador o deixar ligado, e nunca inclui o
+IP.
 
 Consultar [Segurança](../SECURITY.md) para operação e reporte.
 

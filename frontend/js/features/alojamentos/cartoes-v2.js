@@ -71,6 +71,16 @@ async function renderAlojamentosV2(ordered) {
   if (!box) return;
   const core = AppModules.core;
   const esc = core.escapeHtml;
+  if (!(core.accommodations || []).length) {
+    box.innerHTML = `<div class="av2-empty">
+      <span class="av2-empty-ic" aria-hidden="true">${core.lcIcon('building-2', 28)}</span>
+      <h3>Ainda não tem alojamentos</h3>
+      <p>Crie o primeiro para começar a receber reservas. Pode ser uma casa ou um edifício, e depois acrescentar-lhe quartos ou suites.</p>
+      <button type="button" class="btn btn-primary" data-on-click="index-add-alojamento-ff5f8f7">${core.lcIcon('plus', 16)} Adicionar o primeiro alojamento</button>
+    </div>`;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
   const rates = await loadOccupancy();
   // Um alojamento com unidades é um grupo; sem unidades (casa inteira) é ele
   // próprio um cartão, com as unidades soltas.

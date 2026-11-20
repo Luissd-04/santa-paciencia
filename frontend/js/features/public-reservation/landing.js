@@ -21,7 +21,7 @@ async function init() {
     AppModules.booking.state.captcha = payload.data.captcha || null;
     AppModules.booking.state.onlinePayment = payload.data.online_payment_available === true;
     if (AppModules.booking.state.onlinePayment) {
-      AppModules.booking.$('pb-payment-note').textContent = 'Após criar a reserva, poderá pagar online para confirmar.' + (payload.data.online_payment_test ? ' Modo de teste: não são efetuadas cobranças reais.' : '');
+      AppModules.booking.$('pb-payment-note').textContent = 'Hoje não paga nada. Depois de o alojamento aceitar o pedido, recebe por email o link para pagar o sinal online e tem 48 horas para o fazer.' + (payload.data.online_payment_test ? ' Modo de teste: não são efetuadas cobranças reais.' : '');
     }
     const paymentPolicy = payload.data.payment_policy;
     if (paymentPolicy?.enabled && document.getElementById('pb-policy')) {
@@ -87,16 +87,6 @@ function allImages() {
 function renderLanding() {
   const p = AppModules.booking.state.property;
   document.title = `Reservar ${p.name}`;
-  AppModules.booking.$('property-name').textContent = p.name;
-  const location = [p.city, p.country].filter(Boolean).join(' · ') || 'Reserva online';
-  AppModules.booking.$('property-location').textContent = location;
-  AppModules.booking.$('property-description').textContent = p.description || 'Escolha as datas e envie o pedido de reserva. Confirmaremos a disponibilidade o mais rapidamente possível.';
-  const imgs = allImages();
-  const fallback = 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=80';
-  AppModules.booking.$('ambient-bg').style.backgroundImage = `url(${JSON.stringify(imgs[0] ? AppModules.booking.mediaThumb(imgs[0], 1600) : fallback)})`;
-  renderRail('gallery-top', imgs.length ? imgs : [fallback]);
-  renderRail('gallery-bottom', imgs.length ? imgs.slice().reverse() : [fallback]);
-  rotateBackground();
   renderUnits();
   AppModules.booking.novo?.afterLanding();
   const rgpdBox = AppModules.booking.$('rgpd-text-box');
@@ -107,27 +97,12 @@ function renderLanding() {
   }
 }
 
-function rotateBackground() {
-  const now = Date.now();
-  if (now - AppModules.booking.state.lastBgChange < 8000) return;
-  const pool = allImages();
-  if (!pool.length) return;
-  AppModules.booking.state.bgIndex = (AppModules.booking.state.bgIndex + 1) % pool.length;
-  AppModules.booking.$('ambient-bg').style.backgroundImage = `url(${JSON.stringify(AppModules.booking.mediaThumb(pool[AppModules.booking.state.bgIndex], 1600))})`;
-  AppModules.booking.state.lastBgChange = now;
-  setTimeout(rotateBackground, 8000);
-}
-
-function renderRail(id, imgs) {
-  const rail = AppModules.booking.$(id);
-  if (!imgs.length) return;
-  const doubled = [...imgs, ...imgs, ...imgs, ...imgs].slice(0, Math.max(16, imgs.length * 3));
-  rail.innerHTML = doubled.map(url => `<img class="rail-img" src="${AppModules.booking.escapeHtml(AppModules.booking.mediaThumb(url, 480) || url)}" alt="" loading="lazy" decoding="async">`).join('');
-  rail.classList.remove('paused');
-  void rail.offsetHeight;
-  rail.style.animation = 'none';
-  void rail.offsetHeight;
-  rail.style.animation = '';
+// Fotografia do cartão; sem fotografia, um fundo liso (nunca uma imagem partida).
+function unitPhoto(url) {
+  const src = url && AppModules.booking.safeMediaUrl(url) ? AppModules.booking.mediaThumb(url, 1024) : '';
+  return src
+    ? `<img src="${AppModules.booking.escapeHtml(src)}" alt="" loading="lazy" decoding="async">`
+    : '<img class="unit-photo-empty" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">';
 }
 
 function availabilityFor(unitId) {
@@ -184,7 +159,7 @@ function renderUnits() {
 
   const propertyCard = `
     <div class="unit-card ${propertySelected ? 'selected' : ''} ${propertyBlocked ? 'blocked' : ''} property-card" data-unit="property">
-      <img src="${AppModules.booking.escapeHtml(AppModules.booking.mediaThumb(AppModules.booking.state.property?.images?.[0]?.url, 1024))}" alt="" loading="lazy" decoding="async">
+      ${unitPhoto(AppModules.booking.state.property?.images?.[0]?.url)}
       <div>
         <h4>${AppModules.booking.escapeHtml(AppModules.booking.state.property?.name || 'Alojamento completo')}</h4>
         <p>${AppModules.booking.escapeHtml(propertyReason)}</p>
@@ -219,7 +194,7 @@ function renderUnits() {
 
     return `
       <div class="unit-card ${selected ? 'selected' : ''} ${blocked ? 'blocked' : ''}" data-unit="${AppModules.booking.escapeHtml(unit.id)}">
-        <img src="${AppModules.booking.escapeHtml(AppModules.booking.mediaThumb(unit.cover_image || unit.images?.[0]?.url, 1024))}" alt="" loading="lazy" decoding="async">
+        ${unitPhoto(unit.cover_image || unit.images?.[0]?.url)}
         <div>
           <h4>${AppModules.booking.escapeHtml(unit.name)}</h4>
           ${descHtml}

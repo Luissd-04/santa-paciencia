@@ -36,13 +36,20 @@ runner.register('daily_summary', {
   intervalMs: fromEnv('PUSH_SUMMARY_INTERVAL_MS', 15 * MINUTE),
   run: () => require('./pushScheduler').sendDailySummaries(),
 });
+runner.register('trial_followups',{label:'Acompanhamento dos acessos de teste',intervalMs:60*MINUTE,run:()=>require('./platformTrials').followups()});
+runner.register('support_retention', { label: 'Conservação dos pedidos de suporte', intervalMs: 60 * MINUTE, run: () => require('./platformSupportTools').cleanup() });
+runner.register('platform_stats', {
+  label: 'Estatísticas da plataforma',
+  intervalMs: fromEnv('PLATFORM_STATS_INTERVAL_MS', 60 * MINUTE),
+  run: () => require('./usageTelemetry').refreshDailyStats(),
+});
 
 function start() {
   // Uma vez, no arranque: acerto dos estados migrados (20261025_reservation_states).
   try { require('./reservationLifecycle').reconcileLegacyStatuses(); }
   catch (error) { console.error('Acerto dos estados das reservas falhou:', error.message); }
   runner.start();
-  console.log('⏰ Tarefas automáticas ativas (manutenção, Google, emails, alertas, resumo diário)');
+  console.log('⏰ Tarefas automáticas ativas (manutenção, Google, emails, alertas, resumo diário, estatísticas)');
 }
 
 module.exports = { start, stop: runner.stop, status: runner.status, runTask: runner.runTask };

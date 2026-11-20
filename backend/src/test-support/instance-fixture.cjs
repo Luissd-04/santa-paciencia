@@ -77,6 +77,13 @@ async function seed() {
   fs.mkdirSync('data/uploads/receipts', { recursive: true });
   fs.writeFileSync('data/uploads/restore-cover.png', cover);
   fs.writeFileSync('data/uploads/receipts/restore-receipt.png', receipt);
+  // Anexo de um pedido de suporte (fora do /uploads público): também faz parte da instância.
+  const supportName = '5b1c0a52-7d0e-4c58-9f0a-3a6d1a2b9c11.png';
+  fs.mkdirSync('data/uploads/support', { recursive: true });
+  fs.writeFileSync(`data/uploads/support/${supportName}`, receipt);
+  db.prepare("INSERT INTO support_tickets(id, number, organization_id, type, subject) VALUES ('restore-ticket', 1, ?, 'question', 'Pedido do ensaio')").run(org.id);
+  db.prepare("INSERT INTO support_messages(id, ticket_id, side, body) VALUES ('restore-msg', 'restore-ticket', 'customer', 'Olá')").run();
+  db.prepare("INSERT INTO support_attachments(id, message_id, ticket_id, original_name, mime, size, stored_name) VALUES ('restore-att', 'restore-msg', 'restore-ticket', 'print.png', 'image/png', ?, ?)").run(receipt.length, supportName);
   db.prepare(`INSERT INTO accommodations(id, organization_id, name, type, price_per_night, max_guests, cover_image)
     VALUES ('restore-unit', ?, 'Casa do ensaio', 'alojamento', 100, 4, '/uploads/restore-cover.png')`).run(org.id);
   db.prepare(`INSERT INTO vouchers(id, organization_id, code, type, value, status, max_uses) VALUES ('restore-v', ?, 'RESTORE10', 'discount_pct', 10, 'active', 5)`).run(org.id);
@@ -117,7 +124,7 @@ async function seed() {
   const vapid = push.getPublicKey();
   const expected = {
     org: org.id, owner: owner.id, session, password: PASSWORD, emails: ['restore-owner@example.invalid', 'restore-staff@example.invalid'],
-    summary: summary(org.id), vapid, uploads: { '/uploads/restore-cover.png': sha(cover), '/uploads/receipts/restore-receipt.png': sha(receipt) },
+    summary: summary(org.id), vapid, support_file: { name: supportName, sha: sha(receipt) }, uploads: { '/uploads/restore-cover.png': sha(cover), '/uploads/receipts/restore-receipt.png': sha(receipt) },
     token_hashes: Object.fromEntries(Object.entries(tokens).map(([key, value]) => [key, sha(JSON.stringify(value))])),
     // Só para o verificador procurar fugas nos registos: nunca impresso.
     secrets: [...Object.values(tokens).flatMap(value => Object.values(value)), 'Hóspede Sintético', 'restore-guest-'],
@@ -149,6 +156,7 @@ async function check() {
       const response = await call(base, cookie, 'GET', url);
       result.uploads[url] = response.status === 200 && sha(response.body) === hash;
     }
+    result.support_file = fs.existsSync(`data/uploads/support/${expected.support_file.name}`) && sha(fs.readFileSync(`data/uploads/support/${expected.support_file.name}`)) === expected.support_file.sha;
     result.anonymous_receipt = (await call(base, '', 'GET', '/uploads/receipts/restore-receipt.png')).status;
     // Sessões também são restauradas: o procedimento manda revogá-las.
     result.previous_session = (await call(base, `${auth.SESSION_COOKIE}=${expected.session}`, 'GET', '/auth/me')).status;

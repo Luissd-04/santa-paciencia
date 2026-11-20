@@ -2,7 +2,10 @@
 
 Plataforma de operação de alojamento local. Centraliza reservas, alojamentos,
 hóspedes, calendário, preços, despesas, fornecedores, equipa, comunicações,
-vouchers, relatórios e tarefas operacionais.
+vouchers, relatórios e tarefas operacionais. Inclui ainda uma consola da
+plataforma para o dono da instância: clientes, utilização, incidentes, suporte, tarefas internas,
+comunicados, pacotes e registo. A app tem também «Ajuda e feedback», para a equipa falar com a
+plataforma.
 
 ## Estado do projeto
 
@@ -80,6 +83,12 @@ hóspedes, tokens OAuth ou a chave de encriptação no repositório.
 
 ## Documentação
 
+- [Ambiente de testes separado no TrueNAS](docs/AMBIENTE-TESTES-TRUENAS.md)
+
+- [Áreas internas, Comercial e acessos de teste](docs/CONSOLA-AREAS.md)
+
+- [Consola — lote C, estabelecimentos, papéis e conservação](docs/CONSOLA-LOTE-C.md)
+
 - [Arquitetura e módulos](docs/ARQUITETURA.md)
 - [Operações, configuração e recuperação](docs/OPERACOES.md)
 - [Roadmap de produto](docs/ROADMAP.md)
@@ -92,8 +101,14 @@ hóspedes, tokens OAuth ou a chave de encriptação no repositório.
 - [Sincronização com Google Calendar](docs/GOOGLE-CALENDAR.md)
 - [Âmbito V1/V2](docs/ESCOPO-V1-V2.md) e [fecho da V1 — 24 de outubro](docs/FECHO-V1-2026-10-24.md)
 - [Emails no Gmail para iPhone](docs/EMAIL-GMAIL.md)
+- [Percurso do hóspede: aprovação, sinal com prazo e emails — 19 de novembro](docs/PERCURSO-HOSPEDE-2026-11-19.md)
 
 A documentação de base foi revista em 5 de outubro de 2026; o relatório de
 8 de outubro acrescenta os achados sobre o código local e atualiza prioridades.
 A revisão local não confirma o estado da publicação. Atualizar estas páginas
 no mesmo pull request que alterar arquitetura, operação, segurança ou prioridades.
+
+## Site público
+
+O site de apresentação da plataforma vive em [`site/`](site/README.md): é estático,
+constrói-se com `node site/build.cjs` e verifica-se com `node site/check.cjs`.

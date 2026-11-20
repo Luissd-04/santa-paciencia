@@ -17,6 +17,7 @@ function getTasksOAuth2Client() {
 }
 
 function getStoredTasksTokens(organizationId) {
+  if (!require('../services/orgPolicy').externalAllowed(organizationId)) return null;
   const row = db.prepare(
     'SELECT tokens FROM google_tasks_connections WHERE organization_id = ?'
   ).get(organizationId);

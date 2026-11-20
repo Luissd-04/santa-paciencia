@@ -9,7 +9,9 @@ const events = require('./reservationEvents');
 const state = require('./reservationState');
 const { cents } = require('./money');
 
-const CANCEL_REASONS = ['staff', 'guest', 'ttl', 'nonpayment'];
+const CANCEL_REASONS = ['staff', 'guest', 'ttl', 'nonpayment', 'deposit'];
+// Horas para pagar o sinal depois de a equipa aceitar o pedido.
+const DEPOSIT_TTL_HOURS = Number(process.env.DEPOSIT_TTL_HOURS) || 48;
 
 const load = (organizationId, id) => db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(id, organizationId);
 
@@ -112,6 +114,12 @@ function approve(organizationId, id, { actorUserId = null, origin }) {
     const url = `${origin}/pre-checkin/${token}`;
     db.prepare("UPDATE reservations SET status = 'aguardar_pagamento', updated_at = datetime('now') WHERE id = ? AND organization_id = ?").run(id, organizationId);
     require('./financialLedger').recompute(id, organizationId);
+    // Sem o sinal pago, as datas ficam guardadas só até ao prazo
+    // (reservationScheduler.expireUnpaidDeposits).
+    if (load(organizationId, id).status === 'aguardar_pagamento') {
+      db.prepare('UPDATE reservations SET deposit_deadline = ? WHERE id = ? AND organization_id = ?')
+        .run(new Date(Date.now() + DEPOSIT_TTL_HOURS * 3600000).toISOString(), id, organizationId);
+    }
     recordHistory({ organizationId, reservationId: id, userId: actorUserId, action: 'approved' });
     events.emit('reservation.approved', { organizationId, reservationId: id, actorUserId, payload: { precheckinUrl: url } });
     return { reservation: load(organizationId, id), url };
@@ -149,4 +157,4 @@ function reconcileLegacyStatuses() {
   }).immediate();
 }
 
-module.exports = { CANCEL_REASONS, markCancelled, afterCancel, cancel, context, nextStatus, statusOptions, undoStatus, reactivationStatus, approve, markPrecheckinSent, reconcileLegacyStatuses };
+module.exports = { CANCEL_REASONS, DEPOSIT_TTL_HOURS, markCancelled, afterCancel, cancel, context, nextStatus, statusOptions, undoStatus, reactivationStatus, approve, markPrecheckinSent, reconcileLegacyStatuses };

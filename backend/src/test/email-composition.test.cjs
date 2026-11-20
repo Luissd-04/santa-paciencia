@@ -604,7 +604,7 @@ test('os modelos por omissão cobrem todos os slugs usados pela aplicação', ()
 
 test('o modelo de boas-vindas tem o nome, o Wi-Fi, o check-out e o botão do alojamento', () => {
   const html = unblend(render('apos_checkin', { accommodation: { ...ACCOMMODATION, wifi_name: 'SP_WiFi' } }).html);
-  assert.ok(html.includes('Bem-vindo, Rui'), 'título com o primeiro nome');
+  assert.ok(html.includes('Boas-vindas, Rui'), 'título com o primeiro nome');
   assert.ok(html.includes('>Conhecer o alojamento</a>'), 'botão do alojamento');
   assert.ok(html.includes('>Wi-Fi</td>') && html.includes('>Check-out</td>'), 'Wi-Fi e hora do check-out');
   assert.ok(html.includes('sp-social-block'), 'redes no rodapé');
@@ -622,8 +622,8 @@ test('o modelo de confirmação tem a estadia, o pagamento e o próximo passo', 
 test('sem primeiro nome, o título de boas-vindas usa o nome configurado da organização', () => {
   const settings = { ...SETTINGS, property_name: 'Monte do Cano' };
   const html = unblend(render('apos_checkin', { settings, guest: { name: '', first_name: '', email: 'x@y.invalid' } }).html);
-  assert.ok(html.includes('Bem-vindo à Monte do Cano'));
-  assert.ok(!html.includes('Bem-vindo à Santa Paciência'));
+  assert.ok(html.includes('Boas-vindas a Monte do Cano'));
+  assert.ok(!html.includes('Boas-vindas a Santa Paciência'));
 });
 
 test('um botão terracota no corpo conserva o fundo e a cor do texto', () => {

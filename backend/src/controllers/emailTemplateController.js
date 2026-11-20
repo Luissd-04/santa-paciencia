@@ -7,13 +7,62 @@ const samples = require('../services/emailSamples');
 const { sortTemplates } = samples;
 
 function getAll(req, res) {
+  const orgId = req.user.organization_id;
+  const defaults = require('../config/emailTemplateDefaults').TEMPLATES;
   const templates = db.prepare(`
     SELECT * FROM organization_email_templates
     WHERE organization_id = ?
     ORDER BY rowid
-  `).all(req.user.organization_id);
-  const settings = getEmailSettings(null, req.user.organization_id);
-  res.json({ success: true, data: sortTemplates(templates), settings, blocks: BLOCK_NAMES });
+  `).all(orgId).map(t => ({
+    ...t,
+    // Texto diferente do original (o editor oferece «Repor o texto original»).
+    customized: Boolean(defaults[t.slug]) && (t.subject !== defaults[t.slug].subject || t.body !== defaults[t.slug].body),
+    has_default: Boolean(defaults[t.slug]),
+  }));
+  const settings = getEmailSettings(null, orgId);
+  const gmail = require('../config/googleEmail').getEmailConnectionInfo(orgId);
+  res.json({ success: true, data: sortTemplates(templates), settings, blocks: BLOCK_NAMES,
+    // O editor mostra o remetente real e esconde os avisos da política quando está desligada.
+    sender: { name: settings.property_name || '', email: gmail.email || '' },
+    payment_policy_enabled: Boolean(require('../services/paymentPolicy').getPolicy(orgId).enabled) });
+}
+
+// POST /api/email-templates/:slug/reset — repõe o assunto e o texto originais,
+// com cópia da versão atual (organization_email_templates_backup).
+function reset(req, res) {
+  const orgId = req.user.organization_id;
+  const template = loadTemplate(req);
+  if (!template) return res.status(404).json({ error: 'Template não encontrado' });
+  const original = require('../config/emailTemplateDefaults').TEMPLATES[template.slug];
+  if (!original) return res.status(400).json({ error: 'Este modelo não tem texto original.' });
+  const design = require('../services/emailDesign');
+  design.ensureBackupTable(db);
+  db.transaction(() => {
+    db.prepare(`INSERT INTO organization_email_templates_backup (organization_id, slug, name, subject, body, reason)
+      VALUES (?,?,?,?,?,?)`).run(orgId, template.slug, template.name, template.subject, template.body, 'editor-reset');
+    db.prepare(`UPDATE organization_email_templates SET subject = ?, body = ?, updated_at = datetime('now')
+      WHERE organization_id = ? AND slug = ?`).run(original.subject, original.body, orgId, template.slug);
+  })();
+  res.json({ success: true, data: db.prepare('SELECT * FROM organization_email_templates WHERE organization_id = ? AND slug = ?').get(orgId, template.slug) });
+}
+
+// GET /api/email-templates/preview-reservations?accommodation_id= — reservas
+// reais para a pré-visualização (as próximas e as mais recentes), só da
+// própria organização.
+function previewReservations(req, res) {
+  const orgId = req.user.organization_id;
+  const accommodationId = String(req.query.accommodation_id || '');
+  const ids = accommodationId
+    ? db.prepare('SELECT id FROM accommodations WHERE organization_id = ? AND (id = ? OR parent_id = ?)').all(orgId, accommodationId, accommodationId).map(a => a.id)
+    : null;
+  const filter = ids ? `AND r.accommodation_id IN (${ids.map(() => '?').join(',') || "''"})` : '';
+  const rows = db.prepare(`SELECT r.id, r.status, r.check_in, r.check_out, g.name AS guest_name, a.name AS accommodation_name
+    FROM reservations r JOIN guests g ON g.id = r.guest_id AND g.organization_id = r.organization_id
+    JOIN accommodations a ON a.id = r.accommodation_id AND a.organization_id = r.organization_id
+    WHERE r.organization_id = ? ${filter}
+    ORDER BY CASE WHEN r.check_out >= date('now') THEN 0 ELSE 1 END, ABS(julianday(r.check_in) - julianday('now'))
+    LIMIT 20`).all(orgId, ...(ids || []));
+  res.json({ success: true, data: rows });
 }
 
 function update(req, res) {
@@ -111,8 +160,29 @@ function resolveAccommodationContext(req) {
 // uma reserva pendente.
 const baseUrl = req => `${req.protocol}://${req.get('host')}`;
 function buildPreviewContext(req) {
-  return samples.previewContext(req.user.organization_id, {
-    baseUrl: baseUrl(req), status: req.body?.status, accommodation: resolveAccommodationContext(req),
+  const orgId = req.user.organization_id;
+  // Com uma reserva real: a mesma composição do envio (templateContext).
+  const reservationId = req.body?.reservation_id;
+  if (reservationId) {
+    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(String(reservationId), orgId);
+    if (reservation) {
+      const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(reservation.guest_id, orgId) || {};
+      const raw = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(reservation.accommodation_id, orgId) || {};
+      const accommodation = resolveAccommodationInheritance(raw, orgId);
+      const extra = req.params.slug === 'cancelamento' ? { motivo_cancelamento: 'staff' } : {};
+      const context = require('../services/emailService').templateContext(req.params.slug, guest, reservation, accommodation, extra, orgId);
+      return { ...context, reservation, accommodation };
+    }
+  }
+  const accommodation = resolveAccommodationContext(req);
+  return { ...samples.previewContext(orgId, { baseUrl: baseUrl(req), status: req.body?.status, accommodation }), accommodation };
+}
+
+// O que falta para o email sair (o mesmo critério do envio: emailReadiness).
+function missingFor(req, context) {
+  return require('../services/emailReadiness').missingFor(req.params.slug, {
+    settings: context.settings, accommodation: context.accommodation, organizationId: req.user.organization_id,
+    reservation: req.body?.reservation_id ? context.reservation : null,
   });
 }
 
@@ -159,13 +229,15 @@ function previewHtml(req, res) {
   if (!template) return res.status(404).json({ error: 'Template não encontrado' });
 
   const draft = resolveDraft(req, template);
-  const { settings, vars, blocks } = buildPreviewContext(req);
+  const context = buildPreviewContext(req);
+  const { settings, vars, blocks } = context;
   const rendered = renderEmail({ subject: draft.subject, body: draft.body, vars, blocks, settings });
 
   res.json({
     success: true,
     html: rendered.html,
     subject: rendered.subject,
+    missing: missingFor(req, context),
     lang: draft.lang,
     fallback_lang: draft.fallback_lang,
     missing_translation: draft.missing_translation,
@@ -237,4 +309,4 @@ async function sendSamples(req, res) {
   }
 }
 
-module.exports = { getAll, update, getSettings, saveSettings, preview, previewHtml, sendSamples, _samplesSentAt: samplesSentAt };
+module.exports = { getAll, reset, previewReservations, update, getSettings, saveSettings, preview, previewHtml, sendSamples, _samplesSentAt: samplesSentAt };

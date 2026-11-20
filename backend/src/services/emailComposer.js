@@ -543,10 +543,27 @@ function buildSteps(items) {
 }
 
 // Linha de contacto no fim dos emails ao hóspede.
+// O telefone, opcional, entra só quando o alojamento o tem.
 function buildContactLine(settings) {
   const contact = settings?.email_contact;
   const mail = contact && safeUrl(`mailto:${contact}`);
-  return `<p class="sp-text-soft" style="font-family:${SERIF};font-size:14.5px;line-height:1.6;${textStyle(PALETTE.textSoft)}text-align:center;margin:18px 0 4px;">Dúvidas? Responda a este email${mail ? ` ou escreva para <a href="${attr(mail)}" class="sp-brand-text" style="${textStyle(PALETTE.brand)}">${escapeHtml(contact)}</a>` : ''}.</p>`;
+  const phone = String(settings?.phone || '').trim();
+  const options = [
+    mail ? `escreva para <a href="${attr(mail)}" class="sp-brand-text" style="${textStyle(PALETTE.brand)}">${escapeHtml(contact)}</a>` : '',
+    phone ? `ligue para <strong style="white-space:nowrap;">${escapeHtml(phone)}</strong>` : '',
+  ].filter(Boolean);
+  const tail = options.length ? `, ${options.join(' ou ')}` : '';
+  return `<p class="sp-text-soft" style="font-family:${SERIF};font-size:14.5px;line-height:1.6;${textStyle(PALETTE.textSoft)}text-align:center;margin:18px 0 4px;">Dúvidas? Responda a este email${tail}.</p>`;
+}
+
+// Rótulo de uma secção do corpo («Como chegar», «A seguir»…).
+function buildSectionLabel(text) {
+  return `<p class="sp-muted" style="font-family:${SERIF};font-size:12px;letter-spacing:2px;text-transform:uppercase;${textStyle(PALETTE.muted)}margin:26px 0 8px;">${escapeHtml(text)}</p>`;
+}
+
+// Parágrafo do corpo (texto já escapado ou HTML de confiança do servidor).
+function buildParagraph(html, extra = '') {
+  return `<p class="sp-text" style="font-family:${SERIF};font-size:16px;line-height:1.65;${textStyle(PALETTE.textSoft)}margin:0 0 14px;${extra}">${html}</p>`;
 }
 
 // Título de boas-vindas: centrado, com filete dourado curto por baixo.
@@ -700,7 +717,7 @@ function normalizeBodyParagraph(bodyHtml) {
 // equipa e de conta).
 function composeEmail(bodyHtml, settings, options = {}) {
   const s = settings || {};
-  const title = escapeHtml(options.title || s.property_name || 'Santa Paciência');
+  const title = escapeHtml(options.title || s.property_name || '');
   bodyHtml = normalizeBodyParagraph(bodyHtml);
   return lockColorsForGmail(`<!DOCTYPE html>
 <html lang="pt" class="sp-email-root" style="color-scheme:light only;supported-color-schemes:light;">
@@ -818,6 +835,8 @@ module.exports = {
   buildChecklist,
   buildSteps,
   buildContactLine,
+  buildSectionLabel,
+  buildParagraph,
   buildWelcomeTitle,
   buildReservationTitle,
   buildReservationCard,

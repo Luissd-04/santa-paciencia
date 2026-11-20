@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Plataforma · Santa Paciência</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#843424">
+<!-- A consola tem o seu próprio CSS (abaixo) e segue o aspeto da conta; na V1 usa o Clássico. -->
+<meta name="appearance-styles" content="own">
+<meta name="appearance-fallback" content="classico">
+<link rel="icon" type="image/png" href="/favicon.png?v=2">
+<link rel="apple-touch-icon" href="/img/app/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/v2/aparencia.css">
+<link rel="stylesheet" href="/css/v2/componentes.css">
+<link rel="stylesheet" href="/css/v2/painel.css">
+<link rel="stylesheet" href="/css/v2/plataforma.css">
+<link rel="stylesheet" href="/css/v2/plataforma-atencao.css">
+<link rel="stylesheet" href="/css/v2/plataforma-tarefas.css">
+<link rel="stylesheet" href="/css/v2/plataforma-comunicados.css">
+<link rel="stylesheet" href="/css/v2/plataforma-pacotes.css">
+<link rel="stylesheet" href="/css/v2/plataforma-areas.css">
+<script src="/js/domain/appearance.js"></script>
+<script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js" integrity="sha384-bdZtphetAEBgkGZvhZXOFDWc55tHGLqaSo1f4qZtgvEiolEBqlJ9u6FTk+CoLfj0" crossorigin="anonymous"></script>
+</head>
+<body class="pl-body">
+
+<div class="pl-app">
+  <aside class="pl-side" id="pl-side" aria-label="Navegação da consola">
+    <div class="pl-brand">
+      <span class="pl-mark" aria-hidden="true">S</span>
+      <span class="pl-brand-text"><b>Santa Paciência</b><small>Plataforma</small></span>
+      <button type="button" class="pl-icon-btn pl-close" aria-label="Fechar menu" data-on-click="pl-gaveta-fechar"><i data-lucide="x"></i></button>
+    </div>
+    <nav class="pl-nav" id="pl-nav" aria-label="Áreas de trabalho"></nav>
+    <div class="pl-side-foot">
+      <a class="pl-back" href="/plataforma/definicoes" data-nav="definicoes" data-on-click="pl-ir"><i data-lucide="settings"></i><span>Definições</span></a>
+      <a class="pl-back" href="/dashboard"><i data-lucide="arrow-left"></i><span>Voltar à app</span></a>
+    </div>
+  </aside>
+  <div class="pl-scrim" id="pl-scrim" data-on-click="pl-gaveta-fechar" hidden></div>
+
+  <div class="pl-main" id="pl-main">
+    <header class="pl-top">
+      <button type="button" class="pl-icon-btn pl-burger" id="pl-menu" aria-label="Abrir menu" aria-controls="pl-side" aria-expanded="false" data-on-click="pl-gaveta"><i data-lucide="menu"></i></button>
+      <h1 id="pl-title">Visão geral</h1>
+      <a class="pl-user" href="/plataforma/definicoes" data-on-click="pl-ir" title="Definições da conta">
+        <span class="pl-avatar" id="pl-avatar" aria-hidden="true"></span>
+        <span class="pl-user-copy"><strong id="pl-user-name"></strong><span id="pl-user-mail"></span></span>
+      </a>
+    </header>
+    <main class="view pl-content" id="pl-content" data-v2 tabindex="-1"></main>
+  </div>
+</div>
+<div id="toast-container" class="pl-toasts" aria-live="polite"></div>
+
+<script src="/js/domain/modules.js"></script>
+<script src="/js/state.js"></script>
+<script src="/js/domain/actions.js"></script>
+<script src="/js/helpers.js"></script>
+<script src="/js/domain/libraries.js"></script>
+<script src="/js/plataforma/areas.js"></script>
+<script src="/js/plataforma/api.js"></script>
+<script src="/js/plataforma/format.js"></script>
+<script src="/js/plataforma/graficos.js"></script>
+<script src="/js/plataforma/geral.js"></script>
+<script src="/js/plataforma/clientes.js"></script>
+<script src="/js/plataforma/cliente.js"></script>
+<script src="/js/plataforma/utilizacao.js"></script>
+<script src="/js/plataforma/incidentes.js"></script>
+<script src="/js/plataforma/registo.js"></script>
+<script src="/js/plataforma/suporte.js"></script>
+<script src="/js/plataforma/tarefas.js"></script>
+<script src="/js/plataforma/comunicados.js"></script>
+<script src="/js/plataforma/pacotes.js"></script>
+<script src="/js/plataforma/workspace.js"></script>
+<script src="/js/plataforma/trials.js"></script>
+<script src="/js/plataforma/definicoes.js"></script>
+<script src="/js/plataforma/shell.js"></script>
+</body>
+</html>

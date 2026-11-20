@@ -8,12 +8,18 @@
   if (!Object.hasOwn(messages, kind)) return;
   const $ = id => document.getElementById(id);
   const [title, message] = messages[kind];
-  document.title = `${title} — Santa Paciência`;
+  let receipt;
+  try { receipt = JSON.parse(sessionStorage.getItem('public-flow-receipt')); } catch { /* Detalhes opcionais. */ }
+  // Marca do alojamento (vem do passo anterior), nunca a da plataforma.
+  const brand = receipt?.kind === kind ? String(receipt.brand || '') : '';
+  document.title = brand ? `${title} — ${brand}` : title;
+  if (brand) {
+    $('pn-brand').textContent = brand;
+    $('pn-mark').textContent = brand.trim().charAt(0).toUpperCase();
+  }
   $('confirmation-title').textContent = title;
   $('confirmation-message').textContent = message;
   $('confirmation-close').hidden = false;
-  let receipt;
-  try { receipt = JSON.parse(sessionStorage.getItem('public-flow-receipt')); } catch { /* Detalhes opcionais. */ }
   if (receipt?.kind === kind) {
     for (const field of ['reference', 'total']) {
       if (!receipt[field]) continue;

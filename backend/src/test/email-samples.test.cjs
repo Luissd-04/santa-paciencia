@@ -33,8 +33,9 @@ const slugs = () => db.prepare('SELECT slug FROM organization_email_templates WH
 test('um exemplo de cada email, sem marcadores por preencher nem códigos reais', () => {
   const all = samples.allSamples(org.id, { baseUrl: 'https://app.exemplo.invalid' });
   const guest = all.filter(s => s.group === 'Hóspede');
-  assert.equal(guest.length, slugs().length + 3, 'cada modelo uma vez e a confirmação em 4 estados');
-  assert.deepEqual(all.filter(s => s.group === 'Equipa').map(s => s.name), ['Nova reserva', 'Reserva cancelada']);
+  // A confirmação em 4 estados, a reserva aceite em 2 e o cancelamento em 4 motivos.
+  assert.equal(guest.length, slugs().length + 3 + 1 + 3, 'cada modelo uma vez, com as variantes');
+  assert.deepEqual(all.filter(s => s.group === 'Equipa').map(s => s.name), ['Novo pedido', 'Reserva cancelada']);
   assert.equal(all.filter(s => s.group === 'Conta').length, 5);
   assert.deepEqual([...new Set(all.map(s => s.group))], ['Hóspede', 'Equipa', 'Conta'], 'pela ordem da jornada');
   for (const s of all) {
@@ -43,7 +44,7 @@ test('um exemplo de cada email, sem marcadores por preencher nem códigos reais'
     assert.ok(!/PORTA-REAL|wifi-real/.test(s.html), `${s.name}: códigos reais`);
   }
   // A confirmação mostra os 4 estados e as coordenadas os códigos de exemplo.
-  const confirmations = guest.filter(s => s.name.includes('('));
+  const confirmations = guest.filter(s => s.name.startsWith('Pedido recebido ('));
   assert.equal(confirmations.length, 4);
   assert.ok(confirmations.some(s => s.html.includes('Falta o sinal para confirmar')));
   assert.ok(confirmations.some(s => s.html.includes('Recebemos o seu pedido')));

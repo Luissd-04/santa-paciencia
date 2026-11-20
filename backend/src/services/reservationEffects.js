@@ -6,7 +6,7 @@
 //   reservation.created    criada no backoffice
 //   reservation.requested  pedido do site público { appUrl }
 //   payment.received       { amount, source: 'manual' | 'stripe' | 'automatic' }
-//   reservation.cancelled  { reason: 'staff' | 'guest' | 'ttl' | 'nonpayment', policy }
+//   reservation.cancelled  { reason: 'staff' | 'guest' | 'ttl' | 'nonpayment' | 'deposit', policy }
 //   reservation.approved   { precheckinUrl }
 //   precheckin.submitted   { resubmission }
 //   email.due              modelo agendado pela estadia já na hora { slug, key }
@@ -20,23 +20,24 @@ const CANCEL_REASONS = {
   guest: 'Reserva cancelada pelo hóspede',
   ttl: 'Pedido expirado sem pagamento nem aprovação',
   nonpayment: 'Reserva cancelada por falta de pagamento',
+  deposit: 'Sinal não pago no prazo',
 };
 
 function effectsFor(type, payload = {}) {
   switch (type) {
     case 'reservation.created': return ['guest_confirmation_email', 'staff_push_new'];
-    case 'reservation.requested': return ['staff_email_new_request', 'staff_push_new_request'];
+    case 'reservation.requested': return ['guest_confirmation_email', 'staff_email_new_request', 'staff_push_new_request'];
     // Decisões 1 e 3: o hóspede recebe o email em cada pagamento; a equipa é
     // avisada dos pagamentos que não registou ela própria.
     case 'payment.received': return ['guest_payment_email', ...(payload.source === 'manual' ? [] : ['staff_push_payment'])];
     // Decisão 4: cancelamentos que a equipa não fez chegam-lhe por push e email.
     // Com política, o aviso ao hóspede sai da automatização da política.
     case 'reservation.cancelled': return [
-      ...(payload.reason === 'ttl' || !payload.policy ? ['guest_cancellation_email'] : []),
+      ...(['ttl', 'deposit'].includes(payload.reason) || !payload.policy ? ['guest_cancellation_email'] : []),
       'staff_push_cancelled',
       ...(payload.reason === 'staff' ? [] : ['staff_email_cancelled']),
     ];
-    case 'reservation.approved': return ['guest_precheckin_email'];
+    case 'reservation.approved': return ['guest_accepted_email'];
     case 'precheckin.submitted': return ['staff_push_precheckin'];
     case 'email.due': return ['guest_template_email'];
     case 'policy.notice_due': return ['guest_policy_notice'];
@@ -97,7 +98,8 @@ function staffCancelledMessage(ctx, reason, url) {
 // à fila para essa hora; depois de a estadia acabar, desiste-se em silêncio.
 async function guestEmail(ctx, send) {
   const result = await send(require('./emailService'));
-  if (!result?.queued) return;
+  // Retido por faltarem dados do alojamento: fica no sino, não se repete sozinho.
+  if (result?.held || !result?.queued) return;
   if (ctx.reservation.check_out < dates.localDay(new Date(), -1)) return;
   const { DeferEffect } = require('./reservationEvents');
   const reasons = { window: 'Fora da janela de envio do modelo', blocked: 'Gmail indisponível', uncertain: 'Envio anterior por confirmar no Gmail', sending: 'Envio em curso' };
@@ -106,7 +108,8 @@ async function guestEmail(ctx, send) {
 
 const HANDLERS = {
   guest_confirmation_email: (ctx) => guestEmail(ctx, mail => mail.sendConfirmationEmail(ctx.guest, ctx.reservation, ctx.accommodation)),
-  guest_cancellation_email: (ctx) => guestEmail(ctx, mail => mail.sendCancellationEmail(ctx.guest, ctx.reservation, ctx.accommodation)),
+  guest_cancellation_email: (ctx, event) => guestEmail(ctx, mail => mail.sendCancellationEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload.reason)),
+  guest_accepted_email: (ctx, event) => guestEmail(ctx, mail => mail.sendReservationAcceptedEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload.precheckinUrl)),
   guest_precheckin_email: (ctx, event) => guestEmail(ctx, mail => mail.sendPreCheckinEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload.precheckinUrl)),
   guest_payment_email: (ctx, event) => guestEmail(ctx, mail => mail.sendPaymentConfirmationEmail(ctx.guest, ctx.reservation, ctx.accommodation, { amount: event.payload.amount })),
   guest_template_email: (ctx, event) => guestEmail(ctx, mail => mail.sendTemplatedEmail(event.payload.slug, ctx.guest, ctx.reservation, ctx.accommodation)),

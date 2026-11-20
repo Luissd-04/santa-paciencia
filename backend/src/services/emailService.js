@@ -1,5 +1,5 @@
 // Lido em cada envio: desligar o email (EMAIL_ENABLED=false) não exige reiniciar módulos.
-const emailDisabled = () => process.env.EMAIL_ENABLED === 'false';
+const emailDisabled = () => process.env.EMAIL_ENABLED === 'false' || require('./stagingPolicy').isStaging();
 const { httpError } = require('./httpError');
 
 // Lido no momento do envio (e não desestruturado), para a ligação Gmail poder
@@ -10,7 +10,7 @@ const composer = require('./emailComposer');
 const { isDeliverableEmail, isPlaceholderEmail } = require('./emailAddress');
 
 async function sendMail(organizationId, { to, subject, html, bcc, threadId, inReplyTo, references }) {
-  if (emailDisabled()) return null;
+  if (emailDisabled() || !require('./orgPolicy').externalAllowed(organizationId)) return null;
   if (isPlaceholderEmail(to)) {
     console.warn('⚠️ Email não enviado: destinatário sem endereço real');
     return null;
@@ -63,26 +63,16 @@ function escapeVars(vars) {
   return out;
 }
 
-const DEFAULT_LOGO_URL = 'https://santapaciencia.pt/wp-content/uploads/2024/04/cropped-Logo-Transparente-Cinza-280x60-1.png';
-
-// Fallback hardcoded do Facebook — usado quando não há alojamento associado
-// (preview do editor de templates) e o valor a nível de organização nunca foi
-// preenchido (não há UI para isso, ao contrário do Instagram/Website que já
-// tinham valor). Sem UI dedicada porque o utilizador decidiu não valer a pena.
-const DEFAULT_FACEBOOK_URL = 'https://www.facebook.com/al.santapaciencia/';
-
 // Logótipo configurável por alojamento (herdado pelas suites do principal —
 // ver services/accommodationInheritance.js). Guardado como caminho relativo
 // (/uploads/...) — resolve para absoluto porque os clientes de email
-// carregam a imagem a partir da internet, não do servidor local. Sem
-// alojamento associado (preview do editor, exports em PDF de todos os
-// alojamentos), usa o logótipo do único alojamento principal da organização.
-// Se houver vários, é necessário selecionar um contexto para evitar escolher
-// a marca de outro alojamento; nesse caso mantém-se o recurso por omissão.
+// carregam a imagem a partir da internet, não do servidor local. Sem logótipo,
+// o cabeçalho mostra o nome do alojamento em texto (emailComposer.buildHeader):
+// nunca a marca de outra organização.
 function resolveLogoUrl(value) {
-  if (!value) return DEFAULT_LOGO_URL;
+  if (!value) return '';
   if (/^https?:\/\//i.test(value)) return value;
-  try { return require('./publicLinks').absoluteUrl(value); } catch { return DEFAULT_LOGO_URL; }
+  try { return require('./publicLinks').absoluteUrl(value); } catch { return ''; }
 }
 
 // Aceita string JSON crua (linha da base) ou já em array (chamadas em teste).
@@ -97,57 +87,65 @@ function parseSocialLinksEnabled(value) {
   }
 }
 
+// Dados de cada email ao hóspede: só os do alojamento (herdados do principal
+// pelas suites) e, quando o alojamento não os tem, os da organização. Nada
+// vem fixo no código: um dado em falta fica vazio, e emailReadiness decide se
+// o email pode sair assim.
 function getEmailSettings(accommodation, organizationId) {
+  const { db } = require('../config/database');
+  const orgId = organizationId || accommodation?.organization_id;
+  const keys = ['checkin_time','checkout_time','social_facebook','social_instagram','social_website','social_tripadvisor',
+                'property_name','property_address','license_number','email_contact'];
+  let s = {};
+  try { if (orgId) s = require('./settingsService').getMany(orgId, keys); } catch { s = {}; }
+  const org = orgId ? db.prepare('SELECT name FROM organizations WHERE id = ?').get(orgId) : null;
+
+  // Sem alojamento (pré-visualização da organização, avisos à equipa): o único
+  // alojamento principal, se houver só um. Com vários, a organização.
+  if (!accommodation && orgId) {
+    const roots = db.prepare(`SELECT * FROM accommodations
+      WHERE organization_id = ? AND (parent_id IS NULL OR parent_id = '') LIMIT 2`).all(orgId);
+    if (roots.length === 1) accommodation = roots[0];
+  }
+  const a = accommodation ? resolveAccommodationInheritance(accommodation, orgId) : {};
+  // A marca é a do alojamento principal: um quarto aparece como «Casa do Monte».
+  const parent = a.parent_id ? db.prepare('SELECT name, license_number FROM accommodations WHERE id = ? AND organization_id = ?').get(a.parent_id, orgId) : null;
+  const brand = parent?.name || (accommodation ? a.name : '') || s.property_name || org?.name || '';
+  const cityLine = [a.postal_code, a.city].filter(Boolean).join(' ');
+  const address = a.address ? [a.address, cityLine].filter(Boolean).join(', ') : '';
+  return {
+    checkin_time:     a.checkin_time  || s.checkin_time  || '',
+    checkout_time:    a.checkout_time || s.checkout_time || '',
+    facebook:         a.social_facebook    || s.social_facebook    || '',
+    instagram:        a.social_instagram   || s.social_instagram   || '',
+    website:          a.social_website     || s.social_website     || '',
+    tripadvisor:      a.social_tripadvisor || s.social_tripadvisor || '',
+    // null = mostrar todos os configurados (omisso, comportamento anterior
+    // a este campo); um array filtra o bloco "Acompanhe-nos" mesmo que o
+    // link esteja preenchido.
+    social_links_enabled: parseSocialLinksEnabled(a.email_social_links),
+    property_name:    brand,
+    property_address: address || s.property_address || '',
+    license_number:   a.license_number || parent?.license_number || s.license_number || '',
+    email_contact:    a.contact_email || s.email_contact || '',
+    phone:            a.contact_phone || '',
+    arrival_instructions:  a.arrival_instructions || '',
+    entry_instructions:    a.entry_instructions || '',
+    checkout_instructions: a.checkout_instructions || '',
+    review_url:       a.review_url || '',
+    no_wifi:          Boolean(a.no_wifi),
+    booking_url:      bookingUrl(a, parent, orgId),
+    logo_url:         resolveLogoUrl(a.logo_url),
+  };
+}
+
+// Página pública de reservas do alojamento (a do principal, num quarto).
+function bookingUrl(a, parent, orgId) {
   try {
     const { db } = require('../config/database');
-    const orgId = organizationId || accommodation?.organization_id;
-    const keys = ['checkin_time','checkout_time','social_facebook','social_instagram','social_website','social_tripadvisor',
-                  'property_name','property_address','license_number','email_contact'];
-    let s = {};
-    if (orgId) s = require('./settingsService').getMany(orgId, keys);
-    else db.prepare(`SELECT key,value FROM settings WHERE key IN (${keys.map(() => '?').join(',')})`).all(...keys).forEach(r => { s[r.key] = r.value; });
-
-    let orgName = s.property_name;
-    if (!orgName && orgId) {
-      const org = db.prepare('SELECT name FROM organizations WHERE id = ?').get(orgId);
-      orgName = org?.name;
-    }
-
-    let logo = accommodation?.logo_url;
-    if (!accommodation && orgId) {
-      const roots = db.prepare(`SELECT logo_url FROM accommodations
-        WHERE organization_id = ? AND (parent_id IS NULL OR parent_id = '') LIMIT 2`).all(orgId);
-      if (roots.length === 1) logo = roots[0].logo_url;
-    }
-
-    return {
-      checkin_time:     accommodation?.checkin_time  || s.checkin_time  || '15:00',
-      checkout_time:    accommodation?.checkout_time || s.checkout_time || '11:00',
-      facebook:         accommodation?.social_facebook  || s.social_facebook  || DEFAULT_FACEBOOK_URL,
-      instagram:        accommodation?.social_instagram || s.social_instagram || '',
-      website:          accommodation?.social_website   || s.social_website   || '',
-      tripadvisor:      accommodation?.social_tripadvisor || s.social_tripadvisor || '',
-      // null = mostrar todos os configurados (omisso, comportamento anterior
-      // a este campo); um array filtra o bloco "Acompanhe-nos" mesmo que o
-      // link esteja preenchido.
-      social_links_enabled: parseSocialLinksEnabled(accommodation?.email_social_links),
-      property_name:    orgName || process.env.PROPERTY_NAME || 'Santa Paciência',
-      property_address: s.property_address || process.env.PROPERTY_ADDRESS || '',
-      license_number:   s.license_number   || process.env.LICENSE_NUMBER   || '',
-      email_contact:    s.email_contact    || '',
-      logo_url:         resolveLogoUrl(logo),
-    };
-  } catch {
-    return {
-      checkin_time: '15:00', checkout_time: '11:00',
-      facebook: DEFAULT_FACEBOOK_URL, instagram: '', website: '', tripadvisor: '',
-      property_name:    process.env.PROPERTY_NAME    || 'Santa Paciência',
-      property_address: process.env.PROPERTY_ADDRESS || '',
-      license_number:   process.env.LICENSE_NUMBER   || '',
-      email_contact:    '',
-      logo_url:         resolveLogoUrl(null),
-    };
-  }
+    const slug = a.public_slug || (a.parent_id ? db.prepare('SELECT public_slug FROM accommodations WHERE id = ? AND organization_id = ?').get(a.parent_id, orgId)?.public_slug : '');
+    return slug ? require('./publicLinks').absoluteUrl(`/reservar/${encodeURIComponent(slug)}`) : '';
+  } catch { return ''; }
 }
 
 // O desenho vive todo em emailComposer.js — envio e pré-visualização usam a
@@ -230,16 +228,82 @@ function buildBlocks(vars, settings, reservation) {
   // O que o hóspede faz a seguir, segundo o estado da reserva.
   const nextStep = {
     confirmada: () => (vars.link_pre_checkin && !precheckinDone
-      ? composer.buildNote({ heading: 'Próximo passo', html: 'Complete o pré-check-in: hora de chegada e dados dos hóspedes. Demora cerca de 2 minutos.' })
+      ? composer.buildNote({ heading: 'Próximo passo', html: 'Complete o pré-check-in: hora de chegada e dados dos hóspedes.' })
         + button(vars.link_pre_checkin, 'Fazer o pré-check-in')
       : '') + mapButton,
     aguardar_pagamento: () => button(vars.link_reserva, vars.valor_sinal ? `Pagar o sinal · ${vars.valor_sinal}` : 'Pagar o sinal'),
-    pendente: () => composer.buildSteps(['Confirmamos a disponibilidade', 'Enviamos a confirmação e os próximos passos', 'Prepara a sua chegada com o pré-check-in']),
+    pendente: () => composer.buildSteps(['Confirmamos a disponibilidade', 'Enviamos o link para pagar o sinal', 'Prepara a chegada com o pré-check-in'])
+      + button(vars.link_reserva, 'Acompanhar o pedido', { secondary: true }),
     pre_reserva: () => button(vars.link_reserva, 'Ver a reserva', { secondary: true }),
   };
   nextStep.check_in = nextStep.confirmada;
 
+  const para = composer.buildParagraph;
+  const label = composer.buildSectionLabel;
+  const strong = value => `<strong>${esc(value)}</strong>`;
+  const depositDue = Boolean(vars.valor_sinal);
+  const reason = vars.motivo_cancelamento;
+  const checkoutSteps = String(s.checkout_instructions || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const entryCodes = [
+    { label: 'Código da porta', value: vars.codigo_porta && vars.codigo_porta !== '—' ? vars.codigo_porta : '' },
+    ...(!s.no_wifi && vars.wifi_password && vars.wifi_password !== '—' ? [
+      { label: 'Rede Wi-Fi', value: vars.wifi_nome && vars.wifi_nome !== '—' ? vars.wifi_nome : '' },
+      { label: 'Senha do Wi-Fi', value: vars.wifi_password },
+    ] : []),
+  ];
+  const cancellation = {
+    ttl: { eyebrow: 'Pedido expirado', headline: 'Não conseguimos confirmar o seu pedido',
+      text: `O seu pedido para ${strong(vars.datas_curtas)} em ${strong(vars.alojamento)} não chegou a ser confirmado e as datas ficaram livres. Não lhe foi cobrado nada.`, rebook: true },
+    deposit: { eyebrow: 'Prazo terminado', headline: 'As datas voltaram a ficar livres',
+      text: `Não recebemos o sinal da sua reserva para ${strong(vars.datas_curtas)} em ${strong(vars.alojamento)} dentro do prazo, por isso as datas voltaram a ficar livres. Não lhe foi cobrado nada.`, rebook: true },
+    staff: { eyebrow: 'Reserva cancelada', headline: 'A sua reserva foi cancelada',
+      text: `A sua reserva em ${strong(vars.alojamento)} foi cancelada. Se não esperava este email ou tem alguma pergunta, responda a esta mensagem.` },
+    guest: { eyebrow: 'Reserva cancelada', headline: 'A sua reserva foi cancelada',
+      text: `Confirmamos o cancelamento da sua reserva em ${strong(vars.alojamento)}.` },
+  }[reason] || { eyebrow: 'Reserva cancelada', headline: 'A sua reserva foi cancelada',
+    text: `A sua reserva em ${strong(vars.alojamento)} foi cancelada.` };
+
   return {
+    // ── Reserva aceite (pedido aprovado pela equipa) ──
+    titulo_aceite: composer.buildTitle(depositDue
+      ? { eyebrow: 'Reserva aceite', tone: 'ok', headline: 'As datas são suas' }
+      : { eyebrow: 'Reserva confirmada', tone: 'ok', headline: 'Está tudo marcado' }),
+    mensagem_aceite: depositDue
+      ? para(`Aceitámos o seu pedido. Para confirmar a reserva, falta pagar o sinal de ${strong(vars.valor_sinal)}${vars.prazo_sinal ? ` até ${strong(vars.prazo_sinal)}. Depois disso, as datas voltam a ficar livres` : ''}.`)
+      : para(`Aceitámos o seu pedido e a sua reserva em ${strong(vars.alojamento)} está confirmada.`),
+    botao_pagar_sinal: depositDue && vars.pagamento_online
+      ? button(vars.link_reserva, `Pagar o sinal · ${vars.valor_sinal}`)
+        + para('Pagamento seguro através da Stripe.', 'font-size:13.5px;text-align:center;margin:6px 0 0;')
+      : '',
+    proximo_pre_checkin: vars.link_pre_checkin && !precheckinDone && status !== 'cancelada'
+      ? label('A seguir') + para('Complete o pré-check-in: hora de chegada e dados de cada hóspede, que a lei nos obriga a registar.')
+        + button(vars.link_pre_checkin, 'Fazer o pré-check-in', { secondary: true })
+      : '',
+
+    // ── Pagamento recebido ──
+    mensagem_pagamento: vars.pagamento_confirma && vars.pagamento_liquidado
+      ? para(`Obrigado. Recebemos o pagamento de ${strong(vars.valor_pagamento)}: a sua reserva em ${strong(vars.alojamento)} está confirmada e paga na totalidade.`)
+      : vars.pagamento_confirma
+      ? para(`Obrigado. Recebemos o sinal de ${strong(vars.valor_pagamento)} e a sua reserva em ${strong(vars.alojamento)} está confirmada.`)
+      : para(`Obrigado. Registámos o pagamento de ${strong(vars.valor_pagamento)} da sua reserva em ${strong(vars.alojamento)}.${vars.pagamento_liquidado ? ' Não falta pagar nada.' : ''}`),
+
+    // ── Tudo para a sua chegada ──
+    como_chegar: s.property_address || s.arrival_instructions
+      ? label('Como chegar') + para([s.property_address ? strong(s.property_address) : '', esc(s.arrival_instructions || '')].filter(Boolean).join('<br>'))
+        + button(vars.link_mapa, 'Abrir no mapa', { secondary: true })
+      : '',
+    como_entrar: s.entry_instructions || entryCodes.some(c => c.value)
+      ? label('Como entrar') + (s.entry_instructions ? para(esc(s.entry_instructions)) : '') + composer.buildCodes(entryCodes)
+      : '',
+    dia_saida: label(vars.hora_checkout ? `No dia da saída · até às ${vars.hora_checkout}` : 'No dia da saída')
+      + (checkoutSteps.length ? composer.buildChecklist(checkoutSteps) : '')
+      + para('Precisa de sair mais tarde? Responda a este email: se o alojamento estiver livre, tentamos ajudar.'),
+
+    // ── Cancelamento, segundo o motivo ──
+    titulo_cancelamento: composer.buildTitle({ eyebrow: cancellation.eyebrow, tone: 'muted', headline: cancellation.headline }),
+    mensagem_cancelamento: para(cancellation.text),
+    botao_novo_pedido: cancellation.rebook ? button(s.booking_url, 'Fazer um novo pedido') : '',
+
     // ── Título segundo o estado (modelo da reserva) ──
     titulo_reserva: composer.buildTitle({ eyebrow: pres.eyebrow, tone: pres.tone, headline: pres.headline(vars) }),
     estadia: stay,
@@ -271,7 +335,7 @@ function buildBlocks(vars, settings, reservation) {
     ]),
 
     // ── Durante a estadia ──
-    titulo_boas_vindas: composer.buildTitle({ headline: vars.primeiro_nome ? `Bem-vindo, ${vars.primeiro_nome}` : `Bem-vindo à ${s.property_name || 'Santa Paciência'}` }),
+    titulo_boas_vindas: composer.buildTitle({ headline: vars.primeiro_nome ? `Boas-vindas, ${vars.primeiro_nome}` : `Boas-vindas a ${s.property_name || vars.alojamento}` }),
     info_estadia: composer.buildRows([
       { label: 'Wi-Fi', value: vars.wifi_nome && vars.wifi_nome !== '—' ? vars.wifi_nome : '' },
       { label: 'Senha', value: vars.wifi_password && vars.wifi_password !== '—' ? vars.wifi_password : '' },
@@ -284,7 +348,9 @@ function buildBlocks(vars, settings, reservation) {
     lista_checkout: composer.buildChecklist(['Deixe as chaves conforme o combinado', 'Feche as janelas e desligue as luzes e o ar condicionado', 'Verifique se não fica nada esquecido']),
     nota_checkout_tardio: composer.buildNote({ heading: 'Precisa de mais tempo?', html: 'Responda a este email: se o alojamento estiver livre, tentamos ajudar com um check-out mais tarde.' }),
     titulo_obrigado: composer.buildTitle({ eyebrow: 'Obrigado', tone: 'brand', headline: vars.primeiro_nome ? `Obrigado pela visita, ${vars.primeiro_nome}` : 'Obrigado pela visita' }),
-    botao_avaliar: button(s.tripadvisor, 'Avaliar no TripAdvisor'),
+    botao_avaliar: composer.buildButtonPair(
+      { url: s.review_url || s.tripadvisor, label: 'Deixar uma avaliação' },
+      { url: s.booking_url, label: 'Voltar a reservar' }),
 
     // ── Cancelamento ──
     resumo_cancelamento: composer.buildRows([
@@ -299,7 +365,9 @@ function buildBlocks(vars, settings, reservation) {
     ]),
 
     // ── Pagamentos ──
-    titulo_pagamento: composer.buildTitle(vars.pagamento_liquidado
+    titulo_pagamento: composer.buildTitle(vars.pagamento_confirma && !vars.pagamento_liquidado
+      ? { eyebrow: 'Reserva confirmada', tone: 'ok', headline: vars.valor_pagamento ? `Recebemos o sinal de ${vars.valor_pagamento}` : 'Recebemos o sinal' }
+      : vars.pagamento_liquidado
       ? { eyebrow: 'Pagamento concluído', tone: 'ok', headline: 'A reserva está paga na totalidade' }
       : { eyebrow: 'Pagamento recebido', tone: 'ok', headline: vars.valor_pagamento ? `Recebemos ${vars.valor_pagamento}` : 'Pagamento recebido' }),
     titulo_aviso_pagamento: composer.buildTitle({ eyebrow: 'Pagamento em falta', tone: 'warn', headline: vars.valor_em_falta ? `Faltam ${vars.valor_em_falta} para concluir` : 'Pagamento em falta' }),
@@ -379,9 +447,9 @@ function buildVars(guest, reservation, accommodation, settings, extra) {
     primeiro_nome: firstName,
     alojamento: accommodation.name || accommodation.accommodation_name || '',
     data_checkin: formatDate(reservation.check_in),
-    hora_checkin: s.checkin_time || '15:00',
+    hora_checkin: s.checkin_time || '',
     data_checkout: formatDate(reservation.check_out),
-    hora_checkout: s.checkout_time || '11:00',
+    hora_checkout: s.checkout_time || '',
     // Formas curtas para os blocos: «sáb, 14 nov» e «14 de novembro».
     data_checkin_curta: formatWeekdayDate(reservation.check_in),
     data_checkout_curta: formatWeekdayDate(reservation.check_out),
@@ -531,7 +599,20 @@ const IMMEDIATE_TEMPLATES = new Set(['aviso_restante', 'cancelamento_politica'])
 // quando tem de esperar (janela de envio, Gmail indisponível, envio por
 // confirmar): a fila de acontecimentos volta a tentar a essa hora.
 // `ignoreWindow`: envio pedido pela equipa nesse momento.
-async function sendTemplatedEmail(slug, guest, reservation, accommodation, extraVars, { ignoreWindow = false } = {}) {
+// Dados, variáveis e blocos de um modelo para uma reserva: os mesmos no envio
+// e na pré-visualização com uma reserva real (o editor de emails).
+// `accommodation` já com a herança resolvida.
+function templateContext(slug, guest, reservation, accommodation, extraVars, orgId) {
+  let extra = extraVars || {};
+  if (['pre_checkin', 'reserva_aceite', 'pagamento'].includes(slug) && !extra.link_pre_checkin && reservation.precheckin_token) {
+    extra = { ...extra, link_pre_checkin: require('./publicLinks').precheckinUrl(reservation) };
+  }
+  const settings = getEmailSettings(accommodation, orgId);
+  const vars = sanitizeUrlVars(buildVars(guest, reservation, accommodation, settings, extra));
+  return { settings, vars, blocks: buildBlocks(vars, settings, reservation) };
+}
+
+async function sendTemplatedEmail(slug, guest, reservation, accommodation, extraVars, { ignoreWindow = false, fromHold = false } = {}) {
   if (emailDisabled()) { console.log(`Email ${slug} ignorado (EMAIL_ENABLED=false)`); return null; }
   const { db } = require('../config/database');
   const orgId = reservation.organization_id || accommodation.organization_id;
@@ -555,20 +636,27 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation, extra
     return { queued: true, delivery_status: 'window', until: nextWindowStart(template) };
   }
 
-  let vars_extra = extraVars || {};
-  if (slug === 'pre_checkin' && !vars_extra.link_pre_checkin && reservation.precheckin_token) {
-    vars_extra = { ...vars_extra, link_pre_checkin: require('./publicLinks').precheckinUrl(reservation) };
+  const { settings, vars, blocks } = templateContext(slug, guest, reservation, accommodation, extraVars, orgId);
+  // Sem os dados obrigatórios do alojamento, o email fica retido e o sino diz
+  // o que falta (emailReadiness); não sai incompleto.
+  const readiness = require('./emailReadiness');
+  if (orgId) {
+    const missing = readiness.missingFor(slug, { settings, accommodation, organizationId: orgId, reservation });
+    if (missing.length) {
+      readiness.hold({ organizationId: orgId, reservationId: reservation.id, slug, missing, extra: extraVars || {} });
+      console.log(`📧 Email ${slug} → reserva ${reservation.id} retido: faltam ${missing.map(m => m.label).join(', ')}`);
+      return { held: true, missing };
+    }
   }
-
-  const settings = getEmailSettings(accommodation, orgId);
-  const vars = sanitizeUrlVars(buildVars(guest, reservation, accommodation, settings, vars_extra));
-  const blocks = buildBlocks(vars, settings, reservation);
   const rendered = renderEmail({ subject: template.subject, body: template.body, vars, blocks, settings });
   const delivery = require('./emailDelivery');
   const result = await delivery.deliverTemplate({ orgId, slug, reservation, to, rendered }, () => sendMail(orgId, {
     to, subject: rendered.subject, html: rendered.html, bcc: template.bcc || undefined,
   }));
-  if (result?.id) db.transaction(() => delivery.afterSent({ orgId, reservationId: reservation.id, slug, timingEvent: template.timing_event }))();
+  if (result?.id) {
+    db.transaction(() => delivery.afterSent({ orgId, reservationId: reservation.id, slug, timingEvent: template.timing_event }))();
+    readiness.resolve(orgId, reservation.id, slug, fromHold ? 'sent' : 'sent_later');
+  }
   return result;
 }
 
@@ -576,8 +664,32 @@ async function sendConfirmationEmail(guest, reservation, accommodation) {
   return sendTemplatedEmail('confirmacao', guest, reservation, accommodation);
 }
 
-async function sendCancellationEmail(guest, reservation, accommodation) {
-  return sendTemplatedEmail('cancelamento', guest, reservation, accommodation);
+async function sendCancellationEmail(guest, reservation, accommodation, reason = '') {
+  return sendTemplatedEmail('cancelamento', guest, reservation, accommodation, reason ? { motivo_cancelamento: reason } : {});
+}
+
+// «Enviar» num email retido (sino): repete o envio com os mesmos dados extra,
+// já com o alojamento completo. Recusa se ainda faltar algo.
+async function sendHeldEmail(organizationId, reservationId, slug) {
+  const { db } = require('../config/database');
+  const { httpError } = require('./httpError');
+  const held = db.prepare('SELECT * FROM email_holds WHERE organization_id = ? AND reservation_id = ? AND template_slug = ? AND resolved_at IS NULL').get(organizationId, reservationId, slug);
+  if (!held) throw httpError('Este email já não está retido.', 404);
+  const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservationId, organizationId);
+  if (!reservation) throw httpError('Reserva não encontrada.', 404);
+  const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(reservation.guest_id, organizationId) || {};
+  const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(reservation.accommodation_id, organizationId) || {};
+  let extra = {};
+  try { extra = JSON.parse(held.extra || '{}'); } catch { extra = {}; }
+  const result = await sendTemplatedEmail(slug, guest, reservation, accommodation, extra, { ignoreWindow: true, fromHold: true });
+  if (result?.held) throw httpError(`Ainda falta: ${result.missing.map(m => m.label).join(', ')}.`, 409);
+  if (!result?.id && !result?.queued) throw httpError('O email não pôde ser enviado (Gmail desligado ou a reserva já não o permite).', 409);
+  return result;
+}
+
+// Pedido aceite pela equipa: sinal a pagar (com o prazo) e pré-check-in.
+async function sendReservationAcceptedEmail(guest, reservation, accommodation, preCheckinUrl) {
+  return sendTemplatedEmail('reserva_aceite', guest, reservation, accommodation, preCheckinUrl ? { link_pre_checkin: preCheckinUrl } : {});
 }
 
 // Valores de pagamento e da política, calculados a partir da reserva, para
@@ -607,7 +719,23 @@ function paymentVars(reservation) {
     prazo_pagamento: reservation.balance_deadline ? formatDateTimeLisbon(reservation.balance_deadline) : '',
     valor_reembolso: refund,
     link_reserva: link,
+    prazo_sinal: depositCents > paidCents && reservation.deposit_deadline ? formatDeadline(reservation.deposit_deadline) : '',
+    titulo_aceite_assunto: depositCents > paidCents ? 'Reserva aceite — falta o sinal' : 'Reserva confirmada',
+    pagamento_online: onlinePaymentEnabled(reservation.organization_id) ? '1' : '',
   };
+}
+
+// «sáb, 21 nov, às 10:30», na hora do alojamento.
+function formatDeadline(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const dates = require('./dates');
+  const time = date.toLocaleTimeString('pt-PT', { timeZone: dates.businessTimeZone(), hour: '2-digit', minute: '2-digit' });
+  return `${dates.weekdayDate(dates.localDay(date))}, às ${time}`;
+}
+
+function onlinePaymentEnabled(organizationId) {
+  try { return Boolean(organizationId) && require('./stripeClient').stripeEnabled(organizationId); } catch { return false; }
 }
 
 function formatDateTimeLisbon(value) {
@@ -618,6 +746,14 @@ function formatDateTimeLisbon(value) {
 // `payment.amount` é o valor deste pagamento.
 async function sendPaymentConfirmationEmail(guest, reservation, accommodation, payment = {}) {
   const extra = payment.amount != null ? { valor_pagamento: composer.formatCurrency(Number(payment.amount)) } : {};
+  // O pagamento que completa o sinal confirma a reserva: o email diz isso.
+  if (payment.amount != null) {
+    const { cents } = require('./money');
+    let depositCents = 0;
+    try { depositCents = require('./paymentPolicy').requiredDepositCents(reservation); } catch { /* sem política */ }
+    const before = cents(reservation.amount_paid || 0) - cents(Number(payment.amount));
+    if (depositCents > 0 && before < depositCents && cents(reservation.amount_paid || 0) >= depositCents) extra.pagamento_confirma = '1';
+  }
   return sendTemplatedEmail('pagamento', guest, reservation, accommodation, extra);
 }
 
@@ -639,7 +775,7 @@ function ownerNewReservationMessage(guest, reservation, accommodation, appUrl) {
   const [eyebrow, tone] = STAFF_NEW_LABEL[reservation.status] || ['Nova reserva', 'ok'];
   const nights = Number(reservation.nights) || dates.daysBetween(reservation.check_in, reservation.check_out);
   return {
-    subject: `Nova reserva — ${guest.name} · ${reservation.id}`,
+    subject: `${reservation.status === 'pendente' ? 'Novo pedido' : 'Nova reserva'} — ${guest.name} · ${reservation.id}`,
     eyebrow, tone,
     headline: `${guest.name || 'Hóspede'} · ${dates.shortRange(reservation.check_in, reservation.check_out)}`,
     accommodation,
@@ -673,6 +809,9 @@ module.exports = {
   sendCancellationEmail,
   sendPaymentConfirmationEmail,
   sendPreCheckinEmail,
+  sendReservationAcceptedEmail,
+  sendHeldEmail,
+  templateContext,
   sendReservationRequestApprovedEmail,
   sendOwnerNewReservationEmail,
   ownerNewReservationMessage,

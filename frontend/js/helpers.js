@@ -8,6 +8,7 @@ AppModules.define('core', {
   apiPost: { get: () => apiPost },
   apiPut: { get: () => apiPut },
   apiRequest: { get: () => apiRequest },
+  appBuild: { get: () => appBuild },
   appUpdateAvailable: { get: () => appUpdateAvailable },
   badgeEstado: { get: () => badgeEstado },
   badgePagamento: { get: () => badgePagamento },
@@ -65,6 +66,10 @@ async function apiRequest(path, options = {}, config = {}) {
 
     if (res.status === 401 && !config.skipAuthRedirect && typeof AppModules.core.handleUnauthorized === 'function') {
       AppModules.core.handleUnauthorized();
+    }
+    // Sessão só da consola da plataforma: a app de alojamento não a serve.
+    if (res.status === 403 && payload?.platform_only && typeof AppModules.core.handlePlatformOnly === 'function') {
+      AppModules.core.handlePlatformOnly();
     }
     if (!res.ok) {
       const err = new Error(payload?.error || `HTTP ${res.status}`);
@@ -387,6 +392,19 @@ function formatEUR(value) {
    NOTA: não funciona dentro de <option> (elemento nativo, sem HTML) —
    aí mantém-se o emoji.
 ═══════════════════════════════════════════════════════════════ */
+// O CSS das bandeiras (~57 KB) só se descarrega quando aparece a primeira:
+// o arranque não precisa dele. As páginas públicas carregam-no no <head>.
+let flagStylesLoaded = false;
+function ensureFlagStyles() {
+  if (flagStylesLoaded || typeof document === 'undefined') return;
+  flagStylesLoaded = true;
+  if (document.querySelector('link[href*="flag-icons"]')) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = '/css/vendor/flag-icons.min.css';
+  document.head.append(link);
+}
+
 function flagHtml(code, opts = {}) {
   const size = opts.size || 20;
   const extra = opts.className ? ' ' + opts.className : '';
@@ -396,6 +414,7 @@ function flagHtml(code, opts = {}) {
     return `<span class="flag-fallback${extra}" role="img" aria-label="País desconhecido" title="${opts.title || ''}" style="width:${size}px;height:${h}px;font-size:${Math.round(size * 0.7)}px;">🌐</span>`;
   }
   const label = opts.title || cc.toUpperCase();
+  ensureFlagStyles();
   return `<span class="fi fi-${cc}${extra}" role="img" aria-label="${label}" title="${label}" style="width:${size}px;height:${h}px;"></span>`;
 }
 

@@ -2,7 +2,6 @@
 (() => {
 AppModules.define('alojamentos', {
   _applyInheritedFields: { get: () => _applyInheritedFields },
-  addAlojamento: { get: () => addAlojamento },
   addServico: { get: () => addServico },
   onAlojParentChange: { get: () => onAlojParentChange },
   onAlojTipoChange: { get: () => onAlojTipoChange },
@@ -95,6 +94,12 @@ const INHERITED_FIELDS_MAP = {
   'aloj-social-ig':     'social_instagram',
   'aloj-social-web':    'social_website',
   'aloj-social-ta':     'social_tripadvisor',
+  'aloj-contact-email':         'contact_email',
+  'aloj-contact-phone':         'contact_phone',
+  'aloj-arrival-instructions':  'arrival_instructions',
+  'aloj-entry-instructions':    'entry_instructions',
+  'aloj-checkout-instructions': 'checkout_instructions',
+  'aloj-review-url':            'review_url',
 };
 
 function onAlojTipoChange(accomData) {
@@ -193,24 +198,6 @@ function _applyInheritedFields(accomData) {
 }
 
 // ── ADICIONAR ALOJAMENTO ──
-async function addAlojamento() {
-  const nome = prompt('Nome do novo alojamento:');
-  if (!nome || !nome.trim()) return;
-  try {
-    const res = await AppModules.core.apiPost('/api/accommodations', { name: nome.trim() });
-    if (res.success) {
-      AppModules.core.toast('✅ Alojamento criado! Clique para configurar.', 'success');
-      await AppModules.core.loadAccommodations();
-      AppModules.alojamentos.renderAlojamentos();
-      AppModules.alojamentos.initAlojDrag();
-    } else {
-      AppModules.core.toast('❌ ' + (res.error || 'Erro ao criar.'), 'error');
-    }
-  } catch (e) {
-    AppModules.core.toast('❌ Erro de ligação ao servidor.', 'error');
-  }
-}
-
 // ── EXPORTAR ALOJAMENTOS ──
 
 AppActions.register({

@@ -45,6 +45,12 @@ Definir no `.env` um `DB_PATH` local e o caminho absoluto de `FRONTEND_PATH`.
 Desativar email com `EMAIL_ENABLED=false` quando não se pretende enviar mensagens
 reais. As chaves de teste oficiais do Turnstile estão comentadas no template.
 
+## Ambiente de testes no TrueNAS
+
+Para a instalação independente de testes, consultar
+[Ambiente de testes no TrueNAS](AMBIENTE-TESTES-TRUENAS.md).
+Usar o Compose e as pastas exclusivos desse ambiente.
+
 ## Publicação com Docker
 
 O Compose monta `./data` em `/app/data` (base, uploads, chave dos tokens) e
@@ -184,7 +190,7 @@ Há dois mecanismos com âmbitos diferentes:
 
 | Mecanismo | Âmbito | Serve para |
 |---|---|---|
-| «Exportar dados» na aplicação (ZIP) | Uma organização: alojamentos, reservas, hóspedes, pagamentos, vouchers, emails, uploads referenciados | Levar ou repor os dados de um cliente. **Não** inclui contas, sessões, ligações Google, chaves VAPID nem a chave dos tokens. |
+| «Exportar dados» na aplicação (ZIP) | Uma organização: alojamentos, reservas, hóspedes, pagamentos, vouchers, emails, pedidos de suporte com mensagens e anexos, uploads referenciados | Levar ou repor os dados de um cliente. O restauro respeita os limites do pacote (403 com `limit` se excedesse alojamentos ou membros), gera ids e números novos para os pedidos de suporte e revalida cada anexo; backups antigos, sem suporte, importam sem tocar nos pedidos existentes. **Não** inclui contas, sessões, ligações Google, chaves VAPID nem a chave dos tokens. |
 | `scripts/instance-backup.cjs` | A instância inteira: base SQLite (todas as organizações, contas, sessões, ligações Google, VAPID, filas), todos os uploads, tokens Google legados e a chave que os desencripta | Recuperação de desastre. |
 
 ### Backup da instância
@@ -289,6 +295,55 @@ pagamentos e desligar Calendar/Gmail/Tasks. Cancelamentos, reembolsos e
 pagamentos continuam no histórico de cada reserva. O registo leva utilizador,
 data, alvo e contagens — nunca dados pessoais. O prazo de conservação destes
 registos é uma decisão pendente.
+
+## Dono da instância
+
+A consola da plataforma só abre para quem tem a marca na base e o email em
+`PLATFORM_ADMIN_EMAILS`. Em `backend/src`, `npm run platform-admin -- grant email`
+dá a marca, `npm run platform-admin -- revoke email` tira-a e fecha os
+desbloqueios ativos, e `npm run platform-admin -- list` lista quem a tem. Depois
+de alterar `PLATFORM_ADMIN_EMAILS` é preciso recriar o contentor com
+`docker compose up -d --force-recreate backend`; `docker compose restart` não
+volta a ler o `.env`. No Docker, o script corre dentro do contentor:
+`docker compose exec backend node scripts/platform-admin.js list`.
+
+As tarefas internas (`/plataforma/tarefas`) são só para a equipa da plataforma
+e nunca aparecem aos clientes. Os comunicados (`/plataforma/comunicados`)
+aparecem na faixa do topo da app e, se marcados, em «Ajuda e feedback», entre a
+hora de início e a de fim. A opção de email fica gravada mas ainda não envia
+nada: só passa a funcionar quando houver o email da empresa. Os pacotes
+(`/plataforma/pacotes`) definem os limites de alojamentos e de membros. Os
+clientes antigos ficam sem pacote, ou seja, sem limites, até lhes ser atribuído
+um. Ao atingir um limite, criar alojamento, convidar ou aceitar um convite
+falha com uma mensagem que pede para falar connosco. A suspensão, na ficha do
+cliente, corta o acesso de imediato: todos os pedidos da organização respondem
+403.
+
+Conta só de plataforma para a colega, em `backend/src`:
+
+1. Criar o utilizador sem organização com
+   `node scripts/create-admin.js "Nome" "email" "palavra-passe"` (no Docker,
+   `docker compose exec backend node scripts/create-admin.js ...`). O script só
+   cria o utilizador, sem membership, e recusa um email que já exista. Depois,
+   apagar do histórico do shell a linha com a palavra-passe.
+2. `npm run platform-admin -- grant email` (no Docker,
+   `docker compose exec backend node scripts/platform-admin.js grant email`).
+3. Acrescentar o email a `PLATFORM_ADMIN_EMAILS` no `.env`, separado por vírgulas
+   dos restantes.
+4. Recriar o contentor com `docker compose up -d --force-recreate backend`.
+5. Confirmar com `npm run platform-admin -- list`: o email deve aparecer sem a
+   nota de falta.
+
+Privacidade: para melhorar o produto, são guardados totais diários de páginas
+abertas por organização, sem identificar pessoas (sem utilizador, IP nem
+browser), e apagados ao fim de 400 dias.
+
+Suporte: os pedidos de «Ajuda e feedback» chegam à página «Suporte» da consola.
+Os estados são Aberto, Em análise, Precisa de si e Resolvido. Quando o cliente
+responde, o pedido reabre. Os avisos seguem por push e, se o Gmail da
+organização estiver ligado, por email. O botão do email só funciona com
+`PUBLIC_APP_URL` definido. Os pedidos e anexos não entram nas cópias de
+segurança por organização.
 
 ## Dados pessoais: anonimização
 

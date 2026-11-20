@@ -149,8 +149,18 @@ function renderAlojamentos() {
   loading.style.display = 'none';
   updateAlojamentoSummary();
 
-  if (AppModules.core.accommodations.length === 0) {
-    loading.style.display = 'flex';
+  // Conta nova: convite para criar o primeiro alojamento (nunca fica no «a carregar»).
+  const vazio = AppModules.core.accommodations.length === 0;
+  renderAlojamentosEmpty(vazio);
+  if (vazio) {
+    tbody.innerHTML = '';
+    const cards = document.getElementById('aloj-mobile-cards');
+    if (cards) cards.innerHTML = '';
+    const v2Empty = AppModules.alojamentos.isAlojamentosV2();
+    const box = document.getElementById('aloj-v2');
+    if (box) box.hidden = !v2Empty;
+    if (v2Empty) AppModules.alojamentos.renderAlojamentosV2([]);
+    if (window.lucide) lucide.createIcons();
     return;
   }
 
@@ -222,6 +232,24 @@ function renderAlojamentos() {
   if (v2Box) v2Box.hidden = !v2;
   if (v2) AppModules.alojamentos.renderAlojamentosV2(ordered);
   if (window.lucide) lucide.createIcons();
+}
+
+// Estado vazio da V1 (criado por JS dentro do cartão da lista); na V2 é o de cartoes-v2.js.
+function renderAlojamentosEmpty(show) {
+  const card = document.querySelector('#view-alojamentos .aloj-v1-card');
+  if (!card) return;
+  let box = document.getElementById('aloj-empty');
+  card.querySelector('.table-wrap')?.toggleAttribute('hidden', show);
+  card.querySelector('#aloj-mobile-cards')?.toggleAttribute('hidden', show);
+  if (!show) { box?.remove(); return; }
+  if (box) return;
+  box = document.createElement('div');
+  box.id = 'aloj-empty';
+  box.className = 'empty-state aloj-empty';
+  box.innerHTML = `<div class="es-icon">🏠</div><h3>Ainda não tem alojamentos</h3>
+    <p>Crie o primeiro para começar a receber reservas. Pode ser uma casa ou um edifício, e depois acrescentar-lhe quartos ou suites.</p>
+    <button type="button" class="btn btn-primary" data-on-click="index-add-alojamento-ff5f8f7">${AppModules.core.lcIcon('plus', 16)} Adicionar o primeiro alojamento</button>`;
+  card.querySelector('#aloj-loading')?.before(box);
 }
 
 function renderAlojamentosMobileCards(ordered, parentMap, childrenByParent, inFiltered) {
@@ -407,8 +435,18 @@ async function openAlojamento(id, preferredTab = 'info') {
     document.getElementById('aloj-wifi-nome').value     = a.wifi_name     || '';
     document.getElementById('aloj-wifi-password').value = a.wifi_password || '';
     document.getElementById('aloj-door-code').value     = a.door_code    || '';
-    document.getElementById('aloj-checkin-time').value  = a.checkin_time  || '15:00';
-    document.getElementById('aloj-checkout-time').value = a.checkout_time || '11:00';
+    document.getElementById('aloj-checkin-time').value  = a.checkin_time  || '';
+    document.getElementById('aloj-checkout-time').value = a.checkout_time || '';
+    // Dados dos emails ao hóspede.
+    for (const [elId, field] of [['aloj-contact-email', 'contact_email'], ['aloj-contact-phone', 'contact_phone'],
+      ['aloj-arrival-instructions', 'arrival_instructions'], ['aloj-entry-instructions', 'entry_instructions'],
+      ['aloj-checkout-instructions', 'checkout_instructions'], ['aloj-review-url', 'review_url']]) {
+      const el = document.getElementById(elId);
+      if (el) el.value = a[field] || '';
+    }
+    const noWifi = document.getElementById('aloj-no-wifi');
+    if (noWifi) noWifi.checked = Boolean(Number(a.no_wifi));
+    AppModules.alojamentos.loadEmailReadiness(a.id);
     const fbEl  = document.getElementById('aloj-social-fb');
     const igEl  = document.getElementById('aloj-social-ig');
     const webEl = document.getElementById('aloj-social-web');

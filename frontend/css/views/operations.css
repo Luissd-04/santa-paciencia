@@ -905,9 +905,8 @@ body.tl-is-panning * {
 
 .notifications-page-copy small {
   color: var(--text-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 
 @media (max-width: 760px) {
@@ -1662,3 +1661,7 @@ body.tl-is-panning * {
 #voucher-modal-bg .modal-footer,
 #voucher-history-modal-bg .modal-header,
 #voucher-history-modal-bg .modal-footer { flex-shrink: 0; }
+
+/* Emails retidos: ações Enviar/Ignorar no menu do sino. */
+.notif-item-actions { display: flex; gap: 6px; margin-top: 8px; }
+.notif-item-actions .btn { padding: 4px 10px; font-size: 12.5px; }

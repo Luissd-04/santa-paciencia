@@ -296,3 +296,44 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
 }
 .kpi-value.kpi-animated { animation: kpiEnter .8s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 
+
+/* ─── Novo alojamento (js/features/alojamentos/novo-alojamento.js) ─── */
+.aloj-v1-card :is(.table-wrap, .aloj-mobile-cards)[hidden] { display: none !important; }
+.aloj-empty { padding: 40px 20px; }
+.aloj-empty p { max-width: 460px; margin: 0 auto 18px; }
+.modal.anv { max-width: 520px; }
+.anv .anv-bloco { margin: 0 0 16px; }
+.anv .anv-bloco[hidden] { display: none; }
+.anv .anv-bloco > .form-label { display: block; margin-bottom: 6px; }
+.anv-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 3px; border: 1px solid var(--cinza-claro); border-radius: 10px; background: var(--cinza-claro); }
+.anv-seg button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 6px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--cinza); font: inherit; font-size: 13px; line-height: 1.25; text-align: left; cursor: pointer; }
+.anv-seg button svg { flex: none; width: 16px; height: 16px; }
+.anv-seg button[aria-checked="true"] { background: #fff; color: var(--azul); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .14); }
+.anv-seg button:focus-visible { outline: 2px solid var(--azul-claro, #4a7fa5); outline-offset: 1px; }
+.anv-dica { margin: 6px 0 0; font-size: 12.5px; color: var(--cinza); }
+.anv-erro { margin: 0; padding: 10px 12px; border-radius: 8px; background: rgba(192, 57, 43, .1); color: var(--vermelho, #c0392b); font-size: 13.5px; line-height: 1.4; }
+.anv-erro[hidden] { display: none; }
+@media (max-width: 480px) {
+  .anv-seg { grid-template-columns: 1fr; }
+}
+
+/* Emails aos hóspedes: dados do alojamento usados nos emails e o que falta
+   (js/features/alojamentos/prontidao-emails.js). */
+.aloj-guest-info-hint { margin: 0 0 12px; color: var(--text-muted); font-size: 13px; line-height: 1.5; max-width: 70ch; }
+.aloj-guest-info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.aloj-guest-info-grid .aloj-span-2 { grid-column: 1 / -1; }
+.aloj-guest-info-grid textarea { resize: vertical; min-height: 64px; }
+.aloj-req, .aloj-opt { margin-left: 6px; font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.aloj-req { color: var(--text-muted); }
+.aloj-opt { color: var(--text-soft); }
+.aloj-check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; cursor: pointer; }
+.aloj-ready-chip { margin-left: auto; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #f8ecd6; color: #8a5a12; }
+.aloj-ready-chip.is-ok { background: #e4efe6; color: #2e6b3f; }
+.aloj-email-readiness { display: grid; gap: 6px; margin: 0 0 16px; }
+.aloj-email-readiness:empty { display: none; }
+.aloj-ready-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 12px; border: 1px solid var(--border-soft); border-radius: 10px; font-size: 13.5px; }
+.aloj-ready-row small { display: block; color: var(--text-muted); font-size: 12.5px; }
+.aloj-ready-row .tag { padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; background: #e4efe6; color: #2e6b3f; white-space: nowrap; }
+.aloj-ready-row.is-missing { border-color: rgba(163, 48, 31, .35); background: rgba(248, 225, 220, .35); }
+.aloj-ready-row.is-missing .tag { background: #f8e1dc; color: #a3301f; }
+@media (max-width: 720px) { .aloj-guest-info-grid { grid-template-columns: 1fr; } }

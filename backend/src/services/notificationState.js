@@ -6,7 +6,10 @@
 const { db } = require('../config/database');
 
 function notificationKey(n) {
-  return [n.type, n.reservation_id || '', n.event_id || '', n.template_slug || ''].join('|');
+  const key = [n.type, n.reservation_id || '', n.event_id || '', n.template_slug || ''];
+  // Avisos por alojamento (configuração por terminar) distinguem-se pelo alojamento.
+  if (n.accommodation_id && !n.reservation_id) key.push(n.accommodation_id);
+  return key.join('|');
 }
 
 function annotate(userId, organizationId, notifications, now = new Date().toISOString()) {

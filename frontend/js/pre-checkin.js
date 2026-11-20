@@ -594,15 +594,17 @@ function setupArrivalTime() {
 function render(data) {
   reservationData = data;
   const r = data.reservation;
-  $('pc-reservation-ref').textContent = r.id;
   $('pc-stay').textContent = `${r.accommodation_name} · ${fmtDate(r.check_in)} a ${fmtDate(r.check_out)}`;
   $('pc-accommodation').textContent = r.accommodation_name;
+  // Marca do alojamento no topo (nunca a da plataforma).
+  const brand = r.brand_name || r.accommodation_name || '';
+  if ($('pn-brand')) { $('pn-brand').textContent = brand; $('pn-mark').textContent = brand.trim().charAt(0).toUpperCase(); }
+  if (brand) document.title = `Pré-check-in — ${brand}`;
   $('pc-checkin').textContent = fmtDate(r.check_in);
   $('pc-checkout').textContent = fmtDate(r.check_out);
   $('pc-guest-count').textContent = `${r.num_guests} hóspede${Number(r.num_guests) !== 1 ? 's' : ''}`;
   const image = r.cover_image || r.images?.[0] || '';
   if (safeMediaUrl(image)) {
-    $('pc-bg').style.backgroundImage = `url(${JSON.stringify(mediaThumb(image, 1600))})`;
     $('pc-summary-photo').style.backgroundImage = `url(${JSON.stringify(mediaThumb(image, 1024))})`;
   }
   $('pc-summary-photo').hidden = !safeMediaUrl(image);
@@ -696,6 +698,7 @@ $('precheckin-form').addEventListener('submit', async event => {
     });
     AppModules.publicFlow.complete(result.data?.resubmission ? 'alteracoes' : 'dados', {
       reference: reservationData.reservation.id,
+      brand: reservationData.reservation.brand_name || reservationData.reservation.accommodation_name || '',
       returnPath: location.pathname,
       paymentPath: reservationData.reservation.payment_path,
     });

@@ -24,4 +24,12 @@ function compute(root) {
 }
 
 const root = process.env.FRONTEND_PATH ? path.resolve(process.env.FRONTEND_PATH) : null;
-module.exports = { value: root && fs.existsSync(root) ? compute(root) : null };
+
+// Commit do Git em execução, para se ver na app qual é a versão instalada.
+// Vem de APP_BUILD (scripts/staging.sh passa-o; na produção, ver OPERACOES.md).
+// Só se aceita um hash hexadecimal; outro valor (ex.: «staging-local») fica null.
+const commit = /^[0-9a-f]{7,40}$/i.test(String(process.env.APP_BUILD || '').trim())
+  ? String(process.env.APP_BUILD).trim().toLowerCase().slice(0, 12) : null;
+const startedAt = new Date().toISOString();
+
+module.exports = { value: root && fs.existsSync(root) ? compute(root) : null, commit, startedAt };

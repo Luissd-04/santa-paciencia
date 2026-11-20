@@ -150,12 +150,15 @@ async function submitReservation() {
       body: JSON.stringify(payload)
     });
 
-    if (result.data.online_payment_available && /^[a-f0-9]{64}$/i.test(result.data.public_token || '')) {
+    // O hóspede segue para a página do pedido: é lá que o acompanha e, depois
+    // de aceite, paga o sinal.
+    if (/^[a-f0-9]{64}$/i.test(result.data.public_token || '')) {
       location.assign(`/reserva/${result.data.public_token}`);
       return;
     }
     AppModules.publicFlow.complete('reserva', {
       reference: result.data.id,
+      brand: AppModules.booking.state.property?.name || '',
       total: AppModules.booking.fmtCurrency(result.data.total_amount),
     });
   } catch (err) {

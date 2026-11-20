@@ -38,7 +38,7 @@ try {
   const backupOut = json(run([tool, 'backup', '--data', path.join(dirs.live, 'data'), '--out', dirs.backup,
     '--key-out', path.join(dirs.vault, 'token-encryption.key'), '--tokens', path.join(dirs.live, 'tokens')]));
   assert.equal(backupOut.integrity, 'ok');
-  assert.equal(backupOut.uploads.files, 2);
+  assert.equal(backupOut.uploads.files, 3); // inclui o anexo de suporte
   assert.equal(backupOut.uploads.missing_references, 0);
   assert.deepEqual(backupOut.token_check, { total: 4, ok: 4, failed: 0 });
   assert.ok(!fs.existsSync(path.join(dirs.backup, 'token-encryption.key')), 'a chave não fica junto do backup');
@@ -74,6 +74,7 @@ try {
   assert.equal(result.organization, true);
   assert.equal(result.listed, expected.summary.reservations.n);
   assert.deepEqual(result.uploads, Object.fromEntries(Object.keys(expected.uploads).map(url => [url, true])));
+  assert.equal(result.support_file, true, 'o anexo de suporte é restaurado');
   assert.equal(result.anonymous_receipt, 401);
   assert.deepEqual(result.tokens, { google_calendar_connections: true, google_email_connections: true, google_tasks_connections: true, legacy: true });
   assert.equal(result.vapid, true);

@@ -1,0 +1,46 @@
+# Independente do docker-compose.yml de produção. Usar scripts/staging.sh.
+name: santa-paciencia-testes
+services:
+  backend:
+    image: santa-paciencia-staging:local
+    build: .
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:3002:3001"
+    env_file: ./.env.staging
+    environment:
+      APP_ENV: staging
+      NODE_ENV: production
+      PORT: "3001"
+      TZ: Europe/Lisbon
+      PUBLIC_APP_URL: ${STAGING_PUBLIC_URL:?Execute sh scripts/staging.sh init primeiro}
+      APP_BUILD: ${STAGING_BUILD:-staging-local}
+      DB_PATH: /app/data/staging.db
+      FRONTEND_PATH: /app/frontend
+      TRUST_PROXY: loopback,uniquelocal
+      COOKIE_SECURE: "true"
+      EMAIL_ENABLED: "false"
+      # O arranque inicial não usa credenciais de nenhum serviço externo.
+      GOOGLE_CLIENT_ID: ""
+      GOOGLE_CLIENT_SECRET: ""
+      STRIPE_MODE: test
+      STRIPE_SECRET_KEY: ""
+      STRIPE_WEBHOOK_SECRET: ""
+      STRIPE_ORGANIZATION_ID: ""
+      ANTHROPIC_API_KEY: ""
+      TOKEN_ENCRYPTION_KEY: ""
+      TOKEN_ENCRYPTION_KEY_FILE: ""
+      VAPID_PUBLIC_KEY: ""
+      VAPID_PRIVATE_KEY: ""
+    volumes:
+      - staging-data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  staging-data:

@@ -45,6 +45,7 @@ const VIEW_TITLES = {
   relatorios: 'Relatórios Financeiros',
   vouchers:   'Vouchers',
   precos:     'Preços Dinâmicos',
+  ajuda:      'Ajuda e feedback',
   definicoes: 'Definições',
   'hospede-detalhe': 'Ficha de Hóspede'
 };
@@ -72,9 +73,13 @@ async function showView(v, pushState = true) {
     switchSettingsTab('emails', false);
     v = 'definicoes';
   }
+  // A vista de onde se vem (Ajuda e feedback junta-a ao contexto técnico).
+  const previousView = document.querySelector('.view.active')?.id?.replace(/^view-/, '');
+  if (previousView && previousView !== v) document.body.dataset.previousView = previousView;
   document.querySelectorAll('.view').forEach(x => x.classList.remove('active', 'view-entering'));
   const nextView = document.getElementById('view-' + v);
   if (!nextView) return;
+  window.AppTelemetry?.view(v);
   nextView.classList.add('active');
   void nextView.offsetWidth;
   nextView.classList.add('view-entering');
@@ -160,6 +165,7 @@ async function initView(v) {
   else if (typeof AppModules.invoice._stopInvoicePoll === 'function') AppModules.invoice._stopInvoicePoll();
   if (v === 'vouchers') AppModules.vouchers.loadVouchers();
   if (v === 'precos') AppModules.precos.initPrecos();
+  if (v === 'ajuda') AppModules.ajuda.openPage();
   if (v === 'definicoes') renderSettingsView();
 }
 
@@ -197,6 +203,10 @@ async function handleDeepLinkUrl(raw) {
   const u = new URL(raw, window.location.origin);
   const view = viewFromPath(u.pathname);
   const reservaId = u.searchParams.get('reserva');
+  // Email e push do Suporte: /ajuda?pedido=<id>. O showView troca o endereço,
+  // por isso o pedido segue por aqui e não pelo endereço.
+  const pedidoId = u.searchParams.get('pedido');
+  if (view === 'ajuda' && pedidoId && await AppModules.core.ensureFeature('ajuda')) AppModules.ajuda.requestTicket(pedidoId);
   if (view === 'reservas' && reservaId) {
     if (await AppModules.core.ensureFeature('reservas')) { AppModules.reservas.showDetail(reservaId); return; }
   }
@@ -311,7 +321,7 @@ let settingsSectionOpen = false;
 
 function switchSettingsTab(tab, render = true) {
   if (tab === 'equipa' && AppModules.core.currentUser?.role !== 'owner') tab = 'gcal';
-  settingsTab = ['gcal', 'database', 'operations', 'emails', 'fornecedores', 'push', 'equipa', 'payments', 'aparencia'].includes(tab) ? tab : 'gcal';
+  settingsTab = ['gcal', 'database', 'operations', 'emails', 'fornecedores', 'push', 'equipa', 'payments', 'aparencia', 'sobre'].includes(tab) ? tab : 'gcal';
   AppModules.core.SS.set('settings:tab', settingsTab);
   settingsSectionOpen = true;
   applySettingsTab();
@@ -362,6 +372,7 @@ function renderSettingsView() {
   if (settingsTab === 'push' && typeof AppModules.definicoes.initPushSettings === 'function') AppModules.definicoes.initPushSettings();
   if (settingsTab === 'equipa' && AppModules.core.currentUser?.role === 'owner') AppModules.definicoes.loadTeamOverview();
   if (settingsTab === 'aparencia' && typeof AppModules.definicoes.renderAppearance === 'function') AppModules.definicoes.renderAppearance();
+  if (settingsTab === 'sobre' && typeof AppModules.definicoes.renderAbout === 'function') AppModules.definicoes.renderAbout();
   if (window.lucide) lucide.createIcons();
 }
 

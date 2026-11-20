@@ -10,8 +10,8 @@ const PREVIEW_STATUSES = ['confirmada', 'pre_reserva', 'pendente', 'aguardar_pag
 // Ordem cronológica da jornada do hóspede (o cancelamento fica no fim, como
 // percurso de exceção). Modelos fora da lista vêm a seguir.
 const TEMPLATE_ORDER = [
-  'confirmacao', 'pagamento', 'aviso_restante', 'pre_checkin', 'coordenadas',
-  'apos_checkin', 'antes_checkout', 'obrigado', 'cancelamento', 'cancelamento_politica',
+  'confirmacao', 'reserva_aceite', 'pagamento', 'aviso_restante', 'coordenadas', 'obrigado',
+  'cancelamento', 'cancelamento_politica', 'pre_checkin', 'apos_checkin', 'antes_checkout',
 ];
 
 function sortTemplates(templates) {
@@ -20,7 +20,8 @@ function sortTemplates(templates) {
 }
 
 const GUEST = { name: 'Rui Marques Silva', first_name: 'Rui', email: 'hospede.exemplo@example.org', phone: '+351 912 345 678' };
-const SAMPLE_ACCOMMODATION = { name: 'Suite Mezzanine Deluxe' };
+// Sem alojamento escolhido, o exemplo usa o nome da organização (nunca um
+// alojamento inventado).
 
 function sampleReservation(orgId, overrides = {}) {
   return {
@@ -47,12 +48,13 @@ function sampleReservation(orgId, overrides = {}) {
 function previewContext(orgId, { baseUrl = '', status = 'confirmada', accommodation = null, reservation: overrides = {} } = {}) {
   const settings = emailService.getEmailSettings(accommodation, orgId);
   const reservation = sampleReservation(orgId, { status: PREVIEW_STATUSES.includes(status) ? status : 'confirmada', ...overrides });
-  const unit = accommodation || { ...SAMPLE_ACCOMMODATION, city: settings.property_name };
+  const unit = accommodation || { name: settings.property_name || 'Alojamento', city: '' };
   const vars = emailService.sanitizeUrlVars(emailService.buildVars(GUEST, reservation, unit, settings, {
     link_pre_checkin: `${baseUrl}/pre-checkin/exemplo`,
     wifi_password: unit.wifi_password || '••••••••',
     codigo_porta: unit.door_code || '1234#',
     valor_pagamento: '80,00 €',
+    ...(overrides.motivo_cancelamento ? { motivo_cancelamento: overrides.motivo_cancelamento } : {}),
   }));
   return { settings, vars, blocks: emailService.buildBlocks(vars, settings, reservation), reservation };
 }
@@ -67,11 +69,20 @@ const GUEST_CASES = {
     { label: 'pedido por aprovar', status: 'pendente', reservation: { amount_paid: 0 } },
     { label: 'pré-reserva', status: 'pre_reserva', reservation: { amount_paid: 0 } },
   ],
+  reserva_aceite: [
+    { label: 'falta o sinal', status: 'aguardar_pagamento', reservation: { amount_paid: 0, deposit_deadline: new Date(Date.now() + 48 * 3600000).toISOString() } },
+    { label: 'sinal já pago', status: 'confirmada' },
+  ],
   coordenadas: [{ reservation: PAID }],
   apos_checkin: [{ reservation: { status: 'check_in', ...PAID } }],
   antes_checkout: [{ reservation: { status: 'check_in', ...PAID } }],
   obrigado: [{ reservation: { status: 'check_out', ...PAID } }],
-  cancelamento: [{ status: 'cancelada', reservation: { amount_paid: 0 } }],
+  cancelamento: [
+    { label: 'pedido expirado', status: 'cancelada', reservation: { amount_paid: 0, motivo_cancelamento: 'ttl' } },
+    { label: 'sinal fora do prazo', status: 'cancelada', reservation: { amount_paid: 0, motivo_cancelamento: 'deposit' } },
+    { label: 'pela equipa', status: 'cancelada', reservation: { amount_paid: 0, motivo_cancelamento: 'staff' } },
+    { label: 'pelo hóspede', status: 'cancelada', reservation: { amount_paid: 0, motivo_cancelamento: 'guest' } },
+  ],
   cancelamento_politica: [{ status: 'cancelada' }],
 };
 
@@ -90,10 +101,11 @@ function staffSamples(orgId, { baseUrl }) {
   const reservation = sampleReservation(orgId, { status: 'pendente', amount_paid: 0 });
   const cancelled = sampleReservation(orgId, { status: 'cancelada' });
   const url = `${baseUrl}/reservas?reserva=${reservation.id}`;
+  const accommodation = { name: emailService.getEmailSettings(null, orgId).property_name || 'Alojamento' };
   return [
-    { name: 'Nova reserva', message: emailService.ownerNewReservationMessage(GUEST, reservation, SAMPLE_ACCOMMODATION, baseUrl) },
+    { name: 'Novo pedido', message: emailService.ownerNewReservationMessage(GUEST, reservation, accommodation, baseUrl) },
     { name: 'Reserva cancelada', message: require('./reservationEffects').staffCancelledMessage(
-      { guest: GUEST, reservation: cancelled, accommodation: SAMPLE_ACCOMMODATION }, 'guest', url) },
+      { guest: GUEST, reservation: cancelled, accommodation }, 'guest', url) },
   ].map(({ name, message }) => ({ group: 'Equipa', name, ...staff.compose(orgId, { ...message, accommodation: null }) }));
 }
 

@@ -419,9 +419,15 @@ test('HTTP: reserva pública, checkout, assinatura raw e consulta segura do esta
     });
     const payload = await result.json();
     assert.equal(result.status, 201, JSON.stringify(payload));
-    assert.equal(payload.data.status, 'aguardar_pagamento');
+    // O pedido espera pela equipa: só depois de aceite se paga o sinal online.
+    assert.equal(payload.data.status, 'pendente');
     assert.equal(payload.data.total_amount, 200);
     const token = payload.data.public_token;
+    assert.equal((await post(`/api/public/reservation/${token}/checkout`, {})).status, 409);
+    require('../services/reservationLifecycle').approve('stripe-org', payload.data.id, { origin: base });
+    const accepted = db.prepare('SELECT status, deposit_deadline FROM reservations WHERE id=?').get(payload.data.id);
+    assert.equal(accepted.status, 'aguardar_pagamento');
+    assert.ok(Date.parse(accepted.deposit_deadline) > Date.now() + 47 * 3600000);
     const checkout = await post(`/api/public/reservation/${token}/checkout`, { amount: 1 });
     assert.equal(checkout.status, 200);
     const session = [...sessions.values()][0]; succeed(session);
@@ -610,6 +616,7 @@ test('pré-check-in preserva a confirmação pelo sinal, mesmo com restante por 
   assert.equal(row().amount_paid, 50);
 });
 
+const created_org = id => db.prepare('SELECT organization_id FROM reservations WHERE id=?').get(id).organization_id;
 test('HTTP: políticas isoladas, permissões, criação manual e pública, consentimento e cancelamento', async () => {
   const app = require('../app');
   const auth = require('../services/authService');
@@ -651,8 +658,12 @@ test('HTTP: políticas isoladas, permissões, criação manual e pública, conse
       guest: { name: 'Public Policy Guest', email: 'public@example.invalid' }, rgpd_consent: true, elapsed_ms: 9000,
     }, '');
     assert.equal(publicBooking.status, 201);
-    const token = (await publicBooking.json()).data.public_token;
+    const created = (await publicBooking.json()).data;
+    const token = created.public_token;
     const url = `/api/public/reservation/${token}`;
+    // O sinal só se paga depois de a equipa aceitar o pedido.
+    assert.equal(created.status, 'pendente');
+    require('../services/reservationLifecycle').approve(created_org(created.id), created.id, { origin: 'http://127.0.0.1' });
     let status = (await (await request(url)).json()).data;
     assert.equal(status.online_payment.policy.policy.enabled, true);
     assert.equal(status.policy_auto_consent, undefined); assert.equal(status.stripe_customer_id, undefined);

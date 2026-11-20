@@ -143,12 +143,6 @@
   /* Email templates: stack sidebar above editor on tablet */
   .emails-layout { grid-template-columns: 1fr; }
   .emails-sidebar { position: static; max-height: none; }
-  .emed-body-wrap { padding: 16px; }
-  .emed-header { padding: 14px 16px; }
-  .emed-envelope-fields .emed-env-row { padding: 7px 16px; }
-  .emed-top-grid { grid-template-columns: 1fr; }
-  .emed-top-grid .emed-envelope-fields { border-right: none; border-bottom: 1px solid var(--cinza-claro); }
-  .emed-timing-card { padding: 12px 16px; }
 }
 
 /* ══════════════════════════════════════════

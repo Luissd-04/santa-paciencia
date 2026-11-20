@@ -39,7 +39,7 @@ const TEMPLATES = {
   // aguardar_pagamento, e uma reserva por aprovar não pode chegar ao hóspede
   // anunciada como confirmada.
   confirmacao: {
-    name: 'Agradecimento pela reserva',
+    name: 'Pedido recebido',
     subject: '{{titulo_estado}} — {{alojamento}}',
     body: [
       '{{titulo_reserva}}',
@@ -52,9 +52,26 @@ const TEMPLATES = {
     ].join(''),
   },
 
+  // Pedido aceite pela equipa: o sinal a pagar (online, com a Stripe), o prazo
+  // de 48 h e o pré-check-in. Com o sinal já pago, diz que está confirmada.
+  reserva_aceite: {
+    name: 'Reserva aceite',
+    subject: '{{titulo_aceite_assunto}} — {{alojamento}}',
+    body: [
+      '{{titulo_aceite}}',
+      p('Olá <strong>{{primeiro_nome}}</strong>,'),
+      '{{mensagem_aceite}}',
+      '{{resumo_pagamento}}',
+      '{{botao_pagar_sinal}}',
+      '{{proximo_pre_checkin}}',
+      '{{estadia}}',
+      '{{contacto}}',
+    ].join(''),
+  },
+
   apos_checkin: {
     name: 'Após check-in',
-    subject: 'Bem-vindo à {{alojamento}}, {{primeiro_nome}}',
+    subject: 'Boas-vindas a {{alojamento}}, {{primeiro_nome}}',
     body: [
       '{{titulo_boas_vindas}}',
       p('Esperamos que a viagem tenha corrido bem. Fica aqui o que pode precisar durante a estadia em {{localidade}}.'),
@@ -68,11 +85,11 @@ const TEMPLATES = {
     name: 'Cancelamento da reserva',
     subject: 'Reserva cancelada — {{alojamento}}',
     body: [
-      '{{titulo_reserva}}',
+      '{{titulo_cancelamento}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
-      p('Confirmamos o cancelamento da sua reserva em <strong>{{alojamento}}</strong>.'),
+      '{{mensagem_cancelamento}}',
       '{{resumo_cancelamento}}',
-      p('Esperamos poder recebê-lo numa próxima oportunidade.'),
+      '{{botao_novo_pedido}}',
       '{{contacto}}',
     ].join(''),
   },
@@ -83,7 +100,7 @@ const TEMPLATES = {
     body: [
       '{{titulo_pre_checkin}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
-      p('Para termos tudo pronto à sua chegada, precisamos de alguns dados. Demora cerca de 2 minutos.'),
+      p('Para termos tudo pronto à sua chegada, precisamos de alguns dados.'),
       '{{lista_pre_checkin}}',
       '{{botao_pre_checkin}}',
       '{{estadia}}',
@@ -91,19 +108,21 @@ const TEMPLATES = {
     ].join(''),
   },
 
-  // Junta o que antes eram dois modelos (coordenadas + código de porta). O
-  // código e a senha do Wi-Fi seguem as regras de emailEligibility (reserva
-  // aprovada e integralmente paga); sem elas, os códigos não aparecem.
+  // Tudo para a estadia num só email: como chegar, como entrar, Wi-Fi e o dia
+  // da saída (antes eram «Informações», «Boas-vindas» e «Lembrete de
+  // check-out»). Os códigos seguem as regras de emailEligibility: o email só
+  // sai com a reserva aceite e paga na totalidade.
   coordenadas: {
-    name: 'Informações e código de acesso',
-    subject: 'Informações para a sua chegada — {{alojamento}}',
+    name: 'Tudo para a sua chegada',
+    subject: 'Tudo para a sua chegada — {{alojamento}}',
     body: [
       '{{titulo_chegada}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
-      p('Falta pouco. Guarde este email: tem o que precisa para entrar.'),
+      p('Guarde este email: tem tudo o que precisa para a estadia.'),
       '{{estadia}}',
-      '{{codigos_acesso}}',
-      '{{botao_mapa}}',
+      '{{como_chegar}}',
+      '{{como_entrar}}',
+      '{{dia_saida}}',
       '{{contacto}}',
     ].join(''),
   },
@@ -128,8 +147,9 @@ const TEMPLATES = {
     body: [
       '{{titulo_pagamento}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
-      p('Obrigado. Registámos o pagamento de <strong>{{valor_pagamento}}</strong> da sua reserva em <strong>{{alojamento}}</strong>.'),
+      '{{mensagem_pagamento}}',
       '{{resumo_pagamento}}',
+      '{{proximo_pre_checkin}}',
       '{{estadia}}',
       '{{botao_reserva}}',
       '{{contacto}}',
@@ -173,9 +193,9 @@ const TEMPLATES = {
     subject: 'Obrigado pela sua visita — {{alojamento}}',
     body: [
       '{{titulo_obrigado}}',
-      p('Foi um gosto recebê-lo em <strong>{{alojamento}}</strong>.'),
-      p('Se tiver um momento, deixe-nos uma avaliação: ajuda outros viajantes e ajuda-nos a melhorar.'),
+      p('Foi um gosto receber a sua visita em <strong>{{alojamento}}</strong>. Se tiver um minuto, a sua avaliação ajuda outras pessoas a escolher e ajuda-nos a melhorar.'),
       '{{botao_avaliar}}',
+      '{{contacto}}',
     ].join(''),
   },
 };
@@ -186,7 +206,9 @@ const TEMPLATES = {
 const TIMING = {
   confirmacao:    { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'booking' },
   cancelamento:   { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'cancellation' },
-  pre_checkin:    { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'approval' },
+  reserva_aceite: { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'approval' },
+  // Enviado pela equipa (botão «Enviar pré-check-in» na reserva).
+  pre_checkin:    { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'manual' },
   coordenadas:    { timing_offset: 1, timing_unit: 'days',  timing_direction: 'before', timing_event: 'checkin' },
   apos_checkin:   { timing_offset: 2, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'checkin' },
   antes_checkout: { timing_offset: 1, timing_unit: 'days',  timing_direction: 'before', timing_event: 'checkout' },
@@ -196,8 +218,12 @@ const TIMING = {
   cancelamento_politica: { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after', timing_event: 'policy_cancellation' },
 };
 
+// Modelos desligados por omissão: o conteúdo passou para «Tudo para a sua
+// chegada». Ficam para quem os quiser voltar a ligar.
+const INACTIVE = new Set(['apos_checkin', 'antes_checkout']);
+
 function defaultsList() {
-  return Object.entries(TEMPLATES).map(([slug, tpl]) => ({ slug, ...tpl, ...TIMING[slug] }));
+  return Object.entries(TEMPLATES).map(([slug, tpl]) => ({ slug, ...tpl, ...TIMING[slug], active: INACTIVE.has(slug) ? 0 : 1 }));
 }
 
-module.exports = { TEMPLATES, TIMING, defaultsList, SERIF, COLORS: C };
+module.exports = { TEMPLATES, TIMING, INACTIVE, defaultsList, SERIF, COLORS: C };

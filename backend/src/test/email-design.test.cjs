@@ -39,7 +39,7 @@ test('cada modelo tem o seu título (antes vários diziam "Reserva confirmada")'
     ['coordenadas', { amount_paid: 250 }, 'Tudo para a sua chegada'],
     ['antes_checkout', {}, 'Check-out sex, 16 nov 2035, até às 11:00'],
     ['obrigado', {}, 'Obrigado pela visita, Rui'],
-    ['apos_checkin', {}, 'Bem-vindo, Rui'],
+    ['apos_checkin', {}, 'Boas-vindas, Rui'],
   ];
   for (const [slug, res, title] of cases) {
     const html = render(slug, res);

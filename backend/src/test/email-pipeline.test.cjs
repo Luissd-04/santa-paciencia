@@ -34,7 +34,8 @@ beforeEach(() => {
     DELETE FROM accommodations; DELETE FROM organization_settings WHERE key = 'payment_policy';
     UPDATE organization_email_templates SET active = 1, window_start = NULL, window_end = NULL;
     INSERT INTO guests(id,organization_id,name,email) VALUES ('guest','org-mail','Ana Silva','ana@example.com');
-    INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests) VALUES ('unit','org-mail','Quarto','alojamento',100,2);`);
+    INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests,address,license_number,checkin_time,checkout_time,contact_email)
+      VALUES ('unit','org-mail','Quarto','alojamento',100,2,'Rua A 1','1/AL','15:00','11:00','casa@example.com');`);
   sent.length = 0;
 });
 after(() => { db.close(); process.chdir(originalCwd); fs.rmSync(temp, { recursive: true, force: true }); });
@@ -60,7 +61,8 @@ test('email de pagamento parcial mostra o valor recebido e o que falta', async (
   assert.ok(result.id);
   assert.equal(sent.length, 1);
   assert.match(sent[0].subject, /Pagamento recebido/);
-  assert.match(sent[0].html, /Recebemos 50,00/);
+  // Os 50 € completam o sinal: o email diz que a reserva ficou confirmada.
+  assert.match(sent[0].html, /Recebemos o sinal de 50,00/);
   assert.match(sent[0].html, />Falta </);
   assert.match(sent[0].html, /150,00/);
   assert.doesNotMatch(sent[0].html, /\{\{/);

@@ -229,5 +229,30 @@ async function resolveEmailDelivery(req, res, next) {
   }
 }
 
+// POST /api/reservations/:id/email-holds/:slug/:action — email retido por
+// faltarem dados do alojamento: «send» envia-o agora (já com os dados
+// completos), «dismiss» deixa-o por enviar e tira-o do sino.
+async function resolveEmailHold(req, res, next) {
+  try {
+    const organizationId = req.user.organization_id;
+    const reservation = db.prepare('SELECT id FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+    const slug = String(req.params.slug || '');
+    if (!/^[a-z0-9_-]{1,80}$/i.test(slug)) return res.status(400).json({ error: 'Modelo inválido.' });
+    const action = req.params.action;
+    if (!['send', 'dismiss'].includes(action)) return res.status(400).json({ error: 'Ação inválida.' });
+    if (action === 'send') await require('../services/emailService').sendHeldEmail(organizationId, reservation.id, slug);
+    else if (!require('../services/emailReadiness').resolve(organizationId, reservation.id, slug, 'dismissed')) {
+      return res.status(404).json({ error: 'Este email já não está retido.' });
+    }
+    recordHistory({ organizationId, reservationId: reservation.id, userId: req.user.id, action: 'email_hold_resolved',
+      meta: { template_slug: slug, resolution: action === 'send' ? 'sent' : 'dismissed' } });
+    require('../services/liveUpdates').publish(organizationId);
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /api/reservations/stats/dashboard
-module.exports = { resolveEmailDelivery, getAll, getById, create, update, quote, approve, sendPrecheckinLink, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, markNotificationsRead, addPayment, deletePayment, saveInvoice, setTaskStatus, getHistory };
+module.exports = { resolveEmailHold, resolveEmailDelivery, getAll, getById, create, update, quote, approve, sendPrecheckinLink, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, markNotificationsRead, addPayment, deletePayment, saveInvoice, setTaskStatus, getHistory };

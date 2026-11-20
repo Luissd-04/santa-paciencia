@@ -72,6 +72,38 @@ function expirePendingReservations() {
   }
 }
 
+// Reservas aceites sem sinal pago dentro do prazo (deposit_deadline, definido
+// ao aceitar): cancelam-se e as datas ficam livres. Um pagamento online em
+// curso adia o cancelamento até a Stripe responder.
+function expireUnpaidDeposits() {
+  try {
+    const due = `status = 'aguardar_pagamento' AND COALESCE(amount_paid, 0) = 0
+      AND deposit_deadline IS NOT NULL AND deposit_deadline <= ?
+      AND NOT EXISTS (SELECT 1 FROM stripe_payment_attempts sp
+        WHERE sp.reservation_id = reservations.id AND sp.state IN ('creating','open','processing'))`;
+    const now = new Date().toISOString();
+    const rows = db.prepare(`SELECT * FROM reservations WHERE ${due}`).all(now);
+    const recheck = db.prepare(`SELECT * FROM reservations WHERE id = ? AND organization_id = ? AND ${due}`);
+    const { markCancelled, afterCancel } = require('./reservationLifecycle');
+    let expired = 0;
+    for (const reservation of rows) {
+      const changed = db.transaction(() => {
+        const current = recheck.get(reservation.id, reservation.organization_id, now);
+        return Boolean(current) && markCancelled(current, { reason: 'deposit',
+          note: '[Auto-cancelada: sinal não pago no prazo]' });
+      }).immediate();
+      if (!changed) continue;
+      expired++;
+      afterCancel(reservation.organization_id, reservation.id);
+    }
+    if (expired) console.log(`🧹 ${expired} reserva(s) cancelada(s) por falta do sinal no prazo`);
+    return expired;
+  } catch (err) {
+    console.error('Erro ao expirar reservas sem sinal:', err.message);
+    return 0;
+  }
+}
+
 function retryPendingGoogleTaskDeletions() {
   return processAllQueuedTaskDeletions()
     .then(result => {
@@ -88,6 +120,7 @@ async function runMaintenance() {
   await require('./stripePayments').reconcileActiveCheckouts();
   await require('./paymentPolicyAutomation').runPolicyMaintenance();
   expirePendingReservations();
+  expireUnpaidDeposits();
   require('./reservationEvents').recoverInterrupted();
   await require('./reservationEvents').dispatchPending();
   await retryPendingGoogleTaskDeletions();
@@ -95,6 +128,7 @@ async function runMaintenance() {
 
 module.exports = {
   expirePendingReservations,
+  expireUnpaidDeposits,
   retryPendingGoogleTaskDeletions,
   runMaintenance,
   PENDING_TTL_HOURS,

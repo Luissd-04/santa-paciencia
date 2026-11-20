@@ -29,7 +29,7 @@ const TOKEN_TABLES = [
 ];
 // Contagens no manifesto (verificação depois do restauro). Só números.
 const COUNTED = ['organizations', 'users', 'memberships', 'auth_sessions', 'accommodations', 'guests', 'reservations',
-  'reservation_payments', 'vouchers', 'voucher_redemptions', 'expenses', 'stripe_payment_attempts', 'organization_email_queue',
+  'reservation_payments', 'support_tickets', 'support_attachments', 'vouchers', 'voucher_redemptions', 'expenses', 'stripe_payment_attempts', 'organization_email_queue',
   'google_calendar_connections', 'google_email_connections', 'google_tasks_connections', 'push_subscriptions', 'schema_migrations'];
 
 function fail(message) { const error = new Error(message); error.expected = true; throw error; }

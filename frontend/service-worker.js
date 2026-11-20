@@ -5,8 +5,8 @@
                offline). Cache-first apenas para CDNs (fontes, libs).
 ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'sp-v41';
-const CACHE_VERSION = 102;
+const CACHE_NAME = 'sp-v42';
+const CACHE_VERSION = 106;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -81,11 +81,12 @@ const STATIC_ASSETS = [
   '/js/domain/channels.js',
   '/js/domain/edit-drafts.js',
   '/js/domain/features.js',
+  '/js/domain/telemetry.js',
+  '/js/domain/announcements.js',
   '/js/domain/libraries.js',
   '/js/domain/dates.js',
   '/js/domain/money.js',
   '/js/domain/reservation-status.js',
-  '/js/domain/public-layout.js',
   '/js/domain/appearance.js',
   '/css/v2/aparencia.css',
   '/css/v2/painel.css',
@@ -149,10 +150,12 @@ const FEATURE_ASSETS = [
   '/js/alojamentos.js',
   '/js/features/alojamentos/galeria.js',
   '/js/features/alojamentos/servicos-heranca.js',
+  '/js/features/alojamentos/novo-alojamento.js',
   '/js/features/alojamentos/exportacao.js',
   '/js/features/alojamentos/configuracao.js',
   '/js/features/alojamentos/cartoes-v2.js',
   '/js/features/alojamentos/config-v2.js',
+  '/js/features/alojamentos/prontidao-emails.js',
   '/js/despesas.js',
   '/js/features/despesas/resumo-v2.js',
   '/js/relatorios.js',
@@ -160,6 +163,8 @@ const FEATURE_ASSETS = [
   '/js/features/vouchers/bilhetes-v2.js',
   '/js/precos.js',
   '/js/features/notificacoes/pagina.js',
+  '/js/features/ajuda/pagina.js',
+  '/js/features/ajuda/novo-pedido.js',
   '/js/features/v2/folha.js',
   '/js/features/v2/barra.js',
   '/js/features/v2/formularios.js',
@@ -171,6 +176,7 @@ const FEATURE_ASSETS = [
   '/js/features/invoice/auxiliares.js',
   '/js/features/invoice/contexto-v2.js',
   '/js/emails.js',
+  '/js/features/emails/blocos.js',
   '/js/features/emails/codes.js',
   '/js/features/emails/editor.js',
   '/js/features/emails/preview.js',
@@ -197,6 +203,7 @@ const VIEW_ASSETS = [
   '/views/relatorios.html',
   '/views/vouchers.html',
   '/views/precos.html',
+  '/views/ajuda.html',
   '/views/definicoes.html',
 ];
 
@@ -342,7 +349,7 @@ self.addEventListener('notificationclick', (event) => {
     /* Só janelas da app (excluir páginas públicas, que não têm o handler de message) */
     const isApp = (w) => {
       const p = new URL(w.url).pathname;
-      return !p.startsWith('/pre-checkin') && !p.startsWith('/reservar') && !/^\/reserva\//.test(p);
+      return !p.startsWith('/pre-checkin') && !p.startsWith('/plataforma') && !p.startsWith('/reservar') && !/^\/reserva\//.test(p);
     };
     const client = windowClients.find((w) => new URL(w.url).origin === self.location.origin && isApp(w));
     if (client) {

@@ -4,6 +4,9 @@
 (() => {
 AppModules.define('definicoes', {
   emailBodyChanged: { get: () => emailBodyChanged },
+  fillPreviewContext: { get: () => fillPreviewContext },
+  previewAccommodation: { get: () => previewAccommodation },
+  emailReadiness: { get: () => emailReadiness },
   previewEmail: { get: () => previewEmail },
   sendAllSamples: { get: () => sendAllSamples },
   updateEmailPreview: { get: () => updateEmailPreview },
@@ -21,12 +24,69 @@ function emailBodyChanged() {
   _emailPreviewTimer = setTimeout(updateEmailPreview, 350);
 }
 
+// Contexto da pré-visualização: um alojamento da organização e uma reserva
+// real dele, ou um exemplo num dado estado. O que falta a cada email (para o
+// estado na lista e os avisos do editor) vem do mesmo alojamento.
+let previewAccommodation = null;
+let emailReadiness = {};
+const EXAMPLES = [['confirmada', 'Confirmada'], ['aguardar_pagamento', 'Aguarda o sinal'], ['pendente', 'Pedido por aprovar'],
+  ['pre_reserva', 'Pré-reserva'], ['cancelada', 'Cancelada']];
+const esc = value => AppModules.core.escapeHtml(value ?? '');
+
+async function fillPreviewContext() {
+  const accSel = document.getElementById('et-preview-accommodation');
+  if (!accSel) return;
+  let list = [];
+  try { list = (await AppModules.core.apiGet('/api/accommodations'))?.data || []; } catch { list = []; }
+  const roots = list.filter(a => !a.parent_id);
+  const ordered = [...roots, ...list.filter(a => a.parent_id)];
+  const saved = AppModules.core.SS.get('email:acc', '');
+  const chosen = ordered.find(a => a.id === saved) || roots[0] || ordered[0] || null;
+  accSel.innerHTML = ordered.length
+    ? ordered.map(a => `<option value="${esc(a.id)}" ${a.id === chosen?.id ? 'selected' : ''}>${esc(a.parent_id ? `— ${a.name}` : a.name)}</option>`).join('')
+    : '<option value="">Sem alojamentos</option>';
+  await onAccommodationChange(false);
+}
+
+async function onAccommodationChange(refresh = true) {
+  const accSel = document.getElementById('et-preview-accommodation');
+  const id = accSel?.value || '';
+  AppModules.core.SS.set('email:acc', id);
+  previewAccommodation = id ? { id, name: accSel.selectedOptions[0]?.textContent.replace(/^— /, '') || '' } : null;
+  const resSel = document.getElementById('et-preview-reservation');
+  let reservations = [];
+  if (id) {
+    try { reservations = (await AppModules.core.apiGet(`/api/email-templates/preview-reservations?accommodation_id=${encodeURIComponent(id)}`))?.data || []; } catch { reservations = []; }
+  }
+  if (resSel) {
+    const day = value => window.ReservationDates.formatDayLabel(value, { weekday: false });
+    const label = r => `${r.guest_name} · ${day(r.check_in)} → ${day(r.check_out)}`;
+    resSel.innerHTML = `${reservations.length ? `<optgroup label="Reservas reais">${reservations.map(r => `<option value="res:${esc(r.id)}">${esc(label(r))}</option>`).join('')}</optgroup>` : ''}
+      <optgroup label="Exemplo">${EXAMPLES.map(([v, l]) => `<option value="ex:${v}">Exemplo · ${esc(l)}</option>`).join('')}</optgroup>`;
+  }
+  await loadReadiness(id);
+  if (refresh) updateEmailPreview();
+}
+
+async function loadReadiness(id) {
+  emailReadiness = {};
+  if (id) {
+    try {
+      const data = (await AppModules.core.apiGet(`/api/accommodations/${encodeURIComponent(id)}/email-readiness`))?.data;
+      for (const e of data?.emails || []) emailReadiness[e.slug] = e;
+    } catch { emailReadiness = {}; }
+  }
+  AppModules.definicoes.renderTemplateList();
+  AppModules.definicoes.renderEditorStatus();
+}
+
 function _previewDraft() {
-  const subject = document.getElementById('et-subject')?.value ?? '';
-  const body = document.getElementById('et-body')?.innerHTML ?? '';
-  const status = document.getElementById('et-preview-status')?.value || 'confirmada';
+  const { subject, body } = AppModules.definicoes.editorDraft();
+  const draft = { subject, body, lang: AppModules.definicoes.emailLang };
+  const choice = document.getElementById('et-preview-reservation')?.value || 'ex:confirmada';
+  if (choice.startsWith('res:')) draft.reservation_id = choice.slice(4);
+  else draft.status = choice.slice(3) || 'confirmada';
   const accommodationId = document.getElementById('et-preview-accommodation')?.value || '';
-  const draft = { subject, body, lang: AppModules.definicoes.emailLang, status };
   if (accommodationId) draft.accommodation_id = accommodationId;
   return draft;
 }
@@ -50,9 +110,18 @@ async function updateEmailPreview() {
     if (seq !== _emailPreviewSeq) return;
     if (!res?.success) { _setPreviewNotice('Não foi possível gerar a pré-visualização.'); return; }
     frame.srcdoc = res.html;
-    _setPreviewNotice(res.missing_translation
-      ? `Sem tradução guardada para este idioma — a pré-visualização mostra o texto em português.`
-      : '');
+    const sender = AppModules.definicoes.emailSender || {};
+    const from = sender.name || previewAccommodation?.name || '';
+    const fromEl = document.getElementById('et-preview-from');
+    if (fromEl) fromEl.textContent = from;
+    const avatar = document.getElementById('et-preview-avatar');
+    if (avatar) avatar.textContent = from.trim().charAt(0).toUpperCase();
+    const subjectEl = document.getElementById('et-preview-subject');
+    if (subjectEl) subjectEl.textContent = res.subject || '';
+    const notices = [];
+    if (res.missing?.length) notices.push(`Com estes dados, este email não saía: falta ${res.missing.map(m => m.label).join(', ')}.`);
+    if (res.missing_translation) notices.push('Sem tradução guardada para esta língua: a pré-visualização mostra o texto em português.');
+    _setPreviewNotice(notices.join(' '));
   } catch (e) {
     if (seq !== _emailPreviewSeq) return;
     _setPreviewNotice('Não foi possível gerar a pré-visualização (sem ligação ao servidor).');
@@ -123,11 +192,9 @@ AppActions.register({
 
 AppActions.register({
   "emails-update-email-preview-34d4f1c": (el, event, args) => { updateEmailPreview() },
+  "emails-preview-accommodation-changed": () => { onAccommodationChange() },
 }, "change");
 
-AppActions.register({
-  "emails-email-body-changed-90a5e82": (el, event, args) => { emailBodyChanged() },
-}, "input");
 
 // Limpeza da funcionalidade ao sair ou trocar de organização.
 AppModules.onReset('features/emails/preview.js', () => {

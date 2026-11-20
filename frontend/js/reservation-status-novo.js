@@ -1,13 +1,20 @@
-// Versão nova da página da reserva (?layout=novo; ver js/domain/public-layout.js).
-// Só desenha a partir do que reservation-status.js já carregou: o pagamento,
-// o cancelamento e o pré-check-in continuam a ser tratados por esse ficheiro.
+// Página da reserva: passos, pagamentos, capa e marca do alojamento. Desenha a
+// partir do que reservation-status.js já carregou; o pagamento online e o
+// cancelamento continuam a ser tratados por esse ficheiro.
 (() => {
-  if (!window.PublicLayout?.isNew) return;
   const $ = id => document.getElementById(id);
   const money = value => window.ReservationMoney.format(value);
   const day = (value, options) => window.ReservationDates.formatDayLabel(value, options);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
   const CONFIRMED = ['confirmada', 'check_in'];
+  // «sáb, 21 nov, às 10:30» (hora de Lisboa).
+  const deadline = iso => {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return '';
+    const opts = { timeZone: 'Europe/Lisbon' };
+    const dayIso = date.toLocaleDateString('en-CA', opts);
+    return `${day(dayIso)}, às ${date.toLocaleTimeString('pt-PT', { ...opts, hour: '2-digit', minute: '2-digit' })}`;
+  };
   let calendarUrl = '';
 
   function safePath(path) {
@@ -26,24 +33,25 @@
     const steps = [];
     if (r.status === 'pendente') {
       steps.push({ state: 'done', title: 'Pedido enviado', text: 'Recebemos o seu pedido de reserva.' });
-      steps.push({ state: 'now', title: 'Confirmação do alojamento', text: 'Respondemos o mais depressa possível, por email.' });
+      steps.push({ state: 'now', title: 'Aceitação do alojamento', text: 'Confirmamos a disponibilidade e respondemos por email.' });
+      steps.push({ state: 'later', title: 'Sinal', text: 'Depois de aceite, tem 48 horas para o pagar online.' });
     }
     if (paid > 0) {
       steps.push({ state: 'done', title: missing > 0 ? 'Sinal pago' : 'Pagamento feito', text: `${money(paid)} recebidos` });
     } else if (payment.available) {
-      steps.push({ state: 'now', title: `Sinal de ${money(payment.amount_due)}`, text: 'Agora, para confirmar a reserva' });
+      steps.push({ state: 'now', title: `Sinal de ${money(payment.amount_due)}`, text: r.deposit_deadline ? `Até ${deadline(r.deposit_deadline)}, para confirmar a reserva` : 'Agora, para confirmar a reserva' });
     }
     const path = safePath(precheckin?.path);
     steps.push({
       state: precheckin?.submitted ? 'done' : (path && CONFIRMED.includes(r.status) ? 'now' : 'later'),
       title: 'Pré-check-in',
-      text: precheckin?.submitted ? 'Recebido. Pode corrigir até ao dia de chegada.' : '2 minutos: documentos e hora de chegada. Poupa tempo à chegada.',
+      text: precheckin?.submitted ? 'Recebido. Pode corrigir até ao dia de chegada.' : 'Documentos e hora de chegada. Poupa tempo à chegada.',
       action: path ? { href: path, label: precheckin.submitted ? 'Rever o pré-check-in' : 'Fazer o pré-check-in' } : null,
     });
     if (missing > 0 && paid > 0) {
       steps.push({ state: 'later', title: `Restante de ${money(missing)}`, text: due ? `Até ${due}` : 'Antes da chegada' });
     }
-    steps.push({ state: 'later', title: 'Informações de chegada', text: 'Código da porta e Wi-Fi, por email antes da chegada' });
+    steps.push({ state: 'later', title: 'Informações de chegada', text: 'Como chegar, como entrar e Wi-Fi, por email antes da chegada' });
     return steps;
   }
 
@@ -65,7 +73,7 @@
     return calendarUrl;
   }
 
-  function render(r) {
+  function render(r, image = '') {
     const payment = r.online_payment || {};
     const plan = payment.policy;
     const total = Number(r.total_amount) || 0;
@@ -73,12 +81,16 @@
     const confirmed = CONFIRMED.includes(r.status);
     document.body.dataset.reservationStatus = r.status;
     $('pn-rs-ref').textContent = `Reserva ${r.id}`;
+    // Marca do alojamento, nunca a da plataforma.
+    $('pn-brand').textContent = r.brand_name || r.accommodation_name || '';
+    $('pn-mark').textContent = String(r.brand_name || r.accommodation_name || '').trim().charAt(0).toUpperCase();
+    if (r.brand_name) document.title = `Estado da reserva — ${r.brand_name}`;
 
     // Confirmada: foto e a data de chegada em grande.
     const hero = $('pn-rs-hero');
     hero.hidden = !confirmed;
     $('pn-rs-hero-title').textContent = r.status === 'check_in' ? 'Boa estadia!' : `Até ${day(r.check_in, { long: true })}`;
-    const photo = $('rs-bg').style.backgroundImage;
+    const photo = image ? `url(${JSON.stringify(image)})` : '';
     if (photo) hero.style.backgroundImage = photo;
     hero.classList.toggle('no-photo', !photo);
 
@@ -89,7 +101,8 @@
       <span class="pn-pill wait">${paid > 0 ? 'Falta o restante' : 'Falta o sinal'}</span>
       <h2>${paid > 0 ? 'Pague o restante da estadia' : 'Pague o sinal para garantir as datas'}</h2>
       <strong class="pn-due-amount">${money(due)}</strong>
-      ${plan && paid === 0 && balance > 0 ? `<small>${plan.depositPercent}% de ${money(total)} · o restante (${money(balance)}) fica para ${esc(day(plan.dueAt.slice(0, 10)))}</small>` : ''}` : '';
+      ${plan && paid === 0 && balance > 0 ? `<small>${plan.depositPercent}% de ${money(total)} · o restante (${money(balance)}) fica para ${esc(day(plan.dueAt.slice(0, 10)))}</small>` : ''}
+      ${paid === 0 && r.deposit_deadline ? `<small>Pague até ${esc(deadline(r.deposit_deadline))}. Depois disso, as datas voltam a ficar livres.</small>` : ''}` : '';
 
     $('pn-rs-stay').innerHTML = `
       <div class="pn-trip">
@@ -98,7 +111,11 @@
         <div><small>Saída</small><strong>${esc(day(r.check_out))}</strong></div>
       </div>
       <p class="pn-note">${esc(r.accommodation_name)} · ${r.num_guests} hóspede${Number(r.num_guests) === 1 ? '' : 's'}</p>
-      ${r.status !== 'cancelada' ? `<a class="ghost-btn pn-calendar" download="reserva-${esc(r.id)}.ics" href="${calendarFile(r)}">Adicionar ao calendário</a>` : ''}`;
+      ${r.status !== 'cancelada' ? `<a class="ghost-btn pn-calendar" download="reserva-${esc(r.id)}.ics" href="${calendarFile(r)}">Adicionar ao calendário</a>` : ''}
+      ${r.contact?.email || r.contact?.phone ? `<p class="pn-note pn-contact">Dúvidas? ${[
+        r.contact.email ? `<a href="mailto:${esc(r.contact.email)}">${esc(r.contact.email)}</a>` : '',
+        r.contact.phone ? `<a href="tel:${esc(r.contact.phone.replace(/[^+\d]/g, ''))}">${esc(r.contact.phone)}</a>` : '',
+      ].filter(Boolean).join(' · ')}</p>` : ''}`;
 
     const steps = r.status === 'cancelada' || r.status === 'check_out' ? [] : stepsFor(r);
     $('pn-rs-steps').hidden = !steps.length;

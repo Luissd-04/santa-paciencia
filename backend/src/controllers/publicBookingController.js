@@ -359,8 +359,9 @@ async function createReservation(req, res, next) {
         nights: totals.nights, num_guests: totals.guests, total_amount: finalTotal,
         breakfast_included: payload.breakfast_included ? 1 : 0, tourist_tax: totals.touristTax,
         channel: 'website', payment_method: null, notes: payload.notes || null, license_number: licenseNumber,
-        // Com pagamento online o pedido aguarda o pagamento; sem ele, a aprovação da equipa.
-        status: onlinePayment && cents(finalTotal) >= MIN_ONLINE_CENTS ? 'aguardar_pagamento' : 'pendente',
+        // Todos os pedidos esperam pela equipa. O sinal (online, com a Stripe)
+        // só se paga depois de aceite, com prazo (reservationLifecycle.approve).
+        status: 'pendente',
         guests_data: JSON.stringify(normalizedGuestsData), public_token: token, precheckin_token: precheckinToken,
         precheckin_token_expires_at: precheckinExpiresAt, arrival_time: arrivalTime,
         guest_snapshot: JSON.stringify({ name: g.name, email: g.email, phone: g.phone }),
@@ -380,6 +381,7 @@ async function createReservation(req, res, next) {
       data: {
         id: reservation.id,
         status: reservation.status,
+        // Pagamento online disponível depois de a equipa aceitar o pedido.
         online_payment_available: onlinePayment && cents(finalTotal) >= MIN_ONLINE_CENTS,
         total_amount: finalTotal,
         public_token: token,
@@ -425,12 +427,18 @@ function getReservationStatus(req, res) {
     WHERE r.public_token = ?
   `).get(token);
   if (!reservation) return res.status(404).json({ success: false, error: 'Reserva não encontrada.' });
+  const brand = publicBrand(reservation);
 
   res.json({
     success: true,
     data: {
       id: reservation.id,
       accommodation_name: reservation.accommodation_name,
+      // Marca e contactos do alojamento (nunca os da plataforma).
+      brand_name: brand.name,
+      contact: brand.contact,
+      // Prazo do sinal depois de a equipa aceitar o pedido.
+      deposit_deadline: reservation.status === 'aguardar_pagamento' ? reservation.deposit_deadline || null : null,
       check_in: reservation.check_in,
       check_out: reservation.check_out,
       num_guests: reservation.num_guests,
@@ -447,6 +455,15 @@ function getReservationStatus(req, res) {
       images: normalizeImages(req, reservation).map(img => img.url).filter(Boolean),
     },
   });
+}
+
+// Nome e contactos do alojamento (o principal, num quarto) para o topo e o
+// rodapé das páginas do hóspede.
+function publicBrand(reservation) {
+  const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(reservation.accommodation_id, reservation.organization_id);
+  const settings = require('../services/emailService').getEmailSettings(accommodation || null, reservation.organization_id);
+  return { name: settings.property_name || reservation.accommodation_name || '',
+    contact: { email: settings.email_contact || null, phone: settings.phone || null } };
 }
 
 function precheckinLink(reservation) {
@@ -509,6 +526,7 @@ function getPreCheckin(req, res) {
       reservation: {
         id: reservation.id,
         accommodation_name: reservation.accommodation_name,
+        brand_name: publicBrand(reservation).name,
         check_in: reservation.check_in,
         check_out: reservation.check_out,
         num_guests: reservation.num_guests,

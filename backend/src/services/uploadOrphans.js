@@ -1,7 +1,8 @@
 // Uploads sem referência na base (todas as organizações): capas, galerias,
-// logótipos e talões, e miniaturas cujo original já não existe. Por omissão
-// só lista. Apagar exige o número visto na pré-visualização e uma idade mínima
-// (um ficheiro acabado de carregar ainda pode estar a ser associado).
+// logótipos, talões e anexos do suporte (support/<stored_name>), e miniaturas
+// cujo original já não existe. Por omissão só lista. Apagar exige o número
+// visto na pré-visualização e uma idade mínima (um ficheiro acabado de
+// carregar ainda pode estar a ser associado).
 const fs = require('fs');
 const { httpError } = require('./httpError');
 const path = require('path');
@@ -23,7 +24,12 @@ function walk(dir, out = []) {
 function referencedFiles() {
   const urls = accommodationUrls(db.prepare('SELECT cover_image, logo_url, images FROM accommodations').all());
   for (const row of db.prepare('SELECT receipt_image FROM expenses WHERE receipt_image IS NOT NULL').all()) urls.add(row.receipt_image);
-  return new Set([...urls].map(uploadPath).filter(Boolean));
+  const files = new Set([...urls].map(uploadPath).filter(Boolean));
+  for (const row of db.prepare('SELECT stored_name FROM support_attachments').all()) {
+    const file = uploadPath(`/uploads/support/${row.stored_name}`);
+    if (file) files.add(file);
+  }
+  return files;
 }
 
 function findOrphans({ minAgeHours = 24 } = {}) {

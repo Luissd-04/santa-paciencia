@@ -48,6 +48,15 @@ async function invite(req, res) {
     });
   }
 
+  // Limite de membros do pacote: membros ativos mais convites por aceitar.
+  try {
+    const plans = require('../services/plansService');
+    plans.assertWithinLimit(organizationId, 'members', { pending: plans.pendingInvitations(organizationId) });
+  } catch (err) {
+    if (err.limit) return res.status(403).json({ success: false, error: err.message, limit: err.limit });
+    throw err;
+  }
+
   try {
     const invitation = createInvitation({
       organizationId,

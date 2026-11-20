@@ -65,6 +65,14 @@ function runMigrations(db) {
   migrateOpsAlerts(db);
   migrateAppearance(db);
   migrateNotificationState(db);
+  migratePlatformConsole(db);
+  migratePlatformUsage(db);
+  migrateSupport(db);
+  migrateDailyActivity(db);
+  migratePlatformAlerts(db);
+  require('./migrations-guest-journey')(db);
+  // Uma migração por funcionalidade da plataforma, cada uma no seu ficheiro.
+  for (const name of ['plans', 'tasks', 'announcements', 'console-c', 'departments', 'roles', 'device-daily', 'revisions', 'support-org-number']) require(`./migrations-platform/${name}`)(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -340,7 +348,6 @@ function migrateDocumentTypes(db) {
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }
-module.exports = { runMigrations };
 
 function migrateManualPaymentIntents(db) {
   db.exec(`CREATE TABLE IF NOT EXISTS manual_payment_intents (
@@ -574,3 +581,145 @@ function migrateScheduledTaskRuns(db) {
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }
+
+// Consola da plataforma (só para o dono da instância): quem a pode abrir, o
+// estado comercial de cada organização, o desbloqueio por sessão e o registo
+// próprio, que não pertence a nenhuma organização.
+function migratePlatformConsole(db) {
+  const id = '20261111_platform_console';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  const has = (table, column) => db.pragma(`table_info(${table})`).some(c => c.name === column);
+  db.transaction(() => {
+    if (!has('users', 'platform_admin')) db.exec('ALTER TABLE users ADD COLUMN platform_admin INTEGER NOT NULL DEFAULT 0');
+    if (!has('organizations', 'status')) db.exec("ALTER TABLE organizations ADD COLUMN status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','trial','suspended'))");
+    if (!has('organizations', 'platform_notes')) db.exec('ALTER TABLE organizations ADD COLUMN platform_notes TEXT');
+    if (!has('auth_sessions', 'platform_unlocked_until')) db.exec('ALTER TABLE auth_sessions ADD COLUMN platform_unlocked_until TEXT');
+    db.exec(`CREATE TABLE IF NOT EXISTS platform_audit_events (
+      id TEXT PRIMARY KEY,
+      user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      action TEXT NOT NULL, target_type TEXT, target_id TEXT, details_json TEXT, ip TEXT,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_platform_audit_created ON platform_audit_events(created_at)`);
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Utilização para a consola da plataforma, só em totais diários por
+// organização: nunca utilizador, IP nem nada que identifique uma pessoa.
+function migratePlatformUsage(db) {
+  const id = '20261112_platform_usage';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`CREATE TABLE IF NOT EXISTS usage_daily (
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      day TEXT NOT NULL, view TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY(organization_id, day, view)
+    );
+    CREATE INDEX IF NOT EXISTS idx_usage_daily_day ON usage_daily(day);
+    CREATE TABLE IF NOT EXISTS platform_daily_stats (
+      day TEXT NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      active_users INTEGER NOT NULL DEFAULT 0, sessions_active INTEGER NOT NULL DEFAULT 0,
+      reservations_created INTEGER NOT NULL DEFAULT 0, open_problems INTEGER,
+      PRIMARY KEY(day, organization_id)
+    )`);
+    if (!db.pragma('table_info(auth_sessions)').some(c => c.name === 'display_mode')) {
+      db.exec("ALTER TABLE auth_sessions ADD COLUMN display_mode TEXT CHECK (display_mode IN ('standalone','browser'))");
+    }
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Suporte: pedidos dos proprietários ao dono da instância. A numeração
+// (`number`, mostrada como SP-0001) é global à instância. Os anexos ficam em
+// data/uploads/support/<stored_name> e só se servem pelas rotas autenticadas.
+function migrateSupport(db) {
+  const id = '20261113_support';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`CREATE TABLE IF NOT EXISTS support_tickets (
+      id TEXT PRIMARY KEY,
+      number INTEGER UNIQUE NOT NULL,
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      author_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      type TEXT NOT NULL CHECK (type IN ('problem','improvement','question')),
+      subject TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','in_review','needs_customer','resolved')),
+      context_json TEXT,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+      updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+      last_message_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+      customer_confirmed_at TEXT,
+      platform_read_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_support_tickets_org ON support_tickets(organization_id, last_message_at);
+    CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets(status, last_message_at);
+    CREATE INDEX IF NOT EXISTS idx_support_tickets_last ON support_tickets(last_message_at);
+    CREATE TABLE IF NOT EXISTS support_messages (
+      id TEXT PRIMARY KEY,
+      ticket_id TEXT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+      side TEXT NOT NULL CHECK (side IN ('customer','platform')),
+      author_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_support_messages_ticket ON support_messages(ticket_id, created_at);
+    CREATE TABLE IF NOT EXISTS support_attachments (
+      id TEXT PRIMARY KEY,
+      message_id TEXT NOT NULL REFERENCES support_messages(id) ON DELETE CASCADE,
+      ticket_id TEXT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+      original_name TEXT NOT NULL,
+      mime TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      stored_name TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_support_attachments_message ON support_attachments(message_id);
+    CREATE INDEX IF NOT EXISTS idx_support_attachments_ticket ON support_attachments(ticket_id);
+    CREATE TABLE IF NOT EXISTS support_reads (
+      ticket_id TEXT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      read_at TEXT NOT NULL,
+      PRIMARY KEY(ticket_id, user_id)
+    )`);
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Quem usou a app em cada dia, por organização (authService.getSessionUser),
+// para contar utilizadores ativos sem depender das sessões, que se apagam ao
+// terminar sessão. O user_id só serve para contar pessoas distintas e nunca sai
+// da base. Guardado 400 dias, como usage_daily.
+function migrateDailyActivity(db) {
+  const id = '20261114_daily_activity';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`CREATE TABLE IF NOT EXISTS daily_activity (
+      organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+      day TEXT NOT NULL,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      PRIMARY KEY(organization_id, day, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_daily_activity_day ON daily_activity(day)`);
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Alertas já avisados aos admins da plataforma (services/opsAlerts): problemas
+// da instância (task_*, disk_low) e pedidos de suporte sem resposta. Não são de
+// nenhuma organização, por isso não cabem em ops_alerts.
+function migratePlatformAlerts(db) {
+  const id = '20261114_platform_alerts';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.exec(`CREATE TABLE IF NOT EXISTS platform_alerts (
+      key TEXT PRIMARY KEY,
+      notified_at TEXT NOT NULL,
+      resolved_at TEXT
+    )`);
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+module.exports = { runMigrations };

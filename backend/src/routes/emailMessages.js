@@ -3,6 +3,77 @@ const requireRole = require('../middleware/requireRole');
 const { db } = require('../config/database');
 const { deleteEmailTokens } = require('../config/googleEmail');
 
+/* Data ISO de um valor (cabeçalho Date ou internalDate em ms); null se inválida */
+function toIsoDate(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const time = typeof value === 'number' ? value : (/^\d+$/.test(String(value)) ? Number(value) : Date.parse(String(value)));
+  const date = new Date(time);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+/* Converte uma mensagem do Gmail (format=full) no formato da vista Mensagens.
+   Data: cabeçalho Date válido, senão internalDate, senão null. */
+function mapGmailMessage(msg, myEmail) {
+  const headers = {};
+  (msg.payload?.headers || []).forEach(h => { headers[String(h.name).toLowerCase()] = h.value; });
+
+  const from            = headers['from']       || '';
+  const to              = headers['to']         || '';
+  const subject         = headers['subject']    || '(sem assunto)';
+  const messageIdHeader = headers['message-id'] || null;
+  const date = toIsoDate(headers['date']) || toIsoDate(msg.internalDate);
+
+  const fromEmail = (from.match(/<([^>]+)>/) || [])[1] || from;
+  const direction = fromEmail.toLowerCase() === myEmail ? 'sent' : 'received';
+
+  return {
+    id: msg.id, threadId: msg.threadId, from, to, subject, date, direction,
+    body: extractBody(msg.payload), snippet: msg.snippet || '', messageIdHeader,
+    attachments: extractAttachments(msg.payload),
+  };
+}
+
+/* Extrai o body HTML ou texto de um payload MIME (recursivo) */
+function extractBody(payload) {
+  if (!payload) return '';
+
+  const decodeB64 = (data) => {
+    if (!data) return '';
+    try { return Buffer.from(data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8'); } catch { return ''; }
+  };
+
+  /* Preferir text/html, fallback text/plain */
+  if (payload.mimeType === 'text/html')  return decodeB64(payload.body?.data);
+  if (payload.mimeType === 'text/plain') return decodeB64(payload.body?.data).replace(/\n/g, '<br>');
+
+  if (payload.parts) {
+    let html = '', plain = '';
+    for (const part of payload.parts) {
+      const content = extractBody(part);
+      if (part.mimeType === 'text/html' || part.mimeType?.startsWith('multipart/')) html = html || content;
+      else if (part.mimeType === 'text/plain') plain = plain || content;
+    }
+    return html || plain;
+  }
+
+  return decodeB64(payload.body?.data);
+}
+
+/* Percorre o payload MIME (recursivo) e recolhe os anexos reais (com attachmentId) */
+function extractAttachments(payload, out = []) {
+  if (!payload) return out;
+  if (payload.filename && payload.body?.attachmentId) {
+    out.push({
+      filename: payload.filename,
+      mimeType: payload.mimeType || 'application/octet-stream',
+      size: payload.body.size || 0,
+      attachmentId: payload.body.attachmentId,
+    });
+  }
+  (payload.parts || []).forEach(p => extractAttachments(p, out));
+  return out;
+}
+
 module.exports = function registerEmailMessages(router) {
 // ── EMAIL: conversas paginadas (vista Mensagens) ──
 // Substitui o carregamento de TODAS as reservas e TODOS os hóspedes no
@@ -108,8 +179,13 @@ router.post('/email/send', requireAuth, requireRole('manager'), async (req, res)
 });
 
 router.get('/email/inbox', requireAuth, requireRole('manager'), async (req, res) => {
-  const { to_email, max = 25, page_token } = req.query;
-  if (!to_email) return res.status(400).json({ success: false, error: 'to_email é obrigatório.' });
+  const { to_email, max, page_token } = req.query;
+  if (!to_email || typeof to_email !== 'string') return res.status(400).json({ success: false, error: 'to_email é obrigatório.' });
+  // Paginação validada na fronteira: máx. 1–50 mensagens e token como texto curto.
+  const maxResults = Math.min(50, Math.max(1, Math.trunc(Number(max)) || 25));
+  if (page_token !== undefined && (typeof page_token !== 'string' || page_token.length > 512)) {
+    return res.status(400).json({ success: false, error: 'page_token inválido.' });
+  }
 
   const { getAuthenticatedEmailClient, getEmailConnectionInfo } = require('../config/googleEmail');
   const info = getEmailConnectionInfo(req.user.organization_id);
@@ -122,7 +198,7 @@ router.get('/email/inbox', requireAuth, requireRole('manager'), async (req, res)
     const q = `from:${to_email} OR to:${to_email}`;
     const listRes = await auth.request({
       url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages',
-      params: { q, maxResults: Number(max) || 25, pageToken: page_token || undefined },
+      params: { q, maxResults, pageToken: page_token || undefined },
     });
 
     const msgIds = listRes.data.messages || [];
@@ -148,28 +224,10 @@ router.get('/email/inbox', requireAuth, requireRole('manager'), async (req, res)
 
     const myEmail = (info.email || '').toLowerCase();
 
+    // Uma mensagem malformada não pode deitar abaixo a conversa toda.
     const messages = rawMessages.map(msg => {
-      const headers = {};
-      (msg.payload?.headers || []).forEach(h => { headers[h.name.toLowerCase()] = h.value; });
-
-      const from            = headers['from']       || '';
-      const to              = headers['to']         || '';
-      const subject         = headers['subject']    || '(sem assunto)';
-      const dateStr         = headers['date']       || '';
-      const messageIdHeader = headers['message-id'] || null;
-      const date    = dateStr ? new Date(dateStr).toISOString() : new Date(msg.internalDate ? Number(msg.internalDate) : Date.now()).toISOString();
-
-      const fromEmail = (from.match(/<([^>]+)>/) || [])[1] || from;
-      const direction = fromEmail.toLowerCase() === myEmail ? 'sent' : 'received';
-
-      const body = extractBody(msg.payload);
-      const attachments = extractAttachments(msg.payload);
-
-      return {
-        id: msg.id, threadId: msg.threadId, from, to, subject, date, direction, body,
-        snippet: msg.snippet || '', messageIdHeader, attachments,
-      };
-    }).sort((a, b) => new Date(a.date) - new Date(b.date));
+      try { return mapGmailMessage(msg, myEmail); } catch { return null; }
+    }).filter(Boolean).sort((a, b) => (Date.parse(a.date) || 0) - (Date.parse(b.date) || 0));
 
     res.json({ success: true, data: { messages, next_page_token: nextPageToken } });
   } catch (err) {
@@ -180,47 +238,6 @@ router.get('/email/inbox', requireAuth, requireRole('manager'), async (req, res)
     res.status(502).json({ success: false, data: { needs_reauth }, error: 'Não foi possível carregar as mensagens do Gmail. Tente novamente.' });
   }
 });
-
-/* Extrai o body HTML ou texto de um payload MIME (recursivo) */
-function extractBody(payload) {
-  if (!payload) return '';
-
-  const decodeB64 = (data) => {
-    if (!data) return '';
-    try { return Buffer.from(data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8'); } catch { return ''; }
-  };
-
-  /* Preferir text/html, fallback text/plain */
-  if (payload.mimeType === 'text/html')  return decodeB64(payload.body?.data);
-  if (payload.mimeType === 'text/plain') return decodeB64(payload.body?.data).replace(/\n/g, '<br>');
-
-  if (payload.parts) {
-    let html = '', plain = '';
-    for (const part of payload.parts) {
-      const content = extractBody(part);
-      if (part.mimeType === 'text/html' || part.mimeType?.startsWith('multipart/')) html = html || content;
-      else if (part.mimeType === 'text/plain') plain = plain || content;
-    }
-    return html || plain;
-  }
-
-  return decodeB64(payload.body?.data);
-}
-
-/* Percorre o payload MIME (recursivo) e recolhe os anexos reais (com attachmentId) */
-function extractAttachments(payload, out = []) {
-  if (!payload) return out;
-  if (payload.filename && payload.body?.attachmentId) {
-    out.push({
-      filename: payload.filename,
-      mimeType: payload.mimeType || 'application/octet-stream',
-      size: payload.body.size || 0,
-      attachmentId: payload.body.attachmentId,
-    });
-  }
-  (payload.parts || []).forEach(p => extractAttachments(p, out));
-  return out;
-}
 
 /* Download/preview de um anexo de uma mensagem Gmail (referenciado no histórico) */
 router.get('/email/attachment', requireAuth, requireRole('manager'), async (req, res) => {
@@ -309,3 +326,5 @@ router.delete('/email/archives/:thread_key', requireAuth, requireRole('manager')
 });
 
 };
+module.exports.mapGmailMessage = mapGmailMessage;
+module.exports.toIsoDate = toIsoDate;

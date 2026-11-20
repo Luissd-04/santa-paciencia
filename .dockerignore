@@ -23,3 +23,6 @@ backend/src/test
 **/*.test.js
 **/*.test.cjs
 docs
+
+# Configuração exclusiva e local do ambiente de testes
+.env.staging

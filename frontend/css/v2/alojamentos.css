@@ -29,3 +29,16 @@ html[data-look] #view-alojamentos[data-v2] .av2-actions { display: flex; gap: 8p
 html[data-look] #view-alojamentos[data-v2] .av2-actions .btn { flex: 1; justify-content: center; }
 html[data-look] #view-alojamentos[data-v2] .av2-group-h:empty { display: none; }
 html[data-look] #view-alojamentos[data-v2] .av2-add { display: flex; justify-content: flex-end; }
+
+/* Estado vazio (conta nova) e janela «Novo alojamento» na V2. */
+html[data-look] #view-alojamentos[data-v2] .av2-empty { display: grid; justify-items: center; gap: 10px; padding: 56px 20px; text-align: center; border: 1px dashed var(--v2-line); border-radius: var(--v2-radius); }
+html[data-look] #view-alojamentos[data-v2] .av2-empty h3 { margin: 4px 0 0; font-size: 20px; }
+html[data-look] #view-alojamentos[data-v2] .av2-empty p { max-width: 440px; margin: 0 0 8px; color: var(--v2-muted); font-size: 14px; }
+html[data-look] #view-alojamentos[data-v2] .av2-empty-ic { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; background: var(--v2-accent-soft); color: var(--v2-ink); }
+html[data-look] .anv-seg { gap: 2px; border-color: var(--v2-line); border-radius: 14px; background: var(--v2-surface-2); }
+html[data-look] .anv-seg button { border-radius: 11px; color: var(--v2-muted); font-family: var(--v2-font); }
+html[data-look] .anv-seg button[aria-checked="true"] { background: var(--v2-solid); color: var(--v2-ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+html[data-look] .anv-seg button:focus-visible { outline-color: var(--v2-accent); }
+html[data-look] .anv-dica { color: var(--v2-muted); }
+html[data-look] .anv-erro { background: var(--v2-bad-bg); color: var(--v2-bad); }
+html[data-look]:not(.v2-tel) .modal-bg.v2-janela .modal.anv { width: min(520px, calc(100vw - 24px)); }

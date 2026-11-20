@@ -1,68 +1,46 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt" data-layout="novo">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reservar estadia — Santa Paciência</title>
+  <title>Reservar estadia</title>
     <link rel="apple-touch-icon" href="/img/app/apple-touch-icon.png">
   <link rel="icon" type="image/png" href="/favicon.png?v=2">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/public-reservation.css?v=publicas-novas-20261104-1">
+  <link rel="stylesheet" href="/css/public-reservation.css?v=percurso-20261119-2">
   <link rel="stylesheet" href="/css/components/date-picker.css?v=public-flow-20261001-2">
   <link rel="stylesheet" href="/css/vendor/flag-icons.min.css?v=public-flow-20261001-2">
-  <link rel="stylesheet" href="/css/public-novo.css?v=publicas-novas-20261104-1">
-  <script src="/js/domain/public-layout.js?v=publicas-novas-20261104-1"></script>
+  <link rel="stylesheet" href="/css/public-novo.css?v=percurso-20261119-2">
   <!-- Cloudflare Turnstile (CAPTCHA leve, sem cookies) -->
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileReady" async defer></script>
 </head>
 <body>
   <div class="booking-page">
-    <div class="ambient-bg" id="ambient-bg"></div>
-    <div class="ambient-overlay"></div>
-
-    <!-- Versão nova (?layout=novo): elementos escondidos na versão atual. -->
-    <div class="pn-topbar novo-only"><span class="pn-mark" aria-hidden="true">S</span><strong id="pn-brand">Santa Paciência</strong></div>
-    <section class="pn-hero novo-only" id="pn-hero" aria-label="Fotografias do alojamento">
+    <div class="pn-topbar"><span class="pn-mark" id="pn-mark" aria-hidden="true"></span><strong id="pn-brand"></strong></div>
+    <section class="pn-hero" id="pn-hero" aria-label="Fotografias do alojamento">
       <div class="pn-hero-copy">
         <span id="pn-location"></span>
         <h1 id="pn-name">Reserve a sua estadia</h1>
       </div>
       <button type="button" class="pn-photos-btn" id="pn-photos-btn" hidden>Ver as fotos</button>
     </section>
-    <div class="pn-intro novo-only">
+    <div class="pn-intro">
       <p id="pn-description"></p>
       <ul class="pn-chips" id="pn-chips"></ul>
     </div>
 
-    <header class="booking-hero">
-      <div class="brand-pill" id="property-location">A carregar...</div>
-      <h1 id="property-name">Reserve a sua estadia</h1>
-      <p id="property-description">Escolha as datas, veja os quartos disponíveis e envie o pedido de reserva.</p>
-    </header>
-
     <main class="booking-shell">
-      <section class="gallery-rail" aria-label="Galeria do alojamento">
-        <div class="rail-track" id="gallery-top"></div>
-      </section>
-
       <section class="booking-card">
-        <div class="stepbar">
-          <span class="step-dot active" data-step-dot="1">1</span>
-          <span class="step-line"></span>
-          <span class="step-dot" data-step-dot="2">2</span>
-          <span class="step-line"></span>
-          <span class="step-dot" data-step-dot="3">3</span>
-        </div>
-        <ol class="pn-steps novo-only" aria-label="Passos da reserva">
+        <ol class="pn-steps" aria-label="Passos da reserva">
           <li data-step-dot="1">Datas e quarto</li>
           <li data-step-dot="2">Os seus dados</li>
-          <li data-step-dot="3">Confirmar e pagar</li>
+          <li data-step-dot="3">Confirmar o pedido</li>
         </ol>
 
         <div class="flow-mobile-slot" data-flow-mobile>
-          <div class="pn-bar-sum novo-only" aria-live="polite"><strong id="pn-bar-total"></strong><small id="pn-bar-sub"></small></div>
+          <div class="pn-bar-sum" aria-live="polite"><strong id="pn-bar-total"></strong><small id="pn-bar-sub"></small></div>
           <div data-flow-controls>
             <div id="step-error" role="alert" style="display:none;background:#fef0f0;border:1px solid #f5c6cb;color:#c0392b;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:14px;line-height:1.4;"></div>
             <div class="form-actions">
@@ -76,7 +54,6 @@
             <button type="submit" hidden tabindex="-1">Seguinte</button>
             <section class="form-step active" data-step="1">
               <div class="step-heading">
-                <span>Datas</span>
                 <h2>Quando quer vir?</h2>
               </div>
               <div class="field-grid two">
@@ -100,7 +77,7 @@
                 </label>
               </div>
               <div id="pb-child-ages" class="child-ages-wrap" style="display:none;"></div>
-              <div class="pn-units-head novo-only">
+              <div class="pn-units-head">
                 <h2>Escolha o quarto</h2>
                 <p id="pn-units-sub">Escolha as datas para ver os quartos livres.</p>
               </div>
@@ -109,7 +86,6 @@
 
             <section class="form-step" data-step="2">
               <div class="step-heading">
-                <span>Hóspedes</span>
                 <h2>Os seus dados</h2>
               </div>
               <label>
@@ -152,10 +128,9 @@
 
             <section class="form-step" data-step="3">
               <div class="step-heading">
-                <span>Confirmar</span>
                 <h2>Últimos detalhes</h2>
               </div>
-              <div class="pn-confirm novo-only" id="pn-confirm"></div>
+              <div class="pn-confirm" id="pn-confirm"></div>
               <label>
                 <span>Pedidos especiais ou notas para o alojamento</span>
                 <textarea id="pb-notes" rows="7" placeholder="Algum pedido especial? (quarto no piso térreo, berço, dieta, chegada tardia...)"></textarea>
@@ -204,17 +179,13 @@
           </aside>
         </div>
       </section>
-
-      <section class="gallery-rail bottom" aria-label="Fotos dos quartos">
-        <div class="rail-track reverse" id="gallery-bottom"></div>
-      </section>
     </main>
   </div>
 
   <script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js" integrity="sha384-bdZtphetAEBgkGZvhZXOFDWc55tHGLqaSo1f4qZtgvEiolEBqlJ9u6FTk+CoLfj0" crossorigin="anonymous"></script>
   <script src="/js/domain/modules.js?v=public-flow-20261001-2"></script>
 <script src="/js/domain/actions.js?v=public-flow-20261001-2"></script>
-  <script src="/js/domain/dates.js?v=publicas-novas-20261104-1"></script>
+  <script src="/js/domain/dates.js?v=percurso-20261119-2"></script>
   <script src="/js/domain/money.js?v=centralizacao-20261024-2"></script>
   <script src="/js/domain/pricing.js?v=mobile-20261026-1"></script>
   <script src="/js/domain/date-picker.js?v=mobile-20261026-1"></script>
@@ -222,12 +193,12 @@
   <script src="/js/public-flow.js?v=public-flow-20261001-2"></script>
   <script src="/js/public-reservation.js?v=public-flow-20261001-2"></script>
   <script src="/js/features/public-reservation/helpers.js?v=review-20261024-1"></script>
-  <script src="/js/features/public-reservation/landing.js?v=publicas-novas-20261104-1"></script>
-  <script src="/js/features/public-reservation/dados-hospedes.js?v=publicas-novas-20261104-1"></script>
-  <script src="/js/features/public-reservation/disponibilidade.js?v=publicas-novas-20261104-1"></script>
-  <script src="/js/features/public-reservation/precos.js?v=publicas-novas-20261104-1"></script>
-  <script src="/js/features/public-reservation/layout-novo.js?v=publicas-novas-20261104-1"></script>
-  <script src="/js/features/public-reservation/submissao.js?v=publicas-novas-20261104-1"></script>
+  <script src="/js/features/public-reservation/landing.js?v=percurso-20261119-2"></script>
+  <script src="/js/features/public-reservation/dados-hospedes.js?v=percurso-20261119-2"></script>
+  <script src="/js/features/public-reservation/disponibilidade.js?v=percurso-20261119-2"></script>
+  <script src="/js/features/public-reservation/precos.js?v=percurso-20261119-2"></script>
+  <script src="/js/features/public-reservation/layout-novo.js?v=percurso-20261119-2"></script>
+  <script src="/js/features/public-reservation/submissao.js?v=percurso-20261119-2"></script>
   <script src="/js/public-reservation-actions.js?v=public-flow-20261001-2"></script>
 </body>
 </html>

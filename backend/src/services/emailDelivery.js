@@ -71,6 +71,6 @@ function afterSent({ orgId, reservationId, slug, timingEvent }) {
     db.prepare('INSERT OR IGNORE INTO organization_email_log (id,organization_id,template_slug,reservation_id) VALUES (?,?,?,?)')
       .run(require('crypto').randomUUID(), orgId, slug, reservationId);
   }
-  if (slug === 'pre_checkin') require('./reservationLifecycle').markPrecheckinSent({ id: reservationId, organization_id: orgId });
+  if (['pre_checkin', 'reserva_aceite'].includes(slug)) require('./reservationLifecycle').markPrecheckinSent({ id: reservationId, organization_id: orgId });
 }
 module.exports = { deliverTemplate, resolveDelivery, afterSent };

@@ -26,6 +26,7 @@ const SECOES = [
   ]],
   ['Hóspedes', [
     ['marca', 'at-sign', 'Logótipo e redes', 'Nos emails e na página', 'info'],
+    ['emails', 'mail', 'Emails aos hóspedes', 'Contactos, chegada, saída e avaliação', 'info'],
     ['rgpd', 'shield-check', 'RGPD', 'Texto do consentimento', 'rgpd'],
   ]],
 ];
@@ -108,7 +109,7 @@ function visaoHtml(a) {
   const core = AppModules.core;
   const esc = core.escapeHtml;
   const unidades = filhos(a);
-  return `<div class="card acfg-card"><div class="acfg-card-h"><h3>Unidades</h3><button type="button" class="btn btn-primary btn-sm" data-on-click="index-add-alojamento-ff5f8f7">${core.lcIcon('plus', 15)} Nova unidade</button></div>
+  return `<div class="card acfg-card"><div class="acfg-card-h"><h3>Unidades</h3><button type="button" class="btn btn-primary btn-sm" data-on-click="acfg-nova-unidade">${core.lcIcon('plus', 15)} Nova unidade</button></div>
       ${unidades.length ? `<div class="acfg-units">${unidades.map(u => `<div class="acfg-unit">${fotoHtml(u, 'acfg-unit-ph', 160)}
           <span><b>${esc(u.name)}</b><small>${esc([`${Number(u.max_guests) || 0} hóspedes`, u.price_per_night ? `${ReservationMoney.formatShort(u.price_per_night)} / noite` : ''].filter(Boolean).join(' · '))}</small></span>
           <button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'alojamentos-open-alojamento-8027257', [String(u.id)])}>${core.lcIcon('pencil', 14)} Editar</button></div>`).join('')}</div>`
@@ -178,6 +179,7 @@ function marcar(event) {
 
 AppActions.register({
   'acfg-secao': (el, event, [sec]) => mostrar(sec),
+  'acfg-nova-unidade': () => { if (atual) AppModules.alojamentos.addAlojamento({ type: 'suite', parentId: atual.id }); },
   'acfg-descartar': () => { if (atual) AppModules.alojamentos.openAlojamento(atual.id); },
 }, 'click');
 AppActions.register({ 'acfg-foto-falhou': el => { el.remove() } }, 'error');

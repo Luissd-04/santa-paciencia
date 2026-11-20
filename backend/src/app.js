@@ -1,3 +1,4 @@
+require('./services/stagingPolicy').assertStagingEnvironment();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -40,6 +41,13 @@ if (/^(true|false)$/i.test(trustProxy)) throw new Error('TRUST_PROXY deve indica
 if (trustProxy) app.set('trust proxy', trustProxy.split(',').map(value => value.trim()).filter(Boolean));
 if (IS_PROD) configuredOrigin();
 app.disable('x-powered-by');
+// Ambiente de testes: identificado nas respostas e fora dos motores de busca.
+if (require('./services/stagingPolicy').isStaging()) {
+  app.use((_req, res, next) => {
+    res.set({ 'X-App-Environment': 'staging', 'X-Robots-Tag': 'noindex, nofollow, noarchive' });
+    next();
+  });
+}
 
 // Eventos e scripts da aplicação são externos. CSS inline continua necessário
 // nos componentes e nos modelos; não dá permissão para executar JavaScript.
@@ -143,6 +151,23 @@ app.use(['/api/accommodations', '/api/expenses'], (req, res, next) => {
   if (!['POST', 'PUT', 'PATCH'].includes(req.method)) return next();
   requireAuth(req, res, () => require('./middleware/requireRole')('manager')(req, res, () => uploadParser(req, res, next)));
 });
+// Suporte: só as rotas que recebem anexos (pedido novo e mensagens); na
+// consola, só depois de confirmar o admin e a consola desbloqueada.
+// Sem distinguir maiúsculas, como o encaminhamento do Express. As rotas voltam
+// a aplicar o limite se este reconhecedor falhar (routes/support.js).
+const SUPPORT_UPLOADS = /^\/api\/(?:support\/tickets(?:\/[^/]+\/messages)?|platform\/support\/tickets\/[^/]+\/messages)\/?$/i;
+app.use((req, res, next) => {
+  if (req.method !== 'POST' || !SUPPORT_UPLOADS.test(req.path)) return next();
+  requireAuth(req, res, () => {
+    if (!/^\/api\/platform\//i.test(req.path)) {
+      // Limite por conta antes de ler o corpo (até 15 MB).
+      const limiters = require('./middleware/rateLimiter');
+      const limiter = /\/messages\/?$/i.test(req.path) ? limiters.supportMessageLimiter : limiters.supportTicketLimiter;
+      return limiter(req, res, () => { req.supportLimitApplied = true; uploadParser(req, res, next); });
+    }
+    require('./middleware/requirePlatformAdmin')(req, res, () => uploadParser(req, res, next));
+  });
+});
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '256kb', parameterLimit: 200 }));
 
@@ -233,6 +258,12 @@ app.use('/api/vouchers', voucherRoutes);
 app.use('/api/tasks', googleTasksRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/ops', require('./routes/ops'));
+app.use('/api/telemetry', require('./routes/telemetry'));
+app.use('/api/support', require('./routes/support'));
+app.use('/api/announcements', require('./routes/announcements'));
+// Consola da plataforma: depois do requireAuth de /api. O staffResponse só
+// esconde chaves que estas respostas não têm e o liveUpdates é silenciado lá.
+app.use('/api/platform', require('./routes/platform'));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -258,6 +289,13 @@ if (process.env.FRONTEND_PATH) {
   });
   app.get('/pre-checkin/:token', (req, res) => {
     res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'pre-checkin.html'));
+  });
+  // Consola da plataforma: página própria, sem segredos (a proteção é a API,
+  // requirePlatformAdmin). Sem o ficheiro, 404 em vez da aplicação.
+  app.get(['/plataforma', '/plataforma/*rest'], (req, res) => {
+    const file = path.join(path.resolve(process.env.FRONTEND_PATH), 'plataforma.html');
+    if (!require('fs').existsSync(file)) return res.status(404).end();
+    res.sendFile(file);
   });
   app.use((req, res) => {
     res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'index.html'));

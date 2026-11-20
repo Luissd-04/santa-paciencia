@@ -21,7 +21,7 @@ html[data-look="classico"] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-item.
 html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-text { display: grid; min-width: 0; }
 html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-text b { color: var(--v2-ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-item.is-unread .nv2-text b { font-weight: 700; }
-html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-text small { color: var(--v2-muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-text small { color: var(--v2-muted); font-size: 12.5px; overflow-wrap: anywhere; line-height: 1.45; }
 html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-when { color: var(--v2-soft); font-size: 12px; white-space: nowrap; }
 html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-actions { display: flex; gap: 6px; }
 html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-ic { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--v2-surface-2); color: var(--v2-muted); }

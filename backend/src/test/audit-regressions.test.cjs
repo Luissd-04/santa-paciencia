@@ -312,9 +312,10 @@ async function main() {
     db.exec("UPDATE accommodations SET logo_url='/uploads/audit-logo.png' WHERE id='unit-a'");
     db.exec("INSERT INTO expenses (id,organization_id,date,description,amount,receipt_image) VALUES ('audit-expense','org-a','2030-01-01','Synthetic',1,'/uploads/receipts/audit-receipt.png')");
     fs.mkdirSync(path.join(temp, 'data/uploads/receipts'), { recursive: true });
-    const png = text => Buffer.concat([Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]), Buffer.from(text)]);
-    fs.writeFileSync(path.join(temp, 'data/uploads/audit-logo.png'), png('synthetic logo'));
-    fs.writeFileSync(path.join(temp, 'data/uploads/receipts/audit-receipt.png'), png('synthetic receipt'));
+    // PNG verdadeiro (o restauro descodifica as imagens); a cor distingue os ficheiros.
+    const png = color => backendRequire('sharp')({ create: { width: 2, height: 2, channels: 3, background: color } }).png().toBuffer();
+    fs.writeFileSync(path.join(temp, 'data/uploads/audit-logo.png'), await png('#112233'));
+    fs.writeFileSync(path.join(temp, 'data/uploads/receipts/audit-receipt.png'), await png('#445566'));
     let zipped; const res = response();
     res.download = (file, name, callback) => { zipped = fs.readFileSync(file); callback(); };
     await out(request(), res);
@@ -334,11 +335,39 @@ async function main() {
     payload.tables.accommodations.find(a => a.id === 'unit-a').logo_url = '/uploads/audit-logo.html';
     forged.append(JSON.stringify(payload), { name: 'backup.json' });
     forged.append('<script>synthetic()</script>', { name: 'uploads/audit-logo.html' });
-    forged.append(png('synthetic receipt'), { name: 'uploads/receipts/audit-receipt.png' });
+    forged.append(await png('#445566'), { name: 'uploads/receipts/audit-receipt.png' });
     await forged.finalize(); await done;
     const rejected = await call(into, request({ archiveBase64: Buffer.concat(chunks).toString('base64') }));
     assert.equal(rejected.statusCode, 400);
     assert.match(rejected.body.error, /imagem/);
+  });
+  await check('A13: backup com PNG corrompido é recusado sem tocar nos ficheiros existentes', async () => {
+    const { routes, express } = routerDouble(); load('routes/backup.js', { express });
+    const out = routes.find(r => r.method === 'get' && r.route === '/export').handlers.at(-1);
+    const into = routes.find(r => r.method === 'post' && r.route === '/import').handlers.at(-1);
+    let zipped; const res = response();
+    res.download = (file, name, callback) => { zipped = fs.readFileSync(file); callback(); };
+    await out(request(), res);
+    const entries = await backendRequire('unzipper').Open.buffer(zipped);
+    const payload = JSON.parse((await entries.files.find(f => f.path === 'backup.json').buffer()).toString());
+    const logo = payload.tables.accommodations.find(a => a.id === 'unit-a').logo_url;
+    const forged = backendRequire('archiver')('zip'); const chunks = [];
+    forged.on('data', chunk => chunks.push(chunk));
+    const done = new Promise((resolve, reject) => { forged.on('end', resolve); forged.on('error', reject); });
+    forged.append(JSON.stringify(payload), { name: 'backup.json' });
+    for (const entry of entries.files.filter(f => f.path.startsWith('uploads/') && f.type === 'File')) {
+      // Assinatura PNG válida, mas só 12 bytes: passa a extensão e os magic bytes.
+      forged.append(entry.path === logo.slice(1) ? Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0]) : await entry.buffer(), { name: entry.path });
+    }
+    await forged.finalize(); await done;
+    const uploads = () => [...fs.readdirSync(path.join(temp, 'data/uploads')), ...fs.readdirSync(path.join(temp, 'data/uploads/receipts')).map(n => 'receipts/' + n)].sort();
+    const before = uploads();
+    const rejected = await call(into, request({ archiveBase64: Buffer.concat(chunks).toString('base64') }));
+    assert.equal(rejected.statusCode, 400);
+    assert.match(rejected.body.error, /imagem/);
+    assert.deepEqual(uploads(), before);
+    assert.equal(db.prepare("SELECT logo_url FROM accommodations WHERE id='unit-a'").get().logo_url, logo);
+    assert.equal(fs.existsSync(path.join(temp, 'data', logo.slice(1))), true);
   });
   await check('S04: backup incompleto preserva outras organizações', async () => {
     db.exec("INSERT INTO vouchers (id,organization_id,code,value) VALUES ('other-voucher','org-b','ORIGINAL',25)");

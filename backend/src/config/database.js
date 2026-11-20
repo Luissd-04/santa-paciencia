@@ -171,7 +171,7 @@ function initDatabase() {
       type TEXT NOT NULL DEFAULT 'suite',
       price_per_night REAL NOT NULL DEFAULT 100,
       max_guests INTEGER NOT NULL DEFAULT 2,
-      license_number TEXT NOT NULL DEFAULT '12345/AL',
+      license_number TEXT NOT NULL DEFAULT '',
       google_calendar_id TEXT,
       description TEXT,
       address TEXT,

@@ -109,10 +109,12 @@ const FEATURE_MODULES = {
       'js/alojamentos.js',
       'js/features/alojamentos/galeria.js',
       'js/features/alojamentos/servicos-heranca.js',
+      'js/features/alojamentos/novo-alojamento.js',
       'js/features/alojamentos/exportacao.js',
       'js/features/alojamentos/configuracao.js',
       'js/features/alojamentos/cartoes-v2.js',
       'js/features/alojamentos/config-v2.js',
+      'js/features/alojamentos/prontidao-emails.js',
     ],
   },
   despesas: {
@@ -146,11 +148,16 @@ const FEATURE_MODULES = {
       'js/features/invoice/contexto-v2.js',
     ],
   },
+  // «Ajuda e feedback»: pedidos ao dono da instância (só na V2).
+  ajuda: {
+    scripts: ['js/features/ajuda/pagina.js', 'js/features/ajuda/novo-pedido.js'],
+  },
   definicoes: {
     actions: ['saveAppearance'],
     scripts: [
       'js/payment-policy.js',
       'js/emails.js',
+      'js/features/emails/blocos.js',
       'js/features/emails/codes.js',
       'js/features/emails/editor.js',
       'js/features/emails/preview.js',
@@ -183,6 +190,7 @@ const VIEW_FEATURE = {
   precos: 'precos',
   invoice: 'invoice',
   notificacoes: 'notificacoes',
+  ajuda: 'ajuda',
   definicoes: 'definicoes',
 };
 
@@ -203,6 +211,7 @@ const VIEW_MARKUP = {
   relatorios: 'views/relatorios.html',
   vouchers: 'views/vouchers.html',
   precos: 'views/precos.html',
+  ajuda: 'views/ajuda.html',
   definicoes: 'views/definicoes.html',
 };
 
