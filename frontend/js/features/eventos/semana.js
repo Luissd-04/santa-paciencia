@@ -106,7 +106,7 @@ function renderSemana() {
     list.innerHTML = days.map(iso => {
       const rows = byDay(iso);
       if (!rows.length && iso !== day) return '';
-      return `<section class="ev2-day"><h4>${dayTitle(iso)}</h4>${rows.length ? rows.map(rowHtml).join('') : '<p class="ev2-empty">Sem tarefas neste dia.</p>'}</section>`;
+      return `<section class="ev2-day${iso === now ? ' is-today' : ''}"><h4>${dayTitle(iso)}</h4>${rows.length ? rows.map(rowHtml).join('') : '<p class="ev2-empty">Sem tarefas neste dia.</p>'}</section>`;
     }).join('');
   }
 

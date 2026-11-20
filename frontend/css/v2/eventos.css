@@ -33,7 +33,9 @@ html[data-look] #view-eventos[data-v2] .ev2-week { display: grid; grid-template-
 html[data-look] #view-eventos[data-v2] .ev2-wd { display: grid; justify-items: center; gap: 2px; padding: 8px 0 6px; border: 0; border-radius: 14px; background: transparent; color: var(--v2-muted); font: 500 12px var(--v2-font); cursor: pointer; }
 html[data-look] #view-eventos[data-v2] .ev2-wd b { color: var(--v2-ink); font-size: 18px; font-weight: 600; }
 html[data-look] #view-eventos[data-v2] .ev2-wd:hover { background: var(--v2-accent-soft); }
-html[data-look] #view-eventos[data-v2] .ev2-wd.is-today b { text-decoration: underline; text-underline-offset: 4px; }
+/* Hoje (quando não é o dia escolhido): tom claro e texto na cor de destaque. */
+html[data-look] #view-eventos[data-v2] .ev2-wd.is-today:not(.is-on) { background: color-mix(in srgb, var(--v2-accent) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--v2-accent) 25%, transparent); color: var(--v2-accent); font-weight: 700; }
+html[data-look] #view-eventos[data-v2] .ev2-wd.is-today:not(.is-on) b { color: var(--v2-accent); font-weight: 700; }
 html[data-look] #view-eventos[data-v2] .ev2-wd.is-on { background: var(--v2-accent); color: var(--v2-accent-ink); }
 html[data-look] #view-eventos[data-v2] .ev2-wd.is-on b { color: inherit; }
 html[data-look="classico"] #view-eventos[data-v2] .ev2-wd.is-on { background: #843424; color: #fff; }
@@ -43,6 +45,11 @@ html[data-look] #view-eventos[data-v2] .ev2-wd.is-on .ev2-dots s { box-shadow: 0
 
 /* Lista por dia. */
 html[data-look] #view-eventos[data-v2] .ev2-day h4 { margin: 18px 0 4px; color: var(--v2-soft); font: 600 11px var(--v2-font); letter-spacing: .06em; text-transform: uppercase; }
+html[data-look] #view-eventos[data-v2] .ev2-day.is-today h4 { color: var(--v2-accent); font-weight: 700; }
+/* Lista: as linhas de hoje com um tom claro e a etiqueta «Hoje» na data. */
+html[data-look] #view-eventos[data-v2] tr.is-today > td { background: color-mix(in srgb, var(--v2-accent) 6%, transparent); }
+html[data-look] #view-eventos[data-v2] tr.is-today > td:first-child { box-shadow: inset 3px 0 0 var(--v2-accent); }
+html[data-look] #view-eventos[data-v2] .eventos-today-tag { display: inline-block; margin-left: 6px; color: var(--v2-accent); font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 html[data-look] #view-eventos[data-v2] .ev2-row { display: grid; grid-template-columns: 48px 32px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; min-height: 56px; padding: 6px 8px; border-radius: 12px; cursor: pointer; }
 html[data-look] #view-eventos[data-v2] .ev2-row + .ev2-row { box-shadow: inset 0 1px 0 var(--v2-divider); }
 html[data-look] #view-eventos[data-v2] .ev2-row:hover { background: var(--v2-accent-soft); }
@@ -70,7 +77,7 @@ html[data-look] #view-eventos[data-v2] .ev2-md { position: relative; aspect-rati
 html[data-look] #view-eventos[data-v2] .ev2-md.is-out { color: var(--v2-soft); opacity: .6; }
 html[data-look] #view-eventos[data-v2] .ev2-md.has-ev::after { content: ''; position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--v2-muted); }
 html[data-look] #view-eventos[data-v2] .ev2-md:hover { background: var(--v2-accent-soft); }
-html[data-look] #view-eventos[data-v2] .ev2-md.is-today { font-weight: 700; box-shadow: inset 0 0 0 1.5px var(--v2-ink); }
+html[data-look] #view-eventos[data-v2] .ev2-md.is-today:not(.is-on) { font-weight: 700; color: var(--v2-accent); background: color-mix(in srgb, var(--v2-accent) 10%, transparent); }
 html[data-look] #view-eventos[data-v2] .ev2-md.is-on { background: var(--v2-accent); color: var(--v2-accent-ink); }
 html[data-look="classico"] #view-eventos[data-v2] .ev2-md.is-on { background: #843424; color: #fff; }
 html[data-look] #view-eventos[data-v2] .ev2-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 6px 0; font-size: 13px; }

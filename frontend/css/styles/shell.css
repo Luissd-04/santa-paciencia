@@ -576,6 +576,8 @@ select.form-control { cursor:pointer; }
   );
   z-index:1;
 }
+/* Fundo da coluna de hoje no mês; só o aspeto novo o mostra (v2/calendario.css). */
+.cal-today-col { display:none; }
 .cal-week-days { display:grid; grid-template-columns:repeat(7,1fr); column-gap:2px; }
 .cal-week-events {
   position:relative;

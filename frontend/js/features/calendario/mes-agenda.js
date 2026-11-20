@@ -190,7 +190,10 @@ function drawCal() {
     ).join('');
     const eventsRow  = `<div class="cal-week-events" style="height:${containerH}px;">${clickOverlays}${eventHtml}${overflowHtml}</div>`;
     const colSeps    = [1,2,3,4,5,6].map(i => `<div class="cal-col-sep" style="left:calc(${i}*100%/7)"></div>`).join('');
-    weeksHtml.push(`<div class="cal-week">${colSeps}<div class="cal-week-days">${dayCells}</div>${eventsRow}</div>`);
+    // Coluna de hoje: um fundo do topo ao fundo da semana (dia + barras).
+    const todayCol   = week.findIndex(day => day.isToday && !day.otherMonth);
+    const todayBg    = todayCol < 0 ? '' : `<div class="cal-today-col" style="left:calc(${todayCol}*100%/7);width:calc(100%/7)" aria-hidden="true"></div>`;
+    weeksHtml.push(`<div class="cal-week">${todayBg}${colSeps}<div class="cal-week-days">${dayCells}</div>${eventsRow}</div>`);
   }
 
   grid.innerHTML = weeksHtml.join('');

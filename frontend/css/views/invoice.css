@@ -375,87 +375,110 @@
   background: var(--bg-secondary, #f5f0eb);
 }
 
-/* ── Chat bubbles ── */
-.invoice-bubble {
-  display: flex;
-  flex-direction: column;
-  width: min(720px, 92%);
-}
-
-.invoice-bubble--sent   { align-self: flex-end; }
-.invoice-bubble--received { align-self: flex-start; }
-
-/* Botão de responder fica ao lado da bolha, do lado voltado para o centro da
-   conversa — à esquerda quando fomos nós a enviar (bolha à direita), à
-   direita quando é do hóspede (bolha à esquerda) — como num chat normal. */
-.ib-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
+/* ── Mensagens: um cartão por email com o assunto, o texto e os anexos ──
+   O email não é desenhado como foi enviado/recebido (template de marca,
+   botões, cores): fica só o texto, legível e no tipo de letra da aplicação.
+   «Ver original» abre o HTML completo num iframe isolado, quando é preciso. */
+.invoice-mail {
   width: 100%;
-}
-
-.invoice-bubble--sent .ib-row { flex-direction: row-reverse; }
-
-.ib-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  flex: 1;
-}
-
-.ib-meta {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 11px;
-  color: var(--cinza, #6b6460);
-}
-
-/* Autor/hora à direita para as nossas mensagens — sem isto herdava o
-   align-items da coluna, que também esticava (ou não) o corpo do email por
-   engano: a caixa de texto tem de esticar sempre para preencher .ib-content,
-   senão o iframe cai para a largura mínima do browser (~300px) e fica com um
-   espaço enorme entre o botão de responder e a bolha. */
-.invoice-bubble--sent .ib-meta { justify-content: flex-end; }
-
-.ib-author { font-weight: 600; }
-
-.ib-reply-btn {
+  max-width: 760px;
+  align-self: center;
+  padding: 14px 18px 16px;
   border: 1px solid var(--border, #e8ddd0);
+  border-radius: 12px;
   background: var(--bg-card, #fff);
-  color: var(--cinza, #6b6460);
-  opacity: .6;
-  cursor: pointer;
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
+  color: var(--texto, #2a1810);
+}
+.invoice-mail--sent { border-left: 3px solid var(--marca, #843424); }
+
+.im-head {
   display: flex;
   align-items: center;
-  justify-content: center;
-  transition: opacity 120ms, background 120ms;
+  gap: 8px;
+  min-height: 26px;
+  font-size: 12px;
+  color: var(--cinza, #6b6460);
 }
-.ib-reply-btn:hover { opacity: 1; background: var(--bg-hover, #faf7f4); }
+.im-dir { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.im-dir b { color: var(--texto, #2a1810); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.im-dir-tag {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--bg-secondary, #f5f0eb);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.invoice-mail--sent .im-dir-tag { background: var(--marca-light, #fdf4f2); color: var(--marca, #843424); }
+.im-date { margin-left: auto; white-space: nowrap; }
+
+.im-reply-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border: 1px solid var(--border, #e8ddd0);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cinza, #6b6460);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.im-reply-btn:hover { color: var(--marca, #843424); border-color: currentColor; }
+
+.im-subject {
+  margin: 8px 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.im-text {
+  font-size: 13.5px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.im-text p { margin: 0 0 8px; }
+.im-text p:last-child { margin-bottom: 0; }
+.im-text a { color: var(--marca, #843424); text-decoration: underline; text-underline-offset: 2px; }
+.im-text-empty { color: var(--cinza, #6b6460); font-style: italic; }
+
+.im-original-btn {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cinza, #6b6460);
+  font: inherit;
+  font-size: 11.5px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.im-original-btn:hover { color: var(--marca, #843424); }
+.im-original { margin-top: 8px; border: 1px solid var(--border, #e8ddd0); border-radius: 10px; overflow: hidden; }
 
 /* ── Anexos ── */
 .ib-attachments {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 4px;
+  margin-top: 12px;
 }
 
 .ib-attachment {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 9px;
+  padding: 5px 10px;
   border: 1px solid var(--border, #e8ddd0);
   background: var(--bg-secondary, #f5f0eb);
-  border-radius: 7px;
-  font-size: 11px;
+  border-radius: 8px;
+  font-size: 12px;
   color: var(--texto, #2a1810);
   text-decoration: none;
   transition: background 120ms;
@@ -464,46 +487,16 @@
 
 .ib-att-size {
   color: var(--cinza, #6b6460);
-  font-size: 10px;
+  font-size: 10.5px;
 }
 
-.ib-subject {
-  font-size: 11px;
-  font-weight: 600;
-  opacity: .7;
-  margin-bottom: 2px;
-}
-
-.ib-body {
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 13px;
-  line-height: 1.55;
-  word-break: break-word;
-  background: #fff;
-  border: 1px solid var(--border, #e8ddd0);
-  color: var(--texto, #2a1810);
-}
-
-/* Diferença sutil entre enviado/recebido — sem blocos de cor fortes,
-   consistente com o resto da plataforma (cartões claros, borda fina). */
-.invoice-bubble--sent .ib-body {
-  background: var(--marca-light, #fdf4f2);
-  border-bottom-right-radius: 4px;
-}
-
-.invoice-bubble--received .ib-body {
-  border-bottom-left-radius: 4px;
-}
-
-/* Iframe sandbox onde o HTML do email é renderizado (S11) */
+/* Iframe sandbox onde o HTML original do email é mostrado (S11) */
 .ib-body-frame {
   display: block;
   width: 100%;
   min-height: 40px;
   height: 120px;
   border: none;
-  border-radius: 8px;
   background: #fff;
 }
 

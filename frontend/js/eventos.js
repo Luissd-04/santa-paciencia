@@ -662,10 +662,11 @@ function renderEventosListState() {
 function renderEventoListRow(evento) {
   const type = getEventoType(evento.type);
   const acc = evento.accommodation_name || AppModules.core.accommodations.find(a => a.id === evento.accommodation_id)?.name || '—';
-  return `<tr>
+  const isToday = evento.date === window.ReservationDates.localIso();
+  return `<tr${isToday ? ' class="is-today"' : ''}>
       <td>
         <div class="eventos-date-cell">
-          <strong>${AppModules.core.formatDate(evento.date)}</strong>
+          <strong>${AppModules.core.formatDate(evento.date)}${isToday ? '<span class="eventos-today-tag">Hoje</span>' : ''}</strong>
           <span>${formatEventoTime(evento) || 'Sem hora'}</span>
         </div>
       </td>
