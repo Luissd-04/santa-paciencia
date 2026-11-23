@@ -31,6 +31,14 @@ function imageUrl(req, url) {
   return `${publicUrl(req)}${url}`;
 }
 
+// A linha da reserva traz os campos da capa do alojamento (r.* + a.cover_*).
+function reservationCover(req, reservation) {
+  return require('../services/imageCrops').publicCover({
+    id: reservation.accommodation_id, cover_image: reservation.cover_image,
+    cover_focal: reservation.cover_focal, cover_crops: reservation.cover_crops, cover_size: reservation.cover_size,
+  }, url => imageUrl(req, url));
+}
+
 function normalizeImages(req, accommodation) {
   const images = parseJson(accommodation.images, {});
   const entries = [];
@@ -73,6 +81,8 @@ function serializeAccommodation(req, row, parent = null) {
     extra_occupancy_options: normalizeExtraOccupancyOptions(row),
     images: [...images, ...parentImages],
     cover_image: imageUrl(req, row.cover_image) || images[0]?.url || parentImages[0]?.url || '',
+    // Recortes da capa por formato (services/imageCrops.js); null sem capa própria.
+    cover: require('../services/imageCrops').publicCover(row, url => imageUrl(req, url)),
     rgpd_text: row.rgpd_text || null
   };
 }
@@ -404,7 +414,8 @@ function lookupReservationByPrecheckinToken(token) {
            g.document_type, g.document_number, g.document_issuer_country,
            g.birth_city, g.birth_country, g.address, g.postal_code, g.city, g.residence_country,
            g.nif, g.company, g.company_nif,
-           a.name as accommodation_name, a.checkin_time, a.checkout_time, a.cover_image, a.images
+           a.name as accommodation_name, a.checkin_time, a.checkout_time, a.cover_image, a.images,
+           a.cover_focal, a.cover_crops, a.cover_size
     FROM reservations r
     JOIN guests g ON g.id = r.guest_id AND g.organization_id = r.organization_id
     JOIN accommodations a ON a.id = r.accommodation_id AND a.organization_id = r.organization_id
@@ -421,7 +432,7 @@ function getReservationStatus(req, res) {
   }
   const reservation = db.prepare(`
     SELECT r.*,
-           a.name AS accommodation_name, a.cover_image, a.images
+           a.name AS accommodation_name, a.cover_image, a.images, a.cover_focal, a.cover_crops, a.cover_size
     FROM reservations r
     JOIN accommodations a ON a.id = r.accommodation_id AND a.organization_id = r.organization_id
     WHERE r.public_token = ?
@@ -454,6 +465,7 @@ function getReservationStatus(req, res) {
       // reserva ser aceite e enquanto o pré-check-in estiver aberto.
       precheckin: precheckinLink(reservation),
       cover_image: imageUrl(req, reservation.cover_image),
+      cover: reservationCover(req, reservation),
       images: normalizeImages(req, reservation).map(img => img.url).filter(Boolean),
       // Portal do hóspede: marca, chegada, saída e, perto da chegada, os
       // códigos (services/guestPortal.js decide o que pode ir).
@@ -538,6 +550,7 @@ function getPreCheckin(req, res) {
         num_adults: reservation.num_adults || reservation.num_guests,
         num_children: reservation.num_children || 0,
         cover_image: imageUrl(req, reservation.cover_image),
+        cover: reservationCover(req, reservation),
         images: normalizeImages(req, reservation).map(img => img.url).filter(Boolean),
         arrival_time: reservation.arrival_time || '',
         checkin_time: effectiveCheckinTime(reservation),

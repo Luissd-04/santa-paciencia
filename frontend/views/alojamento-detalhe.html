@@ -357,6 +357,9 @@
                     <i data-lucide="upload" style="width:13px;height:13px;"></i> Substituir
                     <input type="file" accept="image/*" style="display:none;" id="aloj-logo-input" data-on-change="index-upload-aloj-logo-56d5027">
                   </label>
+                  <button type="button" class="btn btn-ghost btn-sm" id="aloj-logo-crop-btn" style="display:none;width:fit-content;" data-on-click="recortes-abrir-logo">
+                    <i data-lucide="crop" style="width:13px;height:13px;"></i> Ajustar
+                  </button>
                   <button type="button" class="btn btn-ghost btn-sm" id="aloj-logo-remove-btn" style="display:none;width:fit-content;color:var(--vermelho,#b3261e);" data-on-click="index-remove-aloj-logo-1d70e78">
                     <i data-lucide="trash-2" style="width:13px;height:13px;"></i> Remover
                   </button>
@@ -489,10 +492,15 @@
               </div>
               <div class="aloj-cover-copy">
                 <div style="font-weight:600;color:var(--azul);margin-bottom:4px;">Foto de Capa</div>
-                <div style="font-size:12.5px;color:var(--cinza);">Esta imagem aparece na lista de alojamentos ao lado do nome.<br>Clique para abrir em grande, arraste da galeria para definir como capa.</div>
-                <button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:12px;" data-on-click="index-get-element-by-id-3f690f7">
-                  <i data-lucide="camera"></i> Escolher foto
-                </button>
+                <div style="font-size:12.5px;color:var(--cinza);">Aparece na lista de alojamentos, no topo do portal do hóspede e na página pública.<br>Clique para abrir em grande, arraste da galeria para definir como capa.</div>
+                <div class="aloj-cover-btns">
+                  <button class="btn btn-ghost btn-sm" style="font-size:12px;" data-on-click="index-get-element-by-id-3f690f7">
+                    <i data-lucide="camera"></i> Escolher foto
+                  </button>
+                  <button type="button" class="btn btn-ghost btn-sm" style="font-size:12px;" id="aloj-cover-crops-btn" hidden data-on-click="recortes-abrir-capa">
+                    <i data-lucide="crop"></i> Ajustar recortes
+                  </button>
+                </div>
               </div>
             </div>
             <input type="file" id="cover-input" accept="image/*" style="display:none">

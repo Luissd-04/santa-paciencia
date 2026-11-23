@@ -149,6 +149,8 @@ AppModules.core.onLive('events', () => {
 
 // Arranque da vista, já com o código dela carregado.
 async function initView(v) {
+  // Vista predefinida da conta, só na primeira abertura deste ecrã na sessão.
+  AppModules.core.applyViewDefault(v);
   if (v === 'dashboard') AppModules.core.renderDashboard();
   if (v === 'reservas') {
     if (typeof AppModules.reservas.clearResExactDateFilter === 'function') AppModules.reservas.clearResExactDateFilter();
@@ -323,7 +325,7 @@ let settingsSectionOpen = false;
 
 function switchSettingsTab(tab, render = true) {
   if (tab === 'equipa' && AppModules.core.currentUser?.role !== 'owner') tab = 'gcal';
-  settingsTab = ['gcal', 'database', 'operations', 'emails', 'fornecedores', 'push', 'equipa', 'payments', 'aparencia', 'sobre'].includes(tab) ? tab : 'gcal';
+  settingsTab = ['gcal', 'database', 'operations', 'emails', 'fornecedores', 'push', 'equipa', 'payments', 'aparencia', 'vistas', 'sobre'].includes(tab) ? tab : 'gcal';
   AppModules.core.SS.set('settings:tab', settingsTab);
   settingsSectionOpen = true;
   applySettingsTab();
@@ -374,6 +376,7 @@ function renderSettingsView() {
   if (settingsTab === 'push' && typeof AppModules.definicoes.initPushSettings === 'function') AppModules.definicoes.initPushSettings();
   if (settingsTab === 'equipa' && AppModules.core.currentUser?.role === 'owner') AppModules.definicoes.loadTeamOverview();
   if (settingsTab === 'aparencia' && typeof AppModules.definicoes.renderAppearance === 'function') AppModules.definicoes.renderAppearance();
+  if (settingsTab === 'vistas' && typeof AppModules.definicoes.renderViewPrefs === 'function') AppModules.definicoes.renderViewPrefs();
   if (settingsTab === 'sobre' && typeof AppModules.definicoes.renderAbout === 'function') AppModules.definicoes.renderAbout();
   if (window.lucide) lucide.createIcons();
 }
@@ -416,26 +419,29 @@ function sidebarBrandInfo() {
   const main = (core.accommodations || []).find(a => !a.parent_id);
   const logo = orgLogo || main?.logo_url || '';
   const src = logo ? (/^(https?:|data:)/.test(logo) ? logo : (core.API_BASE || '') + logo) : '';
-  return { name, src };
+  // Versão pequena (menu recolhido): o recorte quadrado do logótipo, se houver.
+  const mark = !orgLogo && main ? core.logoMarkSrc?.(main) || '' : '';
+  return { name, src, mark };
 }
 
 function renderSidebarBrand() {
   const id = document.getElementById('sb-brand-id');
   const mini = document.getElementById('sb-brand-mini');
   if (!id || !mini) return;
-  const { name, src } = sidebarBrandInfo();
+  const { name, src, mark } = sidebarBrandInfo();
   const esc = AppModules.core.escapeHtml;
   const initials = name.split(/\s+/).filter(w => w.length > 2 || /^[A-ZÀ-Ý]/.test(w) && w.length > 1).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
-  const key = src + '|' + name;
+  const key = src + '|' + mark + '|' + name;
   if (id.dataset.brandKey === key) return;
   id.dataset.brandKey = key;
   id.innerHTML = src
     ? `<img class="sb-logo" src="${esc(src)}" alt="${esc(name)}">`
     : `<h1>${esc(name)}</h1><p>Gestão de Alojamento</p>`;
-  mini.innerHTML = `<span class="sb-mini-mark" title="${esc(name)}">${esc(initials)}</span>`;
-  // Menu recolhido: só um logótipo quase quadrado cabe no quadrado de 40px; um
-  // logótipo largo (ex.: 3:1) ficaria ilegível, por isso ficam as iniciais.
-  if (src) {
+  mini.innerHTML = `<span class="sb-mini-mark" title="${esc(name)}">${mark ? `<img src="${esc(mark)}" alt="">` : esc(initials)}</span>`;
+  // Menu recolhido: sem recorte quadrado, só um logótipo quase quadrado cabe no
+  // quadrado de 40px; um logótipo largo (ex.: 3:1) ficaria ilegível, por isso
+  // ficam as iniciais.
+  if (src && !mark) {
     const probe = new Image();
     probe.onload = () => {
       const ratio = probe.naturalWidth / (probe.naturalHeight || 1);
@@ -857,7 +863,16 @@ async function initApp() {
   // faria history.back() indevido. A entrada base fica a lista.
   const deepId = new URLSearchParams(window.location.search).get('reserva');
   if (deepId && pathView === 'reservas') history.replaceState({ view: 'reservas' }, '', '/reservas');
-  await showView(VIEW_TITLES[pathView] ? pathView : 'dashboard', false);
+  // Ecrã inicial da conta: só quando se entra pela raiz, uma vez por sessão.
+  let startView = VIEW_TITLES[pathView] ? pathView : 'dashboard';
+  if (startView === 'dashboard' && !deepId && window.location.pathname.replace(/\/+$/, '') === '') {
+    const home = AppModules.core.homeViewDefault();
+    if (home && home !== 'dashboard' && VIEW_TITLES[home]) {
+      startView = home;
+      history.replaceState({ view: home }, '', '/' + home);
+    }
+  }
+  await showView(startView, false);
   if (deepId && pathView === 'reservas' && typeof AppModules.reservas.showDetail === 'function') AppModules.reservas.showDetail(deepId);
   if (window.AppDatePicker) {
     // Os campos type=date são ligados automaticamente (enhanceAll + observer no

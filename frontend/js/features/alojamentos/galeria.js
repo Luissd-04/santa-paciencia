@@ -77,6 +77,7 @@ function renderImagens() {
            ${AppActions.attrs("dragstart", "galeria-img-drag-start-db472bd", [key, url])}
            data-on-dragend="galeria-img-drag-end-f9de7ac">
         <img class="img-thumb" src="${AppModules.core.escapeHtml(AppModules.core.mediaThumb(AppModules.core.API_BASE + url, 480))}" alt="" loading="lazy" decoding="async" ${AppActions.attrs("click", "galeria-open-image-lightbox-c42eaa8", [AppModules.core.API_BASE, url])}>
+        <button type="button" class="img-rotate" title="Rodar 90°" aria-label="Rodar 90°" ${AppActions.attrs("click", "recortes-rodar-foto", [String(url ?? '')])}>${AppModules.core.lcIcon('rotate-cw', 12)}</button>
         <button class="img-remove" ${AppActions.attrs("click", "galeria-remove-img-f163082", [String((key) ?? ''), String((url) ?? '')])}>✕</button>
       </div>`).join('');
 
@@ -362,13 +363,22 @@ async function uploadCoverImage(file) {
       preview.style.display = 'block';
       if (placeholder) placeholder.style.display = 'none';
       if (deleteBtn) deleteBtn.style.display = '';
-      const acc = AppModules.core.accommodations.find(a => a.id === id);
-      if (acc) acc.cover_image = res.url;
+      setCoverFields(id, { cover_image: res.url, cover_focal: null, cover_crops: null, cover_size: res.cover_size || null });
       AppModules.core.toast('✅ Foto de capa guardada!', 'success');
+      // Capa nova: abre logo «Ajustar recortes» (tudo automático até mexer).
+      AppModules.alojamentos.refreshCoverPreview?.();
+      AppModules.alojamentos.openCoverCrops?.();
     }
   } catch (e) {
     AppModules.core.showUploadAlert(zone, [`${file.name} — ${e?.payload?.error || 'erro ao guardar a capa'}`]);
   }
+}
+
+// A capa mudou: o ponto principal e os recortes da anterior já não servem.
+function setCoverFields(id, fields) {
+  const acc = AppModules.core.accommodations.find(a => a.id === id);
+  if (acc) Object.assign(acc, fields);
+  if (AppModules.alojamentos.currentAlojDetail?.id === id) Object.assign(AppModules.alojamentos.currentAlojDetail, fields);
 }
 
 function handleCoverZoneClick(event) {
@@ -399,8 +409,9 @@ async function removeCoverImage() {
     }
     if (placeholder) placeholder.style.display = 'flex';
     if (deleteBtn) deleteBtn.style.display = 'none';
-    const acc = AppModules.core.accommodations.find(a => a.id === id);
-    if (acc) acc.cover_image = null;
+    setCoverFields(id, { cover_image: null, cover_focal: null, cover_crops: null, cover_size: null });
+    const cropsBtn = document.getElementById('aloj-cover-crops-btn');
+    if (cropsBtn) cropsBtn.hidden = true;
     AppModules.core.toast('🗑 Foto de capa removida.', 'info');
   } catch (e) {
     AppModules.core.toast('❌ Erro ao remover capa.', 'error');
@@ -429,6 +440,8 @@ function renderAlojLogoPreview(a) {
   }
   // Só o alojamento principal pode carregar/remover — as suites só mostram (herdado).
   if (removeBtn) removeBtn.style.display = (!hasParent && logoUrl) ? '' : 'none';
+  const cropBtn = document.getElementById('aloj-logo-crop-btn');
+  if (cropBtn) cropBtn.style.display = (!hasParent && /^\/uploads\/[A-Za-z0-9_.-]+$/.test(a?.logo_original_url || logoUrl)) ? '' : 'none';
   if (uploadLabel) {
     uploadLabel.style.opacity = hasParent ? '.55' : '';
     uploadLabel.style.pointerEvents = hasParent ? 'none' : '';
@@ -449,9 +462,10 @@ async function uploadAlojLogo(input) {
   try {
     const res = await AppModules.core.apiPost(`/api/accommodations/${id}/logo`, { image: await readFileAsDataUrl(file) });
     const acc = AppModules.core.accommodations.find(a => a.id === id);
-    if (acc) acc.logo_url = res.url;
-    if (AppModules.alojamentos.currentAlojDetail) AppModules.alojamentos.currentAlojDetail.logo_url = res.url;
-    renderAlojLogoPreview({ ...(acc || {}), logo_url: res.url });
+    const fresh = { logo_url: res.url, logo_original_url: null, logo_crop: null, logo_square_crop: null };
+    if (acc) Object.assign(acc, fresh);
+    if (AppModules.alojamentos.currentAlojDetail) Object.assign(AppModules.alojamentos.currentAlojDetail, fresh);
+    renderAlojLogoPreview({ ...(acc || {}), ...fresh });
     AppModules.core.renderSidebarBrand?.();
     AppModules.core.toast('✅ Logótipo guardado!', 'success');
   } catch (err) {
@@ -465,9 +479,10 @@ async function removeAlojLogo() {
   try {
     await AppModules.core.apiDelete(`/api/accommodations/${id}/logo`);
     const acc = AppModules.core.accommodations.find(a => a.id === id);
-    if (acc) acc.logo_url = null;
-    if (AppModules.alojamentos.currentAlojDetail) AppModules.alojamentos.currentAlojDetail.logo_url = null;
-    renderAlojLogoPreview({ ...(acc || {}), logo_url: null });
+    const cleared = { logo_url: null, logo_original_url: null, logo_crop: null, logo_square_crop: null };
+    if (acc) Object.assign(acc, cleared);
+    if (AppModules.alojamentos.currentAlojDetail) Object.assign(AppModules.alojamentos.currentAlojDetail, cleared);
+    renderAlojLogoPreview({ ...(acc || {}), ...cleared });
     AppModules.core.renderSidebarBrand?.();
     AppModules.core.toast('🗑 Logótipo removido.', 'info');
   } catch (err) {
@@ -522,8 +537,8 @@ async function handleCoverDrop(event) {
     }
     if (placeholder) placeholder.style.display = 'none';
     if (deleteBtn) deleteBtn.style.display = '';
-    const acc = AppModules.core.accommodations.find(a => a.id === id);
-    if (acc) acc.cover_image = url;
+    setCoverFields(id, { cover_image: url, cover_focal: null, cover_crops: null, cover_size: res.cover_size || null });
+    AppModules.alojamentos.refreshCoverPreview?.();
     AppModules.core.toast('✅ Capa atualizada.', 'success');
   } catch (e) {
     AppModules.core.toast('❌ Erro ao atualizar capa.', 'error');

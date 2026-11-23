@@ -87,7 +87,8 @@ html[data-look] #view-alojamento-detalhe[data-acfg-sec="visao"] .acfg-visao { di
 html[data-look] .acfg-head { display: grid; grid-template-columns: 220px minmax(0, 1fr) auto; gap: 20px; align-items: center; padding: 14px; }
 html[data-look] .acfg-cover, html[data-look] .acfg-unit-ph { display: block; overflow: hidden; background: linear-gradient(135deg, color-mix(in srgb, var(--acc) 45%, #fff), var(--acc)); }
 html[data-look] .acfg-cover { height: 124px; border-radius: 14px; }
-html[data-look] :is(.acfg-cover, .acfg-unit-ph) img { width: 100%; height: 100%; object-fit: cover; }
+html[data-look] :is(.acfg-cover, .acfg-unit-ph) img { width: 100%; height: 100%; object-fit: cover; object-position: var(--pos, 50% 50%); }
+html[data-look] :is(.acfg-cover, .acfg-unit-ph) picture { display: block; width: 100%; height: 100%; }
 html[data-look] .acfg-crumb { display: flex; align-items: center; gap: 4px; color: var(--v2-muted); font-size: 13px; }
 html[data-look] .acfg-crumb button { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px; border: 0; border-radius: 6px; background: none; color: inherit; font: inherit; cursor: pointer; }
 html[data-look] .acfg-crumb button:hover { color: var(--v2-ink); }
@@ -139,6 +140,8 @@ html[data-look] .acfg-save .btn-ghost { border-color: transparent !important; ba
   html[data-look] #view-alojamento-detalhe.acfg-grid > * { grid-column: 1; }
   html[data-look] #view-alojamento-detalhe.acfg-grid > :is(.acfg-nav-wrap, .acfg-side-wrap) { grid-column: 1; grid-row: auto; position: static; }
   html[data-look] .acfg-head { grid-template-columns: 1fr; }
+  /* Cabeçalho em faixa larga: o recorte 3:1 (config-v2.js, fotoHtml). */
+  html[data-look] .acfg-cover img { object-position: var(--pos-narrow, var(--pos, 50% 50%)); }
   html[data-look] .acfg-acts { justify-content: flex-start; }
   /* No telemóvel o menu é uma fila que desliza. */
   html[data-look] .acfg-nav { display: flex; overflow-x: auto; gap: 6px; padding: 8px; scrollbar-width: none; }

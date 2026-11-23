@@ -53,7 +53,7 @@ function renderDeskSummary(step, names) {
   // Sem cotação, o motivo que o servidor deu (ex.: hóspedes a mais para o quarto).
   const quoteLine = document.getElementById('resf-voucher-line');
   const issue = !quote && room && quoteLine && !quoteLine.hidden && quoteLine.dataset.tone === 'warn' ? quoteLine.textContent : '';
-  const photo = room?.cover_image && core.safeMediaUrl(room.cover_image) ? core.mediaThumb(room.cover_image, 160) : '';
+  const photo = room?.cover_image && core.safeMediaUrl(room.cover_image) ? core.coverSrc(room, 'square', 160) : '';
   const parent = room?.parent_id ? core.accommodations.find(a => a.id === room.parent_id) : null;
   const people = [`${adults} ${adults === 1 ? 'adulto' : 'adultos'}`, children ? `${children} ${children === 1 ? 'criança' : 'crianças'}` : ''].filter(Boolean).join(' · ');
   const keys = [

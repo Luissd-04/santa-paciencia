@@ -22,7 +22,7 @@ function walk(dir, out = []) {
 }
 
 function referencedFiles() {
-  const urls = accommodationUrls(db.prepare('SELECT cover_image, logo_url, images FROM accommodations').all());
+  const urls = accommodationUrls(db.prepare('SELECT cover_image, logo_url, logo_original_url, images FROM accommodations').all());
   for (const row of db.prepare('SELECT receipt_image FROM expenses WHERE receipt_image IS NOT NULL').all()) urls.add(row.receipt_image);
   const files = new Set([...urls].map(uploadPath).filter(Boolean));
   for (const row of db.prepare('SELECT stored_name FROM support_attachments').all()) {

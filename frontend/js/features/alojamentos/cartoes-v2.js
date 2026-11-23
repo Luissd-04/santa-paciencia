@@ -31,12 +31,12 @@ async function loadOccupancy() {
 
 function photoHtml(a) {
   const core = AppModules.core;
-  const src = a.cover_image && core.safeMediaUrl(a.cover_image)
-    ? core.mediaThumb(a.cover_image.startsWith('http') ? a.cover_image : core.API_BASE + a.cover_image, 640) : '';
+  // Cartão ~2:1: o recorte 16:9, com o ponto principal ao centro do que sobra.
+  const src = a.cover_image && core.safeMediaUrl(a.cover_image) ? core.coverSrc(a, 'landscape', 640) : '';
   const color = a.color || '#843424';
   // A casa fica sempre por baixo: se a foto não carregar (ficheiro que já
   // não existe), sai e fica a cor do alojamento em vez da imagem partida.
-  return `<div class="av2-photo" style="--acc:${core.escapeHtml(color)}">${core.lcIcon('home', 28)}${src ? `<img src="${core.escapeHtml(src)}" alt="" loading="lazy" decoding="async" ${AppActions.attrs('error', 'alojamentos-v2-foto-falhou')}>` : ''}
+  return `<div class="av2-photo" style="--acc:${core.escapeHtml(color)}">${core.lcIcon('home', 28)}${src ? `<img src="${core.escapeHtml(src)}" alt="" loading="lazy" decoding="async" style="object-position:${core.escapeHtml(core.coverPosition(a, 'landscape'))}" ${AppActions.attrs('error', 'alojamentos-v2-foto-falhou')}>` : ''}
     <span class="av2-type">${core.escapeHtml(a.type === 'alojamento' ? 'Alojamento' : (a.type || 'Unidade'))}</span></div>`;
 }
 

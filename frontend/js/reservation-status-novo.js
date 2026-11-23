@@ -126,6 +126,7 @@
         if (image.srcset) img.srcset = image.srcset; else img.removeAttribute('srcset');
         img.sizes = '100vw';
       }
+      img.style.objectPosition = image.position || '';
       img.hidden = false;
       img.onerror = () => { img.hidden = true; hero.classList.remove('has-photo'); };
     } else img.hidden = true;

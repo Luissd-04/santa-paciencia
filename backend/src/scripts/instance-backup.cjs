@@ -86,8 +86,8 @@ function counts(db) {
 function referencedUploads(db) {
   const urls = new Set();
   const add = value => { if (typeof value === 'string' && /^\/uploads\/[\w./-]+$/.test(value) && !value.includes('..')) urls.add(value.slice('/uploads/'.length)); };
-  for (const row of db.prepare('SELECT cover_image, logo_url, images FROM accommodations').all()) {
-    add(row.cover_image); add(row.logo_url);
+  for (const row of db.prepare('SELECT cover_image, logo_url, logo_original_url, images FROM accommodations').all()) {
+    add(row.cover_image); add(row.logo_url); add(row.logo_original_url);
     let images = {};
     try { images = JSON.parse(row.images || '{}'); } catch { /* ignorar */ }
     for (const [key, list] of Object.entries(images || {})) if (key !== '_sections' && Array.isArray(list)) list.forEach(add);

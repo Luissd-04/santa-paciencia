@@ -190,6 +190,16 @@ app.use('/uploads', (req, res, next) => {
   if (!/^\/[A-Za-z0-9_.-]+$/.test(req.path)) return res.status(404).end();
   next();
 }, async (req, res, next) => {
+  // `?crop=<formato>[&w=…]`: recorte da capa ou do logótipo (services/imageCrops).
+  if (req.query.crop === undefined) return next();
+  const file = await require('./services/imageCropRoute').serve('/uploads' + req.path, req.query);
+  if (!file) return res.status(file === null ? 404 : 400).end();
+  if (file.status) return res.status(file.status).end();
+  // Com `v` (muda quando o recorte muda) a cache é longa; sem ele, curta.
+  res.set('Cache-Control', req.query.v ? UPLOAD_CACHE : 'public, max-age=300');
+  res.type(file.type);
+  res.sendFile(file.file, { dotfiles: 'allow' });
+}, async (req, res, next) => {
   // `?w=160|480|1024|1600`: miniatura WebP gerada uma vez e guardada em disco.
   if (req.query.w === undefined) return next();
   const { thumbnail, THUMB_WIDTHS } = require('./services/imageOptimizer');
@@ -283,7 +293,14 @@ app.use('/api', (req, res) => {
 // SPA catch-all: serve index.html para todas as rotas de frontend
 if (process.env.FRONTEND_PATH) {
   app.get('/reservar/:slug', (req, res) => {
-    res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'public-reservation.html'));
+    const file = path.join(path.resolve(process.env.FRONTEND_PATH), 'public-reservation.html');
+    // Pré-visualização do link (WhatsApp, Facebook): nome, descrição e o
+    // recorte «Partilha» (1.91:1) da capa, no próprio HTML.
+    const tags = require('./services/openGraph').bookingTags(req, req.params.slug);
+    if (!tags) return res.sendFile(file);
+    require('fs').promises.readFile(file, 'utf8')
+      .then(html => res.type('html').send(html.replace('</head>', `${tags}\n</head>`)))
+      .catch(() => res.sendFile(file));
   });
   app.get('/reserva/:token', (req, res) => {
     res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'reservation-status.html'));

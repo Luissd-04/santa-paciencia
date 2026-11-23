@@ -166,7 +166,7 @@ function roomMetaText(room) {
 function roomThumbHtml(acc) {
   const cover = acc?.cover_image ? (acc.cover_image.startsWith('http') ? acc.cover_image : AppModules.core.API_BASE + acc.cover_image) : '';
   return cover
-    ? `<img src="${AppModules.core.escapeHtml(AppModules.core.mediaThumb(cover, 160))}" class="resf-room-thumb" alt="" loading="lazy" decoding="async">`
+    ? `<img src="${AppModules.core.escapeHtml(AppModules.core.coverSrc(acc, 'square', 160))}" class="resf-room-thumb" alt="" loading="lazy" decoding="async">`
     : `<span class="resf-room-thumb resf-room-thumb-dot" style="background:${AppModules.core.escapeHtml(acc?.color || 'var(--marca)')}"></span>`;
 }
 

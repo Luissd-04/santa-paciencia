@@ -36,8 +36,10 @@ function afterLanding() {
   B.$('pn-location').textContent = [p.city, p.country].filter(Boolean).join(' · ');
   B.$('pn-description').textContent = p.description || '';
   const images = B.allImages();
-  const cover = B.mediaThumb(p.cover_image || images[0], 1600);
-  if (cover) B.$('pn-hero').style.backgroundImage = `url(${JSON.stringify(cover)})`;
+  // Topo: o recorte 16:9 da capa, com o ponto principal no que fica à vista.
+  const hero = p.cover ? B.coverOf(p, 'landscape') : { src: p.cover_image || images[0], position: '50% 50%' };
+  const cover = B.mediaThumb(hero.src, 1600);
+  if (cover) { B.$('pn-hero').style.backgroundImage = `url(${JSON.stringify(cover)})`; B.$('pn-hero').style.backgroundPosition = hero.position; }
   B.$('pn-hero').classList.toggle('no-photo', !cover);
   const photos = B.$('pn-photos-btn');
   photos.hidden = images.length < 2;
@@ -227,7 +229,7 @@ function renderConfirm() {
   const box = B.$('pn-confirm');
   const info = lastInfo;
   if (!info) { box.innerHTML = ''; return; }
-  const thumb = B.mediaThumb(info.unit?.cover_image || info.unit?.images?.[0]?.url, 480);
+  const thumb = B.mediaThumb(B.coverOf(info.unit, 'square').src, 480);
   box.innerHTML = `
     <div class="pn-stay">
       ${thumb ? `<img src="${esc(thumb)}" alt="" decoding="async">` : ''}

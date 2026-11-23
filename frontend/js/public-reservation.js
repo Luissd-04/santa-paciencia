@@ -7,6 +7,7 @@ AppModules.define('booking', {
   DOC_TYPES: { get: () => DOC_TYPES },
   escapeHtml: { get: () => escapeHtml },
   mediaThumb: { get: () => mediaThumb },
+  coverOf: { get: () => coverOf },
   safeMediaUrl: { get: () => safeMediaUrl },
   PHONE_CODES: { get: () => PHONE_CODES },
   state: { get: () => state },
@@ -50,6 +51,15 @@ function mediaThumb(value, width) {
     parsed.searchParams.set('w', String(width));
     return safe.startsWith('/') ? `${parsed.pathname}${parsed.search}` : parsed.href;
   } catch { return safe; }
+}
+
+// Capa no formato do sítio (recorte do servidor, `cover.variants`) e a
+// posição do ponto principal dentro dele; sem capa própria, a 1.ª fotografia.
+function coverOf(item, format) {
+  return {
+    src: item?.cover?.variants?.[format] || item?.cover_image || item?.images?.[0]?.url || '',
+    position: item?.cover?.position?.[format] || '50% 50%',
+  };
 }
 
 const searchParams = new URLSearchParams(location.search);

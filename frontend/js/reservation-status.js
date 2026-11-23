@@ -89,12 +89,21 @@
     } catch { return safe; }
   }
 
-  // Capa do topo: miniaturas de 1024 e 1600 px, conforme o ecrã.
-  function heroImage(value) {
+  // Capa do topo: miniaturas de 1024 e 1600 px, conforme o ecrã. Com recortes
+  // (portal.cover): a faixa 3:1 no computador e a paisagem 16:9 no telemóvel
+  // e tablet (o topo é mais alto do que largo em proporção), com o ponto
+  // principal no que fica à vista.
+  function heroImage(value, cover) {
+    let position = '';
+    if (cover?.variants) {
+      const format = matchMedia('(max-width: 959px)').matches ? 'landscape' : 'banner';
+      value = cover.variants[format] || value;
+      position = cover.position?.[format] || '';
+    }
     const src = mediaThumb(value, 1600);
     if (!src) return null;
     const small = mediaThumb(value, 1024);
-    return { src, srcset: small !== src ? `${small} 1024w, ${src} 1600w` : '' };
+    return { src, srcset: small !== src ? `${small} 1024w, ${src} 1600w` : '', position };
   }
 
   function safeMediaUrl(value) {
@@ -116,7 +125,7 @@
       // Topo, próximo passo, passos e lateral (reservation-status-novo.js);
       // depois o pagamento online, que vive dentro do cartão «Próximo passo».
       const cover = reservation.portal?.cover_image || reservation.cover_image || reservation.images?.[0];
-      const view = window.ReservationStatusNovo.render(reservation, heroImage(cover));
+      const view = window.ReservationStatusNovo.render(reservation, heroImage(cover, reservation.portal?.cover || reservation.cover));
       renderPayment(reservation, view.phase);
       window.ReservationStatusNovo.setSticky(view.phase, !$('rs-payment-panel').hidden && !$('rs-pay').hidden);
       $('rs-loading').hidden = true;

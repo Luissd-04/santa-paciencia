@@ -112,6 +112,7 @@ router.post('/import', async (req, res) => {
     for (const row of tables.accommodations) {
       row.cover_image = replacements.get(row.cover_image) || row.cover_image;
       row.logo_url = replacements.get(row.logo_url) || row.logo_url;
+      if (row.logo_original_url) row.logo_original_url = replacements.get(row.logo_original_url) || row.logo_original_url;
       const images = JSON.parse(row.images || '{}');
       for (const [key, list] of Object.entries(images)) if (key !== '_sections' && Array.isArray(list)) images[key] = list.map(url => replacements.get(url) || url);
       row.images = JSON.stringify(images);

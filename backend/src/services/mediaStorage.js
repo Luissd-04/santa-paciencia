@@ -35,7 +35,7 @@ function detectImageMagicType(buf) {
 function accommodationUrls(rows) {
   const urls = new Set();
   for (const row of rows) {
-    for (const value of [row.cover_image, row.logo_url]) if (uploadPath(value)) urls.add(value);
+    for (const value of [row.cover_image, row.logo_url, row.logo_original_url]) if (uploadPath(value)) urls.add(value);
     let images;
     try { images = typeof row.images === 'string' ? JSON.parse(row.images) : row.images; } catch { images = {}; }
     for (const [key, list] of Object.entries(images || {})) {
@@ -48,7 +48,7 @@ function accommodationUrls(rows) {
 function isAllowedImageUrl(url, organizationId) {
   if (typeof url !== 'string' || url.length > 2048) return false;
   if (uploadPath(url)) {
-    return accommodationUrls(db.prepare('SELECT cover_image, logo_url, images FROM accommodations WHERE organization_id = ?').all(organizationId)).has(url);
+    return accommodationUrls(db.prepare('SELECT cover_image, logo_url, logo_original_url, images FROM accommodations WHERE organization_id = ?').all(organizationId)).has(url);
   }
   try { return new URL(url).protocol === 'https:'; } catch { return false; }
 }
@@ -57,7 +57,7 @@ function isAllowedImageUrl(url, organizationId) {
 function removeUnreferencedImage(url) {
   const file = uploadPath(url);
   if (!file) return;
-  if (accommodationUrls(db.prepare('SELECT cover_image, logo_url, images FROM accommodations').all()).has(url)) return;
+  if (accommodationUrls(db.prepare('SELECT cover_image, logo_url, logo_original_url, images FROM accommodations').all()).has(url)) return;
   if (db.prepare('SELECT 1 FROM expenses WHERE receipt_image = ?').get(url)) return;
   if (fs.existsSync(file)) fs.unlinkSync(file);
   // Carregado aqui para evitar a dependência circular com imageOptimizer.

@@ -1,4 +1,4 @@
-const { uploadCover, removeCover, uploadLogo, removeLogo, uploadImages, deleteImage, patchImages, parseImageDataUri, UPLOADS_DIR } = require('./accommodationMediaController');
+const { uploadCover, removeCover, saveCoverCrops, uploadLogo, removeLogo, trimLogo, saveLogoCrops, uploadImages, deleteImage, patchImages, rotateGalleryImage, parseImageDataUri, UPLOADS_DIR } = require('./accommodationMediaController');
 const { db } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 const { purgeReservations } = require('../services/reservationPurge');
@@ -209,7 +209,7 @@ function getAll(req, res) {
   if (req.user.role === 'staff') {
     // O calendário precisa do catálogo, mas não das credenciais nem de _parent.
     const data = db.prepare(`SELECT id, name, type, parent_id, color, max_guests,
-      price_per_night, cover_image, checkin_time, checkout_time
+      price_per_night, cover_image, cover_focal, cover_crops, checkin_time, checkout_time
       FROM accommodations WHERE organization_id = ? ORDER BY name`)
       .all(req.user.organization_id);
     return res.json({ success: true, data });
@@ -503,6 +503,12 @@ function parseJson(a) {
     extra_occupancy_options: normalizeExtraOccupancyOptions(a.extra_occupancy_options, a),
     // null = mostrar todos os links configurados (nenhuma preferência guardada).
     email_social_links: safeJson(a.email_social_links, null),
+    // Recortes das imagens (services/imageCrops.js).
+    cover_focal: safeJson(a.cover_focal, null),
+    cover_crops: safeJson(a.cover_crops, null),
+    cover_size: safeJson(a.cover_size, null),
+    logo_crop: safeJson(a.logo_crop, null),
+    logo_square_crop: safeJson(a.logo_square_crop, null),
   };
 }
 const { safeJson } = require('../services/json');
@@ -799,4 +805,4 @@ function deleteBlock(req, res) {
 }
 
 module.exports = {
-  emailReadiness, getAll, getById, create, update, remove, uploadCover, removeCover, uploadLogo, removeLogo, uploadImages, deleteImage, patchImages, getSettings, saveSettings, getPricingPeriods, createPricingPeriod, updatePricingPeriod, deletePricingPeriod, bulkCreatePricingPeriods, listBlocks, createBlock, updateBlock, deleteBlock, parseImageDataUri, UPLOADS_DIR };
+  emailReadiness, getAll, getById, create, update, remove, uploadCover, removeCover, saveCoverCrops, uploadLogo, removeLogo, trimLogo, saveLogoCrops, uploadImages, deleteImage, patchImages, rotateGalleryImage, getSettings, saveSettings, getPricingPeriods, createPricingPeriod, updatePricingPeriod, deletePricingPeriod, bulkCreatePricingPeriods, listBlocks, createBlock, updateBlock, deleteBlock, parseImageDataUri, UPLOADS_DIR };

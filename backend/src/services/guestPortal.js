@@ -46,7 +46,7 @@ function build(reservation, { now = new Date(), mediaUrl = value => value } = {}
   if (!row) return null;
   const a = withInheritedFields(row, reservation.organization_id) || row;
   const parent = row.parent_id
-    ? db.prepare('SELECT color, cover_image FROM accommodations WHERE id = ? AND organization_id = ?').get(row.parent_id, reservation.organization_id)
+    ? db.prepare('SELECT id, color, cover_image, cover_focal, cover_crops, cover_size FROM accommodations WHERE id = ? AND organization_id = ?').get(row.parent_id, reservation.organization_id)
     : null;
   const settings = require('./emailService').getEmailSettings(row, reservation.organization_id);
   const status = reservation.status;
@@ -65,6 +65,8 @@ function build(reservation, { now = new Date(), mediaUrl = value => value } = {}
     logo_url: a.logo_url ? mediaUrl(a.logo_url) : '',
     // Capa: a da unidade, senão a do alojamento principal.
     cover_image: row.cover_image || parent?.cover_image ? mediaUrl(row.cover_image || parent.cover_image) : '',
+    // Topo do portal: faixa (3:1) no computador, paisagem (16:9) no telemóvel.
+    cover: require('./imageCrops').publicCover(row.cover_image ? row : parent, mediaUrl),
     checkin_time: settings.checkin_time || '',
     checkout_time: settings.checkout_time || '',
     nights: Number(reservation.nights) || (reservation.check_in && reservation.check_out ? daysBetween(reservation.check_in, reservation.check_out) : 0),

@@ -267,7 +267,8 @@ async function main() {
   db.prepare("UPDATE accommodations SET cover_image='/uploads/capa-v2.jpg' WHERE id='u'").run();
   await page.reload();
   const capa = roomCard.locator('.av2-photo img');
-  await expect(capa).toHaveAttribute('src', '/uploads/capa-v2.jpg?w=1024');
+  // Cartão: o recorte 16:9 da capa (PENDENTES, ponto 15).
+  await expect(capa).toHaveAttribute('src', /^\/uploads\/capa-v2\.jpg\?crop=landscape&a=u&v=[a-z0-9]+&w=1024$/);
   await expect.poll(() => capa.evaluate(img => img.complete && img.naturalWidth)).toBe(1024);
   // «Calendário» abre o calendário da plataforma só com esta unidade (mesmo
   // com um Google Calendar ligado, que na V1 continua a abrir).

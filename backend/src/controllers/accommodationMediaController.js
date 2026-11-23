@@ -2,7 +2,9 @@ const { db } = require('../config/database');
 const path = require('path');
 const fs = require('fs');
 const { isAllowedImageUrl, removeUnreferencedImage, detectImageMagicType } = require('../services/mediaStorage');
-const { optimizeUpload, optimizeLogoUpload } = require('../services/imageOptimizer');
+const { optimizeUpload, optimizeLogoUpload, orientedSize, rotateImage, extractToBuffer, trimSuggestion } = require('../services/imageOptimizer');
+const crops = require('../services/imageCrops');
+const { uploadPath } = require('../services/mediaStorage');
 const COMMON_AREAS_KEY = 'areas_comuns';
 const UPLOADS_DIR = path.resolve('./data/uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -41,8 +43,10 @@ async function uploadCover(req, res) {
   if (req.body.url) {
     const url = String(req.body.url || '').trim();
     if (!isAllowedImageUrl(url, req.user.organization_id)) return res.status(400).json({ error: 'Imagem não pertence à organização ou URL inválido.' });
-    db.prepare('UPDATE accommodations SET cover_image = ? WHERE id = ? AND organization_id = ?').run(url || null, id, req.user.organization_id);
-    return res.json({ success: true, url });
+    const size = await coverSize(url);
+    db.prepare('UPDATE accommodations SET cover_image = ?, cover_focal = NULL, cover_crops = NULL, cover_size = ? WHERE id = ? AND organization_id = ?')
+      .run(url || null, size, id, req.user.organization_id);
+    return res.json({ success: true, url, cover_size: crops.parse(size) });
   }
 
   // Guardar base64 como ficheiro
@@ -55,8 +59,103 @@ async function uploadCover(req, res) {
   fs.writeFileSync(filepath, optimized.data);
 
   const url = `/uploads/${filename}`;
-  db.prepare('UPDATE accommodations SET cover_image = ? WHERE id = ? AND organization_id = ?').run(url, id, req.user.organization_id);
-  res.json({ success: true, url });
+  const size = await coverSize(url);
+  // Capa nova: o ponto principal e os recortes da anterior não lhe servem.
+  db.prepare('UPDATE accommodations SET cover_image = ?, cover_focal = NULL, cover_crops = NULL, cover_size = ? WHERE id = ? AND organization_id = ?')
+    .run(url, size, id, req.user.organization_id);
+  res.json({ success: true, url, cover_size: crops.parse(size) });
+}
+
+// Tamanho já orientado ({w,h} em JSON), para o portal e a página pública
+// posicionarem o ponto principal sem abrir o ficheiro. Só uploads locais.
+async function coverSize(url) {
+  const file = uploadPath(url);
+  if (!file || !fs.existsSync(file)) return null;
+  try {
+    const { width, height } = await orientedSize(file);
+    return width && height ? JSON.stringify({ w: width, h: height }) : null;
+  } catch { return null; }
+}
+
+function writeUpload(prefix, data, ext) {
+  const filename = `${prefix}_${require('crypto').randomUUID()}.${ext}`;
+  fs.writeFileSync(path.join(UPLOADS_DIR, filename), data);
+  return `/uploads/${filename}`;
+}
+
+const coverFields = row => ({
+  cover_image: row.cover_image || null,
+  cover_focal: crops.parse(row.cover_focal),
+  cover_crops: crops.parse(row.cover_crops),
+  cover_size: crops.parse(row.cover_size),
+});
+
+// «Ajustar recortes» → «Guardar recortes». `rotate` (90/180/270) roda a capa
+// para um ficheiro novo antes de gravar; o ponto e os retângulos vêm já nas
+// coordenadas da imagem rodada.
+async function saveCoverCrops(req, res) {
+  const { id } = req.params;
+  const orgId = req.user.organization_id;
+  const row = db.prepare('SELECT id, cover_image, images FROM accommodations WHERE id = ? AND organization_id = ?').get(id, orgId);
+  if (!row) return res.status(404).json({ error: 'Alojamento não encontrado' });
+  const file = uploadPath(row.cover_image);
+  if (!file || !fs.existsSync(file)) return res.status(400).json({ error: 'Só as fotografias carregadas na aplicação podem ser recortadas.' });
+  const rotate = Number(req.body?.rotate || 0);
+  if (![0, 90, 180, 270].includes(rotate)) return res.status(400).json({ error: 'Rotação inválida.' });
+
+  const size = await orientedSize(file);
+  const [width, height] = rotate % 180 ? [size.height, size.width] : [size.width, size.height];
+  const focal = crops.validateFocal(req.body?.focal);
+  const rects = crops.validateCoverCrops(req.body?.crops, width, height);
+
+  let url = row.cover_image;
+  if (rotate) {
+    const rotated = await rotateImage(file, rotate);
+    url = writeUpload('cover', rotated.data, rotated.ext);
+  }
+  db.prepare('UPDATE accommodations SET cover_image = ?, cover_focal = ?, cover_crops = ?, cover_size = ? WHERE id = ? AND organization_id = ?')
+    .run(url, focal ? JSON.stringify(focal) : null, rects ? JSON.stringify(rects) : null, JSON.stringify({ w: width, h: height }), id, orgId);
+  if (url !== row.cover_image) removeUnreferencedImage(row.cover_image);
+  res.json({ success: true, ...coverFields(db.prepare('SELECT * FROM accommodations WHERE id = ?').get(id)) });
+}
+
+// Galeria: «Rodar 90°». O ficheiro rodado é novo (nomes imutáveis, cache de 30
+// dias) e substitui o antigo em todas as divisões deste alojamento e na capa;
+// as miniaturas do antigo saem com ele.
+async function rotateGalleryImage(req, res) {
+  const { id } = req.params;
+  const orgId = req.user.organization_id;
+  const url = String(req.body?.url || '');
+  const degrees = Number(req.body?.degrees || 90);
+  if (![90, 180, 270].includes(degrees)) return res.status(400).json({ error: 'Rotação inválida.' });
+  const row = db.prepare('SELECT id, parent_id, cover_image, cover_focal, images FROM accommodations WHERE id = ? AND organization_id = ?').get(id, orgId);
+  if (!row) return res.status(404).json({ error: 'Alojamento não encontrado' });
+  const imgs = row.images ? JSON.parse(row.images) : {};
+  const sections = Object.entries(imgs).filter(([key, list]) => key !== '_sections' && Array.isArray(list) && list.includes(url));
+  if (!sections.length && row.cover_image !== url) return res.status(404).json({ error: 'Imagem não encontrada neste alojamento.' });
+  if (row.parent_id && sections.some(([key]) => key === COMMON_AREAS_KEY)) {
+    return res.status(400).json({ error: 'Áreas comuns herdadas não podem ser editadas aqui.' });
+  }
+  const file = uploadPath(url);
+  if (!file || !fs.existsSync(file)) return res.status(400).json({ error: 'Só as fotografias carregadas na aplicação podem ser rodadas.' });
+
+  const rotated = await rotateImage(file, degrees);
+  const prefix = path.basename(file).startsWith('cover_') ? 'cover' : 'gallery';
+  const next = writeUpload(prefix, rotated.data, rotated.ext);
+  for (const [key, list] of sections) imgs[key] = list.map(u => (u === url ? next : u));
+  const isCover = row.cover_image === url;
+  const size = isCover ? await coverSize(next) : null;
+  db.prepare(`UPDATE accommodations SET images = ?,
+      cover_image = CASE WHEN cover_image = ? THEN ? ELSE cover_image END,
+      cover_focal = CASE WHEN cover_image = ? THEN ? ELSE cover_focal END,
+      cover_crops = CASE WHEN cover_image = ? THEN NULL ELSE cover_crops END,
+      cover_size = CASE WHEN cover_image = ? THEN ? ELSE cover_size END
+    WHERE id = ? AND organization_id = ?`)
+    .run(JSON.stringify(imgs), url, next, url, isCover ? JSON.stringify(crops.rotateFocal(row.cover_focal, degrees)) : null,
+      url, url, size, id, orgId);
+  removeUnreferencedImage(url);
+  const fresh = db.prepare('SELECT * FROM accommodations WHERE id = ?').get(id);
+  res.json({ success: true, url: next, images: JSON.parse(fresh.images || '{}'), ...coverFields(fresh) });
 }
 
 function removeCover(req, res) {
@@ -65,7 +164,7 @@ function removeCover(req, res) {
   if (!row) return res.status(404).json({ error: 'Alojamento não encontrado' });
 
   const coverUrl = row.cover_image;
-  db.prepare('UPDATE accommodations SET cover_image = NULL WHERE id = ? AND organization_id = ?').run(id, req.user.organization_id);
+  db.prepare('UPDATE accommodations SET cover_image = NULL, cover_focal = NULL, cover_crops = NULL, cover_size = NULL WHERE id = ? AND organization_id = ?').run(id, req.user.organization_id);
 
   if (coverUrl) {
     const images = row.images ? JSON.parse(row.images) : {};
@@ -82,7 +181,7 @@ function removeCover(req, res) {
 async function uploadLogo(req, res) {
   const { id } = req.params;
   if (!req.body.image) return res.status(400).json({ error: 'Imagem em falta' });
-  const accommodation = db.prepare('SELECT id, parent_id, logo_url FROM accommodations WHERE id = ? AND organization_id = ?').get(id, req.user.organization_id);
+  const accommodation = db.prepare('SELECT id, parent_id, logo_url, logo_original_url FROM accommodations WHERE id = ? AND organization_id = ?').get(id, req.user.organization_id);
   if (!accommodation) return res.status(404).json({ error: 'Alojamento não encontrado' });
   if (accommodation.parent_id) {
     return res.status(400).json({ error: 'O logótipo só pode ser definido no alojamento principal — as suites herdam-no automaticamente.' });
@@ -95,11 +194,10 @@ async function uploadLogo(req, res) {
   const filename = `logo_${require('crypto').randomUUID()}.${optimized.ext}`;
   fs.writeFileSync(path.join(UPLOADS_DIR, filename), optimized.data);
   const url = `/uploads/${filename}`;
-  db.prepare('UPDATE accommodations SET logo_url = ? WHERE id = ? AND organization_id = ?').run(url, id, req.user.organization_id);
+  db.prepare('UPDATE accommodations SET logo_url = ?, logo_original_url = NULL, logo_crop = NULL, logo_square_crop = NULL WHERE id = ? AND organization_id = ?').run(url, id, req.user.organization_id);
 
-  const old = accommodation.logo_url;
-  if (old && old.startsWith('/uploads/')) {
-    removeUnreferencedImage(old);
+  for (const old of [accommodation.logo_url, accommodation.logo_original_url]) {
+    if (old && old.startsWith('/uploads/')) removeUnreferencedImage(old);
   }
 
   res.json({ success: true, url });
@@ -107,16 +205,65 @@ async function uploadLogo(req, res) {
 
 function removeLogo(req, res) {
   const { id } = req.params;
-  const accommodation = db.prepare('SELECT id, parent_id, logo_url FROM accommodations WHERE id = ? AND organization_id = ?').get(id, req.user.organization_id);
+  const accommodation = db.prepare('SELECT id, parent_id, logo_url, logo_original_url FROM accommodations WHERE id = ? AND organization_id = ?').get(id, req.user.organization_id);
   if (!accommodation) return res.status(404).json({ error: 'Alojamento não encontrado' });
   if (accommodation.parent_id) {
     return res.status(400).json({ error: 'O logótipo só pode ser removido a partir do alojamento principal.' });
   }
-  db.prepare('UPDATE accommodations SET logo_url = NULL WHERE id = ? AND organization_id = ?').run(id, req.user.organization_id);
-  if (accommodation.logo_url && accommodation.logo_url.startsWith('/uploads/')) {
-    removeUnreferencedImage(accommodation.logo_url);
+  db.prepare('UPDATE accommodations SET logo_url = NULL, logo_original_url = NULL, logo_crop = NULL, logo_square_crop = NULL WHERE id = ? AND organization_id = ?').run(id, req.user.organization_id);
+  for (const old of [accommodation.logo_url, accommodation.logo_original_url]) {
+    if (old && old.startsWith('/uploads/')) removeUnreferencedImage(old);
   }
   res.json({ success: true });
+}
+
+// O logótipo recortado é um ficheiro próprio (`logo_url`), feito a partir do
+// original (`logo_original_url`), que fica guardado para se poder refazer. Os
+// emails, o portal, os PDFs e a barra lateral continuam a ler `logo_url` e
+// recebem a versão sem margens; os emails incorporam-na como anexo (CID),
+// o que só funciona com um ficheiro, não com uma variante `?crop=`.
+function logoForEdit(req, res) {
+  const accommodation = db.prepare('SELECT id, parent_id, logo_url, logo_original_url, logo_crop, logo_square_crop FROM accommodations WHERE id = ? AND organization_id = ?').get(req.params.id, req.user.organization_id);
+  if (!accommodation) { res.status(404).json({ error: 'Alojamento não encontrado' }); return null; }
+  if (accommodation.parent_id) { res.status(400).json({ error: 'O logótipo só pode ser alterado no alojamento principal.' }); return null; }
+  const original = accommodation.logo_original_url || accommodation.logo_url;
+  const file = uploadPath(original);
+  if (!file || !fs.existsSync(file)) { res.status(400).json({ error: 'Carregue primeiro um logótipo.' }); return null; }
+  return { accommodation, original, file };
+}
+
+const logoFields = row => ({
+  logo_url: row.logo_url || null,
+  logo_original_url: row.logo_original_url || null,
+  logo_crop: crops.parse(row.logo_crop),
+  logo_square_crop: crops.parse(row.logo_square_crop),
+});
+
+async function trimLogo(req, res) {
+  const found = logoForEdit(req, res);
+  if (!found) return;
+  const size = await orientedSize(found.file);
+  res.json({ success: true, crop: await trimSuggestion(found.file), width: size.width, height: size.height });
+}
+
+async function saveLogoCrops(req, res) {
+  const found = logoForEdit(req, res);
+  if (!found) return;
+  const { accommodation, original, file } = found;
+  const size = await orientedSize(file);
+  const body = req.body || {};
+  const crop = body.crop ? crops.validateRect(body.crop, 'logo', size.width, size.height) : null;
+  const square = body.square ? crops.validateRect(body.square, 'mark', size.width, size.height) : null;
+  // Um recorte que é a imagem toda não precisa de ficheiro próprio.
+  const whole = crop && crop.x <= 0.001 && crop.y <= 0.001 && crop.w >= 0.999 && crop.h >= 0.999;
+  let logoUrl = original;
+  if (crop && !whole) logoUrl = writeUpload('logo', await extractToBuffer(file, crop), 'png');
+  db.prepare('UPDATE accommodations SET logo_url = ?, logo_original_url = ?, logo_crop = ?, logo_square_crop = ? WHERE id = ? AND organization_id = ?')
+    .run(logoUrl, logoUrl === original ? null : original, crop && !whole ? JSON.stringify(crop) : null,
+      square ? JSON.stringify(square) : null, accommodation.id, req.user.organization_id);
+  const previous = accommodation.logo_url;
+  if (previous && previous !== original && previous !== logoUrl) removeUnreferencedImage(previous);
+  res.json({ success: true, ...logoFields(db.prepare('SELECT * FROM accommodations WHERE id = ?').get(accommodation.id)) });
 }
 
 // ─── UPLOAD GALLERY IMAGES ────────────────────────────────
@@ -195,4 +342,7 @@ function patchImages(req, res) {
 }
 
 
-module.exports = { uploadCover, removeCover, uploadLogo, removeLogo, uploadImages, deleteImage, patchImages, parseImageDataUri, UPLOADS_DIR };
+module.exports = {
+  uploadCover, removeCover, saveCoverCrops, uploadLogo, removeLogo, trimLogo, saveLogoCrops,
+  uploadImages, deleteImage, patchImages, rotateGalleryImage, parseImageDataUri, UPLOADS_DIR,
+};

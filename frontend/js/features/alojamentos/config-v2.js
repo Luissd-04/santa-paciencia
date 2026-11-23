@@ -6,6 +6,7 @@
 (() => {
 AppModules.define('alojamentos', {
   renderConfigV2: { get: () => renderConfigV2 },
+  refreshConfigV2Cover: { get: () => refreshConfigV2Cover },
 });
 
 // [id, ícone, nome, descrição, separador da V1]
@@ -42,15 +43,27 @@ function filhos(a) {
   return (AppModules.core.accommodations || []).filter(u => u.parent_id === a.id);
 }
 
-function capa(a, width) {
+function capa(a, format, width) {
   const core = AppModules.core;
-  return a?.cover_image && core.safeMediaUrl(a.cover_image) ? core.mediaThumb(a.cover_image, width) : '';
+  return a?.cover_image && core.safeMediaUrl(a.cover_image) ? core.coverSrc(a, format, width) : '';
 }
 
-function fotoHtml(a, cls, width) {
+// Capa nova ou recortes guardados: só a foto do cabeçalho muda (sem refazer a
+// ficha, que perderia as alterações por guardar).
+function refreshConfigV2Cover(a) {
+  const cover = view()?.querySelector('.acfg-head .acfg-cover');
+  if (cover && a) cover.outerHTML = fotoHtml(a, 'acfg-cover', 'landscape', 480, 'banner');
+}
+
+// `narrow`: outro formato no telemóvel (o cabeçalho passa a faixa larga).
+function fotoHtml(a, cls, format, width, narrow) {
   const core = AppModules.core;
-  const src = capa(a, width);
-  return `<span class="${cls}" style="--acc:${core.escapeHtml(a?.color || '#843424')}">${src ? `<img src="${core.escapeHtml(src)}" alt="" loading="lazy" ${AppActions.attrs('error', 'acfg-foto-falhou')}>` : ''}</span>`;
+  const esc = core.escapeHtml;
+  const src = capa(a, format, width);
+  const pos = `--pos:${core.coverPosition(a, format)};--pos-narrow:${core.coverPosition(a, narrow || format)}`;
+  const img = src ? `<img src="${esc(src)}" alt="" loading="lazy" style="${esc(pos)}" ${AppActions.attrs('error', 'acfg-foto-falhou')}>` : '';
+  const source = src && narrow ? `<source media="(max-width: 860px)" srcset="${esc(capa(a, narrow, width))}">` : '';
+  return `<span class="${cls}" style="--acc:${esc(a?.color || '#843424')}">${source ? `<picture>${source}${img}</picture>` : img}</span>`;
 }
 
 // O que as unidades recebem do alojamento principal (só os valores, a
@@ -86,7 +99,7 @@ function cabecalhoHtml(a) {
     ? [`${a.type === 'alojamento' ? 'Alojamento' : (a.type || 'Unidade')}`, `${Number(a.max_guests) || 0} hóspedes`, a.area ? `${a.area} m²` : '', a.price_per_night ? `${ReservationMoney.formatShort(a.price_per_night)} / noite` : '']
     : [[a.city, paisNome(a.country)].filter(Boolean).join(' · '), `${unidades} ${unidades === 1 ? 'unidade' : 'unidades'}`, a.license_number ? `Licença ${a.license_number}` : ''];
   return `<div class="card acfg-head">
-      ${fotoHtml(a, 'acfg-cover', 480)}
+      ${fotoHtml(a, 'acfg-cover', 'landscape', 480, 'banner')}
       <div class="acfg-who">
         <div class="acfg-crumb"><button type="button" data-on-click="index-show-view-4899013">${core.lcIcon('arrow-left', 14)} Alojamentos</button>${parent ? `${core.lcIcon('chevron-right', 14)}<button type="button" ${AppActions.attrs('click', 'alojamentos-open-alojamento-8027257', [String(parent.id)])}>${esc(parent.name)}</button>` : ''}</div>
         <h2>${esc(a.name)}</h2>
@@ -117,7 +130,7 @@ function visaoHtml(a) {
   const esc = core.escapeHtml;
   const unidades = filhos(a);
   return `<div class="card acfg-card"><div class="acfg-card-h"><h3>Unidades</h3><button type="button" class="btn btn-primary btn-sm" data-on-click="acfg-nova-unidade">${core.lcIcon('plus', 15)} Nova unidade</button></div>
-      ${unidades.length ? `<div class="acfg-units">${unidades.map(u => `<div class="acfg-unit">${fotoHtml(u, 'acfg-unit-ph', 160)}
+      ${unidades.length ? `<div class="acfg-units">${unidades.map(u => `<div class="acfg-unit">${fotoHtml(u, 'acfg-unit-ph', 'square', 160)}
           <span><b>${esc(u.name)}</b><small>${esc([`${Number(u.max_guests) || 0} hóspedes`, u.price_per_night ? `${ReservationMoney.formatShort(u.price_per_night)} / noite` : ''].filter(Boolean).join(' · '))}</small></span>
           <button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'alojamentos-open-alojamento-8027257', [String(u.id)])}>${core.lcIcon('pencil', 14)} Editar</button></div>`).join('')}</div>`
         : '<p class="acfg-empty">Ainda sem unidades. Uma casa inteira pode ficar assim; para quartos ou suites, cria uma unidade.</p>'}</div>

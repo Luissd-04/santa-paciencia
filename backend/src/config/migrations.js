@@ -64,6 +64,7 @@ function runMigrations(db) {
   migrateEmailDesign(db);
   migrateOpsAlerts(db);
   migrateAppearance(db);
+  migrateViewPrefs(db);
   migrateNotificationState(db);
   migratePlatformConsole(db);
   migratePlatformUsage(db);
@@ -71,6 +72,7 @@ function runMigrations(db) {
   migrateDailyActivity(db);
   migratePlatformAlerts(db);
   require('./migrations-guest-journey')(db);
+  require('./migrations-image-crops')(db);
   // Uma migração por funcionalidade da plataforma, cada uma no seu ficheiro.
   for (const name of ['plans', 'tasks', 'announcements', 'console-c', 'departments', 'roles', 'device-daily', 'revisions', 'support-org-number']) require(`./migrations-platform/${name}`)(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
@@ -527,6 +529,16 @@ function migrateAppearance(db) {
   if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
   db.transaction(() => {
     if (!db.pragma('table_info(users)').some(c => c.name === 'appearance')) db.exec('ALTER TABLE users ADD COLUMN appearance TEXT');
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Vistas predefinidas de cada pessoa (services/viewPrefs): JSON na conta.
+function migrateViewPrefs(db) {
+  const id = '20261123_user_view_prefs';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    if (!db.pragma('table_info(users)').some(c => c.name === 'view_prefs')) db.exec('ALTER TABLE users ADD COLUMN view_prefs TEXT');
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }

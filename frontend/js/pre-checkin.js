@@ -603,9 +603,10 @@ function render(data) {
   $('pc-checkin').textContent = fmtDate(r.check_in);
   $('pc-checkout').textContent = fmtDate(r.check_out);
   $('pc-guest-count').textContent = `${r.num_guests} hóspede${Number(r.num_guests) !== 1 ? 's' : ''}`;
-  const image = r.cover_image || r.images?.[0] || '';
+  const image = r.cover?.variants?.landscape || r.cover_image || r.images?.[0] || '';
   if (safeMediaUrl(image)) {
     $('pc-summary-photo').style.backgroundImage = `url(${JSON.stringify(mediaThumb(image, 1024))})`;
+    if (r.cover) $('pc-summary-photo').style.backgroundPosition = r.cover.position.landscape;
   }
   $('pc-summary-photo').hidden = !safeMediaUrl(image);
   $('pc-summary').classList.toggle('pc-no-photo', !safeMediaUrl(image));

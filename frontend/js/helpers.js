@@ -26,6 +26,9 @@ AppModules.define('core', {
   lcIcon: { get: () => lcIcon },
   realEmail: { get: () => realEmail },
   mediaThumb: { get: () => mediaThumb },
+  coverSrc: { get: () => coverSrc },
+  coverPosition: { get: () => coverPosition },
+  logoMarkSrc: { get: () => logoMarkSrc },
   putReservationConfirmingTotal: { get: () => putReservationConfirmingTotal },
   safeMediaUrl: { get: () => safeMediaUrl },
   showOperationProgress: { get: () => showOperationProgress },
@@ -406,6 +409,39 @@ function mediaThumb(value, width) {
   } catch {
     return safe;
   }
+}
+
+// Capa de um alojamento no formato certo para cada sítio (PENDENTES, ponto 15):
+// `square` nas listas e miniaturas, `banner` no cabeçalho da ficha,
+// `landscape` nos cartões grandes. O servidor recorta o original segundo o
+// ponto principal ou o retângulo afinado à mão (`?crop=`); capas externas
+// (URL) ficam como estão.
+const LOCAL_UPLOAD = /^\/uploads\/[A-Za-z0-9_.-]+$/;
+function coverSrc(a, format, width) {
+  const url = a?.cover_image;
+  if (!url || !safeMediaUrl(url)) return '';
+  if (!LOCAL_UPLOAD.test(url) || !globalThis.ImageCrops) return mediaThumb(url.startsWith('http') ? url : (AppModules.core.API_BASE || '') + url, width);
+  const C = globalThis.ImageCrops;
+  const v = C.version(C.parse(a.cover_focal), C.parse(a.cover_crops)?.[format] || null);
+  return mediaThumb(`${AppModules.core.API_BASE || ''}${url}?crop=${format}&a=${encodeURIComponent(a.id || '')}&v=${v}`, width);
+}
+
+// `object-position` do ponto principal dentro do recorte (para quando a caixa
+// ainda corta mais do que o formato).
+function coverPosition(a, format) {
+  const C = globalThis.ImageCrops;
+  if (!C) return '50% 50%';
+  const size = C.parse(a?.cover_size);
+  const rect = format && size?.w ? C.effectiveCrop(format, size.w, size.h, a.cover_focal, a.cover_crops) : null;
+  return C.focalPosition(a?.cover_focal, rect);
+}
+
+// Barra lateral recolhida: o recorte quadrado do logótipo, se houver.
+function logoMarkSrc(a, width = 160) {
+  const url = a?.logo_url;
+  const square = globalThis.ImageCrops?.parse(a?.logo_square_crop);
+  if (!url || !LOCAL_UPLOAD.test(url) || !square) return '';
+  return `${AppModules.core.API_BASE || ''}${url}?crop=mark&w=${width}&v=${globalThis.ImageCrops.version(square)}`;
 }
 
 // Um argumento de evento HTML precisa de duas codificações: literal JavaScript

@@ -97,7 +97,9 @@ function recalc() {
     AppModules.booking.$('summary-media').style.backgroundImage = `url(${JSON.stringify(AppModules.booking.mediaThumb(AppModules.booking.state.property?.images?.[0]?.url, 1024))})`;
   } else {
     AppModules.booking.$('summary-unit').textContent = unit.name;
-    AppModules.booking.$('summary-media').style.backgroundImage = `url(${JSON.stringify(AppModules.booking.mediaThumb(unit.cover_image || unit.images?.[0]?.url, 1024))})`;
+    const cover = AppModules.booking.coverOf(unit, 'landscape');
+    AppModules.booking.$('summary-media').style.backgroundImage = `url(${JSON.stringify(AppModules.booking.mediaThumb(cover.src, 1024))})`;
+    AppModules.booking.$('summary-media').style.backgroundPosition = cover.position;
   }
 
   if (!n) { AppModules.booking.novo?.afterRecalc(null); return; }

@@ -59,6 +59,9 @@ const FEATURE_MODULES = {
       'js/features/reserva-lista/lista-v2.js',
       'js/features/reserva-lista/detalhe.js',
       'js/features/reserva-lista/detalhe-formularios.js',
+      'js/features/documentos/dados.js',
+      'js/features/documentos/pdf.js',
+      'js/features/documentos/xlsx.js',
       'js/features/reserva-lista/documentos.js',
       'js/features/reserva-lista/alojamento-painel.js',
       'js/features/reserva-lista/acoes.js',
@@ -108,6 +111,7 @@ const FEATURE_MODULES = {
     scripts: [
       'js/alojamentos.js',
       'js/features/alojamentos/galeria.js',
+      'js/features/alojamentos/recortes.js',
       'js/features/alojamentos/servicos-heranca.js',
       'js/features/alojamentos/novo-alojamento.js',
       'js/features/alojamentos/exportacao.js',

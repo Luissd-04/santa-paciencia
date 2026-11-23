@@ -98,10 +98,11 @@ function renderLanding() {
 }
 
 // Fotografia do cartão; sem fotografia, um fundo liso (nunca uma imagem partida).
-function unitPhoto(url) {
+function unitPhoto(cover) {
+  const url = cover?.src;
   const src = url && AppModules.booking.safeMediaUrl(url) ? AppModules.booking.mediaThumb(url, 1024) : '';
   return src
-    ? `<img src="${AppModules.booking.escapeHtml(src)}" alt="" loading="lazy" decoding="async">`
+    ? `<img src="${AppModules.booking.escapeHtml(src)}" alt="" loading="lazy" decoding="async" style="object-position:${AppModules.booking.escapeHtml(cover.position)}">`
     : '<img class="unit-photo-empty" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">';
 }
 
@@ -194,7 +195,7 @@ function renderUnits() {
 
     return `
       <div class="unit-card ${selected ? 'selected' : ''} ${blocked ? 'blocked' : ''}" data-unit="${AppModules.booking.escapeHtml(unit.id)}">
-        ${unitPhoto(unit.cover_image || unit.images?.[0]?.url)}
+        ${unitPhoto(AppModules.booking.coverOf(unit, 'landscape'))}
         <div>
           <h4>${AppModules.booking.escapeHtml(unit.name)}</h4>
           ${descHtml}

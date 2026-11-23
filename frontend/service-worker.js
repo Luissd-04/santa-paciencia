@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v42';
-const CACHE_VERSION = 108;
+const CACHE_VERSION = 109;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -86,6 +86,7 @@ const STATIC_ASSETS = [
   '/js/domain/libraries.js',
   '/js/domain/dates.js',
   '/js/domain/money.js',
+  '/js/domain/image-crops.js',
   '/js/domain/reservation-status.js',
   '/js/domain/appearance.js',
   '/css/v2/aparencia.css',
@@ -94,6 +95,7 @@ const STATIC_ASSETS = [
   '/js/domain/date-picker.js',
   '/js/domain/table-cols.js',
   '/js/domain/export-columns.js',
+  '/js/domain/view-prefs.js',
   '/favicon.png',
   // Ícones das notificações: aparecem mesmo com a rede lenta.
   '/img/push/reservation.png', '/img/push/reservation-badge.png',
@@ -126,6 +128,9 @@ const FEATURE_ASSETS = [
   '/js/features/reserva-lista/lista-v2.js',
   '/js/features/reserva-lista/detalhe.js',
   '/js/features/reserva-lista/detalhe-formularios.js',
+  '/js/features/documentos/dados.js',
+  '/js/features/documentos/pdf.js',
+  '/js/features/documentos/xlsx.js',
   '/js/features/reserva-lista/documentos.js',
   '/js/features/reserva-lista/alojamento-painel.js',
   '/js/features/reserva-lista/acoes.js',
@@ -149,6 +154,7 @@ const FEATURE_ASSETS = [
   '/js/features/hospedes/exportacao.js',
   '/js/alojamentos.js',
   '/js/features/alojamentos/galeria.js',
+  '/js/features/alojamentos/recortes.js',
   '/js/features/alojamentos/servicos-heranca.js',
   '/js/features/alojamentos/novo-alojamento.js',
   '/js/features/alojamentos/exportacao.js',
