@@ -30,6 +30,38 @@ e `PLANO-CONSOLA.md`; esta lista será a base do documento único.
 13. ✅ **Feito (23/11):** animação de recolher fluida.
 14. ✅ **Feito (23/11):** saiu o campo de pesquisa do menu lateral no telemóvel.
 15. ✅ **Feito (24/11):** recortes da capa por formato, logótipo sem margens, rodar fotografias.
+16. **Telemóvel: deslizar para mudar de mês/semana** nos calendários (Calendário: mês e linha do tempo; Eventos: mês e semana). Os botões Anterior/Hoje/Próximo continuam. Em curso (24/11).
+
+## Para rever (decisões do dono do produto)
+
+**Portal do hóspede**
+- Mapa a sério? Hoje: morada + «Abrir no Google Maps» (implica guardar coordenadas ao pesquisar a morada).
+- Campo «Regras da casa» no alojamento, para o portal.
+- Email «A sua reserva» fica retido quando faltam dados do alojamento (como os outros). Manter ou enviar sempre?
+- Cor do portal = cor do alojamento principal (terracota se não tiver contraste).
+- «Próximo passo: pedir o pré-check-in» passou a enviar o email do portal.
+- Staff não envia nem gera o link do portal.
+- WhatsApp só para telemóveis PT (9…) ou números com indicativo (+…).
+
+**Documentos**
+- Não há campo NIF do alojamento/organização (o cabeçalho não o mostra). Acrescentar?
+- «Ficha de hóspede» abre uma janela (PDF, Excel, «Abrir ficha») em vez de ir logo para a ficha.
+- «aguardar_pagamento» aparece como «Aguarda sinal» (rótulo da app).
+
+**Vistas predefinidas**
+- Telemóvel: Eventos só Semana, Calendário só Mês. Pôr Lista/Mês a funcionar no telemóvel?
+- Hóspedes continua a abrir em Cartões por omissão.
+
+**Outros**
+- Quadrado do logótipo começa centrado (num logótipo largo, as letras do meio).
+- Imagem de partilha de links com 1024 px (recomendado 1200 px).
+- Número de reservas ao lado de cada opção dos filtros.
+
+**Verificações técnicas**
+- `check-browser.cjs` falha no passo «Eventos» (item da barra lateral invisível) — já falhava antes; investigar.
+- Aspeto clássico antigo (sem `data-look`) não visto nas notificações e na tabela de serviços.
+- Testar em produção: pesquisa da morada, envio real de «A sua reserva», PDFs no telemóvel.
+
 ## Forma de trabalhar (pedida pelo utilizador)
 
 - Trabalhar diretamente na **main**: commit e push para `origin main`, um commit por ponto, com mensagem em PT-PT e as linhas de atribuição.
