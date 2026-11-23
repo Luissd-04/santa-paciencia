@@ -42,7 +42,7 @@ i[data-lucide] { display:inline-flex; align-items:center; justify-content:center
   transition: flex-grow var(--sb-dur) var(--sb-ease), padding var(--sb-dur) var(--sb-ease), opacity .15s ease;
 }
 .sb-brand-id > * { width: 162px; max-width: 162px; }
-.sb-logo { display: block; max-height: 54px; width: auto; object-fit: contain; object-position: left center; }
+.sb-logo { display: block; max-height: 64px; border-radius: 8px; width: auto; object-fit: contain; object-position: left center; }
 .sidebar-brand h1 {
   font-family: 'Playfair Display', serif;
   font-size: 18px;
