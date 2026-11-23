@@ -11,8 +11,8 @@ AppModules.define('hospedes', {
 // ── DETAIL MODAL ──
 // A ficha do hóspede é agora uma página completa (view-hospede-detalhe) —
 // mantida como alias para os pontos de entrada existentes (cards, lista).
-function showHospedeDetail(id) {
-  return openGuestEdit(id);
+function showHospedeDetail(id, opts = {}) {
+  return openGuestEdit(id, opts);
 }
 
 function renderGuestReservationsHistory(g) {
@@ -65,7 +65,9 @@ function populateGuestEditSelects() {
   }
 }
 
-async function openGuestEdit(id) {
+async function openGuestEdit(id, opts = {}) {
+  // Cada entrada define a origem de novo, para não herdar a de uma abertura anterior.
+  AppModules.hospedes.guestOriginReservationId = opts.fromReservationId || null;
   try {
     const data = await AppModules.core.apiGet(`/api/guests/${id}`);
     const g = data.data;
@@ -152,7 +154,14 @@ async function openGuestEdit(id) {
 }
 
 function closeGuestModal() {
+  const reservationId = AppModules.hospedes.guestOriginReservationId;
   AppModules.hospedes.editingGuestId = null;
+  AppModules.hospedes.guestOriginReservationId = null;
+  // Aberta a partir de uma reserva: "Voltar" regressa ao detalhe dessa reserva.
+  if (reservationId && typeof AppModules.reservas?.showDetail === 'function') {
+    AppModules.reservas.showDetail(reservationId);
+    return;
+  }
   AppModules.core.showView('hospedes');
 }
 

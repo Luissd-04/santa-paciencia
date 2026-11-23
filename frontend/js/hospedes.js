@@ -2,6 +2,7 @@
 (() => {
 AppModules.define('hospedes', {
   editingGuestId: { get: () => editingGuestId, set: value => { editingGuestId = value; } },
+  guestOriginReservationId: { get: () => guestOriginReservationId, set: value => { guestOriginReservationId = value; } },
   getHospedesQuery: { get: () => getHospedesQuery },
   hospedes: { get: () => hospedes, set: value => { hospedes = value; } },
   hospedesPaged: { get: () => hospedesPaged },
@@ -15,6 +16,8 @@ let hospedesViewMode = AppModules.core.SS.get('hsp:mode', 'cards');
 let hospedesSortCol  = AppModules.core.SS.get('hsp:sort', 'name');
 let hospedesSortAsc  = AppModules.core.SS.get('hsp:asc', true);
 let editingGuestId = null;
+// Reserva de onde se abriu a ficha (o "Voltar" regressa a ela); null = veio da lista.
+let guestOriginReservationId = null;
 
 const hospedesPaged = AppModules.core.createPagedCollection('/api/guests', state => {
   hospedes = state.rows;
@@ -34,6 +37,7 @@ function getHospedesQuery() {
 AppModules.onReset('hospedes.js', () => {
   hospedes = [];
   editingGuestId = null;
+  guestOriginReservationId = null;
   hospedesPaged.reset();
 });
 

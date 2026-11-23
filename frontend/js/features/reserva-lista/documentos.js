@@ -457,7 +457,7 @@ async function openGuestCard(guestId, reservationId) {
     return;
   }
   await AppModules.core.showView('hospedes');
-  if (typeof AppModules.hospedes.showHospedeDetail === 'function') AppModules.hospedes.showHospedeDetail(guestId);
+  if (typeof AppModules.hospedes.showHospedeDetail === 'function') AppModules.hospedes.showHospedeDetail(guestId, { fromReservationId: reservationId });
 }
 
 
