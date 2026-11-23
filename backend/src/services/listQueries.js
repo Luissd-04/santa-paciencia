@@ -93,6 +93,14 @@ function listReservations(organizationId, query = {}) {
     where += " AND app_lower(g.name || ' ' || r.id || ' ' || COALESCE(g.email,'') || ' ' || a.name) LIKE ? ESCAPE '\\'";
     params.push(searchPattern(search));
   }
+  // Conjunto explícito de reservas (atalhos do painel): lista de IDs separados por vírgula.
+  const ids = textParam(query, 'ids', 2000);
+  if (ids) {
+    const list = [...new Set(ids.split(',').map(id => id.trim()).filter(Boolean))];
+    if (!list.length || list.length > 100) throw invalid('Parâmetro inválido: ids.');
+    where += ` AND r.id IN (${list.map(() => '?').join(',')})`;
+    params.push(...list);
+  }
   const accommodation = textParam(query, 'accommodation_id');
   if (accommodation) {
     where += ' AND EXISTS (SELECT 1 FROM reservation_units ru WHERE ru.reservation_id=r.id AND ru.organization_id=r.organization_id AND ru.accommodation_id=?)';

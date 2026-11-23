@@ -138,6 +138,7 @@ function setReservasPeriodScope(scope) {
     if (input) input.value = '';
   }
   AppModules.reservas.clearResExactDateFilter();
+  AppModules.reservas.clearResIdFilter();
   AppModules.reservas.sortCol = scope === 'past' ? 'check_out' : 'check_in';
   AppModules.reservas.sortAsc = scope !== 'past';
   AppModules.core.SS.set('res:sort', AppModules.reservas.sortCol);
@@ -148,6 +149,8 @@ function setReservasPeriodScope(scope) {
 }
 
 function renderTabela() {
+  // Qualquer filtro escolhido pelo utilizador substitui o conjunto de reservas do Painel.
+  if (AppModules.reservas.resIdFilter && AppModules.reservas.hasControlFilters()) AppModules.reservas.clearResIdFilter();
   const fe = document.getElementById('filter-estado')?.value || '';
   AppModules.core.SS.set('res:q', document.getElementById('search-input')?.value || '');
   AppModules.core.SS.set('res:fe', fe);
@@ -185,7 +188,7 @@ function updateReservasSummary(total, detailText) {
 
 function setReservasDetailMode(isDetail) {
   AppModules.reservas.reservasDetailOpen = isDetail;
-  document.querySelectorAll('.view-toolbar-reservas, .reservas-filter-panel, #reservas-period-bar, #reservas-mobile, #reservas-desktop, #reservas-v2, #reservas-pagination').forEach(el => {
+  document.querySelectorAll('.view-toolbar-reservas, .reservas-filter-panel, #res-ids-filter-chip, #reservas-period-bar, #reservas-mobile, #reservas-desktop, #reservas-v2, #reservas-pagination').forEach(el => {
     el.style.setProperty('display', isDetail ? 'none' : '', isDetail ? 'important' : '');
   });
   const detailPage = document.getElementById('reserva-detail-page');
@@ -213,6 +216,7 @@ function clearReservasFilters() {
   });
   ['res:q', 'res:fe', 'res:fs', 'res:fc', 'res:fp', 'res:fpc', 'res:fd', 'res:ft', 'res:chip'].forEach(key => AppModules.core.SS.set(key, ''));
   AppModules.reservas.clearResExactDateFilter();
+  AppModules.reservas.clearResIdFilter();
   AppModules.reservas.reservasPeriodScope = 'operational';
   AppModules.core.SS.set('res:period', 'operational');
   AppModules.reservas.sortCol = 'check_in';

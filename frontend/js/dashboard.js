@@ -337,17 +337,20 @@ function painelAttention(painel) {
   const esc = AppModules.core.escapeHtml;
   const names = list => `${esc(list[0].guest_name)}${list.length > 1 ? ` e mais ${list.length - 1}` : ''}`;
   const groups = [
-    ['pendingApproval', 'inbox', 'violet', list => list.length === 1 ? 'Pedido por aprovar' : `${list.length} pedidos por aprovar`,
+    ['pendingApproval', 'inbox', 'violet', 'Por aprovar', list => list.length === 1 ? 'Pedido por aprovar' : `${list.length} pedidos por aprovar`,
       list => `${names(list)} · chega ${window.ReservationDates.formatDayLabel(list[0].check_in, { weekday: false })}`],
-    ['awaitingDeposit', 'credit-card', 'warn', list => list.length === 1 ? 'Falta o sinal' : `Falta o sinal em ${list.length} reservas`,
+    ['awaitingDeposit', 'credit-card', 'warn', 'Falta o sinal', list => list.length === 1 ? 'Falta o sinal' : `Falta o sinal em ${list.length} reservas`,
       list => `${names(list)} · ${ReservationMoney.format(list.reduce((sum, r) => sum + r.missing, 0))} em falta`],
-    ['precheckinMissing', 'send', 'info', () => 'Pré-check-in em falta',
+    ['precheckinMissing', 'send', 'info', 'Pré-check-in em falta', () => 'Pré-check-in em falta',
       list => `${list.length} reserva${list.length === 1 ? '' : 's'} nos próximos 7 dias`],
   ].filter(([key]) => painel.attention[key].length);
   const count = groups.reduce((sum, [key]) => sum + painel.attention[key].length, 0);
-  const rows = groups.map(([key, icon, tone, title, text]) => {
+  const rows = groups.map(([key, icon, tone, shortLabel, title, text]) => {
     const list = painel.attention[key];
-    return `<div class="v2-row v2-row-link" role="button" tabindex="0" ${AppModules.core.KEY_ACTIVATE} ${AppActions.attrs('click', 'dashboard-abrir-reserva-3bb1e04', [String(list[0].id)])}>
+    const open = list.length === 1
+      ? AppActions.attrs('click', 'dashboard-abrir-reserva-3bb1e04', [String(list[0].id)])
+      : AppActions.attrs('click', 'dashboard-painel-ver-grupo', [list.map(r => r.id).join(','), shortLabel]);
+    return `<div class="v2-row v2-row-link" role="button" tabindex="0" ${AppModules.core.KEY_ACTIVATE} ${open}>
       <span class="v2-ic ${tone}">${AppModules.core.lcIcon(icon, 16)}</span>
       <div class="v2-row-text"><b>${title(list)}</b><span>${text(list)}</span></div>
       <span class="v2-btn sm">Ver</span></div>`;
@@ -448,6 +451,10 @@ function renderDashAvailability() {
 
 AppActions.register({
   "dashboard-abrir-reserva-3bb1e04": (el, event, args) => { AppModules.core.abrirReserva(args[0]) },
+  "dashboard-painel-ver-grupo": async (el, event, args) => {
+    await AppModules.core.showView('reservas');
+    AppModules.reservas.showOnly(String(args[0]).split(','), args[1]);
+  },
   "dashboard-painel-ir": (el, event, args) => { PAINEL_DESTINOS[args[0]]?.() },
   "dashboard-painel-marcar-feito": (el, event, args) => { event.stopPropagation(); return painelMarcarFeito(args[0], args[1]) },
 }, "click");

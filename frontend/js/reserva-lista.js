@@ -2,7 +2,11 @@
 (() => {
 AppModules.define('reservas', {
   clearResExactDateFilter: { get: () => clearResExactDateFilter },
+  clearResIdFilter: { get: () => clearResIdFilter },
   getFilteredReservas: { get: () => getFilteredReservas },
+  hasControlFilters: { get: () => hasControlFilters },
+  resIdFilter: { get: () => resIdFilter },
+  showOnly: { get: () => showOnly },
   preCheckinUrl: { get: () => preCheckinUrl },
   renderResCard: { get: () => renderResCard },
   reservasDetailOpen: { get: () => reservasDetailOpen, set: value => { reservasDetailOpen = value; } },
@@ -57,6 +61,42 @@ function renderResExactFilterChip() {
   el.innerHTML = `<div class="chip active" style="display:inline-flex;align-items:center;gap:6px;" data-on-click="reserva-lista-clear-res-exact-date-filter-a0fba32">${label} ✕</div>`;
 }
 
+// Conjunto explícito de reservas (atalhos «Precisa de atenção» do Painel).
+// Enquanto ativo, a lista pede só esses IDs (todo o histórico) e os restantes
+// filtros ficam repostos; mexer em qualquer filtro ou mudar de vista limpa-o.
+let resIdFilter = null; // { ids: string[], label: string } | null
+
+function renderResIdFilterChip() {
+  const el = document.getElementById('res-ids-filter-chip');
+  if (!el) return;
+  if (!resIdFilter) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const esc = AppModules.core.escapeHtml;
+  const n = resIdFilter.ids.length;
+  el.style.display = 'block';
+  el.innerHTML = `<div class="chip active" role="button" tabindex="0" ${AppModules.core.KEY_ACTIVATE} aria-label="Remover filtro" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;" ${AppActions.attrs('click', 'reserva-lista-clear-res-id-filter-5c1d7e2', [])}>A mostrar ${n} reserva${n === 1 ? '' : 's'}: ${esc(resIdFilter.label)} ✕</div>`;
+}
+
+function clearResIdFilter() {
+  if (!resIdFilter) return;
+  resIdFilter = null;
+  renderResIdFilterChip();
+}
+
+function showOnly(ids, label) {
+  const list = [...new Set((ids || []).map(String))];
+  AppModules.reservas.clearReservasFilters(); // repõe filtros (limpa também o conjunto anterior)
+  resIdFilter = { ids: list, label: label || 'Selecção' };
+  renderResIdFilterChip();
+  AppModules.reservas.renderTabela();
+}
+
+// Há algum filtro escolhido nos controlos (pesquisa, estado, alojamento, canal,
+// pagamento, pré-check-in, datas ou data exata)?
+function hasControlFilters() {
+  const value = id => document.getElementById(id)?.value || '';
+  return Boolean(['search-input', 'mobile-search-input', 'filter-estado', 'filter-suite', 'filter-canal', 'filter-pagamento', 'filter-precheckin', 'filter-date-from', 'filter-date-to'].some(value) || resExactDateFilter);
+}
+
 // Os chips mobile são apenas UI sobre o dropdown filter-estado — fonte única
 // de verdade. syncMobileChips() realinha o chip ativo com o valor do dropdown.
 function setMobileChip(el, filter) {
@@ -66,6 +106,7 @@ function setMobileChip(el, filter) {
     AppUI.refreshDropdowns(document.getElementById('view-reservas'));
   }
   clearResExactDateFilter();
+  clearResIdFilter();
   syncMobileChips(filter);
   AppModules.reservas.renderTabela();
 }
@@ -150,6 +191,7 @@ function hasActiveReservasFilter() {
     document.getElementById('filter-date-from')?.value ||
     document.getElementById('filter-date-to')?.value ||
     resExactDateFilter ||
+    resIdFilter ||
     reservasPeriodScope !== 'operational'
   );
 }
@@ -166,6 +208,7 @@ AppActions.register({
   "reserva-lista-stop-propagation-22499e1": (el, event, args) => { event.stopPropagation() },
   "reserva-lista-open-edit-modal-e85a518": (el, event, args) => { AppModules.reservas.openEditModal(args[0]) },
   "reserva-lista-clear-res-exact-date-filter-a0fba32": (el, event, args) => { clearResExactDateFilter();AppModules.reservas.renderTabela(); },
+  "reserva-lista-clear-res-id-filter-5c1d7e2": () => { clearResIdFilter(); AppModules.reservas.renderTabela(); },
 }, "click");
 
 AppActions.register({

@@ -151,6 +151,7 @@ async function initView(v) {
   if (v === 'dashboard') AppModules.core.renderDashboard();
   if (v === 'reservas') {
     if (typeof AppModules.reservas.clearResExactDateFilter === 'function') AppModules.reservas.clearResExactDateFilter();
+    if (typeof AppModules.reservas.clearResIdFilter === 'function') AppModules.reservas.clearResIdFilter();
     if (!AppModules.core.openingReservationDetail && typeof AppModules.reservas.showReservasList === 'function') AppModules.reservas.showReservasList();
     AppModules.reservas.loadReservas();
   }
