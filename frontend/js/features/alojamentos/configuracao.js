@@ -379,17 +379,20 @@ async function geocodeAndShowMap() {
       _alojMap.invalidateSize();
     }
 
-    const resp = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`,
-      { headers: { 'Accept-Language': 'pt' } }
-    );
-    const results = await resp.json();
-    if (!results.length) { AppModules.core.toast('Morada não encontrada. Verifique os dados.', 'error'); return; }
-    const latlng = [parseFloat(results[0].lat), parseFloat(results[0].lon)];
+    // A pesquisa passa pelo servidor (a CSP não deixa o browser chamar o Nominatim).
+    let found;
+    try {
+      found = (await AppModules.core.apiGet('/api/geocode?q=' + encodeURIComponent(q))).data;
+    } catch (e) {
+      if (e.status === 404) { AppModules.core.toast('Morada não encontrada. Verifique os dados.', 'error'); return; }
+      AppModules.core.toast('❌ ' + (e.status ? e.message : 'Erro de ligação ao servidor.'), 'error');
+      return;
+    }
+    const latlng = [found.lat, found.lon];
     _alojMap.setView(latlng, 16);
     if (_alojMarker) _alojMarker.remove();
     _alojMarker = L.marker(latlng).addTo(_alojMap);
-    _alojMarker.bindPopup(`<b>${AppModules.core.escapeHtml(results[0].display_name)}</b>`).openPopup();
+    _alojMarker.bindPopup(`<b>${AppModules.core.escapeHtml(found.display_name)}</b>`).openPopup();
     AppModules.core.toast('✅ Localização encontrada!', 'success');
   } catch (e) {
     AppModules.core.toast('❌ Erro ao pesquisar morada.', 'error');

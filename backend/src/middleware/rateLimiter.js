@@ -147,6 +147,13 @@ const telemetryLimiter = rateLimit({
   keyGenerator: req => `telemetria:${require('../services/authService').digestToken(req.sessionId)}`,
   message: { success: false, error: 'Demasiados pedidos. Tente novamente mais tarde.' },
 });
+// Pesquisa de moradas (Nominatim): 10 por minuto por utilizador. O serviço
+// ainda espaça os pedidos externos a 1 por segundo no total.
+const geocodeLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: req => `geocode:${req.user.id}`,
+  message: { success: false, error: 'Demasiadas pesquisas de moradas. Tente novamente dentro de um minuto.' },
+});
 // Suporte, por conta: pedidos novos e mensagens (cada um pode levar anexos de
 // vários MB), para ninguém encher o disco da instância.
 const supportTicketLimiter = rateLimit({
@@ -160,6 +167,6 @@ const supportMessageLimiter = rateLimit({
   message: { success: false, error: 'Enviou demasiadas mensagens de suporte. Tente novamente dentro de uma hora.' },
 });
 module.exports = {
-  supportTicketLimiter, supportMessageLimiter, telemetryLimiter, platformUnlockLimiter, sensitiveAccountLimiter, receiptLimiter, loginLimiter, loginAccountLimiter, consumeAccountAttempt, refundAccountAttempt, ACCOUNT_LOGIN_MESSAGE, publicApiLimiter, publicBookingLimiter, voucherLimiter, preCheckinLookupLimiter,
+  geocodeLimiter, supportTicketLimiter, supportMessageLimiter, telemetryLimiter, platformUnlockLimiter, sensitiveAccountLimiter, receiptLimiter, loginLimiter, loginAccountLimiter, consumeAccountAttempt, refundAccountAttempt, ACCOUNT_LOGIN_MESSAGE, publicApiLimiter, publicBookingLimiter, voucherLimiter, preCheckinLookupLimiter,
   preCheckinSubmitLimiter, forgotPasswordLimiter, oauthCallbackLimiter,
 };

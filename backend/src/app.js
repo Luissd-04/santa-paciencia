@@ -256,6 +256,7 @@ app.use('/api/events', eventRoutes);
 app.use('/api/payment-policy', require('./routes/paymentPolicy'));
 app.use('/api/vouchers', voucherRoutes);
 app.use('/api/tasks', googleTasksRoutes);
+app.use('/api/geocode', require('./routes/geocode'));
 app.use('/api/push', pushRoutes);
 app.use('/api/ops', require('./routes/ops'));
 app.use('/api/telemetry', require('./routes/telemetry'));
