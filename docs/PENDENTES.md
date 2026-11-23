@@ -30,9 +30,7 @@ e `PLANO-CONSOLA.md`; esta lista será a base do documento único.
    - Tornar mais fácil de ler: linhas ou etiquetas em vez de uma frase corrida.
    - Retirar «Copiar link da reserva e pagamento», que passa a estar no portal (depende do 1).
 
-4. **Bug: «Ficha de hóspede» → «Voltar» não regressa à reserva.**
-   - Causa: `openGuestCard(guestId, reservationId)` (`frontend/js/features/reserva-lista/documentos.js:454`) ignora `reservationId`; muda para a vista Hóspedes e o «Voltar» dessa ficha leva à lista de hóspedes.
-   - Correção: guardar a origem (reserva) e o «Voltar» reabre a reserva. Acontece também no botão «Ficha» do cartão do hóspede (`detalhe.js:282`).
+4. ✅ **Feito (23/11):** «Voltar» da ficha de hóspede regressa à reserva.
 5. **Rever a geração dos documentos (Excel e PDF)**: Ficha de reserva, Ficha de hóspede, Conta corrente e Fatura.
    - Hoje: XLS com SheetJS, PDF com jsPDF, CSV à mão (`documentos.js`).
    - Objetivo: melhor aspeto e coerência entre formatos. Ver os ficheiros atuais antes de propor.
@@ -40,9 +38,7 @@ e `PLANO-CONSOLA.md`; esta lista será a base do documento único.
 6. **Bug: notificação ilegível no painel do sino.** O texto aparece uma letra por linha.
    - Causa: os botões («Completar o alojamento», «Ver a reserva») ficam na mesma linha do texto e ocupam quase toda a largura (`notifActionsHtml`, `frontend/js/notifications.js:355`; CSS `.notifications-page-actions` em `css/views/operations.css:885`).
    - Correção: no painel, os botões passam para baixo do texto, que fica com a largura toda.
-7. **Bug: «Falta o sinal em 3 reservas» → «Ver» só abre a primeira.**
-   - Causa: `painelAttention` (`frontend/js/dashboard.js:336`) abre `list[0].id`. O mesmo acontece em «N pedidos por aprovar» e «Pré-check-in em falta».
-   - Correção: com 1 reserva abre-a; com várias, abre a lista de reservas filtrada por essas.
+7. ✅ **Feito (23/11):** «Ver» num grupo do painel abre a lista só com essas reservas (etiqueta removível).
 8. **«Por receber» + filtros com escolha múltipla na lista de reservas**
    - Causa: `goToPendingPayments` (`dashboard.js:237`) põe `filter-pagamento = 'pendente'`, que só apanha as reservas sem nenhum pagamento. O valor do cartão (1980 €, 4 reservas) inclui também as parciais.
    - Proposta do utilizador: os filtros da lista passam a permitir várias opções ao mesmo tempo (ex.: Pagamento = Pendente + Parcial). «Por receber» abre com Pendente + Parcial.
@@ -63,10 +59,10 @@ e `PLANO-CONSOLA.md`; esta lista será a base do documento único.
     - Correção: dar às colunas larguras que cabem no conteúdo (ou retirar a margem dessas células) e confirmar no browser que a barra desaparece em computador e telemóvel. Ver também a regra `min-width: 640px` em `css/views/operations.css:1179` (até 900 px de largura).
 
 11. **Ficha do alojamento (configuração)**
-    - a) **Bug: «Emails aos hóspedes» abre vazio.** O cartão existe (`data-acfg="emails"`), mas a regra que mostra a secção escolhida em `frontend/css/v2/fichas.css:73-78` não inclui `emails`. Acrescentar o seletor. Deve conter os contactos, a chegada, a saída, o link de avaliação e o cartão do estado de cada email.
+    - a) ✅ **Feito (23/11):** «Emails aos hóspedes» já não abre vazio.
     - b) **Logótipo maior** na secção «Logótipo e redes», para se ver bem.
     - c) **Ligações muito carregadas:** os rótulos, os campos e as ajudas estão colados uns aos outros, sobretudo o texto de ajuda do Airbnb encostado ao rótulo do Booking, e o texto da caixa de cor do Google Calendar é muito longo. Dar espaço entre os campos, encurtar os textos e pôr cada ligação num bloco.
-    - d) **Bug: a pesquisa da morada na Localização dá erro.** Causa provável: o `fetch` a `https://nominatim.openstreetmap.org` (`js/features/alojamentos/configuracao.js:383`) é bloqueado pela CSP, porque `connectSrc` em `backend/src/app.js:87` não inclui esse host. Opções: acrescentar o host à CSP, ou (melhor) fazer a pesquisa através do backend, o que evita expor o IP de quem a faz e respeita a política de uso do Nominatim (User-Agent, limite de pedidos). Confirmar no browser.
+    - d) ✅ **Feito (23/11):** pesquisa da morada pelo servidor (`/api/geocode`).
     - e) **Comodidades:** a barra de pesquisa está deslocada e sobrepõe-se ao título «Casa de banho». Corrigir o espaçamento e o alinhamento com a grelha.
     - f) **Fotos: avisar quando um ficheiro é recusado** ao arrastar ou escolher (tipo não aceite → «Ficheiro não compatível: só JPG ou PNG»; acima de 5 MB → «Tamanho superior a 5 MB»), com o nome do ficheiro. Hoje é ignorado sem aviso. Aplicar o mesmo no logótipo e noutros carregamentos.
 
@@ -89,9 +85,7 @@ e `PLANO-CONSOLA.md`; esta lista será a base do documento único.
 13. **Barra lateral: abrir e fechar mais fluido**
     - Causa: a animação muda a `width` da barra (`.25s`) e, ao mesmo tempo, a `margin-left` do `.main` muda de uma vez, sem transição (`css/styles/shell.css:25,109-117`; no tema vidro, `css/v2/aparencia.css:86-87`). Os textos (`.sb-label`, `.nav-label`) desaparecem logo com `display:none`, e os ícones mudam de posição sem transição (padding e justify). O conteúdo da página é redesenhado a cada passo.
     - Correção: animar a barra e o conteúdo com a mesma duração e curva (de preferência com `transform` ou `grid-template-columns`), esbater os textos com `opacity` antes de os esconder e manter os ícones numa coluna fixa, para não saltarem. Respeitar `prefers-reduced-motion`.
-14. **Telemóvel: retirar o campo «Pesquisar hóspede, reserva…» do menu lateral**
-    - Criado em `frontend/js/features/v2/barra.js:84-86` (`.v2d-search`, ação `v2-menu-pesquisar`) e estilizado em `css/v2/telemovel.css:100-102`. Retirar o botão, o CSS e a ação, se não for usada noutro sítio.
-
+14. ✅ **Feito (23/11):** saiu o campo de pesquisa do menu lateral no telemóvel.
 15. **Edição simples de imagens ao carregar (âmbito limitado)**
     - Hoje o servidor já redimensiona e comprime as fotografias (`backend/src/services/imageOptimizer.js`, sharp) e gera miniaturas WebP. Os logótipos não são recomprimidos.
     - Fazer:
@@ -129,7 +123,7 @@ e `PLANO-CONSOLA.md`; esta lista será a base do documento único.
 ## Ordem sugerida
 
 0. Guardar esta lista no repositório (`docs/PENDENTES.md`), porque o contentor é temporário. Serve de base ao documento único de planeamento.
-1. **Bugs rápidos** (um commit cada, verificados no browser): 11a, 6, 10, 4, 7, 11d, 11e, 14.
+1. **Bugs rápidos:** 6, 10 e 11e (maquetas em revisão); 11a, 4, 7, 11d e 14 feitos.
 2. **Interface, esforço médio:** 3, 8, 11b/c/f/g/h, 12, 13.
 3. **Portal do hóspede + cartão na ficha (2 + 1 juntos)**, com maqueta primeiro.
 4. **Maior:** 9 (vistas predefinidas), 5 (documentos Excel/PDF), 15 (recortes).
