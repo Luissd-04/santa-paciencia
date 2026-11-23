@@ -144,7 +144,8 @@ function dialog(className, html) {
 }
 
 function photosHtml(images, name) {
-  return images.map((url, i) => `<img src="${esc(B.mediaThumb(url, 1024) || url)}" alt="${esc(`${name}, fotografia ${i + 1}`)}" loading="lazy" decoding="async">`).join('');
+  const loading = B.embed?.active ? 'eager' : 'lazy';
+  return images.map((url, i) => `<img src="${esc(B.mediaThumb(url, 1024) || url)}" alt="${esc(`${name}, fotografia ${i + 1}`)}" loading="${loading}" decoding="async">`).join('');
 }
 
 function openGallery(name, images) {

@@ -98,11 +98,15 @@ function renderLanding() {
 }
 
 // Fotografia do cartão; sem fotografia, um fundo liso (nunca uma imagem partida).
+// Dentro do site do cliente (iframe) as fotografias carregam logo: o iframe
+// tem a altura do conteúdo e o carregamento diferido dentro de um iframe de
+// outra origem depende do browser (no telemóvel ficavam por carregar).
 function unitPhoto(cover) {
   const url = cover?.src;
   const src = url && AppModules.booking.safeMediaUrl(url) ? AppModules.booking.mediaThumb(url, 1024) : '';
+  const loading = AppModules.booking.embed?.active ? 'eager' : 'lazy';
   return src
-    ? `<img src="${AppModules.booking.escapeHtml(src)}" alt="" loading="lazy" decoding="async" style="object-position:${AppModules.booking.escapeHtml(cover.position)}">`
+    ? `<img src="${AppModules.booking.escapeHtml(src)}" alt="" loading="${loading}" decoding="async" style="object-position:${AppModules.booking.escapeHtml(cover.position)}">`
     : '<img class="unit-photo-empty" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">';
 }
 
@@ -160,7 +164,7 @@ function renderUnits() {
 
   const propertyCard = `
     <div class="unit-card ${propertySelected ? 'selected' : ''} ${propertyBlocked ? 'blocked' : ''} property-card" data-unit="property">
-      ${unitPhoto(AppModules.booking.state.property?.images?.[0]?.url)}
+      ${unitPhoto(AppModules.booking.embed?.active ? AppModules.booking.coverOf(AppModules.booking.state.property, 'landscape') : AppModules.booking.state.property?.images?.[0]?.url)}
       <div>
         <h4>${AppModules.booking.escapeHtml(AppModules.booking.state.property?.name || 'Alojamento completo')}</h4>
         <p>${AppModules.booking.escapeHtml(propertyReason)}</p>

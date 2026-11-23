@@ -18,6 +18,7 @@ async function applyVoucher() {
     return;
   }
   statusEl.style.display = '';
+  statusEl.dataset.state = 'checking';
   statusEl.style.background = '#f5f5f5';
   statusEl.style.color = '#666';
   statusEl.textContent = 'A verificar...';
@@ -25,12 +26,14 @@ async function applyVoucher() {
     const res = await AppModules.booking.api(`/api/public/booking/${AppModules.booking.state.slug}/voucher?code=${encodeURIComponent(code)}`);
     AppModules.booking._voucherData = res.data;
     const disc = window.ReservationPricing.voucherLabel(AppModules.booking._voucherData);
+    statusEl.dataset.state = 'ok';
     statusEl.style.background = '#f0faf4';
     statusEl.style.color = '#2d6a4f';
     statusEl.textContent = `✓ ${AppModules.booking._voucherData.description ? AppModules.booking._voucherData.description + ' · ' : ''}${disc}`;
     AppModules.booking.recalc();
   } catch (err) {
     AppModules.booking._voucherData = null;
+    statusEl.dataset.state = 'error';
     statusEl.style.background = '#fef0f0';
     statusEl.style.color = '#c0392b';
     statusEl.textContent = err.message;

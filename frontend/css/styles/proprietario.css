@@ -253,3 +253,32 @@ html[data-look="classico"] .settings-moved-note a { color: #843424; }
 @media (max-width: 767px) {
   .prop-site-link { flex-wrap: wrap; }
 }
+
+/* No teu site → Aspeto (só a página incorporada) */
+.prop-aspeto-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; margin-top: 14px; }
+.prop-aspeto-form { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.prop-aspeto-row { display: grid; gap: 8px; margin: 0; }
+.prop-aspeto-row .form-label { font-weight: 600; color: var(--pp-ink); }
+.prop-seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.prop-seg-btn { min-height: 36px; padding: 6px 14px; border: 1px solid var(--pp-line); border-radius: 999px; background: var(--pp-surface); color: var(--pp-ink); font: inherit; font-size: 13.5px; cursor: pointer; }
+.prop-seg-btn[aria-pressed="true"] { border: 2px solid var(--pp-accent); padding: 5px 13px; color: var(--pp-accent); font-weight: 600; }
+.prop-seg-btn:focus-visible { outline: 2px solid var(--pp-accent); outline-offset: 2px; }
+.prop-aspeto-color { margin-top: 2px; }
+.prop-aspeto-color[hidden] { display: none; }
+.prop-aspeto-hex { width: 110px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-transform: uppercase; }
+.prop-aspeto-hex.is-invalid { border-color: var(--pp-bad) !important; }
+.prop-check { display: flex; gap: 10px; align-items: center; margin: 0; font-size: 14px; color: var(--pp-ink); cursor: pointer; }
+.prop-check input { width: 18px; height: 18px; accent-color: var(--pp-accent); }
+.prop-aspeto-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.prop-aspeto-kicker { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--pp-muted); }
+.prop-aspeto-preview { display: flex; flex-direction: column; gap: 12px; padding: 18px; border: 1px solid var(--pp-line); border-radius: 4px; background: #fffdf9; color: #23313b; font-size: 13px; }
+.prop-aspeto-preview .pv-h { font-size: 20px; line-height: 1.2; }
+.prop-aspeto-preview .pv-dates { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid; }
+.prop-aspeto-preview .pv-dates > div { padding: 10px; border-right: 1px solid; }
+.prop-aspeto-preview .pv-dates > div + div { border-right: 0; }
+.prop-aspeto-preview .pv-l { display: block; font-size: 10px; }
+.prop-aspeto-preview .pv-room { display: flex; justify-content: space-between; gap: 8px; padding: 12px; border: 1px solid; }
+.prop-aspeto-preview .pv-btn { padding: 12px; text-align: center; }
+@media (max-width: 900px) {
+  .prop-aspeto-grid { grid-template-columns: minmax(0, 1fr); }
+}

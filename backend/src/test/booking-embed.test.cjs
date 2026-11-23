@@ -84,7 +84,7 @@ test('frame-ancestors: os sites autorizados só em /reservar/<slug>?embed=1, sem
   assert.equal(ancestors(res), "'self' https://www.cliente.pt https://cliente.pt");
   assert.equal(res.headers.get('x-frame-options'), null);
   const html = await res.text();
-  assert.match(html, /<html lang="pt" data-layout="novo" data-embed="1">/);
+  assert.match(html, /<html lang="pt" data-layout="novo" data-embed="1" data-sp-theme="light"[^>]*>/);
   assert.match(html, /<meta name="robots" content="noindex">/);
   assert.match(html, /\/js\/features\/public-reservation\/embed\.js/);
   // Com barra no fim também.
@@ -172,6 +172,144 @@ test('GET/PUT /api/embed/settings: só o proprietário; guarda normalizado, devo
   const denied = await call(ownerEssencial, 'PUT', '/api/embed/settings', { origins: ['https://essencial.pt'] });
   assert.equal(denied.status, 403);
   assert.match((await denied.json()).error, /Premium/);
+});
+
+// ── Aspeto (embed_style) ─────────────────────────────────────────────────
+const htmlTag = html => /<html [^>]*>/.exec(html)?.[0] || '';
+const embedStyle = require('../services/embedStyle');
+
+test('aspeto: lista fechada de opções, cores #RRGGBB, campos desconhecidos recusados', () => {
+  const ok = embedStyle.normalizeStyle({ theme: 'dark', font: 'jost', corners: 'square', accent: '#85391F', uppercaseLabels: true, startAtDates: true });
+  assert.deepEqual(ok, { theme: 'dark', font: 'Jost', corners: 'square', accent: '#85391f', uppercaseLabels: true, startAtDates: true });
+  // Parcial: o resto fica como estava.
+  assert.deepEqual(embedStyle.normalizeStyle({ theme: 'light' }, ok), { ...ok, theme: 'light' });
+  assert.equal(embedStyle.normalizeStyle({ accent: '#abc' }).accent, '#aabbcc');
+  assert.deepEqual(embedStyle.normalizeStyle({}), embedStyle.DEFAULT_STYLE);
+  for (const bad of [
+    { theme: 'neon' }, { theme: ['dark'] }, { font: 'Comic Sans MS' }, { font: "Jost'; } body { color: red" }, { font: 'Arial' },
+    { corners: 'round' }, { accent: 'red' }, { accent: '#85391F; background:url(x)' }, { accent: 'rgb(1,2,3)' }, { accent: '#12345' },
+    { uppercaseLabels: 'sim' }, { startAtDates: 'true' }, { startAtDates: 1 }, { css: 'body{}' }, { __proto__x: 1 },
+  ]) assert.throws(() => embedStyle.normalizeStyle(bad), err => err.status === 400, JSON.stringify(bad));
+  for (const bad of [null, 'dark', ['dark'], 3]) assert.throws(() => embedStyle.normalizeStyle(bad), err => err.status === 400);
+});
+
+test('aspeto: o que o carregador deteta só passa se for válido; automático usa-o, escolhido ganha', () => {
+  const detected = embedStyle.detectedFromQuery({ sp_theme: 'dark', sp_bg: '151719', sp_font: 'Jost,sans-serif', sp_hfont: 'Fonte Esquisita,serif',
+    sp_accent: '85391F', sp_radius: '0', sp_upper: '1' });
+  assert.deepEqual(detected, { theme: 'dark', bg: '#151719', font: { family: 'Jost', generic: 'sans-serif' }, headingFont: { family: null, generic: 'serif' },
+    accent: '#85391f', radius: 0, uppercase: true });
+  assert.deepEqual(embedStyle.detectedFromQuery({ sp_theme: 'x', sp_bg: 'zzz', sp_font: '"><script>', sp_accent: 'url(x)', sp_radius: '-1', sp_upper: 'yes', sp_hfont: ['a'] }), {});
+  const auto = embedStyle.resolveStyle(embedStyle.DEFAULT_STYLE, detected, '#2266aa');
+  assert.equal(auto.theme, 'dark');
+  assert.equal(auto.corners, 'square');
+  assert.equal(auto.accent, '#85391f');
+  assert.equal(auto.uppercase, true);
+  assert.equal(auto.surface, '#151719');
+  assert.ok(embedStyle.contrast(auto.accentInk, '#151719') >= 4.5, auto.accentInk);
+  assert.ok(embedStyle.contrast(auto.onAccent, auto.accent) >= 4.5);
+  const chosen = embedStyle.resolveStyle({ ...embedStyle.DEFAULT_STYLE, theme: 'light', corners: 'rounded', accent: '#f5d000', font: 'platform', uppercaseLabels: false }, detected, '#2266aa');
+  assert.equal(chosen.theme, 'light');
+  assert.equal(chosen.corners, 'rounded');
+  assert.equal(chosen.accent, '#f5d000');
+  assert.equal(chosen.font, null);
+  assert.equal(chosen.uppercase, false);
+  assert.ok(embedStyle.contrast(chosen.accentInk, '#fffdf9') >= 4.5, chosen.accentInk);
+  assert.equal(chosen.onAccent, '#111111');
+  // Sem nada detetado (iframe simples): claro, arredondado, cor da conta.
+  const plain = embedStyle.resolveStyle(embedStyle.DEFAULT_STYLE, {}, '#2266aa');
+  assert.deepEqual([plain.theme, plain.corners, plain.accent, plain.uppercase, plain.font], ['light', 'rounded', '#2266aa', false, null]);
+});
+
+test('aspeto: GET/PUT só o proprietário, Premium, compatível com pedidos antigos e registado', async () => {
+  for (const cookie of [manager, staff]) assert.equal((await call(cookie, 'PUT', '/api/embed/settings', { style: { theme: 'dark' } })).status, 403);
+  const first = await (await get('/api/embed/settings', owner)).json();
+  assert.deepEqual(first.data.style, embedStyle.DEFAULT_STYLE);
+  assert.deepEqual(first.data.style_options.fonts, embedStyle.CHOICE_FONTS);
+  assert.equal(first.data.default_accent, '#843424');
+
+  const style = { theme: 'dark', font: 'Jost', corners: 'square', accent: '#85391f', uppercaseLabels: true, startAtDates: true };
+  const saved = await call(owner, 'PUT', '/api/embed/settings', { style });
+  assert.equal(saved.status, 200);
+  const body = await saved.json();
+  assert.deepEqual(body.data.style, style);
+  assert.deepEqual(settings.getJson(premium.id, 'embed_style'), style);
+  const audit = db.prepare("SELECT meta FROM audit_events WHERE organization_id = ? AND action = 'settings.embed_style_changed' ORDER BY rowid DESC").get(premium.id);
+  assert.deepEqual(JSON.parse(audit.meta).after, style);
+
+  // Inválido: 400 e nada muda (nem as origens que vierem no mesmo pedido).
+  const origins = embed.storedOrigins(premium.id);
+  const bad = await call(owner, 'PUT', '/api/embed/settings', { origins: ['https://outro.pt'], style: { accent: 'javascript:alert(1)' } });
+  assert.equal(bad.status, 400);
+  assert.match((await bad.json()).error, /#RRGGBB/);
+  assert.deepEqual(embed.storedOrigins(premium.id), origins);
+  assert.deepEqual(embedStyle.storedStyle(premium.id), style);
+
+  // Pedido antigo (só origens) não mexe no aspeto.
+  assert.equal((await call(owner, 'PUT', '/api/embed/settings', { origins: ['https://www.cliente.pt'] })).status, 200);
+  assert.deepEqual(embedStyle.storedStyle(premium.id), style);
+  assert.equal((await call(owner, 'PUT', '/api/embed/settings', {})).status, 400);
+
+  // Sem a funcionalidade no pacote: não grava.
+  const denied = await call(ownerEssencial, 'PUT', '/api/embed/settings', { style: { theme: 'dark' } });
+  assert.equal(denied.status, 403);
+  assert.equal(settings.get(essencial.id, 'embed_style'), null);
+
+  // Valor estragado na base de dados: volta a «Automático» campo a campo.
+  settings.set(semPacote.id, 'embed_style', { theme: 'dark', accent: 'url(javascript:x)', font: '</style><script>', corners: 7 });
+  assert.deepEqual(embedStyle.storedStyle(semPacote.id), { ...embedStyle.DEFAULT_STYLE, theme: 'dark' });
+  settings.set(semPacote.id, 'embed_style', 'não é JSON');
+  assert.deepEqual(embedStyle.storedStyle(semPacote.id), embedStyle.DEFAULT_STYLE);
+});
+
+test('aspeto: atributos no <html> só da página incorporada; valores de fora nunca chegam ao HTML', async () => {
+  settings.set(premium.id, 'embed_origins', ['https://www.cliente.pt']);
+  embedStyle.saveStyle(premium.id, { theme: 'dark', font: 'Jost', corners: 'square', accent: '#85391f', uppercaseLabels: true, startAtDates: true });
+  const html = await (await get('/reservar/casa-premium?embed=1')).text();
+  const tag = htmlTag(html);
+  assert.match(tag, /data-embed="1"/);
+  assert.match(tag, /data-sp-theme="dark"/);
+  assert.match(tag, /data-sp-corners="square"/);
+  assert.match(tag, /data-sp-upper="1"/);
+  assert.match(tag, /data-sp-start="datas"/);
+  assert.match(tag, /--sp-accent:#85391f/);
+  assert.match(tag, /--sp-font:'Jost', system-ui, sans-serif/);
+  assert.match(html, /<link rel="stylesheet" href="\/css\/public-embed\.css\?v=[^"]+">/);
+  assert.match(html, /<link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com\/css2\?family=Jost:wght@400;500;600&amp;display=swap">/);
+
+  // Página normal: igual a antes (sem atributos, sem a folha, sem letras).
+  const normal = await (await get('/reservar/casa-premium')).text();
+  assert.equal(htmlTag(normal), '<html lang="pt" data-layout="novo">');
+  assert.doesNotMatch(normal, /public-embed\.css|data-sp-|fonts\.googleapis\.com\/css2\?family=Jost/);
+  // ?embed=1 com parâmetros sp_* na página normal: ignorados.
+  assert.equal(htmlTag(await (await get('/reservar/casa-premium?sp_theme=dark&sp_accent=000000')).text()), '<html lang="pt" data-layout="novo">');
+
+  // Automático: segue o que o carregador detetou; lixo nos parâmetros é ignorado.
+  embedStyle.saveStyle(premium.id, { ...embedStyle.DEFAULT_STYLE });
+  const evil = encodeURIComponent('"><script>alert(1)</script>');
+  const detectedHtml = await (await get(`/reservar/casa-premium?embed=1&sp_theme=dark&sp_bg=151719&sp_font=Jost%2Csans-serif&sp_hfont=${evil}&sp_accent=${evil}&sp_radius=0&sp_upper=1`)).text();
+  const auto = htmlTag(detectedHtml);
+  assert.match(auto, /data-sp-theme="dark"/);
+  assert.match(auto, /data-sp-corners="square"/);
+  assert.match(auto, /--sp-accent:#843424/);
+  assert.match(auto, /--sp-surface:#151719/);
+  assert.doesNotMatch(detectedHtml, /<script>alert|alert\(1\)/);
+  const xss = await (await get(`/reservar/casa-premium?embed=1&sp_font=${evil}&sp_theme=${evil}&sp_radius=${evil}`)).text();
+  assert.doesNotMatch(xss, /<script>alert|alert\(1\)/);
+  assert.match(htmlTag(xss), /data-sp-theme="light"/);
+});
+
+test('aspeto: o detetado fica guardado para o proprietário só quando vem de um site autorizado', async () => {
+  db.prepare("DELETE FROM organization_settings WHERE organization_id = ? AND key = 'embed_detected'").run(premium.id);
+  const q = '/reservar/casa-premium?embed=1&sp_theme=dark&sp_bg=151719&sp_font=Jost%2Csans-serif&sp_accent=85391f&sp_radius=0&sp_upper=1';
+  await fetch(base + q, { headers: { 'X-Forwarded-For': nextIp(), Referer: 'https://intruso.pt/' } });
+  assert.equal(embedStyle.storedDetected(premium.id), null);
+  await fetch(base + q, { headers: { 'X-Forwarded-For': nextIp(), Referer: 'https://www.cliente.pt/' } });
+  const seen = embedStyle.storedDetected(premium.id);
+  assert.equal(seen.origin, 'https://www.cliente.pt');
+  assert.deepEqual(seen.values, { theme: 'dark', bg: '#151719', font: { family: 'Jost', generic: 'sans-serif' }, accent: '#85391f', radius: 0, uppercase: true });
+  const { data } = await (await get('/api/embed/settings', owner)).json();
+  assert.equal(data.detected.origin, 'https://www.cliente.pt');
+  assert.equal(data.detected.values.accent, '#85391f');
 });
 
 test('/embed.js: JavaScript, cache de uma hora e carregável de outra origem', async () => {

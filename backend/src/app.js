@@ -340,10 +340,17 @@ if (process.env.FRONTEND_PATH) {
     // recorte «Partilha» (1.91:1) da capa, no próprio HTML.
     const tags = embed ? '<meta name="robots" content="noindex">' : require('./services/openGraph').bookingTags(req, req.params.slug);
     if (!tags) return res.sendFile(file);
+    // Incorporada: o aspeto (tema, letra, cantos, cor) vai já nos atributos de
+    // <html>, para não haver um instante com o tema errado. Os valores vêm de
+    // listas fechadas e cores #rrggbb (services/embedStyle.js).
+    let look = null;
+    if (embed) {
+      try { look = require('./services/bookingEmbed').pageStyle(embed, req.query, req.get('referer') || ''); } catch { look = null; }
+    }
     require('fs').promises.readFile(file, 'utf8')
       .then(html => {
-        const page = embed ? html.replace('<html lang="pt" data-layout="novo">', '<html lang="pt" data-layout="novo" data-embed="1">') : html;
-        res.type('html').send(page.replace('</head>', `${tags}\n</head>`));
+        const page = embed ? html.replace('<html lang="pt" data-layout="novo">', `<html lang="pt" data-layout="novo" data-embed="1"${look?.attributes || ''}>`) : html;
+        res.type('html').send(page.replace('</head>', `${tags}${look?.head ? `\n${look.head}` : ''}\n</head>`));
       })
       .catch(() => res.sendFile(file));
   });

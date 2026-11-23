@@ -54,6 +54,8 @@ const LABELS = {
   'integration.gmail_disconnected': () => 'desligou o Gmail',
   'integration.tasks_disconnected': () => 'desligou o Google Tasks',
   'settings.payment_policy_changed': () => 'mudou a política de pagamentos e cancelamentos',
+  'settings.embed_origins_changed': () => 'mudou os sites autorizados a mostrar as reservas',
+  'settings.embed_style_changed': () => 'mudou o aspeto das reservas no site',
 };
 const COMPANY_FIELD = { name: 'nome comercial', legal_name: 'denominação legal', tax_country: 'país', tax_id: 'NIF', fiscal_address: 'morada fiscal',
   billing_email: 'email de faturação', phone: 'telefone', guest_email: 'email para hóspedes' };

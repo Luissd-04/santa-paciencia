@@ -14,6 +14,7 @@
 const { db } = require('../config/database');
 const settings = require('./settingsService');
 const { httpError } = require('./httpError');
+const style = require('./embedStyle');
 
 const FEATURE = 'booking_embed';
 const SETTING_KEY = 'embed_origins';
@@ -88,21 +89,49 @@ function planAllows(organizationId) {
   try { return JSON.parse(plan.features_json || '{}')?.[FEATURE] === true; } catch { return false; }
 }
 
-function organizationForSlug(slug) {
+function placeForSlug(slug) {
   const value = String(slug ?? '');
   if (!value || value.length > 200) return null;
-  return db.prepare("SELECT organization_id FROM accommodations WHERE public_slug = ? AND type = 'alojamento'").get(value)?.organization_id || null;
+  return db.prepare("SELECT organization_id, color FROM accommodations WHERE public_slug = ? AND type = 'alojamento'").get(value) || null;
+}
+
+// Cor de destaque por omissão: a cor principal da organização (Área do
+// proprietário → Marca), senão a do alojamento, senão a da plataforma. A cor
+// por omissão dos alojamentos (#843424) conta como «sem cor».
+function defaultAccent(organizationId, placeColor = null) {
+  const chosen = value => { const c = style.hex(value); return c && c !== style.PLATFORM_ACCENT ? c : ''; };
+  const org = db.prepare('SELECT brand_color FROM organizations WHERE id = ?').get(organizationId);
+  if (chosen(org?.brand_color)) return chosen(org.brand_color);
+  if (chosen(placeColor)) return chosen(placeColor);
+  const first = db.prepare("SELECT color FROM accommodations WHERE organization_id = ? AND type = 'alojamento' AND color IS NOT NULL ORDER BY name COLLATE NOCASE").all(organizationId)
+    .map(row => chosen(row.color)).find(Boolean);
+  return first || style.PLATFORM_ACCENT;
 }
 
 // Para /reservar/<slug>?embed=1: se a página pode ser incorporada e por quem.
 // `null` quando o slug não existe (a página normal mostra o erro).
 function embedFor(slug) {
-  const organizationId = organizationForSlug(slug);
+  const place = placeForSlug(slug);
+  const organizationId = place?.organization_id;
   if (!organizationId) return null;
   const policy = require('./orgPolicy');
   if (!policy.publicPagesAllowed(organizationId)) return null;
   const available = planAllows(organizationId);
-  return { organizationId, available, origins: available ? storedOrigins(organizationId) : [] };
+  return { organizationId, placeColor: place.color || null, available, origins: available ? storedOrigins(organizationId) : [] };
+}
+
+// Aspeto da página incorporada: atributos de <html> e a folha das letras.
+// `query` são os parâmetros do iframe (sp_*, o que o carregador detetou no
+// site); `referer` a origem da página que o contém (para mostrar ao
+// proprietário o que foi detetado, só se for um site autorizado).
+function pageStyle(embed, query = {}, referer = '') {
+  const detected = style.detectedFromQuery(query);
+  let origin = '';
+  try { origin = referer ? new URL(referer).origin : ''; } catch { origin = ''; }
+  try { style.recordDetected(embed.organizationId, detected, origin, embed.origins || []); } catch { /* só informativo */ }
+  const resolved = style.resolveStyle(style.storedStyle(embed.organizationId), detected, defaultAccent(embed.organizationId, embed.placeColor));
+  const head = [`<link rel="stylesheet" href="/css/public-embed.css?v=${style.CSS_VERSION}">`, style.fontLinks(resolved)].filter(Boolean).join('\n');
+  return { resolved, attributes: style.htmlAttributes(resolved), head };
 }
 
 function slugsOf(organizationId) {
@@ -132,6 +161,11 @@ function getSettings(organizationId, origin) {
     max_origins: MAX_ORIGINS,
     accommodations: slugs.map(row => ({ name: row.name, slug: row.slug, snippet: snippets(origin, row.slug) })),
     snippet: snippets(origin, slugs[0]?.slug),
+    // Aspeto (só a página incorporada).
+    style: style.storedStyle(organizationId),
+    style_options: { themes: style.THEMES, corners: style.CORNERS, fonts: style.CHOICE_FONTS },
+    default_accent: defaultAccent(organizationId),
+    detected: style.storedDetected(organizationId),
   };
 }
 
@@ -140,6 +174,11 @@ function saveOrigins(organizationId, list) {
   const origins = normalizeOrigins(list);
   settings.set(organizationId, SETTING_KEY, origins);
   return origins;
+}
+
+function saveStyle(organizationId, input) {
+  if (!planAllows(organizationId)) throw httpError('Disponível no plano Premium.', 403, { feature: FEATURE });
+  return style.saveStyle(organizationId, input);
 }
 
 // /reservar/<slug>?embed=1 de uma organização sem a funcionalidade. O CSP
@@ -157,5 +196,5 @@ h1{margin:0 0 8px;font-size:20px}p{margin:0;color:#6f665d;line-height:1.5}</styl
 
 module.exports = {
   FEATURE, SETTING_KEY, MAX_ORIGINS,
-  normalizeOrigin, normalizeOrigins, storedOrigins, planAllows, embedFor, getSettings, saveOrigins, unavailablePage,
+  normalizeOrigin, normalizeOrigins, storedOrigins, planAllows, embedFor, getSettings, saveOrigins, saveStyle, pageStyle, defaultAccent, unavailablePage,
 };

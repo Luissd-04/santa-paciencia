@@ -1,0 +1,238 @@
+/* Página de reservas dentro do site do cliente (iframe, /reservar/<slug>?embed=1).
+   Só esta página carrega este ficheiro (o servidor acrescenta-o); a página
+   normal de reservas não muda.
+
+   O servidor marca <html data-embed="1"> com o aspeto (services/embedStyle.js):
+     data-sp-theme="light|dark"      tema
+     data-sp-corners="rounded|square" cantos
+     data-sp-upper="1|0"             etiquetas e botões em maiúsculas espaçadas
+     data-sp-start="datas|capa"      começar logo nas datas (sem a fotografia)
+     data-sp-font="site"             letra do site (--sp-font, --sp-heading-font)
+     style="--sp-accent; --sp-accent-ink (texto, 4,5:1); --sp-on-accent
+            (texto sobre a cor); --sp-surface (fundo de janelas e calendário)"
+   Fundo transparente (fica o do site) e sem 100vh: a altura do iframe segue o
+   conteúdo (js/features/public-reservation/embed.js). */
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
+html[data-embed] { background: transparent; --brand: var(--sp-accent, #843424); --brand-dark: var(--sp-accent, #843424);
+  --brand-soft: color-mix(in srgb, var(--sp-accent, #843424) 14%, transparent); --link: var(--sp-accent-ink, var(--brand));
+  --sp-radius: 12px; --sp-radius-sm: 10px; --surface: var(--sp-surface, #fffdf9); --field: #fff; --hover: #fff; }
+html[data-layout="novo"][data-embed] body { background: transparent; min-height: 0; }
+html[data-layout="novo"][data-embed] .booking-page { min-height: 0; max-width: 1180px; padding: 0 0 24px; }
+html[data-layout="novo"][data-embed] .booking-shell { padding: 0; }
+html[data-layout="novo"][data-embed] .pn-topbar { display: none; }
+html[data-layout="novo"][data-embed] .pn-hero { margin: 0; min-height: 260px; border-radius: var(--sp-radius); }
+html[data-layout="novo"][data-embed] .pn-intro { padding: 4px 0 0; }
+html[data-embed][data-sp-start="datas"] #pn-hero, html[data-embed][data-sp-start="datas"] .pn-intro { display: none !important; }
+html[data-layout="novo"][data-embed][data-sp-start="datas"] .pn-steps { margin-top: 4px; }
+
+/* Letra do site */
+html[data-embed][data-sp-font] body,
+html[data-embed][data-sp-font] :is(input, select, textarea, button, .pn-link, .pn-photos-btn, .pn-dialog, .date-pop) { font-family: var(--sp-font, Inter, system-ui, sans-serif); }
+html[data-embed][data-sp-font] :is(h1, h2, h3, h4, .unit-card h4, .summary-content h3, .pn-dialog h2, .pn-dialog h3, .sp-embed-done h2) {
+  font-family: var(--sp-heading-font, var(--sp-font, "Playfair Display", Georgia, serif)); font-weight: 400; letter-spacing: 0; }
+html[data-embed][data-sp-font] .unit-card.selected::after { font-family: var(--sp-font, Inter, system-ui, sans-serif); }
+/* Letras de site costumam ser finas: pesos mais leves, como no site. */
+html[data-layout="novo"][data-embed][data-sp-font] :is(.pn-dates input, .pn-stepper input, .unit-price, .summary-row strong, .summary-total strong, .pn-lines .pn-total, .pn-steps li.active) { font-weight: 500; }
+html[data-layout="novo"][data-embed][data-sp-font] .unit-price { font-size: 22px; }
+
+/* Passos com nome curto no telemóvel (embed.js acrescenta os dois). */
+html[data-embed] .pn-steps .sp-short { display: none; }
+@media (max-width: 560px) {
+  html[data-embed] .pn-steps .sp-long { display: none; }
+  html[data-embed] .pn-steps .sp-short { display: inline; }
+}
+
+/* Cores de destaque como texto: sempre a versão legível (4,5:1) */
+html[data-embed] :is(.pn-link, .pn-voucher summary, .summary-kicker, .child-ages-title, .unit-desc-extra, .unit-price-total, .sp-embed-done a:not(.primary-btn)) { color: var(--link) !important; }
+html[data-embed] .unit-desc-extra { opacity: 1; }
+
+/* Botões */
+html[data-layout="novo"][data-embed] .primary-btn { background: var(--sp-accent, var(--brand)); color: var(--sp-on-accent, #fff); border-radius: var(--sp-radius); }
+html[data-layout="novo"][data-embed] .ghost-btn { border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: var(--sp-radius); }
+html[data-embed] [data-flow-controls] button:focus-visible, html[data-embed] .primary-btn:focus-visible,
+html[data-embed] :is(input, select, textarea, button):focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+html[data-embed] input:focus, html[data-embed] select:focus, html[data-embed] textarea:focus { border-color: var(--link); box-shadow: 0 0 0 3px var(--brand-soft); }
+
+/* Passos: linhas finas por cima, com o número */
+html[data-layout="novo"][data-embed] .pn-steps { counter-reset: sp-step; gap: 0; margin: 28px 0 26px; }
+html[data-layout="novo"][data-embed] .pn-steps li { display: block; counter-increment: sp-step; padding: 10px 10px 0 0; border-top: 2px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.35; }
+html[data-layout="novo"][data-embed] .pn-steps li::before { content: counter(sp-step) " · "; display: inline; height: auto; border-radius: 0; background: none; }
+html[data-layout="novo"][data-embed] .pn-steps li.active, html[data-layout="novo"][data-embed] .pn-steps li.done { border-top-color: var(--sp-accent, var(--brand)); color: var(--ink); }
+html[data-layout="novo"][data-embed] .pn-steps li.active::before, html[data-layout="novo"][data-embed] .pn-steps li.done::before { background: none; }
+
+/* Formulário sem cartão à volta: fica sobre o fundo do site */
+html[data-layout="novo"][data-embed] .booking-form { padding: 0; border: 0; border-radius: 0; background: transparent; }
+html[data-layout="novo"][data-embed] .booking-grid { gap: 40px; }
+html[data-layout="novo"][data-embed] .step-heading h2, html[data-layout="novo"][data-embed] .pn-units-head h2 { font-size: 28px; }
+html[data-layout="novo"][data-embed] input, html[data-layout="novo"][data-embed] select, html[data-layout="novo"][data-embed] textarea,
+html[data-embed] .phone-code-btn, html[data-embed] .doc-type-btn { border-radius: var(--sp-radius-sm); }
+
+/* Datas e hóspedes numa só barra */
+html[data-layout="novo"][data-embed] .pn-dates { border-radius: var(--sp-radius) var(--sp-radius) 0 0; background: var(--field); }
+html[data-layout="novo"][data-embed] .pn-guests { grid-template-columns: 1fr 1fr; gap: 0; margin-top: 0; border: 1px solid var(--line); border-top: 0;
+  border-radius: 0 0 var(--sp-radius) var(--sp-radius); overflow: hidden; background: var(--field); }
+html[data-layout="novo"][data-embed] .pn-guests label { display: grid; grid-template-columns: 1fr; gap: 2px; align-items: center; padding: 10px 14px; border: 0; border-radius: 0; background: none; }
+html[data-layout="novo"][data-embed] .pn-guests label + label { border-left: 1px solid var(--line); }
+html[data-layout="novo"][data-embed] .pn-stepper { justify-content: space-between; }
+html[data-layout="novo"][data-embed] .pn-stepper button { width: 34px; height: 34px; border-color: var(--line); background: transparent; color: var(--ink); }
+html[data-layout="novo"][data-embed] .pn-stepper input { color: var(--ink); }
+@media (min-width: 760px) {
+  html[data-layout="novo"][data-embed] .form-step[data-step="1"].active { display: grid; grid-template-columns: 1fr 1fr; align-items: stretch; }
+  html[data-layout="novo"][data-embed] .form-step[data-step="1"] > * { grid-column: 1 / -1; }
+  html[data-layout="novo"][data-embed] .form-step[data-step="1"] > .pn-dates { grid-column: 1; margin: 0; border-radius: var(--sp-radius) 0 0 var(--sp-radius); }
+  html[data-layout="novo"][data-embed] .form-step[data-step="1"] > .pn-guests { grid-column: 2; margin: 0; border-top: 1px solid var(--line); border-left: 0; border-radius: 0 var(--sp-radius) var(--sp-radius) 0; }
+  html[data-layout="novo"][data-embed] .pn-guests label { grid-template-columns: 1fr auto; }
+  html[data-layout="novo"][data-embed] .pn-guests label > span { grid-column: 1 / -1; }
+}
+
+/* Quartos: na horizontal, fotografia à esquerda */
+html[data-layout="novo"][data-embed] .unit-card { background: var(--field); border-radius: var(--sp-radius); }
+html[data-layout="novo"][data-embed] .unit-card.selected { border: 1px solid var(--sp-accent, var(--brand)); box-shadow: 0 0 0 1px var(--sp-accent, var(--brand)); }
+html[data-layout="novo"][data-embed] .unit-card.selected::after { background: var(--sp-accent, var(--brand)); color: var(--sp-on-accent, #fff); border-radius: var(--sp-radius); }
+html[data-layout="novo"][data-embed] .unit-card h4 { font-size: 21px; }
+@media (min-width: 900px) {
+  html[data-layout="novo"][data-embed] .unit-card { grid-template-columns: 300px 1fr; }
+  html[data-layout="novo"][data-embed] .unit-card img { min-height: 200px; }
+}
+
+/* Resumo «A sua reserva» (computador): sem fotografia; o carregador mantém-no
+   à vista (translateY a partir da zona do iframe que está no ecrã). */
+html[data-layout="novo"][data-embed] .summary-panel { position: relative; top: 0; border-radius: var(--sp-radius); background: var(--surface-card, var(--paper)); transition: transform .2s ease; will-change: transform; }
+html[data-layout="novo"][data-embed] .summary-media { display: none; }
+html[data-layout="novo"][data-embed] .summary-content { padding: 24px; }
+html[data-layout="novo"][data-embed] .summary-kicker { font-weight: 500; }
+
+/* Confirmação */
+html[data-embed] .sp-embed-done { max-width: 560px; margin: 24px auto; padding: 32px 24px; border: 1px solid var(--line); border-radius: var(--sp-radius); background: var(--surface-card, var(--paper)); text-align: center; }
+html[data-embed] .sp-embed-done h2 { margin: 8px 0 10px; font-size: 28px; outline: none; }
+html[data-embed] .sp-embed-done p { margin: 0 0 12px; color: var(--muted); }
+html[data-embed] .sp-embed-done-mark { display: inline-grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--ok-bg); color: var(--ok); font-size: 24px; font-weight: 700; }
+html[data-embed] .sp-embed-done-link { display: inline-flex; align-items: center; gap: 6px; margin: 8px 0 12px; text-decoration: none; }
+html[data-embed] .sp-embed-done-note { font-size: 13px; }
+
+/* Janelas (fotos, ficha do quarto): abrem no topo do iframe, que a página de
+   fora leva à vista; ao centro podiam ficar fora do ecrã. */
+html[data-embed] .pn-dialog { margin-top: 16px; max-height: none; border-radius: calc(var(--sp-radius) + 6px); }
+html[data-embed] .pn-dialog-close { border-radius: 50%; }
+
+/* Calendário */
+html[data-embed] .date-pop { border-radius: calc(var(--sp-radius) + 6px); }
+html[data-embed] .dp-day.today:not(.selected) { color: var(--link); box-shadow: inset 0 0 0 1.5px var(--link); }
+html[data-embed] .dp-day.selected, html[data-embed] .dp-cell.selected { background: var(--sp-accent, var(--brand)); color: var(--sp-on-accent, #fff); }
+html[data-embed] .dp-foot-clear { color: var(--link); }
+
+/* ── Etiquetas em maiúsculas espaçadas ─────────────────────────────────── */
+html[data-layout="novo"][data-embed][data-sp-upper="1"] :is(.pn-steps li, label > span, .summary-kicker, .summary-row span, .pn-voucher summary, .pn-link) { text-transform: uppercase; letter-spacing: .12em; font-size: 11.5px; font-weight: 500; }
+html[data-layout="novo"][data-embed][data-sp-upper="1"] .rgpd-check span { text-transform: none; letter-spacing: 0; font-size: 14.5px; }
+html[data-layout="novo"][data-embed][data-sp-upper="1"] :is(.primary-btn, .ghost-btn, .pn-photos-btn, .unit-card.selected::after) { text-transform: uppercase; letter-spacing: .08em; font-weight: 500; }
+html[data-layout="novo"][data-embed][data-sp-upper="1"] .pn-steps li { font-size: 12px; font-weight: 400; }
+html[data-layout="novo"][data-embed][data-sp-upper="1"] .pn-steps li.active { font-weight: 500; }
+
+/* ── Cantos retos ──────────────────────────────────────────────────────── */
+html[data-embed][data-sp-corners="square"] { --sp-radius: 0px; --sp-radius-sm: 0px; --dp-radius: 0px; }
+html[data-embed][data-sp-corners="square"] body *,
+html[data-embed][data-sp-corners="square"] body *::before,
+html[data-embed][data-sp-corners="square"] body *::after { border-radius: 0 !important; }
+
+/* ── Tema escuro ───────────────────────────────────────────────────────── */
+/* Sem color-scheme no <html>: se for diferente do da página de fora, o
+   browser pinta o iframe com um fundo opaco. Só os campos e o calendário. */
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] {
+  --ink: #ffffff; --muted: rgba(255,255,255,.68); --line: rgba(255,255,255,.22); --paper: transparent; --cream: rgba(255,255,255,.05); --sand: rgba(255,255,255,.08);
+  --field: transparent; --hover: rgba(255,255,255,.04); --surface-card: transparent;
+  --ok: #8fd3ad; --ok-bg: rgba(143,211,173,.14); --wait: #f0c987; --wait-bg: rgba(240,201,135,.14);
+  --brand-soft: color-mix(in srgb, var(--sp-accent, #843424) 22%, transparent);
+  /* calendário (components/date-picker.css) e listas de países (inline em dados-hospedes.js) */
+  --dp-bg: var(--surface); --dp-text: #ffffff; --dp-muted: rgba(255,255,255,.68); --dp-subtle: rgba(255,255,255,.08); --dp-hover: rgba(255,255,255,.14);
+  --dp-border: rgba(255,255,255,.22); --dp-accent: var(--sp-accent, #843424); --borda: rgba(255,255,255,.22); --bg-card: var(--surface);
+}
+html[data-embed][data-sp-theme="dark"] body { color: var(--ink); }
+html[data-embed][data-sp-theme="dark"] :is(input, select, textarea, .date-pop, .pn-dialog, .country-dropdown) { color-scheme: dark; }
+html[data-embed][data-sp-theme="dark"] :is(input, select, textarea, .phone-code-btn, .doc-type-btn) { border-color: var(--line); background: transparent; color: var(--ink); }
+html[data-embed][data-sp-theme="dark"] :is(input, select, textarea):focus { background: rgba(255,255,255,.04); }
+html[data-embed][data-sp-theme="dark"] :is(input, textarea)::placeholder { color: rgba(255,255,255,.5); opacity: 1; }
+html[data-embed][data-sp-theme="dark"] select option { background: var(--surface); color: #fff; }
+html[data-embed][data-sp-theme="dark"] input:-webkit-autofill { -webkit-text-fill-color: #fff; box-shadow: 0 0 0 40px var(--surface) inset; caret-color: #fff; }
+html[data-embed][data-sp-theme="dark"] label > span, html[data-embed][data-sp-theme="dark"] .rgpd-check span { color: var(--ink); }
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] .pn-dates label > span, html[data-layout="novo"][data-embed][data-sp-theme="dark"] .pn-guests label > span { color: var(--muted); }
+html[data-embed][data-sp-theme="dark"] :is(.country-dropdown, .doc-type-dropdown) { border-color: var(--line); background: var(--surface); color: #fff; box-shadow: 0 12px 30px rgba(0,0,0,.5); }
+html[data-embed][data-sp-theme="dark"] :is(.country-dropdown-item, .doc-type-item) { border-bottom-color: rgba(255,255,255,.08); }
+html[data-embed][data-sp-theme="dark"] :is(.country-dropdown-item, .doc-type-item):hover, html[data-embed][data-sp-theme="dark"] .country-dropdown-item.highlighted { background: rgba(255,255,255,.1); }
+html[data-embed][data-sp-theme="dark"] .country-dropdown-item span[style] { color: rgba(255,255,255,.6) !important; }
+html[data-embed][data-sp-theme="dark"] .rate-hint, html[data-embed][data-sp-theme="dark"] .child-age-hint { color: #8fd3ad; }
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] .child-ages-wrap { border-color: var(--line); background: var(--cream); }
+html[data-embed][data-sp-theme="dark"] .child-age-item select { border-color: var(--line); background: transparent; color: #fff; }
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] .pn-chips li { border-color: var(--line); background: transparent; color: var(--ink); }
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] .pn-chips.small li { background: var(--cream); color: var(--muted); }
+
+/* Quartos */
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] .unit-card { border-color: var(--line); background: transparent; }
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] .unit-card:not(.blocked):hover { background: rgba(255,255,255,.04); transform: none; }
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] .unit-card.selected { background: color-mix(in srgb, var(--sp-accent, #843424) 10%, transparent); }
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] .unit-card.blocked { opacity: .6; }
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] .unit-card img { background: rgba(255,255,255,.06); }
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] .unit-price, html[data-layout="novo"][data-embed][data-sp-theme="dark"] .unit-price small { color: var(--ink); }
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] .unit-price small, html[data-layout="novo"][data-embed][data-sp-theme="dark"] .unit-price-extra { color: var(--muted); }
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] .unit-card p { color: var(--muted); }
+
+/* Resumo, passos 2 e 3 */
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] .summary-panel { border-color: var(--line); }
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] .summary-row, html[data-layout="novo"][data-embed][data-sp-theme="dark"] .summary-total { border-bottom-color: rgba(255,255,255,.14); }
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] .summary-total strong { color: var(--ink); }
+html[data-embed][data-sp-theme="dark"] #summary-discount-row { color: #8fd3ad !important; }
+html[data-embed][data-sp-theme="dark"] .extra-guest-box { background: transparent; }
+html[data-embed][data-sp-theme="dark"] .rgpd-check { background: rgba(255,255,255,.04); }
+html[data-embed][data-sp-theme="dark"] .rgpd-check input { accent-color: var(--sp-accent, #843424); }
+html[data-embed][data-sp-theme="dark"] #rgpd-text-box { color: var(--muted) !important; }
+html[data-layout="novo"][data-embed][data-sp-theme="dark"] .pn-lines .pn-discount { color: #8fd3ad; }
+html[data-embed][data-sp-theme="dark"] details summary { color: var(--ink); }
+
+/* Erros e avisos (as cores vêm em style="" do JavaScript) */
+html[data-embed][data-sp-theme="dark"] #step-error { background: rgba(231,76,60,.16) !important; border-color: rgba(255,138,128,.55) !important; color: #ffb3ab !important; }
+html[data-embed][data-sp-theme="dark"] #pb-voucher-status { background: rgba(255,255,255,.06) !important; color: rgba(255,255,255,.8) !important; }
+html[data-embed][data-sp-theme="dark"] #pb-voucher-status[data-state="ok"] { background: rgba(143,211,173,.14) !important; color: #8fd3ad !important; }
+html[data-embed][data-sp-theme="dark"] #pb-voucher-status[data-state="error"] { background: rgba(231,76,60,.16) !important; color: #ffb3ab !important; }
+
+/* Janelas e calendário: fundo opaco (o do site, quando detetado) */
+html[data-embed][data-sp-theme="dark"] .pn-dialog { border: 1px solid var(--line); background: var(--surface); color: #fff; }
+html[data-embed][data-sp-theme="dark"] .pn-dialog::backdrop { background: rgba(0,0,0,.7); }
+html[data-embed][data-sp-theme="dark"] .pn-dialog p { color: rgba(255,255,255,.8); }
+html[data-embed][data-sp-theme="dark"] .pn-dialog-close { border-color: var(--line); background: transparent; color: #fff; }
+html[data-embed][data-sp-theme="dark"] .pn-dialog .pn-lines { border-top-color: var(--line); }
+html[data-embed][data-sp-theme="dark"] .pn-amenities li::before { color: var(--link); }
+html[data-embed][data-sp-theme="dark"] :is(.pn-unit-photos, .pn-gallery-grid) img { background: rgba(255,255,255,.06); }
+html[data-embed][data-sp-theme="dark"] .date-pop { box-shadow: 0 18px 44px rgba(0,0,0,.55); }
+
+/* ── Telemóvel ─────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  html[data-layout="novo"][data-embed] { scroll-padding-bottom: 0; }
+  html[data-layout="novo"][data-embed] .booking-page { padding-bottom: 16px; }
+  html[data-layout="novo"][data-embed] .booking-shell { padding: 0; }
+  html[data-layout="novo"][data-embed] .booking-form { padding: 0; }
+  html[data-layout="novo"][data-embed] .pn-hero { margin: 0; min-height: 200px; }
+  html[data-layout="novo"][data-embed] .pn-guests { grid-template-columns: 1fr 1fr; gap: 0; }
+  /* A barra com o total e os botões fica no fim do formulário (no iframe, que
+     é tão alto como o conteúdo, uma barra fixa ficava lá também, depois de um
+     espaço vazio). A barra fixa no ecrã é desenhada pelo carregador, na
+     página de fora (embed.js), enquanto esta não está à vista. */
+  html[data-layout="novo"][data-embed] .booking-card { display: flex; flex-direction: column; }
+  html[data-layout="novo"][data-embed] .booking-card > .pn-steps { order: 0; }
+  html[data-layout="novo"][data-embed] .booking-card > .booking-grid { order: 1; }
+  html[data-layout="novo"][data-embed] .flow-mobile-slot { order: 2; position: static; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px 12px;
+    margin: 24px 0 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--sp-radius); background: var(--surface-card, var(--paper)); box-shadow: none; }
+  html[data-layout="novo"][data-embed] .flow-mobile-slot [data-flow-controls] { display: contents; }
+  html[data-layout="novo"][data-embed] #step-error { position: static; grid-column: 1 / -1; order: -1; margin: 0 !important; box-shadow: none; }
+  html[data-layout="novo"][data-embed] .flow-mobile-slot .form-actions { margin: 0; }
+}
+@media (max-width: 420px) {
+  html[data-layout="novo"][data-embed] .pn-steps li { font-size: 11.5px; }
+  html[data-layout="novo"][data-embed][data-sp-upper="1"] .pn-steps li { font-size: 10.5px; letter-spacing: .1em; }
+  html[data-layout="novo"][data-embed] .pn-guests label { padding: 10px 12px; }
+}
+@media (min-width: 1100px) {
+  html[data-layout="novo"][data-embed] .pn-hero { min-height: 360px; padding: 32px 48px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-layout="novo"][data-embed] .summary-panel { transition: none; }
+}

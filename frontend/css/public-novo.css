@@ -234,30 +234,5 @@ html[data-layout="novo"] .confirmation-return { display: block; padding: 14px 18
   html[data-layout="novo"] .flow-mobile-slot #next-btn { padding: 13px 16px; }
 }
 
-/* ── Dentro do site do cliente (iframe, /reservar/<slug>?embed=1) ─────────
-   O servidor marca <html data-embed>. Sem o nosso topo, fundo transparente
-   (fica o do site do cliente) e sem 100vh: a altura do iframe segue o
-   conteúdo (js/features/public-reservation/embed.js). */
-html[data-embed] { background: transparent; }
-html[data-layout="novo"][data-embed] body { background: transparent; min-height: 0; }
-html[data-layout="novo"][data-embed] .booking-page { min-height: 0; padding-bottom: 24px; }
-html[data-layout="novo"][data-embed] .pn-topbar { display: none; }
-html[data-layout="novo"][data-embed] .pn-hero { margin: 0 20px; min-height: 260px; border-radius: 16px; }
-html[data-layout="novo"][data-embed] .pn-intro { padding-top: 4px; }
-/* As janelas (fotos, ficha do quarto) abrem no topo do iframe, que a página
-   de fora leva à vista; ao centro podiam ficar fora do ecrã. */
-html[data-embed] .pn-dialog { margin-top: 16px; }
-html[data-embed] .sp-embed-done { max-width: 560px; margin: 24px auto; padding: 32px 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); text-align: center; }
-html[data-embed] .sp-embed-done h2 { margin: 8px 0 10px; font-size: 28px; outline: none; }
-html[data-embed] .sp-embed-done p { margin: 0 0 12px; color: var(--muted); }
-html[data-embed] .sp-embed-done-mark { display: inline-grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--ok-bg); color: var(--ok); font-size: 24px; font-weight: 700; }
-html[data-embed] .sp-embed-done-link { display: inline-flex; align-items: center; gap: 6px; margin: 8px 0 12px; text-decoration: none; }
-html[data-embed] .sp-embed-done-note { font-size: 13px; }
-@media (min-width: 1100px) {
-  html[data-layout="novo"][data-embed] .pn-hero { min-height: 360px; padding: 32px 48px; }
-}
-@media (max-width: 900px) {
-  /* Espaço para a barra com o total e os botões, no fim do iframe. */
-  html[data-layout="novo"][data-embed] .booking-page { padding-bottom: 96px; }
-  html[data-layout="novo"][data-embed] .pn-hero { margin: 0 16px; min-height: 200px; }
-}
+/* Dentro do site do cliente (iframe, /reservar/<slug>?embed=1): public-embed.css,
+   que o servidor só acrescenta a essa página. */

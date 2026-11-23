@@ -8,7 +8,17 @@
 //  - { type: 'sp-embed-step', step }      mudou de passo: a página de fora
 //    leva o topo do iframe à vista;
 //  - { type: 'sp-embed-scroll' }          abriu uma janela (fotos, quarto) ou
-//    a confirmação: idem.
+//    a confirmação: idem;
+//  - { type: 'sp-embed-bar', bar }        no telemóvel, o total e o botão
+//    «Continuar» para a barra fixa que o carregador desenha na página de fora
+//    (uma barra fixa dentro de um iframe alto ficava no fim do iframe, longe
+//    do ecrã).
+//
+// Mensagens da página de fora (só de window.parent):
+//  - { type: 'sp-embed-action', action: 'next' | 'prev' }  botões da barra;
+//  - { type: 'sp-embed-viewport', top, height }  zona do iframe à vista, para
+//    manter o resumo «A sua reserva» à vista no computador (position: sticky
+//    não funciona: o iframe não tem deslocamento próprio).
 (() => {
 const active = document.documentElement.dataset.embed === '1' && window.parent !== window;
 const marked = document.documentElement.dataset.embed === '1';
@@ -55,6 +65,8 @@ function sendHeight() {
     if (Math.abs(height - lastHeight) < 2) return;
     lastHeight = height;
     post({ type: 'sp-embed-height', height });
+    sendBar();
+    placeSummary();
   });
 }
 // No máximo uma mensagem a cada 100 ms.
@@ -63,8 +75,113 @@ function scheduleHeight() {
   timer = setTimeout(sendHeight, 100);
 }
 
+// ── Barra do telemóvel na página de fora ──────────────────────────────────
+const mobileQuery = window.matchMedia('(max-width: 900px)');
+const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+let lastBar = '';
+let barFrame = 0;
+function barState() {
+  const slot = document.querySelector('.flow-mobile-slot');
+  const next = document.getElementById('next-btn');
+  const prev = document.getElementById('prev-btn');
+  const done = Boolean(document.querySelector('.sp-embed-done'));
+  const error = document.getElementById('step-error');
+  const rect = slot?.getBoundingClientRect();
+  const step = Number(document.body.dataset.bookingStep) || 1;
+  return {
+    mobile: mobileQuery.matches,
+    visible: Boolean(slot && next && !done && rect && rect.height > 0),
+    total: (document.getElementById('pn-bar-total')?.textContent || '').trim().slice(0, 60),
+    label: (document.getElementById('pn-bar-sub')?.textContent || '').trim().slice(0, 80),
+    button: (next?.textContent || 'Continuar').trim().slice(0, 40),
+    enabled: Boolean(next && !next.disabled),
+    back: Boolean(prev && step > 1 && !prev.disabled),
+    error: error && error.style.display !== 'none' ? (error.textContent || '').trim().slice(0, 200) : '',
+    barTop: rect ? Math.round(rect.top + window.scrollY) : 0,
+    barHeight: rect ? Math.round(rect.height) : 0,
+    theme: document.documentElement.dataset.spTheme === 'dark' ? 'dark' : 'light',
+    accent: cssVar('--sp-accent'),
+    onAccent: cssVar('--sp-on-accent'),
+    surface: cssVar('--sp-surface'),
+    square: document.documentElement.dataset.spCorners === 'square',
+    upper: document.documentElement.dataset.spUpper === '1',
+  };
+}
+function sendBar() {
+  cancelAnimationFrame(barFrame);
+  barFrame = requestAnimationFrame(() => {
+    const bar = barState();
+    const key = JSON.stringify(bar);
+    if (key === lastBar) return;
+    lastBar = key;
+    post({ type: 'sp-embed-bar', bar });
+  });
+}
+
+// ── Resumo à vista no computador ──────────────────────────────────────────
+let summaryFrame = 0;
+let viewport = null;
+function placeSummary() {
+  cancelAnimationFrame(summaryFrame);
+  summaryFrame = requestAnimationFrame(() => {
+    const panel = document.querySelector('.summary-panel');
+    const grid = panel?.parentElement;
+    if (!panel || !grid) return;
+    if (!viewport || mobileQuery.matches) { panel.style.transform = ''; return; }
+    const gridTop = grid.getBoundingClientRect().top + window.scrollY;
+    const room = grid.offsetHeight - panel.offsetHeight;
+    const wanted = viewport.top + 16 - gridTop;
+    const y = Math.max(0, Math.min(room, wanted));
+    panel.style.transform = y > 0 ? `translateY(${Math.round(y)}px)` : '';
+  });
+}
+
+function onParentMessage(event) {
+  if (event.source !== window.parent) return;
+  if (target !== '*' && event.origin !== target) return;
+  const data = event.data;
+  if (!data || typeof data !== 'object' || data.source !== 'santa-paciencia-host') return;
+  if (data.type === 'sp-embed-action') {
+    const button = document.getElementById(data.action === 'prev' ? 'prev-btn' : data.action === 'next' ? 'next-btn' : '');
+    if (button && !button.disabled) button.click();
+  } else if (data.type === 'sp-embed-viewport') {
+    const top = Number(data.top);
+    const height = Number(data.height);
+    if (!Number.isFinite(top) || !Number.isFinite(height)) return;
+    viewport = { top, height };
+    placeSummary();
+  } else if (data.type === 'sp-embed-hello') {
+    lastBar = '';
+    sendBar();
+  }
+}
+
+// Textos próprios da página incorporada.
+const SHORT_STEPS = { 1: 'Datas', 2: 'Dados', 3: 'Confirmar' };
+function embedTexts() {
+  const kicker = document.querySelector('.summary-kicker');
+  if (kicker) kicker.textContent = 'A sua reserva';
+  // Nome curto dos passos para o telemóvel (o CSS escolhe qual se vê).
+  document.querySelectorAll('.pn-steps li[data-step-dot]').forEach(li => {
+    const short = SHORT_STEPS[li.dataset.stepDot];
+    if (!short || li.querySelector('.sp-long')) return;
+    const long = document.createElement('span');
+    long.className = 'sp-long';
+    long.textContent = li.textContent;
+    const brief = document.createElement('span');
+    brief.className = 'sp-short';
+    brief.textContent = short;
+    li.replaceChildren(long, brief);
+  });
+}
+
 function watch() {
+  embedTexts();
   if (!active) return;
+  window.addEventListener('message', onParentMessage);
+  const slot = document.querySelector('.flow-mobile-slot');
+  if (slot) new MutationObserver(sendBar).observe(slot, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['style', 'disabled'] });
+  if (mobileQuery.addEventListener) mobileQuery.addEventListener('change', () => { sendBar(); placeSummary(); });
   if (window.ResizeObserver) {
     const observer = new ResizeObserver(scheduleHeight);
     observer.observe(document.body);
@@ -80,6 +197,8 @@ function watch() {
         const next = document.body.dataset.bookingStep || '';
         if (next && step && next !== step) post({ type: 'sp-embed-step', step: Number(next) });
         step = next;
+        sendBar();
+        placeSummary();
       }
       if (record.type === 'childList') {
         if ([...record.addedNodes].some(node => node.nodeType === 1 && node.matches('dialog'))) post({ type: 'sp-embed-scroll' });
@@ -127,6 +246,7 @@ function showConfirmation({ token, reference, brand, total }) {
   card.querySelector('h2')?.focus({ preventScroll: true });
   post({ type: 'sp-embed-scroll' });
   scheduleHeight();
+  sendBar();
 }
 
 if (marked) {

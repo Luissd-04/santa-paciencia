@@ -277,7 +277,7 @@ AppActions.register({
 
 
 // ── No teu site (reservas dentro do site do cliente; API em /api/embed) ──
-const site = { data: null, origins: [] };
+const site = { data: null, origins: [], style: null };
 const SITE_STEPS = [
   'No WordPress, crie uma <strong>Página nova</strong> (por exemplo «Reservas»).',
   'Acrescente o bloco <strong>HTML personalizado</strong> (no Elementor, o widget <strong>HTML</strong>).',
@@ -334,6 +334,170 @@ function linkRows(accs) {
   }).join('');
 }
 
+// ── Aspeto da página incorporada (só no site do cliente) ──
+// Cada opção tem «Automático (do site)»: o carregador (/embed.js) lê o estilo
+// do site e o servidor usa-o nos campos que estiverem em automático.
+const FONT_LABEL = { auto: 'Automático (do site)', platform: 'A da plataforma (Inter e Playfair Display)' };
+const DEFAULT_LOOK = { theme: 'auto', font: 'auto', corners: 'auto', accent: 'auto', uppercaseLabels: 'auto', startAtDates: false };
+const HEX6 = /^#[0-9a-f]{6}$/i;
+
+function lookOf() {
+  return { ...DEFAULT_LOOK, ...(site.style || site.data?.style || {}) };
+}
+
+// O que a página vai mostrar: o escolhido, senão o detetado, senão o da plataforma.
+function effectiveLook() {
+  const s = lookOf();
+  const seen = site.data?.detected?.values || {};
+  const theme = s.theme !== 'auto' ? s.theme : seen.theme || 'light';
+  const lum = hex => { const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const bgFits = HEX6.test(seen.bg || '') && (theme === 'dark' ? lum(seen.bg) < 0.2 : lum(seen.bg) > 0.6);
+  const family = s.font !== 'auto' ? (s.font === 'platform' ? '' : s.font) : seen.font?.family || '';
+  const generic = s.font !== 'auto' ? '' : (!seen.font?.family && seen.font?.generic) || '';
+  return {
+    theme,
+    bg: bgFits ? seen.bg : theme === 'dark' ? '#151719' : '#fffdf9',
+    accent: s.accent !== 'auto' && HEX6.test(s.accent) ? s.accent : HEX6.test(seen.accent || '') ? seen.accent : site.data?.default_accent || '#843424',
+    family, generic,
+    square: s.corners !== 'auto' ? s.corners === 'square' : Number.isInteger(seen.radius) ? seen.radius <= 1 : false,
+    upper: s.uppercaseLabels !== 'auto' ? s.uppercaseLabels === true : seen.uppercase === true,
+  };
+}
+
+function detectedText() {
+  const d = site.data?.detected;
+  if (!d?.values) return '';
+  const v = d.values;
+  const parts = [];
+  if (v.theme) parts.push(v.theme === 'dark' ? 'fundo escuro' : 'fundo claro');
+  if (v.font) parts.push(`letra ${v.font.family || (v.font.generic === 'serif' ? 'com serifa' : 'sem serifa')}`);
+  if (v.accent) parts.push(`cor ${v.accent.toUpperCase()}`);
+  if (Number.isInteger(v.radius)) parts.push(v.radius <= 1 ? 'cantos retos' : 'cantos arredondados');
+  if (v.uppercase !== undefined) parts.push(v.uppercase ? 'maiúsculas' : 'sem maiúsculas');
+  return parts.length ? `${parts.join(' · ')} (${d.origin})` : '';
+}
+
+function seg(field, options, value) {
+  const { esc } = u();
+  return `<div class="prop-seg" role="group">${options.map(([v, label]) => `<button type="button" class="prop-seg-btn" aria-pressed="${String(v) === String(value)}" ${AppActions.attrs('click', 'prop-aspeto-set', [field, String(v)])}>${esc(label)}</button>`).join('')}</div>`;
+}
+
+function aspetoCard() {
+  const { esc } = u();
+  const s = lookOf();
+  const fonts = ['auto', 'platform', ...(site.data.style_options?.fonts || [])];
+  const accent = HEX6.test(s.accent) ? s.accent : effectiveLook().accent;
+  const seen = detectedText();
+  return `<section class="card prop-card prop-aspeto" data-prop-aspeto>
+      <h3>Aspeto</h3>
+      <p class="prop-muted">Muda só a página dentro do seu site, não a página normal de reservas. Em «Automático», copia o estilo do site onde o código está colado.</p>
+      <div class="prop-aspeto-grid">
+        <div class="prop-aspeto-form">
+          <div class="prop-aspeto-row"><span class="form-label">Tema</span>${seg('theme', [['auto', 'Automático (do site)'], ['light', 'Claro'], ['dark', 'Escuro']], s.theme)}</div>
+          <label class="form-group prop-field prop-aspeto-row"><span class="form-label">Letra</span>
+            <select class="form-control" name="aspeto-font" ${AppActions.attrs('change', 'prop-aspeto-font', [])}>${fonts.map(f => `<option value="${esc(f)}" ${f === s.font ? 'selected' : ''}>${esc(FONT_LABEL[f] || f)}</option>`).join('')}</select></label>
+          <div class="prop-aspeto-row"><span class="form-label">Cantos</span>${seg('corners', [['auto', 'Automático (do site)'], ['rounded', 'Arredondados'], ['square', 'Retos']], s.corners)}</div>
+          <div class="prop-aspeto-row"><span class="form-label">Cor de destaque</span>
+            ${seg('accent', [['auto', 'Automático (do site)'], ['custom', 'Escolher']], s.accent === 'auto' ? 'auto' : 'custom')}
+            <div class="prop-color-row prop-aspeto-color" ${s.accent === 'auto' ? 'hidden' : ''}>
+              <input type="color" value="${esc(accent)}" aria-label="Cor de destaque" data-aspeto-color ${AppActions.attrs('input', 'prop-aspeto-accent', [])}>
+              <input class="form-control prop-aspeto-hex" value="${esc(accent.toUpperCase())}" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Cor de destaque em hexadecimal" data-aspeto-hex ${AppActions.attrs('input', 'prop-aspeto-accent', [])}>
+            </div>
+            <small class="prop-hint">Use a cor dos botões do seu site. Sem escolha, a cor principal da conta.</small></div>
+          <div class="prop-aspeto-row"><span class="form-label">Etiquetas e botões em maiúsculas espaçadas</span>${seg('uppercaseLabels', [['auto', 'Automático (do site)'], ['true', 'Sim'], ['false', 'Não']], s.uppercaseLabels)}</div>
+          <label class="prop-check"><input type="checkbox" ${s.startAtDates ? 'checked' : ''} ${AppActions.attrs('change', 'prop-aspeto-start', [])}> Começar logo nas datas (sem a fotografia de topo)</label>
+          <p class="prop-error" role="alert" data-aspeto-error hidden></p>
+          <div class="prop-actions prop-start"><button type="button" class="btn btn-primary" ${AppActions.attrs('click', 'prop-aspeto-save', [])}>${u().ic('save', 15)} Guardar aspeto</button></div>
+        </div>
+        <div class="prop-aspeto-side">
+          <span class="prop-aspeto-kicker">Pré-visualização</span>
+          <div class="prop-aspeto-preview" data-aspeto-preview aria-hidden="true">
+            <div class="pv-h">Quando quer vir?</div>
+            <div class="pv-dates"><div><span class="pv-l">Entrada</span>25 nov</div><div><span class="pv-l">Saída</span>28 nov</div></div>
+            <div class="pv-room"><span>Casa inteira</span><span>1 650 €</span></div>
+            <div class="pv-btn">Continuar</div>
+          </div>
+          <p class="prop-hint" data-aspeto-seen>${seen ? `Detetado no seu site: ${esc(seen)}` : 'Ainda não foi detetado o estilo do seu site: aparece aqui depois de alguém abrir a página com o código colado.'}</p>
+        </div>
+      </div>
+    </section>`;
+}
+
+// Carrega a letra da lista no Google Fonts para a pré-visualização.
+function loadPreviewFont(name) {
+  if (!name || !(site.data.style_options?.fonts || []).concat(site.data?.detected?.values?.font?.family || []).includes(name)) return;
+  const id = `prop-aspeto-font-${name.replace(/[^a-z0-9]/gi, '-')}`;
+  if (document.getElementById(id)) return;
+  const link = document.createElement('link');
+  link.id = id;
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(name).replace(/%20/g, '+')}&display=swap`;
+  document.head.append(link);
+}
+
+function paintPreview(panel) {
+  const box = panel.querySelector('[data-aspeto-preview]');
+  if (!box) return;
+  const look = effectiveLook();
+  loadPreviewFont(look.family);
+  const dark = look.theme === 'dark';
+  const ink = dark ? '#ffffff' : '#23313b';
+  const muted = dark ? 'rgba(255,255,255,.66)' : '#6f665d';
+  const line = dark ? 'rgba(255,255,255,.22)' : '#e4d9c9';
+  const font = look.family ? `'${look.family}', ${look.generic === 'serif' ? 'Georgia, serif' : 'system-ui, sans-serif'}`
+    : look.generic === 'serif' ? 'Georgia, serif' : look.generic ? 'system-ui, sans-serif' : 'Inter, system-ui, sans-serif';
+  const radius = look.square ? '0' : '10px';
+  const rgb = [1, 3, 5].map(i => parseInt(look.accent.slice(i, i + 2), 16) / 255).map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  const onAccent = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) > 0.18 ? '#111111' : '#ffffff';
+  Object.assign(box.style, { background: look.bg, color: ink, fontFamily: font, borderColor: line });
+  const heading = box.querySelector('.pv-h');
+  heading.style.fontFamily = look.family || look.generic ? font : '"Playfair Display", Georgia, serif';
+  heading.style.fontWeight = look.family || look.generic ? '400' : '700';
+  box.querySelectorAll('.pv-l').forEach(el => Object.assign(el.style, { color: muted, textTransform: look.upper ? 'uppercase' : 'none', letterSpacing: look.upper ? '.12em' : '0' }));
+  Object.assign(box.querySelector('.pv-dates').style, { borderColor: line, borderRadius: radius });
+  box.querySelector('.pv-dates > div').style.borderColor = line;
+  Object.assign(box.querySelector('.pv-room').style, { borderColor: look.accent, borderRadius: radius });
+  Object.assign(box.querySelector('.pv-btn').style, { background: look.accent, color: onAccent, borderRadius: radius,
+    textTransform: look.upper ? 'uppercase' : 'none', letterSpacing: look.upper ? '.08em' : '0' });
+}
+
+function setLook(panel, patch, redraw = true) {
+  site.style = { ...lookOf(), ...patch };
+  if (redraw) {
+    const card = panel.querySelector('[data-prop-aspeto]');
+    if (card) {
+      card.outerHTML = aspetoCard();
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+  paintPreview(panel);
+}
+
+async function saveLook(el) {
+  const panel = el.closest('[data-prop-panel]');
+  const error = panel.querySelector('[data-aspeto-error]');
+  error.hidden = true;
+  const look = lookOf();
+  if (look.accent !== 'auto' && !HEX6.test(look.accent)) {
+    error.textContent = 'A cor de destaque tem de estar no formato #RRGGBB.';
+    error.hidden = false;
+    return;
+  }
+  AppUI.setButtonLoading(el, true, 'A guardar…');
+  try {
+    site.data = (await core().apiPut('/api/embed/settings', { style: look })).data;
+    site.style = { ...site.data.style };
+    drawSite(panel);
+    paintPreview(panel);
+    if (window.lucide) lucide.createIcons();
+    core().toast('✅ Aspeto guardado.', 'success');
+  } catch (e) {
+    AppUI.setButtonLoading(el, false);
+    error.textContent = u().errText(e, 'Não foi possível guardar.');
+    error.hidden = false;
+  }
+}
+
 function drawSite(panel) {
   const { esc, ic, head, notice } = u();
   const d = site.data;
@@ -380,6 +544,7 @@ function drawSite(panel) {
       <p class="prop-error" role="alert" hidden></p>
       <div class="prop-actions"><button type="button" class="btn btn-primary" ${AppActions.attrs('click', 'prop-site-save', [])}>${ic('save', 15)} Guardar</button></div>
     </section>
+    ${aspetoCard()}
     <section class="card prop-card">
       <h3>${ic('code-xml', 16)} Código para colar</h3>
       <p class="prop-muted">Um por alojamento. Cole-o num bloco que aceite HTML.</p>
@@ -393,7 +558,8 @@ function drawSite(panel) {
     <section class="card prop-card">
       <h3>${ic('list-checks', 16)} Passo a passo no WordPress</h3>
       <ol class="prop-steps">${SITE_STEPS.map(s => `<li>${s}</li>`).join('')}</ol>
-      <div class="prop-site-notes">${notice('info', 'O pagamento abre numa página nossa, num separador novo.', 'info')}
+      <div class="prop-site-notes">${notice('info', 'Escolha um modelo de página sem barra lateral (por exemplo «Largura total» ou «Elementor — tela inteira») e apague os blocos de exemplo do tema (pesquisa, comentários recentes, arquivo), para o formulário ocupar a largura toda.', 'info')}
+        ${notice('info', 'O pagamento abre numa página nossa, num separador novo.', 'info')}
         ${notice('info', 'O conteúdo das reservas não conta para o SEO do seu site (o Google lê-o como parte da nossa página).', 'info')}</div>
     </section>`;
 }
@@ -401,7 +567,9 @@ function drawSite(panel) {
 P().defineSection('site', async panel => {
   site.data = (await core().apiGet('/api/embed/settings')).data;
   site.origins = [...(site.data.origins || [])];
+  site.style = site.data.style ? { ...site.data.style } : null;
   drawSite(panel);
+  paintPreview(panel);
 });
 
 function addOrigin(form) {
@@ -414,6 +582,7 @@ function addOrigin(form) {
     if (!site.origins.includes(origin)) site.origins.push(origin);
     if (site.origins.length > site.data.max_origins) { site.origins.pop(); throw new Error(`No máximo ${site.data.max_origins} sites autorizados.`); }
     drawSite(panel);
+    paintPreview(panel);
     if (window.lucide) lucide.createIcons();
     panel.querySelector('[name="origin"]')?.focus();
   } catch (e) {
@@ -434,6 +603,7 @@ async function saveOrigins(el) {
     site.data = (await core().apiPut('/api/embed/settings', { origins: site.origins })).data;
     site.origins = [...site.data.origins];
     drawSite(panel);
+    paintPreview(panel);
     if (window.lucide) lucide.createIcons();
     core().toast('✅ Sites autorizados guardados.', 'success');
   } catch (e) {
@@ -454,10 +624,48 @@ AppActions.register({
     const panel = el.closest('[data-prop-panel]');
     site.origins.splice(Number(args[0]), 1);
     drawSite(panel);
+    paintPreview(panel);
     if (window.lucide) lucide.createIcons();
   },
   'prop-site-save': el => saveOrigins(el),
   'prop-site-plan': () => P().showSection('plano'),
+  'prop-aspeto-set': (el, event, args) => {
+    const panel = el.closest('[data-prop-panel]');
+    const [field, value] = args;
+    if (field === 'accent') {
+      const current = lookOf().accent;
+      setLook(panel, { accent: value === 'auto' ? 'auto' : HEX6.test(current) ? current : effectiveLook().accent });
+    } else if (field === 'uppercaseLabels') {
+      setLook(panel, { uppercaseLabels: value === 'auto' ? 'auto' : value === 'true' });
+    } else if (['theme', 'corners'].includes(field)) {
+      setLook(panel, { [field]: value });
+    }
+  },
+  'prop-aspeto-save': el => saveLook(el),
 }, 'click');
+
+AppActions.register({
+  'prop-aspeto-font': el => setLook(el.closest('[data-prop-panel]'), { font: el.value }, false),
+  'prop-aspeto-start': el => setLook(el.closest('[data-prop-panel]'), { startAtDates: el.checked }, false),
+}, 'change');
+
+AppActions.register({
+  // Seletor de cor e campo #RRGGBB acertam-se um ao outro.
+  'prop-aspeto-accent': el => {
+    const panel = el.closest('[data-prop-panel]');
+    let value = el.value.trim();
+    if (el.matches('[data-aspeto-hex]') && /^[0-9a-f]{6}$/i.test(value)) value = `#${value}`;
+    const valid = HEX6.test(value);
+    el.classList.toggle('is-invalid', !valid);
+    if (el.matches('[data-aspeto-hex]')) {
+      if (valid) panel.querySelector('[data-aspeto-color]').value = value.toLowerCase();
+    } else {
+      const hex = panel.querySelector('[data-aspeto-hex]');
+      hex.value = value.toUpperCase();
+      hex.classList.remove('is-invalid');
+    }
+    setLook(panel, { accent: valid ? value.toLowerCase() : value }, false);
+  },
+}, 'input');
 
 })();
