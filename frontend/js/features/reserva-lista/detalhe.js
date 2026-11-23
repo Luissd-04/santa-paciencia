@@ -202,6 +202,34 @@ async function showDetail(id, opts = {}) {
     const otherLines = [...services, ...taxes].map(s => `
               <div class="rf-line"><span>${esc(s.name)}${s.formula ? `<span class="rf-formula">${esc(s.formula)}</span>` : ''}</span><span class="rdv2-amt">${fmt(s.total)}</span></div>`).join('');
     const policy = r.payment_policy;
+    // Bloco "Política de pagamento": linhas rótulo/valor em vez de uma frase corrida.
+    const policyHtml = (() => {
+      if (!policy) return '';
+      const row = (label, value, note = '') => `<div class="rf-prow"><span class="rf-plabel">${label}</span><span class="rf-pval">${value}${note ? `<small>${note}</small>` : ''}</span></div>`;
+      const badge = (text, tone) => `<span class="badge badge-${tone}">${text}</span>`;
+      const depositDue = (policy.depositCents || 0) / 100;
+      const depositPaid = paid + 0.005 >= depositDue && depositDue > 0;
+      const refundBadge = { complete: badge('Concluído', 'confirmada'), manual_review: badge('Precisa de revisão manual', 'cancelada') }[policy.cancellation?.state] || badge('Em processamento', 'pendente');
+      const rows = [];
+      if (policy.cancellation) {
+        rows.push(row('Pago', `<b>${fmt(paid)}</b>`));
+        rows.push(row('Reembolso', `<b>${fmt(policy.cancellation.amount)}</b> ${refundBadge}`));
+      } else {
+        rows.push(row('Sinal', `<b>${fmt(depositDue)}</b>${depositPaid ? ` ${badge('Pago', 'confirmada')}` : ''}`,
+          !depositPaid && r.deposit_deadline ? `até ${esc(D.formatDateTime(r.deposit_deadline))}` : ''));
+        rows.push(policy.balanceCents
+          ? row('Restante', `<b>${fmt(policy.balanceCents / 100)}</b>`, `até ${esc(D.formatDateTime(policy.dueAt))}`)
+          : row('Restante', '—', 'sinal de 100 %'));
+        rows.push(row('Condições', policy.accepted ? badge('Aceites', 'confirmada') : badge('Por aceitar', 'pendente')));
+        rows.push(row('Se cancelar hoje', `<b>${fmt(policy.refundCents / 100)}</b>`, paid > 0.005 ? `${esc(policy.refundPercent)} % do que foi pago` : 'ainda sem pagamentos'));
+      }
+      if (r.balance_deadline) rows.push(row('Prazo adicional', esc(D.formatDateTime(r.balance_deadline))));
+      return `<div class="rf-policy" role="group" aria-label="Política de pagamento">
+              <h4 class="rf-policy-title">Política de pagamento</h4>
+              ${rows.join('')}
+              ${paymentPageUrl ? `<button class="rf-link-btn" ${AppActions.attrs('click', 'detalhe-write-text-8f51584', [paymentPageUrl])}>${ic('copy', 12)} Copiar link da reserva e pagamento</button>` : ''}
+            </div>`;
+    })();
     const invoiceText = r.invoice_number
       ? `nº ${esc(r.invoice_number)}${r.invoice_sent_date ? ` · enviada ${sd(r.invoice_sent_date)}` : r.invoice_date ? ` · ${sd(r.invoice_date)}` : ''}`
       : 'por registar';
@@ -320,13 +348,7 @@ async function showDetail(id, opts = {}) {
                   </div>
                 </div>`).join('')}
             </div>` : '<div class="rdv2-pay-empty">Sem pagamentos registados</div>'}
-            ${policy ? `<div class="rf-policy">
-              Política: inicial <strong>${fmt(policy.depositCents / 100)}</strong>${policy.balanceCents ? ` · restante <strong>${fmt(policy.balanceCents / 100)}</strong> até <strong>${esc(D.formatDateTime(policy.dueAt))}</strong>` : ''}
-              · ${policy.accepted ? 'condições aceites pelo hóspede' : 'condições ainda não aceites pelo hóspede'}
-              · ${policy.cancellation ? `reembolso previsto no cancelamento: <strong>${fmt(policy.cancellation.amount)}</strong> (${policy.cancellation.state === 'complete' ? 'concluído' : policy.cancellation.state === 'manual_review' ? 'precisa de revisão manual' : 'em processamento'})` : `reembolso se cancelar agora: <strong>${fmt(policy.refundCents / 100)} (${policy.refundPercent}%)</strong>`}
-              ${r.balance_deadline ? ` · prazo adicional: ${esc(D.formatDateTime(r.balance_deadline))}` : ''}
-              ${paymentPageUrl ? `<button class="rf-link-btn" ${AppActions.attrs('click', 'detalhe-write-text-8f51584', [paymentPageUrl])}>${ic('copy', 12)} Copiar link da reserva e pagamento</button>` : ''}
-            </div>` : ''}
+            ${policyHtml}
           </section>
 
           ${r.notes ? `<section class="rf-card"><div class="rf-card-head"><h3>Notas</h3></div><p class="rf-notes">${esc(r.notes)}</p></section>` : ''}
