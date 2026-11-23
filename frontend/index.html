@@ -164,12 +164,15 @@
 
   <!-- SIDEBAR -->
   <aside class="sidebar" id="main-sidebar">
-    <button class="sb-collapse-btn" data-on-click="index-toggle-sidebar-collapse-ad76e3e" title="Expandir/recolher menu">
-      <i data-lucide="panel-left-close" style="width:18px;height:18px;"></i>
-    </button>
-    <div class="sidebar-brand">
-      <h1 class="sb-label">Santa Paciência</h1>
-      <p class="sb-label">Gestão de Alojamento</p>
+    <div class="sidebar-brand" id="sidebar-brand">
+      <!-- Versão pequena (menu recolhido); o conteúdo vem de renderSidebarBrand() em js/app.js -->
+      <div class="sb-mini" id="sb-brand-mini" aria-hidden="true"></div>
+      <div class="sb-brand-row">
+        <div class="sb-brand-id" id="sb-brand-id"></div>
+        <button class="sb-collapse-btn" data-on-click="index-toggle-sidebar-collapse-ad76e3e" title="Expandir/recolher menu" aria-label="Expandir/recolher menu">
+          <i data-lucide="panel-left-close" style="width:18px;height:18px;"></i>
+        </button>
+      </div>
     </div>
     <nav class="sidebar-nav" aria-label="Menu principal"><!-- Itens gerados por js/menu.js (NAV_ITEMS) --></nav>
     <div class="sidebar-settings-nav">

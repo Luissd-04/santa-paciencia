@@ -16,6 +16,7 @@ AppModules.define('core', {
   fillAccommodationControls: { get: () => fillAccommodationControls },
   initApp: { get: () => initApp },
   loadAccommodations: { get: () => loadAccommodations },
+  renderSidebarBrand: { get: () => renderSidebarBrand },
   novaReserva: { get: () => novaReserva },
   quickActionNovaNotificacao: { get: () => quickActionNovaNotificacao },
   quickActionNovaReserva: { get: () => quickActionNovaReserva },
@@ -394,12 +395,49 @@ async function loadAccommodations() {
     const data = await AppModules.core.apiGet('/api/accommodations');
     AppModules.core.accommodations = data.data || [];
     fillAccommodationControls();
+    renderSidebarBrand();
     AppUI.refreshDropdowns(document);
     // A vista de Alojamentos só é redesenhada se já tiver sido aberta.
     if (typeof AppModules.alojamentos.renderAlojamentos === 'function') { AppModules.alojamentos.renderAlojamentos(); AppModules.alojamentos.initAlojDrag(); }
   } catch (e) {
+    renderSidebarBrand();
     AppModules.core.toast('❌ Erro ao carregar alojamentos.', 'error');
   }
+}
+
+// ── MARCA NO TOPO DA BARRA LATERAL ──
+// Ordem: logótipo da organização (campo ainda inexistente) → logótipo do
+// alojamento principal (o primeiro sem alojamento-pai) → nome da organização.
+function sidebarBrandInfo() {
+  const core = AppModules.core;
+  const user = core.currentUser || {};
+  const name = (user.organization_name || '').trim() || 'Alojamento';
+  const orgLogo = user.organization?.logo_url || user.organization_logo_url || '';
+  const main = (core.accommodations || []).find(a => !a.parent_id);
+  const logo = orgLogo || main?.logo_url || '';
+  const src = logo ? (/^(https?:|data:)/.test(logo) ? logo : (core.API_BASE || '') + logo) : '';
+  return { name, src };
+}
+
+function renderSidebarBrand() {
+  const id = document.getElementById('sb-brand-id');
+  const mini = document.getElementById('sb-brand-mini');
+  if (!id || !mini) return;
+  const { name, src } = sidebarBrandInfo();
+  const esc = AppModules.core.escapeHtml;
+  const initials = name.split(/\s+/).filter(w => w.length > 2 || /^[A-ZÀ-Ý]/.test(w) && w.length > 1).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+  const key = src + '|' + name;
+  if (id.dataset.brandKey === key) return;
+  id.dataset.brandKey = key;
+  id.innerHTML = src
+    ? `<img class="sb-logo" src="${esc(src)}" alt="${esc(name)}">`
+    : `<h1>${esc(name)}</h1><p>Gestão de Alojamento</p>`;
+  mini.innerHTML = `<span class="sb-mini-mark" title="${esc(name)}">${src ? `<img src="${esc(src)}" alt="">` : esc(initials)}</span>`;
+  // Se o logótipo não carregar, volta ao nome em texto.
+  id.querySelector('img')?.addEventListener('error', () => {
+    id.innerHTML = `<h1>${esc(name)}</h1><p>Gestão de Alojamento</p>`;
+    mini.innerHTML = `<span class="sb-mini-mark" title="${esc(name)}">${esc(initials)}</span>`;
+  }, { once: true });
 }
 
 // Os seletores de alojamento de cada vista. As vistas chegam depois do
@@ -409,8 +447,8 @@ function fillAccommodationControls(root = document) {
     const el = root.querySelector('#' + id);
     if (!el) return;
     const isFilter = id !== 'f-aloj' && id !== 'evento-accommodation';
-    const kept = el.value;
-    el.innerHTML = isFilter
+    const kept = el.multiple ? Array.from(el.selectedOptions).map(o => o.value).filter(Boolean) : [el.value];
+    el.innerHTML = isFilter && !el.multiple
       ? `<option value="">${id === 'eventos-list-acc-filter' ? 'Todos os alojamentos' : 'Todas as suites'}</option>`
       : (id === 'evento-accommodation' ? '<option value="">Sem alojamento</option>' : '');
     const frag = document.createDocumentFragment();
@@ -421,7 +459,8 @@ function fillAccommodationControls(root = document) {
       frag.appendChild(opt);
     });
     el.appendChild(frag);
-    if (isFilter && kept && [...el.options].some(o => o.value === kept)) el.value = kept;
+    if (el.multiple) [...el.options].forEach(o => { o.selected = kept.includes(o.value); });
+    else if (isFilter && kept[0] && [...el.options].some(o => o.value === kept[0])) el.value = kept[0];
   });
 }
 
@@ -783,17 +822,8 @@ let appEventsBound = false;
 async function initApp() {
   if (!appEventsBound) {
   appEventsBound = true;
-  const coverInput = document.getElementById('cover-input');
-  if (coverInput) coverInput.addEventListener('change', function () {
-    if (this.files[0]) AppModules.alojamentos.uploadCoverImage(this.files[0]);
-    this.value = '';
-  });
-  // Os dois inputs de ficheiro vivem na ficha do alojamento: as funções que os
-  // tratam só existem depois de a vista Alojamentos carregar, por isso são
-  // resolvidas no momento da escolha e não aqui.
-  const imgInput = document.getElementById('img-input');
-  if (imgInput) imgInput.addEventListener('change', event => AppModules.alojamentos.handleImgSelect(event));
-
+  // Os inputs de ficheiro da capa e da galeria vivem na ficha do alojamento,
+  // que só carrega depois: são tratados em features/alojamentos/galeria.js.
   }
   AppUI.enhanceSelects(document);
   await loadAccommodations();
@@ -801,9 +831,12 @@ async function initApp() {
   loadServicos();
   if (window.lucide) lucide.createIcons();
   if (localStorage.getItem('sbCollapsed') === '1') {
-    document.querySelector('.layout').classList.add('sb-collapsed');
+    const layout = document.querySelector('.layout');
+    // Sem animação ao arrancar: o estado guardado aplica-se de imediato.
+    layout.classList.add('sb-no-anim', 'sb-collapsed');
+    requestAnimationFrame(() => requestAnimationFrame(() => layout.classList.remove('sb-no-anim')));
     const icon = document.querySelector('.sb-collapse-btn i[data-lucide]');
-    if (icon) { icon.setAttribute('data-lucide', 'panel-left-open'); lucide.createIcons(); }
+    if (icon) { icon.setAttribute('data-lucide', 'panel-left-open'); if (window.lucide) lucide.createIcons(); }
   }
 
   let pathView = viewFromPath(window.location.pathname);
