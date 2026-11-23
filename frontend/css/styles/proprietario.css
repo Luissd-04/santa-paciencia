@@ -228,3 +228,28 @@ html[data-look] .prop-only h2 { font-family: var(--v2-head); }
 html[data-look] .settings-moved-note { color: var(--v2-muted); }
 html[data-look] .settings-moved-note a { color: var(--v2-accent); }
 html[data-look="classico"] .settings-moved-note a { color: #843424; }
+
+/* ── No teu site ── */
+.prop-site-title { margin: 10px 0 6px !important; }
+.prop-site-link, .prop-snip-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--pp-line); min-width: 0; }
+.prop-site-link:first-of-type { border-top: 0; }
+.prop-site-link .btn, .prop-snip-head .btn { flex-shrink: 0; }
+.prop-origins { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; min-height: 30px; align-items: center; }
+.prop-origin { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 2px 4px 2px 12px; border-radius: 999px; background: var(--pp-accent-soft); color: var(--pp-accent); font-size: 13px; font-weight: 600; }
+.prop-origin code { overflow-wrap: anywhere; background: none; color: inherit; font-size: inherit; }
+.prop-origin button { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
+.prop-origin button:hover, .prop-origin button:focus-visible { background: color-mix(in srgb, currentColor 15%, transparent); }
+.prop-origin-form { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
+.prop-origin-form .prop-field { flex: 1 1 240px; margin: 0; }
+.prop-snip { padding: 12px 0; border-top: 1px solid var(--pp-line); }
+.prop-snip:first-of-type { border-top: 0; }
+.prop-snip-head { border-top: 0; padding: 0 0 8px; }
+.prop-code { margin: 0; padding: 12px 14px; overflow-x: auto; border-radius: var(--pp-radius); background: var(--pp-soft); color: var(--pp-ink); font-size: 12.5px; line-height: 1.5; white-space: pre; }
+.prop-code code { background: none; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.prop-fallback { margin-top: 10px; font-size: 13.5px; }
+.prop-fallback summary { cursor: pointer; font-weight: 600; color: var(--pp-ink); min-height: 32px; display: flex; align-items: center; }
+.prop-steps { margin: 0 0 14px; padding-left: 22px; font-size: 14px; line-height: 1.6; color: var(--pp-ink); }
+.prop-site-notes { display: grid; gap: 8px; }
+@media (max-width: 767px) {
+  .prop-site-link { flex-wrap: wrap; }
+}

@@ -2,7 +2,7 @@
 // Coluna de secções à esquerda no computador; no telemóvel a lista é a página
 // inicial e cada secção abre no ecrã inteiro (as mesmas peças das Definições:
 // .settings-shell, .settings-nav, .settings-tab, .settings-back). Este ficheiro
-// tem a moldura, o Resumo, a Empresa e a Marca; seccoes.js tem Equipa, Plano e
+// tem a moldura, o Resumo, a Empresa e a Marca; seccoes.js tem Equipa, Plano, No teu site e
 // Dados; gestao.js tem o Registo de atividade e a Propriedade e encerramento.
 // Quem não é proprietário vê «Só o proprietário» (e, se houver, o pedido de
 // transferência de propriedade que lhe foi feito). API em /api/owner.
@@ -24,6 +24,7 @@ const SECTIONS = [
   ['resumo', 'Resumo', 'Plano, uso e o que falta', 'layout-dashboard', 'Organização'],
   ['empresa', 'Empresa', 'Nome, NIF e contactos', 'building-2', 'Organização'],
   ['marca', 'Marca', 'Logótipo e cor', 'palette', 'Organização'],
+  ['site', 'No teu site', 'Reservas no WordPress', 'globe', 'Organização'],
   ['equipa', 'Equipa e permissões', 'Membros, papéis e convites', 'users-round', 'Gestão'],
   ['plano', 'Plano e faturação', 'Plano atual e faturas', 'receipt-text', 'Gestão'],
   ['dados', 'Dados e segurança', 'Cópias de segurança', 'database', 'Segurança'],
@@ -250,7 +251,14 @@ defineSection('resumo', async panel => {
   const renew = sub?.next_date ? `Renova a ${dateShort(sub.next_date)}` : (plan ? 'Subscrição gerida pela plataforma' : 'Sem plano atribuído — sem limites');
   const usage = data.usage || {};
   const backup = data.last_backup_at;
-  const todo = data.todo || [];
+  const todo = [...(data.todo || [])];
+  // Reservas no site: disponível no plano mas ainda sem sites autorizados.
+  try {
+    const embed = (await core().apiGet('/api/embed/settings')).data;
+    if (embed?.available && !(embed.origins || []).length && (embed.accommodations || []).length) {
+      todo.push({ text: 'Autorize o seu site para mostrar as reservas nele.', section: 'site', key: 'origin', action: 'Autorizar' });
+    }
+  } catch { /* o Resumo não depende disto */ }
   const pending = [];
   if (data.transfer) pending.push(notice('info', `Transferência de propriedade para <strong>${esc(data.transfer.to.name)}</strong> à espera de resposta (até ${esc(dateShort(data.transfer.expires_at))}).`, 'key-round'));
   if (data.requests?.plan_change) pending.push(notice('info', `Pedido de mudança para o plano <strong>${esc(data.requests.plan_change.plan_name || '')}</strong> em análise (${ticketLink(data.requests.plan_change.ticket)}).`, 'receipt-text'));

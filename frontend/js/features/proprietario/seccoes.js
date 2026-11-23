@@ -275,4 +275,189 @@ AppActions.register({
   'prop-team-role': (el, event, args) => changeRole(args[0], el.value),
 }, 'change');
 
+
+// ── No teu site (reservas dentro do site do cliente; API em /api/embed) ──
+const site = { data: null, origins: [] };
+const SITE_STEPS = [
+  'No WordPress, crie uma <strong>Página nova</strong> (por exemplo «Reservas»).',
+  'Acrescente o bloco <strong>HTML personalizado</strong> (no Elementor, o widget <strong>HTML</strong>).',
+  'Cole o código do alojamento que quer mostrar.',
+  'Publique a página e abra-a no site para confirmar (o editor pode não mostrar o formulário).',
+  'Ligue o botão «Reservar» do menu do site a essa página.',
+];
+const bookingLink = slug => `${location.origin}/reservar/${encodeURIComponent(slug)}`;
+
+// Mesmas regras do servidor (services/bookingEmbed.js normalizeOrigin).
+function normalizeSiteOrigin(raw) {
+  let value = String(raw ?? '').trim();
+  if (!value) throw new Error('Indique o endereço do site.');
+  if (value.length > 200) throw new Error('Endereço do site demasiado longo.');
+  if (value.includes('*')) throw new Error('Não são aceites curingas (*): indique cada site com o endereço completo, por exemplo https://www.exemplo.pt.');
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) value = `https://${value}`;
+  let url;
+  try { url = new URL(value); } catch { throw new Error(`Endereço inválido: ${String(raw).trim()}`); }
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) throw new Error('O site tem de usar https:// (http:// só para testes em localhost).');
+  if (url.username || url.password) throw new Error('O endereço do site não pode ter utilizador nem palavra-passe.');
+  if ((url.pathname && url.pathname !== '/') || url.search || url.hash) throw new Error('Indique só o endereço do site, sem páginas nem parâmetros (por exemplo https://www.exemplo.pt).');
+  if (!local && !url.hostname.includes('.')) throw new Error(`Endereço inválido: ${String(raw).trim()}`);
+  return url.origin;
+}
+
+async function copyText(text, button) {
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; } catch {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(area);
+    area.select();
+    try { ok = document.execCommand('copy'); } catch { ok = false; }
+    area.remove();
+  }
+  if (!ok) { core().toast('❌ Não foi possível copiar. Selecione o texto e copie à mão.', 'error'); return; }
+  core().toast('Copiado.', 'success');
+  if (button) {
+    const label = button.querySelector('span');
+    if (label) { label.textContent = 'Copiado'; setTimeout(() => { label.textContent = 'Copiar'; }, 2000); }
+  }
+}
+
+const copyBtn = (text, what) => `<button type="button" class="btn btn-ghost btn-sm" data-copy="${u().esc(text)}" aria-label="Copiar ${u().esc(what)}" ${AppActions.attrs('click', 'prop-site-copy', [])}>${u().ic('copy', 14)} <span>Copiar</span></button>`;
+
+function linkRows(accs) {
+  const { esc } = u();
+  if (!accs.length) return '<p class="prop-muted">Ainda não há alojamentos com página de reservas.</p>';
+  return accs.map(a => {
+    const link = bookingLink(a.slug);
+    return `<div class="prop-site-link"><div class="prop-row-main"><b>${esc(a.name)}</b><small>${esc(link)}</small></div>${copyBtn(link, `o link de ${a.name}`)}</div>`;
+  }).join('');
+}
+
+function drawSite(panel) {
+  const { esc, ic, head, notice } = u();
+  const d = site.data;
+  const accs = d.accommodations || [];
+  if (!d.available) {
+    panel.innerHTML = `${head('No teu site', 'Mostre as reservas dentro do seu site (WordPress, Elementor e outros).')}
+      <section class="card prop-card">
+        <span class="prop-chip is-accent">${esc(d.plan || 'O seu plano')}</span>
+        <h3 class="prop-site-title">Disponível no plano Premium</h3>
+        <p>Mostrar o formulário de reservas dentro do seu site está incluído no plano Premium. O plano atual não o inclui.</p>
+        <div class="prop-actions prop-start"><button type="button" class="btn btn-primary" ${AppActions.attrs('click', 'prop-site-plan', [])}>${ic('receipt-text', 15)} Ver Plano e faturação</button></div>
+      </section>
+      <section class="card prop-card">
+        <h3>${ic('link', 16)} Link direto de reservas</h3>
+        <p class="prop-muted">Funciona em todos os planos: ponha este link num botão ou numa mensagem e o hóspede reserva na nossa página.</p>
+        ${linkRows(accs)}
+      </section>`;
+    return;
+  }
+  const full = site.origins.length >= d.max_origins;
+  const chips = site.origins.length
+    ? site.origins.map((o, i) => `<span class="prop-origin"><code>${esc(o)}</code><button type="button" aria-label="Remover ${esc(o)}" ${AppActions.attrs('click', 'prop-site-remove', [String(i)])}>${ic('x', 14)}</button></span>`).join('')
+    : '<span class="prop-muted">Nenhum site autorizado.</span>';
+  const snippets = accs.length ? accs.map(a => `<div class="prop-snip">
+      <div class="prop-snip-head"><b>${esc(a.name)}</b>${copyBtn(a.snippet.script, `o código de ${a.name}`)}</div>
+      <pre class="prop-code" tabindex="0"><code>${esc(a.snippet.script)}</code></pre>
+      <details class="prop-fallback"><summary>Se o site não aceitar scripts</summary>
+        <p class="prop-muted">Use esta versão simples (iframe). A altura é fixa e pode aparecer uma barra de deslocamento.</p>
+        <pre class="prop-code" tabindex="0"><code>${esc(a.snippet.iframe)}</code></pre>
+        <div class="prop-actions prop-start">${copyBtn(a.snippet.iframe, `o iframe de ${a.name}`)}</div>
+      </details>
+    </div>`).join('') : '<p class="prop-muted">Ainda não há alojamentos com página de reservas.</p>';
+  panel.innerHTML = `${head('No teu site', 'Mostre o formulário de reservas dentro do seu site (WordPress, Elementor e outros).')}
+    <section class="card prop-card">
+      <h3>Domínios autorizados</h3>
+      <p class="prop-muted">Só os sites desta lista podem mostrar as reservas. Inclua as duas formas, com e sem www.</p>
+      <div class="prop-origins" aria-live="polite">${chips}</div>
+      <form class="prop-origin-form" id="prop-origin-form" novalidate>
+        <label class="form-group prop-field"><span class="form-label">Acrescentar site</span>
+          <input class="form-control" name="origin" placeholder="www.oseusite.pt" autocomplete="off" inputmode="url" maxlength="200" ${full ? 'disabled' : ''}></label>
+        <button type="submit" class="btn btn-ghost" ${full ? 'disabled' : ''}>${ic('plus', 15)} Acrescentar</button>
+      </form>
+      ${full ? `<p class="prop-hint">Máximo de ${d.max_origins} sites.</p>` : ''}
+      <p class="prop-error" role="alert" hidden></p>
+      <div class="prop-actions"><button type="button" class="btn btn-primary" ${AppActions.attrs('click', 'prop-site-save', [])}>${ic('save', 15)} Guardar</button></div>
+    </section>
+    <section class="card prop-card">
+      <h3>${ic('code-xml', 16)} Código para colar</h3>
+      <p class="prop-muted">Um por alojamento. Cole-o num bloco que aceite HTML.</p>
+      ${snippets}
+    </section>
+    <section class="card prop-card">
+      <h3>${ic('link', 16)} Também pode usar só o link</h3>
+      <p class="prop-muted">Sem nada para instalar: ponha este link num botão ou numa mensagem.</p>
+      ${linkRows(accs)}
+    </section>
+    <section class="card prop-card">
+      <h3>${ic('list-checks', 16)} Passo a passo no WordPress</h3>
+      <ol class="prop-steps">${SITE_STEPS.map(s => `<li>${s}</li>`).join('')}</ol>
+      <div class="prop-site-notes">${notice('info', 'O pagamento abre numa página nossa, num separador novo.', 'info')}
+        ${notice('info', 'O conteúdo das reservas não conta para o SEO do seu site (o Google lê-o como parte da nossa página).', 'info')}</div>
+    </section>`;
+}
+
+P().defineSection('site', async panel => {
+  site.data = (await core().apiGet('/api/embed/settings')).data;
+  site.origins = [...(site.data.origins || [])];
+  drawSite(panel);
+});
+
+function addOrigin(form) {
+  const panel = form.closest('[data-prop-panel]');
+  const error = panel.querySelector('.prop-error');
+  error.hidden = true;
+  if (!form.origin.value.trim()) return;
+  try {
+    const origin = normalizeSiteOrigin(form.origin.value);
+    if (!site.origins.includes(origin)) site.origins.push(origin);
+    if (site.origins.length > site.data.max_origins) { site.origins.pop(); throw new Error(`No máximo ${site.data.max_origins} sites autorizados.`); }
+    drawSite(panel);
+    if (window.lucide) lucide.createIcons();
+    panel.querySelector('[name="origin"]')?.focus();
+  } catch (e) {
+    error.textContent = e.message;
+    error.hidden = false;
+  }
+}
+
+async function saveOrigins(el) {
+  const panel = el.closest('[data-prop-panel]');
+  const error = panel.querySelector('.prop-error');
+  error.hidden = true;
+  const pending = panel.querySelector('[name="origin"]');
+  if (pending?.value.trim()) addOrigin(pending.form);
+  if (!error.hidden) return;
+  AppUI.setButtonLoading(el, true, 'A guardar…');
+  try {
+    site.data = (await core().apiPut('/api/embed/settings', { origins: site.origins })).data;
+    site.origins = [...site.data.origins];
+    drawSite(panel);
+    if (window.lucide) lucide.createIcons();
+    core().toast('✅ Sites autorizados guardados.', 'success');
+  } catch (e) {
+    AppUI.setButtonLoading(el, false);
+    error.textContent = u().errText(e, 'Não foi possível guardar.');
+    error.hidden = false;
+  }
+}
+
+document.addEventListener('submit', event => {
+  const form = event.target.closest?.('#prop-origin-form');
+  if (form) { event.preventDefault(); addOrigin(form); }
+});
+
+AppActions.register({
+  'prop-site-copy': el => copyText(el.dataset.copy || '', el),
+  'prop-site-remove': (el, event, args) => {
+    const panel = el.closest('[data-prop-panel]');
+    site.origins.splice(Number(args[0]), 1);
+    drawSite(panel);
+    if (window.lucide) lucide.createIcons();
+  },
+  'prop-site-save': el => saveOrigins(el),
+  'prop-site-plan': () => P().showSection('plano'),
+}, 'click');
+
 })();

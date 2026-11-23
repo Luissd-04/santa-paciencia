@@ -34,8 +34,8 @@ e `PLANO-CONSOLA.md`; esta lista será a base do documento único.
 
 17. ✅ **Feito (24/11):** logótipo sem moldura no portal do hóspede e na barra lateral recolhida.
 
-20. **Menu da conta e definições pessoais:** o menu fica com «Definições da conta», «Área do proprietário», «Consola da plataforma» e «Sair». As definições pessoais (perfil, palavra-passe, sessões, aparência, vistas, avisos, menu do telemóvel) saem das Definições do negócio. Em curso (24/11).
-21. **Área do proprietário** (só owner): resumo (plano e uso), empresa (NIF, morada, contactos), marca (logótipo e cor da organização), equipa e permissões, plano e faturação (mudança de plano por pedido à plataforma; sem pagamento automático nesta fase), dados e segurança, registo de atividade, transferir propriedade e pedir encerramento. Em curso (24/11).
+20. ✅ **Feito (24/11):** menu da conta e «Definições da conta» (`/conta`).
+21. ✅ **Feito (24/11):** Área do proprietário (`/proprietario`), incluindo «No teu site» (domínios autorizados e código para incorporar a página de reservas — ver `docs/EMBED-WORDPRESS.md`).
 
 ## Para rever (decisões do dono do produto)
 
