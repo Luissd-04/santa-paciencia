@@ -31,6 +31,8 @@ body.gp { margin: 0; min-height: 100vh; background: var(--cream); color: var(--i
 .gp-hero-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 22px; }
 .gp-logo { display: inline-flex; align-items: center; min-height: 44px; max-width: 60%; padding: 6px 14px; border-radius: 12px; background: rgba(255,255,255,.94); color: var(--ink); font: 700 18px var(--serif); }
 .gp-logo img { display: block; height: 36px; width: auto; max-width: 200px; object-fit: contain; }
+.gp-logo.has-logo { min-height: 0; padding: 0; background: transparent; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.35); }
+.gp-logo.has-logo img { height: auto; max-height: 56px; max-width: 220px; border-radius: 8px; }
 .gp-logo.has-logo strong { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .gp-logo strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gp-ref { flex-shrink: 0; padding: 7px 14px; border: 1px solid rgba(255,255,255,.55); border-radius: 999px; background: rgba(20,14,10,.18); font-size: 13px; font-weight: 600; }
@@ -170,6 +172,8 @@ body.gp { margin: 0; min-height: 100vh; background: var(--cream); color: var(--i
   .gp-hero-top { padding-top: 16px; }
   .gp-logo { min-height: 40px; padding: 5px 12px; font-size: 16px; }
   .gp-logo img { height: 30px; max-width: 150px; }
+  .gp-logo.has-logo { min-height: 0; padding: 0; }
+  .gp-logo.has-logo img { height: auto; max-height: 44px; max-width: 170px; }
   .gp-ref { padding: 6px 11px; font-size: 12.5px; }
   .gp-hero-copy { padding-top: 36px; padding-bottom: 22px; }
   .gp-hero h1 { font-size: 32px; }

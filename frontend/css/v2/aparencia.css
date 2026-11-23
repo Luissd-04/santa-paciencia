@@ -83,6 +83,7 @@ html[data-look="vidro"] .sb-collapse-btn { color: var(--v2-side-muted); }
    A largura e o botão vêm de shell.css; aqui só o desvio da barra flutuante. */
 html[data-look="vidro"] .layout.sb-collapsed .main { margin-left: calc(var(--sb-w-collapsed) + 24px); }
 html[data-look] .sb-mini-mark { background: var(--v2-side-active); color: var(--v2-side-ink); }
+html[data-look] .sb-mini-mark.has-img { background: none; }
 html[data-look] .sb-collapse-btn { color: var(--v2-side-muted); }
 html[data-look] .sb-collapse-btn:hover { color: var(--v2-side-ink); background: var(--v2-side-active); }
 

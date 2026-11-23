@@ -70,6 +70,8 @@ i[data-lucide] { display:inline-flex; align-items:center; justify-content:center
   display: flex; align-items: center; justify-content: center;
   font-size: 15px; font-weight: 700; letter-spacing: .02em;
 }
+.sb-mini-mark.has-img { background: none; border: 0; padding: 0; }
+.sb-mini-mark.has-img img { padding: 0; object-fit: cover; }
 .sb-mini-mark img { width: 100%; height: 100%; object-fit: contain; padding: 3px; box-sizing: border-box; }
 
 .sidebar-nav { padding: 20px 12px; flex:1; overflow-y:auto; }

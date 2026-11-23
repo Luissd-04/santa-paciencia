@@ -437,7 +437,7 @@ function renderSidebarBrand() {
   id.innerHTML = src
     ? `<img class="sb-logo" src="${esc(src)}" alt="${esc(name)}">`
     : `<h1>${esc(name)}</h1><p>Gestão de Alojamento</p>`;
-  mini.innerHTML = `<span class="sb-mini-mark" title="${esc(name)}">${mark ? `<img src="${esc(mark)}" alt="">` : esc(initials)}</span>`;
+  mini.innerHTML = `<span class="sb-mini-mark${mark ? ' has-img' : ''}" title="${esc(name)}">${mark ? `<img src="${esc(mark)}" alt="">` : esc(initials)}</span>`;
   // Menu recolhido: sem recorte quadrado, só um logótipo quase quadrado cabe no
   // quadrado de 40px; um logótipo largo (ex.: 3:1) ficaria ilegível, por isso
   // ficam as iniciais.
@@ -445,7 +445,7 @@ function renderSidebarBrand() {
     const probe = new Image();
     probe.onload = () => {
       const ratio = probe.naturalWidth / (probe.naturalHeight || 1);
-      if (id.dataset.brandKey === key && ratio > 0.7 && ratio < 1.4) mini.querySelector('.sb-mini-mark').innerHTML = `<img src="${esc(src)}" alt="">`;
+      if (id.dataset.brandKey === key && ratio > 0.7 && ratio < 1.4) { const m = mini.querySelector('.sb-mini-mark'); m.classList.add('has-img'); m.innerHTML = `<img src="${esc(src)}" alt="">`; }
     };
     probe.src = src;
   }
