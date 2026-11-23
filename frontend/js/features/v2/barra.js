@@ -81,9 +81,7 @@ function prepararMenu() {
   const drawer = document.getElementById('side-drawer');
   if (!drawer) return;
   const ic = core().lcIcon;
-  if (!drawer.querySelector('.v2d-search')) {
-    drawer.querySelector('.side-drawer-scroll')?.insertAdjacentHTML('afterbegin',
-      `<button type="button" class="v2d-search" data-on-click="v2-menu-pesquisar">${ic('search', 17)}<span>Pesquisar hóspede, reserva…</span></button>`);
+  if (!drawer.querySelector('.v2d-foot')) {
     drawer.insertAdjacentHTML('beforeend', `<div class="v2d-foot">
         <span class="v2d-modes-slot"></span>
         <div class="v2d-row"><button type="button" class="btn btn-ghost v2d-ajuda" data-on-click="v2-menu-ajuda">${ic('circle-help', 16)} Ajuda e feedback<span class="nav-badge" data-nav-badge="ajuda" style="display:none;"></span></button></div>
@@ -130,13 +128,6 @@ function abrirConta(anchor) {
   });
 }
 
-async function pesquisar() {
-  core().closeSideDrawer();
-  await core().showView('reservas');
-  // No telemóvel a lista tem a sua própria caixa de pesquisa.
-  document.getElementById('mobile-search-input')?.focus();
-}
-
 // O «+» e o sino do telemóvel abrem as folhas da V2; o toque não chega à
 // ação da V1 (que está no document). O menu abre como sempre e ganha as peças novas.
 function intercept(selector, handler) {
@@ -176,7 +167,6 @@ AppActions.register({
   'v2-criar-periodo': () => criar(async () => { await core().showView('precos'); AppModules.precos.openPrecosPeriodModal?.(); }),
   'v2-sino-push': () => { v2().fecharFolha(); return AppModules.notificacoes.openPushSettings(); },
   'v2-sino-todas': () => { v2().fecharFolha(); core().showView('notificacoes'); },
-  'v2-menu-pesquisar': () => pesquisar(),
   'v2-menu-ajuda': () => { core().closeSideDrawer(); core().showView('ajuda'); },
   'v2-menu-definicoes': () => { core().closeSideDrawer(); core().showView('definicoes'); },
   'v2-menu-modo': async (el, event, args) => {

@@ -557,10 +557,10 @@ async function main() {
   await page.goto(`${base}/`);
   await expect(page.locator('#view-dashboard.active')).toBeVisible();
   await page.waitForFunction(() => typeof AppModules.v2.abrirFolha === 'function');
-  // Menu: a conta em cima, pesquisa, claro/escuro (guardado na conta) e Definições/Sair.
+  // Menu: a conta em cima, sem pesquisa, claro/escuro (guardado na conta) e Definições/Sair.
   await page.locator('#mobile-menu-trigger').click();
   const drawer = page.locator('#side-drawer');
-  await expect(drawer.locator('.v2d-search')).toBeVisible();
+  await expect(drawer.locator('.v2d-search')).toHaveCount(0);
   const [accountTop, listTop] = await drawer.evaluate(el => ['.side-drawer-account', '.side-drawer-scroll'].map(s => el.querySelector(s).getBoundingClientRect().top));
   assert.ok(accountTop < listTop, 'a conta não ficou em cima no menu');
   await expect(drawer.locator('#side-drawer-avatar')).toHaveText('CP');
@@ -568,9 +568,8 @@ async function main() {
   await drawer.locator('[data-v2-mode="claro"]').click();
   await expect(page.locator('html')).toHaveAttribute('data-mode', 'claro');
   await expect.poll(() => appearance.get(user.id).mode).toBe('claro');
-  await drawer.locator('.v2d-search').click();
-  await expect(page.locator('#view-reservas.active')).toBeVisible();
-  await expect(page.locator('#mobile-search-input')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#side-drawer-overlay.active')).toHaveCount(0);
   // Sino: folha com filtros e avisos por dia; «Ler todas» lê no servidor.
   db.prepare('DELETE FROM notification_state WHERE user_id = ?').run(user.id);
   await page.locator('.topbar .notif-bell').click();

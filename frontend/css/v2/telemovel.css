@@ -81,7 +81,7 @@ html[data-look] #v2-sino .nv2-actions { align-self: start; justify-content: flex
 html[data-look] #v2-sino .nv2-item:hover { background: none; }
 
 /* ── Menu lateral ── */
-.v2d-search, .v2d-foot { display: none; }
+.v2d-foot { display: none; }
 @media (max-width: 767px), (max-height: 500px) and (orientation: landscape) {
   html[data-look] .side-drawer { width: 84%; max-width: 340px; border-right: 1px solid var(--v2-line); border-radius: 0 28px 28px 0; background: var(--v2-solid); color: var(--v2-ink);
     box-shadow: 12px 0 40px rgba(0, 0, 0, .3); font-family: var(--v2-font); }
@@ -97,9 +97,6 @@ html[data-look] #v2-sino .nv2-item:hover { background: none; }
   html[data-look] .side-drawer-who small { color: var(--v2-muted); font-size: 12.5px; }
   html[data-look] .side-drawer-brand, html[data-look] .side-drawer-settings { display: none; }
   html[data-look] .side-drawer-scroll { padding: 8px 14px 10px; }
-  html[data-look] .v2d-search { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; margin: 0 0 6px; padding: 0 14px; border: 1px solid var(--v2-line); border-radius: 14px;
-    background: var(--v2-surface); color: var(--v2-soft); font: 400 14px var(--v2-font); cursor: pointer; }
-  html[data-look] .v2d-search:focus-visible { outline: 2px solid var(--v2-line); outline-offset: 1px; }
   html[data-look] .side-drawer-section { padding: 12px 12px 4px; color: var(--v2-soft); font: 600 11px var(--v2-font); letter-spacing: .08em; }
   html[data-look] .side-drawer-item { width: 100%; min-height: 40px; margin: 0; padding: 0 12px; gap: 12px; border-radius: 14px; color: var(--v2-ink); font: 500 15px var(--v2-font); }
   html[data-look] .side-drawer-item :is(i[data-lucide], svg) { width: 19px; height: 19px; color: var(--v2-muted); }
