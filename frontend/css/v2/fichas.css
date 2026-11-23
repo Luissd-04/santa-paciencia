@@ -75,7 +75,8 @@ html[data-look] #view-alojamento-detalhe.acfg-on[data-acfg-sec="capacidade"] #al
 html[data-look] #view-alojamento-detalhe.acfg-on[data-acfg-sec="localizacao"] #aloj-tab-info [data-acfg="localizacao"],
 html[data-look] #view-alojamento-detalhe.acfg-on[data-acfg-sec="acesso"] #aloj-tab-info [data-acfg="acesso"],
 html[data-look] #view-alojamento-detalhe.acfg-on[data-acfg-sec="ligacoes"] #aloj-tab-info [data-acfg="ligacoes"],
-html[data-look] #view-alojamento-detalhe.acfg-on[data-acfg-sec="marca"] #aloj-tab-info [data-acfg="marca"] { display: block; }
+html[data-look] #view-alojamento-detalhe.acfg-on[data-acfg-sec="marca"] #aloj-tab-info [data-acfg="marca"],
+html[data-look] #view-alojamento-detalhe.acfg-on[data-acfg-sec="emails"] #aloj-tab-info [data-acfg="emails"] { display: block; }
 html[data-look] #view-alojamento-detalhe.acfg-on[data-acfg-sec="visao"] #aloj-tab-info { display: none !important; }
 html[data-look] #view-alojamento-detalhe .acfg-visao { display: none; }
 html[data-look] #view-alojamento-detalhe[data-acfg-sec="visao"] .acfg-visao { display: grid; gap: var(--v2-gap); }
