@@ -7,7 +7,7 @@
 const SEED = [
   { name: 'Essencial', max_accommodations: 3, max_members: 2, features: { payments: false, reports: 'basic', marketing: false }, sort: 1 },
   { name: 'Profissional', max_accommodations: 10, max_members: 5, features: { payments: true, reports: 'full', marketing: 'optional' }, sort: 2 },
-  { name: 'Premium', max_accommodations: null, max_members: null, features: { payments: true, reports: 'full_pdf', marketing: 'included' }, sort: 3 },
+  { name: 'Premium', max_accommodations: null, max_members: null, features: { payments: true, reports: 'full_pdf', marketing: 'included', booking_embed: true }, sort: 3 },
 ];
 
 function migratePlans(db) {
@@ -36,7 +36,22 @@ function migratePlans(db) {
   }).immediate();
 }
 
+// Reservas no site do cliente (iframe): incluídas no Premium. Atualiza o
+// pacote que já existe, sem mexer num valor que a consola já tenha escolhido.
+function migrateBookingEmbed(db) {
+  const id = '20261123_plan_booking_embed';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    db.prepare(`UPDATE plans SET features_json = json_set(CASE WHEN json_valid(features_json) THEN features_json ELSE '{}' END, '$.booking_embed', json('true')),
+        updated_at = datetime('now')
+      WHERE name = 'Premium' COLLATE NOCASE
+        AND (NOT json_valid(features_json) OR json_type(features_json, '$.booking_embed') IS NULL)`).run();
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
 module.exports = function migrate(db) {
   migratePlans(db);
+  migrateBookingEmbed(db);
 };
 module.exports.SEED = SEED;

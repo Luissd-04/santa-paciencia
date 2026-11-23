@@ -64,7 +64,7 @@ test('seed: Essencial, Profissional e Premium; as organizações existentes fica
   assert.deepEqual(list.map(p => [p.name, p.max_accommodations, p.max_members, p.features, p.sort, p.organizations]), [
     ['Essencial', 3, 2, { payments: false, reports: 'basic', marketing: false }, 1, 0],
     ['Profissional', 10, 5, { payments: true, reports: 'full', marketing: 'optional' }, 2, 0],
-    ['Premium', null, null, { payments: true, reports: 'full_pdf', marketing: 'included' }, 3, 0],
+    ['Premium', null, null, { payments: true, reports: 'full_pdf', marketing: 'included', booking_embed: true }, 3, 0],
   ]);
   for (const org of [alfa, beta, gama]) assert.equal(db.prepare('SELECT plan_id FROM organizations WHERE id = ?').get(org.id).plan_id, null);
   // Idempotente: correr de novo não duplica nem altera.

@@ -18,8 +18,10 @@ async function buildEmailMimeBody(organizationId, html) {
   let base = '';
   try { base = require('./publicLinks').origin(); } catch { /* sem origem: só caminhos relativos */ }
   const sources = new Set([...content.matchAll(/<img\b[^>]*\ssrc="([^"]*)"[^>]*>/gi)].map(match => match[1]));
+  // Os logótipos dos alojamentos e o da organização (herdado por quem não tem o seu).
   const logos = organizationId ? db.prepare(`SELECT DISTINCT logo_url FROM accommodations
-    WHERE organization_id = ? AND logo_url IS NOT NULL`).all(organizationId) : [];
+    WHERE organization_id = ? AND logo_url IS NOT NULL
+    UNION SELECT logo_url FROM organizations WHERE id = ? AND logo_url IS NOT NULL`).all(organizationId, organizationId) : [];
 
   for (const { logo_url: url } of logos) {
     const file = uploadPath(url);

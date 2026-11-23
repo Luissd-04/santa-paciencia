@@ -364,4 +364,19 @@ AppActions.register({
 
 renderSidebar();
 renderBottomBar();
+
+// ── Área do proprietário ──
+// A entrada vive no núcleo (o menu da conta chama-a antes de a vista ter
+// código): guarda a secção pedida e abre /proprietario; o resto chega com a
+// funcionalidade (features/proprietario/), que lê o pedido ao desenhar.
+let ownerRequest = null;
+AppModules.define('proprietario', {
+  // `section`: resumo, empresa, marca, equipa, plano, dados, registo ou
+  // propriedade. `push: false` quando vem do histórico do browser.
+  open: { value: async (section = null, { push = true, token = null } = {}) => {
+    ownerRequest = { section, push, token };
+    await AppModules.core.showView('proprietario', push);
+  } },
+  takeRequest: { value: () => { const request = ownerRequest; ownerRequest = null; return request; } },
+});
 })();

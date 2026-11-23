@@ -2,15 +2,12 @@
 (() => {
 AppModules.define('core', {
   boot: { get: () => boot },
-  closeChangePasswordModal: { get: () => closeChangePasswordModal },
-  closeProfileModal: { get: () => closeProfileModal },
-  closeSessionsModal: { get: () => closeSessionsModal },
   handlePlatformOnly: { get: () => handlePlatformOnly },
   handleUnauthorized: { get: () => handleUnauthorized },
   logout: { get: () => logout },
-  openChangePasswordModal: { get: () => openChangePasswordModal },
-  openProfileModal: { get: () => openProfileModal },
-  openSessionsModal: { get: () => openSessionsModal },
+  loadSessions: { get: () => loadSessions },
+  renderProfile: { get: () => renderProfile },
+  resetPasswordForm: { get: () => resetPasswordForm },
   revokeOtherSessions: { get: () => revokeOtherSessions },
   setAuthMode: { get: () => setAuthMode },
   submitChangePassword: { get: () => submitChangePassword },
@@ -851,8 +848,6 @@ async function bootstrapApp() {
 
   await AppModules.core.loadAccommodations();
   await AppModules.core.renderDashboard();
-  // A vista de Definições (onde vive a equipa) pode ainda não ter sido aberta.
-  if (AppModules.core.currentUser?.role === 'owner' && typeof AppModules.definicoes.loadTeamOverview === 'function') await AppModules.definicoes.loadTeamOverview();
   await loadMemberships();
   AppModules.core.startNotifPolling();
 }
@@ -916,20 +911,14 @@ function toggleUserMenu(e) {
   menu.style.display = menu.style.display === 'none' ? '' : 'none';
 }
 
-function openChangePasswordModal() {
-  document.getElementById('user-menu').style.display = 'none';
+// Palavra-passe e acesso (Definições da conta): campos vazios ao entrar na secção.
+function resetPasswordForm() {
   ['cp-current', 'cp-new', 'cp-confirm'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
   const fb = document.getElementById('cp-feedback');
   if (fb) { fb.style.display = 'none'; fb.textContent = ''; }
-  AppUI.openModal('change-password-modal');
-  setTimeout(() => document.getElementById('cp-current')?.focus(), 50);
-}
-
-function closeChangePasswordModal() {
-  AppUI.closeModal('change-password-modal');
 }
 
 async function submitChangePassword() {
@@ -956,7 +945,8 @@ async function submitChangePassword() {
     await AppModules.core.apiPost('/auth/change-password', { current_password: current, password: newPw, confirm_password: confirm });
     showCpMsg('Palavra-passe alterada com sucesso!', true);
     AppModules.core.toast('Palavra-passe alterada.', 'success');
-    setTimeout(() => closeChangePasswordModal(), 1200);
+    resetPasswordForm();
+    showCpMsg('Palavra-passe alterada com sucesso!', true);
   } catch (err) {
     showCpMsg(err?.payload?.error || 'Não foi possível alterar a palavra-passe.');
   } finally {
@@ -965,22 +955,58 @@ async function submitChangePassword() {
 }
 
 // ── O meu perfil ──
-function openProfileModal() {
-  document.getElementById('user-menu').style.display = 'none';
-  document.getElementById('pf-name').value = AppModules.core.currentUser?.name || '';
-  document.getElementById('pf-email').value = AppModules.core.currentUser?.email || '';
+function renderProfile() {
+  const user = AppModules.core.currentUser || {};
+  const name = document.getElementById('pf-name');
+  if (!name) return;
+  name.value = user.name || '';
+  document.getElementById('pf-email').value = user.email || '';
   document.getElementById('pf-password').value = '';
-  document.getElementById('pf-org').textContent = AppModules.core.currentUser?.organization_name || '—';
-  document.getElementById('pf-role').textContent = AppModules.core.currentUser?.role || '—';
   const fb = document.getElementById('pf-feedback');
   fb.style.display = 'none'; fb.textContent = '';
   updateProfilePasswordVisibility();
-  AppUI.openModal('profile-modal');
-  setTimeout(() => document.getElementById('pf-name')?.focus(), 50);
+  renderProfileOrgs();
 }
 
-function closeProfileModal() {
-  AppUI.closeModal('profile-modal');
+// Organizações a que a pessoa pertence, com o papel em cada uma. Quem não é
+// proprietário pode sair de uma organização (o servidor recusa a única que resta).
+async function renderProfileOrgs() {
+  const box = document.getElementById('conta-orgs');
+  if (!box) return;
+  const esc = AppModules.core.escapeHtml;
+  try {
+    await loadMemberships();
+    const currentOrgId = AppModules.core.currentUser?.organization_id;
+    box.innerHTML = _userMemberships.map(m => {
+      const role = ROLE_LABELS_ENTRADA[m.role] || m.role;
+      const current = m.organization_id === currentOrgId;
+      const leave = m.role !== 'owner' && _userMemberships.length > 1
+        ? `<button type="button" class="btn btn-ghost btn-sm" data-org="${esc(m.organization_id)}" data-on-click="auth-leave-org">Sair desta organização</button>` : '';
+      return `<div class="conta-org${current ? ' is-current' : ''}">
+        <span class="conta-org-name">${esc(m.organization_name)}${current ? ' <span class="session-row-badge">Atual</span>' : ''}</span>
+        <span class="conta-org-role">${esc(role)}</span>${leave}
+      </div>`;
+    }).join('') || '<p class="conta-hint">Sem organizações.</p>';
+  } catch (_) {
+    box.innerHTML = '<p class="conta-hint">Não foi possível carregar as organizações.</p>';
+  }
+}
+
+async function leaveOrganization(organizationId, btn) {
+  const membership = _userMemberships.find(m => m.organization_id === organizationId);
+  if (!membership) return;
+  if (!await AppModules.core.confirmar(`Sair de ${membership.organization_name}? Deixa de ter acesso a esta organização e só volta a entrar com um novo convite.`, { label: 'Sair', danger: true })) return;
+  if (btn) btn.disabled = true;
+  try {
+    const payload = await AppModules.core.apiDelete(`/auth/memberships/${encodeURIComponent(organizationId)}`);
+    AppModules.core.toast('Saiu da organização.', 'success');
+    // Saiu do espaço em que estava: o servidor passou a sessão para outro.
+    if (payload?.data?.switched) { window.location.reload(); return; }
+    renderProfileOrgs();
+  } catch (err) {
+    if (btn) btn.disabled = false;
+    AppModules.core.toast(err?.payload?.error || 'Não foi possível sair da organização.', 'error');
+  }
 }
 
 // A palavra-passe só é pedida quando o email muda.
@@ -1013,7 +1039,8 @@ async function submitProfile() {
     rememberAccount(AppModules.core.currentUser);
     updateUserBadge();
     AppModules.core.toast(payload?.data?.email_pending ? 'Confirme o link enviado ao novo email. Até lá, continue a usar o endereço atual.' : 'Perfil guardado.', 'success');
-    closeProfileModal();
+    renderProfile();
+    if (emailChanged && payload?.data?.email_pending) { fb.textContent = `À espera de confirmação em ${payload.data.email_pending}. Até lá, continua a entrar com ${AppModules.core.currentUser.email}.`; fb.style.color = 'var(--cinza)'; fb.style.display = ''; }
   } catch (err) {
     showMsg(err?.payload?.error || 'Não foi possível guardar o perfil.');
   } finally {
@@ -1049,16 +1076,6 @@ function sessionTimeAgo(sqlDate) {
   if (diff < 86400) return `há ${Math.round(diff / 3600)} h`;
   const days = Math.round(diff / 86400);
   return days === 1 ? 'ontem' : `há ${days} dias`;
-}
-
-function openSessionsModal() {
-  document.getElementById('user-menu').style.display = 'none';
-  AppUI.openModal('sessions-modal');
-  loadSessions();
-}
-
-function closeSessionsModal() {
-  AppUI.closeModal('sessions-modal');
 }
 
 async function loadSessions() {
@@ -1163,6 +1180,7 @@ async function boot() {
 }
 
 AppActions.register({
+  "auth-leave-org": (el) => leaveOrganization(el.dataset.org, el),
   "auth-revoke-session-c61d749": (el, event, args) => { revokeSession(el.dataset.id, el) },
   "auth-switch-org-afb0d97": (el, event, args) => { switchOrg(el.dataset.org) },
   "auth-pick-saved-account-a182baa": (el, event, args) => { pickSavedAccount(el.dataset.email) },

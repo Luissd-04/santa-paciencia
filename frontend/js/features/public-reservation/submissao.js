@@ -150,6 +150,17 @@ async function submitReservation() {
       body: JSON.stringify(payload)
     });
 
+    // Dentro do site do cliente: a confirmação fica no iframe, com a página do
+    // pedido num separador novo (o pagamento não funciona num iframe).
+    if (AppModules.booking.embed.active) {
+      AppModules.booking.embed.showConfirmation({
+        token: result.data.public_token,
+        reference: result.data.id,
+        brand: AppModules.booking.state.property?.name || '',
+        total: AppModules.booking.fmtCurrency(result.data.total_amount),
+      });
+      return;
+    }
     // O hóspede segue para a página do pedido: é lá que o acompanha e, depois
     // de aceite, paga o sinal.
     if (/^[a-f0-9]{64}$/i.test(result.data.public_token || '')) {

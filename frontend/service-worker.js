@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v42';
-const CACHE_VERSION = 111;
+const CACHE_VERSION = 114;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -26,6 +26,7 @@ const STATIC_ASSETS = [
   '/css/styles/relatorios.css',
   '/css/styles/definicoes.css',
   '/css/styles/formularios.css',
+  '/css/styles/proprietario.css',
   '/css/base.css',
   '/css/layout.css',
   '/css/components.css',
@@ -48,6 +49,7 @@ const STATIC_ASSETS = [
   '/js/features/public-reservation/precos.js',
   '/js/features/public-reservation/layout-novo.js',
   '/js/features/public-reservation/submissao.js',
+  '/js/features/public-reservation/embed.js',
   '/css/views/dashboard.css',
   '/css/views/reservas.css',
   '/css/views/despesas.css',
@@ -172,6 +174,9 @@ const FEATURE_ASSETS = [
   '/js/features/notificacoes/pagina.js',
   '/js/features/ajuda/pagina.js',
   '/js/features/ajuda/novo-pedido.js',
+  '/js/features/proprietario/pagina.js',
+  '/js/features/proprietario/seccoes.js',
+  '/js/features/proprietario/gestao.js',
   '/js/features/v2/folha.js',
   '/js/features/v2/barra.js',
   '/js/features/v2/formularios.js',
@@ -189,7 +194,6 @@ const FEATURE_ASSETS = [
   '/js/features/emails/preview.js',
   '/js/fornecedores.js',
   '/js/payment-policy.js',
-  '/js/team.js',
   '/js/push.js',
   '/js/appearance-settings.js',
 ];
@@ -211,7 +215,9 @@ const VIEW_ASSETS = [
   '/views/vouchers.html',
   '/views/precos.html',
   '/views/ajuda.html',
+  '/views/proprietario.html',
   '/views/definicoes.html',
+  '/views/conta.html',
 ];
 
 /* ─── Install: pré-cachear assets estáticos ─── */

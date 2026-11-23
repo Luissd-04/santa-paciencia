@@ -3,12 +3,17 @@
    página tinha com cor fixa. */
 
 /* Definições → Ligações: o ícone de cada serviço (era tijolo com ícone branco). */
-html[data-look] #view-definicoes[data-v2] .settings-integration-icon { background: var(--v2-accent-soft); color: var(--v2-ink); }
-html[data-look] #view-definicoes[data-v2] .settings-integration-icon svg { color: var(--v2-ink); }
-html[data-look="classico"] #view-definicoes[data-v2] .settings-integration-icon { background: #843424; }
-html[data-look="classico"] #view-definicoes[data-v2] .settings-integration-icon svg { color: #fff; }
+html[data-look] :is(#view-definicoes, #view-conta)[data-v2] .settings-integration-icon { background: var(--v2-accent-soft); color: var(--v2-ink); }
+html[data-look] :is(#view-definicoes, #view-conta)[data-v2] .settings-integration-icon svg { color: var(--v2-ink); }
+html[data-look="classico"] :is(#view-definicoes, #view-conta)[data-v2] .settings-integration-icon { background: #843424; }
+html[data-look="classico"] :is(#view-definicoes, #view-conta)[data-v2] .settings-integration-icon svg { color: #fff; }
 
 /* Definições → Emails: língua escolhida (era tijolo com letra branca). */
 html[data-look] #view-definicoes[data-v2] .lang-tab { border-radius: 999px; }
 html[data-look] #view-definicoes[data-v2] .lang-tab.active { background: var(--v2-accent); border-color: var(--v2-accent); color: var(--v2-accent-ink); }
 html[data-look="classico"] #view-definicoes[data-v2] .lang-tab.active { background: #843424; border-color: #843424; color: #fff; }
+
+/* Definições da conta: perfil, organizações e sessões (js/auth.js). */
+html[data-look] #view-conta[data-v2] .sessions-list > * { border-color: var(--v2-line); background: var(--v2-surface); color: var(--v2-ink); }
+html[data-look] #view-conta[data-v2] .conta-org { border-color: var(--v2-line); }
+html[data-look] #view-conta[data-v2] .conta-org-role, html[data-look] #view-conta[data-v2] .conta-hint { color: var(--v2-muted); }

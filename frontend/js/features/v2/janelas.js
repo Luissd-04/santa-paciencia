@@ -3,8 +3,7 @@
 //   título, o texto e o botão do que vai acontecer (a vermelho ao apagar).
 // · Janelas e formulários (.v2-janela): o aspeto novo também no computador,
 //   com o ícone no título; Bloquear datas com os alojamentos em pílulas e
-//   as noites bloqueadas; «A minha conta» junta perfil, palavra-passe e
-//   sessões com separadores.
+//   as noites bloqueadas.
 // · Avisos (toast): cartão com ícone em vez do emoji.
 (() => {
 AppModules.define('v2', {
@@ -53,10 +52,9 @@ const ICONES = {
   'modal-bg': 'calendar-plus|info', 'receipt-modal-bg': 'scan-line|ok', 'despesa-modal-bg': 'receipt|warn', 'evento-modal-bg': 'list-checks|violet', 'voucher-modal-bg': 'ticket|bad',
   'manual-notification-modal-bg': 'alarm-clock|info', 'precos-period-modal-bg': 'tag|ok',
 };
-const CONTA = ['profile-modal', 'change-password-modal', 'sessions-modal'];
 // Formulários grandes: só o aspeto (os campos ficam como estão).
 const GRANDES = ['modal-bg', 'receipt-modal-bg'];
-const JANELAS = [...Object.keys(ICONES), ...CONTA, ...GRANDES];
+const JANELAS = [...Object.keys(ICONES), ...GRANDES];
 
 function decorar(modal) {
   modal.classList.add('v2-janela');
@@ -68,7 +66,6 @@ function decorar(modal) {
   }
   if (modal.querySelector('#blk-acc')) bloquear(modal);
   if (!GRANDES.includes(modal.id)) AppModules.v2.marcarCampos(modal);
-  if (CONTA.includes(modal.id)) conta(modal);
   if (window.lucide) lucide.createIcons();
 }
 
@@ -88,28 +85,6 @@ function noites(modal) {
   const n = start && end && end >= start ? window.ReservationDates.countNights(start, end) + 1 : 0;
   modal.querySelector('.v2-noites').hidden = !n;
   modal.querySelector('.v2-noites b').textContent = `${n} ${n === 1 ? 'noite bloqueada' : 'noites bloqueadas'}`;
-}
-
-// A minha conta: perfil, palavra-passe e sessões com separadores.
-const SEPARADORES = [['profile-modal', 'user-round', 'Perfil', 'openProfileModal'], ['change-password-modal', 'key-round', 'Palavra-passe', 'openChangePasswordModal'], ['sessions-modal', 'monitor-smartphone', 'Sessões ativas', 'openSessionsModal']];
-function conta(modal) {
-  const box = modal.querySelector('.modal');
-  box.classList.add('v2-conta');
-  box.querySelector('.v2-conta-tabs')?.remove();
-  box.querySelector('.v2-conta-h')?.remove();
-  const user = core().currentUser || {};
-  const esc = core().escapeHtml;
-  box.insertAdjacentHTML('afterbegin', `<div class="v2-conta-h"><span class="v2-av">${esc(core().initials(user.name || '?'))}</span>
-      <div><b>A minha conta</b><small>${esc([user.name, user.organization_name].filter(Boolean).join(' · '))}</small></div></div>
-    <nav class="v2-conta-tabs" aria-label="A minha conta">${SEPARADORES.map(([id, icon, label]) =>
-      `<button type="button" aria-current="${id === modal.id ? 'page' : 'false'}" ${AppActions.attrs('click', 'v2-conta-separador', [id])}>${core().lcIcon(icon, 17)}<span>${label}</span></button>`).join('')}</nav>`);
-}
-function separador(id) {
-  const [, , , open] = SEPARADORES.find(([key]) => key === id);
-  const current = CONTA.find(key => document.getElementById(key)?.classList.contains('open'));
-  if (current === id) return;
-  if (current) AppUI.closeModal(current);
-  core()[open]();
 }
 
 document.addEventListener('app:modal', event => {
@@ -135,9 +110,5 @@ new MutationObserver(records => {
     if (window.lucide) lucide.createIcons();
   }
 }).observe(document.getElementById('toast-container') || document.body, { childList: true });
-
-AppActions.register({
-  'v2-conta-separador': (el, event, args) => { separador(args[0]) },
-}, 'click');
 
 })();

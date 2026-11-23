@@ -40,7 +40,7 @@ function planCard(plan) {
     <div class="pl-pac-top"><h3>${esc(plan.name)}</h3>${fmt.chip(n ? 'info' : 'neutral', `${num(n)} ${n === 1 ? 'cliente' : 'clientes'}`)}</div>
     <div>${row('Alojamentos', limitText(plan.max_accommodations))}${row('Pessoas na equipa', limitText(plan.max_members))}
       ${row('Pagamentos online', f.payments ? 'Sim' : '—')}${row('Relatórios e exportação', f.reports ? label(REPORTS, f.reports) : '—')}
-      ${row('Serviço de marketing', f.marketing ? label(MARKETING, f.marketing) : '—')}</div>
+      ${row('Serviço de marketing', f.marketing ? label(MARKETING, f.marketing) : '—')}${row('Reservas no site do cliente', f.booking_embed ? 'Sim' : '—')}</div>
     <div class="pl-pac-actions">${AppModules.consola.canManage ? `<button type="button" class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'pl-pac-editar', [plan.id])}>Editar</button>` : ''}${del}</div>
     ${confirming ? `<p class="pl-note">Apagar «${esc(plan.name)}» não pode ser desfeito.</p>` : ''}
   </section>`;
@@ -74,6 +74,8 @@ function formHtml() {
         <select class="form-control" id="pl-pac-rel" ${AppActions.attrs('change', 'pl-pac-campo', ['reports'])}>${opts(REPORTS, d.reports)}</select></div>
       <div><label class="pl-label" for="pl-pac-mkt">Serviço de marketing</label>
         <select class="form-control" id="pl-pac-mkt" ${AppActions.attrs('change', 'pl-pac-campo', ['marketing'])}>${opts(MARKETING, d.marketing)}</select></div>
+      <div><label class="pl-label" for="pl-pac-embed">Reservas no site do cliente</label>
+        <select class="form-control" id="pl-pac-embed" ${AppActions.attrs('change', 'pl-pac-campo', ['booking_embed'])}>${opts(PAYMENTS, d.booking_embed)}</select></div>
     </div>
     <p class="pl-error" id="pl-pac-erro" role="alert"${state.error ? '' : ' hidden'}>${esc(state.error)}</p>
     <div class="pl-pac-actions"><button type="button" class="btn btn-primary" id="pl-pac-guardar" ${state.busy ? 'disabled' : ''} ${AppActions.attrs('click', 'pl-pac-guardar')}>Guardar</button>
@@ -90,8 +92,8 @@ function draftOf(plan) {
     id: plan?.id || null, original: plan?.name || '', name: plan?.name || '',
     sort: String(plan?.sort ?? (state.plans.length ? Math.max(...state.plans.map(p => Number(p.sort) || 0)) + 1 : 1)),
     max_accommodations: a.value, max_accommodations_none: a.none, max_members: m.value, max_members_none: m.none,
-    payments: f.payments === true, reports: f.reports ?? 'basic', marketing: f.marketing ?? false,
-    extra: Object.fromEntries(Object.entries(f).filter(([key]) => !['payments', 'reports', 'marketing'].includes(key))),
+    payments: f.payments === true, reports: f.reports ?? 'basic', marketing: f.marketing ?? false, booking_embed: f.booking_embed === true,
+    extra: Object.fromEntries(Object.entries(f).filter(([key]) => !['payments', 'reports', 'marketing', 'booking_embed'].includes(key))),
   };
 }
 
@@ -113,7 +115,7 @@ function bodyOf(d) {
   const bool = value => value === true || value === 'true';
   const off = value => (value === false || value === 'false' ? false : value);
   return { body: { name, max_accommodations: acc.value, max_members: members.value, sort,
-    features: { ...d.extra, payments: bool(d.payments), reports: d.reports, marketing: off(d.marketing) } } };
+    features: { ...d.extra, payments: bool(d.payments), reports: d.reports, marketing: off(d.marketing), booking_embed: bool(d.booking_embed) } } };
 }
 
 // ── Perto do limite ──

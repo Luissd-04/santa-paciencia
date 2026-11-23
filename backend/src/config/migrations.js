@@ -74,7 +74,7 @@ function runMigrations(db) {
   require('./migrations-guest-journey')(db);
   require('./migrations-image-crops')(db);
   // Uma migração por funcionalidade da plataforma, cada uma no seu ficheiro.
-  for (const name of ['plans', 'tasks', 'announcements', 'console-c', 'departments', 'roles', 'device-daily', 'revisions', 'support-org-number']) require(`./migrations-platform/${name}`)(db);
+  for (const name of ['plans', 'tasks', 'announcements', 'console-c', 'departments', 'roles', 'device-daily', 'revisions', 'support-org-number', 'owner-area']) require(`./migrations-platform/${name}`)(db);
   db.exec(`CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY,
     organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,

@@ -98,7 +98,7 @@ function getEmailSettings(accommodation, organizationId) {
                 'property_name','property_address','license_number','email_contact'];
   let s = {};
   try { if (orgId) s = require('./settingsService').getMany(orgId, keys); } catch { s = {}; }
-  const org = orgId ? db.prepare('SELECT name FROM organizations WHERE id = ?').get(orgId) : null;
+  const org = orgId ? db.prepare('SELECT name, logo_url FROM organizations WHERE id = ?').get(orgId) : null;
 
   // Sem alojamento (pré-visualização da organização, avisos à equipa): o único
   // alojamento principal, se houver só um. Com vários, a organização.
@@ -135,7 +135,8 @@ function getEmailSettings(accommodation, organizationId) {
     review_url:       a.review_url || '',
     no_wifi:          Boolean(a.no_wifi),
     booking_url:      bookingUrl(a, parent, orgId),
-    logo_url:         resolveLogoUrl(a.logo_url),
+    // Sem logótipo próprio (nem herdado do principal): o da organização.
+    logo_url:         resolveLogoUrl(a.logo_url || org?.logo_url),
   };
 }
 

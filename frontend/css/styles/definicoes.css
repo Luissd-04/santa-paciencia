@@ -110,6 +110,24 @@
   display: block;
 }
 
+/* Definições da conta (/conta): cartões de formulário, organizações. */
+.conta-card { padding: 22px 24px; margin-bottom: 16px; }
+.conta-card > h3 { margin: 0 0 12px; font-size: 18px; }
+.conta-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.conta-grid .conta-span { grid-column: 1 / -1; }
+.conta-hint { display: block; margin: 6px 0 0; font-size: 12.5px; color: var(--text-muted, var(--cinza)); }
+.conta-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.conta-orgs { display: grid; gap: 4px; }
+.conta-org { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border-soft); font-size: 14px; }
+.conta-org:first-child { border-top: 0; }
+.conta-org-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.conta-org-role { color: var(--text-muted, var(--cinza)); font-size: 13px; }
+@media (max-width: 600px) {
+  .conta-card { padding: 16px; }
+  .conta-grid { grid-template-columns: minmax(0, 1fr); }
+  .conta-org { flex-wrap: wrap; }
+}
+
 .settings-sync-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

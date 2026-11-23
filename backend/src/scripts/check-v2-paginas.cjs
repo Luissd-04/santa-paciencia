@@ -231,7 +231,7 @@ async function main() {
   await expect(page.locator('#notifications-page-list .nv2-item.is-unread')).toHaveCount(0);
   await sideToggle.click();
   await resumo.getByRole('button', { name: 'Preferências de push' }).click();
-  await expect(page.locator('#settings-push')).toBeVisible();
+  await expect(page.locator('#conta-push')).toBeVisible();
 
   // Mensagens no vidro escuro: as iniciais e a resposta não ficam brancas
   // sobre branco (na V1 eram tijolo com letra branca).
@@ -486,9 +486,14 @@ async function main() {
   const conta = page.locator('.v2f-pop #v2-conta');
   await expect(conta).toContainText('Célia Pinto');
   await expect(page.locator('#user-menu')).toBeHidden();
-  await conta.getByRole('button', { name: 'Sessões ativas' }).click();
-  await expect(page.locator('#sessions-modal')).toHaveClass(/open/);
-  await page.keyboard.press('Escape');
+  // A conta: «Definições da conta» (e «Área do proprietário» só para o dono); sem «A minha conta» nem «Sessões ativas».
+  await expect(conta.getByRole('button', { name: 'Área do proprietário' })).toBeVisible();
+  await expect(conta.getByRole('button', { name: /A minha conta|Sessões ativas/ })).toHaveCount(0);
+  await conta.getByRole('button', { name: 'Definições da conta' }).click();
+  await expect(page.locator('#view-conta')).toHaveClass(/active/);
+  await page.locator('[data-conta-tab="sessoes"]').click();
+  await expect(page.locator('#sessions-list .session-row')).toHaveCount(1);
+  await page.goto(`${base}/`);
   await page.locator('.quick-action-wrap > .btn').click();
   const criarPc = page.locator('.v2f-pop #v2-criar');
   await expect(criarPc.locator('.v2c-tile')).toHaveCount(6);
@@ -517,13 +522,6 @@ async function main() {
   await bloqueio.locator('#blk-end').fill(dates.addDays(today, 22));
   await bloqueio.locator('#blk-end').dispatchEvent('change');
   await expect(bloqueio.locator('.v2-noites')).toContainText('3 noites bloqueadas');
-  await page.keyboard.press('Escape');
-  // A minha conta: perfil, palavra-passe e sessões com separadores.
-  await page.evaluate(() => AppModules.core.openProfileModal());
-  await expect(page.locator('#profile-modal .v2-conta-tabs [aria-current="page"]')).toContainText('Perfil');
-  await page.locator('#profile-modal .v2-conta-tabs button', { hasText: 'Sessões ativas' }).click();
-  await expect(page.locator('#sessions-modal')).toHaveClass(/open/);
-  await expect(page.locator('#profile-modal')).not.toHaveClass(/open/);
   await page.keyboard.press('Escape');
   // Avisos: cartão com ícone em vez do emoji.
   await page.evaluate(() => AppModules.core.toast('✅ Reserva guardada', 'success'));
@@ -660,7 +658,7 @@ async function main() {
   assert.notEqual(await page.locator('.auth-card-premium').evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(255, 255, 255, 0.15)', 'página de entrar ainda na V1');
 
   assert.deepEqual(errors, []);
-  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha na V2), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto de capa, foto partida, «Calendário» da plataforma; configurações com menu de secções, visão geral das unidades, o que herdam e «Alterações por guardar»), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos, total gasto, fichas da mesma pessoa numa linha, e ficha com resumo, outras fichas, notas e últimas mensagens), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, a minha conta e avisos (com «Abrir» no que se criou); formulários grandes e página de entrar na V2; nova reserva no computador em quatro passos com o resumo ao lado.');
+  console.log('OK: V2 — Reservas (lista da maqueta, filtros rápidos por estado, menu do filtro por cima da lista, teclado, ficha na V2), Calendário (painel do dia ao lado do mês, escolher dia, nova reserva, recolher guardado, timeline), Notificações (filtros, por ler, ler ao tocar e todas, resumo recolhível, preferências de push), Mensagens (iniciais legíveis no escuro, painel da reserva), Eventos (vista Semana, marcar feito, resumo, alturas iguais), Alojamentos (cartões com ocupação, foto de capa, foto partida, «Calendário» da plataforma; configurações com menu de secções, visão geral das unidades, o que herdam e «Alterações por guardar»), Vouchers (bilhetes e filtros), Hóspedes (números, segmentos, total gasto, fichas da mesma pessoa numa linha, e ficha com resumo, outras fichas, notas e últimas mensagens), Preços (alojamentos em pílula), Despesas (os quatro números, sem o gráfico), Despesas e Definições no escuro, largura e barra de cima (com a barra de estado do iPhone) no telemóvel de todas as páginas principais redesenhadas; no telemóvel, menu, sino, «Criar» e os formulários de criar como folhas; no computador, sino, conta e «Criar» por baixo do botão; janelas de confirmar, bloquear datas, menu da conta e avisos (com «Abrir» no que se criou); formulários grandes e página de entrar na V2; nova reserva no computador em quatro passos com o resumo ao lado.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {

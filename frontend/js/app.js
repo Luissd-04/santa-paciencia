@@ -24,6 +24,8 @@ AppModules.define('core', {
   saveGcalSyncSettings: { get: () => saveGcalSyncSettings },
   showView: { get: () => showView },
   switchSettingsTab: { get: () => switchSettingsTab },
+  openConta: { get: () => openConta },
+  switchContaTab: { get: () => switchContaTab },
   syncAllGcal: { get: () => syncAllGcal },
   syncGoogleTasks: { get: () => syncGoogleTasks },
   testGmail: { get: () => testGmail },
@@ -47,7 +49,9 @@ const VIEW_TITLES = {
   vouchers:   'Vouchers',
   precos:     'Preços Dinâmicos',
   ajuda:      'Ajuda e feedback',
+  proprietario: 'Área do proprietário',
   definicoes: 'Definições',
+  conta:      'Definições da conta',
   'hospede-detalhe': 'Ficha de Hóspede'
 };
 
@@ -62,14 +66,13 @@ async function showView(v, pushState = true) {
   // Entrar nas Definições pelo menu abre a lista de secções (telemóvel);
   // os atalhos abaixo (gcal, equipa, emails) abrem logo a secção.
   if (v === 'definicoes') settingsSectionOpen = false;
+  if (v === 'conta') contaSectionOpen = false;
   if (v === 'gcal') {
     switchSettingsTab('gcal', false);
     v = 'definicoes';
   }
-  if (v === 'equipa') {
-    switchSettingsTab('equipa', false);
-    v = 'definicoes';
-  }
+  // A Equipa passou para a Área do proprietário (atalhos e endereços antigos).
+  if (v === 'equipa') { AppModules.proprietario.open('equipa', { push: pushState }); return; }
   if (v === 'emails') {
     switchSettingsTab('emails', false);
     v = 'definicoes';
@@ -170,7 +173,9 @@ async function initView(v) {
   if (v === 'vouchers') AppModules.vouchers.loadVouchers();
   if (v === 'precos') AppModules.precos.initPrecos();
   if (v === 'ajuda') AppModules.ajuda.openPage();
+  if (v === 'proprietario') AppModules.proprietario.render(AppModules.proprietario.takeRequest());
   if (v === 'definicoes') renderSettingsView();
+  if (v === 'conta') renderContaView();
 }
 
 // Nome da vista a partir do caminho do endereço ("/reservas/" → "reservas").
@@ -183,8 +188,19 @@ window.addEventListener('popstate', async (e) => {
   // voltar da ficha aberta em /reservas ia parar ao painel.
   let v = e.state?.view || viewFromPath(window.location.pathname);
   if (v === 'gcal') { settingsTab = 'gcal'; v = 'definicoes'; }
-  if (v === 'equipa') { settingsTab = 'equipa'; v = 'definicoes'; }
   if (v === 'emails') { settingsTab = 'emails'; v = 'definicoes'; }
+  // Área do proprietário: a secção aberta fica no histórico (como nas Definições).
+  if (v === 'equipa' || v === 'proprietario') {
+    AppModules.proprietario.open(v === 'equipa' ? 'equipa' : (e.state?.propSection || null), { push: false });
+    return;
+  }
+  if (v === 'conta' && e.state?.contaTab) {
+    contaTab = e.state.contaTab;
+    await showView('conta', false);
+    contaSectionOpen = Boolean(e.state.section);
+    applyContaTab();
+    return;
+  }
   if (v === 'definicoes' && e.state?.settingsTab) {
     settingsTab = e.state.settingsTab;
     await showView('definicoes', false);
@@ -213,6 +229,11 @@ async function handleDeepLinkUrl(raw) {
   if (view === 'ajuda' && pedidoId && await AppModules.core.ensureFeature('ajuda')) AppModules.ajuda.requestTicket(pedidoId);
   if (view === 'reservas' && reservaId) {
     if (await AppModules.core.ensureFeature('reservas')) { AppModules.reservas.showDetail(reservaId); return; }
+  }
+  // Email da transferência de propriedade: /proprietario?transferencia=<token>.
+  if (view === 'proprietario' || view === 'equipa') {
+    AppModules.proprietario.open(view === 'equipa' ? 'equipa' : u.searchParams.get('seccao'), { token: u.searchParams.get('transferencia') });
+    return;
   }
   showView(VIEW_TITLES[view] ? view : 'dashboard');
 }
@@ -316,7 +337,12 @@ document.addEventListener('click', event => {
 });
 
 // ── SETTINGS ──
+// Separadores que passaram para «Definições da conta» (/conta): quem os pede
+// pelas Definições (atalhos, endereços ou sessão antiga) é levado para lá.
+const CONTA_TABS = ['perfil', 'seguranca', 'sessoes', 'aparencia', 'vistas', 'push', 'sobre'];
+const CONTA_MOVED = ['aparencia', 'vistas', 'push', 'sobre'];
 let settingsTab = AppModules.core.SS.get('settings:tab', 'gcal');
+if (CONTA_MOVED.includes(settingsTab)) settingsTab = 'gcal';
 
 // No telemóvel as Definições abrem na lista de secções; escolher uma secção
 // mostra-a no ecrã inteiro (CSS: .settings-shell.is-section-open). No
@@ -324,8 +350,10 @@ let settingsTab = AppModules.core.SS.get('settings:tab', 'gcal');
 let settingsSectionOpen = false;
 
 function switchSettingsTab(tab, render = true) {
-  if (tab === 'equipa' && AppModules.core.currentUser?.role !== 'owner') tab = 'gcal';
-  settingsTab = ['gcal', 'database', 'operations', 'emails', 'fornecedores', 'push', 'equipa', 'payments', 'aparencia', 'vistas', 'sobre'].includes(tab) ? tab : 'gcal';
+  if (CONTA_MOVED.includes(tab)) { openConta(tab); return; }
+  // A Equipa está na Área do proprietário.
+  if (tab === 'equipa') { AppModules.proprietario.open('equipa'); return; }
+  settingsTab = ['gcal', 'database', 'operations', 'emails', 'fornecedores', 'payments'].includes(tab) ? tab : 'gcal';
   AppModules.core.SS.set('settings:tab', settingsTab);
   settingsSectionOpen = true;
   applySettingsTab();
@@ -350,34 +378,81 @@ function openSettingsIndex() {
 }
 
 function applySettingsTab() {
-  document.querySelectorAll('[data-settings-tab]').forEach(btn => {
+  const view = document.getElementById('view-definicoes');
+  view.querySelectorAll('[data-settings-tab]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.settingsTab === settingsTab);
   });
-  document.querySelectorAll('.settings-panel').forEach(panel => {
+  view.querySelectorAll('.settings-panel').forEach(panel => {
     panel.classList.toggle('active', panel.id === 'settings-' + settingsTab);
   });
-  document.querySelector('.settings-shell')?.classList.toggle('is-section-open', settingsSectionOpen);
+  view.querySelector('.settings-shell')?.classList.toggle('is-section-open', settingsSectionOpen);
 }
 
 function renderSettingsView() {
-  if (settingsTab === 'equipa' && AppModules.core.currentUser?.role !== 'owner') settingsTab = 'gcal';
+  if (settingsTab === 'equipa') settingsTab = 'gcal';
   applySettingsTab();
   AppUI.enhanceSelects(document.getElementById('view-definicoes'));
   AppUI.refreshDropdowns(document.getElementById('view-definicoes'));
   if (settingsTab === 'payments') AppModules.definicoes.loadPaymentPolicy();
   if (settingsTab === 'gcal') { loadCalendarStatus(); loadGmailStatus(); loadGoogleTasksStatus(); }
-  if (settingsTab === 'database') {
-    if (typeof AppModules.core.initExportReminderControls === 'function') AppModules.core.initExportReminderControls();
-    if (AppModules.core.currentUser?.role === 'owner' && typeof AppModules.definicoes.loadSystemStatus === 'function') AppModules.definicoes.loadSystemStatus();
-  }
+  if (settingsTab === 'database' && typeof AppModules.core.initExportReminderControls === 'function') AppModules.core.initExportReminderControls();
   if (settingsTab === 'operations' && typeof AppModules.core.loadAutoTaskSettings === 'function') AppModules.core.loadAutoTaskSettings();
   if (settingsTab === 'emails' && typeof AppModules.definicoes.loadEmailTemplates === 'function') AppModules.definicoes.loadEmailTemplates();
   if (settingsTab === 'fornecedores' && typeof AppModules.definicoes.loadFornecedores === 'function') AppModules.definicoes.loadFornecedores();
-  if (settingsTab === 'push' && typeof AppModules.definicoes.initPushSettings === 'function') AppModules.definicoes.initPushSettings();
-  if (settingsTab === 'equipa' && AppModules.core.currentUser?.role === 'owner') AppModules.definicoes.loadTeamOverview();
-  if (settingsTab === 'aparencia' && typeof AppModules.definicoes.renderAppearance === 'function') AppModules.definicoes.renderAppearance();
-  if (settingsTab === 'vistas' && typeof AppModules.definicoes.renderViewPrefs === 'function') AppModules.definicoes.renderViewPrefs();
-  if (settingsTab === 'sobre' && typeof AppModules.definicoes.renderAbout === 'function') AppModules.definicoes.renderAbout();
+  if (window.lucide) lucide.createIcons();
+}
+
+// ── DEFINIÇÕES DA CONTA (pessoais) ──
+// Mesma lógica das Definições: no computador uma coluna de secções ao lado; no
+// telemóvel a lista e cada secção no ecrã inteiro (CSS: .settings-shell.is-section-open).
+let contaTab = 'perfil';
+let contaSectionOpen = false;
+
+// Abre «Definições da conta», já numa secção (ou na lista, sem `tab`).
+async function openConta(tab) {
+  await showView('conta');
+  if (tab) switchContaTab(tab);
+}
+
+function switchContaTab(tab, render = true) {
+  contaTab = CONTA_TABS.includes(tab) ? tab : 'perfil';
+  contaSectionOpen = true;
+  applyContaTab();
+  if (render) {
+    const state = history.state || {};
+    if (state.view !== 'conta' || state.contaTab !== contaTab || !state.section) {
+      history.pushState({ view: 'conta', contaTab, section: true }, '', '/conta');
+    }
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    renderContaView();
+  }
+}
+
+function openContaIndex() {
+  if (history.state?.view === 'conta' && history.state.section) { history.back(); return; }
+  contaSectionOpen = false;
+  applyContaTab();
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function applyContaTab() {
+  const view = document.getElementById('view-conta');
+  view.querySelectorAll('[data-conta-tab]').forEach(btn => btn.classList.toggle('active', btn.dataset.contaTab === contaTab));
+  view.querySelectorAll('.settings-panel').forEach(panel => panel.classList.toggle('active', panel.id === 'conta-' + contaTab));
+  view.querySelector('.settings-shell')?.classList.toggle('is-section-open', contaSectionOpen);
+}
+
+function renderContaView() {
+  applyContaTab();
+  const core = AppModules.core;
+  const definicoes = AppModules.definicoes;
+  if (contaTab === 'perfil') core.renderProfile();
+  if (contaTab === 'seguranca') core.resetPasswordForm();
+  if (contaTab === 'sessoes') core.loadSessions();
+  if (contaTab === 'aparencia' && typeof definicoes.renderAppearance === 'function') definicoes.renderAppearance();
+  if (contaTab === 'vistas' && typeof definicoes.renderViewPrefs === 'function') definicoes.renderViewPrefs();
+  if (contaTab === 'push' && typeof definicoes.initPushSettings === 'function') definicoes.initPushSettings();
+  if (contaTab === 'sobre' && typeof definicoes.renderAbout === 'function') definicoes.renderAbout();
   if (window.lucide) lucide.createIcons();
 }
 
@@ -409,7 +484,7 @@ async function loadAccommodations() {
 }
 
 // ── MARCA NO TOPO DA BARRA LATERAL ──
-// Ordem: logótipo da organização (campo ainda inexistente) → logótipo do
+// Ordem: logótipo da organização (Área do proprietário → Marca) → logótipo do
 // alojamento principal (o primeiro sem alojamento-pai) → nome da organização.
 function sidebarBrandInfo() {
   const core = AppModules.core;
@@ -420,7 +495,8 @@ function sidebarBrandInfo() {
   const logo = orgLogo || main?.logo_url || '';
   const src = logo ? (/^(https?:|data:)/.test(logo) ? logo : (core.API_BASE || '') + logo) : '';
   // Versão pequena (menu recolhido): o recorte quadrado do logótipo, se houver.
-  const mark = !orgLogo && main ? core.logoMarkSrc?.(main) || '' : '';
+  const orgMark = user.organization?.logo_mark_url || '';
+  const mark = orgLogo ? (orgMark ? (core.API_BASE || '') + orgMark : '') : (main ? core.logoMarkSrc?.(main) || '' : '');
   return { name, src, mark };
 }
 
@@ -857,7 +933,6 @@ async function initApp() {
 
   let pathView = viewFromPath(window.location.pathname);
   if (pathView === 'gcal') { settingsTab = 'gcal'; pathView = 'definicoes'; }
-  if (pathView === 'equipa') { settingsTab = 'equipa'; pathView = 'definicoes'; }
   // Deep-link /reservas?reserva=<id>: limpar o estado ANTES do showView — após
   // F5 o history.state ainda traz `reservaDetail` e o showReservasList interno
   // faria history.back() indevido. A entrada base fica a lista.
@@ -872,7 +947,13 @@ async function initApp() {
       history.replaceState({ view: home }, '', '/' + home);
     }
   }
-  await showView(startView, false);
+  // Área do proprietário: /equipa (antigo) abre a Equipa; o email da
+  // transferência de propriedade traz ?transferencia=<token>.
+  if (pathView === 'proprietario' || pathView === 'equipa') {
+    const params = new URLSearchParams(window.location.search);
+    if (pathView === 'equipa' || params.has('transferencia')) history.replaceState({ view: 'proprietario' }, '', '/proprietario');
+    await AppModules.proprietario.open(pathView === 'equipa' ? 'equipa' : params.get('seccao'), { push: false, token: params.get('transferencia') });
+  } else await showView(startView, false);
   if (deepId && pathView === 'reservas' && typeof AppModules.reservas.showDetail === 'function') AppModules.reservas.showDetail(deepId);
   if (window.AppDatePicker) {
     // Os campos type=date são ligados automaticamente (enhanceAll + observer no
@@ -997,6 +1078,11 @@ if ('serviceWorker' in navigator) {
 
 AppActions.register({
   "settings-open-index": () => openSettingsIndex(),
+  "conta-open": () => { AppModules.core.closeSideDrawer(); return openConta(); },
+  "conta-open-tab": (el, event, args) => switchContaTab(args[0]),
+  "conta-open-index": () => openContaIndex(),
+  // A Área do proprietário é de outra funcionalidade: só existe quando já foi carregada.
+  "conta-open-proprietario": () => { AppModules.core.closeSideDrawer(); return AppModules['proprietario']?.open?.(); },
 }, "click");
 
 })();

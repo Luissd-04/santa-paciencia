@@ -18,6 +18,7 @@ const DEFAULT_COLOR = '#843424';
 const CONFIRMED = ['confirmada', 'check_in', 'checkin', 'checked_in'];
 const text = value => (typeof value === 'string' ? value.trim() : '');
 const hexColor = value => (/^#[0-9a-f]{6}$/i.test(text(value)) ? text(value).toLowerCase() : '');
+const chosenColor = value => (hexColor(value) === DEFAULT_COLOR ? '' : hexColor(value));
 
 // Janela dos dados sensíveis: da véspera da entrada ao dia da saída, com a
 // reserva confirmada e integralmente paga.
@@ -49,6 +50,7 @@ function build(reservation, { now = new Date(), mediaUrl = value => value } = {}
     ? db.prepare('SELECT id, color, cover_image, cover_focal, cover_crops, cover_size FROM accommodations WHERE id = ? AND organization_id = ?').get(row.parent_id, reservation.organization_id)
     : null;
   const settings = require('./emailService').getEmailSettings(row, reservation.organization_id);
+  const org = db.prepare('SELECT logo_url, brand_color FROM organizations WHERE id = ?').get(reservation.organization_id);
   const status = reservation.status;
   const confirmed = CONFIRMED.includes(status);
   const stayInfo = confirmed || status === 'check_out';
@@ -61,8 +63,10 @@ function build(reservation, { now = new Date(), mediaUrl = value => value } = {}
     today,
     guest_first_name: firstName(reservation),
     // Cor da marca: a do alojamento principal (num quarto), senão a da unidade.
-    color: hexColor(parent?.color) || hexColor(row.color) || DEFAULT_COLOR,
-    logo_url: a.logo_url ? mediaUrl(a.logo_url) : '',
+    // Sem cor nem logótipo no alojamento, os da organização (Área do proprietário → Marca).
+    // A cor por omissão dos alojamentos (#843424, a da coluna) conta como «sem cor».
+    color: chosenColor(hexColor(parent?.color) || hexColor(row.color)) || hexColor(org?.brand_color) || DEFAULT_COLOR,
+    logo_url: a.logo_url || org?.logo_url ? mediaUrl(a.logo_url || org.logo_url) : '',
     // Capa: a da unidade, senão a do alojamento principal.
     cover_image: row.cover_image || parent?.cover_image ? mediaUrl(row.cover_image || parent.cover_image) : '',
     // Topo do portal: faixa (3:1) no computador, paisagem (16:9) no telemóvel.

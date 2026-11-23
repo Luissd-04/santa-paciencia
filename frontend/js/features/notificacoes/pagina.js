@@ -163,9 +163,9 @@ async function markRead(payload) {
   AppModules.core.loadNotifications();
 }
 
-async function openPushSettings() {
-  await AppModules.core.showView('definicoes');
-  AppModules.core.switchSettingsTab('push');
+// «Avisos no telemóvel» vive nas Definições da conta (é de cada pessoa e aparelho).
+function openPushSettings() {
+  return AppModules.core.openConta('push');
 }
 
 AppActions.register({

@@ -386,9 +386,13 @@ function refreshViews() {
 }
 
 // ── Logótipo ──────────────────────────────────────────────────────────────
-async function openLogoCrops() {
-  const a = currentAccommodation();
-  if (!a || a.parent_id) return;
+// Sem argumento: o logótipo do alojamento aberto. Com `target`, outro dono do
+// logótipo com os mesmos recortes (a organização, na Área do proprietário):
+// { id, endpoint (…/logo, com /trim e /crops), fields (logo_*), name, onSaved(dados) }.
+async function openLogoCrops(target = null) {
+  const owner = target && typeof target === 'object' && target.endpoint ? target : null;
+  const a = owner ? owner.fields || {} : currentAccommodation();
+  if (!a || (!owner && a.parent_id)) return;
   const originalUrl = a.logo_original_url || a.logo_url;
   if (!originalUrl || !/^\/uploads\/[A-Za-z0-9_.-]+$/.test(originalUrl)) {
     core().toast('Carregue primeiro um logótipo.', 'info');
@@ -400,13 +404,15 @@ async function openLogoCrops() {
   const crop = C().parse(a.logo_crop);
   const square = C().parse(a.logo_square_crop);
   session = {
-    kind: 'logo', id: a.id, source: { src: original.src, width, height },
+    kind: 'logo', id: owner ? owner.id : a.id, source: { src: original.src, width, height },
+    endpoint: owner ? owner.endpoint : `/api/accommodations/${encodeURIComponent(a.id)}/logo`,
+    onSaved: owner?.onSaved || null,
     crop: C().validRect(crop) ? crop : { x: 0, y: 0, w: 1, h: 1 },
     square: C().validRect(square) ? square : null,
     useSquare: C().validRect(square),
     selected: 'logo',
   };
-  const name = (core().currentUser?.organization_name || a.name || '').trim();
+  const name = (owner?.name || core().currentUser?.organization_name || a.name || '').trim();
   const dialog = openWindow({
     id: 'rc-logo',
     title: 'Ajustar logótipo',
@@ -497,8 +503,10 @@ async function trimLogo(dialog, stage) {
   const button = dialog.querySelector('[data-rc="trim"]');
   button.disabled = true;
   try {
-    const res = await core().apiPost(`/api/accommodations/${encodeURIComponent(session.id)}/logo/trim`, {});
-    if (!res?.success) throw new Error(res?.error || 'Não foi possível detetar as margens.');
+    const reply = await core().apiPost(`${session.endpoint}/trim`, {});
+    if (!reply?.success) throw new Error(reply?.error || 'Não foi possível detetar as margens.');
+    // A rota da organização devolve { data }; a dos alojamentos, os campos soltos.
+    const res = reply.data || reply;
     session.crop = res.crop;
     session.selected = 'logo';
     renderLogo(dialog, stage, true);
@@ -517,10 +525,17 @@ async function saveLogo(dialog) {
   error.hidden = true;
   button.disabled = true;
   try {
-    const res = await core().apiPut(`/api/accommodations/${encodeURIComponent(session.id)}/logo/crops`, {
+    const reply = await core().apiPut(`${session.endpoint}/crops`, {
       crop: session.crop, square: session.useSquare ? squareRect() : null,
     });
-    if (!res?.success) throw Object.assign(new Error(res?.error || 'Não foi possível guardar.'), { payload: res });
+    if (!reply?.success) throw Object.assign(new Error(reply?.error || 'Não foi possível guardar.'), { payload: reply });
+    if (session.onSaved) {
+      session.onSaved(reply.data);
+      AppUI.closeDialog(dialog);
+      core().toast('✅ Logótipo atualizado.', 'success');
+      return;
+    }
+    const res = reply;
     const id = session.id;
     applyFields(id, { logo_url: res.logo_url, logo_original_url: res.logo_original_url, logo_crop: res.logo_crop, logo_square_crop: res.logo_square_crop });
     AppUI.closeDialog(dialog);

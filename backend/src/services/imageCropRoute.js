@@ -34,7 +34,10 @@ async function serve(url, query) {
   if (format === 'logo' || format === 'mark') {
     // O retângulo é relativo ao original (`logo_original_url`), que fica
     // guardado quando `logo_url` passa a ser a versão recortada.
+    // Do alojamento ou, se nenhum o usa, da organização (Área do proprietário → Marca).
     const row = db.prepare(`SELECT logo_original_url, logo_crop, logo_square_crop FROM accommodations
+      WHERE logo_url = ? OR logo_original_url = ? ORDER BY (logo_square_crop IS NULL), rowid LIMIT 1`).get(url, url)
+      || db.prepare(`SELECT logo_original_url, logo_crop, logo_square_crop FROM organizations
       WHERE logo_url = ? OR logo_original_url = ? ORDER BY (logo_square_crop IS NULL), rowid LIMIT 1`).get(url, url);
     if (row?.logo_original_url) source = row.logo_original_url;
     const rect = crops.parse(format === 'mark' ? row?.logo_square_crop : row?.logo_crop);

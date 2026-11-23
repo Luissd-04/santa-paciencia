@@ -329,6 +329,10 @@ function getNotifications(req, res, next) {
       }
       for (const d of deliveries) notifications.push({ type: 'email_review', priority: 'high', icon: 'mail', title: d.state === 'blocked' ? 'Email por enviar' : 'Envio de email por confirmar', subtitle: `${d.template_slug} · ${d.last_error || 'Aguarde a conclusão e confirme no Gmail antes de repetir.'}`, reservation_id: d.reservation_id, template_slug: d.template_slug, delivery_state: d.state });
     }
+    // Pedido de transferência de propriedade para esta pessoa (Área do proprietário).
+    const transfer = require('../services/ownershipTransfer').pendingForUser(req.user);
+    if (transfer) notifications.push({ type: 'ownership_transfer', priority: 'high', icon: 'key-round', title: 'Pedido para ser proprietário',
+      subtitle: `${transfer.from.name || 'O proprietário'} quer passar-lhe a propriedade de ${transfer.organization.name}`, transfer_id: transfer.id });
     res.json({ success: true, data: { notifications: notificationState.annotate(req.user.id, orgId, notifications) } });
   } catch (err) {
     next(err);

@@ -53,15 +53,25 @@ function isAllowedImageUrl(url, organizationId) {
   try { return new URL(url).protocol === 'https:'; } catch { return false; }
 }
 
+// Logótipos das organizações (Área do proprietário → Marca): o recortado e o original.
+function organizationUrls() {
+  const urls = new Set();
+  for (const row of db.prepare('SELECT logo_url, logo_original_url FROM organizations WHERE logo_url IS NOT NULL OR logo_original_url IS NOT NULL').all()) {
+    for (const value of [row.logo_url, row.logo_original_url]) if (uploadPath(value)) urls.add(value);
+  }
+  return urls;
+}
+
 // Nunca apagar um ficheiro ainda referenciado, mesmo por outro cliente.
 function removeUnreferencedImage(url) {
   const file = uploadPath(url);
   if (!file) return;
   if (accommodationUrls(db.prepare('SELECT cover_image, logo_url, logo_original_url, images FROM accommodations').all()).has(url)) return;
+  if (organizationUrls().has(url)) return;
   if (db.prepare('SELECT 1 FROM expenses WHERE receipt_image = ?').get(url)) return;
   if (fs.existsSync(file)) fs.unlinkSync(file);
   // Carregado aqui para evitar a dependência circular com imageOptimizer.
   require('./imageOptimizer').removeThumbnails(path.basename(file));
 }
 
-module.exports = { UPLOADS_DIR, uploadPath, accommodationUrls, isAllowedImageUrl, removeUnreferencedImage, detectImageMagicType };
+module.exports = { UPLOADS_DIR, uploadPath, accommodationUrls, organizationUrls, isAllowedImageUrl, removeUnreferencedImage, detectImageMagicType };

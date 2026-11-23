@@ -112,22 +112,29 @@ function alojamentoDe(r) {
 }
 
 // Cabeçalho: logótipo (o da unidade ou, herdado, o do alojamento principal) e
-// dados do alojamento principal. Sem logótipo, o nome da organização em texto.
+// dados do alojamento principal. Sem logótipo, o da organização; sem nenhum,
+// o nome da organização em texto. Sem NIF no alojamento, o NIF e a
+// denominação legal da empresa (Área do proprietário → Empresa).
 function cabecalho(r) {
   const { acc, parent } = alojamentoDe(r);
   const pick = field => limpo(acc[field]) || limpo(parent?.[field]);
-  const org = limpo(core().currentUser?.organization_name);
+  const user = core().currentUser || {};
+  const empresa = user.organization || {};
+  const org = limpo(user.organization_name) || limpo(empresa.name);
   const nome = limpo(parent?.name) || limpo(acc._parent_name) || limpo(acc.name) || limpo(r.accommodation_name) || org || 'Alojamento';
   const licenca = limpo(r.license_number) || pick('license_number');
-  const nif = pick('nif');
+  const nifProprio = pick('nif');
+  const nif = nifProprio || limpo(empresa.nif);
+  // A denominação legal só aparece com o NIF da empresa (identifica quem emite).
+  const legal = !nifProprio && nif ? limpo(empresa.legal_name) : '';
   const morada = [pick('address'), [pick('postal_code'), pick('city')].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
   return {
     nome,
     marca: org && org !== nome ? org : '',
-    logo: pick('logo_url'),
+    logo: pick('logo_url') || limpo(empresa.logo_url),
     linhas: [
       morada,
-      [licenca ? `Licença AL ${licenca.replace(/\s*\/\s*AL$/i, '')}` : '', nif ? `NIF ${nif}` : ''].filter(Boolean).join(' · '),
+      [licenca ? `Licença AL ${licenca.replace(/\s*\/\s*AL$/i, '')}` : '', legal && legal !== nome ? legal : '', nif ? `NIF ${nif}` : ''].filter(Boolean).join(' · '),
       [pick('contact_email'), pick('contact_phone')].filter(Boolean).join(' · '),
     ].filter(Boolean),
     checkin: pick('checkin_time'),

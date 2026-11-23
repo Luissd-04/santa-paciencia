@@ -61,6 +61,16 @@ const MESSAGES = {
       small: 'O convite é válido durante 7 dias.',
     };
   },
+  ownershipTransfer: ({ ownerName, organizationName, url }) => ({
+    subject: `Pedido para ser proprietário de ${organizationName} — Santa Paciência`, title: `Quer passar a ser o proprietário de ${organizationName}?`,
+    paragraphs: [
+      `${esc(ownerName || 'O proprietário')} pediu para lhe passar a propriedade de <strong>${esc(organizationName)}</strong>.`,
+      'Como proprietário, vai gerir a empresa, a marca, a equipa, o plano e as cópias de segurança. Quem lhe fez o pedido passa a gestor.',
+    ],
+    note: { heading: 'Nada muda até aceitar', html: 'Abra a aplicação com a sua conta e aceite (ou recuse) o pedido.' },
+    cta: { url, label: 'Ver o pedido' },
+    small: 'O pedido é válido durante 7 dias.',
+  }),
   gmailTest: () => ({
     subject: 'Teste de email - Santa Paciência', title: 'O envio de emails está a funcionar',
     eyebrow: 'Ligação ativa', tone: 'ok',
@@ -81,5 +91,6 @@ const sendEmailChangeConfirmation = (organizationId, { to, url }) => send(organi
 const sendEmailChangedNotice = (organizationId, { to }) => send(organizationId, to, MESSAGES.emailChanged());
 const sendTeamInvitation = (organizationId, { to, organizationName, role, url }) => send(organizationId, to, MESSAGES.teamInvitation({ organizationName, role, url }));
 const sendGmailTest = (organizationId, { to }) => send(organizationId, to, MESSAGES.gmailTest());
+const sendOwnershipTransfer = (organizationId, { to, ownerName, organizationName, url }) => send(organizationId, to, MESSAGES.ownershipTransfer({ ownerName, organizationName, url }));
 
-module.exports = { MESSAGES, compose, sendPasswordReset, sendEmailChangeConfirmation, sendEmailChangedNotice, sendTeamInvitation, sendGmailTest };
+module.exports = { MESSAGES, compose, sendPasswordReset, sendEmailChangeConfirmation, sendEmailChangedNotice, sendTeamInvitation, sendGmailTest, sendOwnershipTransfer };

@@ -1,4 +1,5 @@
 const { db } = require('../config/database');
+const { escapeHtml } = require('./emailComposer');
 
 function getOrgData(orgId) {
   if (!orgId) {
@@ -7,12 +8,15 @@ function getOrgData(orgId) {
       email:   '',
     };
   }
-  const org = db.prepare('SELECT name FROM organizations WHERE id = ?').get(orgId);
+  const org = db.prepare('SELECT name, legal_name, tax_id FROM organizations WHERE id = ?').get(orgId);
   const keys = ['property_name', 'email_contact'];
   const s = require('./settingsService').getMany(orgId, keys);
   return {
     name:  s.property_name || org?.name || process.env.PROPERTY_NAME || 'Santa Paciência',
     email: s.email_contact || '',
+    // Área do proprietário → Empresa: a entidade responsável pelo tratamento.
+    legal_name: org?.legal_name || '',
+    nif: org?.tax_id || '',
   };
 }
 
@@ -40,7 +44,7 @@ function generateRgpdDocument(guest, reservation, orgId = null) {
           <li>Cumprimento de obrigações legais (SEF/AIMA, autoridades fiscais)</li>
           <li>Faturação e contabilidade</li>
         </ul>
-        <p><strong>Responsável pelo tratamento:</strong> ${org.name}<br/>
+        <p><strong>Responsável pelo tratamento:</strong> ${escapeHtml(org.legal_name || org.name)}${org.nif ? ` (NIF ${escapeHtml(org.nif)})` : ''}<br/>
         <strong>Contacto:</strong> ${org.email}</p>
         <p>Os seus dados não serão partilhados com terceiros exceto para cumprimento
         de obrigações legais. Pode solicitar acesso, retificação ou apagamento dos

@@ -106,7 +106,8 @@ const FEATURE_MODULES = {
     ],
   },
   alojamentos: {
-    actions: ['exportAlojamentosXLS', 'exportAlojamentosPDF', 'importAlojamentosXLS'],
+    // openLogoCrops: o mesmo «Ajustar logótipo» serve a marca da organização (Área do proprietário).
+    actions: ['exportAlojamentosXLS', 'exportAlojamentosPDF', 'importAlojamentosXLS', 'openLogoCrops'],
     deps: ['bloqueios'],
     scripts: [
       'js/alojamentos.js',
@@ -152,6 +153,12 @@ const FEATURE_MODULES = {
       'js/features/invoice/contexto-v2.js',
     ],
   },
+  // Área do proprietário (/proprietario): empresa, marca, equipa, plano,
+  // cópias de segurança, registo de atividade, propriedade e encerramento.
+  // A entrada (AppModules.proprietario.open) está no núcleo, em menu.js.
+  proprietario: {
+    scripts: ['js/features/proprietario/pagina.js', 'js/features/proprietario/seccoes.js', 'js/features/proprietario/gestao.js'],
+  },
   // «Ajuda e feedback»: pedidos ao dono da instância (só na V2).
   ajuda: {
     scripts: ['js/features/ajuda/pagina.js', 'js/features/ajuda/novo-pedido.js'],
@@ -166,7 +173,6 @@ const FEATURE_MODULES = {
       'js/features/emails/editor.js',
       'js/features/emails/preview.js',
       'js/fornecedores.js',
-      'js/team.js',
       'js/push.js',
       'js/appearance-settings.js',
     ],
@@ -195,7 +201,9 @@ const VIEW_FEATURE = {
   invoice: 'invoice',
   notificacoes: 'notificacoes',
   ajuda: 'ajuda',
+  proprietario: 'proprietario',
   definicoes: 'definicoes',
+  conta: 'definicoes',
 };
 
 // Vista → marcação HTML carregada em runtime (mesma ideia do ensureFeature,
@@ -216,7 +224,9 @@ const VIEW_MARKUP = {
   vouchers: 'views/vouchers.html',
   precos: 'views/precos.html',
   ajuda: 'views/ajuda.html',
+  proprietario: 'views/proprietario.html',
   definicoes: 'views/definicoes.html',
+  conta: 'views/conta.html',
 };
 
 // Função exportada → funcionalidade que a define.

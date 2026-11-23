@@ -57,8 +57,8 @@ async function main() {
   await expect(page.locator('#dash-desktop')).toBeVisible();
 
   // Escolher o vidro em Definições → Aparência: automático segue o sistema (escuro aqui).
-  await page.evaluate(() => AppModules.core.showView('definicoes'));
-  await page.locator('[data-settings-tab="aparencia"]').click();
+  await page.evaluate(() => AppModules.core.showView('conta'));
+  await page.locator('[data-conta-tab="aparencia"]').click();
   await expect(page.locator('#appearance-mode')).toBeHidden();
   await page.locator('[data-appearance-look="vidro"]').click();
   await expect(page.locator('[data-appearance-look="vidro"]')).toHaveAttribute('aria-checked', 'true');
@@ -107,8 +107,8 @@ async function main() {
 
   // Voltar ao atual: a V1 de sempre.
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(`${base}/definicoes`);
-  await page.locator('[data-settings-tab="aparencia"]').click();
+  await page.goto(`${base}/conta`);
+  await page.locator('[data-conta-tab="aparencia"]').click();
   await page.locator('[data-appearance-look="atual"]').click();
   await expect.poll(look).toEqual([null, null]);
   await expect.poll(() => appearance.get(user.id).look).toBe('atual');

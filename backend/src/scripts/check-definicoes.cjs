@@ -31,9 +31,9 @@ async function main() {
     const session = auth.createSession(user.id, org.id).sessionId;
     await context.addCookies([{ name: auth.SESSION_COOKIE, value: session, url: base }]);
 
-    // App → Definições → Versão da aplicação.
-    await page.goto(`${base}/definicoes`);
-    await page.locator('[data-settings-tab="sobre"]').click();
+    // App → Definições da conta → Versão da aplicação.
+    await page.goto(`${base}/conta`);
+    await page.locator('[data-conta-tab="sobre"]').click();
     await expect(page.locator('#about-commit')).toHaveText('abc9178d0e1f');
     await expect(page.locator('#about-started')).not.toHaveText('—');
     if (shots) await page.screenshot({ path: path.join(shots, `app-definicoes-${label}.png`) });

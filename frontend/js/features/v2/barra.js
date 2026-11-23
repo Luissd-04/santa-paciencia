@@ -117,13 +117,15 @@ function abrirConta(anchor) {
     id: 'v2-conta',
     anchor,
     title: user.name || 'Sessão',
-    sub: user.email || '',
+    sub: [user.email, { owner: 'Proprietário', manager: 'Gestor', staff: 'Equipa' }[user.role]].filter(Boolean).join(' · '),
     lead: `<span class="v2-av v2f-av">${esc(core().initials(user.name || '?'))}</span>`,
     body: `${orgs ? `<div class="v2k-orgs">${orgs}</div>` : ''}${modesHtml()}
-      <div class="v2c-list">${[['user-round', 'A minha conta', 'v2-conta-perfil'], ['monitor-smartphone', 'Sessões ativas', 'v2-conta-sessoes'],
+      <div class="v2c-list">${[['settings', 'Definições da conta', 'v2-conta-definicoes'],
+        // Só para o proprietário da organização (a API volta a confirmar).
+        ...(user.role === 'owner' ? [['building-2', 'Área do proprietário', 'v2-conta-proprietario']] : []),
         // Só para o dono da instância (a API volta a confirmar).
         ...(user.is_platform_admin === true ? [['layout-list', 'Consola da plataforma', 'v2-conta-plataforma']] : []),
-        ['settings', 'Definições', 'v2-conta-definicoes'], ['log-out', 'Sair', 'index-logout-34b5979']]
+        ['log-out', 'Sair', 'index-logout-34b5979']]
         .map(([icon, label, action]) => `<button type="button" data-on-click="${action}">${ic(icon, 18)}<span>${label}</span></button>`).join('')}</div>`,
   });
 }
@@ -173,9 +175,8 @@ AppActions.register({
     await core().featureAction('saveAppearance', { ...window.AppAppearance.current(), mode: args[0] });
     document.querySelectorAll('[data-v2-mode]').forEach(button => button.setAttribute('aria-checked', String(button.dataset.v2Mode === args[0])));
   },
-  'v2-conta-perfil': () => { v2().fecharFolha(); core().openProfileModal(); },
-  'v2-conta-sessoes': () => { v2().fecharFolha(); core().openSessionsModal(); },
-  'v2-conta-definicoes': () => { v2().fecharFolha(); core().showView('definicoes'); },
+  'v2-conta-definicoes': () => { v2().fecharFolha(); core().openConta(); },
+  'v2-conta-proprietario': () => { v2().fecharFolha(); AppModules['proprietario']?.open?.(); },
   'v2-conta-plataforma': () => { location.href = '/plataforma'; },
 }, 'click');
 AppActions.register({

@@ -80,7 +80,11 @@ function initExportReminderControls() {
     const item = reminders[select.dataset.exportReminder];
     select.value = item?.interval_days ? String(item.interval_days) : '';
   });
-  AppUI.refreshDropdowns(document.getElementById('settings-database'));
+  // Os controlos vivem nas Definições (listas) e na Área do proprietário (cópia completa).
+  for (const id of ['settings-database', 'prop-panel-dados']) {
+    const box = document.getElementById(id);
+    if (box) AppUI.refreshDropdowns(box);
+  }
 }
 
 function getExportReminderNotifications() {
@@ -159,6 +163,7 @@ function renderNotifBadge() {
 function notificationClickAttr(n) {
   if (n.type === 'export_reminder') return "data-on-click=\"notifications-close-notif-0782c93\"";
   // Configuração por terminar não tem reserva: abre o alojamento.
+  if (n.type === 'ownership_transfer') return `${AppActions.attrs("click", "notifications-open-ownership", [])}`;
   if (n.type === 'config_incomplete' || n.type === 'email_held') return `${AppActions.attrs("click", "notifications-open-accommodation", [String(n.accommodation_id ?? '')])}`;
   return `${AppActions.attrs("click", "notifications-notif-go-to-0365e4e", [String((n.reservation_id) ?? '')])}`;
 }
@@ -361,6 +366,12 @@ function notifActionsHtml(n) {
           </button>
           <button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "notifications-refuse-export-reminder-e3d92d6", [String((n.export_key) ?? '')])}>
             <i data-lucide="x"></i> Recusar
+          </button>
+        </span>
+      ` : n.type === 'ownership_transfer' ? `
+        <span class="notifications-page-actions">
+          <button class="btn btn-primary btn-sm" ${AppActions.attrs("click", "notifications-open-ownership", [])}>
+            <i data-lucide="key-round"></i> Ver o pedido
           </button>
         </span>
       ` : n.type === 'email_held' || n.type === 'config_incomplete' ? `
@@ -567,6 +578,8 @@ AppActions.register({
   "notifications-email-hold-send": (el, event, args) => { event.stopPropagation(); resolveEmailHold(args[0], args[1], 'send') },
   "notifications-email-hold-dismiss": (el, event, args) => { event.stopPropagation(); resolveEmailHold(args[0], args[1], 'dismiss') },
   "notifications-open-accommodation": (el, event, args) => { openAccommodationFromNotif(args[0]) },
+  // Pedido de transferência de propriedade: aceitar ou recusar na Área do proprietário.
+  "notifications-open-ownership": () => { closeNotif(); AppModules.core.closeSideDrawer?.(); return AppModules.proprietario.open(); },
 }, "click");
 
 // Limpeza da funcionalidade ao sair ou trocar de organização.

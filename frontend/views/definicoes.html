@@ -28,19 +28,9 @@
                 <span class="settings-tab-text"><strong>Google</strong><small>Gmail, Calendar e Tasks</small></span>
                 <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
               </button>
-              <button type="button" class="settings-tab" data-settings-tab="push" data-on-click="index-switch-settings-tab-9100a42">
-                <i data-lucide="bell-ring"></i>
-                <span class="settings-tab-text"><strong>Notificações push</strong><small>Avisos no telemóvel e no computador</small></span>
-                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
-              </button>
             </div>
             <div class="settings-nav-group">
               <span class="settings-nav-title">Gestão</span>
-              <button type="button" class="settings-tab" data-settings-tab="equipa" data-owner-only="true" data-on-click="index-switch-settings-tab-e9ee807">
-                <i data-lucide="users-round"></i>
-                <span class="settings-tab-text"><strong>Equipa</strong><small>Membros, funções e convites</small></span>
-                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
-              </button>
               <button type="button" class="settings-tab" data-settings-tab="fornecedores" data-on-click="index-switch-settings-tab-a97cb74">
                 <i data-lucide="truck"></i>
                 <span class="settings-tab-text"><strong>Fornecedores</strong><small>Lista usada nas despesas</small></span>
@@ -48,31 +38,7 @@
               </button>
               <button type="button" class="settings-tab" data-settings-tab="database" data-on-click="index-switch-settings-tab-7a90904">
                 <i data-lucide="database"></i>
-                <span class="settings-tab-text"><strong>Dados e cópias de segurança</strong><small>Exportar, importar e estado do sistema</small></span>
-                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
-              </button>
-            </div>
-            <!-- Preferências de cada pessoa. O menu do telemóvel só aparece no telemóvel (js/menu.js). -->
-            <div class="settings-nav-group">
-              <span class="settings-nav-title">A minha conta</span>
-              <button type="button" class="settings-tab" data-settings-tab="aparencia" data-on-click="appearance-open">
-                <i data-lucide="palette"></i>
-                <span class="settings-tab-text"><strong>Aparência</strong><small>Clássico, vidro, claro ou escuro</small></span>
-                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
-              </button>
-              <button type="button" class="settings-tab" data-settings-tab="vistas" data-on-click="vistas-open">
-                <i data-lucide="layout-template"></i>
-                <span class="settings-tab-text"><strong>Vistas predefinidas</strong><small>Como abre cada ecrã, no computador e no telemóvel</small></span>
-                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
-              </button>
-              <button type="button" class="settings-tab settings-nav-phone" data-on-click="menu-open-editor">
-                <i data-lucide="panel-left"></i>
-                <span class="settings-tab-text"><strong>Menu do telemóvel</strong><small>Ordem, itens escondidos e atalhos da barra</small></span>
-                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
-              </button>
-              <button type="button" class="settings-tab" data-settings-tab="sobre" data-on-click="about-open">
-                <i data-lucide="info"></i>
-                <span class="settings-tab-text"><strong>Versão da aplicação</strong><small>Versão instalada e desde quando</small></span>
+                <span class="settings-tab-text"><strong>Exportar e importar</strong><small>Listas em Excel e PDF</small></span>
                 <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
               </button>
             </div>
@@ -82,60 +48,6 @@
           </button>
 
           <div class="settings-panel" id="settings-payments"><div id="pp-content"></div></div>
-          <!-- Versão instalada (js/appearance-settings.js): commit do Git e arranque do servidor. -->
-          <div class="settings-panel" id="settings-sobre">
-            <div class="card about-card">
-              <h3>Versão da aplicação</h3>
-              <dl class="about-list">
-                <div><dt>Versão</dt><dd id="about-commit">—</dd></div>
-                <div><dt>Em execução desde</dt><dd id="about-started">—</dd></div>
-              </dl>
-              <p class="appearance-note"><i data-lucide="info"></i> A versão é o início do commit do Git. Se acabou de atualizar e a hora não mudou, a atualização ainda não entrou.</p>
-            </div>
-          </div>
-          <!-- Aparência (js/appearance-settings.js): vale para a conta, em todos os aparelhos. -->
-          <div class="settings-panel" id="settings-aparencia">
-            <div class="card appearance-card">
-              <h3>Aparência</h3>
-              <p class="appearance-intro">Escolha como a aplicação aparece para si. Fica guardado na sua conta e vale em todos os aparelhos.</p>
-              <div class="appearance-options" role="radiogroup" aria-label="Aspeto da aplicação">
-                <button type="button" class="appearance-option" role="radio" aria-checked="false" data-appearance-look="atual" data-on-click="appearance-set-look" data-args-click='["atual"]'>
-                  <span class="appearance-swatch swatch-atual" aria-hidden="true"><i></i><b></b><b></b></span>
-                  <strong>Atual</strong><small>O aspeto de sempre</small>
-                </button>
-                <button type="button" class="appearance-option" role="radio" aria-checked="false" data-appearance-look="classico" data-on-click="appearance-set-look" data-args-click='["classico"]'>
-                  <span class="appearance-swatch swatch-classico" aria-hidden="true"><i></i><b></b><b></b></span>
-                  <strong>Clássico</strong><small>Terracota e creme, renovado</small>
-                </button>
-                <button type="button" class="appearance-option" role="radio" aria-checked="false" data-appearance-look="vidro" data-on-click="appearance-set-look" data-args-click='["vidro"]'>
-                  <span class="appearance-swatch swatch-vidro" aria-hidden="true"><i></i><b></b><b></b></span>
-                  <strong>Vidro</strong><small>Translúcido e minimalista</small>
-                </button>
-              </div>
-              <div class="appearance-mode" id="appearance-mode" hidden>
-                <h4>Claro ou escuro</h4>
-                <div class="appearance-mode-options" role="radiogroup" aria-label="Claro ou escuro">
-                  <button type="button" role="radio" aria-checked="false" data-appearance-mode="auto" data-on-click="appearance-set-mode" data-args-click='["auto"]'><i data-lucide="sun-moon"></i> Automático</button>
-                  <button type="button" role="radio" aria-checked="false" data-appearance-mode="claro" data-on-click="appearance-set-mode" data-args-click='["claro"]'><i data-lucide="sun"></i> Claro</button>
-                  <button type="button" role="radio" aria-checked="false" data-appearance-mode="escuro" data-on-click="appearance-set-mode" data-args-click='["escuro"]'><i data-lucide="moon"></i> Escuro</button>
-                </div>
-                <small>Automático segue o telemóvel ou o computador: claro de dia, escuro à noite.</small>
-              </div>
-              <p class="appearance-note"><i data-lucide="info"></i> As páginas principais já têm o desenho novo. As fichas e janelas (reserva, hóspede, nova reserva, …) vão mudando à medida que ficarem prontas.</p>
-            </div>
-          </div>
-          <!-- Vistas predefinidas (js/appearance-settings.js): guardadas na conta, por computador e telemóvel. -->
-          <div class="settings-panel" id="settings-vistas">
-            <div class="card appearance-card vistas-card">
-              <h3>Vistas predefinidas</h3>
-              <p class="appearance-intro">Escolha como abre cada ecrã, separado para computador e telemóvel. Fica guardado na sua conta e vale em todos os aparelhos. Se mudar de vista durante o uso, essa escolha mantém-se até terminar a sessão.</p>
-              <div class="vistas-table" id="vistas-table" role="table" aria-label="Vistas predefinidas"></div>
-              <div class="vistas-footer">
-                <span class="vistas-status" id="vistas-status" role="status" aria-live="polite">No telemóvel só aparecem vistas que funcionam nesse tamanho. Guardado automaticamente.</span>
-                <button type="button" class="btn btn-ghost btn-sm" data-on-click="vistas-reset"><i data-lucide="rotate-ccw"></i> Repor predefinições</button>
-              </div>
-            </div>
-          </div>
           <div class="settings-panel active" id="settings-gcal">
 
             <!-- Gmail para envio de emails -->
@@ -375,40 +287,11 @@
                 </div>
               </div>
 
-              <div class="card settings-db-card settings-db-card-full" data-owner-only="true">
-                <div class="card-header">
-                  <span class="card-title"><i data-lucide="archive"></i> Dados do cliente</span>
-                </div>
-                <div class="settings-db-actions">
-                  <button class="btn btn-primary btn-sm" data-on-click="index-export-d-b-3cb0ae1" title="Exportar backup ZIP com reservas, alojamentos, hóspedes, despesas, eventos, definições do cliente e imagens">
-                    <i data-lucide="download"></i> Exportar BD
-                  </button>
-                  <label class="btn btn-ghost btn-sm settings-file-btn" title="Importar backup ZIP do cliente (não altera contas, equipa ou acessos)">
-                    <i data-lucide="upload"></i> Importar BD
-                    <input type="file" accept=".zip,application/zip" data-on-change="index-import-d-b-d60a8a8">
-                  </label>
-                </div>
-                <div class="settings-export-reminders settings-export-reminders-full">
-                  <label>
-                    <span>Lembrete backup ZIP</span>
-                    <select class="form-control" data-enhance-select data-app-select-class="app-select--filter" data-export-reminder="cliente_zip" data-on-change="index-set-export-reminder-69d5a9c">
-                      <option value="">Desligado</option>
-                      <option value="7">7 dias</option>
-                      <option value="15">15 dias</option>
-                      <option value="30">1 mês</option>
-                    </select>
-                  </label>
-                </div>
-              </div>
             </div>
-            <!-- Estado do sistema: tarefas automáticas e filas (só o proprietário; /api/ops/status). -->
-            <div class="card settings-db-card settings-db-card-full" data-owner-only="true" style="margin-top:16px;">
-              <div class="card-header">
-                <span class="card-title"><i data-lucide="activity"></i> Estado do sistema</span>
-                <button type="button" class="btn btn-ghost btn-sm" data-on-click="team-load-system-status"><i data-lucide="refresh-cw"></i> Atualizar</button>
-              </div>
-              <div id="system-status" style="padding:16px;font-size:13px;color:var(--cinza);">A carregar…</div>
-            </div>
+            <!-- A cópia de segurança completa (ZIP), o restauro, o lembrete e o
+                 estado do sistema estão na Área do proprietário → Dados e segurança. -->
+            <p class="settings-moved-note" data-owner-only="true">A cópia de segurança completa e o estado do sistema estão na
+              <a href="/proprietario" data-on-click="settings-open-proprietario-dados">Área do proprietário → Dados e segurança</a>.</p>
           </div>
 
           <div class="settings-panel" id="settings-operations">
@@ -479,195 +362,4 @@
             </div>
           </div>
 
-          <div class="settings-panel" id="settings-push">
-            <div class="card settings-integration-card" style="margin-bottom:16px;">
-              <div class="settings-integration-icon">
-                <i data-lucide="bell-ring"></i>
-              </div>
-              <div class="settings-integration-info">
-                <h3>Notificações Push</h3>
-                <p>Receba notificações neste dispositivo, mesmo com a app fechada. No iPhone é necessário adicionar a app ao ecrã inicial primeiro (Safari → Partilhar → Adicionar ao ecrã principal).</p>
-                <span id="push-badge" class="gcal-status" style="margin-top:6px;display:inline-flex;"><span class="dot dot-red"></span> Desligadas</span>
-                <div id="push-ios-hint" style="display:none;font-size:12.5px;color:var(--vermelho);margin-top:6px;">
-                  ⚠️ Está a usar o Safari diretamente. Abra a app a partir do ícone no ecrã inicial para poder ativar notificações.
-                </div>
-              </div>
-              <div class="settings-integration-actions">
-                <button id="push-enable-btn" class="btn btn-primary btn-sm" data-on-click="index-enable-push-notifications-bd65c9a">
-                  <i data-lucide="bell-plus"></i> Ativar neste dispositivo
-                </button>
-                <button id="push-disable-btn" class="btn btn-ghost btn-sm" style="display:none;" data-on-click="index-disable-push-notifications-c8908b8">
-                  <i data-lucide="bell-off"></i> Desligar
-                </button>
-              </div>
-            </div>
-
-            <div class="card" style="margin-bottom:16px;">
-              <div class="card-header">
-                <span class="card-title">
-                  <i data-lucide="smartphone"></i> Dispositivos com notificações
-                </span>
-              </div>
-              <div style="padding:16px;">
-                <div style="font-size:12.5px;color:var(--cinza);margin-bottom:12px;">
-                  Todos os dispositivos da equipa subscritos. Desligar um dispositivo pausa as notificações sem o remover; remover obriga a ativar de novo nesse aparelho.
-                </div>
-                <div id="push-devices-list">
-                  <div style="font-size:13px;color:var(--cinza);">A carregar dispositivos...</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card" style="margin-bottom:16px;">
-              <div class="card-header">
-                <span class="card-title">
-                  <i data-lucide="sliders-horizontal"></i> Tipos de notificações
-                </span>
-              </div>
-              <div style="padding:16px;">
-                <div style="font-size:12.5px;color:var(--cinza);margin-bottom:14px;">
-                  Escolha o que quer receber. As preferências aplicam-se aos seus dispositivos.
-                </div>
-                <div id="push-prefs-list" style="display:flex;flex-direction:column;gap:14px;">
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                      <img src="/img/push/reservation.png" alt="" width="28" height="28" style="flex-shrink:0;border-radius:7px;">
-                      <div>
-                        <div style="font-weight:600;font-size:13px;">Nova reserva</div>
-                        <div style="font-size:12px;color:var(--cinza);">Reservas novas do site público ou criadas pela equipa</div>
-                      </div>
-                    </div>
-                    <label class="toggle-switch" style="flex-shrink:0;">
-                      <input type="checkbox" data-push-pref="new_reservation" data-on-change="index-save-push-prefs-0f45e7b">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                      <img src="/img/push/cancellation.png" alt="" width="28" height="28" style="flex-shrink:0;border-radius:7px;">
-                      <div>
-                        <div style="font-weight:600;font-size:13px;">Cancelamentos</div>
-                        <div style="font-size:12px;color:var(--cinza);">Quando uma reserva é cancelada, incluindo pelo hóspede, por expiração ou por falta de pagamento</div>
-                      </div>
-                    </div>
-                    <label class="toggle-switch" style="flex-shrink:0;">
-                      <input type="checkbox" data-push-pref="cancellation" data-on-change="index-save-push-prefs-0f45e7b">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                      <img src="/img/push/payment.png" alt="" width="28" height="28" style="flex-shrink:0;border-radius:7px;">
-                      <div>
-                        <div style="font-weight:600;font-size:13px;">Pagamento recebido</div>
-                        <div style="font-size:12px;color:var(--cinza);">Pagamentos online pela Stripe, incluindo a cobrança automática do restante</div>
-                      </div>
-                    </div>
-                    <label class="toggle-switch" style="flex-shrink:0;">
-                      <input type="checkbox" data-push-pref="payment" data-on-change="index-save-push-prefs-0f45e7b">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                      <img src="/img/push/precheckin.png" alt="" width="28" height="28" style="flex-shrink:0;border-radius:7px;">
-                      <div>
-                        <div style="font-weight:600;font-size:13px;">Pré-check-in recebido</div>
-                        <div style="font-size:12px;color:var(--cinza);">Quando um hóspede submete o formulário de pré-check-in</div>
-                      </div>
-                    </div>
-                    <label class="toggle-switch" style="flex-shrink:0;">
-                      <input type="checkbox" data-push-pref="precheckin" data-on-change="index-save-push-prefs-0f45e7b">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                      <img src="/img/push/summary.png" alt="" width="28" height="28" style="flex-shrink:0;border-radius:7px;">
-                      <div>
-                        <div style="font-weight:600;font-size:13px;">Resumo do dia</div>
-                        <div style="font-size:12px;color:var(--cinza);">De manhã, com os check-ins e check-outs previstos para hoje</div>
-                      </div>
-                    </div>
-                    <label class="toggle-switch" style="flex-shrink:0;">
-                      <input type="checkbox" data-push-pref="daily_summary" data-on-change="index-save-push-prefs-0f45e7b">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;" data-manager-only="true">
-                    <div style="display:flex;align-items:center;gap:10px;">
-                      <img src="/img/push/app.png" alt="" width="28" height="28" style="flex-shrink:0;border-radius:7px;">
-                      <div>
-                        <div style="font-weight:600;font-size:13px;">Alertas do sistema</div>
-                        <div style="font-size:12px;color:var(--cinza);">Quando algo falha: emails por decidir, pagamentos parados, Google por sincronizar. Também chegam por email</div>
-                      </div>
-                    </div>
-                    <label class="toggle-switch" style="flex-shrink:0;">
-                      <input type="checkbox" data-push-pref="ops_alert" data-on-change="index-save-push-prefs-0f45e7b">
-                      <span class="toggle-slider"></span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <span class="card-title">
-                  <i data-lucide="send"></i> Enviar notificação de teste
-                </span>
-              </div>
-              <div style="padding:16px;">
-                <div style="font-size:12.5px;color:var(--cinza);margin-bottom:12px;">
-                  A mensagem é enviada para todos os dispositivos da organização com notificações ativas.
-                </div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                  <input class="form-control" id="push-test-message" placeholder="Escreva a mensagem de teste..." maxlength="500" style="flex:1;min-width:220px;" autocomplete="off" data-on-keydown="index-if-1bd98b0">
-                  <button id="push-test-btn" class="btn btn-primary btn-sm" data-on-click="index-send-test-push-b565ec2">
-                    <i data-lucide="send"></i> Enviar
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-panel" id="settings-equipa" data-owner-only="true">
-            <div class="card" style="margin-bottom:24px;">
-              <div class="card-header">
-                <span class="card-title"><i data-lucide="users-round"></i> Equipa</span>
-              </div>
-              <div class="form-grid settings-team-form">
-                <div class="form-group">
-                  <label class="form-label">Convidar por email</label>
-                  <input class="form-control" id="team-invite-email" type="email" placeholder="colaborador@empresa.com" autocomplete="off">
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Papel</label>
-                  <select class="form-control" id="team-invite-role" data-enhance-select data-app-select-class="app-select--filter">
-                    <option value="staff">Funcionário</option>
-                    <option value="manager">Gestor</option>
-                  </select>
-                </div>
-                <button class="btn btn-primary" data-on-click="index-invite-team-member-1530cb9">
-                  <i data-lucide="send"></i> Enviar convite
-                </button>
-              </div>
-              <div id="team-invite-feedback" style="margin-top:12px;font-size:13px;color:var(--cinza);"></div>
-            </div>
-
-            <div class="dashboard-grid">
-              <div class="card">
-                <div class="card-header">
-                  <span class="card-title"><i data-lucide="shield-check"></i> Membros</span>
-                </div>
-                <div id="team-members-list"><div class="loading"><div class="spinner"></div> A carregar equipa...</div></div>
-              </div>
-              <div class="card">
-                <div class="card-header">
-                  <span class="card-title"><i data-lucide="mail-plus"></i> Convites pendentes</span>
-                </div>
-                <div id="team-invitations-list"><div class="loading"><div class="spinner"></div> A carregar convites...</div></div>
-              </div>
-            </div>
-          </div>
         </section>

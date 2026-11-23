@@ -80,12 +80,13 @@ async function main() {
   await openDrawer();
   await expect(actions).toBeHidden();
 
-  // Editar o menu fica nas Definições (o menu lateral já não tem «Editar»).
+  // Editar o menu fica nas Definições da conta (o menu lateral já não tem «Editar»).
   await expect(drawer.getByRole('button', { name: 'Editar' })).toHaveCount(0);
-  const menuEntry = page.locator('#view-definicoes').getByRole('button', { name: /Menu do telemóvel/ });
+  const menuEntry = page.locator('#view-conta').getByRole('button', { name: /Menu do telemóvel/ });
   const openEditor = async () => {
     if (!(await drawer.getAttribute('class')).includes('open')) await openDrawer();
-    await drawer.getByRole('button', { name: 'Definições' }).click();
+    if (!(await page.locator('#side-drawer-account-actions').isVisible())) await page.locator('#side-drawer-account-toggle').click();
+    await drawer.getByRole('button', { name: 'Definições da conta' }).click();
     await expect(drawer).not.toHaveClass(/open/);
     await menuEntry.click();
   };
@@ -161,7 +162,7 @@ async function main() {
   const sidebar = await page.locator('#main-sidebar .nav-item[data-view]').evaluateAll(els => els.map(el => el.dataset.view));
   assert.deepEqual(sidebar.slice(0, 3), ['dashboard', 'reservas', 'calendario']);
   assert.ok(sidebar.includes('vouchers') && !sidebar.includes('modelos-email'));
-  await page.evaluate(() => AppModules.core.showView('definicoes'));
+  await page.evaluate(() => AppModules.core.showView('conta'));
   await expect(menuEntry).toBeHidden(); // só existe no telemóvel
   await page.setViewportSize({ width: 375, height: 667 });
 
@@ -176,22 +177,23 @@ async function main() {
   await expect(drawer.locator('.side-drawer-section')).toHaveText(['Principal', 'Gestão']);
   assert.ok((await drawerItems()).includes('vouchers'));
 
-  // O «voltar» do browser nas Definições: de uma secção volta à lista, e a
+  // O «voltar» do browser nas Definições da conta: de uma secção volta à lista, e a
   // secção anterior volta a abrir com «avançar» (antes saía das Definições).
-  await drawer.getByRole('button', { name: 'Definições' }).click();
-  const shell = page.locator('.settings-shell');
+  await page.locator('#side-drawer-account-toggle').click();
+  await drawer.getByRole('button', { name: 'Definições da conta' }).click();
+  const shell = page.locator('#view-conta .settings-shell');
   await expect(shell).not.toHaveClass(/is-section-open/);
-  await page.locator('.settings-tab[data-settings-tab="push"]').click();
+  await page.locator('[data-conta-tab="push"]').click();
   await expect(shell).toHaveClass(/is-section-open/);
-  await expect(page.locator('#settings-push')).toHaveClass(/active/);
+  await expect(page.locator('#conta-push')).toHaveClass(/active/);
   await page.goBack();
-  await expect(page.locator('#view-definicoes')).toHaveClass(/active/);
+  await expect(page.locator('#view-conta')).toHaveClass(/active/);
   await expect(shell).not.toHaveClass(/is-section-open/);
   await page.goForward();
   await expect(shell).toHaveClass(/is-section-open/);
-  await expect(page.locator('#settings-push')).toHaveClass(/active/);
+  await expect(page.locator('#conta-push')).toHaveClass(/active/);
   // A seta da própria secção faz o mesmo.
-  await page.locator('#settings-push .settings-back, .settings-shell .settings-back').first().click();
+  await page.locator('#view-conta .settings-back').click();
   await expect(shell).not.toHaveClass(/is-section-open/);
   assert.deepEqual(errors, []);
   console.log('OK: menu do telemóvel — conta fixa no fundo, ordem (arrastar e teclado), esconder, atalhos da barra, guardar, recarregar e repor.');

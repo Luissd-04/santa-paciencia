@@ -218,17 +218,14 @@
               <strong id="user-menu-name"></strong>
               <span id="user-menu-email"></span>
             </div>
-            <div class="user-menu-sep"></div>
-            <button class="user-menu-item" data-on-click="index-open-profile-modal-f09c11a">
-              <i data-lucide="user-round" style="width:14px;height:14px;"></i> O meu perfil
-            </button>
-            <button class="user-menu-item" data-on-click="index-open-change-password-modal-8ca392f">
-              <i data-lucide="key-round" style="width:14px;height:14px;"></i> Alterar palavra-passe
-            </button>
-            <button class="user-menu-item" data-on-click="index-open-sessions-modal-3435629">
-              <i data-lucide="monitor-smartphone" style="width:14px;height:14px;"></i> Sessões ativas
-            </button>
             <div id="user-menu-orgs"></div>
+            <div class="user-menu-sep"></div>
+            <button class="user-menu-item" data-on-click="conta-open">
+              <i data-lucide="settings" style="width:14px;height:14px;"></i> Definições da conta
+            </button>
+            <button class="user-menu-item" data-owner-only="true" data-on-click="conta-open-proprietario">
+              <i data-lucide="building-2" style="width:14px;height:14px;"></i> Área do proprietário
+            </button>
             <button class="user-menu-item" data-platform-admin data-on-click="menu-open-plataforma" style="display:none;">
               <i data-lucide="layout-list" style="width:14px;height:14px;"></i> Consola da plataforma
             </button>
@@ -471,8 +468,16 @@
       <div class="view" id="view-ajuda" data-v2>
       </div>
 
+      <!-- ══ ÁREA DO PROPRIETÁRIO ══ -->
+      <div class="view" id="view-proprietario" data-v2>
+      </div>
+
       <!-- ══ DEFINIÇÕES ══ -->
       <div class="view" id="view-definicoes" data-v2>
+      </div>
+
+      <!-- ══ DEFINIÇÕES DA CONTA (pessoais) ══ -->
+      <div class="view" id="view-conta" data-v2>
       </div>
 
       <!-- ══ FICHA DE HÓSPEDE (página completa) ══ -->
@@ -1109,14 +1114,11 @@
   <!-- A conta fica fixa no fundo; as ações abrem por cima. -->
   <div class="side-drawer-account">
     <div class="side-drawer-account-actions" id="side-drawer-account-actions" hidden>
-      <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-0395508">
-        <i data-lucide="user-round"></i> O meu perfil
+      <button type="button" class="side-drawer-item" data-on-click="conta-open">
+        <i data-lucide="settings"></i> Definições da conta
       </button>
-      <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-5e6ac44">
-        <i data-lucide="key-round"></i> Alterar palavra-passe
-      </button>
-      <button type="button" class="side-drawer-item" data-on-click="index-close-side-drawer-f44ae7e">
-        <i data-lucide="monitor-smartphone"></i> Sessões ativas
+      <button type="button" class="side-drawer-item" data-owner-only="true" data-on-click="conta-open-proprietario">
+        <i data-lucide="building-2"></i> Área do proprietário
       </button>
       <button type="button" class="side-drawer-item" data-platform-admin data-on-click="menu-open-plataforma" style="display:none;">
         <i data-lucide="layout-list"></i> Consola da plataforma
@@ -1164,40 +1166,6 @@
 <script src="js/ui-blocks.js"></script>
 <script src="js/menu.js"></script>
 <script src="js/validators.js"></script>
-<!-- Perfil -->
-<div id="profile-modal" class="modal-bg" data-on-click="index-if-3215315">
-  <form class="modal" style="max-width:440px;" data-on-submit="index-prevent-default-9940257">
-    <div class="modal-header">
-      <span class="modal-title">O meu perfil</span>
-      <button type="button" class="modal-close" data-on-click="index-close-profile-modal-7a8122e" aria-label="Fechar">
-        <i data-lucide="x" style="width:20px;height:20px;"></i>
-      </button>
-    </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label class="form-label" for="pf-name">Nome</label>
-        <input type="text" id="pf-name" class="form-control" autocomplete="name" maxlength="120" required>
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="pf-email">Email de login</label>
-        <input type="email" id="pf-email" class="form-control" autocomplete="email" autocapitalize="off" spellcheck="false" required data-on-input="index-update-profile-password-visibility-293b4c8">
-      </div>
-      <div class="form-group" id="pf-password-group" style="display:none;">
-        <label class="form-label" for="pf-password">Palavra-passe atual</label>
-        <div class="pw-wrap"><input type="password" id="pf-password" class="form-control" autocomplete="current-password" placeholder="Necessária para mudar o email"><button type="button" class="pw-toggle" data-on-click="index-toggle-pw-56ac005" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
-      </div>
-      <p style="font-size:12px;color:var(--cinza);margin:4px 0 0;">Espaço: <b id="pf-org"></b> · Papel: <b id="pf-role"></b></p>
-      <div id="pf-feedback" role="alert" style="display:none;font-size:13px;margin-top:10px;"></div>
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="btn btn-ghost" data-on-click="index-close-profile-modal-7a8122e">Cancelar</button>
-      <button type="submit" class="btn btn-primary" id="pf-save-btn">
-        <i data-lucide="save" style="width:14px;height:14px;"></i> Guardar
-      </button>
-    </div>
-  </form>
-</div>
-
       <!-- Modais ao nível da página, acima da navegação fixa. -->
       <div class="modal-bg" id="voucher-modal-bg" data-feature="vouchers" data-on-click="index-if-a56dfb4">
         <div class="modal" style="max-width:520px;">
@@ -1285,62 +1253,6 @@
           </div>
         </div>
       </div>
-
-<!-- Sessões ativas -->
-<div id="sessions-modal" class="modal-bg" data-on-click="index-if-370b5e1">
-  <div class="modal" style="max-width:520px;">
-    <div class="modal-header">
-      <span class="modal-title">Sessões ativas</span>
-      <button type="button" class="modal-close" data-on-click="index-close-sessions-modal-7608ce6" aria-label="Fechar">
-        <i data-lucide="x" style="width:20px;height:20px;"></i>
-      </button>
-    </div>
-    <div class="modal-body">
-      <p style="font-size:13px;color:var(--cinza);margin:0 0 12px;">Dispositivos com sessão iniciada na tua conta. Se não reconheceres algum, termina-o e altera a palavra-passe.</p>
-      <div id="sessions-list" class="sessions-list"></div>
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="btn btn-ghost" data-on-click="index-close-sessions-modal-7608ce6">Fechar</button>
-      <button type="button" class="btn btn-danger" id="sessions-revoke-others-btn" data-on-click="index-revoke-other-sessions-d00709f">
-        <i data-lucide="log-out" style="width:14px;height:14px;"></i> Terminar as outras
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- Change Password Modal -->
-<div id="change-password-modal" class="modal-bg" data-on-click="index-if-d444ee6">
-  <form class="modal" style="max-width:420px;" data-on-submit="index-prevent-default-8a19dfa">
-    <div class="modal-header">
-      <span class="modal-title">Alterar palavra-passe</span>
-      <button type="button" class="modal-close" data-on-click="index-close-change-password-modal-efbfd41" aria-label="Fechar">
-        <i data-lucide="x" style="width:20px;height:20px;"></i>
-      </button>
-    </div>
-    <div class="modal-body">
-      <div class="form-group">
-        <label for="cp-current" class="form-label">Palavra-passe atual</label>
-        <div class="pw-wrap"><input type="password" id="cp-current" class="form-control" placeholder="Palavra-passe atual" autocomplete="current-password"><button type="button" class="pw-toggle" data-on-click="index-toggle-pw-074b3fd" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
-      </div>
-      <div class="form-group">
-        <label for="cp-new" class="form-label">Nova palavra-passe</label>
-        <div class="pw-wrap"><input type="password" id="cp-new" class="form-control" placeholder="Mín. 8 char., 1 maiúscula, 1 número" autocomplete="new-password"><button type="button" class="pw-toggle" data-on-click="index-toggle-pw-1c49c0f" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
-      </div>
-      <div class="form-group">
-        <label for="cp-confirm" class="form-label">Confirmar nova palavra-passe</label>
-        <div class="pw-wrap"><input type="password" id="cp-confirm" class="form-control" placeholder="Repete a nova password" autocomplete="new-password"><button type="button" class="pw-toggle" data-on-click="index-toggle-pw-1219ceb" tabindex="-1" aria-label="Mostrar password"><i data-lucide="eye"></i></button></div>
-      </div>
-      <div id="cp-feedback" role="alert" style="display:none;font-size:13px;margin-top:4px;"></div>
-      <p style="font-size:12px;color:var(--cinza);margin:10px 0 0;">Ao alterar, as sessões abertas noutros dispositivos são terminadas.</p>
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="btn btn-ghost" data-on-click="index-close-change-password-modal-efbfd41">Cancelar</button>
-      <button type="submit" class="btn btn-primary" id="cp-save-btn">
-        <i data-lucide="key-round" style="width:14px;height:14px;"></i> Alterar
-      </button>
-    </div>
-  </form>
-</div>
 
 <script src="js/auth.js"></script>
 <script src="js/dashboard.js"></script>

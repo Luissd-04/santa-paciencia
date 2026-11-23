@@ -35,7 +35,7 @@ async function invite(req, res) {
 
   try {
     ensureRole(role);
-    if (role === 'owner') throw new Error('Convide como gestor. A transferência de propriedade requer um procedimento próprio.');
+    if (role === 'owner') throw new Error('Convide como gestor. Para passar a propriedade, use a Área do proprietário → Propriedade e encerramento.');
   } catch (err) {
     return res.status(400).json({ success: false, error: err.message });
   }
@@ -95,12 +95,12 @@ function updateMemberRole(req, res) {
 
   if (!membership) return res.status(404).json({ success: false, error: 'Membro não encontrado.' });
   if (membership.role === 'owner') {
-    return res.status(400).json({ success: false, error: 'O papel de proprietário não pode ser alterado aqui.' });
+    return res.status(400).json({ success: false, error: 'O papel de proprietário só muda com uma transferência de propriedade (Área do proprietário → Propriedade e encerramento).' });
   }
 
   try {
     ensureRole(req.body.role);
-    if (req.body.role === 'owner') throw new Error('A transferência de propriedade requer um procedimento próprio.');
+    if (req.body.role === 'owner') throw new Error('Para passar a propriedade, use a Área do proprietário → Propriedade e encerramento: a pessoa tem de aceitar.');
   } catch (err) {
     return res.status(400).json({ success: false, error: err.message });
   }

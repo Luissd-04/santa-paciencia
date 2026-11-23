@@ -103,6 +103,8 @@ function serializeUser(user) {
     organization_id: user.organization_id || null,
     organization_name: user.organization_name,
     organization_slug: user.organization_slug,
+    // Marca e dados da empresa (Área do proprietário): barra lateral e cabeçalho dos documentos.
+    organization: require('../services/ownerArea').sessionOrganization(user.organization_id),
     menu_prefs: user.organization_id ? require('../services/menuPrefs').get(user.id, user.organization_id) : null,
     appearance: require('../services/appearancePrefs').get(user.id),
     view_prefs: require('../services/viewPrefs').get(user.id),
@@ -272,6 +274,43 @@ router.get('/memberships', requireAuth, (req, res) => {
     ORDER BY CASE m.role WHEN 'owner' THEN 1 WHEN 'manager' THEN 2 ELSE 3 END, m.created_at ASC
   `).all(req.user.id).filter(m => !require('../services/orgPolicy').isBlocked(m.organization_id));
   res.json({ success: true, data: { memberships } });
+});
+
+// Sair de uma organização (só para quem não é proprietário). Não deixa a
+// pessoa sem nenhuma organização: a única que resta não se pode largar.
+router.delete('/memberships/:orgId', requireAuth, (req, res) => {
+  const orgId = String(req.params.orgId || '');
+  const membership = getMembershipByUserAndOrganization(req.user.id, orgId);
+  if (!membership) return res.status(404).json({ success: false, error: 'Não pertences a esta organização.' });
+  if (membership.role === 'owner') {
+    return res.status(400).json({ success: false, error: 'O proprietário não pode sair da própria organização.' });
+  }
+  const others = db.prepare(`
+    SELECT m.organization_id FROM memberships m JOIN organizations o ON o.id = m.organization_id
+    WHERE m.user_id = ? AND m.active = 1 AND m.organization_id != ? AND o.status != 'suspended'
+    ORDER BY CASE m.role WHEN 'owner' THEN 1 WHEN 'manager' THEN 2 ELSE 3 END, m.created_at ASC
+  `).all(req.user.id, orgId).filter(m => !require('../services/orgPolicy').isBlocked(m.organization_id));
+  if (!others.length) {
+    return res.status(400).json({ success: false, error: 'Esta é a sua única organização. Peça ao proprietário para a remover da equipa.' });
+  }
+  const leavingCurrent = req.user.organization_id === orgId;
+  db.transaction(() => {
+    db.prepare('DELETE FROM push_subscriptions WHERE organization_id = ? AND user_id = ?').run(orgId, req.user.id);
+    db.prepare('DELETE FROM google_calendar_connections WHERE organization_id = ? AND user_id = ?').run(orgId, req.user.id);
+    // As outras sessões nesta organização terminam; a atual muda de espaço abaixo.
+    db.prepare('DELETE FROM auth_sessions WHERE organization_id = ? AND user_id = ? AND id != ?').run(orgId, req.user.id, digestToken(req.sessionId));
+    db.prepare('DELETE FROM memberships WHERE id = ?').run(membership.id);
+    require('../services/auditLog').recordAudit({ organizationId: orgId, userId: req.user.id, action: 'team.member_left', targetType: 'user', targetId: req.user.id, meta: { role: membership.role } });
+  })();
+  if (!leavingCurrent) return res.json({ success: true, data: { switched: false } });
+  try {
+    const { sessionId } = createSession(req.user.id, others[0].organization_id, req.sessionId, sessionMeta(req));
+    setSessionCookie(res, sessionId);
+    const sessionUser = require('../services/authService').getSessionUser(sessionId);
+    res.json({ success: true, data: { switched: true, user: serializeUser(sessionUser) } });
+  } catch (err) {
+    sendFlagged(res, err);
+  }
 });
 
 router.post('/switch-org', requireAuth, (req, res) => {

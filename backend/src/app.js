@@ -99,10 +99,26 @@ const CSP_DIRECTIVES = {
   formAction: ["'self'"],
   baseUri: ["'self'"],
   objectSrc: ["'none'"],
-  frameAncestors: ["'self'"],           // previne clickjacking de fora
+  // Previne clickjacking de fora. Só /reservar/<slug>?embed=1 acrescenta os
+  // sites que o cliente autorizou (services/bookingEmbed.js); vazio no resto.
+  frameAncestors: ["'self'", (_req, res) => (res.locals.embedFrameAncestors || []).join(' ')],
   ...(IS_PROD ? { upgradeInsecureRequests: [] } : {}),
 };
 
+// Página de reservas incorporada noutro site (?embed=1): o pacote e os sites
+// autorizados da organização, antes do helmet escrever o CSP.
+const EMBED_PAGE = /^\/reservar\/([^/]+)\/?$/;
+app.use((req, res, next) => {
+  if (!['GET', 'HEAD'].includes(req.method) || req.query.embed !== '1') return next();
+  const slug = EMBED_PAGE.exec(req.path)?.[1];
+  if (!slug) return next();
+  try {
+    const embed = require('./services/bookingEmbed').embedFor(decodeURIComponent(slug));
+    res.locals.embed = embed;
+    if (embed?.available && embed.origins.length) res.locals.embedFrameAncestors = embed.origins;
+  } catch { /* sem incorporação: fica 'self' */ }
+  next();
+});
 app.use(helmet({
   contentSecurityPolicy: {
     useDefaults: false,
@@ -112,6 +128,23 @@ app.use(helmet({
   // COOP pode partir o popup OAuth (window.close em callback) — desligar.
   crossOriginOpenerPolicy: false,
 }));
+// O X-Frame-Options (SAMEORIGIN) não sabe listar sites: onde o frame-ancestors
+// autoriza outros sites, é ele que decide e o cabeçalho antigo sai.
+app.use((_req, res, next) => {
+  if (res.locals.embedFrameAncestors?.length) res.removeHeader('X-Frame-Options');
+  next();
+});
+// Carregador que o cliente cola no site dele (frontend/embed.js). É pedido de
+// outra origem: fica antes do CORS e com Cross-Origin-Resource-Policy
+// cross-origin. O endereço não tem versão; uma hora de cache.
+if (process.env.FRONTEND_PATH) {
+  app.get('/embed.js', (_req, res) => {
+    res.set({ 'Cache-Control': 'public, max-age=3600', 'Cross-Origin-Resource-Policy': 'cross-origin' });
+    res.sendFile(path.join(path.resolve(process.env.FRONTEND_PATH), 'embed.js'), {
+      headers: { 'Content-Type': 'text/javascript; charset=utf-8' }, cacheControl: false,
+    });
+  });
+}
 app.use(compression({ threshold: 1024 }));
 
 // CORS — em produção só aceita a origem do domínio; em dev aceita localhost e túneis
@@ -146,6 +179,8 @@ app.use(cors({
 app.post('/api/stripe/webhook', express.raw({ type: 'application/json', limit: '256kb' }),
   require('./controllers/stripePaymentsController').webhook);
 app.use('/api/backup/import', requireAuth, require('./middleware/requireRole')('owner'), express.json({ limit: '100mb' }));
+// Logótipo da organização (Área do proprietário → Marca): o mesmo limite dos logótipos dos alojamentos.
+app.use('/api/owner/brand/logo', requireAuth, require('./middleware/requireRole')('owner'), express.json({ limit: '15mb' }));
 const uploadParser = express.json({ limit: '15mb' });
 app.use(['/api/accommodations', '/api/expenses'], (req, res, next) => {
   if (!['POST', 'PUT', 'PATCH'].includes(req.method)) return next();
@@ -261,6 +296,7 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/backup', backupRoutes);
 app.use('/api/team', teamRoutes);
+app.use('/api/owner', require('./routes/owner'));
 app.use('/api/reports', reportRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/payment-policy', require('./routes/paymentPolicy'));
@@ -275,6 +311,7 @@ app.use('/api/announcements', require('./routes/announcements'));
 // Consola da plataforma: depois do requireAuth de /api. O staffResponse só
 // esconde chaves que estas respostas não têm e o liveUpdates é silenciado lá.
 app.use('/api/platform', require('./routes/platform'));
+app.use('/api/embed', require('./routes/embed'));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -294,12 +331,20 @@ app.use('/api', (req, res) => {
 if (process.env.FRONTEND_PATH) {
   app.get('/reservar/:slug', (req, res) => {
     const file = path.join(path.resolve(process.env.FRONTEND_PATH), 'public-reservation.html');
+    // Incorporada noutro site (?embed=1): sem o pacote, uma página curta a
+    // explicar; com ele, a página marcada com data-embed (sem o topo nem o
+    // fundo, e fora dos motores de busca: o original é /reservar/<slug>).
+    const embed = req.query.embed === '1' ? res.locals.embed : null;
+    if (embed && !embed.available) return res.type('html').send(require('./services/bookingEmbed').unavailablePage());
     // Pré-visualização do link (WhatsApp, Facebook): nome, descrição e o
     // recorte «Partilha» (1.91:1) da capa, no próprio HTML.
-    const tags = require('./services/openGraph').bookingTags(req, req.params.slug);
+    const tags = embed ? '<meta name="robots" content="noindex">' : require('./services/openGraph').bookingTags(req, req.params.slug);
     if (!tags) return res.sendFile(file);
     require('fs').promises.readFile(file, 'utf8')
-      .then(html => res.type('html').send(html.replace('</head>', `${tags}\n</head>`)))
+      .then(html => {
+        const page = embed ? html.replace('<html lang="pt" data-layout="novo">', '<html lang="pt" data-layout="novo" data-embed="1">') : html;
+        res.type('html').send(page.replace('</head>', `${tags}\n</head>`));
+      })
       .catch(() => res.sendFile(file));
   });
   app.get('/reserva/:token', (req, res) => {

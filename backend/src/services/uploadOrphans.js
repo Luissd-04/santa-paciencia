@@ -7,7 +7,7 @@ const fs = require('fs');
 const { httpError } = require('./httpError');
 const path = require('path');
 const { db } = require('../config/database');
-const { UPLOADS_DIR, accommodationUrls, uploadPath } = require('./mediaStorage');
+const { UPLOADS_DIR, accommodationUrls, organizationUrls, uploadPath } = require('./mediaStorage');
 
 const THUMBS = '.thumbs';
 
@@ -24,6 +24,7 @@ function walk(dir, out = []) {
 function referencedFiles() {
   const urls = accommodationUrls(db.prepare('SELECT cover_image, logo_url, logo_original_url, images FROM accommodations').all());
   for (const row of db.prepare('SELECT receipt_image FROM expenses WHERE receipt_image IS NOT NULL').all()) urls.add(row.receipt_image);
+  for (const url of organizationUrls()) urls.add(url);
   const files = new Set([...urls].map(uploadPath).filter(Boolean));
   for (const row of db.prepare('SELECT stored_name FROM support_attachments').all()) {
     const file = uploadPath(`/uploads/support/${row.stored_name}`);

@@ -220,12 +220,14 @@ async function main() {
   definicoes.setDefaultTimeout(10000);
   await definicoes.goto(base, { waitUntil: 'networkidle' });
   await definicoes.evaluate(() => AppModules.core.showView('definicoes'));
+  // Estado do sistema (proprietário): as tarefas automáticas do executor único,
+  // agora na Área do proprietário → Dados e segurança.
+  await definicoes.evaluate(() => AppModules.proprietario.open('dados'));
+  await expect(definicoes.locator('#prop-system-status')).toContainText('Manutenção das reservas');
+  await expect(definicoes.locator('#prop-system-status')).toContainText('Emails pela estadia');
+  await expect(definicoes.locator('#prop-system-status')).toContainText('Envios ao hóspede por fazer');
+  await definicoes.evaluate(() => AppModules.core.showView('definicoes'));
   await definicoes.locator('.settings-tab[data-settings-tab="database"]').click();
-  // Estado do sistema (proprietário): as tarefas automáticas do executor único.
-  await definicoes.locator('.settings-tab[data-settings-tab="database"]').click();
-  await expect(definicoes.locator('#system-status')).toContainText('Manutenção das reservas');
-  await expect(definicoes.locator('#system-status')).toContainText('Emails pela estadia');
-  await expect(definicoes.locator('#system-status')).toContainText('Envios ao hóspede por fazer');
   const exportado = definicoes.waitForEvent('download');
   await definicoes.locator('#settings-database .settings-db-actions button', { hasText: 'XLS' }).first().click();
   await expect(definicoes.locator('#export-cols-modal-bg')).toBeVisible();
