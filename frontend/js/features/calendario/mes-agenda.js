@@ -9,6 +9,16 @@ AppModules.define('calendario', {
 let calAgendaSelectedDate = null;
 
 function drawCal() {
+  // Deslizar muda de mês; na timeline (scroll horizontal) fica desligado.
+  if (window.SwipeNav) {
+    const opts = {
+      onPrev: () => AppModules.calendario.calPrev(),
+      onNext: () => AppModules.calendario.calNext(),
+      enabled: () => AppModules.calendario.calMode !== 'timeline',
+    };
+    // Grelha de secretária/tablet, agenda do telemóvel e grelha deitada.
+    ['cal-grid', 'calendar-agenda-mobile', 'cal-landscape'].forEach(id => SwipeNav.attach(document.getElementById(id), opts));
+  }
   AppModules.core.SS.set('calYear', AppModules.core.calYear);
   AppModules.core.SS.set('calMonth', AppModules.core.calMonth);
   const filters = AppModules.calendario.getCalendarFilters();

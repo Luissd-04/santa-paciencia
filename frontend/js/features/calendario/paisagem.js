@@ -150,7 +150,7 @@ function calPrev() {
     if (wrap) wrap.scrollLeft -= (wrap.clientWidth - AppModules.calendario.CAL.tlLabelW) * 0.7;
     return;
   }
-  AppModules.core.calMonth--; if (AppModules.core.calMonth < 0) { AppModules.core.calMonth = 11; AppModules.core.calYear--; } AppModules.calendario.renderCal();
+  AppModules.core.calMonth--; if (AppModules.core.calMonth < 0) { AppModules.core.calMonth = 11; AppModules.core.calYear--; } return AppModules.calendario.renderCal();
 }
 
 function calNext() {
@@ -159,7 +159,7 @@ function calNext() {
     if (wrap) wrap.scrollLeft += (wrap.clientWidth - AppModules.calendario.CAL.tlLabelW) * 0.7;
     return;
   }
-  AppModules.core.calMonth++; if (AppModules.core.calMonth > 11) { AppModules.core.calMonth = 0; AppModules.core.calYear++; } AppModules.calendario.renderCal();
+  AppModules.core.calMonth++; if (AppModules.core.calMonth > 11) { AppModules.core.calMonth = 0; AppModules.core.calYear++; } return AppModules.calendario.renderCal();
 }
 
 function goToday() {

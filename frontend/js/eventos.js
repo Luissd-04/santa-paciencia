@@ -188,7 +188,21 @@ function currentEventosView() {
   return eventosPhone() ? 'semana' : eventosView;
 }
 
+// Deslizar (telemóvel/tablet) muda de semana ou de mês; a timeline scrolla na
+// horizontal, por isso fica de fora (js/domain/swipe.js).
+function attachEventosSwipe() {
+  if (!window.SwipeNav) return;
+  const opts = {
+    onPrev: () => eventosPrev(),
+    onNext: () => eventosNext(),
+    enabled: () => { const v = currentEventosView(); return v === 'semana' || (v === 'calendar' && activeEventosMode() !== 'timeline'); },
+  };
+  SwipeNav.attach(document.getElementById('eventos-panel-semana'), opts);
+  ['eventos-cal-grid', 'eventos-agenda-mobile'].forEach(id => SwipeNav.attach(document.getElementById(id), opts));
+}
+
 async function renderEventosView() {
+  attachEventosSwipe();
   const version = ++eventosRenderVersion;
   const isCurrent = () => version === eventosRenderVersion;
   AppModules.core.SS.set(eventosViewKey(), eventosView);
@@ -1021,7 +1035,7 @@ function populateEventosResponsibleSelect(selected = '') {
 }
 
 function eventosPrev() {
-  if (currentEventosView() === 'semana') { AppModules.eventos.moveSemana(-7); renderEventosView(); return; }
+  if (currentEventosView() === 'semana') { AppModules.eventos.moveSemana(-7); return renderEventosView(); }
   if (activeEventosMode() === 'timeline') {
     const wrap = document.getElementById('eventos-timeline-wrap');
     if (wrap) wrap.scrollLeft -= (wrap.clientWidth - EVENTOS_LABEL_W) * 0.7;
@@ -1029,11 +1043,11 @@ function eventosPrev() {
   }
   eventosMonth--;
   if (eventosMonth < 0) { eventosMonth = 11; eventosYear--; }
-  renderEventosView();
+  return renderEventosView();
 }
 
 function eventosNext() {
-  if (currentEventosView() === 'semana') { AppModules.eventos.moveSemana(7); renderEventosView(); return; }
+  if (currentEventosView() === 'semana') { AppModules.eventos.moveSemana(7); return renderEventosView(); }
   if (activeEventosMode() === 'timeline') {
     const wrap = document.getElementById('eventos-timeline-wrap');
     if (wrap) wrap.scrollLeft += (wrap.clientWidth - EVENTOS_LABEL_W) * 0.7;
@@ -1041,7 +1055,7 @@ function eventosNext() {
   }
   eventosMonth++;
   if (eventosMonth > 11) { eventosMonth = 0; eventosYear++; }
-  renderEventosView();
+  return renderEventosView();
 }
 
 function eventosToday() {

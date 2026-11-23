@@ -209,3 +209,8 @@
   #view-calendario .calendar-toolbar .page-toolbar-count { order: 6; font-size: 11px; }
   #view-calendario .calendar-toolbar .view-toolbar-actions > .btn { min-height: 44px; padding: 8px; }
 }
+
+/* Deslizar para mudar de período (js/domain/swipe.js): o scroll vertical
+   continua nativo; o movimento horizontal é tratado pelo gesto. */
+.swipe-area { touch-action: pan-y; }
+@media (prefers-reduced-motion: reduce) { .swipe-area { transition: none !important; } }

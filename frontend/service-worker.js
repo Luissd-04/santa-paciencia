@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v42';
-const CACHE_VERSION = 109;
+const CACHE_VERSION = 110;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -93,6 +93,7 @@ const STATIC_ASSETS = [
   '/css/v2/painel.css',
   '/js/domain/pricing.js',
   '/js/domain/date-picker.js',
+  '/js/domain/swipe.js',
   '/js/domain/table-cols.js',
   '/js/domain/export-columns.js',
   '/js/domain/view-prefs.js',
