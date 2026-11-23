@@ -60,6 +60,11 @@
                 <span class="settings-tab-text"><strong>Aparência</strong><small>Clássico, vidro, claro ou escuro</small></span>
                 <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
               </button>
+              <button type="button" class="settings-tab" data-settings-tab="vistas" data-on-click="vistas-open">
+                <i data-lucide="layout-template"></i>
+                <span class="settings-tab-text"><strong>Vistas predefinidas</strong><small>Como abre cada ecrã, no computador e no telemóvel</small></span>
+                <i data-lucide="chevron-right" class="settings-tab-chevron"></i>
+              </button>
               <button type="button" class="settings-tab settings-nav-phone" data-on-click="menu-open-editor">
                 <i data-lucide="panel-left"></i>
                 <span class="settings-tab-text"><strong>Menu do telemóvel</strong><small>Ordem, itens escondidos e atalhos da barra</small></span>
@@ -117,6 +122,18 @@
                 <small>Automático segue o telemóvel ou o computador: claro de dia, escuro à noite.</small>
               </div>
               <p class="appearance-note"><i data-lucide="info"></i> As páginas principais já têm o desenho novo. As fichas e janelas (reserva, hóspede, nova reserva, …) vão mudando à medida que ficarem prontas.</p>
+            </div>
+          </div>
+          <!-- Vistas predefinidas (js/appearance-settings.js): guardadas na conta, por computador e telemóvel. -->
+          <div class="settings-panel" id="settings-vistas">
+            <div class="card appearance-card vistas-card">
+              <h3>Vistas predefinidas</h3>
+              <p class="appearance-intro">Escolha como abre cada ecrã, separado para computador e telemóvel. Fica guardado na sua conta e vale em todos os aparelhos. Se mudar de vista durante o uso, essa escolha mantém-se até terminar a sessão.</p>
+              <div class="vistas-table" id="vistas-table" role="table" aria-label="Vistas predefinidas"></div>
+              <div class="vistas-footer">
+                <span class="vistas-status" id="vistas-status" role="status" aria-live="polite">No telemóvel só aparecem vistas que funcionam nesse tamanho. Guardado automaticamente.</span>
+                <button type="button" class="btn btn-ghost btn-sm" data-on-click="vistas-reset"><i data-lucide="rotate-ccw"></i> Repor predefinições</button>
+              </div>
             </div>
           </div>
           <div class="settings-panel active" id="settings-gcal">

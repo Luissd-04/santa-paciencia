@@ -105,6 +105,7 @@ function serializeUser(user) {
     organization_slug: user.organization_slug,
     menu_prefs: user.organization_id ? require('../services/menuPrefs').get(user.id, user.organization_id) : null,
     appearance: require('../services/appearancePrefs').get(user.id),
+    view_prefs: require('../services/viewPrefs').get(user.id),
     is_platform_admin: require('../services/platformAccess').isPlatformAdmin(user),
     trial_access: user.trial_access || null,
     platform_role: require('../services/platformAccess').platformRole(user),
@@ -346,6 +347,13 @@ router.put('/menu-prefs', requireAuth, (req, res, next) => {
 router.put('/appearance', requireAuth, (req, res, next) => {
   try {
     res.json({ success: true, data: { appearance: require('../services/appearancePrefs').save(req.user.id, req.body?.appearance) } });
+  } catch (error) { next(error); }
+});
+
+// Vistas predefinidas desta pessoa (Definições → Vistas predefinidas).
+router.put('/view-prefs', requireAuth, (req, res, next) => {
+  try {
+    res.json({ success: true, data: { view_prefs: require('../services/viewPrefs').save(req.user.id, req.body?.view_prefs) } });
   } catch (error) { next(error); }
 });
 

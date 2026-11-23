@@ -13,6 +13,16 @@ AppModules.define('reservas', {
   preCheckinUrl: { get: () => preCheckinUrl },
   renderResCard: { get: () => renderResCard },
   reservasDetailOpen: { get: () => reservasDetailOpen, set: value => { reservasDetailOpen = value; } },
+  applyViewDefault: { get: () => scope => {
+    if (!['operational', 'past'].includes(scope)) return;
+    reservasPeriodScope = scope;
+    AppModules.core.SS.set('res:period', scope);
+    // Mesma ordenação que ao escolher o período à mão (setReservasPeriodScope).
+    sortCol = scope === 'past' ? 'check_out' : 'check_in';
+    sortAsc = scope !== 'past';
+    AppModules.core.SS.set('res:sort', sortCol);
+    AppModules.core.SS.set('res:asc', sortAsc);
+  } },
   reservasPeriodScope: { get: () => reservasPeriodScope, set: value => { reservasPeriodScope = value; } },
   reservasViewMode: { get: () => reservasViewMode, set: value => { reservasViewMode = value; } },
   resExactDateFilter: { get: () => resExactDateFilter, set: value => { resExactDateFilter = value; } },

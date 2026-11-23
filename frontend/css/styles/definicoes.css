@@ -282,6 +282,23 @@
   .appearance-swatch { grid-row: 1 / 3; height: 64px; margin: 0; }
 }
 
+/* Definições → Vistas predefinidas (js/appearance-settings.js) */
+.vistas-row { display: grid; grid-template-columns: minmax(0, 1fr) 240px 240px; gap: 16px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border-soft); }
+.vistas-head { padding: 0 0 10px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.vistas-name b { display: block; font-size: 15px; }
+.vistas-name small { color: var(--text-muted); font-size: 13px; }
+.vistas-cell select { width: 100%; }
+.vistas-device { display: none; }
+.vistas-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 14px; flex-wrap: wrap; }
+.vistas-status { font-size: 13px; color: var(--text-muted); }
+.vistas-status.is-saved { color: var(--success, #2f7a4b); font-weight: 600; }
+@media (max-width: 700px) {
+  .vistas-head { display: none; }
+  .vistas-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 12px; }
+  .vistas-name { grid-column: 1 / -1; }
+  .vistas-device { display: block; margin-bottom: 4px; font-size: 12px; color: var(--text-muted); }
+}
+
 /* Definições → Versão da aplicação */
 .about-list { display: grid; gap: 10px; margin: 12px 0; }
 .about-list div { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }

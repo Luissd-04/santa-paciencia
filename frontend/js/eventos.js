@@ -22,6 +22,7 @@ AppModules.define('eventos', {
   eventoTime: { get: () => formatEventoTime },
   toggleEventoStatus: { get: () => toggleEventoStatus },
   renderEventosTypeChips: { get: () => renderEventosTypeChips },
+  applyViewDefault: { get: () => applyEventosViewDefault },
 });
 
 // Na V2 a vista por omissão é a Semana (features/eventos/semana.js) e a
@@ -274,6 +275,13 @@ function renderEventoTaskCard(evento) {
       <small>${type.singular}${evento.accommodation_name ? ' · ' + AppModules.core.escapeHtml(evento.accommodation_name) : ''}${time ? ' · ' + time : ''}</small>
     </span>
   </div>`;
+}
+
+// Vista predefinida da conta (js/domain/view-prefs.js): na V1 «semana» é o Mês.
+function applyEventosViewDefault(view) {
+  const value = ['list', 'semana'].includes(view) ? view : 'calendar';
+  eventosView = eventosV2() ? value : (value === 'semana' ? 'calendar' : value);
+  AppModules.core.SS.set(eventosViewKey(), eventosView);
 }
 
 function setEventosView(view) {

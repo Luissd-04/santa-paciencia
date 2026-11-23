@@ -27,7 +27,7 @@ function parseCookies(header = '') {
 const PLATFORM_ONLY_ALLOWED = [
   /^\/api\/platform(?:\/|$)/,
   /^\/api\/telemetry\/?$/,
-  /^\/auth\/(?:me|logout|switch-org|platform-session|memberships|appearance|change-password)\/?$/,
+  /^\/auth\/(?:me|logout|switch-org|platform-session|memberships|appearance|view-prefs|change-password)\/?$/,
   /^\/auth\/sessions(?:\/revoke-others|\/[^/]+)?\/?$/,
 ];
 // Sessão numa organização suspensa: só sair dela (terminar sessão ou mudar

@@ -8,6 +8,7 @@ AppModules.define('hospedes', {
   hospedesPaged: { get: () => hospedesPaged },
   hospedesSortAsc: { get: () => hospedesSortAsc, set: value => { hospedesSortAsc = value; } },
   hospedesSortCol: { get: () => hospedesSortCol, set: value => { hospedesSortCol = value; } },
+  applyViewDefault: { get: () => value => { hospedesViewMode = value === 'list' ? 'list' : 'cards'; AppModules.core.SS.set('hsp:mode', hospedesViewMode); } },
   hospedesViewMode: { get: () => hospedesViewMode, set: value => { hospedesViewMode = value; } },
 });
 

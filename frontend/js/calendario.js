@@ -4,6 +4,7 @@ AppModules.define('calendario', {
   CAL: { get: () => CAL },
   calAccColor: { get: () => calAccColor },
   calLandSelectedDate: { get: () => calLandSelectedDate, set: value => { calLandSelectedDate = value; } },
+  applyViewDefault: { get: () => applyCalendarViewDefault },
   calMode: { get: () => window.matchMedia('(max-width: 600px)').matches ? 'calendar' : calMode, set: value => { calMode = value; } },
   calReservationSuiteInfo: { get: () => calReservationSuiteInfo },
   calReservationSuites: { get: () => calReservationSuites },
@@ -240,6 +241,17 @@ function movePill() {
   const btnRect = activeBtn.getBoundingClientRect();
   pill.style.left  = (btnRect.left - toggleRect.left) + 'px';
   pill.style.width = btnRect.width + 'px';
+}
+
+// Vista predefinida da conta (js/domain/view-prefs.js): «calendar» ou «timeline:N».
+function applyCalendarViewDefault(value) {
+  const [mode, days] = String(value).split(':');
+  calMode = mode === 'timeline' ? 'timeline' : 'calendar';
+  AppModules.core.SS.set('calMode', calMode);
+  if (calMode === 'timeline' && [7, 14, 30].includes(Number(days))) {
+    timelineDays = Number(days);
+    AppModules.core.SS.set('tlDays', timelineDays);
+  }
 }
 
 function setCalMode(m) {

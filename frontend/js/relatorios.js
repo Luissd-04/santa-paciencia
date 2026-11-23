@@ -7,6 +7,7 @@ AppModules.define('relatorios', {
   setLucroAccId: { get: () => setLucroAccId },
   setLucroYear: { get: () => setLucroYear },
   setReportAccId: { get: () => setReportAccId },
+  applyViewDefault: { get: () => value => { if (['faturamento', 'despesas', 'lucro'].includes(value)) { _reportTab = value; AppModules.core.SS.set('report:tab', value); } } },
   setReportMonth: { get: () => setReportMonth },
   setReportYear: { get: () => setReportYear },
   switchReportTab: { get: () => switchReportTab },
