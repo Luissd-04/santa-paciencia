@@ -11,7 +11,7 @@ const PREVIEW_STATUSES = ['confirmada', 'pre_reserva', 'pendente', 'aguardar_pag
 // percurso de exceção). Modelos fora da lista vêm a seguir.
 const TEMPLATE_ORDER = [
   'confirmacao', 'reserva_aceite', 'pagamento', 'aviso_restante', 'coordenadas', 'obrigado',
-  'cancelamento', 'cancelamento_politica', 'pre_checkin', 'apos_checkin', 'antes_checkout',
+  'cancelamento', 'cancelamento_politica', 'portal_hospede', 'pre_checkin', 'apos_checkin', 'antes_checkout',
 ];
 
 function sortTemplates(templates) {
@@ -84,6 +84,11 @@ const GUEST_CASES = {
     { label: 'pelo hóspede', status: 'cancelada', reservation: { amount_paid: 0, motivo_cancelamento: 'guest' } },
   ],
   cancelamento_politica: [{ status: 'cancelada' }],
+  portal_hospede: [
+    { label: 'pedido por aprovar', status: 'pendente', reservation: { amount_paid: 0 } },
+    { label: 'falta o sinal', status: 'aguardar_pagamento', reservation: { amount_paid: 0, deposit_deadline: new Date(Date.now() + 48 * 3600000).toISOString() } },
+    { label: 'pré-check-in por fazer', status: 'confirmada' },
+  ],
 };
 
 function guestSamples(orgId, { baseUrl }) {

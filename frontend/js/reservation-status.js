@@ -10,12 +10,13 @@
   let refreshCount = 0;
   let openingCheckout = false;
   let currentPolicy = null;
+  let currentPaid = 0;
   let cancelling = false;
   const fmtDeadline = value => window.ReservationDates.formatDateTime(value);
   function renderPolicy(payment) {
     const p = payment.policy;
     currentPolicy = p;
-    $('rs-policy').hidden = !p;
+    $('gp-policy').hidden = !p;
     $('rs-consent-label').hidden = !p || p.accepted || !payment.available;
     $('rs-auto-label').hidden = !p || p.accepted || !payment.available || !p.policy.automaticCharge || !p.balanceCents;
     $('rs-cancellation').hidden = !p?.canCancel;
@@ -30,17 +31,25 @@
       <p>O reembolso é calculado pela antecedência entre <strong>${p.refundBasis === 'booking' ? 'a criação da reserva' : 'o pedido de cancelamento'}</strong> e o check-in. Após o dia de check-in, contacte o alojamento.</p>
       <table><thead><tr><th>Antecedência</th><th>Reembolso</th></tr></thead><tbody>${rules}</tbody></table>
       ${p.cancellation ? `<p>Cancelamento registado. Reembolso previsto: <strong>${fmtMoney(p.cancellation.amount)}</strong>. ${p.cancellation.state === 'complete' ? 'Processamento concluído.' : p.cancellation.state === 'manual_review' ? 'O alojamento está a verificar o reembolso.' : 'Reembolso em processamento.'}</p>` : ''}`;
-    $('rs-refund-quote').textContent = `Se cancelar agora, o reembolso previsto é ${fmtMoney(p.refundCents / 100)} (${p.refundPercent}% do valor já pago).`;
+    $('rs-refund-quote').textContent = !currentPaid
+      ? 'Ainda não pagou nada: se cancelar agora, as datas ficam livres e não há valores a devolver.'
+      : `Se cancelar agora, o reembolso previsto é ${fmtMoney(p.refundCents / 100)} (${p.refundPercent}% do valor já pago).`;
   }
 
 
-  function renderPayment(reservation) {
+  function renderPayment(reservation, phase) {
     const payment = reservation.online_payment || {};
+    currentPaid = Number(reservation.amount_paid) || 0;
     renderPolicy(payment);
     const button = $('rs-pay');
     const awaitingWebhook = returnState === 'return' && ['pending', 'processing'].includes(payment.status)
       && reservation.payment_status !== 'confirmado';
-    $('rs-payment-panel').hidden = !payment.available && !payment.status && !awaitingWebhook;
+    // O painel aparece com o pagamento disponível, à espera da confirmação ou
+    // com um aviso que o hóspede precisa de ler (no regresso da Stripe ou um
+    // pagamento por verificar/reembolsado). Uma reserva cancelada não o mostra.
+    const notice = ['review_required', 'partially_refunded', 'refunded'].includes(payment.status)
+      || (returnState && payment.status);
+    $('rs-payment-panel').hidden = phase === 'cancelada' || (!payment.available && !payment.processing && !awaitingWebhook && !notice);
     button.hidden = !payment.available || payment.processing || awaitingWebhook || payment.status === 'review_required';
     button.disabled = openingCheckout;
     button.textContent = openingCheckout ? 'A abrir pagamento…' : `Pagar ${fmtMoney(payment.amount_due)} online`;
@@ -80,6 +89,14 @@
     } catch { return safe; }
   }
 
+  // Capa do topo: miniaturas de 1024 e 1600 px, conforme o ecrã.
+  function heroImage(value) {
+    const src = mediaThumb(value, 1600);
+    if (!src) return null;
+    const small = mediaThumb(value, 1024);
+    return { src, srcset: small !== src ? `${small} 1024w, ${src} 1600w` : '' };
+  }
+
   function safeMediaUrl(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
@@ -96,16 +113,12 @@
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload.success === false) throw new Error(payload.error || 'Não foi possível consultar a reserva.');
       const reservation = payload.data;
-      const S = window.ReservationStatus;
-      $('rs-status').textContent = S.guestLabel(reservation.status);
-      const chip = S.paymentGuestChip(reservation.status, reservation.payment_status);
-      $('rs-payment').hidden = !chip;
-      $('rs-payment').textContent = chip?.label || '';
-      $('rs-payment').dataset.tone = chip?.tone || '';
-      $('rs-accommodation').textContent = reservation.accommodation_name;
-      renderPayment(reservation);
-      // Passos, pagamentos e a capa da reserva confirmada (reservation-status-novo.js).
-      window.ReservationStatusNovo.render(reservation, mediaThumb(reservation.cover_image || reservation.images?.[0], 1600));
+      // Topo, próximo passo, passos e lateral (reservation-status-novo.js);
+      // depois o pagamento online, que vive dentro do cartão «Próximo passo».
+      const cover = reservation.portal?.cover_image || reservation.cover_image || reservation.images?.[0];
+      const view = window.ReservationStatusNovo.render(reservation, heroImage(cover));
+      renderPayment(reservation, view.phase);
+      window.ReservationStatusNovo.setSticky(view.phase, !$('rs-payment-panel').hidden && !$('rs-pay').hidden);
       $('rs-loading').hidden = true;
       $('rs-content').hidden = false;
       $('rs-error').hidden = true;
@@ -119,7 +132,8 @@
   $('rs-pay').addEventListener('click', async () => {
     if (openingCheckout) return;
     if (currentPolicy && !currentPolicy.accepted && !$('rs-consent').checked) {
-      $('rs-error').textContent = 'Aceite as condições antes de continuar.'; $('rs-error').hidden = false; $('rs-consent').focus(); return;
+      $('rs-error').textContent = 'Aceite as condições antes de continuar.'; $('rs-error').hidden = false; $('rs-consent').focus();
+      $('rs-consent-label').scrollIntoView({ block: 'center' }); return;
     }
     openingCheckout = true;
     $('rs-pay').disabled = true;

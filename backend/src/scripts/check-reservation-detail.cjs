@@ -88,10 +88,15 @@ async function main() {
   // Pedido por aprovar e pré-check-in por pedir.
   await open('pedido');
   await expect(page.locator('.rf-next')).toContainText('Próximo passo: pedido por aprovar');
-  await expect(page.locator('.rf-side')).not.toContainText('Enviar link ao hóspede');
+  // O cartão «Portal do hóspede» já aparece no pedido; o pré-check-in só depois de aceite.
+  await expect(page.locator('.rf-portal')).toContainText('Enviar link ao hóspede');
+  await expect(page.locator('.rf-portal')).toContainText('Disponível depois de aceitar o pedido');
+  await expect(page.locator('.rf-portal a', { hasText: 'WhatsApp' })).toHaveAttribute('href', /^https:\/\/wa\.me\/351912345678\?text=/);
   await open('precheckin');
   await expect(page.locator('.rf-next')).toContainText('Próximo passo: pedir o pré-check-in');
-  await expect(page.locator('.rf-side')).toContainText('Enviar link ao hóspede');
+  await expect(page.locator('.rf-next .btn', { hasText: 'Enviar link ao hóspede' })).toBeVisible();
+  await expect(page.locator('.rf-portal')).toContainText('Preencher agora →');
+  await expect(page.locator('.rf-portal')).toContainText(/Pagamento\s*Pago/);
 
   // Dia de chegada: marcar o check-in feito tira o passo da ficha.
   await open('chegada');

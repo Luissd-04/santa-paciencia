@@ -24,10 +24,12 @@ const BY_TEMPLATE = {
   obrigado: ['review_url'],
 };
 // Modelos do hóspede verificados (os restantes saem sempre: avisos da política,
-// pré-check-in enviado à mão pela equipa).
-const GUEST_TEMPLATES = ['confirmacao', 'reserva_aceite', 'pagamento', 'coordenadas', 'obrigado', 'cancelamento'];
+// pré-check-in avulso). «A sua reserva» (portal_hospede) é enviado pela equipa,
+// mas leva o rodapé e o contacto do alojamento como os outros: sem os dados
+// comuns fica retido e o sino diz o que falta.
+const GUEST_TEMPLATES = ['confirmacao', 'reserva_aceite', 'pagamento', 'coordenadas', 'obrigado', 'cancelamento', 'portal_hospede'];
 const TEMPLATE_NAMES = {
-  confirmacao: 'Pedido recebido', reserva_aceite: 'Reserva aceite', pagamento: 'Pagamento recebido',
+  confirmacao: 'Pedido recebido', reserva_aceite: 'Reserva aceite', pagamento: 'Pagamento recebido', portal_hospede: 'A sua reserva',
   coordenadas: 'Tudo para a sua chegada', obrigado: 'Obrigado', cancelamento: 'Cancelamento',
 };
 

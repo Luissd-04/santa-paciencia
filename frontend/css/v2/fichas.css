@@ -10,6 +10,9 @@ html[data-look] #view-reservas[data-v2] .rf-next { border-color: color-mix(in sr
 html[data-look] #view-reservas[data-v2] .rf-next-icon { background: color-mix(in srgb, var(--v2-warn) 18%, transparent); color: var(--v2-warn); }
 html[data-look] #view-reservas[data-v2] .rf-next-text strong { color: var(--v2-ink); }
 html[data-look] #view-reservas[data-v2] .rf-next-text span { color: var(--v2-muted); }
+html[data-look] #view-reservas[data-v2] .rf-portal .rf-portal-url { border-color: var(--v2-divider); border-radius: var(--v2-radius-sm); background: var(--v2-surface-2); }
+html[data-look] #view-reservas[data-v2] .rf-portal-steps { border-top-color: var(--v2-divider); }
+html[data-look] #view-reservas[data-v2] .rf-row-link { color: var(--v2-ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--v2-line); }
 
 /* ── Ficha do hóspede: o resumo por cima (hospedes/ficha-v2.js) ── */
 html[data-look] #view-hospede-detalhe.hf2-on:not(.hf2-a-editar) > section.card { display: none; }

@@ -81,8 +81,9 @@ async function main() {
   await payments.processWebhook({ id: 'evt_browser_paid', type: 'checkout.session.completed', livemode: false,
     created: Math.floor(Date.now() / 1000), data: { object: session } });
   await page.goto(url + '?payment=return');
-  await expect(page.locator('#rs-status')).toHaveText('Reserva confirmada');
-  await expect(page.locator('#rs-payment')).toHaveText('Pago');
+  // Uma só etiqueta de estado (portal do hóspede, 23/11/2026).
+  await expect(page.locator('#rs-status')).toHaveText('Reserva confirmada e paga');
+  await expect(page.locator('#pn-rs-payments')).toContainText('200,00');
   await expect(page.locator('#rs-pay')).toBeHidden();
   await page.screenshot({ path: path.join(artifacts, 'paid-mobile.png'), fullPage: true, animations: 'disabled' });
   assert.deepEqual(errors, []);

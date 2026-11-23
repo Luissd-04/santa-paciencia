@@ -122,61 +122,9 @@ html[data-layout="novo"] .primary-btn, html[data-layout="novo"] .ghost-btn { bor
 html[data-layout="novo"] .primary-btn { background: var(--brand); box-shadow: none; }
 html[data-layout="novo"] .ghost-btn { border: 1px solid var(--line); background: #fff; color: var(--ink); }
 
-/* ── Página da reserva ──────────────────────────────────────────────────── */
+/* ── Topo do pré-check-in (o portal da reserva tem o seu CSS: reservation-status.css) ── */
 html[data-layout="novo"] .pn-topbar strong { white-space: nowrap; }
 html[data-layout="novo"] .pn-topbar .pn-ref { min-width: 0; overflow: hidden; text-overflow: ellipsis; margin-left: auto; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); color: var(--muted); font: 600 13px Inter, system-ui, sans-serif; white-space: nowrap; }
-html[data-layout="novo"] .pn-pill { display: inline-flex; align-items: center; gap: 6px; justify-self: start; padding: 6px 12px; border-radius: 999px; font: 600 13px Inter, system-ui, sans-serif; }
-html[data-layout="novo"] .pn-pill.ok { background: var(--ok-bg); color: var(--ok); }
-html[data-layout="novo"] .pn-pill.wait { background: var(--wait-bg); color: var(--wait); }
-html[data-layout="novo"] .pn-rs-hero { min-height: 260px; }
-html[data-layout="novo"] .pn-rs-hero h1 { font-size: 38px; }
-html[data-layout="novo"] .reservation-status-card { width: auto; max-width: 720px; margin: 20px auto 0; padding: 0; }
-html[data-layout="novo"] #rs-content { display: flex; flex-direction: column; gap: 16px; }
-html[data-layout="novo"] #rs-content > * { margin: 0; }
-html[data-layout="novo"] .rs-stay, html[data-layout="novo"] .pn-card, html[data-layout="novo"] #rs-payment-panel, html[data-layout="novo"] .rs-policy { padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); }
-html[data-layout="novo"] #rs-payment-panel { order: -1; display: grid; gap: 12px; }
-html[data-layout="novo"] body[data-reservation-status="confirmada"] #rs-payment-panel, html[data-layout="novo"] body[data-reservation-status="check_in"] #rs-payment-panel { order: 3; }
-html[data-layout="novo"] .rs-stay { order: 1; }
-html[data-layout="novo"] #pn-rs-steps { order: 2; }
-html[data-layout="novo"] #pn-rs-payments { order: 4; }
-html[data-layout="novo"] #rs-policy { order: 5; }
-html[data-layout="novo"] #rs-cancellation { order: 6; }
-html[data-layout="novo"] .rs-refresh { order: 7; justify-self: center; }
-html[data-layout="novo"] #rs-content > .rs-note { order: 8; text-align: center; }
-html[data-layout="novo"] .rs-stay h2 { margin: 12px 0 14px; color: var(--ink); font-size: 24px; }
-html[data-layout="novo"] .rs-status, html[data-layout="novo"] .rs-payment { min-height: 0; padding: 6px 12px; font-weight: 600; }
-html[data-layout="novo"] .rs-status { background: var(--brand-soft); }
-html[data-layout="novo"] .pn-trip { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; padding: 14px; border-radius: 12px; background: var(--cream); }
-html[data-layout="novo"] .pn-trip small { display: block; color: var(--muted); font-size: 13px; }
-html[data-layout="novo"] .pn-trip strong { display: block; font-size: 17px; }
-html[data-layout="novo"] .pn-trip > span { color: var(--muted); }
-html[data-layout="novo"] .pn-calendar { display: block; padding: 13px 16px; text-align: center; text-decoration: none; }
-html[data-layout="novo"] .pn-card h3, html[data-layout="novo"] .rs-policy h3 { margin: 0 0 14px; font-size: 20px; }
-html[data-layout="novo"] .pn-due { display: grid; gap: 8px; }
-html[data-layout="novo"] .pn-due:empty { display: none; }
-html[data-layout="novo"] .pn-due h2 { margin: 4px 0 0; font-size: 24px; line-height: 1.2; }
-html[data-layout="novo"] .pn-due-amount { font: 700 34px Inter, system-ui, sans-serif; letter-spacing: -.01em; }
-html[data-layout="novo"] .pn-due small { color: var(--muted); font-size: 13.5px; }
-html[data-layout="novo"] #rs-payment-panel p { margin: 0; color: var(--muted); font-size: 14px; }
-html[data-layout="novo"] #rs-pay { min-height: 50px; font-size: 16px; }
-html[data-layout="novo"] .rs-consent { margin: 0; font-size: 14.5px; }
-html[data-layout="novo"] .rs-consent input { accent-color: var(--brand); }
-html[data-layout="novo"] .pn-timeline { display: grid; margin: 0; padding: 0; list-style: none; }
-html[data-layout="novo"] .pn-timeline li { position: relative; display: grid; grid-template-columns: 28px 1fr; gap: 12px; padding-bottom: 16px; }
-html[data-layout="novo"] .pn-timeline li::before { content: ""; position: absolute; left: 13px; top: 28px; bottom: 0; width: 2px; background: var(--line); }
-html[data-layout="novo"] .pn-timeline li:last-child { padding-bottom: 0; }
-html[data-layout="novo"] .pn-timeline li:last-child::before { display: none; }
-html[data-layout="novo"] .pn-dot { display: grid; place-items: center; width: 28px; height: 28px; border: 2px solid var(--line); border-radius: 50%; background: #fff; color: var(--muted); font: 700 13px Inter, system-ui, sans-serif; }
-html[data-layout="novo"] .pn-timeline li.done .pn-dot { border-color: var(--ok); background: var(--ok); color: #fff; }
-html[data-layout="novo"] .pn-timeline li.now .pn-dot { border-color: var(--brand); color: var(--brand); }
-html[data-layout="novo"] .pn-timeline strong { display: block; font-size: 15.5px; }
-html[data-layout="novo"] .pn-timeline span { color: var(--muted); font-size: 14px; }
-html[data-layout="novo"] .pn-step-action { display: block; width: max-content; max-width: 100%; margin-top: 10px; padding: 12px 18px; text-decoration: none; }
-html[data-layout="novo"] .pn-timeline li:not(.now) .pn-step-action { border: 1px solid var(--line); background: #fff; color: var(--ink); }
-html[data-layout="novo"] .pn-progress { height: 10px; margin-bottom: 14px; overflow: hidden; border-radius: 10px; background: var(--sand); }
-html[data-layout="novo"] .pn-progress i { display: block; height: 100%; border-radius: 10px; background: var(--ok); }
-html[data-layout="novo"] .rs-policy table { font-size: 14px; }
-html[data-layout="novo"] #rs-cancellation .ghost-btn { width: 100%; min-height: 46px; }
 
 /* ── Pré-check-in e confirmação ─────────────────────────────────────────── */
 html[data-layout="novo"] .precheckin-card { max-width: 720px; margin: 20px auto 0; }

@@ -2,8 +2,13 @@ const { db } = require('../config/database');
 const { httpError } = require('./httpError');
 const { createHash } = require('crypto');
 // A provider timeout cannot prove non-delivery. Never retry that intent blindly.
-async function deliverTemplate({ orgId, slug, reservation: r, to, rendered }, send) {
-  const id = createHash('sha256').update(JSON.stringify([orgId, r.id, slug, to, r.status, r.check_in, r.check_out, r.amount_paid, r.total_amount, rendered.subject, rendered.html])).digest('hex');
+// `resendKey`: um reenvio pedido de propósito pela equipa (ex.: «Reenviar link
+// ao hóspede») é outra mensagem, mesmo com o mesmo conteúdo; sem ele, o mesmo
+// conteúdo já entregue não volta a sair.
+async function deliverTemplate({ orgId, slug, reservation: r, to, rendered, resendKey = '' }, send) {
+  const parts = [orgId, r.id, slug, to, r.status, r.check_in, r.check_out, r.amount_paid, r.total_amount, rendered.subject, rendered.html];
+  if (resendKey) parts.push(String(resendKey));
+  const id = createHash('sha256').update(JSON.stringify(parts)).digest('hex');
   const now = Date.now();
   db.prepare("UPDATE email_deliveries SET state='uncertain', last_error='Envio interrompido; confirmar no Gmail antes de repetir.' WHERE organization_id=? AND reservation_id=? AND template_slug=? AND state='sending' AND updated_at<?")
     .run(orgId, r.id, slug, now - 120000);
@@ -72,5 +77,10 @@ function afterSent({ orgId, reservationId, slug, timingEvent }) {
       .run(require('crypto').randomUUID(), orgId, slug, reservationId);
   }
   if (['pre_checkin', 'reserva_aceite'].includes(slug)) require('./reservationLifecycle').markPrecheckinSent({ id: reservationId, organization_id: orgId });
+  // O portal tem o pré-check-in a partir da aceitação: o link conta como enviado.
+  if (slug === 'portal_hospede') {
+    const current = db.prepare('SELECT status FROM reservations WHERE id = ? AND organization_id = ?').get(reservationId, orgId);
+    if (current && !['pendente', 'cancelada'].includes(current.status)) require('./reservationLifecycle').markPrecheckinSent({ id: reservationId, organization_id: orgId });
+  }
 }
 module.exports = { deliverTemplate, resolveDelivery, afterSent };

@@ -65,6 +65,12 @@ async function getById(req, res, next) {
     reservation.status_options = lifecycle.statusOptions(reservation, req.user);
     reservation.status_undo = lifecycle.undoStatus(reservation, req.user);
     reservation.can_pay_online = require('../services/stripePayments').awaitsOnlinePayment(reservation);
+    // Cartão «Portal do hóspede»: último envio do link (as aberturas pelo
+    // hóspede, portal_first/last_opened_at, vêm com a reserva).
+    reservation.portal_link_sent_at = require('../services/portalTracking').lastLinkSentAt(req.user.organization_id, reservation.id);
+    // Sinal exigido (o da política guardada na reserva ou o da organização),
+    // para a linha «Pagamento online» do mesmo cartão.
+    try { reservation.deposit_amount = require('../services/paymentPolicy').requiredDepositCents(reservation) / 100; } catch { reservation.deposit_amount = null; }
 
     reservation.payments = db.prepare(`
       SELECT * FROM reservation_payments
@@ -211,6 +217,41 @@ async function sendPrecheckinLink(req, res, next) {
   }
 }
 
+// POST /api/reservations/:id/send-portal-link
+// «Enviar link ao hóspede» no cartão «Portal do hóspede»: email «A sua
+// reserva» (portal_hospede) com o link /reserva/:token e o próximo passo.
+async function sendPortalLink(req, res, next) {
+  try {
+    const organizationId = req.user.organization_id;
+    const reservation = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(req.params.id, organizationId);
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada' });
+    if (reservation.status === 'cancelada') return res.status(400).json({ error: 'Uma reserva cancelada não recebe o link do portal.' });
+    const guest = db.prepare('SELECT * FROM guests WHERE id = ? AND organization_id = ?').get(reservation.guest_id, organizationId) || {};
+    if (!require('../services/emailAddress').isDeliverableEmail(guest.email)) return res.status(400).json({ error: 'O hóspede não tem um email válido.' });
+    ensurePublicToken(reservation);
+    // Depois de aceite, o portal mostra o pré-check-in.
+    if (reservation.status !== 'pendente') ensurePrecheckinToken(reservation);
+    const accommodation = db.prepare('SELECT * FROM accommodations WHERE id = ? AND organization_id = ?').get(reservation.accommodation_id, organizationId) || {};
+    // Cada pedido da equipa é um envio novo; dois cliques no mesmo minuto, não.
+    const result = await require('../services/emailService').sendGuestPortalEmail(guest, reservation, accommodation,
+      { resendKey: `manual:${Math.floor(Date.now() / 60000)}` });
+    const emailSent = Boolean(result?.id);
+    if (emailSent) recordHistory({ organizationId, reservationId: reservation.id, userId: req.user.id, action: 'portal_link_sent' });
+    const updated = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservation.id, organizationId);
+    res.json({ success: true, data: {
+      portal_url: `${publicUrl(req)}/reserva/${reservation.public_token}`,
+      email_sent: emailSent,
+      queued: Boolean(result?.queued),
+      held: Boolean(result?.held),
+      missing: result?.held ? result.missing.map(m => m.label) : [],
+      portal_link_sent_at: require('../services/portalTracking').lastLinkSentAt(organizationId, reservation.id),
+      precheckin_state: require('../services/reservationState').precheckinState(updated),
+    } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // POST /api/reservations/:id/email-deliveries/resolve — depois de confirmar no
 // Gmail, a equipa marca um envio incerto como entregue ou autoriza repeti-lo.
 async function resolveEmailDelivery(req, res, next) {
@@ -255,4 +296,4 @@ async function resolveEmailHold(req, res, next) {
 }
 
 // GET /api/reservations/stats/dashboard
-module.exports = { resolveEmailHold, resolveEmailDelivery, getAll, getById, create, update, quote, approve, sendPrecheckinLink, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, markNotificationsRead, addPayment, deletePayment, saveInvoice, setTaskStatus, getHistory };
+module.exports = { resolveEmailHold, resolveEmailDelivery, getAll, getById, create, update, quote, approve, sendPrecheckinLink, sendPortalLink, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, markNotificationsRead, addPayment, deletePayment, saveInvoice, setTaskStatus, getHistory };

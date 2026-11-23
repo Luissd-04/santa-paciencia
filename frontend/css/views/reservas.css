@@ -360,6 +360,22 @@
 .rf-stack .btn { justify-content: center; }
 .rf-two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .rf-foot { margin: 8px 0 0; color: var(--text-muted); font-size: 12px; }
+.rf-one { display: grid; grid-template-columns: minmax(0, 1fr); }
+.rf-stack a.btn { justify-content: center; text-decoration: none; }
+
+/* Portal do hóspede: link com «Copiar», envio, e o estado do pré-check-in e
+   do pagamento por baixo de uma linha. */
+.rf-portal .rf-portal-url { margin-bottom: 0; padding: 6px 6px 6px 12px; border-radius: 12px; }
+.rf-portal .rdv2-url-text { min-width: 0; font-size: 12.5px; }
+.rf-portal-copy { flex-shrink: 0; }
+.rf-portal-info { margin-top: 10px; font-size: 12.5px; }
+.rf-portal-steps { display: grid; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-soft); }
+.rf-portal-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.rf-portal-row > div { display: grid; gap: 2px; min-width: 0; }
+.rf-portal-row strong { color: var(--text-main); font-size: 14px; }
+.rf-portal-row small { color: var(--text-muted); font-size: 12.5px; overflow-wrap: anywhere; }
+.rf-row-link { flex-shrink: 0; padding: 4px 0; border: 0; background: none; color: var(--brand-shell); font: inherit; font-size: 13.5px; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap; }
+.rf-row-link:hover { text-decoration: underline; }
 .rf-doc { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 0; border: 0; border-top: 1px solid var(--border-soft); background: none; color: var(--text-main); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
 .rf-card-head + .rf-doc { border-top: 0; }
 .rf-doc small { margin-left: auto; color: var(--text-soft); font-size: 12px; }

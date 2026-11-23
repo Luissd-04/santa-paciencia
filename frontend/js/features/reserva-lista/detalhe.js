@@ -38,6 +38,19 @@ async function toggleReservationTask(resId, kind, done) {
   }
 }
 
+// Número para o wa.me: só dígitos, com o indicativo do país. Sem indicativo,
+// um número português de 9 dígitos (2…, 3…, 9…) leva o 351. Vazio se não der.
+function whatsappNumber(phone) {
+  const raw = String(phone || '').trim();
+  let digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  if (!raw.startsWith('+')) {
+    if (digits.startsWith('00')) digits = digits.slice(2);
+    else if (/^[239]\d{8}$/.test(digits)) digits = `351${digits}`;
+  }
+  return digits.length >= 10 && digits.length <= 15 ? digits : '';
+}
+
 async function showDetail(id, opts = {}) {
   try {
     if (!document.getElementById('view-reservas')?.classList.contains('active')) {
@@ -190,7 +203,8 @@ async function showDetail(id, opts = {}) {
         text: [`faltam ${fmt(remaining)}`, onlineStatus ? `pagamento online: ${onlineStatus.toLowerCase()}` : '', arrivalText].filter(Boolean).join(' · '), actions: copyPay + payBtn };
       if (['confirmada', 'check_in'].includes(r.status) && r.precheckin_state !== 'preenchido') return { icon: 'send', title: 'Pedir o pré-check-in',
         text: [r.precheckin_state === 'enviado' ? 'link enviado, a aguardar o hóspede' : 'ainda não foi enviado', arrivalText].filter(Boolean).join(' · '),
-        actions: `<button class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-enviar-link-precheckin-ae74bc8', [String(r.id)])}>${ic('send', 13)} ${r.precheckin_state === 'enviado' ? 'Reenviar pré-check-in' : 'Enviar pré-check-in'}</button>` };
+        // O link do portal já leva o pré-check-in (email «A sua reserva»).
+        actions: r.guest_email && paymentPageUrl ? `<button class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-enviar-link-portal-3b7d2e1', [String(r.id)])}>${ic('send', 13)} ${r.portal_link_sent_at || r.precheckin_state === 'enviado' ? 'Reenviar link ao hóspede' : 'Enviar link ao hóspede'}</button>` : '' };
       if (['confirmada', 'check_in'].includes(r.status) && remaining > 0.01) return { icon: 'credit-card', title: 'Receber o restante',
         text: [`faltam ${fmt(remaining)}`, r.payment_policy?.balanceCents ? `vence ${D.formatDateTime(r.payment_policy.dueAt, 'date')}` : '', arrivalText].filter(Boolean).join(' · '), actions: copyPay + payBtn };
       return null;
@@ -227,8 +241,74 @@ async function showDetail(id, opts = {}) {
       return `<div class="rf-policy" role="group" aria-label="Política de pagamento">
               <h4 class="rf-policy-title">Política de pagamento</h4>
               ${rows.join('')}
-              ${paymentPageUrl ? `<button class="rf-link-btn" ${AppActions.attrs('click', 'detalhe-write-text-8f51584', [paymentPageUrl])}>${ic('copy', 12)} Copiar link da reserva e pagamento</button>` : ''}
             </div>`;
+    })();
+    // Cartão «Portal do hóspede»: o link /reserva/:token (pagamento e
+    // pré-check-in), o envio por email e por WhatsApp, e o estado dos dois passos.
+    const portalCardHtml = (() => {
+      if (r.status === 'cancelada') return '';
+      const fmtInstant = (value, withTime) => {
+        const date = D.parseInstant(value);
+        if (!date) return '';
+        // «21 nov» e «21 nov, 10:14», na hora do alojamento.
+        const zone = { timeZone: 'Europe/Lisbon' };
+        const day = D.formatDayLabel(date.toLocaleDateString('en-CA', zone), { weekday: false });
+        return withTime ? `${day}, ${date.toLocaleTimeString('pt-PT', { ...zone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}` : day;
+      };
+      const canSend = AppModules.reservas.hasRole('manager');
+      const sent = Boolean(r.portal_link_sent_at);
+      const firstName = String(r.guest_name || '').trim().split(/\s+/)[0] || '';
+      const wa = whatsappNumber(r.guest_phone);
+      const waText = `Olá${firstName ? ` ${firstName}` : ''}, aqui está a página da sua reserva em ${r.accommodation_name || accNames}: ${paymentPageUrl}`;
+      const info = [
+        sent ? `Último envio: ${fmtInstant(r.portal_link_sent_at, true)}` : '',
+        r.portal_last_opened_at ? `aberto pelo hóspede a ${fmtInstant(r.portal_last_opened_at, false)}` : '',
+      ].filter(Boolean).join(' · ');
+      const openedTitle = r.portal_first_opened_at ? `Aberto pela primeira vez a ${D.formatDateTime(r.portal_first_opened_at)}${r.portal_last_opened_at ? `; última vez a ${D.formatDateTime(r.portal_last_opened_at)}` : ''}` : '';
+      const linkHtml = paymentPageUrl ? `
+            <div class="rdv2-concierge-url rf-portal-url">
+              <span class="rdv2-url-text" title="${esc(paymentPageUrl)}">${esc(paymentPageUrl)}</span>
+              <button type="button" class="btn btn-ghost btn-sm rf-portal-copy" ${AppActions.attrs('click', 'detalhe-write-text-8f51584', [String(paymentPageUrl)])} aria-label="Copiar link do portal">Copiar</button>
+            </div>
+            <div class="rf-stack">
+              ${canSend && r.guest_email ? `<button type="button" class="btn btn-primary btn-sm" id="rf-portal-send" ${AppActions.attrs('click', 'detalhe-enviar-link-portal-3b7d2e1', [String(r.id)])}>${sent ? 'Reenviar link ao hóspede' : 'Enviar link ao hóspede'}</button>`
+                : canSend ? '<p class="rf-foot">Sem email do hóspede: copie o link ou envie-o por WhatsApp.</p>' : ''}
+              <div class="${wa ? 'rf-two' : 'rf-one'}">
+                <a class="btn btn-ghost btn-sm" href="${esc(paymentPageUrl)}" target="_blank" rel="noopener" title="Abre o portal como o hóspede o vê (esta visita não conta como aberta pelo hóspede)">Abrir o portal ↗</a>
+                ${wa ? `<a class="btn btn-ghost btn-sm" href="https://wa.me/${wa}?text=${encodeURIComponent(waText)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
+              </div>
+            </div>
+            ${info ? `<p class="rf-foot rf-portal-info"${openedTitle ? ` title="${esc(openedTitle)}"` : ''}>${esc(info)}</p>` : ''}` : `
+            <p class="rf-foot">O link do portal fica disponível para quem gere as reservas.</p>`;
+
+      // Pré-check-in: o formulário só abre depois de aceite o pedido.
+      const pcText = r.status === 'pendente' ? 'Disponível depois de aceitar o pedido'
+        : r.precheckin_state === 'preenchido'
+          ? `Submetido a ${sd(String(r.precheckin_submitted_at || '').slice(0, 10))}${r.precheckin_updated_at && r.precheckin_updated_at !== r.precheckin_submitted_at ? ` · alterado a ${sd(String(r.precheckin_updated_at).slice(0, 10))}` : ''}`
+          : r.precheckin_state === 'enviado' ? 'A aguardar o hóspede' : 'Ainda não enviado';
+      const pcAction = r.status === 'pendente' ? ''
+        : preCheckinUrl ? `<a class="rf-row-link" href="${esc(preCheckinUrl)}" target="_blank" rel="noopener" title="Abrir o formulário do pré-check-in para o preencher com o hóspede">${r.precheckin_state === 'preenchido' ? 'Abrir' : 'Preencher agora'} →</a>`
+        : canSend ? `<button type="button" class="rf-row-link" ${AppActions.attrs('click', 'detalhe-enviar-link-precheckin-1ddc760', [String(r.id)])}>Gerar link →</button>` : '';
+
+      // Pagamento online: o que falta agora (sinal ou restante) e até quando.
+      const depositDue = Math.max(0, (policy ? Number(policy.depositCents || 0) / 100 : Number(r.deposit_amount || 0)) - paid);
+      const shortDue = value => fmtInstant(value, false);
+      const payText = remaining <= 0.01 ? 'Pago'
+        : r.status === 'pendente' ? `Depois de aceitar o pedido · total ${fmt(total)}`
+        : depositDue > 0.005 ? `Falta o sinal · ${fmt(depositDue)}${r.deposit_deadline ? ` até ${shortDue(r.deposit_deadline)}` : ''}`
+        : policy?.balanceCents ? `Falta o restante · ${fmt(remaining)}${policy.dueAt ? ` até ${shortDue(policy.dueAt)}` : ''}`
+        : `Falta pagar ${fmt(remaining)}`;
+      const payExtra = onlineStatus && r.online_payment_status !== 'paid' && remaining > 0.01 ? ` · online: ${onlineStatus.toLowerCase()}` : '';
+      const payLabel = r.can_pay_online || r.online_payment_status ? 'Pagamento online' : 'Pagamento';
+
+      return `<section class="rf-card rf-portal" aria-labelledby="rf-portal-title">
+            <div class="rf-card-head"><h3 id="rf-portal-title">Portal do hóspede</h3></div>
+            ${linkHtml}
+            <div class="rf-portal-steps">
+              <div class="rf-portal-row"><div><strong>Pré-check-in</strong><small>${esc(pcText)}</small></div>${pcAction}</div>
+              <div class="rf-portal-row"><div><strong>${payLabel}</strong><small>${esc(payText + payExtra)}</small></div></div>
+            </div>
+          </section>`;
     })();
     const invoiceText = r.invoice_number
       ? `nº ${esc(r.invoice_number)}${r.invoice_sent_date ? ` · enviada ${sd(r.invoice_sent_date)}` : r.invoice_date ? ` · ${sd(r.invoice_date)}` : ''}`
@@ -368,27 +448,7 @@ async function showDetail(id, opts = {}) {
             <div class="rdv2-status-row"><span class="rdv2-status-label">Pré-check-in</span><span>${AppModules.core.badgePrecheckin(r.precheckin_state)}</span></div>
           </section>
 
-          ${r.status !== 'pendente' && r.status !== 'cancelada' ? `
-          <!-- Pré-check-in -->
-          <section class="rf-card">
-            <div class="rf-card-head"><h3>Pré-check-in</h3></div>
-            ${preCheckinUrl ? `
-            <div class="rdv2-concierge-url">
-              <span class="rdv2-url-text" title="${esc(preCheckinUrl)}">${esc(preCheckinUrl)}</span>
-              <button class="rdv2-icon-btn" ${AppActions.attrs('click', 'detalhe-write-text-8f51584', [String(preCheckinUrl)])} title="Copiar" aria-label="Copiar link do pré-check-in">${ic('copy', 12)}</button>
-            </div>
-            <div class="rf-stack">
-              <button class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-enviar-link-precheckin-ae74bc8', [String(r.id)])}>${ic('send', 13)} ${r.precheckin_state === 'nao_enviado' || !r.precheckin_state ? 'Enviar link ao hóspede' : 'Reenviar link ao hóspede'}</button>
-              <div class="rf-two">
-                <button class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'detalhe-open-7fd73a2', [String(preCheckinUrl)])} title="Abrir o formulário do pré-check-in para o preencher com o hóspede">${ic('arrow-right', 13)} ${r.precheckin_state === 'preenchido' ? 'Abrir' : 'Preencher agora'}</button>
-                <button class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'detalhe-write-text-8f51584', [String(preCheckinUrl)])}>${ic('copy', 13)} Copiar link</button>
-              </div>
-            </div>
-            <p class="rf-foot">${r.precheckin_submitted_at
-              ? `Submetido a ${sd(String(r.precheckin_submitted_at).slice(0, 10))}${r.precheckin_updated_at && r.precheckin_updated_at !== r.precheckin_submitted_at ? ` · alterado a ${sd(String(r.precheckin_updated_at).slice(0, 10))}` : ''} · o hóspede pode corrigir até ao check-in`
-              : 'A aguardar submissão do hóspede'}</p>` : `
-            <button class="btn btn-ghost btn-sm" ${AppActions.attrs('click', 'detalhe-enviar-link-precheckin-1ddc760', [String(r.id)])}>${ic('link', 13)} Gerar pré-check-in</button>`}
-          </section>` : ''}
+          ${portalCardHtml}
 
           <!-- Documentos -->
           <section class="rf-card">
@@ -467,7 +527,7 @@ AppActions.register({
   "detalhe-abrir-mensagens-da-reserva-8cd7ba1": (el, event, args) => { AppModules.core.abrirMensagensDaReserva(args[0],decodeURIComponent(args[1]),decodeURIComponent(args[2])) },
   "detalhe-write-text-8f51584": (el, event, args) => { navigator.clipboard.writeText(args[0]);AppModules.core.toast('🔗 Link copiado','success') },
   "detalhe-open-7fd73a2": (el, event, args) => { window.open(args[0],'_blank') },
-  "detalhe-enviar-link-precheckin-ae74bc8": (el, event, args) => { AppModules.reservas.enviarLinkPrecheckin(args[0]) },
+  "detalhe-enviar-link-portal-3b7d2e1": (el, event, args) => { el.disabled = true; AppModules.reservas.enviarLinkPortal(args[0]).finally(() => { el.disabled = false; }) },
   "detalhe-editar-hora-chegada-5c1a9e2": (el, event, args) => { AppModules.reservas.editarHoraChegada(args[0], args[1]) },
   "detalhe-apagar-reserva-definitivo-727881f": (el, event, args) => { AppModules.reservas.apagarReservaDefinitivo(args[0]) },
   "detalhe-cancelar-reserva-2d9df9b": (el, event, args) => { AppModules.reservas.cancelarReserva(args[0]) },

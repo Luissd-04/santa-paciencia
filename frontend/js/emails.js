@@ -48,7 +48,8 @@ const TEMPLATE_META = {
   coordenadas:    { icon: '🗺️', label: 'Tudo para a sua chegada',      eventLabel: 'Antes do check-in, com a reserva paga' },
   obrigado:       { icon: '⭐', label: 'Obrigado pela estadia',        eventLabel: 'Após check-out' },
   cancelamento:   { icon: '❌', label: 'Cancelamento da reserva',      eventLabel: 'Imediatamente ao cancelar (texto segundo o motivo)' },
-  pre_checkin:    { icon: '📝', label: 'Pré-check-in (envio manual)',  eventLabel: 'Quando a equipa envia o link na reserva' },
+  portal_hospede: { icon: '🔗', label: 'A sua reserva (portal do hóspede)', eventLabel: 'Quando a equipa envia o link do portal na reserva' },
+  pre_checkin:    { icon: '📝', label: 'Pré-check-in (envio manual)',  eventLabel: 'Envio avulso do link do pré-check-in' },
   apos_checkin:   { icon: '🏡', label: 'Após check-in',                eventLabel: 'Após check-in' },
   antes_checkout: { icon: '🌅', label: 'Antes do check-out',           eventLabel: 'Antes do check-out' },
   aviso_restante: { icon: '⏰', label: 'Pagamento do restante',        eventLabel: 'Quando o restante vence sem pagamento (política de pagamento)' },
@@ -93,7 +94,7 @@ const GROUPS = [
   ['Pagamentos', ['pagamento', 'aviso_restante']],
   ['Estadia', ['coordenadas', 'obrigado']],
   ['Cancelamentos', ['cancelamento', 'cancelamento_politica']],
-  ['Enviados pela equipa ou desligados', ['pre_checkin', 'apos_checkin', 'antes_checkout']],
+  ['Enviados pela equipa ou desligados', ['portal_hospede', 'pre_checkin', 'apos_checkin', 'antes_checkout']],
 ];
 const POLICY_TEMPLATES = ['aviso_restante', 'cancelamento_politica'];
 

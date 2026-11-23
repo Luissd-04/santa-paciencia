@@ -22,6 +22,7 @@ const BLOCKS = {
   estadia: ['Datas da estadia', 'Entrada, saída, noites, hóspedes e referência'],
   resumo_pagamento: ['Pagamentos', 'Pago, total e o que falta'],
   proximo_passo: ['Próximo passo', 'Segundo o estado: acompanhar o pedido, pagar o sinal ou o pré-check-in'],
+  proximo_passo_portal: ['Próximo passo e botão do portal', 'O passo do momento (aceitação, sinal, pré-check-in, restante) e o botão para a página da reserva'],
   contacto: ['Contacto', 'Email e telefone do alojamento'],
   botao_mapa: ['Botão do mapa', 'Abre a morada do alojamento no mapa'],
   titulo_aceite: ['Título — reserva aceite', '«As datas são suas», ou «Está tudo marcado» com o sinal pago'],
@@ -80,6 +81,7 @@ const SUGGESTED = {
   obrigado: ['titulo_obrigado', 'botao_avaliar', 'contacto'],
   cancelamento: ['titulo_cancelamento', 'mensagem_cancelamento', 'resumo_cancelamento', 'botao_novo_pedido', 'contacto'],
   pre_checkin: ['titulo_pre_checkin', 'lista_pre_checkin', 'botao_pre_checkin', 'estadia', 'contacto'],
+  portal_hospede: ['titulo_reserva', 'proximo_passo_portal', 'estadia', 'contacto'],
 };
 
 // Dados que entram no meio do texto (e no assunto).
@@ -92,7 +94,7 @@ const TEXT_VARS = [
     ['total', 'Total'], ['titulo_estado', 'Estado da reserva'], ['mensagem_estado', 'Mensagem segundo o estado'], ['titulo_aceite_assunto', 'Aceite ou confirmada']]],
   ['Pagamentos', [['valor_pagamento', 'Valor deste pagamento'], ['total_pago', 'Total já pago'], ['valor_em_falta', 'Valor em falta'],
     ['valor_sinal', 'Valor do sinal'], ['prazo_sinal', 'Prazo do sinal'], ['prazo_pagamento', 'Prazo do restante'], ['valor_reembolso', 'Reembolso']]],
-  ['Ligações', [['link_reserva', 'Link da página da reserva'], ['link_pre_checkin', 'Link do pré-check-in']]],
+  ['Ligações', [['link_reserva', 'Link do portal (página da reserva)'], ['link_pre_checkin', 'Link do pré-check-in']]],
 ];
 const VAR_LABELS = Object.fromEntries(TEXT_VARS.flatMap(([, vars]) => vars));
 

@@ -312,6 +312,29 @@ function buildBlocks(vars, settings, reservation) {
       ? composer.buildRows([{ label: 'Total previsto', value: vars.total }])
       : progress,
     proximo_passo: (nextStep[status] || (() => ''))(),
+    // Portal do hóspede («A sua reserva»): o passo do momento e o botão para
+    // a página da reserva, que já tem o pagamento e o pré-check-in.
+    proximo_passo_portal: (() => {
+      const note = html => composer.buildNote({ heading: 'Próximo passo', html });
+      const portal = labelText => button(vars.link_reserva, labelText);
+      if (status === 'cancelada') return '';
+      if (status === 'pendente') return note('Estamos a confirmar a disponibilidade. Avisamos por email assim que o pedido for aceite; até lá não precisa de pagar nada.')
+        + portal('Acompanhar o pedido');
+      if (['aguardar_pagamento', 'pre_reserva'].includes(status) && depositDue) {
+        return note(`Para confirmar a reserva, falta pagar o sinal de ${strong(vars.valor_sinal)}${vars.prazo_sinal ? ` até ${strong(vars.prazo_sinal)}` : ''}.`)
+          + portal(vars.pagamento_online ? `Pagar o sinal · ${vars.valor_sinal}` : 'Ver a reserva');
+      }
+      if (['confirmada', 'check_in'].includes(status) && !precheckinDone) {
+        return note('Complete o pré-check-in: hora de chegada e dados de cada hóspede, que a lei nos obriga a registar.')
+          + portal('Fazer o pré-check-in');
+      }
+      if (['confirmada', 'check_in'].includes(status) && !vars.pagamento_liquidado) {
+        return note(`Falta pagar ${strong(vars.valor_em_falta)}${vars.prazo_pagamento ? ` até ${strong(vars.prazo_pagamento)}` : ''}.`)
+          + portal(vars.pagamento_online ? `Pagar ${vars.valor_em_falta}` : 'Ver a reserva');
+      }
+      if (status === 'check_out') return portal('Ver a reserva');
+      return note('Está tudo tratado. Perto da chegada, enviamos as informações para chegar e entrar.') + portal('Ver a reserva');
+    })(),
     contacto: composer.buildContactLine(s),
     botao_mapa: mapButton,
 
@@ -612,7 +635,7 @@ function templateContext(slug, guest, reservation, accommodation, extraVars, org
   return { settings, vars, blocks: buildBlocks(vars, settings, reservation) };
 }
 
-async function sendTemplatedEmail(slug, guest, reservation, accommodation, extraVars, { ignoreWindow = false, fromHold = false } = {}) {
+async function sendTemplatedEmail(slug, guest, reservation, accommodation, extraVars, { ignoreWindow = false, fromHold = false, resendKey = '' } = {}) {
   if (emailDisabled()) { console.log(`Email ${slug} ignorado (EMAIL_ENABLED=false)`); return null; }
   const { db } = require('../config/database');
   const orgId = reservation.organization_id || accommodation.organization_id;
@@ -650,7 +673,7 @@ async function sendTemplatedEmail(slug, guest, reservation, accommodation, extra
   }
   const rendered = renderEmail({ subject: template.subject, body: template.body, vars, blocks, settings });
   const delivery = require('./emailDelivery');
-  const result = await delivery.deliverTemplate({ orgId, slug, reservation, to, rendered }, () => sendMail(orgId, {
+  const result = await delivery.deliverTemplate({ orgId, slug, reservation, to, rendered, resendKey }, () => sendMail(orgId, {
     to, subject: rendered.subject, html: rendered.html, bcc: template.bcc || undefined,
   }));
   if (result?.id) {
@@ -761,6 +784,13 @@ async function sendPreCheckinEmail(guest, reservation, accommodation, preCheckin
   return sendTemplatedEmail('pre_checkin', guest, reservation, accommodation, preCheckinUrl ? { link_pre_checkin: preCheckinUrl } : {}, options);
 }
 
+// «Enviar link ao hóspede» no cartão «Portal do hóspede» da ficha: pedido pela
+// equipa nesse momento (sem janela de envio). `resendKey` distingue um
+// reenvio pedido de propósito de uma repetição do mesmo envio.
+async function sendGuestPortalEmail(guest, reservation, accommodation, { resendKey } = {}) {
+  return sendTemplatedEmail('portal_hospede', guest, reservation, accommodation, {}, { ignoreWindow: true, resendKey });
+}
+
 async function sendReservationRequestApprovedEmail(guest, reservation, accommodation, preCheckinUrl) {
   return sendPreCheckinEmail(guest, reservation, accommodation, preCheckinUrl);
 }
@@ -809,6 +839,7 @@ module.exports = {
   sendCancellationEmail,
   sendPaymentConfirmationEmail,
   sendPreCheckinEmail,
+  sendGuestPortalEmail,
   sendReservationAcceptedEmail,
   sendHeldEmail,
   templateContext,

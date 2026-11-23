@@ -108,6 +108,23 @@ const TEMPLATES = {
     ].join(''),
   },
 
+  // Link do portal do hóspede (/reserva/:token), enviado pela equipa na ficha
+  // da reserva («Enviar link ao hóspede»). O próximo passo muda com a fase:
+  // aguardar a aceitação, pagar o sinal, o pré-check-in, o restante ou as
+  // informações da chegada. Substitui o envio avulso do pré-check-in.
+  portal_hospede: {
+    name: 'A sua reserva',
+    subject: 'A sua reserva — {{alojamento}}',
+    body: [
+      '{{titulo_reserva}}',
+      p('Olá <strong>{{primeiro_nome}}</strong>,'),
+      p('Na página da sua reserva em <strong>{{alojamento}}</strong> encontra os detalhes da estadia, os pagamentos e o pré-check-in, sempre atualizados.'),
+      '{{proximo_passo_portal}}',
+      '{{estadia}}',
+      '{{contacto}}',
+    ].join(''),
+  },
+
   // Tudo para a estadia num só email: como chegar, como entrar, Wi-Fi e o dia
   // da saída (antes eram «Informações», «Boas-vindas» e «Lembrete de
   // check-out»). Os códigos seguem as regras de emailEligibility: o email só
@@ -209,6 +226,8 @@ const TIMING = {
   reserva_aceite: { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'approval' },
   // Enviado pela equipa (botão «Enviar pré-check-in» na reserva).
   pre_checkin:    { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'manual' },
+  // Enviado pela equipa (cartão «Portal do hóspede» na reserva).
+  portal_hospede: { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'manual' },
   coordenadas:    { timing_offset: 1, timing_unit: 'days',  timing_direction: 'before', timing_event: 'checkin' },
   apos_checkin:   { timing_offset: 2, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'checkin' },
   antes_checkout: { timing_offset: 1, timing_unit: 'days',  timing_direction: 'before', timing_event: 'checkout' },

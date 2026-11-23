@@ -6,6 +6,7 @@ AppModules.define('reservas', {
   cancelarReserva: { get: () => cancelarReserva },
   editarHoraChegada: { get: () => editarHoraChegada },
   enviarLinkPrecheckin: { get: () => enviarLinkPrecheckin },
+  enviarLinkPortal: { get: () => enviarLinkPortal },
   hasRole: { get: () => hasRole },
   reativarReserva: { get: () => reativarReserva },
 });
@@ -42,6 +43,28 @@ async function enviarLinkPrecheckin(id, send = true) {
     } else {
       AppModules.core.toast('❌ ' + (res.error || 'Erro ao enviar link de pré-checkin.'), 'error');
     }
+  } catch (e) {
+    AppModules.core.toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
+  }
+}
+
+// «Enviar link ao hóspede» (cartão «Portal do hóspede»): email «A sua reserva»
+// com o link do portal e o próximo passo. Retido por faltarem dados do
+// alojamento, o sino diz o que falta.
+async function enviarLinkPortal(id) {
+  try {
+    const res = await AppModules.core.apiPost(`/api/reservations/${id}/send-portal-link`, {});
+    if (!res.success) {
+      AppModules.core.toast('❌ ' + (res.error || 'Erro ao enviar o link do portal.'), 'error');
+      return;
+    }
+    const d = res.data || {};
+    if (d.email_sent) AppModules.core.toast('✅ Link do portal enviado por email.', 'success');
+    else if (d.held) AppModules.core.toast(`⚠️ Email retido: falta ${(d.missing || []).join(', ') || 'completar o alojamento'}.`, 'error');
+    else if (d.queued) AppModules.core.toast('⏳ O envio ficou em espera; o sino avisa se precisar de confirmação.', 'success');
+    else AppModules.core.toast('🔗 O email não foi enviado (Gmail desligado?). Copie o link para o partilhar.', 'error');
+    await AppModules.reservas.loadReservas();
+    AppModules.reservas.showDetail(id, { fromHistory: true });
   } catch (e) {
     AppModules.core.toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
   }

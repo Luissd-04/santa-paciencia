@@ -20,6 +20,7 @@ router.post('/:id/quote', requireRole('manager'), ctrl.quote);
 router.put('/:id', requireRole('manager'), ctrl.update);
 router.post('/:id/approve', requireRole('manager'), ctrl.approve);
 router.post('/:id/send-precheckin', requireRole('manager'), ctrl.sendPrecheckinLink);
+router.post('/:id/send-portal-link', requireRole('manager'), ctrl.sendPortalLink);
 
 // Marcar check-in/check-out como feito — qualquer membro da equipa
 router.post('/:id/task-status', ctrl.setTaskStatus);

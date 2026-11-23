@@ -1,64 +1,85 @@
 <!DOCTYPE html>
-<html lang="pt" data-layout="novo">
+<html lang="pt-PT" data-layout="novo">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="referrer" content="no-referrer">
-  <title>Estado da reserva</title>
+  <title>A sua reserva</title>
   <link rel="apple-touch-icon" href="/img/app/apple-touch-icon.png">
   <link rel="icon" type="image/png" href="/favicon.png?v=2">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Playfair+Display:wght@600;700&amp;display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/public-reservation.css?v=percurso-20261119-2">
-  <link rel="stylesheet" href="/css/reservation-status.css?v=publicas-20261103-1">
-  <link rel="stylesheet" href="/css/public-novo.css?v=percurso-20261119-2">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Playfair+Display:wght@600;700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/reservation-status.css?v=portal-20261123-1">
 </head>
-<body>
-  <div class="booking-page">
-    <div class="pn-topbar"><span class="pn-mark" id="pn-mark" aria-hidden="true"></span><strong id="pn-brand"></strong><span class="pn-ref" id="pn-rs-ref"></span></div>
-    <section class="pn-hero pn-rs-hero" id="pn-rs-hero" hidden>
-      <div class="pn-hero-copy">
-        <span class="pn-pill ok">✓ Reserva confirmada</span>
-        <h1 id="pn-rs-hero-title"></h1>
-      </div>
-    </section>
+<body class="gp">
+  <a class="gp-skip" href="#gp-body">Saltar para a reserva</a>
+  <!-- Topo: capa do alojamento (ou a cor do alojamento), logótipo, nome do hóspede, unidade e datas. -->
+  <header class="gp-hero" id="pn-rs-hero">
+    <img class="gp-hero-img" id="gp-hero-img" alt="" hidden>
+    <div class="gp-wrap gp-hero-top">
+      <span class="gp-logo" id="gp-logo"><img id="gp-logo-img" alt="" hidden><strong id="pn-brand"></strong></span>
+      <span class="gp-ref" id="pn-rs-ref" hidden></span>
+    </div>
+    <div class="gp-wrap gp-hero-copy">
+      <p class="gp-hello" id="gp-hello"></p>
+      <h1 id="rs-accommodation">A sua reserva</h1>
+      <p class="gp-hero-dates" id="gp-hero-dates"></p>
+    </div>
+  </header>
 
-    <main class="booking-shell">
-      <section class="booking-card reservation-status-card" aria-live="polite">
-        <div class="rs-loading" id="rs-loading">A carregar…</div>
-        <div id="rs-content" hidden>
-          <div class="rs-stay">
-            <div class="rs-status-line">
-              <span class="rs-status" id="rs-status"></span>
-              <span class="rs-payment" id="rs-payment"></span>
-            </div>
-            <h2 id="rs-accommodation">—</h2>
-            <div class="pn-rs-stay" id="pn-rs-stay"></div>
-          </div>
-          <section class="pn-card" id="pn-rs-steps"></section>
-          <section class="pn-card" id="pn-rs-payments"></section>
-          <section id="rs-policy" class="rs-policy" hidden aria-label="Condições de pagamento e cancelamento"></section>
-          <div class="rs-checkout" id="rs-payment-panel" hidden>
-            <div class="pn-due" id="pn-rs-due"></div>
+  <main class="gp-wrap gp-body" id="gp-body" tabindex="-1">
+    <p class="gp-loading" id="rs-loading">A carregar…</p>
+    <div class="gp-error" id="rs-error" role="alert" hidden></div>
+    <div class="gp-layout" id="rs-content" hidden>
+      <div class="gp-main">
+        <!-- Próximo passo: um só cartão, conforme a fase da reserva. -->
+        <section class="gp-card gp-next" id="gp-next" aria-labelledby="gp-next-title" aria-live="polite">
+          <span class="gp-pill" id="rs-status"></span>
+          <h2 id="gp-next-title"></h2>
+          <div class="gp-next-body" id="gp-next-body"></div>
+          <div class="gp-actions" id="gp-next-action"></div>
+          <div class="gp-pay" id="rs-payment-panel" hidden>
+            <div class="gp-due" id="pn-rs-due"></div>
             <p id="rs-payment-message" role="status"></p>
-            <label id="rs-consent-label" class="rs-consent" hidden><input type="checkbox" id="rs-consent"> Li e aceito as condições de pagamento e cancelamento apresentadas acima.</label>
-            <label id="rs-auto-label" class="rs-consent" hidden><input type="checkbox" id="rs-auto"> Autorizo a Stripe a guardar o cartão para cobrar o restante desta reserva na data indicada. Com MB WAY, pagarei através de um novo link.</label>
-            <button class="primary-btn" id="rs-pay" type="button" hidden>Pagar online</button>
-            <p class="rs-note" id="rs-test-note" hidden>Modo de teste — não são efetuadas cobranças reais.</p>
+            <label id="rs-consent-label" class="rs-consent" hidden><input type="checkbox" id="rs-consent"> <span>Li e aceito as <a href="#gp-policy" id="rs-consent-policy">condições de pagamento e cancelamento</a>.</span></label>
+            <label id="rs-auto-label" class="rs-consent" hidden><input type="checkbox" id="rs-auto"> <span>Autorizo a Stripe a guardar o cartão para cobrar o restante desta reserva na data indicada. Com MB WAY, pagarei através de um novo link.</span></label>
+            <div id="rs-pay-wrap"><button class="gp-btn" id="rs-pay" type="button" hidden>Pagar online</button></div>
+            <p class="gp-note" id="rs-test-note" hidden>Modo de teste — não são efetuadas cobranças reais.</p>
           </div>
-          <div id="rs-cancellation" class="rs-policy" hidden><p id="rs-refund-quote"></p><button type="button" class="ghost-btn" id="rs-cancel">Cancelar reserva</button></div>
-          <button class="ghost-btn rs-refresh" id="rs-refresh" type="button">Atualizar estado</button>
-          <p class="rs-note">Guarde este link. Por segurança, não apresenta dados pessoais dos hóspedes.</p>
+        </section>
+
+        <section class="gp-card" id="pn-rs-steps" aria-labelledby="gp-steps-title" hidden></section>
+        <div class="gp-main-concierge" id="gp-concierge"></div>
+
+        <details class="gp-card gp-policy" id="gp-policy" hidden>
+          <summary>Condições de pagamento e cancelamento</summary>
+          <section id="rs-policy" class="rs-policy" aria-label="Condições de pagamento e cancelamento"></section>
+        </details>
+        <section class="gp-card" id="rs-cancellation" hidden>
+          <h3>Precisa de cancelar?</h3>
+          <p class="gp-text" id="rs-refund-quote"></p>
+          <button type="button" class="gp-btn-ghost" id="rs-cancel">Cancelar reserva</button>
+        </section>
+        <div class="gp-foot">
+          <button class="gp-btn-ghost gp-btn-small" id="rs-refresh" type="button">Atualizar estado</button>
+          <p class="gp-note">Guarde este link: é o acesso à sua reserva. Não o partilhe.</p>
         </div>
-        <div class="step-error rs-error" id="rs-error" role="alert" hidden></div>
-      </section>
-    </main>
-  </div>
+      </div>
+
+      <aside class="gp-side" aria-label="Resumo da reserva">
+        <section class="gp-card" id="gp-wifi" aria-labelledby="gp-wifi-title" hidden></section>
+        <section class="gp-card" id="gp-precheckin" aria-labelledby="gp-precheckin-title" hidden></section>
+        <section class="gp-card" id="pn-rs-stay" aria-label="A sua estadia"></section>
+        <section class="gp-card" id="pn-rs-payments" aria-labelledby="gp-payments-title" hidden></section>
+        <section class="gp-card" id="gp-contact" aria-labelledby="gp-contact-title" hidden></section>
+      </aside>
+    </div>
+  </main>
   <script src="/js/domain/money.js?v=centralizacao-20261024-2"></script>
   <script src="/js/domain/dates.js?v=percurso-20261119-2"></script>
   <script src="/js/domain/reservation-status.js?v=percurso-20261119-2"></script>
-  <script src="/js/reservation-status-novo.js?v=percurso-20261119-2"></script>
-  <script src="/js/reservation-status.js?v=percurso-20261119-2"></script>
+  <script src="/js/reservation-status-novo.js?v=portal-20261123-1"></script>
+  <script src="/js/reservation-status.js?v=portal-20261123-1"></script>
 </body>
 </html>

@@ -87,9 +87,24 @@ function emailHolds(db) {
   }).immediate();
 }
 
+// Portal do hóspede (23/11/2026): quando o hóspede abriu a página da reserva
+// (/reserva/:token) pela primeira e pela última vez. Só conta o hóspede: a
+// equipa com sessão na organização não é registada (services/guestPortal.js).
+function guestPortalOpens(db) {
+  const id = '20261123_guest_portal_opens';
+  if (done(db, id)) return;
+  db.transaction(() => {
+    for (const column of ['portal_first_opened_at', 'portal_last_opened_at']) {
+      if (!has(db, 'reservations', column)) db.exec(`ALTER TABLE reservations ADD COLUMN ${column} TEXT`);
+    }
+    mark(db, id);
+  }).immediate();
+}
+
 module.exports = db => {
   depositDeadline(db);
   accommodationGuestInfo(db);
   guestEmails(db);
   emailHolds(db);
+  guestPortalOpens(db);
 };

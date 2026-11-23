@@ -427,6 +427,8 @@ function getReservationStatus(req, res) {
     WHERE r.public_token = ?
   `).get(token);
   if (!reservation) return res.status(404).json({ success: false, error: 'Reserva não encontrada.' });
+  // «Aberto pelo hóspede» na ficha da reserva (a equipa com sessão não conta).
+  try { require('../services/portalTracking').recordOpen(req, reservation); } catch (err) { console.warn('Abertura do portal não registada:', err.message); }
   const brand = publicBrand(reservation);
 
   res.json({
@@ -453,6 +455,9 @@ function getReservationStatus(req, res) {
       precheckin: precheckinLink(reservation),
       cover_image: imageUrl(req, reservation.cover_image),
       images: normalizeImages(req, reservation).map(img => img.url).filter(Boolean),
+      // Portal do hóspede: marca, chegada, saída e, perto da chegada, os
+      // códigos (services/guestPortal.js decide o que pode ir).
+      portal: require('../services/guestPortal').build(reservation, { mediaUrl: url => imageUrl(req, url) }),
     },
   });
 }

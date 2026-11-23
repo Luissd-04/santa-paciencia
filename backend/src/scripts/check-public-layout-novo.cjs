@@ -118,8 +118,8 @@ async function main() {
   // Depois de aceite: o sinal com o prazo de 48 h.
   require('../services/reservationLifecycle').approve(org.id, reservation.id, { origin: base });
   await page.reload();
-  await expect(page.locator('#pn-rs-due')).toContainText('Falta o sinal');
-  await expect(page.locator('#pn-rs-due')).toContainText('as datas voltam a ficar livres');
+  await expect(page.locator('#rs-status')).toContainText('Falta o sinal');
+  await expect(page.locator('#gp-next')).toContainText('as datas voltam a ficar livres');
   await expect(page.locator('#pn-rs-steps')).toContainText('Pré-check-in');
   await expect(page.locator('#pn-rs-steps')).not.toContainText('minutos');
   assert.equal(JSON.parse(reservation.guests_data)[0].name, 'João Silva');
