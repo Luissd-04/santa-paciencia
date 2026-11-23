@@ -1162,6 +1162,36 @@
   padding: 3px 0;
 }
 
+/* Pré-visualização dos documentos (modelo de features/documentos/dados.js) */
+.doc-dialog { width: min(640px, 95vw); }
+.doc-previa { display: grid; gap: 0; }
+.doc-topo { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 22px; font-size: 12.5px; color: var(--text-muted); border-bottom: 1px solid var(--border-soft); }
+.doc-estado { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--surface-muted, #f0ece8); white-space: nowrap; }
+.doc-estado.doc-tom-ok { color: #2e7d52; background: rgba(46,125,82,.12); }
+.doc-estado.doc-tom-erro { color: #b03030; background: rgba(176,48,48,.12); }
+.doc-estado.doc-tom-aviso { color: #a86400; background: rgba(232,140,10,.14); }
+.doc-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; padding: 14px 22px 0; }
+.doc-caixa { display: grid; gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--surface-muted, #f8f6f3); }
+.doc-caixa span { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); }
+.doc-caixa b { font-size: 17px; }
+.doc-contexto { margin: 10px 22px 0; font-size: 12.5px; color: var(--text-muted); }
+.doc-blocos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 24px; padding: 14px 22px; }
+.doc-bloco h4, .doc-tabela-titulo { margin: 0 0 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); }
+.doc-tabela-titulo { padding: 14px 16px 2px; }
+.doc-bloco p { margin: 0; font-size: 13px; line-height: 1.5; }
+.doc-bloco p.doc-forte { font-weight: 700; font-size: 14px; }
+.doc-tom-ok b, .doc-bloco p.doc-tom-ok, tr.doc-tom-ok td.doc-valor, .doc-caixa.doc-tom-ok b { color: #2e7d52; }
+.doc-tom-erro b, tr.doc-tom-erro td.doc-valor, .doc-caixa.doc-tom-erro b { color: #b03030; }
+.doc-tom-aviso b, tr.doc-tom-aviso td.doc-valor { color: #a86400; }
+.doc-bloco p.doc-tom-suave, tr.doc-tom-suave td { color: var(--text-muted); font-style: italic; }
+.doc-previa .stmt-table th.doc-num, .doc-previa .stmt-table td.doc-num { text-align: right; white-space: nowrap; }
+.doc-vazio { text-align: center; color: var(--text-muted); }
+.doc-condicoes { padding: 12px 22px 16px; font-size: 12.5px; color: var(--text-muted); display: grid; gap: 4px; }
+.doc-condicoes p { margin: 0; }
+.doc-condicoes b { color: var(--text-main); }
+.doc-opcoes { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 0 22px 16px; }
+.doc-opcao { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
+
 /* Valor padrão do calendário dinâmico (referência, visível quando a noite foi editada) */
 .resf-nightly-std {
   display: none;

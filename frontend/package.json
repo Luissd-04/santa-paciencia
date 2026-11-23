@@ -25,6 +25,7 @@
   },
   "vendored": {
     "js/vendor/xlsx-0.20.3.min.js": "SheetJS Community Edition 0.20.3 (cdn.sheetjs.com)",
-    "css/vendor/flag-icons.min.css": "flag-icons 7.5.0 (cdnjs)"
+    "css/vendor/flag-icons.min.css": "flag-icons 7.5.0 (cdnjs)",
+    "css/vendor/fonts/instrument-sans-1.000-*.ttf": "Instrument Sans 1.000 (SIL OFL 1.1, Google Fonts) — fonte dos PDFs dos documentos"
   }
 }

@@ -159,7 +159,7 @@ function openInvoiceForm(reservationId, inv = {}) {
   const opts = methods.map(([v, l]) => `<option value="${v}"${inv.m === v ? ' selected' : ''}>${l}</option>`).join('');
   AppUI.openDialog({
     id: 'rdv2-inv-form',
-    title: 'Registar fatura',
+    title: inv.n ? 'Fatura' : 'Registar fatura',
     body: `
       <div class="form-group">
         <label class="form-label" for="if-number">Nº fatura</label>
@@ -181,6 +181,7 @@ function openInvoiceForm(reservationId, inv = {}) {
       </div>`,
     footer: `
       <button type="button" class="btn btn-ghost" data-dialog-close>Cancelar</button>
+      ${inv.n ? `<button type="button" class="btn btn-outline" ${AppActions.attrs('click', 'documentos-download-invoice-pdf', [String(reservationId ?? '')])}>${AppModules.core.lcIcon('file-down', 14)} PDF do registo</button>` : ''}
       <button type="button" class="btn btn-primary" id="if-save-btn" ${AppActions.attrs("click", "detalhe-formularios-save-invoice-form-a8900b2", [String((reservationId) ?? '')])}>Guardar</button>`,
   });
   document.getElementById('if-number')?.focus();
