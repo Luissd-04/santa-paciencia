@@ -39,8 +39,8 @@ function renderServicos() {
           ? `<span style="font-size:13px;color:var(--cinza);">${AppModules.core.escapeHtml(s.name)}</span>`
           : `<input class="form-control" style="font-size:13px;padding:6px 10px;" value="${AppModules.core.escapeHtml(s.name)}" ${AppActions.attrs("change", "servicos-heranca-auto-save-servicos-0bacea0", [i])} autocomplete="off">`}
       </td>
-      <td><input class="form-control" type="number" step="0.01" style="font-size:13px;padding:6px 10px;-moz-appearance:textfield;width:90px;" value="${s.value}" ${AppActions.attrs("change", "servicos-heranca-parse-float-ec6e7aa", [i])} autocomplete="off"></td>
-      <td><span style="font-size:13px;color:var(--cinza);">€/hóspede/noite</span></td>
+      <td><input class="form-control" type="number" step="0.01" style="font-size:13px;padding:6px 10px;-moz-appearance:textfield;width:100%;max-width:100px;" value="${s.value}" ${AppActions.attrs("change", "servicos-heranca-parse-float-ec6e7aa", [i])} autocomplete="off"></td>
+      <td><span style="font-size:13px;color:var(--cinza);white-space:nowrap;">por hóspede/noite</span></td>
       <td><label class="toggle-switch"><input type="checkbox" ${s.active !== false ? 'checked' : ''} ${AppActions.attrs("change", "servicos-heranca-auto-save-servicos-1661226", [i])}><span class="toggle-slider"></span></label></td>
       <td>
         ${isBuiltin ? '<span style="width:32px;display:inline-block;"></span>' : `
@@ -83,7 +83,6 @@ const INHERITED_FIELDS_MAP = {
   'aloj-morada':        'address',
   'aloj-cp':            'postal_code',
   'aloj-cidade':        'city',
-  'aloj-regiao':        'region',
   'aloj-pais':          'country',
   'aloj-wifi-nome':     'wifi_name',
   'aloj-wifi-password': 'wifi_password',

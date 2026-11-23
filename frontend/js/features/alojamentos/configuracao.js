@@ -294,7 +294,6 @@ async function saveAlojamento() {
       address:    document.getElementById('aloj-morada').value,
       postal_code: document.getElementById('aloj-cp').value,
       city:       document.getElementById('aloj-cidade').value,
-      region:     document.getElementById('aloj-regiao').value,
       country:    document.getElementById('aloj-pais').value,
       wifi_name:     document.getElementById('aloj-wifi-nome').value.trim()     || null,
       wifi_password: document.getElementById('aloj-wifi-password').value.trim() || null,

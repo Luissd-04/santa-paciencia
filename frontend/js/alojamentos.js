@@ -399,7 +399,6 @@ async function openAlojamento(id, preferredTab = 'info') {
     document.getElementById('aloj-morada').value = a.address || '';
     document.getElementById('aloj-cp').value = a.postal_code || '';
     document.getElementById('aloj-cidade').value = a.city || '';
-    document.getElementById('aloj-regiao').value = a.region || 'Continente';
     document.getElementById('aloj-pais').value = a.country || 'Portugal';
     document.getElementById('aloj-tipo').value = a.type || 'suite';
 

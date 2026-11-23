@@ -226,6 +226,9 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
 #servicos-table input[type=number]::-webkit-inner-spin-button,
 #servicos-table input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 #servicos-table input[type=number] { -moz-appearance: textfield; }
+/* Colunas de largura fixa: menos folga lateral para o conteúdo caber sem barra de rolagem. */
+#servicos-table th, #servicos-table td { padding-left: 10px; padding-right: 10px; }
+#servicos-table input, #servicos-table select { box-sizing: border-box; max-width: 100%; }
 
 /* Drag handle */
 .drag-handle { color: var(--cinza); font-size: 16px; cursor: grab; padding: 0 4px; user-select: none; display:inline-flex; align-items:center; }
@@ -337,3 +340,63 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
 .aloj-ready-row.is-missing { border-color: rgba(163, 48, 31, .35); background: rgba(248, 225, 220, .35); }
 .aloj-ready-row.is-missing .tag { background: #f8e1dc; color: #a3301f; }
 @media (max-width: 720px) { .aloj-guest-info-grid { grid-template-columns: 1fr; } }
+
+/* Capacidade e preço: blocos com título, campos com unidade e idades junto do preço. */
+.acfg-bloco { display: grid; gap: 12px; padding-top: 18px; border-top: 1px solid var(--cinza-claro); }
+.acfg-bloco:first-of-type { padding-top: 0; border-top: 0; }
+.acfg-bloco-t { margin: 0; color: var(--azul); font-size: 14px; font-weight: 700; }
+.acfg-campos { display: grid; gap: 16px; }
+.acfg-c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.acfg-c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.acfg-suf { position: relative; }
+.acfg-suf .form-control { padding-right: 78px; }
+.acfg-suf > span { position: absolute; top: 50%; right: 14px; transform: translateY(-50%); color: var(--cinza); font-size: 13px; pointer-events: none; }
+.acfg-idade { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 14px; background: rgba(0, 0, 0, .03); font-size: 14px; }
+.acfg-idade > b { width: 82px; }
+.acfg-idade > span { color: var(--cinza); }
+.acfg-idade .form-control { width: 76px; flex: none; text-align: center; }
+.acfg-nota { margin: 0; color: var(--cinza); font-size: 12.5px; }
+@media (max-width: 860px) {
+  .acfg-c4, .acfg-c3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .acfg-idade > b { width: 100%; }
+}
+@media (max-width: 480px) {
+  .acfg-c4, .acfg-c3 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Ligações: um bloco por serviço (Google Calendar, Airbnb, Booking). */
+.aloj-conn { margin-top: 12px; padding: 14px 16px; border: 1px solid var(--border-strong); border-radius: 12px; background: var(--surface-card); }
+.aloj-conn:first-of-type { margin-top: 0; }
+.aloj-conn-title { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; color: var(--text-main); font-size: 14px; font-weight: 700; }
+.aloj-conn-title svg, .aloj-conn-title i { width: 16px; height: 16px; flex: none; }
+.aloj-conn .form-label { display: block; margin-bottom: 6px; }
+.aloj-conn-help { display: block; margin-top: 6px; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+.aloj-conn-help-indent { margin-left: 26px; }
+.aloj-conn-check { display: flex; align-items: center; gap: 10px; margin-top: 14px; color: var(--text-main); font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.aloj-conn-check input { width: 16px; height: 16px; margin: 0; flex: none; }
+.aloj-conn-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 12px; padding: 0; border: 0; background: none; color: var(--brand-shell); font: inherit; font-size: 13px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.aloj-conn-link:focus-visible { outline: 2px solid var(--brand-shell); outline-offset: 3px; border-radius: 4px; }
+
+/* Logótipo: pré-visualização grande, ao lado dos botões. */
+.aloj-logo-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.aloj-logo-wrap { box-sizing: border-box; width: 260px; max-width: 100%; height: 120px; padding: 10px; border-radius: 10px; background: #843424; display: flex; align-items: center; justify-content: center; overflow: hidden; flex: none; }
+.aloj-logo-img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
+.aloj-logo-empty { color: rgba(255, 255, 255, .7); font-size: 12px; }
+.aloj-logo-btns { display: flex; flex-direction: column; gap: 8px; }
+
+/* Aviso de ficheiros recusados junto da zona de carregamento. */
+.upload-alert { position: relative; box-sizing: border-box; margin: 0 0 16px; padding: 10px 36px 10px 14px; border: 1px solid #e3b5b0; border-radius: 10px; background: #fbeceb; color: #8c2b22; font-size: 13px; line-height: 1.45; }
+.upload-alert ul { margin: 0; padding: 0; list-style: none; }
+.upload-alert strong { display: block; margin-bottom: 4px; }
+.upload-alert li + li { margin-top: 2px; }
+.upload-alert li { overflow-wrap: anywhere; }
+.upload-alert-x { position: absolute; top: 6px; right: 8px; width: 24px; height: 24px; border: 0; border-radius: 6px; background: none; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; }
+.upload-alert-x:hover { background: rgba(140, 43, 34, .1); }
+html[data-theme="dark"] .upload-alert, html[data-mode="escuro"] .upload-alert { border-color: rgba(240, 150, 140, .4); background: rgba(160, 50, 40, .22); color: #f4b7b0; }
+
+/* Selects da ficha (Tipologia, Alojamento Principal): mesma altura e seta dos outros campos. */
+#view-alojamento-detalhe select.form-control {
+  appearance: none; -webkit-appearance: none; padding-right: 40px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%2376675d' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 16px center; background-size: 12px 8px;
+}

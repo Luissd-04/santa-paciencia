@@ -143,3 +143,11 @@ html[data-look] .acfg-save .btn-ghost { border-color: transparent !important; ba
   html[data-look] .acfg-i { flex: none; width: auto; white-space: nowrap; }
   html[data-look] .acfg-units { grid-template-columns: 1fr; }
 }
+
+/* Capacidade e preço (blocos com título). */
+html[data-look] #view-alojamento-detalhe .acfg-bloco { gap: 12px; padding-top: 22px; border-top-color: var(--v2-divider); }
+html[data-look] #view-alojamento-detalhe .acfg-bloco-t { color: var(--v2-ink); font: 600 17px var(--v2-head); letter-spacing: var(--v2-head-track); }
+html[data-look] #view-alojamento-detalhe .acfg-suf > span { color: var(--v2-muted); }
+html[data-look] #view-alojamento-detalhe .acfg-idade { background: var(--v2-surface-2); border-radius: var(--v2-radius-sm); }
+html[data-look] #view-alojamento-detalhe .acfg-idade > span, html[data-look] #view-alojamento-detalhe .acfg-nota { color: var(--v2-muted); }
+html[data-look] #view-alojamento-detalhe .acfg-idade > b { color: var(--v2-ink); font-weight: 600; }

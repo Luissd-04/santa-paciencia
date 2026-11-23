@@ -30,6 +30,8 @@ AppModules.define('core', {
   safeMediaUrl: { get: () => safeMediaUrl },
   showOperationProgress: { get: () => showOperationProgress },
   toast: { get: () => toast },
+  checkImageFiles: { get: () => checkImageFiles },
+  showUploadAlert: { get: () => showUploadAlert },
   updateOperationProgress: { get: () => updateOperationProgress },
 });
 
@@ -329,6 +331,39 @@ async function runWithOperationProgress(title, steps, work) {
   }
 }
 
+
+// ── Carregamento de imagens: validação e aviso visível junto da zona ──
+// Mesmos tipos e limite que o servidor (accommodationMediaController: JPEG, PNG,
+// GIF, WebP e AVIF; o corpo do pedido aceita até 15 MB, a app limita a 5 MB).
+const IMAGE_UPLOAD_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif'];
+const IMAGE_UPLOAD_EXT = /\.(jpe?g|png|gif|webp|avif)$/i;
+const IMAGE_UPLOAD_MAX = 5 * 1024 * 1024;
+function checkImageFiles(files) {
+  const ok = [], errors = [];
+  for (const f of Array.from(files || [])) {
+    const typeOk = f.type ? IMAGE_UPLOAD_TYPES.includes(f.type) : IMAGE_UPLOAD_EXT.test(f.name);
+    if (!typeOk) errors.push(`${f.name} — ficheiro não compatível: só JPG, PNG, GIF, WebP ou AVIF`);
+    else if (f.size > IMAGE_UPLOAD_MAX) errors.push(`${f.name} — tamanho superior a 5 MB (${(f.size / 1048576).toFixed(1).replace('.', ',')} MB)`);
+    else ok.push(f);
+  }
+  return { ok, errors };
+}
+// Mostra (ou limpa, com a lista vazia) um aviso role="alert" logo a seguir à zona.
+function showUploadAlert(anchor, errors) {
+  if (!anchor) return;
+  let box = anchor.nextElementSibling?.classList.contains('upload-alert') ? anchor.nextElementSibling : null;
+  if (!errors?.length) { box?.remove(); return; }
+  if (!box) {
+    box = document.createElement('div');
+    box.className = 'upload-alert';
+    box.setAttribute('role', 'alert');
+    anchor.insertAdjacentElement('afterend', box);
+  }
+  const head = errors.length > 1 ? `<strong>${errors.length} ficheiros não foram carregados</strong>` : '';
+  box.innerHTML = `${head}<ul>${errors.map(e => `<li>${escapeHtml(e)}</li>`).join('')}</ul>
+    <button type="button" class="upload-alert-x" aria-label="Fechar aviso">×</button>`;
+  box.querySelector('.upload-alert-x').addEventListener('click', () => box.remove());
+}
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({

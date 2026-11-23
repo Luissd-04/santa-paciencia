@@ -249,6 +249,12 @@
   min-width: min(100%, 320px);
 }
 
+/* Pesquisa das comodidades: alinhada com a grelha (o cartão já tem
+   padding) e com folga antes do primeiro grupo. */
+.aloj-amenities-search {
+  margin: 0 0 22px;
+}
+
 .hospedes-search-box {
   width: min(100%, 360px);
   min-width: 260px;
@@ -863,9 +869,9 @@ body.tl-is-panning * {
 .notifications-page-item {
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -885,8 +891,9 @@ body.tl-is-panning * {
 .notifications-page-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 8px;
+  min-width: 0;
 }
 
 .notifications-page-copy {
@@ -909,16 +916,11 @@ body.tl-is-panning * {
   line-height: 1.45;
 }
 
-@media (max-width: 760px) {
-  .notifications-page-item {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .notifications-page-actions,
-  .notifications-page-item > .btn {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-  }
+/* Os botões ficam sempre por baixo do texto, alinhados com ele. */
+.notifications-page-actions,
+.notifications-page-item > .btn {
+  grid-column: 2;
+  justify-self: start;
 }
 
 .tl-header {
@@ -1177,7 +1179,7 @@ body.tl-is-panning * {
   }
 
   #servicos-table {
-    min-width: 640px;
+    min-width: 600px;
   }
 
   .despesas-table-wrap table {

@@ -70,6 +70,13 @@ function partilhado(p) {
   return linhas.map(([icon, k, v]) => `<div class="acfg-lock">${AppModules.core.lcIcon(icon, 15)}<span>${k}</span><b>${esc(v || '—')}</b></div>`).join('');
 }
 
+// País por extenso: aceita o nome já escrito ou um código ISO («PT»).
+function paisNome(valor) {
+  const v = String(valor || '').trim();
+  if (!/^[A-Za-z]{2}$/.test(v)) return v;
+  try { return new Intl.DisplayNames(['pt-PT'], { type: 'region' }).of(v.toUpperCase()) || v; } catch { return v; }
+}
+
 function cabecalhoHtml(a) {
   const core = AppModules.core;
   const esc = core.escapeHtml;
@@ -77,7 +84,7 @@ function cabecalhoHtml(a) {
   const unidades = filhos(a).length;
   const meta = parent || !unidades
     ? [`${a.type === 'alojamento' ? 'Alojamento' : (a.type || 'Unidade')}`, `${Number(a.max_guests) || 0} hóspedes`, a.area ? `${a.area} m²` : '', a.price_per_night ? `${ReservationMoney.formatShort(a.price_per_night)} / noite` : '']
-    : [[a.city, a.region].filter(Boolean).join(' · '), `${unidades} ${unidades === 1 ? 'unidade' : 'unidades'}`, a.license_number ? `Licença ${a.license_number}` : ''];
+    : [[a.city, paisNome(a.country)].filter(Boolean).join(' · '), `${unidades} ${unidades === 1 ? 'unidade' : 'unidades'}`, a.license_number ? `Licença ${a.license_number}` : ''];
   return `<div class="card acfg-head">
       ${fotoHtml(a, 'acfg-cover', 480)}
       <div class="acfg-who">

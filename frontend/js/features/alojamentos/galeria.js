@@ -17,6 +17,17 @@ AppModules.define('alojamentos', {
   uploadCoverImage: { get: () => uploadCoverImage },
 });
 
+// A ficha do alojamento carrega depois do arranque, por isso os inputs de ficheiro
+// são tratados por delegação em vez de ligados a elementos que ainda não existem.
+document.addEventListener('change', event => {
+  const input = event.target;
+  if (input?.id === 'cover-input') {
+    const file = input.files[0];
+    input.value = '';
+    if (file) uploadCoverImage(file);
+  } else if (input?.id === 'img-input') handleImgSelect(event);
+});
+
 // ── IMAGENS ──
 function getImgSections(id) {
   const imgs = AppModules.alojamentos.alojImagens[id] || {};
@@ -253,48 +264,60 @@ function triggerImgUpload(section) {
 
 function handleImgSelect(e) {
   const section = e.target.dataset.section || 'outros';
-  Array.from(e.target.files).forEach(f => processImgFile(f, section));
+  const files = Array.from(e.target.files);
   e.target.value = '';
+  uploadImgFiles(files, section);
 }
 
 function handleImgDrop(e) {
   e.preventDefault();
   document.getElementById('img-dropzone').style.background = '';
-  Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/')).forEach(f => processImgFile(f, 'outros'));
+  uploadImgFiles(Array.from(e.dataTransfer.files), 'outros');
 }
 
+// Valida, carrega os ficheiros bons e mostra junto da zona o que não seguiu.
+async function uploadImgFiles(files, section) {
+  const zone = document.getElementById('img-dropzone');
+  const core = AppModules.core;
+  const { ok, errors } = core.checkImageFiles(files);
+  core.showUploadAlert(zone, errors);
+  const results = await Promise.all(ok.map(f => processImgFile(f, section)));
+  const all = [...errors, ...results.filter(Boolean)];
+  if (all.length !== errors.length) core.showUploadAlert(zone, all);
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+// Devolve uma mensagem de erro (com o nome do ficheiro) ou null se correu bem.
 async function processImgFile(file, section) {
   const id = document.getElementById('aloj-editing-id').value;
-  const imgs = AppModules.alojamentos.alojImagens[id] || {};
   const sections = getImgSections(id);
 
   // If section key doesn't exist in current sections, use first available section key
-  const validKey = sections.find(s => s.key === section) ? section : (sections[sections.length - 1]?.key || 'outros');
-
-  section = validKey;
-  if (file.size > 5 * 1024 * 1024) { AppModules.core.toast('Imagem demasiado grande (máx. 5MB)', 'error'); return; }
-  if (!id) return;
-  const reader = new FileReader();
-  reader.onload = async e => {
-    try {
-      const res = await AppModules.core.apiPost(`/api/accommodations/${id}/images`, { section, image: e.target.result });
-      if (res.success) {
-        if (!AppModules.alojamentos.alojImagens[id]) AppModules.alojamentos.alojImagens[id] = {};
-        const prevSections = AppModules.alojamentos.alojImagens[id]?._sections;
-        AppModules.alojamentos.alojImagens[id] = { ...res.images };
-        AppModules.alojamentos.alojImagens[id]._sections = prevSections
-          || AppModules.alojamentos.alojImagens[id]._sections
-          || AppModules.alojamentos.buildImageSections(AppModules.alojamentos.alojImagens[id], null, !!AppModules.alojamentos.currentAlojDetail?.parent_id);
-        renderImagens();
-        AppModules.core.toast('✅ Imagem guardada!', 'success');
-      } else {
-        AppModules.core.toast('❌ Erro ao guardar imagem.', 'error');
-      }
-    } catch (err) {
-      AppModules.core.toast('❌ Erro ao guardar imagem.', 'error');
-    }
-  };
-  reader.readAsDataURL(file);
+  section = sections.find(s => s.key === section) ? section : (sections[sections.length - 1]?.key || 'outros');
+  if (!id) return null;
+  try {
+    const res = await AppModules.core.apiPost(`/api/accommodations/${id}/images`, { section, image: await readFileAsDataUrl(file) });
+    if (!res.success) return `${file.name} — erro ao guardar a imagem`;
+    if (!AppModules.alojamentos.alojImagens[id]) AppModules.alojamentos.alojImagens[id] = {};
+    const prevSections = AppModules.alojamentos.alojImagens[id]?._sections;
+    AppModules.alojamentos.alojImagens[id] = { ...res.images };
+    AppModules.alojamentos.alojImagens[id]._sections = prevSections
+      || AppModules.alojamentos.alojImagens[id]._sections
+      || AppModules.alojamentos.buildImageSections(AppModules.alojamentos.alojImagens[id], null, !!AppModules.alojamentos.currentAlojDetail?.parent_id);
+    renderImagens();
+    AppModules.core.toast('✅ Imagem guardada!', 'success');
+    return null;
+  } catch (err) {
+    return `${file.name} — ${err?.payload?.error || 'erro ao guardar a imagem'}`;
+  }
 }
 
 async function removeImg(sec, url) {
@@ -324,29 +347,28 @@ async function removeImg(sec, url) {
 async function uploadCoverImage(file) {
   const id = document.getElementById('aloj-editing-id').value;
   if (!id) return;
-  if (file.size > 5 * 1024 * 1024) { AppModules.core.toast('Imagem demasiado grande (máx. 5MB)', 'error'); return; }
-  const reader = new FileReader();
-  reader.onload = async e => {
-    try {
-      const res = await AppModules.core.apiPost(`/api/accommodations/${id}/cover`, { image: e.target.result });
-      if (res.success) {
-        const url = res.url.startsWith('http') ? res.url : AppModules.core.API_BASE + res.url;
-        const preview = document.getElementById('aloj-cover-preview');
-        const placeholder = document.getElementById('aloj-cover-placeholder');
-        const deleteBtn = document.getElementById('aloj-cover-delete-btn');
-        preview.src = url + '?t=' + Date.now();
-        preview.style.display = 'block';
-        if (placeholder) placeholder.style.display = 'none';
-        if (deleteBtn) deleteBtn.style.display = '';
-        const acc = AppModules.core.accommodations.find(a => a.id === id);
-        if (acc) acc.cover_image = res.url;
-        AppModules.core.toast('✅ Foto de capa guardada!', 'success');
-      }
-    } catch (e) {
-      AppModules.core.toast('❌ Erro ao guardar capa.', 'error');
+  const zone = document.getElementById('aloj-cover-dropzone')?.closest('.aloj-cover-panel');
+  const { ok, errors } = AppModules.core.checkImageFiles([file]);
+  AppModules.core.showUploadAlert(zone, errors);
+  if (!ok.length) return;
+  try {
+    const res = await AppModules.core.apiPost(`/api/accommodations/${id}/cover`, { image: await readFileAsDataUrl(file) });
+    if (res.success) {
+      const url = res.url.startsWith('http') ? res.url : AppModules.core.API_BASE + res.url;
+      const preview = document.getElementById('aloj-cover-preview');
+      const placeholder = document.getElementById('aloj-cover-placeholder');
+      const deleteBtn = document.getElementById('aloj-cover-delete-btn');
+      preview.src = url + '?t=' + Date.now();
+      preview.style.display = 'block';
+      if (placeholder) placeholder.style.display = 'none';
+      if (deleteBtn) deleteBtn.style.display = '';
+      const acc = AppModules.core.accommodations.find(a => a.id === id);
+      if (acc) acc.cover_image = res.url;
+      AppModules.core.toast('✅ Foto de capa guardada!', 'success');
     }
-  };
-  reader.readAsDataURL(file);
+  } catch (e) {
+    AppModules.core.showUploadAlert(zone, [`${file.name} — ${e?.payload?.error || 'erro ao guardar a capa'}`]);
+  }
 }
 
 function handleCoverZoneClick(event) {
@@ -420,21 +442,21 @@ async function uploadAlojLogo(input) {
   input.value = '';
   const id = document.getElementById('aloj-editing-id').value;
   if (!id) return;
-  if (file.size > 5 * 1024 * 1024) { AppModules.core.toast('Imagem demasiado grande (máx. 5MB)', 'error'); return; }
-  const reader = new FileReader();
-  reader.onload = async e => {
-    try {
-      const res = await AppModules.core.apiPost(`/api/accommodations/${id}/logo`, { image: e.target.result });
-      const acc = AppModules.core.accommodations.find(a => a.id === id);
-      if (acc) acc.logo_url = res.url;
-      if (AppModules.alojamentos.currentAlojDetail) AppModules.alojamentos.currentAlojDetail.logo_url = res.url;
-      renderAlojLogoPreview({ ...(acc || {}), logo_url: res.url });
-      AppModules.core.toast('✅ Logótipo guardado!', 'success');
-    } catch (err) {
-      AppModules.core.toast('❌ ' + (err?.payload?.error || 'Erro ao guardar logótipo.'), 'error');
-    }
-  };
-  reader.readAsDataURL(file);
+  const anchor = document.getElementById('aloj-logo-row');
+  const { ok, errors } = AppModules.core.checkImageFiles([file]);
+  AppModules.core.showUploadAlert(anchor, errors);
+  if (!ok.length) return;
+  try {
+    const res = await AppModules.core.apiPost(`/api/accommodations/${id}/logo`, { image: await readFileAsDataUrl(file) });
+    const acc = AppModules.core.accommodations.find(a => a.id === id);
+    if (acc) acc.logo_url = res.url;
+    if (AppModules.alojamentos.currentAlojDetail) AppModules.alojamentos.currentAlojDetail.logo_url = res.url;
+    renderAlojLogoPreview({ ...(acc || {}), logo_url: res.url });
+    AppModules.core.renderSidebarBrand?.();
+    AppModules.core.toast('✅ Logótipo guardado!', 'success');
+  } catch (err) {
+    AppModules.core.showUploadAlert(anchor, [`${file.name} — ${err?.payload?.error || 'erro ao guardar o logótipo'}`]);
+  }
 }
 
 async function removeAlojLogo() {
@@ -446,6 +468,7 @@ async function removeAlojLogo() {
     if (acc) acc.logo_url = null;
     if (AppModules.alojamentos.currentAlojDetail) AppModules.alojamentos.currentAlojDetail.logo_url = null;
     renderAlojLogoPreview({ ...(acc || {}), logo_url: null });
+    AppModules.core.renderSidebarBrand?.();
     AppModules.core.toast('🗑 Logótipo removido.', 'info');
   } catch (err) {
     AppModules.core.toast('❌ ' + (err?.payload?.error || 'Erro ao remover logótipo.'), 'error');
@@ -478,10 +501,7 @@ async function handleCoverDrop(event) {
   if (!id) return;
 
   if (event.dataTransfer?.files?.length) {
-    const file = Array.from(event.dataTransfer.files).find(f => f.type.startsWith('image/'));
-    if (file) {
-      await uploadCoverImage(file);
-    }
+    await uploadCoverImage(event.dataTransfer.files[0]);
     return;
   }
 
