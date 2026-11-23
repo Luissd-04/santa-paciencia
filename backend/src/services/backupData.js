@@ -24,8 +24,10 @@ const REFERENCES = { parent_id: 'accommodations', accommodation_id: 'accommodati
   guest_id: 'guests', reservation_id: 'reservations', used_in_reservation_id: 'reservations',
   supplier_id: 'suppliers', voucher_id: 'vouchers' };
 
-function uploadUrls(tables) {
+// `organization`: dados da empresa e marca (logótipos incluídos no ZIP).
+function uploadUrls(tables, organization) {
   const urls = accommodationUrls(tables.accommodations || []);
+  for (const key of ['logo_url', 'logo_original_url']) if (uploadPath(organization?.[key])) urls.add(organization[key]);
   for (const row of tables.expenses || []) if (uploadPath(row.receipt_image)) urls.add(row.receipt_image);
   return urls;
 }
@@ -47,6 +49,9 @@ function supportFileNames(tables) {
 
 function exportData(organizationId) {
   return db.transaction(() => ({ version: 10, scope: 'client-data', exported_at: new Date().toISOString(),
+    // Dados da empresa e marca (Área do proprietário): secção própria, fora de
+    // `tables` porque são colunas da organização e não linhas dela.
+    organization: require('./ownerArea').exportBackupSection(organizationId),
     tables: { ...Object.fromEntries(TABLES.map(table => [table,
       db.prepare(`SELECT * FROM ${table} WHERE organization_id = ?`).all(organizationId)])), ...supportRows(organizationId) } }))();
 }
@@ -216,6 +221,8 @@ function prepareImport(payload, organizationId) {
     }
     if (table === 'conversation_archives' && row.key_type === 'reservation') row.thread_key = maps.reservations.get(row.thread_key) || row.thread_key;
   }
+  // Backups anteriores à secção não a trazem: a empresa e a marca ficam como estão.
+  tables.organization = Object.hasOwn(payload, 'organization') ? require('./ownerArea').validateBackupSection(payload.organization) : null;
   const support = prepareSupport(payload, organizationId);
   if (support) {
     tables.support_tickets = support.tickets; tables.support_messages = support.messages;
@@ -277,6 +284,12 @@ function restoreData(tables, organizationId) {
       db.prepare(`INSERT INTO ${table} (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`).run(...cols.map(col => row[col] ?? null));
     }
     if (tables.support_tickets) restoreSupport(tables, organizationId);
+    // Só os campos da empresa e marca; nome, slug, estado e pacote ficam.
+    if (tables.organization) {
+      const { BACKUP_FIELDS } = require('./ownerArea');
+      db.prepare(`UPDATE organizations SET ${BACKUP_FIELDS.map(f => `${f} = ?`).join(', ')}, updated_at = datetime('now') WHERE id = ?`)
+        .run(...BACKUP_FIELDS.map(f => tables.organization[f] ?? (f === 'tax_country' ? 'PT' : null)), organizationId);
+    }
   })();
 }
 

@@ -93,6 +93,10 @@ function referencedUploads(db) {
     for (const [key, list] of Object.entries(images || {})) if (key !== '_sections' && Array.isArray(list)) list.forEach(add);
   }
   for (const row of db.prepare('SELECT receipt_image FROM expenses').all()) add(row.receipt_image);
+  // Logótipos das organizações (Área do proprietário → Marca); bases anteriores não têm as colunas.
+  if (db.pragma('table_info(organizations)').some(column => column.name === 'logo_url')) {
+    for (const row of db.prepare('SELECT logo_url, logo_original_url FROM organizations').all()) { add(row.logo_url); add(row.logo_original_url); }
+  }
   return [...urls].sort();
 }
 function decryptOk(key, value, context) {

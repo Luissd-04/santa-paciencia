@@ -128,6 +128,57 @@ function updateCompany(organizationId, input, userId) {
   return getCompany(organizationId);
 }
 
+// ── Cópia de segurança ──
+// Dados da empresa e marca que vão na cópia (secção `organization` do
+// backup.json). Nunca nome, slug, estado, pacote ou campos da plataforma.
+const BACKUP_FIELDS = ['legal_name', 'tax_id', 'tax_country', 'fiscal_address', 'billing_email', 'phone',
+  'logo_url', 'logo_original_url', 'logo_crop', 'logo_square_crop', 'brand_color'];
+
+// Recorte guardado (JSON {x,y,w,h} normalizado). Sem a imagem à mão só se
+// valida a forma; o tamanho e a proporção já foram validados quando foi criado.
+function cleanStoredCrop(value, field) {
+  if (value === null || value === undefined || value === '') return null;
+  const crop = require('./imageCrops').parse(value);
+  const unit = n => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1;
+  if (!crop || typeof crop !== 'object' || Array.isArray(crop) || !['x', 'y', 'w', 'h'].every(k => unit(crop[k])) || crop.w <= 0 || crop.h <= 0 || crop.x + crop.w > 1 + 1e-6 || crop.y + crop.h > 1 + 1e-6) {
+    throw httpError('O recorte do logótipo na cópia de segurança é inválido.', 400, { field });
+  }
+  return JSON.stringify({ x: crop.x, y: crop.y, w: crop.w, h: crop.h });
+}
+
+function cleanLogoUrl(value, field) {
+  if (value === null || value === undefined || value === '') return null;
+  if (!require('./imageCrops').isLocalUpload(value) || value.length > 200) throw httpError('O logótipo na cópia de segurança é inválido.', 400, { field });
+  return value;
+}
+
+// Mesmas regras de updateCompany e setBrandColor. Vazio = por preencher.
+function validateBackupSection(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw httpError('Dados da empresa na cópia de segurança inválidos.', 400);
+  if (Object.keys(input).some(key => !BACKUP_FIELDS.includes(key))) throw httpError('A cópia de segurança tem campos da empresa não permitidos.', 400);
+  const country = cleanCountry(input.tax_country);
+  const color = text(input.brand_color);
+  if (color && !hexColor(color)) throw httpError('A cor tem de estar no formato #RRGGBB.', 400, { field: 'brand_color' });
+  return {
+    legal_name: cleanText(input.legal_name, 'legal_name', 'A denominação legal') || null,
+    tax_id: normalizeTaxId(input.tax_id, country) || null,
+    tax_country: country,
+    fiscal_address: cleanText(input.fiscal_address, 'fiscal_address', 'A morada fiscal') || null,
+    billing_email: cleanEmail(input.billing_email, 'billing_email', 'O email de faturação') || null,
+    phone: cleanPhone(input.phone) || null,
+    logo_url: cleanLogoUrl(input.logo_url, 'logo_url'),
+    logo_original_url: cleanLogoUrl(input.logo_original_url, 'logo_original_url'),
+    logo_crop: cleanStoredCrop(input.logo_crop, 'logo_crop'),
+    logo_square_crop: cleanStoredCrop(input.logo_square_crop, 'logo_square_crop'),
+    brand_color: color ? hexColor(color) : null,
+  };
+}
+
+function exportBackupSection(organizationId) {
+  const row = organizationRow(organizationId);
+  return Object.fromEntries(BACKUP_FIELDS.map(field => [field, row[field] ?? null]));
+}
+
 // ── Marca ──
 const hexColor = value => (/^#[0-9a-f]{6}$/i.test(text(value)) ? text(value).toLowerCase() : '');
 
@@ -420,5 +471,5 @@ module.exports = {
   isValidPortugueseNif, normalizeTaxId, getCompany, updateCompany, validateCompany,
   getBrand, sessionOrganization, uploadLogo, removeLogo, trimLogo, saveLogoCrops, setBrandColor, logoMarkUrl,
   plans, invoices, requestPlanChange, requestClosure, openRequest, lastBackupAt, backupIsFresh, summary,
-  BACKUP_FRESH_MS,
+  BACKUP_FRESH_MS, BACKUP_FIELDS, validateBackupSection, exportBackupSection,
 };

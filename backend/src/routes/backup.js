@@ -25,7 +25,7 @@ router.get('/export', async (req, res, next) => {
       output.on('close', resolve); output.on('error', reject); zip.on('error', reject);
       zip.pipe(output);
       zip.append(JSON.stringify(payload), { name: 'backup.json' });
-      for (const url of uploadUrls(payload.tables)) {
+      for (const url of uploadUrls(payload.tables, payload.organization)) {
         const source = uploadPath(url);
         if (!fs.existsSync(source)) { zip.abort(); reject(new Error('Um ficheiro referenciado está em falta; backup incompleto recusado.')); return; }
         zip.file(source, { name: url.slice(1) });
@@ -69,12 +69,12 @@ router.post('/import', async (req, res) => {
       }
     }
     const previousData = exportData(org);
-    const previous = uploadUrls(previousData.tables);
+    const previous = uploadUrls(previousData.tables, previousData.organization);
     const previousSupport = tables.support_tickets ? supportFileNames(previousData.tables) : [];
     const replacements = new Map();
     // Validar TODAS as imagens antes de copiar ou gravar o que quer que seja:
     // um ficheiro corrompido recusa o restauro inteiro, sem tocar no que já existe.
-    for (const url of uploadUrls(tables)) {
+    for (const url of uploadUrls(tables, tables.organization)) {
       const source = path.join(temporary, url.slice(1));
       if (!fs.existsSync(source)) throw new Error('Backup incompleto: ficheiro referenciado em falta.');
       // Os uploads são servidos na origem da aplicação: só imagens verdadeiras,
@@ -100,7 +100,7 @@ router.post('/import', async (req, res) => {
       item.row.mime = type.mime; item.row.size = size;
     }
     // Ficheiros novos imutáveis: nunca substituir um caminho de outra organização.
-    for (const url of uploadUrls(tables)) {
+    for (const url of uploadUrls(tables, tables.organization)) {
       const source = path.join(temporary, url.slice(1));
       const relative = `${url.startsWith('/uploads/receipts/') ? 'receipts/' : ''}import_${randomUUID()}${path.extname(url)}`;
       const target = path.join(UPLOADS_DIR, relative);
@@ -116,6 +116,9 @@ router.post('/import', async (req, res) => {
       const images = JSON.parse(row.images || '{}');
       for (const [key, list] of Object.entries(images)) if (key !== '_sections' && Array.isArray(list)) images[key] = list.map(url => replacements.get(url) || url);
       row.images = JSON.stringify(images);
+    }
+    if (tables.organization) {
+      for (const key of ['logo_url', 'logo_original_url']) tables.organization[key] = replacements.get(tables.organization[key]) || tables.organization[key];
     }
     for (const item of tables.support_files || []) {
       fs.mkdirSync(SUPPORT_DIR, { recursive: true });
