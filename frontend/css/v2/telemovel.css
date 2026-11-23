@@ -75,9 +75,7 @@ html[data-look] #v2-sino .v2f-head .btn { min-height: 36px; }
 html[data-look] #v2-sino .nv2-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; }
 html[data-look] #v2-sino .nv2-chips::-webkit-scrollbar { display: none; }
 html[data-look] #v2-sino .nv2-section h4 { margin: 10px 0 2px; }
-html[data-look] #v2-sino .nv2-item { grid-template-columns: 8px 34px minmax(0, 1fr) auto; grid-template-areas: "dot ic text when" "dot ic text actions"; row-gap: 4px; padding: 8px 0; border-radius: 0; }
-html[data-look] #v2-sino .nv2-when { align-self: end; text-align: right; }
-html[data-look] #v2-sino .nv2-actions { align-self: start; justify-content: flex-end; }
+html[data-look] #v2-sino .nv2-item { padding: 10px 0; border-radius: 0; }
 html[data-look] #v2-sino .nv2-item:hover { background: none; }
 
 /* ── Menu lateral ── */

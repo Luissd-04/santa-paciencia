@@ -12,7 +12,11 @@ html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-chips { margin-r
 
 /* ── Lista por dia ── */
 html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-section h4 { margin: 14px 14px 4px; color: var(--v2-soft); font: 600 11px var(--v2-font); letter-spacing: .06em; text-transform: uppercase; }
-html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-item { display: grid; grid-template-columns: 8px 34px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; min-height: 60px; padding: 8px 14px; border-radius: var(--v2-radius-sm); cursor: default; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-item { display: grid; grid-template-columns: 8px 34px minmax(0, 1fr) auto; grid-template-areas: "dot ic text when" ". . actions actions"; align-items: start; gap: 6px 12px; min-height: 60px; padding: 10px 14px; border-radius: var(--v2-radius-sm); cursor: default; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-dot { grid-area: dot; align-self: center; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-ic { grid-area: ic; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-text { grid-area: text; align-self: center; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-when { grid-area: when; }
 html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-item + .nv2-item { box-shadow: inset 0 1px 0 var(--v2-divider); }
 html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-item:hover { background: var(--v2-accent-soft); }
 html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-dot { width: 8px; height: 8px; border-radius: 50%; }
@@ -23,7 +27,10 @@ html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-text b { color: 
 html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-item.is-unread .nv2-text b { font-weight: 700; }
 html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-text small { color: var(--v2-muted); font-size: 12.5px; overflow-wrap: anywhere; line-height: 1.45; }
 html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-when { color: var(--v2-soft); font-size: 12px; white-space: nowrap; }
-html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-actions { display: flex; gap: 6px; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-actions { grid-area: actions; display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 6px; min-width: 0; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-actions:empty { display: none; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-actions .btn { min-height: 30px; padding: 0 12px; font-size: 12.5px; white-space: nowrap; }
+html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-actions .notifications-page-actions { display: contents; }
 html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-ic { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--v2-surface-2); color: var(--v2-muted); }
 html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-ic.info { background: var(--v2-info-bg); color: var(--v2-info); }
 html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-ic.warn { background: var(--v2-warn-bg); color: var(--v2-warn); }
@@ -49,12 +56,6 @@ html[data-look] #view-notificacoes[data-v2] .notifications-side-push p { margin:
 html[data-look] #view-notificacoes[data-v2] .notifications-page-list { padding: 0 8px 10px; }
 
 @media (max-width: 600px) {
-  html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-item { grid-template-columns: 8px 32px minmax(0, 1fr) auto; grid-template-areas: "dot ic text when" ". . actions actions"; row-gap: 6px; }
-  html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-dot { grid-area: dot; }
-  html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-ic { grid-area: ic; }
-  html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-text { grid-area: text; }
-  html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-when { grid-area: when; }
-  html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-actions { grid-area: actions; justify-content: flex-end; }
   html[data-look] :is(#view-notificacoes[data-v2], #v2-sino) .nv2-read-all { width: 100%; justify-content: center; }
 }
 

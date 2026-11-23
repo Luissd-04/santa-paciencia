@@ -197,8 +197,9 @@
   /* Items individuais */
   .notifications-page-item {
     display: flex;
+    flex-wrap: wrap;
     align-items: flex-start;
-    gap: 12px;
+    gap: 8px 12px;
     background: var(--branco);
     border-radius: var(--mobile-radius-sm);
     box-shadow: var(--mobile-shadow-card);
@@ -274,9 +275,11 @@
   }
 
   /* Ações */
+  /* Por baixo do texto, em linha e a quebrar. */
   .notifications-page-actions {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    flex: 1 0 100%;
     gap: 6px;
   }
 
