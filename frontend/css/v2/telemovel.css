@@ -19,7 +19,8 @@ html[data-look] .v2f-head h2 { flex: 1; min-width: 0; margin: 0; color: var(--v2
 html[data-look] .v2f-head h2 small { display: block; margin-top: 2px; color: var(--v2-muted); font: 500 12.5px var(--v2-font); letter-spacing: 0; }
 html[data-look] .v2f-head h2 small:empty { display: none; }
 html[data-look] .v2f-x { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: var(--v2-surface-2); color: var(--v2-muted); cursor: pointer; }
-html[data-look] .v2f-body { overflow-y: auto; overscroll-behavior: contain; padding: 2px 18px 18px; display: grid; grid-auto-rows: max-content; gap: 14px; }
+/* Coluna única com largura mínima 0: uma linha larga (ex.: filtros do sino) não alarga a folha nem a deixa deslizar para os lados. */
+html[data-look] .v2f-body { overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 2px 18px 18px; display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; gap: 14px; }
 html[data-look] .v2f-foot { flex: none; display: flex; gap: 10px; padding: 12px 18px calc(14px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--v2-divider); }
 html[data-look] .v2f-foot .btn { flex: 1; min-height: 48px; border-radius: 16px; font-size: 14.5px; white-space: nowrap; }
 html[data-look] .v2f-body:last-child { padding-bottom: calc(22px + env(safe-area-inset-bottom, 0px)); }
@@ -72,7 +73,8 @@ html[data-look] .v2c-list svg { color: var(--v2-muted); }
 
 /* ── Sino: a mesma lista da página Notificações ── */
 html[data-look] #v2-sino .v2f-head .btn { min-height: 36px; }
-html[data-look] #v2-sino .nv2-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; }
+/* Largura explícita: a margem automática de notificacoes.css punha a fila à largura do conteúdo e a folha deslizava para os lados. */
+html[data-look] #v2-sino .nv2-chips { width: calc(100% + 36px); min-width: 0; box-sizing: border-box; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -18px; padding: 0 18px; }
 html[data-look] #v2-sino .nv2-chips::-webkit-scrollbar { display: none; }
 html[data-look] #v2-sino .nv2-section h4 { margin: 10px 0 2px; }
 html[data-look] #v2-sino .nv2-item { padding: 10px 0; border-radius: 0; }

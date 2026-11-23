@@ -577,6 +577,9 @@ async function main() {
   await expect(page.locator('#v2-sino-sub')).toContainText('por ler');
   const sino = page.locator('#v2-sino');
   await expect(sino.locator('.nv2-item').first()).toBeVisible();
+  // A folha não pode deslizar para os lados (os filtros largos não a alargam).
+  const sinoOverflow = await sino.locator('.v2f-body').first().evaluate(el => el.scrollWidth - el.clientWidth);
+  assert.ok(sinoOverflow <= 1, `a folha do sino desliza para os lados (${sinoOverflow}px)`);
   await expect(page.locator('#notif-dropdown')).toBeHidden();
   await sino.locator('.rv2-chip', { hasText: 'Reservas' }).click();
   await expect(sino.locator('.rv2-chip.is-on')).toContainText('Reservas');
