@@ -37,6 +37,9 @@ e `PLANO-CONSOLA.md`; esta lista será a base do documento único.
 20. ✅ **Feito (24/11):** menu da conta e «Definições da conta» (`/conta`).
 21. ✅ **Feito (24/11):** Área do proprietário (`/proprietario`), incluindo «No teu site» (domínios autorizados e código para incorporar a página de reservas — ver `docs/EMBED-WORDPRESS.md`).
 
+22. **Reservas no site do cliente — aspeto:** tema claro/escuro/automático, letra, cantos, cor de destaque, começar nas datas; correções da altura no telemóvel, passos ilegíveis e fotografias; barra do total no telemóvel. Em curso (24/11).
+23. **Copiar o estilo do site automaticamente:** o código colado lê o fundo, a letra e os botões do site e a reserva adapta-se sozinha; o painel «Aspeto» só serve para corrigir. Em curso (24/11). Instalação no WordPress do cliente pode ser um serviço pago à parte.
+
 ## Para rever (decisões do dono do produto)
 
 **Portal do hóspede**
