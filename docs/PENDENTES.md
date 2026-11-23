@@ -32,8 +32,7 @@ e `PLANO-CONSOLA.md`; esta lista será a base do documento único.
 15. ✅ **Feito (24/11):** recortes da capa por formato, logótipo sem margens, rodar fotografias.
 16. **Telemóvel: deslizar para mudar de mês/semana** nos calendários (Calendário: mês e linha do tempo; Eventos: mês e semana). Os botões Anterior/Hoje/Próximo continuam. Em curso (24/11).
 
-17. **Logótipo sem moldura** no portal do hóspede e na barra lateral recolhida. Em curso (24/11).
-18. **Condições gerais da reserva** (documento formal, versionado, PDF), aceitas antes de pagar; privacidade passa a «tomei conhecimento» com versão; marketing opcional. Maqueta em revisão (24/11).
+17. ✅ **Feito (24/11):** logótipo sem moldura no portal do hóspede e na barra lateral recolhida.
 
 ## Para rever (decisões do dono do produto)
 
@@ -77,6 +76,7 @@ e `PLANO-CONSOLA.md`; esta lista será a base do documento único.
 - Cada agente recebe: o ponto da lista, a causa, os ficheiros, o critério de conclusão e «não fazer commit». Eu reviso, testo e faço o commit.
 
 ## Para mais tarde
+- **Condições gerais da reserva (ponto 18, à espera da opinião do cliente):** documento formal versionado com PDF, aceite antes de pagar; privacidade como «tomei conhecimento» com versão; marketing opcional. Maqueta pronta (separador «Condições gerais e privacidade» das maquetas).
 - **Documentos e aceitações do hóspede (ponto 19, adiado):** política de privacidade completa (art. 13.º); regras da casa aceites no pré-check-in; Livro de Reclamações Eletrónico e entidade de resolução alternativa de litígios no site, portal e emails; secção «Documentos» no portal (condições, privacidade, regras, fatura). Validar textos com jurista.
 - **Portal do proprietário:** campos da marca do cliente nas Definições (nome, logótipo grande e pequeno, cor). Ver o ponto 12.
 
