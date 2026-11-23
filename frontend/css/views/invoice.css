@@ -628,9 +628,12 @@
 }
 
 /* Resposta compacta enquanto está vazia e sem foco: só a linha para escrever,
-   para o histórico ter mais espaço. Ao clicar abre o assunto e a formatação. */
-.invoice-compose-area:not(:focus-within):has(#ica-subject:placeholder-shown):has(#ica-body:empty) :is(#ica-subject, .compose-fmt-toolbar, .ica-footer) { display: none; }
-.invoice-compose-area:not(:focus-within):has(#ica-subject:placeholder-shown):has(#ica-body:empty) #ica-body { min-height: 0; border-radius: 8px; padding-block: 10px; cursor: text; }
+   para o histórico ter mais espaço. Ao clicar abre o assunto e a formatação.
+   Conta o foco de escrita (:focus-visible), não o de um botão clicado com o
+   rato: senão o botão «Template» (na linha «Para:») fazia a área crescer ao
+   carregar e fugia do clique. */
+.invoice-compose-area:not(:has(:focus-visible)):has(#ica-subject:placeholder-shown):has(#ica-body:empty) :is(#ica-subject, .compose-fmt-toolbar, .ica-footer) { display: none; }
+.invoice-compose-area:not(:has(:focus-visible)):has(#ica-subject:placeholder-shown):has(#ica-body:empty) #ica-body { min-height: 0; border-radius: 8px; padding-block: 10px; cursor: text; }
 
 .compose-body-editor:empty:before {
   content: attr(data-placeholder);

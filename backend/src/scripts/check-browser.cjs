@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { chromium, expect } = require('@playwright/test');
+const { serveCdnLibraries } = require('../test-support/cdn-libs.cjs');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'sp-browser-'));
 const previous = process.cwd();
 process.chdir(temp);
@@ -111,6 +112,8 @@ async function main() {
       if (event.violatedDirective.startsWith('script-src')) window.__scriptViolations.push(event.violatedDirective);
     });
   });
+  // CDN (jsPDF, Chart.js, Leaflet) a partir do disco quando existir: sem rede o teste não depende dela.
+  await serveCdnLibraries(context, process.env.FRONTEND_PATH);
   await context.addCookies([{ name: auth.SESSION_COOKIE, value: session, url: base }]);
   const page = await context.newPage();
   const errors = [], requests = [];
@@ -394,6 +397,9 @@ async function main() {
   // ── Eventos: lista paginada no servidor, calendário por intervalo ────────
   const eventRequests = [];
   page.on('request', r => { if (/\/api\/events\?/.test(r.url())) eventRequests.push(r.url()); });
+  // Voltar ao computador: no telemóvel (≤ 600 px) os Eventos mostram só o calendário
+  // (sem a lista paginada) e a barra lateral deixa de existir.
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.locator('.sidebar .nav-item').filter({ hasText: 'Eventos' }).click();
   await page.locator('#view-eventos [data-on-click^="index-set-eventos-view-"]').first().waitFor({ state: 'attached' });
   // A marcação da vista pode chegar antes dos scripts dela: espera pelo módulo.
@@ -590,12 +596,14 @@ async function main() {
   await expect(page.locator('#ica-body')).toContainText('{{titulo_reserva}}');
   assert.equal(await page.evaluate(() => document.body.classList.contains('modal-open')), false);
   assert.equal(await page.evaluate(() => document.querySelectorAll('[inert]').length), 0);
+  // Os emails só levam as redes do alojamento (já não há ligações por omissão).
+  db.prepare("UPDATE accommodations SET social_instagram = 'https://www.instagram.com/interface.sintetica' WHERE organization_id = ?").run(org.id);
   await page.locator('#ica-send-btn').click();
   await expect(page.locator('#ica-body')).toHaveText('');
   const manualTemplateMessage = db.prepare(`SELECT subject,body_html FROM invoice_messages
     WHERE organization_id=? AND reservation_id='r011' ORDER BY rowid DESC LIMIT 1`).get(org.id);
   assert(manualTemplateMessage.body_html.includes('r011'), 'o cartão não trouxe a referência da reserva');
-  assert(manualTemplateMessage.body_html.includes('sp-social-block'), 'o envio manual não trouxe os links sociais comuns');
+  assert(manualTemplateMessage.body_html.includes('sp-social-block'), 'o envio manual não trouxe as redes sociais do alojamento');
   assert(!/\{\{\s*\w+\s*\}\}/.test(manualTemplateMessage.subject + manualTemplateMessage.body_html),
     'o envio manual deixou marcadores do template por preencher');
   await page.locator('#ica-tpl-btn').click();
