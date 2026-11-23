@@ -163,7 +163,7 @@ function renderUnits() {
 
   const propertyCard = `
     <div class="unit-card ${propertySelected ? 'selected' : ''} ${propertyBlocked ? 'blocked' : ''} property-card" data-unit="property">
-      ${unitPhoto(AppModules.booking.embed?.active ? AppModules.booking.coverOf(AppModules.booking.state.property, 'landscape') : AppModules.booking.state.property?.images?.[0]?.url)}
+      ${unitPhoto(AppModules.booking.coverOf(AppModules.booking.state.property, 'landscape'))}
       <div>
         <h4>${AppModules.booking.escapeHtml(AppModules.booking.state.property?.name || 'Alojamento completo')}</h4>
         <p>${AppModules.booking.escapeHtml(propertyReason)}</p>
