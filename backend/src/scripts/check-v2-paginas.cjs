@@ -138,7 +138,7 @@ async function main() {
   await expect(rows).toHaveCount(2);
   // O menu de um filtro aberto fica por cima da lista (antes a lista tapava-o).
   await page.locator('#reservas-filters-toggle').click();
-  await page.locator('.app-select-button', { hasText: 'Todos os canais' }).click();
+  await page.locator('.app-select-button', { hasText: 'Canal: Todos' }).click();
   const menu = page.locator('.app-select.is-open .app-select-menu');
   await expect(menu).toBeVisible();
   assert.ok(await menu.evaluate(el => {

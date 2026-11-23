@@ -95,11 +95,17 @@ function setReservasViewMode(mode) {
 async function loadReservas() {
   // Restore persisted filters
   const sv = (id, key) => { const el = document.getElementById(id); if (el && !el.value) el.value = AppModules.core.SS.get(key, ''); };
+  // Filtros múltiplos: guardados como lista (versões antigas guardavam um só texto).
+  const svMulti = (id, key) => {
+    if (AppModules.reservas.filterValues(id).length) return;
+    const saved = AppModules.core.SS.get(key, []);
+    AppModules.reservas.setFilterValues(id, Array.isArray(saved) ? saved : (saved ? [saved] : []));
+  };
   sv('search-input', 'res:q');
   const mobileSearch = document.getElementById('mobile-search-input');
   if (mobileSearch) mobileSearch.value = document.getElementById('search-input')?.value || '';
-  sv('filter-estado', 'res:fe'); sv('filter-suite', 'res:fs');
-  sv('filter-canal', 'res:fc'); sv('filter-pagamento', 'res:fp'); sv('filter-precheckin', 'res:fpc');
+  svMulti('filter-estado', 'res:fe'); svMulti('filter-suite', 'res:fs');
+  svMulti('filter-canal', 'res:fc'); svMulti('filter-pagamento', 'res:fp'); svMulti('filter-precheckin', 'res:fpc');
   sv('filter-date-from', 'res:fd'); sv('filter-date-to', 'res:ft');
   AppUI.refreshDropdowns(document.getElementById('view-reservas'));
   // Cabeçalho da lista: ordem + larguras (auto-fit ao ecrã) + pegas + drag-reorder
@@ -133,6 +139,7 @@ function setReservasPeriodScope(scope) {
   if (!['operational', 'past'].includes(scope)) return;
   AppModules.reservas.reservasPeriodScope = scope;
   AppModules.core.SS.set('res:period', scope);
+  AppModules.reservas.resAllActive = false;
   for (const id of ['filter-date-from', 'filter-date-to']) {
     const input = document.getElementById(id);
     if (input) input.value = '';
@@ -151,13 +158,15 @@ function setReservasPeriodScope(scope) {
 function renderTabela() {
   // Qualquer filtro escolhido pelo utilizador substitui o conjunto de reservas do Painel.
   if (AppModules.reservas.resIdFilter && AppModules.reservas.hasControlFilters()) AppModules.reservas.clearResIdFilter();
-  const fe = document.getElementById('filter-estado')?.value || '';
+  // O atalho «Por receber» só vale enquanto o filtro de pagamento se mantém.
+  if (AppModules.reservas.resAllActive && !AppModules.reservas.filterValues('filter-pagamento').length) AppModules.reservas.resAllActive = false;
+  const fe = AppModules.reservas.filterValues('filter-estado');
   AppModules.core.SS.set('res:q', document.getElementById('search-input')?.value || '');
   AppModules.core.SS.set('res:fe', fe);
-  AppModules.core.SS.set('res:fs', document.getElementById('filter-suite')?.value || '');
-  AppModules.core.SS.set('res:fc', document.getElementById('filter-canal')?.value || '');
-  AppModules.core.SS.set('res:fp', document.getElementById('filter-pagamento')?.value || '');
-  AppModules.core.SS.set('res:fpc', document.getElementById('filter-precheckin')?.value || '');
+  AppModules.core.SS.set('res:fs', AppModules.reservas.filterValues('filter-suite'));
+  AppModules.core.SS.set('res:fc', AppModules.reservas.filterValues('filter-canal'));
+  AppModules.core.SS.set('res:fp', AppModules.reservas.filterValues('filter-pagamento'));
+  AppModules.core.SS.set('res:fpc', AppModules.reservas.filterValues('filter-precheckin'));
   AppModules.core.SS.set('res:fd', AppModules.core.normalizeIsoDateValue(document.getElementById('filter-date-from')?.value || ''));
   AppModules.core.SS.set('res:ft', AppModules.core.normalizeIsoDateValue(document.getElementById('filter-date-to')?.value || ''));
   AppModules.reservas.syncMobileChips(fe);
@@ -210,11 +219,10 @@ function clearReservasFilters() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  ['filter-estado', 'filter-suite', 'filter-canal', 'filter-pagamento', 'filter-precheckin'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
-  ['res:q', 'res:fe', 'res:fs', 'res:fc', 'res:fp', 'res:fpc', 'res:fd', 'res:ft', 'res:chip'].forEach(key => AppModules.core.SS.set(key, ''));
+  ['filter-estado', 'filter-suite', 'filter-canal', 'filter-pagamento', 'filter-precheckin'].forEach(id => AppModules.reservas.setFilterValues(id, []));
+  ['res:q', 'res:fd', 'res:ft', 'res:chip'].forEach(key => AppModules.core.SS.set(key, ''));
+  ['res:fe', 'res:fs', 'res:fc', 'res:fp', 'res:fpc'].forEach(key => AppModules.core.SS.set(key, []));
+  AppModules.reservas.resAllActive = false;
   AppModules.reservas.clearResExactDateFilter();
   AppModules.reservas.clearResIdFilter();
   AppModules.reservas.reservasPeriodScope = 'operational';

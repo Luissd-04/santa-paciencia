@@ -34,7 +34,7 @@ async function getDashboardStats(req, res, next) {
     const today = db.prepare(`SELECT
       COUNT(CASE WHEN check_in=? THEN 1 END) AS arrivals,
       COUNT(CASE WHEN check_out=? THEN 1 END) AS departures,
-      COUNT(CASE WHEN payment_status='pendente' THEN 1 END) AS pendingPayments,
+      COUNT(CASE WHEN payment_status IN ('pendente','parcial') THEN 1 END) AS pendingPayments,
       COUNT(CASE WHEN check_in=? AND status='confirmada' THEN 1 END) AS confirmedArrivals,
       COUNT(CASE WHEN check_in=? AND status='pendente' THEN 1 END) AS pendingArrivals
       FROM reservations WHERE organization_id=? AND status!='cancelada'`)

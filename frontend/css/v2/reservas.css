@@ -20,10 +20,7 @@ html[data-look] #view-reservas[data-v2] .list-pagination button { background: va
 html[data-look] #view-reservas[data-v2] .list-pagination [aria-current="page"] { background: var(--v2-accent); color: var(--v2-accent-ink); border-color: var(--v2-accent); }
 
 /* ══ Maqueta: filtros rápidos e lista (js/features/reserva-lista/lista-v2.js) ══ */
-/* O estado escolhe-se nos filtros rápidos; Cartão/Lista deixam de fazer falta. */
-html[data-look] #view-reservas[data-v2] #filter-estado,
-html[data-look] #view-reservas[data-v2] #filter-estado + .app-select,
-html[data-look] #view-reservas[data-v2] .app-select:has(#filter-estado),
+/* O estado escolhe-se nos filtros rápidos (ou no menu Estado); Cartão/Lista deixam de fazer falta. */
 html[data-look] #view-reservas[data-v2] #reservas-view-toggle,
 html[data-look] #view-reservas[data-v2] .reservas-period-context { display: none !important; }
 html[data-look] #view-reservas[data-v2] .reservas-period-bar { justify-content: flex-start; flex-wrap: wrap; gap: 10px; }

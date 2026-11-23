@@ -25,20 +25,20 @@ function isReservasV2() {
 function renderStatusChips(byStatus = {}) {
   const box = document.getElementById('reservas-v2-chips');
   if (!box) return;
-  const active = document.getElementById('filter-estado')?.value || '';
+  const active = AppModules.reservas.filterValues('filter-estado');
+  const on = status => (status ? active.includes(status) : !active.length);
   box.innerHTML = QUICK_STATUS
-    .filter(([status]) => !status || status === active || byStatus[status])
-    .map(([status, label]) => `<button type="button" class="rv2-chip${status === active ? ' is-on' : ''}" aria-pressed="${status === active}"
+    .filter(([status]) => !status || active.includes(status) || byStatus[status])
+    .map(([status, label]) => `<button type="button" class="rv2-chip${on(status) ? ' is-on' : ''}" aria-pressed="${on(status)}"
       ${AppActions.attrs('click', 'reservas-v2-status', [status])}>${label}${status && byStatus[status] ? ` <em>${byStatus[status]}</em>` : ''}</button>`)
     .join('');
 }
 
 function setQuickStatus(status) {
-  const select = document.getElementById('filter-estado');
-  if (!select) return;
-  select.value = select.value === status ? '' : status;
-  AppModules.core.SS.set('res:fe', select.value);
-  AppUI.refreshDropdowns(document.getElementById('view-reservas'));
+  if (!document.getElementById('filter-estado')) return;
+  // «Todas» limpa; os outros ligam/desligam (podem estar vários ligados).
+  const chosen = AppModules.reservas.filterValues('filter-estado');
+  AppModules.reservas.setFilterValues('filter-estado', !status ? [] : chosen.includes(status) ? chosen.filter(v => v !== status) : [...chosen, status]);
   AppModules.reservas.clearResExactDateFilter();
   AppModules.reservas.renderTabela();
 }

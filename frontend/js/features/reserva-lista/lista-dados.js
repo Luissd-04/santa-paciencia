@@ -22,7 +22,7 @@ function getEffectiveReservasPeriod() {
   const value = id => document.getElementById(id)?.value || '';
   const today = reservasTodayIso();
   if (AppModules.reservas.resIdFilter) return 'all';
-  if (value('search-input') || value('mobile-search-input') || value('filter-estado') === 'cancelada') return 'all';
+  if (value('search-input') || value('mobile-search-input') || AppModules.reservas.filterValues('filter-estado').includes('cancelada')) return 'all';
   const exact = AppModules.reservas.resExactDateFilter;
   if (exact?.date) return exact.date < today ? 'past' : 'operational';
   const from = AppModules.core.normalizeIsoDateValue(value('filter-date-from'));
@@ -32,13 +32,14 @@ function getEffectiveReservasPeriod() {
     if (from && from >= today) return 'operational';
     return 'all';
   }
+  if (AppModules.reservas.resAllActive) return 'active';
   return AppModules.reservas.reservasPeriodScope;
 }
 
 function updateReservasPeriodUI(summary = {}) {
   const effective = getEffectiveReservasPeriod();
   const selected = AppModules.reservas.reservasPeriodScope;
-  const overridden = effective === 'all';
+  const overridden = effective === 'all' || effective === 'active';
   document.querySelectorAll('[data-res-period]').forEach(button => {
     const active = !overridden && button.dataset.resPeriod === selected;
     button.classList.toggle('active', active);
@@ -50,14 +51,15 @@ function updateReservasPeriodUI(summary = {}) {
   if (pastCount) pastCount.textContent = summary.past ?? '—';
 
   const search = document.getElementById('search-input')?.value || document.getElementById('mobile-search-input')?.value || '';
-  const status = document.getElementById('filter-estado')?.value || '';
+  const status = AppModules.reservas.filterValues('filter-estado');
   const hasDates = Boolean(AppModules.reservas.resExactDateFilter || document.getElementById('filter-date-from')?.value || document.getElementById('filter-date-to')?.value);
   let text = selected === 'past'
     ? 'Histórico, das mais recentes para as mais antigas'
     : 'Inclui estadias em curso e reservas futuras';
   if (AppModules.reservas.resIdFilter) text = 'A mostrar só as reservas escolhidas, em todo o histórico';
   else if (search) text = 'A pesquisa abrange todo o histórico';
-  else if (status === 'cancelada') text = 'As canceladas abrangem todas as datas';
+  else if (effective === 'active') text = 'A mostrar reservas passadas e futuras, sem canceladas';
+  else if (status.includes('cancelada')) text = 'As canceladas abrangem todas as datas';
   else if (hasDates && effective === 'all') text = 'O intervalo escolhido abrange todo o histórico';
   else if (hasDates) text = effective === 'past' ? 'A mostrar o período passado escolhido' : 'A mostrar o período atual ou futuro escolhido';
   const context = document.getElementById('reservas-period-context');
@@ -74,10 +76,11 @@ function searchReservas(input) {
 
 function getReservasQuery() {
   const value = id => document.getElementById(id)?.value || '';
+  const multi = id => AppModules.reservas.filterValues(id).join(',');
   const query = {
     search: value('search-input') || value('mobile-search-input'),
-    status: value('filter-estado'), accommodation_id: value('filter-suite'),
-    channel: value('filter-canal'), payment_status: value('filter-pagamento'), precheckin: value('filter-precheckin'),
+    status: multi('filter-estado'), accommodation_id: multi('filter-suite'),
+    channel: multi('filter-canal'), payment_status: multi('filter-pagamento'), precheckin: multi('filter-precheckin'),
     from: AppModules.core.normalizeIsoDateValue(value('filter-date-from')), to: AppModules.core.normalizeIsoDateValue(value('filter-date-to')),
     scope: getEffectiveReservasPeriod(), today: reservasTodayIso(),
     sort: AppModules.reservas.sortCol, direction: AppModules.reservas.sortAsc ? 'asc' : 'desc',
@@ -107,6 +110,7 @@ function drawReservasPage() {
   if (AppModules.reservas.isReservasV2()) AppModules.reservas.renderReservasV2(state);
   const scope = getEffectiveReservasPeriod();
   const detail = AppModules.reservas.resIdFilter ? 'reservas escolhidas'
+    : scope === 'active' ? 'reservas não canceladas'
     : scope === 'operational' ? 'em curso ou próximas'
     : scope === 'past' ? 'reservas passadas'
       : 'resultados em todo o histórico';

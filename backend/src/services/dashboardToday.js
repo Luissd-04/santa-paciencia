@@ -51,8 +51,8 @@ function dashboardToday(orgId, today, now = new Date()) {
     AND r.precheckin_submitted_at IS NULL AND r.check_in BETWEEN ? AND ? ORDER BY r.check_in LIMIT 20`).all(orgId, today, addDays(today, 7));
   const brief = r => ({ id: r.id, guest_name: r.guest_name, check_in: r.check_in, check_out: r.check_out, accommodation_name: r.accommodation_name, missing: missing(r) });
 
-  const receivable = db.prepare(`SELECT COUNT(*) AS count, COALESCE(SUM(total_amount - COALESCE(amount_paid, 0)), 0) AS amount
-    FROM reservations r WHERE r.organization_id = ? AND ${ACTIVE} AND r.total_amount - COALESCE(r.amount_paid, 0) > 0.005`).get(orgId);
+  const receivable = db.prepare(`SELECT COUNT(*) AS count, COALESCE(SUM(MAX(total_amount - COALESCE(amount_paid, 0), 0)), 0) AS amount
+    FROM reservations r WHERE r.organization_id = ? AND ${ACTIVE} AND r.payment_status IN ('pendente', 'parcial')`).get(orgId);
 
   const year = now.getFullYear(), month = now.getMonth() + 1;
   const prevStart = month === 1 ? firstOfMonth(year - 1, 12) : firstOfMonth(year, month - 1);

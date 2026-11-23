@@ -3,6 +3,8 @@ const { httpError } = require('./httpError');
 const { normalizeDateValue } = require('./reservationRules');
 const { snippet } = require('./emailComposer');
 const state = require('./reservationState');
+const { CHANNEL_LABELS } = require('../config/channels');
+const PAYMENT_STATUSES = ['pendente', 'parcial', 'confirmado', 'reembolsado'];
 db.function('app_lower', { deterministic: true }, value => String(value ?? '').toLowerCase());
 
 function invalid(message) { return httpError(message, 400); }
@@ -41,6 +43,15 @@ function listParam(query, name, max = 50) {
   return items;
 }
 
+// Filtro com vários valores («pendente,parcial»): cada um tem de pertencer a
+// `allowed` (quando dado); repetições desaparecem. Um valor só continua a servir.
+function multiParam(query, name, allowed = null, max = 30) {
+  const items = [...new Set(listParam(query, name, max))];
+  if (allowed && items.some(item => !allowed.includes(item))) throw invalid(`Parâmetro inválido: ${name}.`);
+  return items;
+}
+const inList = (column, items) => ` AND ${column} IN (${items.map(() => '?').join(',')})`;
+
 function booleanParam(query, name) {
   const value = textParam(query, name, 1);
   if (!value) return null;
@@ -73,20 +84,21 @@ Object.assign(RESERVATION_SORTS, { guest_name: 'g.name COLLATE NOCASE', guest_em
 function listReservations(organizationId, query = {}) {
   const options = pageOptions(query, RESERVATION_SORTS, 'check_in');
   const scope = textParam(query, 'scope', 20) || 'all';
-  if (!['operational', 'past', 'all'].includes(scope)) throw invalid('Período de reservas inválido.');
+  // «active»: todas as não canceladas, de qualquer data (atalho «Por receber» do Painel).
+  if (!['operational', 'past', 'active', 'all'].includes(scope)) throw invalid('Período de reservas inválido.');
   const today = dateParam(query, 'today');
-  if (scope !== 'all' && !today) throw invalid('Data de referência em falta.');
+  if (['operational', 'past'].includes(scope) && !today) throw invalid('Data de referência em falta.');
   const params = [organizationId];
   let where = ' WHERE r.organization_id = ?';
-  for (const key of ['channel', 'payment_status']) {
-    const value = textParam(query, key);
-    if (value) { where += ` AND r.${key} = ?`; params.push(value); }
+  // Canal, pagamento, pré-check-in, estado e alojamento aceitam vários valores separados por vírgula.
+  for (const [key, allowed] of [['channel', Object.keys(CHANNEL_LABELS)], ['payment_status', PAYMENT_STATUSES]]) {
+    const items = multiParam(query, key, allowed);
+    if (items.length) { where += inList(`r.${key}`, items); params.push(...items); }
   }
-  const precheckin = textParam(query, 'precheckin', 20);
-  if (precheckin) {
-    if (!state.PRECHECKIN_STATES.includes(precheckin)) throw invalid('Estado do pré-check-in inválido.');
-    where += ` AND ${state.precheckinStateSql('r')} = ?`;
-    params.push(precheckin);
+  const precheckin = multiParam(query, 'precheckin', state.PRECHECKIN_STATES);
+  if (precheckin.length) {
+    where += inList(state.precheckinStateSql('r'), precheckin);
+    params.push(...precheckin);
   }
   const search = textParam(query, 'search');
   if (search) {
@@ -101,10 +113,10 @@ function listReservations(organizationId, query = {}) {
     where += ` AND r.id IN (${list.map(() => '?').join(',')})`;
     params.push(...list);
   }
-  const accommodation = textParam(query, 'accommodation_id');
-  if (accommodation) {
-    where += ' AND EXISTS (SELECT 1 FROM reservation_units ru WHERE ru.reservation_id=r.id AND ru.organization_id=r.organization_id AND ru.accommodation_id=?)';
-    params.push(accommodation);
+  const accommodation = multiParam(query, 'accommodation_id');
+  if (accommodation.length) {
+    where += ` AND EXISTS (SELECT 1 FROM reservation_units ru WHERE ru.reservation_id=r.id AND ru.organization_id=r.organization_id AND ru.accommodation_id IN (${accommodation.map(() => '?').join(',')}))`;
+    params.push(...accommodation);
   }
   for (const [key, expression] of Object.entries({ from: 'r.check_in >=', to: 'r.check_out <=', check_in: 'r.check_in =', check_out: 'r.check_out =', overlap_from: 'r.check_out >=', overlap_to: 'r.check_in <=' })) {
     const value = dateParam(query, key);
@@ -121,11 +133,12 @@ function listReservations(organizationId, query = {}) {
   let scopeWhere = '';
   const scopeParams = [];
   if (scope === 'operational') { scopeWhere = " AND r.status != 'cancelada' AND r.check_out >= ?"; scopeParams.push(today); }
+  else if (scope === 'active') scopeWhere = " AND r.status != 'cancelada'";
   else if (scope === 'past') { scopeWhere = " AND r.status != 'cancelada' AND r.check_out < ?"; scopeParams.push(today); }
   const byStatusSql = 'SELECT r.status, COUNT(*) AS n' + joined + where + scopeWhere + ' GROUP BY r.status';
   const byStatusParams = [...params, ...scopeParams];
-  const status = textParam(query, 'status');
-  if (status) { where += ' AND r.status = ?'; params.push(status); }
+  const status = multiParam(query, 'status', state.STATUSES);
+  if (status.length) { where += inList('r.status', status); params.push(...status); }
   const summaryWhere = where;
   const summaryParams = [...params];
   where += scopeWhere;

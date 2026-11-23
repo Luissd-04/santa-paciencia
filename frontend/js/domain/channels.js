@@ -34,10 +34,12 @@ function fillChannelControls(root = document) {
   const esc = AppModules.core.escapeHtml;
   root.querySelectorAll('select[data-channel-options]').forEach(select => {
     const all = select.dataset.channelOptions;
-    const current = select.value;
+    const current = Array.from(select.selectedOptions || []).map(option => option.value).filter(Boolean);
     select.innerHTML = (all ? `<option value="">${esc(all)}</option>` : '')
       + CHANNELS.map(c => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
-    if (current) select.value = current;
+    // Filtros múltiplos (<select multiple>) guardam vários valores; os outros um só.
+    if (select.multiple) Array.from(select.options).forEach(option => { option.selected = current.includes(option.value); });
+    else if (current[0]) select.value = current[0];
   });
   root.querySelectorAll('[data-channel-chips]').forEach(group => {
     group.innerHTML = PICKABLE.map(c => `<button type="button" class="resf-chip" data-canal="${c.id}" ${AppActions.attrs('click', 'index-mobile-canal')} aria-pressed="false">${esc(c.label)}</button>`).join('');

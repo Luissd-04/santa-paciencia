@@ -154,3 +154,11 @@ html[data-look="classico"] :is(.view[data-v2], .v2f, .v2-tel .modal-bg, .modal-b
 
 /* Painéis laterais recolhíveis (Calendário, Notificações): entram da direita. */
 @keyframes v2PanelIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+
+/* Filtros com várias opções (Reservas…): valor ativo em destaque e caixas de seleção. */
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg, .modal-bg.v2-janela) .app-select--multi.has-value .app-select-button { background: var(--v2-accent-soft); border-color: var(--v2-accent); color: var(--v2-accent); font-weight: 600; }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg, .modal-bg.v2-janela) .app-select-check { background: var(--v2-solid); border-color: var(--v2-muted); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg, .modal-bg.v2-janela) .app-select-option.is-selected .app-select-check { background: var(--v2-accent); border-color: var(--v2-accent); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg, .modal-bg.v2-janela) .app-select-option.is-selected .app-select-check::after { border-color: var(--v2-accent-ink); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg, .modal-bg.v2-janela) .app-select-clear { color: var(--v2-accent); border-top-color: var(--v2-line); }
+html[data-look] :is(.view[data-v2], .v2f, .v2-tel .modal-bg, .modal-bg.v2-janela) .app-select-option--check:focus-visible { outline-color: var(--v2-accent); }

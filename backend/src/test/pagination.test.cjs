@@ -90,6 +90,33 @@ test('reservas em curso e passadas usam o check-out e mantêm o histórico pagin
   assert.deepEqual(listReservations('scope', { scope: 'operational', today: '2030-01-15', status: 'pendente' }).summary.by_status, { confirmada: 3 });
   assert.equal(listReservations('scope', { scope: 'all', today: '2030-01-15', search: 'Past Older' }).pagination.total, 1);
 });
+test('filtros de reservas aceitam vários valores, validados e com o mesmo âmbito', () => {
+  db.exec(`INSERT INTO organizations(id,name,slug) VALUES('multi','Multi','multi'),('multi-other','Other','multi-other');
+    INSERT INTO accommodations(id,organization_id,name,type) VALUES('m1','multi','M1','alojamento'),('m2','multi','M2','alojamento'),('mo','multi-other','MO','alojamento');`);
+  const g = db.prepare('INSERT INTO guests(id,organization_id,name,email) VALUES(?,?,?,?)');
+  const r = db.prepare(`INSERT INTO reservations(id,organization_id,guest_id,accommodation_id,check_in,check_out,nights,num_guests,total_amount,amount_paid,status,payment_status,channel)
+    VALUES(?,?,?,?,'2030-03-01','2030-03-03',2,1,100,?,?,?,?)`);
+  for (const [id, org, acc, paid, status, pay, channel] of [
+    ['m-pend', 'multi', 'm1', 0, 'confirmada', 'pendente', 'direto'],
+    ['m-parc', 'multi', 'm2', 40, 'pendente', 'parcial', 'booking'],
+    ['m-pago', 'multi', 'm1', 100, 'confirmada', 'confirmado', 'airbnb'],
+    ['m-canc', 'multi', 'm2', 0, 'cancelada', 'pendente', 'direto'],
+    ['o-pend', 'multi-other', 'mo', 0, 'confirmada', 'pendente', 'direto'],
+  ]) { g.run(id, org, id, `${id}@example.invalid`); r.run(id, org, id, acc, paid, status, pay, channel); }
+  const ids = query => listReservations('multi', query).data.map(row => row.id).sort();
+  assert.deepEqual(ids({ payment_status: 'pendente' }), ['m-canc', 'm-pend'], 'um valor continua a funcionar');
+  assert.deepEqual(ids({ payment_status: 'pendente,parcial' }), ['m-canc', 'm-parc', 'm-pend']);
+  assert.deepEqual(ids({ payment_status: 'pendente, parcial,pendente', scope: 'active' }), ['m-parc', 'm-pend'], 'espaços e repetições ignorados; «active» exclui canceladas');
+  assert.deepEqual(ids({ status: 'pendente,cancelada' }), ['m-canc', 'm-parc']);
+  assert.deepEqual(ids({ channel: 'direto,airbnb' }), ['m-canc', 'm-pago', 'm-pend']);
+  assert.deepEqual(ids({ accommodation_id: 'm1,m2', payment_status: 'confirmado,parcial' }), ['m-pago', 'm-parc']);
+  assert.deepEqual(ids({ accommodation_id: 'm2,mo' }), ['m-canc', 'm-parc'], 'outra organização nunca entra');
+  assert.deepEqual(ids({ payment_status: 'pendente,parcial', status: 'confirmada', channel: 'direto,booking' }), ['m-pend'], 'filtros combinam-se com E');
+  assert.equal(listReservations('multi', { payment_status: 'pendente,parcial', scope: 'active' }).pagination.total, 2);
+  for (const query of [{ payment_status: 'pendente,xyz' }, { status: 'inventado' }, { channel: 'direto,nada' }, { precheckin: 'a,b' }, { payment_status: ['a', 'b'] }]) {
+    assert.throws(() => listReservations('multi', query), err => err.status === 400, JSON.stringify(query));
+  }
+});
 test('paginação conserva o estado das tarefas, preferindo a data atual da reserva', () => {
   const insert = db.prepare(`INSERT INTO operational_events(id,organization_id,title,date,reservation_id,auto_kind,status,created_at)
     VALUES(?,'a','Synthetic',?,'r120',?,?,?)`);

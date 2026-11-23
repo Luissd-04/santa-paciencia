@@ -4,8 +4,7 @@
               <i data-lucide="search"></i>
               <input type="text" id="search-input" placeholder="Pesquisar hóspede, ID..." data-on-input="index-search-reservas-6596e25" autocomplete="off">
             </div>
-            <select class="form-control" id="filter-estado" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" data-on-change="index-clear-res-exact-date-filter-097f687">
-              <option value="">Todos os estados</option>
+            <select class="form-control" id="filter-estado" multiple data-enhance-select data-app-select-nosearch="1" data-app-select-label="Estado" data-app-select-class="app-select--filter" data-on-change="index-clear-res-exact-date-filter-097f687">
               <option value="pre_reserva">Pré-reserva</option>
               <option value="pendente">Pendente</option>
               <option value="aguardar_pagamento">Aguarda sinal</option>
@@ -47,22 +46,20 @@
               </button>
             </div>
             <div class="toolbar reservas-toolbar page-filters-body">
-              <select class="form-control" id="filter-suite" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter app-select--filter-wide" data-on-change="index-render-tabela-3c1624a">
-                <option value="">Todas as suites</option>
+              <select class="form-control" id="filter-suite" multiple data-enhance-select data-app-select-nosearch="1" data-app-select-label="Alojamento" data-app-select-class="app-select--filter app-select--filter-wide" data-on-change="index-render-tabela-3c1624a">
               </select>
-              <select class="form-control" id="filter-canal" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter" data-channel-options="Todos os canais" data-on-change="index-render-tabela-3c1624a">
+              <select class="form-control" id="filter-canal" multiple data-enhance-select data-app-select-nosearch="1" data-app-select-label="Canal" data-app-select-class="app-select--filter" data-channel-options="" data-on-change="index-render-tabela-3c1624a">
               </select>
-              <select class="form-control" id="filter-pagamento" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter app-select--filter-wide" data-on-change="index-render-tabela-3c1624a">
-                <option value="">Todos os pagamentos</option>
-                <option value="confirmado">Completo</option>
+              <select class="form-control" id="filter-pagamento" multiple data-enhance-select data-app-select-nosearch="1" data-app-select-label="Pagamento" data-app-select-class="app-select--filter app-select--filter-wide" data-on-change="index-render-tabela-3c1624a">
+                <option value="pendente">Pendente</option>
                 <option value="parcial">Parcial</option>
-                <option value="pendente">Não pago</option>
+                <option value="confirmado">Pago</option>
+                <option value="reembolsado">Reembolsado</option>
               </select>
-              <select class="form-control" id="filter-precheckin" data-enhance-select data-app-select-nosearch="1" data-app-select-class="app-select--filter app-select--filter-wide" data-on-change="index-render-tabela-3c1624a">
-                <option value="">Todos os pré-check-ins</option>
-                <option value="nao_enviado">Pré-check-in não enviado</option>
-                <option value="enviado">Pré-check-in enviado</option>
-                <option value="preenchido">Pré-check-in preenchido</option>
+              <select class="form-control" id="filter-precheckin" multiple data-enhance-select data-app-select-nosearch="1" data-app-select-label="Pré-check-in" data-app-select-class="app-select--filter app-select--filter-wide" data-on-change="index-render-tabela-3c1624a">
+                <option value="nao_enviado">Não enviado</option>
+                <option value="enviado">Enviado</option>
+                <option value="preenchido">Preenchido</option>
               </select>
               <div class="reservas-date-range" style="display:flex;align-items:center;gap:4px;">
                 <input type="date" class="form-control" id="filter-date-from" title="Check-in a partir de" data-dp-no-button data-on-change="index-clear-res-exact-date-filter-097f687" style="width:auto;" autocomplete="off">

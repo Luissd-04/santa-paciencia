@@ -578,3 +578,48 @@ table td {
 .list-pagination button:disabled { opacity:.45; cursor:default; }
 .list-pagination button:focus-visible { outline:2px solid var(--marca); outline-offset:3px; }
 .list-pagination-label { color:var(--cinza); font-weight:500; white-space:nowrap; }
+
+/* Filtros com várias opções (<select multiple>): caixas de seleção e valor ativo realçado. */
+.app-select--multi { max-width: min(300px, 100%); }
+.app-select--multi.has-value .app-select-button {
+  border-color: rgba(132,52,36,.55);
+  background: rgba(132,52,36,.08);
+  color: #843424;
+  font-weight: 600;
+}
+.app-select-option--check { display: flex; align-items: center; gap: 10px; }
+.app-select-check {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid rgba(26,46,74,.35);
+  border-radius: 4px;
+  background: var(--branco);
+  display: grid;
+  place-items: center;
+}
+.app-select-option.is-selected .app-select-check { background: #843424; border-color: #843424; }
+.app-select-option.is-selected .app-select-check::after {
+  content: "";
+  width: 4px;
+  height: 8px;
+  margin-top: -2px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.app-select-option--check:focus-visible { outline: 2px solid #843424; outline-offset: -2px; }
+.app-select-clear {
+  width: 100%;
+  margin-top: 4px;
+  padding: 9px 10px;
+  border: 0;
+  border-top: 1px solid rgba(26,46,74,.1);
+  background: none;
+  color: #843424;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}

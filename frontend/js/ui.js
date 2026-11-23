@@ -70,7 +70,27 @@
     return typeof AppModules.core.escapeHtml === 'function' ? AppModules.core.escapeHtml(text) : text;
   }
 
+  // Valores escolhidos (sem a opção «todos», de valor vazio): um só para o
+  // <select> normal, vários para <select multiple>.
+  function selectedValues(select) {
+    return Array.from(select?.selectedOptions || []).map(option => option.value).filter(Boolean);
+  }
+  function setSelectedValues(select, values) {
+    const wanted = new Set((values || []).map(String));
+    Array.from(select?.options || []).forEach(option => { option.selected = Boolean(option.value) && wanted.has(option.value); });
+    refreshSelect(select);
+  }
+
+  // Texto do botão de um filtro múltiplo: «Pagamento: Pendente, Parcial».
+  function multiLabelText(select) {
+    const prefix = select.dataset.appSelectLabel || '';
+    const chosen = Array.from(select.selectedOptions).filter(option => option.value);
+    const text = chosen.length ? chosen.map(optionLabel).join(', ') : (select.dataset.appSelectAll || 'Todos');
+    return prefix ? `${prefix}: ${text}` : text;
+  }
+
   function renderDropdownItems(select, menu, search = '') {
+    if (select.multiple) return renderMultiItems(select, menu);
     const options = Array.from(select.options || []);
     const scored = options
       .map(option => ({ option, score: fuzzyScore(search, `${optionLabel(option)} ${option.value}`) }))
@@ -84,6 +104,17 @@
       </button>
     `).join('');
   }
+
+  // Lista com caixas de seleção: cada clique liga/desliga uma opção.
+  function renderMultiItems(select, menu) {
+    const options = Array.from(select.options).filter(option => option.value !== '');
+    menu.innerHTML = options.map(option => `
+      <button type="button" role="option" tabindex="-1" aria-selected="${option.selected}" class="app-select-option app-select-option--check${option.selected ? ' is-selected' : ''}" data-value="${escapeAttr(option.value)}"${option.disabled ? ' disabled' : ''}>
+        <span class="app-select-check" aria-hidden="true"></span><span class="app-select-option-text">${optionLabelHtml(option)}</span>
+      </button>`).join('') + (options.some(option => option.selected)
+        ? '<button type="button" class="app-select-clear" data-clear="1">Limpar seleção</button>' : '');
+  }
+  const escapeAttr = value => (typeof AppModules.core.escapeHtml === 'function' ? AppModules.core.escapeHtml(value) : String(value ?? ''));
 
   function closeDropdown(wrapper) {
     wrapper?.classList.remove('is-open');
@@ -119,12 +150,13 @@
     if (options.placeholder || select.dataset.placeholder) {
       select.dataset.placeholder = options.placeholder || select.dataset.placeholder;
     }
+    const multiple = select.multiple;
     select.classList.add('app-native-select');
     select.tabIndex = -1;
     select.setAttribute('aria-hidden', 'true');
 
     const wrapper = document.createElement('div');
-    wrapper.className = `app-select ${options.className || ''}`.trim();
+    wrapper.className = `app-select ${multiple ? 'app-select--multi ' : ''}${options.className || ''}`.trim();
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'app-select-button';
@@ -147,9 +179,19 @@
     const listId = `app-select-list-${Math.random().toString(36).slice(2, 10)}`;
     list.id = listId;
     list.setAttribute('role', 'listbox');
+    if (multiple) list.setAttribute('aria-multiselectable', 'true');
     button.setAttribute('aria-controls', listId);
     const labelText = select.labels?.[0]?.textContent?.trim() || select.getAttribute('aria-label') || 'Selecionar opção';
     const updateButton = () => {
+      if (multiple) {
+        const text = multiLabelText(select);
+        button.textContent = text;
+        button.title = text;
+        wrapper.classList.toggle('has-value', selectedValues(select).length > 0);
+        button.disabled = select.disabled;
+        button.setAttribute('aria-label', text);
+        return;
+      }
       button.innerHTML = selectedLabelHtml(select);
       button.disabled = select.disabled;
       button.setAttribute('aria-label', `${labelText}: ${selectedLabel(select)}`);
@@ -199,6 +241,24 @@
     });
     menu.addEventListener('mousedown', event => event.preventDefault());
     menu.addEventListener('click', event => {
+      if (multiple) {
+        event.stopPropagation(); // o menu é redesenhado: o alvo sai do DOM e fecharia o menu
+        if (event.target.closest('.app-select-clear')) {
+          Array.from(select.options).forEach(option => { option.selected = false; });
+        } else {
+          const item = event.target.closest('.app-select-option');
+          if (!item) return;
+          const option = Array.from(select.options).find(candidate => candidate.value === item.dataset.value);
+          if (option) option.selected = !option.selected;
+        }
+        // O menu fica aberto para marcar várias opções seguidas.
+        const focused = event.target.closest('.app-select-option')?.dataset.value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        updateButton();
+        renderDropdownItems(select, list);
+        if (focused) list.querySelector(`.app-select-option[data-value="${CSS.escape(focused)}"]`)?.focus({ preventScroll: true });
+        return;
+      }
       const item = event.target.closest('.app-select-option');
       if (!item) return;
       select.value = item.dataset.value;
@@ -544,6 +604,8 @@
     enhanceSelects,
     refreshSelect,
     refreshDropdowns,
+    selectedValues,
+    setSelectedValues,
     openModal,
     closeModal,
     openDialog,

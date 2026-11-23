@@ -35,8 +35,8 @@ test('painel: hoje por hora, o que precisa de atenção e o valor por receber', 
   const today = '2030-07-06';
   db.prepare(`INSERT INTO accommodations(id,organization_id,name,type,price_per_night,max_guests,checkin_time,checkout_time) VALUES('u',?,'Suite','alojamento',100,2,'15:00','11:00')`).run(org.id);
   const guest = db.prepare('INSERT INTO guests(id,organization_id,name,email) VALUES(?,?,?,?)');
-  const res = db.prepare(`INSERT INTO reservations(id,organization_id,guest_id,accommodation_id,check_in,check_out,nights,num_guests,total_amount,amount_paid,status,arrival_time,precheckin_submitted_at)
-    VALUES(?,?,?,'u',?,?,2,2,?,?,?,?,?)`);
+  const res = db.prepare(`INSERT INTO reservations(id,organization_id,guest_id,accommodation_id,check_in,check_out,nights,num_guests,total_amount,amount_paid,status,arrival_time,precheckin_submitted_at,payment_status)
+    VALUES(?,?,?,'u',?,?,2,2,?,?,?,?,?,?)`);
   const rows = [
     ['chega', 'Beatriz', today, addDays(today, 2), 280, 80, 'aguardar_pagamento', '16:30', null],
     ['sai', 'Ana', addDays(today, -2), today, 200, 200, 'check_in', null, '2030-07-01'],
@@ -47,7 +47,7 @@ test('painel: hoje por hora, o que precisa de atenção e o valor por receber', 
   ];
   for (const [id, name, ci, co, total, paid, status, arrival, pc] of rows) {
     guest.run(`g-${id}`, org.id, name, `${id}@example.invalid`);
-    res.run(id, org.id, `g-${id}`, ci, co, total, paid, status, arrival, pc);
+    res.run(id, org.id, `g-${id}`, ci, co, total, paid, status, arrival, pc, paid >= total ? 'confirmado' : paid > 0 ? 'parcial' : 'pendente');
   }
   db.prepare(`INSERT INTO operational_events(id,organization_id,title,type,date,start_time,status) VALUES('t1',?,'Limpeza','limpeza',?,'12:00','planeado')`).run(org.id, today);
   db.prepare(`INSERT INTO operational_events(id,organization_id,title,type,date,status,reservation_id,auto_kind) VALUES('t2',?,'Check-out','checkout',?,'concluido','sai','checkout')`).run(org.id, today);

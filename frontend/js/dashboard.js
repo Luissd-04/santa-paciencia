@@ -234,16 +234,17 @@ async function quickScanReceiptFromDashboard() {
   document.getElementById('receipt-file-input')?.click();
 }
 
+// «Por receber»: reservas com pagamento pendente ou parcial, não canceladas, de
+// qualquer data — o mesmo conjunto que o cartão do Painel conta e soma.
 async function goToPendingPayments() {
   await AppModules.core.showView('reservas');
   setTimeout(() => {
-    const fp = document.getElementById('filter-pagamento');
-    if (fp) {
-      fp.value = 'pendente';
-      AppUI.refreshDropdowns(document.getElementById('view-reservas'));
-    }
-    AppModules.reservas.renderTabela();
-    AppModules.reservas.renderMobileCards();
+    const reservas = AppModules.reservas;
+    reservas.clearReservasFilters(); // parte de uma lista sem outros filtros
+    reservas.setFilterValues('filter-pagamento', ['pendente', 'parcial']);
+    reservas.resAllActive = true;
+    reservas.renderTabela();
+    reservas.renderMobileCards();
   }, 50);
 }
 

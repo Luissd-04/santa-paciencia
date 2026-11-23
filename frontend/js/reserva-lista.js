@@ -4,7 +4,10 @@ AppModules.define('reservas', {
   clearResExactDateFilter: { get: () => clearResExactDateFilter },
   clearResIdFilter: { get: () => clearResIdFilter },
   getFilteredReservas: { get: () => getFilteredReservas },
+  filterValues: { get: () => filterValues },
   hasControlFilters: { get: () => hasControlFilters },
+  resAllActive: { get: () => resAllActive, set: value => { resAllActive = Boolean(value); } },
+  setFilterValues: { get: () => setFilterValues },
   resIdFilter: { get: () => resIdFilter },
   showOnly: { get: () => showOnly },
   preCheckinUrl: { get: () => preCheckinUrl },
@@ -90,32 +93,47 @@ function showOnly(ids, label) {
   AppModules.reservas.renderTabela();
 }
 
+// Filtros da lista que aceitam vários valores (<select multiple>).
+const MULTI_FILTERS = ['filter-estado', 'filter-suite', 'filter-canal', 'filter-pagamento', 'filter-precheckin'];
+
+// Valores escolhidos num filtro múltiplo (lista vazia = sem filtro).
+function filterValues(id) {
+  return AppUI.selectedValues(document.getElementById(id));
+}
+
+function setFilterValues(id, values) {
+  const select = document.getElementById(id);
+  if (select) AppUI.setSelectedValues(select, values);
+}
+
+// «Por receber» do Painel: pagamento pendente + parcial em todas as datas, sem canceladas.
+let resAllActive = false;
+
 // Há algum filtro escolhido nos controlos (pesquisa, estado, alojamento, canal,
 // pagamento, pré-check-in, datas ou data exata)?
 function hasControlFilters() {
   const value = id => document.getElementById(id)?.value || '';
-  return Boolean(['search-input', 'mobile-search-input', 'filter-estado', 'filter-suite', 'filter-canal', 'filter-pagamento', 'filter-precheckin', 'filter-date-from', 'filter-date-to'].some(value) || resExactDateFilter);
+  return Boolean(['search-input', 'mobile-search-input', 'filter-date-from', 'filter-date-to'].some(value)
+    || MULTI_FILTERS.some(id => filterValues(id).length) || resExactDateFilter);
 }
 
-// Os chips mobile são apenas UI sobre o dropdown filter-estado — fonte única
-// de verdade. syncMobileChips() realinha o chip ativo com o valor do dropdown.
+// Os chips mobile são apenas UI sobre o filtro filter-estado — fonte única
+// de verdade. «Todas» limpa; os outros ligam/desligam o estado (vários possíveis).
 function setMobileChip(el, filter) {
-  const fe = document.getElementById('filter-estado');
-  if (fe) {
-    fe.value = filter;
-    AppUI.refreshDropdowns(document.getElementById('view-reservas'));
-  }
+  const chosen = filterValues('filter-estado');
+  setFilterValues('filter-estado', !filter ? [] : chosen.includes(filter) ? chosen.filter(v => v !== filter) : [...chosen, filter]);
   clearResExactDateFilter();
   clearResIdFilter();
-  syncMobileChips(filter);
   AppModules.reservas.renderTabela();
 }
 
-function syncMobileChips(filterValue) {
+function syncMobileChips(values = []) {
   // data-filter, não o onclick (inexistente desde a migração para
   // data-on-click — o match nunca acontecia e nenhum chip ficava ativo).
+  const chosen = Array.isArray(values) ? values : (values ? [values] : []);
   document.querySelectorAll('.mobile-filter-chips .chip').forEach(chip => {
-    chip.classList.toggle('active', chip.dataset.filter === (filterValue || ''));
+    const filter = chip.dataset.filter || '';
+    chip.classList.toggle('active', filter ? chosen.includes(filter) : !chosen.length);
   });
 }
 
@@ -183,15 +201,12 @@ function hasActiveReservasFilter() {
   const q = document.getElementById('search-input')?.value || document.getElementById('mobile-search-input')?.value || '';
   return Boolean(
     q ||
-    document.getElementById('filter-estado')?.value ||
-    document.getElementById('filter-suite')?.value ||
-    document.getElementById('filter-canal')?.value ||
-    document.getElementById('filter-pagamento')?.value ||
-    document.getElementById('filter-precheckin')?.value ||
+    MULTI_FILTERS.some(id => filterValues(id).length) ||
     document.getElementById('filter-date-from')?.value ||
     document.getElementById('filter-date-to')?.value ||
     resExactDateFilter ||
     resIdFilter ||
+    resAllActive ||
     reservasPeriodScope !== 'operational'
   );
 }
@@ -218,6 +233,7 @@ AppActions.register({
 // Limpeza da funcionalidade ao sair ou trocar de organização.
 AppModules.onReset('reserva-lista.js', () => {
   resExactDateFilter = null;
+  resAllActive = false;
   reservasPeriodScope = 'operational';
   AppModules.core.SS.set('res:period', 'operational');
 });
