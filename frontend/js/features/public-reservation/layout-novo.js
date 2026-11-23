@@ -38,9 +38,13 @@ function afterLanding() {
   const images = B.allImages();
   // Topo: o recorte 16:9 da capa, com o ponto principal no que fica à vista.
   const hero = p.cover ? B.coverOf(p, 'landscape') : { src: p.cover_image || images[0], position: '50% 50%' };
-  const cover = B.mediaThumb(hero.src, 1600);
-  if (cover) { B.$('pn-hero').style.backgroundImage = `url(${JSON.stringify(cover)})`; B.$('pn-hero').style.backgroundPosition = hero.position; }
-  B.$('pn-hero').classList.toggle('no-photo', !cover);
+  // A foto é um <img> (não um fundo) para ter srcset: 480/1024/1600/2048 px
+  // até à largura do recorte, que ocupa o ecrã todo.
+  const attrs = B.imgAttrs(hero.src, { maxWidth: hero.maxWidth, sizes: '100vw' });
+  const box = B.$('pn-hero');
+  box.querySelector('.pn-hero-img')?.remove();
+  if (attrs) box.insertAdjacentHTML('afterbegin', `<img class="pn-hero-img" ${attrs} alt="" decoding="async" fetchpriority="high" style="object-position:${esc(hero.position)}">`);
+  box.classList.toggle('no-photo', !attrs);
   const photos = B.$('pn-photos-btn');
   photos.hidden = images.length < 2;
   photos.textContent = `Ver as ${images.length} fotos`;
@@ -143,9 +147,21 @@ function dialog(className, html) {
   return el;
 }
 
-function photosHtml(images, name) {
+// Largura conhecida dos ficheiros (a API só a traz para as capas).
+function knownWidth(url) {
+  const all = [...(B.state.property?.images || []), ...B.state.units.flatMap(u => u.images || [])];
+  const hit = all.find(img => B.safeMediaUrl(img?.url) === url && img.w > 0);
+  return hit?.w;
+}
+
+// `images`: endereços ou { url, w } (w = largura do ficheiro, quando conhecida).
+function photosHtml(images, name, sizes = '(max-width: 640px) 90vw, 360px') {
   const loading = B.embed?.active ? 'eager' : 'lazy';
-  return images.map((url, i) => `<img src="${esc(B.mediaThumb(url, 1024) || url)}" alt="${esc(`${name}, fotografia ${i + 1}`)}" loading="${loading}" decoding="async">`).join('');
+  return images.map((img, i) => {
+    const url = typeof img === 'string' ? img : img.url;
+    const attrs = B.imgAttrs(url, { maxWidth: img?.w || knownWidth(url), sizes }) || `src="${esc(url)}"`;
+    return `<img ${attrs} alt="${esc(`${name}, fotografia ${i + 1}`)}" loading="${loading}" decoding="async">`;
+  }).join('');
 }
 
 function openGallery(name, images) {
@@ -155,7 +171,8 @@ function openGallery(name, images) {
 function openUnit(unit) {
   const av = B.availabilityFor(unit.id);
   const blocked = av && !av.available;
-  const images = [...new Set((unit.images || []).map(img => B.safeMediaUrl(img?.url)).filter(Boolean))];
+  const seen = new Set();
+  const images = (unit.images || []).map(img => ({ url: B.safeMediaUrl(img?.url), w: img?.w })).filter(img => img.url && !seen.has(img.url) && seen.add(img.url));
   const facts = [
     `Até ${plural(Number(unit.max_guests) || 1, 'hóspede', 'hóspedes')}`,
     unit.area ? `${unit.area} m²` : '',
@@ -174,7 +191,7 @@ function openUnit(unit) {
     </dl>`;
   }
   const el = dialog('pn-unit', `
-    ${images.length ? `<div class="pn-unit-photos">${photosHtml(images.slice(0, 3), unit.name)}</div>` : ''}
+    ${images.length ? `<div class="pn-unit-photos">${photosHtml(images.slice(0, 3), unit.name, '(max-width: 640px) 90vw, 560px')}</div>` : ''}
     <h2>${esc(unit.name)}</h2>
     <ul class="pn-chips">${facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul>
     ${unit.description ? `<p>${esc(unit.description)}</p>` : ''}

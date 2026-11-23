@@ -235,7 +235,7 @@ app.use('/uploads', (req, res, next) => {
   res.type(file.type);
   res.sendFile(file.file, { dotfiles: 'allow' });
 }, async (req, res, next) => {
-  // `?w=160|480|1024|1600`: miniatura WebP gerada uma vez e guardada em disco.
+  // `?w=160|480|1024|1600|2048`: miniatura WebP gerada uma vez e guardada em disco.
   if (req.query.w === undefined) return next();
   const { thumbnail, THUMB_WIDTHS } = require('./services/imageOptimizer');
   const width = Number(req.query.w);

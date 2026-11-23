@@ -504,7 +504,15 @@ AppActions.register({
   'prop-home': () => core().showView('dashboard'),
   'prop-incoming': (el, event, args) => answerIncoming(el, args[0]),
   'prop-ticket': (el, event, args) => { event.preventDefault(); core().showView('ajuda').then(() => AppModules.ajuda.requestTicket?.(args[0])); },
-  'prop-todo': (el, event, args) => {
+  'prop-todo': async (el, event, args) => {
+    // Capa pequena: abre a ficha do alojamento na secção Fotos.
+    if (args[0] === 'alojamentos') {
+      const id = String(args[1] || '').replace(/^cover:/, '');
+      core().SS.set('aloj:sec', 'fotos');
+      await core().showView('alojamentos');
+      AppModules.alojamentos.openAlojamento?.(id, 'imagens');
+      return;
+    }
     showSection(args[0]);
     // Leva o cursor ao campo em falta (Empresa).
     setTimeout(() => root()?.querySelector(`[data-prop-panel="${args[0]}"] [name="${args[1]}"]`)?.focus(), 350);

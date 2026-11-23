@@ -89,21 +89,25 @@
     } catch { return safe; }
   }
 
-  // Capa do topo: miniaturas de 1024 e 1600 px, conforme o ecrã. Com recortes
-  // (portal.cover): a faixa 3:1 no computador e a paisagem 16:9 no telemóvel
-  // e tablet (o topo é mais alto do que largo em proporção), com o ponto
-  // principal no que fica à vista.
+  // Capa do topo: srcset de 480 a 2048 px (domain/responsive-image.js), só até
+  // à largura do recorte. Com recortes (portal.cover): a faixa 3:1 no
+  // computador e a paisagem 16:9 no telemóvel e tablet (o topo é mais alto do
+  // que largo em proporção), com o ponto principal no que fica à vista.
   function heroImage(value, cover) {
     let position = '';
+    let maxWidth = null;
     if (cover?.variants) {
       const format = matchMedia('(max-width: 959px)').matches ? 'landscape' : 'banner';
       value = cover.variants[format] || value;
       position = cover.position?.[format] || '';
+      maxWidth = window.ResponsiveImage?.publicCoverWidth(cover, format) || null;
     }
-    const src = mediaThumb(value, 1600);
-    if (!src) return null;
-    const small = mediaThumb(value, 1024);
-    return { src, srcset: small !== src ? `${small} 1024w, ${src} 1600w` : '', position };
+    const safe = safeMediaUrl(value);
+    if (!safe) return null;
+    const RI = window.ResponsiveImage;
+    if (!RI) { const src = mediaThumb(safe, 1600); return src ? { src, srcset: '', sizes: '100vw', position } : null; }
+    const r = RI.build(safe, { maxWidth, sizes: '100vw' });
+    return r.src ? { ...r, position } : null;
   }
 
   function safeMediaUrl(value) {

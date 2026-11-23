@@ -2,7 +2,7 @@ const { db } = require('../config/database');
 const path = require('path');
 const fs = require('fs');
 const { isAllowedImageUrl, removeUnreferencedImage, detectImageMagicType } = require('../services/mediaStorage');
-const { optimizeUpload, optimizeLogoUpload, orientedSize, rotateImage, extractToBuffer, trimSuggestion } = require('../services/imageOptimizer');
+const { optimizeUpload, optimizeLogoUpload, COVER_MAX_SIDE, orientedSize, rotateImage, extractToBuffer, trimSuggestion } = require('../services/imageOptimizer');
 const crops = require('../services/imageCrops');
 const { uploadPath } = require('../services/mediaStorage');
 const COMMON_AREAS_KEY = 'areas_comuns';
@@ -53,7 +53,7 @@ async function uploadCover(req, res) {
   const parsed = parseImageDataUri(req.body.image);
   if (!parsed) return res.status(400).json({ error: 'Formato de imagem inválido. Tipos aceites: JPEG, PNG, GIF, WebP, AVIF.' });
 
-  const optimized = await optimizeUpload(parsed.data, parsed.ext);
+  const optimized = await optimizeUpload(parsed.data, parsed.ext, { maxSide: COVER_MAX_SIDE });
   const filename = `cover_${require('crypto').randomUUID()}.${optimized.ext}`;
   const filepath = path.join(UPLOADS_DIR, filename);
   fs.writeFileSync(filepath, optimized.data);
@@ -156,6 +156,16 @@ async function rotateGalleryImage(req, res) {
   removeUnreferencedImage(url);
   const fresh = db.prepare('SELECT * FROM accommodations WHERE id = ?').get(id);
   res.json({ success: true, url: next, images: JSON.parse(fresh.images || '{}'), ...coverFields(fresh) });
+}
+
+// Dimensões das fotografias da galeria do alojamento (só as próprias, não as
+// herdadas), para o selo «Fotografia pequena» na grelha.
+async function gallerySizes(req, res) {
+  const row = db.prepare('SELECT images FROM accommodations WHERE id = ? AND organization_id = ?').get(req.params.id, req.user.organization_id);
+  if (!row) return res.status(404).json({ error: 'Alojamento não encontrado' });
+  let images = {};
+  try { images = row.images ? JSON.parse(row.images) : {}; } catch { /* sem galeria */ }
+  res.json({ success: true, sizes: await require('../services/imageSizes').gallerySizes(images) });
 }
 
 function removeCover(req, res) {
@@ -343,6 +353,6 @@ function patchImages(req, res) {
 
 
 module.exports = {
-  uploadCover, removeCover, saveCoverCrops, uploadLogo, removeLogo, trimLogo, saveLogoCrops,
+  uploadCover, gallerySizes, removeCover, saveCoverCrops, uploadLogo, removeLogo, trimLogo, saveLogoCrops,
   uploadImages, deleteImage, patchImages, rotateGalleryImage, parseImageDataUri, UPLOADS_DIR,
 };

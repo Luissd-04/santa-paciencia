@@ -1,4 +1,4 @@
-const { uploadCover, removeCover, saveCoverCrops, uploadLogo, removeLogo, trimLogo, saveLogoCrops, uploadImages, deleteImage, patchImages, rotateGalleryImage, parseImageDataUri, UPLOADS_DIR } = require('./accommodationMediaController');
+const { uploadCover, gallerySizes, removeCover, saveCoverCrops, uploadLogo, removeLogo, trimLogo, saveLogoCrops, uploadImages, deleteImage, patchImages, rotateGalleryImage, parseImageDataUri, UPLOADS_DIR } = require('./accommodationMediaController');
 const { db } = require('../config/database');
 const { v4: uuidv4 } = require('uuid');
 const { purgeReservations } = require('../services/reservationPurge');
@@ -805,4 +805,4 @@ function deleteBlock(req, res) {
 }
 
 module.exports = {
-  emailReadiness, getAll, getById, create, update, remove, uploadCover, removeCover, saveCoverCrops, uploadLogo, removeLogo, trimLogo, saveLogoCrops, uploadImages, deleteImage, patchImages, rotateGalleryImage, getSettings, saveSettings, getPricingPeriods, createPricingPeriod, updatePricingPeriod, deletePricingPeriod, bulkCreatePricingPeriods, listBlocks, createBlock, updateBlock, deleteBlock, parseImageDataUri, UPLOADS_DIR };
+  emailReadiness, getAll, getById, create, update, remove, uploadCover, gallerySizes, removeCover, saveCoverCrops, uploadLogo, removeLogo, trimLogo, saveLogoCrops, uploadImages, deleteImage, patchImages, rotateGalleryImage, getSettings, saveSettings, getPricingPeriods, createPricingPeriod, updatePricingPeriod, deletePricingPeriod, bulkCreatePricingPeriods, listBlocks, createBlock, updateBlock, deleteBlock, parseImageDataUri, UPLOADS_DIR };

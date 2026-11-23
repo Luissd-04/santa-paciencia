@@ -8,6 +8,7 @@ AppModules.define('booking', {
   escapeHtml: { get: () => escapeHtml },
   mediaThumb: { get: () => mediaThumb },
   coverOf: { get: () => coverOf },
+  imgAttrs: { get: () => imgAttrs },
   safeMediaUrl: { get: () => safeMediaUrl },
   PHONE_CODES: { get: () => PHONE_CODES },
   state: { get: () => state },
@@ -55,11 +56,24 @@ function mediaThumb(value, width) {
 
 // Capa no formato do sítio (recorte do servidor, `cover.variants`) e a
 // posição do ponto principal dentro dele; sem capa própria, a 1.ª fotografia.
+// `maxWidth`: largura do recorte no servidor (quando conhecida), para o srcset.
 function coverOf(item, format) {
+  const variant = item?.cover?.variants?.[format];
   return {
-    src: item?.cover?.variants?.[format] || item?.cover_image || item?.images?.[0]?.url || '',
+    src: variant || item?.cover_image || item?.images?.[0]?.url || '',
     position: item?.cover?.position?.[format] || '50% 50%',
+    maxWidth: variant ? window.ResponsiveImage?.publicCoverWidth(item.cover, format) : null,
   };
+}
+
+// Atributos src/srcset/sizes de uma fotografia (domain/responsive-image.js);
+// sem ele, uma miniatura única de 1024 px. `maxWidth`: largura do ficheiro.
+function imgAttrs(url, { maxWidth, sizes = '100vw' } = {}) {
+  const safe = safeMediaUrl(url);
+  if (!safe) return '';
+  const RI = window.ResponsiveImage;
+  if (!RI) return `src="${escapeHtml(mediaThumb(safe, 1024))}"`;
+  return RI.attrs(safe, { maxWidth, sizes });
 }
 
 const searchParams = new URLSearchParams(location.search);

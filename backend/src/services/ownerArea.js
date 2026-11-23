@@ -398,6 +398,10 @@ function summary(organizationId) {
   if (!company.fiscal_address) todo.push({ key: 'fiscal_address', section: 'empresa', text: 'Falta a morada fiscal.', action: 'Completar' });
   if (!company.guest_email) todo.push({ key: 'guest_email', section: 'empresa', text: 'Sem email de contacto para hóspedes — os emails saem sem ele quando o alojamento não tem o seu.', action: 'Completar' });
   if (!brand.logo_url) todo.push({ key: 'logo', section: 'marca', text: 'Sem logótipo da organização — a barra lateral usa o do alojamento principal.', action: 'Carregar' });
+  for (const cover of require('./imageSizes').smallCovers(organizationId)) {
+    todo.push({ key: 'cover:' + cover.id, section: 'alojamentos', accommodation_id: cover.id,
+      text: `A capa de ${cover.name} tem só ${cover.width} px e aparece desfocada.`, action: 'Ver fotografias' });
+  }
   const last = lastBackupAt(organizationId);
   if (!last) todo.push({ key: 'backup', section: 'dados', text: 'Ainda não descarregou nenhuma cópia de segurança completa.', action: 'Descarregar' });
   return {

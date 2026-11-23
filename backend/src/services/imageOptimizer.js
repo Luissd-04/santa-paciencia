@@ -12,8 +12,12 @@ const sharp = require('sharp');
 const { UPLOADS_DIR, uploadPath } = require('./mediaStorage');
 
 const MAX_SIDE = 2000;
+// A capa aparece em ecrãs grandes e de densidade alta (topo da página pública
+// e do portal): 2560 px dão para 2048 px de largura mesmo num recorte 16:9
+// que aproveite quase toda a fotografia. A galeria mantém MAX_SIDE.
+const COVER_MAX_SIDE = 2560;
 const MAX_INPUT_PIXELS = 40000000;
-const THUMB_WIDTHS = new Set([160, 480, 1024, 1600]);
+const THUMB_WIDTHS = new Set([160, 480, 1024, 1600, 2048]);
 const THUMBS_DIR = path.join(UPLOADS_DIR, '.thumbs');
 
 // Marcas não são fotografias: conservar os bytes e a resolução de PNG/JPEG/
@@ -34,13 +38,13 @@ async function optimizeLogoUpload(buffer, ext) {
 // Fotografias → JPEG. PNG com transparência (logótipos, usados também nos
 // emails, onde o Outlook não aceita WebP) mantém-se PNG. GIF fica intacto
 // para não perder animação.
-async function optimizeUpload(buffer, ext) {
+async function optimizeUpload(buffer, ext, { maxSide = MAX_SIDE } = {}) {
   await validateImage(buffer);
   if (ext === 'gif') return { data: buffer, ext };
   try {
     const image = sharp(buffer, { failOn: 'error' }).rotate();
     const meta = await image.metadata();
-    const resized = image.resize({ width: MAX_SIDE, height: MAX_SIDE, fit: 'inside', withoutEnlargement: true });
+    const resized = image.resize({ width: maxSide, height: maxSide, fit: 'inside', withoutEnlargement: true });
     let out;
     if (ext === 'png' && meta.hasAlpha) {
       out = { data: await resized.png({ compressionLevel: 9 }).toBuffer(), ext: 'png' };
@@ -49,7 +53,7 @@ async function optimizeUpload(buffer, ext) {
     } else {
       out = { data: await resized.jpeg({ quality: 82, mozjpeg: true }).toBuffer(), ext: 'jpg' };
     }
-    const larger = (meta.width || 0) > MAX_SIDE || (meta.height || 0) > MAX_SIDE;
+    const larger = (meta.width || 0) > maxSide || (meta.height || 0) > maxSide;
     // Fotografia tirada na vertical pelo telemóvel: a orientação EXIF já foi
     // aplicada aos píxeis; o original, com a etiqueta, ficaria deitado em
     // quem a ignore (e os recortes não bateriam certo).
@@ -190,6 +194,6 @@ async function trimSuggestion(file, threshold = 12) {
 }
 
 module.exports = {
-  validateImage, MAX_SIDE, THUMB_WIDTHS, optimizeUpload, optimizeLogoUpload, thumbnail, removeThumbnails,
+  validateImage, MAX_SIDE, COVER_MAX_SIDE, THUMB_WIDTHS, optimizeUpload, optimizeLogoUpload, thumbnail, removeThumbnails,
   cropped, orientedSize, rotateImage, extractToBuffer, trimSuggestion,
 };

@@ -42,7 +42,13 @@ function reservationCover(req, reservation) {
 function normalizeImages(req, accommodation) {
   const images = parseJson(accommodation.images, {});
   const entries = [];
-  if (accommodation.cover_image) entries.push({ url: imageUrl(req, accommodation.cover_image), label: 'Capa' });
+  if (accommodation.cover_image) {
+    // `w`: largura do ficheiro da capa (quando conhecida), para a página só pedir larguras que ele tem.
+    const size = require('../services/imageCrops').parse(accommodation.cover_size);
+    const entry = { url: imageUrl(req, accommodation.cover_image), label: 'Capa' };
+    if (size?.w > 0) entry.w = size.w;
+    entries.push(entry);
+  }
   Object.entries(images || {}).forEach(([key, list]) => {
     if (key === '_sections' || !Array.isArray(list)) return;
     list.forEach(url => entries.push({ url: imageUrl(req, url), label: key }));

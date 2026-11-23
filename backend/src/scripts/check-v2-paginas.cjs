@@ -269,7 +269,11 @@ async function main() {
   const capa = roomCard.locator('.av2-photo img');
   // Cartão: o recorte 16:9 da capa (PENDENTES, ponto 15).
   await expect(capa).toHaveAttribute('src', /^\/uploads\/capa-v2\.jpg\?crop=landscape&a=u&v=[a-z0-9]+&w=1024$/);
-  await expect.poll(() => capa.evaluate(img => img.complete && img.naturalWidth)).toBe(1024);
+  // Com srcset (480/1024/1600/2048 até à largura da capa) o browser escolhe a
+  // que dá para os 420 px do cartão; `naturalWidth` já vem dividido pela
+  // densidade, por isso vê-se a largura escolhida no endereço.
+  await expect.poll(() => capa.evaluate(img => img.complete && img.naturalWidth > 0 && /[?&]w=(480|1024)\b/.test(img.currentSrc))).toBe(true);
+  await expect(capa).toHaveAttribute('srcset', /w=480[^,]* 480w, .*w=1024[^,]* 1024w/);
   // «Calendário» abre o calendário da plataforma só com esta unidade (mesmo
   // com um Google Calendar ligado, que na V1 continua a abrir).
   db.prepare("UPDATE accommodations SET google_calendar_id='suite@group.calendar.google.com' WHERE id='u'").run();

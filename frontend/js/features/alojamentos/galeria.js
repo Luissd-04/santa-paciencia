@@ -11,6 +11,8 @@ AppModules.define('alojamentos', {
   handleImgSelect: { get: () => handleImgSelect },
   removeAlojLogo: { get: () => removeAlojLogo },
   removeCoverImage: { get: () => removeCoverImage },
+  renderCoverWarning: { get: () => renderCoverWarning },
+  openCoverPicker: { get: () => openCoverPicker },
   renderAlojLogoPreview: { get: () => renderAlojLogoPreview },
   renderImagens: { get: () => renderImagens },
   uploadAlojLogo: { get: () => uploadAlojLogo },
@@ -77,6 +79,7 @@ function renderImagens() {
            ${AppActions.attrs("dragstart", "galeria-img-drag-start-db472bd", [key, url])}
            data-on-dragend="galeria-img-drag-end-f9de7ac">
         <img class="img-thumb" src="${AppModules.core.escapeHtml(AppModules.core.mediaThumb(AppModules.core.API_BASE + url, 480))}" alt="" loading="lazy" decoding="async" ${AppActions.attrs("click", "galeria-open-image-lightbox-c42eaa8", [AppModules.core.API_BASE, url])}>
+        ${smallBadge(id, url)}
         <button type="button" class="img-rotate" title="Rodar 90°" aria-label="Rodar 90°" ${AppActions.attrs("click", "recortes-rodar-foto", [String(url ?? '')])}>${AppModules.core.lcIcon('rotate-cw', 12)}</button>
         <button class="img-remove" ${AppActions.attrs("click", "galeria-remove-img-f163082", [String((key) ?? ''), String((url) ?? '')])}>✕</button>
       </div>`).join('');
@@ -112,6 +115,88 @@ function renderImagens() {
   }).join('');
 
   if (window.lucide) lucide.createIcons();
+  renderCoverWarning();
+  loadGallerySizes(id);
+}
+
+// ── FOTOGRAFIA PEQUENA ──
+// A capa precisa de pelo menos 1600 px de largura (topo da página de reservas
+// e do portal, em ecrãs grandes ou de densidade alta); as fotos da galeria,
+// de 1200 px (só levam um selo). Os mesmos limites de services/imageCrops.js.
+const SMALL_COVER_WIDTH = 1600;
+const SMALL_GALLERY_WIDTH = 1200;
+const gallerySizes = {};   // id do alojamento → { url: { w, h } }
+
+function currentCover() {
+  const id = document.getElementById('aloj-editing-id')?.value;
+  const a = AppModules.core.accommodations.find(x => x.id === id);
+  const detail = AppModules.alojamentos.currentAlojDetail;
+  return detail?.id === id ? detail : a;
+}
+
+function renderCoverWarning() {
+  const box = document.getElementById('aloj-cover-warning');
+  if (!box) return;
+  const a = currentCover();
+  const size = globalThis.ImageCrops?.parse(a?.cover_size);
+  if (!a?.cover_image || !(size?.w > 0) || size.w >= SMALL_COVER_WIDTH) { box.hidden = true; box.innerHTML = ''; return; }
+  const hasGallery = Object.entries(AppModules.alojamentos.alojImagens[a.id] || {}).some(([k, l]) => k !== '_sections' && Array.isArray(l) && l.length);
+  box.innerHTML = `<span>${AppModules.core.lcIcon('triangle-alert', 14)} <strong>Fotografia pequena.</strong> A capa tem ${size.w} px de largura (recomendado: pelo menos ${SMALL_COVER_WIDTH} px) e pode aparecer desfocada na página de reservas e no portal do hóspede.</span>
+    ${hasGallery ? '<button type="button" class="btn btn-ghost btn-sm" data-on-click="galeria-usar-da-galeria">Usar uma fotografia da galeria</button>' : ''}`;
+  box.hidden = false;
+  if (window.lucide) lucide.createIcons();
+}
+
+function smallBadge(id, url) {
+  const size = gallerySizes[id]?.[url];
+  return size?.w > 0 && size.w < SMALL_GALLERY_WIDTH
+    ? `<span class="img-small-badge" title="${size.w} px de largura">Fotografia pequena</span>` : '';
+}
+
+// As larguras vêm do servidor (a galeria só guarda endereços); pedem-se uma
+// vez por alojamento e voltam a pintar a grelha só se houver fotos pequenas.
+const sizesTried = {};     // id → endereços já pedidos
+async function loadGallerySizes(id) {
+  if (!id) return;
+  const urls = Object.entries(AppModules.alojamentos.alojImagens[id] || {})
+    .filter(([k, l]) => k !== '_sections' && Array.isArray(l)).flatMap(([, l]) => l);
+  const tried = sizesTried[id] ||= new Set();
+  if (!urls.some(u => !tried.has(u))) return;
+  urls.forEach(u => tried.add(u));
+  try {
+    gallerySizes[id] = (await AppModules.core.apiGet(`/api/accommodations/${encodeURIComponent(id)}/images/sizes`)).sizes || {};
+  } catch { delete sizesTried[id]; return; }
+  if (Object.values(gallerySizes[id]).some(s => s.w < SMALL_GALLERY_WIDTH) && document.getElementById('aloj-editing-id')?.value === id) renderImagens();
+}
+
+// «Usar uma fotografia da galeria»: escolher entre as fotos já carregadas.
+async function openCoverPicker() {
+  const id = document.getElementById('aloj-editing-id')?.value;
+  if (!id) return;
+  const core = AppModules.core;
+  const urls = [...new Set(Object.entries(AppModules.alojamentos.alojImagens[id] || {})
+    .filter(([k, l]) => k !== '_sections' && Array.isArray(l)).flatMap(([, l]) => l))];
+  try { gallerySizes[id] = (await core.apiGet(`/api/accommodations/${encodeURIComponent(id)}/images/sizes`)).sizes || {}; } catch { gallerySizes[id] ||= {}; }
+  const esc = core.escapeHtml;
+  const items = urls.map(url => {
+    const w = gallerySizes[id]?.[url]?.w;
+    const small = w && w < SMALL_COVER_WIDTH;
+    return `<button type="button" class="cover-pick-item" data-url="${esc(url)}" aria-label="Usar esta fotografia como capa${w ? ` (${w} px)` : ''}">
+      <img src="${esc(core.mediaThumb(core.API_BASE + url, 480))}" alt="" loading="lazy" decoding="async">
+      ${w ? `<span class="${small ? 'img-small-badge' : 'cover-pick-w'}">${small ? `${w} px · pequena` : `${w} px`}</span>` : ''}</button>`;
+  }).join('');
+  const dialog = AppUI.openDialog({
+    id: 'cover-picker', title: 'Usar uma fotografia da galeria', className: 'cover-picker',
+    body: `<p style="margin:0 0 12px;font-size:13px;color:var(--cinza)">Escolha a fotografia para a capa. As de pelo menos ${SMALL_COVER_WIDTH} px ficam nítidas em qualquer ecrã.</p>
+      <div class="cover-pick-grid">${items || '<p>A galeria ainda não tem fotografias.</p>'}</div>`,
+  });
+  dialog.addEventListener('click', async event => {
+    const item = event.target.closest('.cover-pick-item');
+    if (!item) return;
+    item.disabled = true;
+    if (await setCoverFromUrl(id, item.dataset.url)) AppUI.closeDialog(dialog);
+    else item.disabled = false;
+  });
 }
 
 // ── IMAGE DRAG BETWEEN SECTIONS ──
@@ -365,6 +450,8 @@ async function uploadCoverImage(file) {
       if (deleteBtn) deleteBtn.style.display = '';
       setCoverFields(id, { cover_image: res.url, cover_focal: null, cover_crops: null, cover_size: res.cover_size || null });
       AppModules.core.toast('✅ Foto de capa guardada!', 'success');
+      const w = res.cover_size?.w;
+      if (w && w < SMALL_COVER_WIDTH) AppModules.core.toast(`⚠️ Fotografia pequena: a capa tem só ${w} px de largura e pode aparecer desfocada. Recomendamos pelo menos ${SMALL_COVER_WIDTH} px.`, 'info', 9000);
       // Capa nova: abre logo «Ajustar recortes» (tudo automático até mexer).
       AppModules.alojamentos.refreshCoverPreview?.();
       AppModules.alojamentos.openCoverCrops?.();
@@ -379,6 +466,7 @@ function setCoverFields(id, fields) {
   const acc = AppModules.core.accommodations.find(a => a.id === id);
   if (acc) Object.assign(acc, fields);
   if (AppModules.alojamentos.currentAlojDetail?.id === id) Object.assign(AppModules.alojamentos.currentAlojDetail, fields);
+  renderCoverWarning();
 }
 
 function handleCoverZoneClick(event) {
@@ -525,6 +613,16 @@ async function handleCoverDrop(event) {
   if (AppModules.alojamentos.dragImgSrc?.section === '__cover__') return;
 
   try {
+    await setCoverFromUrl(id, url);
+  } finally {
+    AppModules.alojamentos.dragImgSrc = null;
+    AppModules.alojamentos.coverDragUrl = null;
+  }
+}
+
+// Define como capa uma foto já carregada (arrastada ou escolhida na galeria).
+async function setCoverFromUrl(id, url) {
+  try {
     const res = await AppModules.core.apiPost(`/api/accommodations/${id}/cover`, { url });
     if (!res.success) throw new Error();
     const preview = document.getElementById('aloj-cover-preview');
@@ -540,11 +638,10 @@ async function handleCoverDrop(event) {
     setCoverFields(id, { cover_image: url, cover_focal: null, cover_crops: null, cover_size: res.cover_size || null });
     AppModules.alojamentos.refreshCoverPreview?.();
     AppModules.core.toast('✅ Capa atualizada.', 'success');
+    return true;
   } catch (e) {
     AppModules.core.toast('❌ Erro ao atualizar capa.', 'error');
-  } finally {
-    AppModules.alojamentos.dragImgSrc = null;
-    AppModules.alojamentos.coverDragUrl = null;
+    return false;
   }
 }
 
@@ -570,6 +667,7 @@ AppActions.register({
   "galeria-trigger-img-upload-dc59c9c": (el, event, args) => { triggerImgUpload(args[0]) },
   "galeria-open-image-lightbox-c42eaa8": (el, event, args) => { openImageLightbox((String(args[0]) + String(args[1]))) },
   "galeria-remove-img-f163082": (el, event, args) => { removeImg(args[0],args[1]) },
+  "galeria-usar-da-galeria": () => { openCoverPicker() },
 }, "click");
 
 AppActions.register({

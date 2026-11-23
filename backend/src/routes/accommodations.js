@@ -24,6 +24,7 @@ router.post('/:id/logo',            uploadParser, ctrl.uploadLogo);
 router.delete('/:id/logo',          ctrl.removeLogo);
 router.post('/:id/logo/trim',       ctrl.trimLogo);
 router.put('/:id/logo/crops',       ctrl.saveLogoCrops);
+router.get('/:id/images/sizes',     ctrl.gallerySizes);
 router.post('/:id/images/rotate',   ctrl.rotateGalleryImage);
 router.post('/:id/images',          uploadParser, ctrl.uploadImages);
 router.patch('/:id/images',         ctrl.patchImages);

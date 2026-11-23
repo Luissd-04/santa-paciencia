@@ -102,11 +102,10 @@ function renderLanding() {
 // tem a altura do conteúdo e o carregamento diferido dentro de um iframe de
 // outra origem depende do browser (no telemóvel ficavam por carregar).
 function unitPhoto(cover) {
-  const url = cover?.src;
-  const src = url && AppModules.booking.safeMediaUrl(url) ? AppModules.booking.mediaThumb(url, 1024) : '';
+  const attrs = AppModules.booking.imgAttrs(cover?.src, { maxWidth: cover?.maxWidth, sizes: '(max-width: 639px) 100vw, 300px' });
   const loading = AppModules.booking.embed?.active ? 'eager' : 'lazy';
-  return src
-    ? `<img src="${AppModules.booking.escapeHtml(src)}" alt="" loading="${loading}" decoding="async" style="object-position:${AppModules.booking.escapeHtml(cover.position)}">`
+  return attrs
+    ? `<img ${attrs} alt="" loading="${loading}" decoding="async" style="object-position:${AppModules.booking.escapeHtml(cover.position)}">`
     : '<img class="unit-photo-empty" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">';
 }
 

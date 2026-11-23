@@ -124,7 +124,7 @@
       if (img.getAttribute('src') !== image.src) {
         img.src = image.src;
         if (image.srcset) img.srcset = image.srcset; else img.removeAttribute('srcset');
-        img.sizes = '100vw';
+        if (image.srcset) img.sizes = image.sizes || '100vw'; else img.removeAttribute('sizes');
       }
       img.style.objectPosition = image.position || '';
       img.hidden = false;

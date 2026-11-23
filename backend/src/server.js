@@ -7,6 +7,10 @@ const PORT = process.env.PORT || 3001;
 const server = app.listen(PORT, () => {
   console.log(`🚀 Santa Paciência a correr na porta ${PORT}`);
   scheduledTasks.start();
+  // Capas antigas sem tamanho guardado (aviso «Fotografia pequena»); em segundo plano.
+  require('./services/imageSizes').backfillCoverSizes()
+    .then(r => { if (r.updated) console.log(`Capas: tamanho registado em ${r.updated} alojamento(s).`); })
+    .catch(error => console.error('Capas: não foi possível registar os tamanhos:', error.message));
 });
 
 server.on('error', (error) => {

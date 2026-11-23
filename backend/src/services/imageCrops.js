@@ -156,18 +156,40 @@ module.exports = {
   rotateFocal, version, coverVariant, coverVariants, focalInCrop, isLocalUpload,
 };
 
+const validSize = size => Number.isFinite(size?.w) && Number.isFinite(size?.h) && size.w > 0 && size.h > 0;
+
+// Largura, em píxeis do original, do recorte que o servidor serve neste formato.
+function cropPixelWidth(row, format, width, height) {
+  const rect = effectiveCrop(format, width, height, { focal: row.cover_focal, crops: row.cover_crops });
+  return toPixels(rect, width, height).width;
+}
+
+// Capa «pequena»: mais estreita do que isto fica desfocada no topo da página
+// pública e do portal (ecrãs grandes ou de densidade alta). Sem tamanho
+// conhecido (capa externa, ficheiro em falta) não há aviso.
+const SMALL_COVER_WIDTH = 1600;
+const SMALL_GALLERY_WIDTH = 1200;
+function isSmallCover(size) {
+  const s = parse(size);
+  return validSize(s) && s.w < SMALL_COVER_WIDTH;
+}
+
 // Para as páginas públicas e o portal: endereços absolutos de cada formato
 // (sem `w`: a página escolhe a largura) e a posição do ponto principal dentro
 // de cada recorte, para `object-position`/`background-position`.
+// `size` e `max_width` (largura em píxeis do recorte de cada formato) deixam as
+// páginas só pedir larguras que o ficheiro tem (srcset em domain/responsive-image.js).
 function publicCover(row, toUrl = value => value) {
   if (!row?.cover_image || !isLocalUpload(row.cover_image)) return null;
   const size = parse(row.cover_size);
-  const out = { variants: {}, position: {} };
+  const known = validSize(size);
+  const out = { variants: {}, position: {}, size: known ? { w: size.w, h: size.h } : null, max_width: {} };
   for (const format of Object.keys(COVER_FORMATS)) {
     out.variants[format] = toUrl(coverVariant(row, format));
     out.position[format] = focalInCrop(row, format, size?.w, size?.h);
+    if (known) out.max_width[format] = cropPixelWidth(row, format, size.w, size.h);
   }
   return out;
 }
 
-module.exports.publicCover = publicCover;
+Object.assign(module.exports, { publicCover, SMALL_COVER_WIDTH, SMALL_GALLERY_WIDTH, isSmallCover, cropPixelWidth });

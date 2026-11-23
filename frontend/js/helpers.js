@@ -27,6 +27,8 @@ AppModules.define('core', {
   realEmail: { get: () => realEmail },
   mediaThumb: { get: () => mediaThumb },
   coverSrc: { get: () => coverSrc },
+  coverImg: { get: () => coverImg },
+  coverImgAttrs: { get: () => coverImgAttrs },
   coverPosition: { get: () => coverPosition },
   logoMarkSrc: { get: () => logoMarkSrc },
   putReservationConfirmingTotal: { get: () => putReservationConfirmingTotal },
@@ -396,7 +398,7 @@ function safeMediaUrl(value) {
 // ter vários MB. Só para fotos carregadas na própria aplicação; URLs externos
 // e de outras origens ficam como estão. O servidor só gera as larguras de
 // THUMB_WIDTHS (imageOptimizer.js): pede-se a primeira que chega à pedida.
-const THUMB_WIDTHS = [160, 480, 1024, 1600];
+const THUMB_WIDTHS = [160, 480, 1024, 1600, 2048];
 function mediaThumb(value, width) {
   const safe = safeMediaUrl(value);
   if (!safe) return '';
@@ -424,6 +426,25 @@ function coverSrc(a, format, width) {
   const C = globalThis.ImageCrops;
   const v = C.version(C.parse(a.cover_focal), C.parse(a.cover_crops)?.[format] || null);
   return mediaThumb(`${AppModules.core.API_BASE || ''}${url}?crop=${format}&a=${encodeURIComponent(a.id || '')}&v=${v}`, width);
+}
+
+// Capa com `srcset` (domain/responsive-image.js): só as larguras que o recorte
+// tem (a partir de `cover_size`; sem ele, todas) e `sizes` do sítio onde cabe.
+// Devolve { src, srcset, sizes } (vazios sem capa).
+function coverImg(a, format, sizes) {
+  const url = a?.cover_image;
+  if (!url || !safeMediaUrl(url)) return { src: '', srcset: '', sizes: '' };
+  const RI = globalThis.ResponsiveImage;
+  if (!RI || !LOCAL_UPLOAD.test(url) || !globalThis.ImageCrops) return { src: coverSrc(a, format, 1024), srcset: '', sizes: '' };
+  const C = globalThis.ImageCrops;
+  const v = C.version(C.parse(a.cover_focal), C.parse(a.cover_crops)?.[format] || null);
+  const base = `${AppModules.core.API_BASE || ''}${url}?crop=${format}&a=${encodeURIComponent(a.id || '')}&v=${v}`;
+  return RI.build(base, { sizes, maxWidth: RI.coverWidth(format, a.cover_size, a.cover_focal, a.cover_crops) });
+}
+// Os mesmos valores como atributos de <img> (escapados).
+function coverImgAttrs(a, format, sizes) {
+  const r = coverImg(a, format, sizes);
+  return r.src ? `src="${escapeHtml(r.src)}"${r.srcset ? ` srcset="${escapeHtml(r.srcset)}" sizes="${escapeHtml(r.sizes)}"` : ''}` : '';
 }
 
 // `object-position` do ponto principal dentro do recorte (para quando a caixa

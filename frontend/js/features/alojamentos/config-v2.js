@@ -56,13 +56,20 @@ function refreshConfigV2Cover(a) {
 }
 
 // `narrow`: outro formato no telemóvel (o cabeçalho passa a faixa larga).
+// A foto do cabeçalho leva srcset (a faixa ocupa o ecrã todo no telemóvel);
+// as miniaturas pequenas ficam numa só largura.
 function fotoHtml(a, cls, format, width, narrow) {
   const core = AppModules.core;
   const esc = core.escapeHtml;
-  const src = capa(a, format, width);
+  const has = a?.cover_image && core.safeMediaUrl(a.cover_image);
+  const responsive = has && width >= 480;
+  const sizes = narrow ? '(max-width: 860px) 100vw, 220px' : '120px';
+  const main = responsive ? core.coverImg(a, format, sizes) : { src: capa(a, format, width), srcset: '', sizes: '' };
   const pos = `--pos:${core.coverPosition(a, format)};--pos-narrow:${core.coverPosition(a, narrow || format)}`;
-  const img = src ? `<img src="${esc(src)}" alt="" loading="lazy" style="${esc(pos)}" ${AppActions.attrs('error', 'acfg-foto-falhou')}>` : '';
-  const source = src && narrow ? `<source media="(max-width: 860px)" srcset="${esc(capa(a, narrow, width))}">` : '';
+  const set = r => `srcset="${esc(r.srcset || r.src)}"${r.srcset ? ` sizes="${esc(r.sizes)}"` : ''}`;
+  const img = main.src ? `<img src="${esc(main.src)}" ${main.srcset ? set(main) : ''} alt="" loading="lazy" style="${esc(pos)}" ${AppActions.attrs('error', 'acfg-foto-falhou')}>` : '';
+  const wide = main.src && narrow ? (responsive ? core.coverImg(a, narrow, sizes) : { src: capa(a, narrow, width), srcset: '' }) : null;
+  const source = wide?.src ? `<source media="(max-width: 860px)" ${set(wide)}>` : '';
   return `<span class="${cls}" style="--acc:${esc(a?.color || '#843424')}">${source ? `<picture>${source}${img}</picture>` : img}</span>`;
 }
 

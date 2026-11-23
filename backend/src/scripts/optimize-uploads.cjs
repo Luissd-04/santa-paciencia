@@ -16,6 +16,7 @@ const sharp = require('sharp');
 const UPLOADS_DIR = path.resolve('./data/uploads');
 const BACKUP_DIR = path.join(UPLOADS_DIR, '.originals');
 const MAX_SIDE = 2000;
+const COVER_MAX_SIDE = 2560; // capas (cover_*): igual a services/imageOptimizer.js
 const MIN_BYTES = 500 * 1024;
 const apply = process.argv.includes('--apply');
 
@@ -39,12 +40,13 @@ async function main() {
     const size = fs.statSync(file).size;
     const meta = await sharp(file).metadata().catch(() => null);
     if (!meta) { console.log(`ignorado (ilegível)  ${path.basename(file)}`); continue; }
-    const tooBig = (meta.width || 0) > MAX_SIDE || (meta.height || 0) > MAX_SIDE;
+    const maxSide = path.basename(file).startsWith('cover_') ? COVER_MAX_SIDE : MAX_SIDE;
+    const tooBig = (meta.width || 0) > maxSide || (meta.height || 0) > maxSide;
     if (!tooBig && size < MIN_BYTES) continue;
 
     const ext = path.extname(file).toLowerCase();
     const data = await encode(
-      sharp(file).rotate().resize({ width: MAX_SIDE, height: MAX_SIDE, fit: 'inside', withoutEnlargement: true }),
+      sharp(file).rotate().resize({ width: maxSide, height: maxSide, fit: 'inside', withoutEnlargement: true }),
       ext,
     ).toBuffer();
     if (data.length >= size) continue;
