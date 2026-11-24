@@ -113,8 +113,8 @@ Os problemas concentram-se em quatro zonas:
 4. **Inglês** (2 e as listas de países): o maior trabalho, que inclui a língua guardada na reserva e os emails traduzidos.
 5. **Coerência da equipa** (14, 16) e as melhorias.
 
-**Decisões de produto necessárias:**
-- **Sem política de pagamento:** cobra-se um sinal (50 %) ou o total?
-- **Sem Stripe:** o email de aceitação leva instruções de pagamento manual e o prazo das 48 h mantém-se?
-- **Editar uma reserva já paga:** o hóspede tem de voltar a aceitar as condições?
-- **Taxa turística:** as crianças pagam ou estão isentas?
+**Decisões do dono do produto (25/11):**
+- **Sem política de pagamento:** cobra-se o total ao aceitar. Os textos deixam de falar em «sinal» e passam a «pagamento».
+- **Sem Stripe:** o email de aceitação sai com as instruções de pagamento manual do alojamento e mantém-se o prazo de 48 h.
+- **Editar uma reserva paga:** continua confirmada; o hóspede recebe um email com os novos valores e a cobrança do restante segue com o novo total.
+- **Taxa turística:** a idade de isenção é configurável por alojamento.
