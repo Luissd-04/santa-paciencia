@@ -106,16 +106,29 @@ test('avisos push: tipo, título direto e datas curtas', async () => {
   ]);
 });
 
-test('pagamento manual: email ao hóspede, sem push a quem o registou', async () => {
+test('pagamento manual: email ao hóspede; push e email a proprietário e gestor, menos a quem o registou', async () => {
   reservation();
   await call(payments.addPayment, { amount: 50 }, { id: 'res' });
-  assert.deepEqual(await effects(), ['guest:sendPaymentConfirmationEmail']);
+  assert.deepEqual(await effects(), ['guest:sendPaymentConfirmationEmail', 'staff:email:Pagamento recebido', 'staff:push:payment!manager']);
+  // O funcionário não recebe valores: o push só vai a proprietário e gestor.
+  assert.deepEqual(pushes[0].roles, ['owner', 'manager']);
+  assert.equal(pushes[0].tag, 'sp-payment-res');
 });
 
-test('pagamento Stripe: email ao hóspede e push à equipa (decisão 1)', async () => {
+test('pagamento Stripe: email ao hóspede, push e email à equipa (decisão 1)', async () => {
   reservation();
   db.transaction(() => events.emit('payment.received', { organizationId: ORG, reservationId: 'res', payload: { amount: 50, source: 'stripe' } }))();
-  assert.deepEqual(await effects(), ['guest:sendPaymentConfirmationEmail', 'staff:push:payment']);
+  assert.deepEqual(await effects(), ['guest:sendPaymentConfirmationEmail', 'staff:email:Pagamento recebido', 'staff:push:payment']);
+});
+
+test('pagamento falhado, reembolso e a rever: push a proprietário e gestor, email só ao proprietário', async () => {
+  reservation();
+  for (const [type, payload] of [['payment.failed', { reason: 'failed' }], ['payment.refunded', { amount: 20, partial: true }], ['payment.review', {}]]) {
+    db.transaction(() => events.emit(type, { organizationId: ORG, reservationId: 'res', payload }))();
+  }
+  assert.deepEqual(await effects(), Array(3).fill(['staff:email:Pagamento', 'staff:push:payment']).flat().sort());
+  assert.ok(pushes.every(p => p.roles.join() === 'owner,manager' && p.tag === 'sp-payment-issue-res'));
+  assert.deepEqual(pushes.map(p => p.title.replace(/\s/g, ' ')), ['Pagamento online falhou', 'Reembolso parcial · 20,00 €', 'Pagamento a rever']);
 });
 
 test('cancelamento pela equipa: email ao hóspede e push aos colegas, sem email à equipa', async () => {

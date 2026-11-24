@@ -104,7 +104,8 @@ async function runPending() {
         continue;
       }
       const attempts = row.attempts + 1;
-      const failed = attempts >= MAX_ATTEMPTS;
+      // `permanent`: repetir não resolve (ex.: Gmail não ligado); fica logo no sino.
+      const failed = err.permanent || attempts >= MAX_ATTEMPTS;
       db.prepare(`UPDATE reservation_event_effects SET state = ?, last_error = ?,
         next_attempt_at = datetime('now', ?), updated_at = datetime('now') WHERE event_id = ? AND effect = ?`)
         .run(failed ? 'failed' : 'pending', String(err.message || err).slice(0, 500),

@@ -679,3 +679,35 @@ test('HTTP: políticas isoladas, permissões, criação manual e pública, conse
     assert.throws(() => backup.prepareImport(backup.exportData('stripe-org'), 'other-org'), /entre organizações/);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
+
+test('falha, expiração, reembolso parcial e a rever emitem aviso à equipa, uma vez por mudança', async () => {
+  const events = () => db.prepare("SELECT type, payload FROM reservation_events WHERE reservation_id='booking' AND type != 'payment.received' ORDER BY created_at, rowid").all()
+    .map(e => [e.type, JSON.parse(e.payload)]);
+  const r = booking(); const session = await start(r);
+  session.payment_intent = { id: 'pi_failed', object: 'payment_intent', status: 'requires_payment_method', livemode: false,
+    amount: 20000, currency: 'eur', metadata: session.metadata, last_payment_error: { code: 'card_declined' } };
+  const failed = event(session.payment_intent, 'payment_intent.payment_failed', 'f1', 50);
+  await service.processWebhook(failed);
+  await service.processWebhook(event(session.payment_intent, 'payment_intent.payment_failed', 'f2', 60));
+  assert.deepEqual(events(), [['payment.failed', { reason: 'failed' }]]);
+  // Pago e depois reembolsado em parte.
+  const piId = session.payment_intent.id;
+  succeed(session); session.payment_intent.id = piId;
+  await service.processWebhook(event(session, 'checkout.session.completed', 'paid', 100));
+  refunds.set(piId, [{ id: 're_p', amount: 5000, status: 'succeeded' }]);
+  await service.processWebhook(event({ object: 'charge', payment_intent: piId }, 'charge.refunded'));
+  assert.deepEqual(events().slice(1), [['payment.refunded', { amount: 50, partial: true }]]);
+});
+
+test('sessão expirada avisa a equipa; se a reserva já foi cancelada, não', async () => {
+  const r = booking(); const session = await start(r);
+  session.status = 'expired';
+  await service.processWebhook(event(session, 'checkout.session.expired'));
+  assert.deepEqual(db.prepare("SELECT type, payload FROM reservation_events WHERE type='payment.failed'").all().map(e => JSON.parse(e.payload)), [{ reason: 'expired' }]);
+  db.prepare("DELETE FROM reservation_events").run();
+  db.prepare("UPDATE reservations SET status='cancelada' WHERE id='booking'").run();
+  await service.createCheckout(r.public_token).catch(() => {});
+  const second = [...sessions.values()].at(-1); second.status = 'expired';
+  await service.processWebhook(event(second, 'checkout.session.expired', 'again', 200));
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM reservation_events WHERE type='payment.failed'").get().n, 0);
+});

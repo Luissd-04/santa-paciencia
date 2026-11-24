@@ -228,6 +228,18 @@ async function canonicalPayment(attempt, stripe) {
   return { session, pi, refunded };
 }
 
+// Falha/expiração depois de uma tentativa, reembolso e pagamento a rever: aviso
+// à equipa (push + sino para proprietário e gestores, email ao proprietário).
+// Só na mudança de estado, para não repetir a cada evento da Stripe.
+function notifyPaymentProblems(r, { before, after, refundNotice, state }) {
+  const emit = (type, payload = {}) => require('./reservationEvents').emit(type,
+    { organizationId: r.organization_id, reservationId: r.id, payload });
+  if (refundNotice) emit('payment.refunded', refundNotice);
+  if (after === before) return;
+  if (after === 'review_required') emit('payment.review');
+  else if (['failed', 'expired'].includes(after) && r.status !== 'cancelada' && state !== 'paid') emit('payment.failed', { reason: after });
+}
+
 function applyPayment(attempt, canonical, event) {
   return db.transaction(() => {
     if (event && db.prepare('SELECT 1 FROM stripe_webhook_events WHERE id=?').get(event.id)) return { duplicate: true };
@@ -238,6 +250,7 @@ function applyPayment(attempt, canonical, event) {
     let online = r.online_payment_status;
     let captured = attempt.captured_cents;
     let returned = attempt.refunded_cents;
+    let refundNotice = null;
     if (pi?.status === 'succeeded') {
       state = 'paid';
       ensureLegacyPayment(r);
@@ -253,6 +266,7 @@ function applyPayment(attempt, canonical, event) {
         ledger.addEntry(r, { id: `stripe-refund-${attempt.id}-${refunded}`, amount: -(refunded - returned) / 100, method: 'Stripe',
           paymentDate: today, notes: 'Reembolso confirmado pela Stripe' });
         returned = refunded;
+        refundNotice = { amount: (refunded - attempt.refunded_cents) / 100, partial: refunded < captured };
       }
       const review = (r.status === 'cancelada' && (!r.policy_cancellation_json || !attempt.captured_cents)) || snapshot(r) !== attempt.snapshot;
       online = review ? 'review_required' : returned === captured ? 'refunded' : returned > 0 ? 'partially_refunded' : 'paid';
@@ -291,6 +305,7 @@ function applyPayment(attempt, canonical, event) {
       db.prepare(`UPDATE reservations SET online_payment_status=?, stripe_payment_intent_id=COALESCE(?,stripe_payment_intent_id),
         updated_at=datetime('now') WHERE id=? AND organization_id=?`).run(online, pi?.id || null, r.id, r.organization_id);
     }
+    notifyPaymentProblems(r, { before: r.online_payment_status, after: online, refundNotice, state });
     if (event) db.prepare('INSERT INTO stripe_webhook_events(id,type) VALUES(?,?)').run(event.id, event.type);
     if (captured !== attempt.captured_cents || returned !== attempt.refunded_cents || state !== attempt.state || online !== r.online_payment_status) {
       recordHistory({ organizationId: r.organization_id, reservationId: r.id, action: 'stripe_payment',

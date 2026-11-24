@@ -55,7 +55,7 @@ test('aspeto dos avisos: ícone, ícone da barra e botão por tipo; o teste usa 
     assert.equal(payload.actions.length, kind ? 1 : 0);
   }
   assert.deepEqual(pushPayload({ kind: 'payment', title: 'Pagamento recebido · 120,00 €', body: 'b', tag: 'sp-payment' }), {
-    title: 'Pagamento recebido · 120,00 €', body: 'b', url: '/', tag: 'sp-payment', requireInteraction: false,
+    title: 'Pagamento recebido · 120,00 €', body: 'b', url: '/', tag: 'sp-payment', requireInteraction: false, renotify: false,
     icon: '/img/push/payment.png', badge: '/img/push/payment-badge.png', actions: [{ action: 'open', title: 'Ver reserva' }],
   });
 });

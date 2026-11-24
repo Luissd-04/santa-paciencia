@@ -284,6 +284,7 @@ function renderNotifDropdown() {
     'calendar-clock': 'calendar-clock', 'circle-alert': 'circle-alert', 'clock': 'clock',
     'sparkles': 'sparkles', 'bell-plus': 'bell-plus',
     'download': 'download', 'mail': 'mail',
+    'bell-off': 'bell-off', 'banknote': 'banknote', 'undo-2': 'undo-2',
   };
   const priorityClass = { high: 'notif-high', medium: 'notif-medium', low: 'notif-low' };
 
@@ -341,6 +342,7 @@ function renderNotificationsPage() {
     'calendar-clock': 'calendar-clock', 'circle-alert': 'circle-alert', 'clock': 'clock',
     'sparkles': 'sparkles', 'bell-plus': 'bell-plus',
     'download': 'download', 'mail': 'mail',
+    'bell-off': 'bell-off', 'banknote': 'banknote', 'undo-2': 'undo-2',
   };
 
   list.innerHTML = _notifications.map(n => `

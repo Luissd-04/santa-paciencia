@@ -6,6 +6,9 @@
 //   reservation.created    criada no backoffice
 //   reservation.requested  pedido do site público { appUrl }
 //   payment.received       { amount, source: 'manual' | 'stripe' | 'automatic' }
+//   payment.failed         { reason: 'failed' | 'expired' }   pagamento online que não se concluiu
+//   payment.refunded       { amount, partial }                 reembolso confirmado pela Stripe
+//   payment.review         pagamento online a rever à mão
 //   reservation.cancelled  { reason: 'staff' | 'guest' | 'ttl' | 'nonpayment' | 'deposit', policy }
 //   reservation.approved   { precheckinUrl }
 //   precheckin.submitted   { resubmission }
@@ -27,9 +30,15 @@ function effectsFor(type, payload = {}) {
   switch (type) {
     case 'reservation.created': return ['guest_confirmation_email', 'staff_push_new'];
     case 'reservation.requested': return ['guest_confirmation_email', 'staff_email_new_request', 'staff_push_new_request'];
-    // Decisões 1 e 3: o hóspede recebe o email em cada pagamento; a equipa é
-    // avisada dos pagamentos que não registou ela própria.
-    case 'payment.received': return ['guest_payment_email', ...(payload.source === 'manual' ? [] : ['staff_push_payment'])];
+    // O hóspede recebe o email em cada pagamento. Proprietário e gestores
+    // recebem push, email e entrada no sino (também nos registados à mão por
+    // outra pessoa; quem registou não é avisado). O funcionário não recebe
+    // valores de dinheiro: nem push, nem email, nem sino.
+    case 'payment.received': return ['guest_payment_email', 'staff_push_payment', 'staff_email_payment'];
+    // Problemas de pagamento online: push e sino para proprietário e gestores,
+    // email só ao proprietário.
+    case 'payment.failed': case 'payment.refunded': case 'payment.review':
+      return ['staff_push_payment_issue', 'staff_email_payment_issue'];
     // Decisão 4: cancelamentos que a equipa não fez chegam-lhe por push e email.
     // Com política, o aviso ao hóspede sai da automatização da política.
     case 'reservation.cancelled': return [
@@ -106,6 +115,39 @@ async function guestEmail(ctx, send) {
   throw new DeferEffect(result.until || new Date(Date.now() + 3600000), reasons[result.delivery_status] || 'Envio adiado');
 }
 
+// Texto dos problemas de pagamento (push, email e sino), sem jargão.
+function paymentIssueText(type, payload = {}) {
+  if (type === 'payment.failed') {
+    return payload.reason === 'expired'
+      ? { title: 'Pagamento online não concluído', body: 'O hóspede não chegou a pagar e a ligação de pagamento expirou.' }
+      : { title: 'Pagamento online falhou', body: 'O cartão foi recusado ou o pagamento não passou. Fale com o hóspede ou envie nova ligação.' };
+  }
+  if (type === 'payment.refunded') {
+    return { title: `${payload.partial ? 'Reembolso parcial' : 'Reembolso'} · ${money(payload.amount)}`,
+      body: payload.partial ? 'Foi devolvida parte do pagamento ao hóspede.' : 'O pagamento foi devolvido ao hóspede.' };
+  }
+  return { title: 'Pagamento a rever', body: 'Recebeu um pagamento que precisa de confirmação sua. Abra a reserva e veja os movimentos.' };
+}
+
+function paymentMessage(ctx, url) {
+  const { reservation } = ctx;
+  const due = Math.max(0, (Number(reservation.total_amount) || 0) - (Number(reservation.amount_paid) || 0));
+  return (event) => ({
+    subject: `Pagamento recebido — ${guestName(ctx)} · ${reservation.id}`,
+    eyebrow: 'Pagamento recebido', tone: 'ok',
+    headline: `${money(event.payload.amount)} · ${guestName(ctx)}`,
+    accommodation: ctx.accommodation,
+    rows: [
+      { label: 'Alojamento', value: ctx.accommodation.name || '' },
+      { label: 'Datas', value: stay(ctx) },
+      { label: 'Pago até agora', value: money(reservation.amount_paid) },
+      { label: 'Em falta', value: due > 0 ? money(due) : 'Nada — está tudo pago' },
+      { label: 'Referência', value: reservation.id },
+    ],
+    url,
+  });
+}
+
 const HANDLERS = {
   guest_confirmation_email: (ctx) => guestEmail(ctx, mail => mail.sendConfirmationEmail(ctx.guest, ctx.reservation, ctx.accommodation)),
   guest_cancellation_email: (ctx, event) => guestEmail(ctx, mail => mail.sendCancellationEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload.reason)),
@@ -137,16 +179,36 @@ const HANDLERS = {
     event.organizationId, ctx.guest, ctx.reservation, ctx.accommodation, require('./publicOrigin').configuredOrigin() || event.payload.appUrl || ''),
   staff_push_payment: (ctx, event) => staff.push(event.organizationId, 'payment', {
     kind: 'payment', title: `Pagamento recebido · ${money(event.payload.amount)}`, body: summary(ctx), url: `/reservas?reserva=${ctx.reservation.id}`,
+    tag: `sp-payment-${ctx.reservation.id}`, roles: ['owner', 'manager'], excludeUserId: event.actorUserId,
   }),
+  staff_email_payment: (ctx, event) => staff.email(event.organizationId, paymentMessage(ctx, backofficeUrl(event, ctx.reservation))(event),
+    { excludeUserId: event.actorUserId }),
+  staff_push_payment_issue: (ctx, event) => {
+    const text = paymentIssueText(event.type, event.payload);
+    return staff.push(event.organizationId, 'payment', {
+      kind: 'payment', title: text.title, body: `${summary(ctx)} · ${text.body}`, url: `/reservas?reserva=${ctx.reservation.id}`,
+      tag: `sp-payment-issue-${ctx.reservation.id}`, requireInteraction: true, roles: ['owner', 'manager'],
+    });
+  },
+  staff_email_payment_issue: (ctx, event) => {
+    const text = paymentIssueText(event.type, event.payload);
+    return staff.email(event.organizationId, {
+      subject: `${text.title} — ${guestName(ctx)} · ${ctx.reservation.id}`, eyebrow: 'Pagamento', tone: 'warn',
+      headline: `${guestName(ctx)} · ${stay(ctx)}`, accommodation: ctx.accommodation,
+      rows: [{ label: 'Alojamento', value: ctx.accommodation.name || '' }, { label: 'Referência', value: ctx.reservation.id }],
+      note: { tone: 'warn', heading: text.title, html: require('./emailComposer').escapeHtml(text.body) },
+      url: backofficeUrl(event, ctx.reservation),
+    }, { ownerOnly: true });
+  },
   staff_push_cancelled: (ctx, event) => staff.push(event.organizationId, 'cancellation', {
     kind: 'cancellation', title: CANCEL_REASONS[event.payload.reason] || 'Reserva cancelada', body: summary(ctx),
-    url: `/reservas?reserva=${ctx.reservation.id}`, excludeUserId: event.actorUserId,
+    url: `/reservas?reserva=${ctx.reservation.id}`, excludeUserId: event.actorUserId, tag: `sp-cancellation-${ctx.reservation.id}`,
   }),
   staff_email_cancelled: (ctx, event) => staff.email(event.organizationId, staffCancelledMessage(ctx, event.payload.reason, backofficeUrl(event, ctx.reservation))),
   staff_push_precheckin: (ctx, event) => staff.push(event.organizationId, 'precheckin', {
     kind: 'precheckin', title: event.payload.resubmission ? 'Pré-check-in alterado pelo hóspede' : 'Pré-check-in recebido',
     body: [guestName(ctx), ctx.accommodation.name, `entrada a ${dates.shortDate(ctx.reservation.check_in)}`].filter(Boolean).join(' · '),
-    url: `/reservas?reserva=${ctx.reservation.id}`,
+    url: `/reservas?reserva=${ctx.reservation.id}`, tag: `sp-precheckin-${ctx.reservation.id}`,
   }),
 };
 
@@ -158,4 +220,4 @@ async function runEffect(effect, event) {
   await handler(ctx, event);
 }
 
-module.exports = { effectsFor, runEffect, staffCancelledMessage, CANCEL_REASONS };
+module.exports = { effectsFor, runEffect, paymentIssueText, staffCancelledMessage, CANCEL_REASONS };

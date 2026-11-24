@@ -16,7 +16,11 @@ function annotate(userId, organizationId, notifications, now = new Date().toISOS
   const keys = notifications.map(notificationKey);
   const rows = db.transaction(() => {
     const insert = db.prepare('INSERT OR IGNORE INTO notification_state(user_id, organization_id, notif_key, first_seen_at) VALUES (?,?,?,?)');
-    for (const key of new Set(keys)) insert.run(userId, organizationId, key, now);
+    // Avisos com hora própria (`occurred_at`, ex.: pagamento recebido às 03:00)
+    // mostram essa hora, não a de quando alguém abriu o sino.
+    const seen = new Map();
+    notifications.forEach((n, i) => { if (!seen.has(keys[i])) seen.set(keys[i], n.occurred_at || now); });
+    for (const [key, at] of seen) insert.run(userId, organizationId, key, at);
     const current = db.prepare('SELECT notif_key, first_seen_at, read_at FROM notification_state WHERE user_id=? AND organization_id=?').all(userId, organizationId);
     const keep = new Set(keys);
     const remove = db.prepare('DELETE FROM notification_state WHERE user_id=? AND organization_id=? AND notif_key=?');

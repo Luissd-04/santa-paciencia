@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v42';
-const CACHE_VERSION = 120;
+const CACHE_VERSION = 121;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -345,6 +345,8 @@ self.addEventListener('push', (event) => {
     icon: data.icon || '/img/push/app.png',
     badge: data.badge || '/img/push/app-badge.png',
     tag: data.tag || 'sp-notification',
+    // Aviso novo com a mesma etiqueta (mesma reserva) volta a tocar em vez de substituir em silêncio.
+    renotify: Boolean(data.renotify && data.tag),
     data: { url: data.url || '/' },
     requireInteraction: data.requireInteraction || false,
     actions: Array.isArray(data.actions) ? data.actions.slice(0, 2) : [],

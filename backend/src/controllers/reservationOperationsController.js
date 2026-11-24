@@ -84,7 +84,7 @@ async function getDashboardStats(req, res, next) {
         upcoming,
         availability,
         // Painel da V2 (hoje, atenção, por receber, mês anterior).
-        painel: require('../services/dashboardToday').dashboardToday(organizationId, todayDate, now),
+        painel: require('../services/dashboardToday').dashboardToday(organizationId, todayDate, now, { role: req.user.role }),
       }
     });
   } catch (err) {
@@ -300,12 +300,11 @@ function getNotifications(req, res, next) {
         FROM email_deliveries WHERE organization_id=? AND state IN ('blocked','uncertain')
         GROUP BY reservation_id, template_slug ORDER BY updated_at DESC LIMIT 100`).all(orgId);
       // Avisos (emails, push) que esgotaram as tentativas: ninguém os recebeu.
-      const effects = db.prepare(`SELECT e.reservation_id, e.type, f.effect, f.last_error FROM reservation_event_effects f
-        JOIN reservation_events e ON e.id = f.event_id
-        WHERE e.organization_id = ? AND f.state = 'failed' AND f.updated_at > datetime('now', '-14 days')
-        ORDER BY f.updated_at DESC LIMIT 50`).all(orgId);
-      for (const f of effects) notifications.push({ type: 'notice_failed', priority: 'high', icon: 'bell-off', title: 'Aviso não entregue',
-        subtitle: `${f.effect.replace(/_/g, ' ')} · ${f.last_error || 'falhou depois de várias tentativas'}`, reservation_id: f.reservation_id });
+      const noticeText = require('../services/noticeText');
+      for (const n of noticeText.failedNotices(orgId)) notifications.push(n);
+      // Pagamentos recebidos, falhados e reembolsados (últimos 7 dias), do registo
+      // de acontecimentos. Só proprietário e gestor: o funcionário não vê valores.
+      for (const n of noticeText.paymentNotices(orgId, req.user.id)) notifications.push(n);
       // Emails retidos por faltarem dados do alojamento, e o que vai faltar às
       // reservas já aceites (services/emailReadiness).
       const readiness = require('../services/emailReadiness');
@@ -327,7 +326,7 @@ function getNotifications(req, res, next) {
           subtitle: `${g.reservations} ${g.reservations === 1 ? 'reserva aceite vai' : 'reservas aceites vão'} precisar de: ${labels.join(', ')}. A primeira chega a ${require('../services/dates').shortDate(g.first)}.`,
           accommodation_id: g.accommodation_id, missing: labels });
       }
-      for (const d of deliveries) notifications.push({ type: 'email_review', priority: 'high', icon: 'mail', title: d.state === 'blocked' ? 'Email por enviar' : 'Envio de email por confirmar', subtitle: `${d.template_slug} · ${d.last_error || 'Aguarde a conclusão e confirme no Gmail antes de repetir.'}`, reservation_id: d.reservation_id, template_slug: d.template_slug, delivery_state: d.state });
+      for (const d of deliveries) notifications.push({ type: 'email_review', priority: 'high', icon: 'mail', title: d.state === 'blocked' ? 'Email por enviar' : 'Envio de email por confirmar', subtitle: `«${require('../services/emailReadiness').TEMPLATE_NAMES[d.template_slug] || 'Email'}» · ${d.last_error || 'Aguarde a conclusão e confirme no Gmail antes de repetir.'}`, reservation_id: d.reservation_id, template_slug: d.template_slug, delivery_state: d.state });
     }
     // Pedido de transferência de propriedade para esta pessoa (Área do proprietário).
     const transfer = require('../services/ownershipTransfer').pendingForUser(req.user);
