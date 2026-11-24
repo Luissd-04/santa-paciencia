@@ -12,6 +12,8 @@
   let currentPolicy = null;
   let currentPaid = 0;
   let cancelling = false;
+  let currentReservation = null;
+  let cancelTrigger = null;
   const fmtDeadline = value => window.ReservationDates.formatDateTime(value);
   function renderPolicy(payment) {
     const p = payment.policy;
@@ -30,10 +32,10 @@
       ${p.balanceNoticeSent && payment.available ? `<p><strong>Conclua o pagamento até ${fmtDeadline(p.deadline)} (Lisboa).</strong></p>` : ''}
       <p>O reembolso é calculado pela antecedência entre <strong>${p.refundBasis === 'booking' ? 'a criação da reserva' : 'o pedido de cancelamento'}</strong> e o check-in. Após o dia de check-in, contacte o alojamento.</p>
       <table><thead><tr><th>Antecedência</th><th>Reembolso</th></tr></thead><tbody>${rules}</tbody></table>
-      ${p.cancellation ? `<p>Cancelamento registado. Reembolso previsto: <strong>${fmtMoney(p.cancellation.amount)}</strong>. ${p.cancellation.state === 'complete' ? 'Processamento concluído.' : p.cancellation.state === 'manual_review' ? 'O alojamento está a verificar o reembolso.' : 'Reembolso em processamento.'}</p>` : ''}`;
+      ${p.cancellation ? `<p>Cancelamento registado. ${p.cancellation.amount > 0 ? `Reembolso de <strong>${fmtMoney(p.cancellation.amount)}</strong>: ${p.cancellation.state === 'complete' ? 'enviado para o cartão usado no pagamento (costuma aparecer em 5 a 10 dias úteis, conforme o banco).' : p.cancellation.state === 'manual_review' ? 'o alojamento está a verificar o reembolso.' : 'em processamento.'}` : 'Sem reembolso, segundo as condições aceites.'}</p>` : ''}`;
     $('rs-refund-quote').textContent = !currentPaid
       ? 'Ainda não pagou nada: se cancelar agora, as datas ficam livres e não há valores a devolver.'
-      : `Se cancelar agora, o reembolso previsto é ${fmtMoney(p.refundCents / 100)} (${p.refundPercent}% do valor já pago).`;
+      : `Se cancelar agora, devolvemos ${fmtMoney(p.refundCents / 100)} (${p.refundPercent}% do valor já pago).`;
   }
 
 
@@ -52,10 +54,15 @@
     $('rs-payment-panel').hidden = phase === 'cancelada' || (!payment.available && !payment.processing && !awaitingWebhook && !notice);
     button.hidden = !payment.available || payment.processing || awaitingWebhook || payment.status === 'review_required';
     button.disabled = openingCheckout;
-    button.textContent = openingCheckout ? 'A abrir pagamento…' : `Pagar ${fmtMoney(payment.amount_due)} online`;
+    // Restante depois do sinal: botão secundário «Pagar já» (o painel é então
+    // o cartão discreto, ver reservation-status-novo.js).
+    const later = $('rs-payment-panel').classList.contains('later');
+    button.classList.toggle('gp-btn-2', later);
+    button.textContent = openingCheckout ? 'A abrir pagamento…' : later ? 'Pagar já' : `Pagar ${fmtMoney(payment.amount_due)} online`;
     $('rs-test-note').hidden = !payment.test_mode || $('rs-payment-panel').hidden;
+    // «Pagamento recebido» vai no topo do cartão principal (reservation-status-novo.js).
     const messages = {
-      paid: 'Pagamento recebido. Obrigado!',
+      paid: '',
       failed: 'O pagamento não foi concluído. Pode tentar novamente.',
       expired: 'A sessão de pagamento expirou. Pode iniciar uma nova enquanto a reserva estiver disponível.',
       cancelled: 'O pagamento foi cancelado. Pode tentar novamente se a reserva continuar disponível.',
@@ -65,9 +72,10 @@
     };
     $('rs-payment-message').textContent = payment.processing || awaitingWebhook
       ? 'Estamos a aguardar a confirmação do pagamento. Esta página será atualizada automaticamente.'
-      : messages[payment.status] || (returnState === 'cancelled'
+      : payment.status === 'paid' ? '' : messages[payment.status] || (returnState === 'cancelled'
         ? 'Saiu do pagamento. Pode retomá-lo enquanto a reserva estiver disponível.'
-        : 'Pague de forma segura na Stripe. Os métodos disponíveis são apresentados no passo seguinte.');
+        : later ? '' : 'Pague de forma segura na Stripe. Os métodos disponíveis são apresentados no passo seguinte.');
+    $('rs-payment-message').hidden = !$('rs-payment-message').textContent;
     if ((payment.processing || awaitingWebhook) && refreshCount < 12) {
       refreshTimer = setTimeout(() => { refreshCount++; load(); }, 5000);
     } else if ((payment.processing || awaitingWebhook) && refreshCount >= 12) {
@@ -126,6 +134,7 @@
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload.success === false) throw new Error(payload.error || 'Não foi possível consultar a reserva.');
       const reservation = payload.data;
+      currentReservation = reservation;
       // Topo, próximo passo, passos e lateral (reservation-status-novo.js);
       // depois o pagamento online, que vive dentro do cartão «Próximo passo».
       const cover = reservation.portal?.cover_image || reservation.cover_image || reservation.images?.[0];
@@ -142,12 +151,25 @@
     }
   }
 
+  function setConsentError(on) {
+    const box = $('rs-consent');
+    $('rs-consent-error').hidden = !on;
+    $('rs-consent-label').classList.toggle('has-error', on);
+    if (on) { box.setAttribute('aria-invalid', 'true'); box.setAttribute('aria-describedby', 'rs-consent-error'); }
+    else { box.removeAttribute('aria-invalid'); box.removeAttribute('aria-describedby'); }
+  }
+  $('rs-consent').addEventListener('change', () => { if ($('rs-consent').checked) setConsentError(false); });
+
   $('rs-pay').addEventListener('click', async () => {
     if (openingCheckout) return;
     if (currentPolicy && !currentPolicy.accepted && !$('rs-consent').checked) {
-      $('rs-error').textContent = 'Aceite as condições antes de continuar.'; $('rs-error').hidden = false; $('rs-consent').focus();
-      $('rs-consent-label').scrollIntoView({ block: 'center' }); return;
+      // O erro fica junto da caixa (não no topo da página, fora do ecrã).
+      setConsentError(true);
+      $('rs-consent-label').scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      $('rs-consent').focus({ preventScroll: true });
+      return;
     }
+    setConsentError(false);
     openingCheckout = true;
     $('rs-pay').disabled = true;
     $('rs-pay').textContent = 'A abrir pagamento…';
@@ -168,10 +190,74 @@
       $('rs-error').hidden = false;
     }
   });
-  $('rs-cancel').addEventListener('click', async () => {
+  // ── Cancelar: janela própria com datas, valor pago e reembolso ───────────
+  const dayLong = iso => `${window.ReservationDates.formatDayLabel(iso)}`;
+  // Regra de reembolso em vigor, em palavras: «reembolso total até 30 dias antes da entrada».
+  function refundRuleText(p) {
+    const rule = p.policy.refundRules.find(r => p.refundDays >= r.minDays && (r.maxDays === null || p.refundDays <= r.maxDays))
+      || p.policy.refundRules.find(r => r.percent === p.refundPercent);
+    const basis = p.refundBasis === 'booking' ? ' (conta a antecedência com que fez a reserva)' : '';
+    if (!rule) return 'Segundo as condições que aceitou.';
+    const what = rule.percent >= 100 ? 'reembolso total' : rule.percent <= 0 ? 'sem reembolso' : `reembolso de ${rule.percent}%`;
+    const when = rule.maxDays === null ? `até ${rule.minDays} dias antes da entrada`
+      : rule.minDays <= 0 ? `a menos de ${rule.maxDays + 1} dias da entrada`
+      : `de ${rule.minDays} a ${rule.maxDays} dias antes da entrada`;
+    return `Segundo as condições que aceitou: ${what} ${when}${basis}.`;
+  }
+  function fillCancelDialog() {
+    const p = currentPolicy;
+    const r = currentReservation || {};
+    const paid = currentPaid;
+    $('rs-cancel-stay').textContent = [r.accommodation_name, r.check_in && r.check_out ? `${dayLong(r.check_in)} → ${dayLong(r.check_out)} ${String(r.check_out).slice(0, 4)}` : ''].filter(Boolean).join(' · ');
+    const lines = $('rs-cancel-lines');
+    lines.textContent = '';
+    const row = (label, value) => {
+      const div = document.createElement('div');
+      const dt = document.createElement('dt'); dt.textContent = label;
+      const dd = document.createElement('dd'); const b = document.createElement('strong'); b.textContent = value; dd.append(b);
+      div.append(dt, dd); lines.append(div);
+    };
+    const confirm = $('rs-cancel-confirm');
+    if (!paid) {
+      $('rs-cancel-rule').textContent = 'Ainda não pagou nada: se cancelar agora, as datas ficam livres e não há valores a devolver.';
+      confirm.textContent = 'Cancelar a reserva';
+    } else {
+      row('Pago até agora', fmtMoney(paid));
+      row('Devolvemos', `${fmtMoney(p.refundCents / 100)} (${p.refundPercent} %)`);
+      $('rs-cancel-rule').textContent = refundRuleText(p);
+      confirm.textContent = p.refundCents > 0 ? 'Cancelar e pedir o reembolso' : 'Cancelar a reserva';
+    }
+    $('rs-cancel-error').hidden = true;
+  }
+  function closeCancelDialog() {
+    const dialog = $('rs-cancel-dialog');
+    if (dialog.open) dialog.close();
+  }
+  $('rs-cancel').addEventListener('click', () => {
     if (cancelling || !currentPolicy?.canCancel) return;
-    if (!confirm(`Cancelar a reserva? Reembolso previsto: ${fmtMoney(currentPolicy.refundCents / 100)}. Esta ação liberta as datas da estadia.`)) return;
-    cancelling = true; $('rs-cancel').disabled = true;
+    cancelTrigger = $('rs-cancel');
+    const dialog = $('rs-cancel-dialog');
+    fillCancelDialog();
+    if (typeof dialog.showModal !== 'function') {   // browsers antigos: confirmação simples
+      if (confirm(`Cancelar a reserva? Devolvemos ${fmtMoney(currentPolicy.refundCents / 100)}. Esta ação liberta as datas da estadia.`)) doCancel();
+      return;
+    }
+    dialog.showModal();
+    $('rs-cancel-keep').focus();
+  });
+  $('rs-cancel-keep').addEventListener('click', closeCancelDialog);
+  // Clicar fora da caixa (no fundo) também mantém a reserva.
+  $('rs-cancel-dialog').addEventListener('click', event => { if (event.target === event.currentTarget) closeCancelDialog(); });
+  $('rs-cancel-dialog').addEventListener('close', () => { if (!cancelling) cancelTrigger?.focus?.(); });
+  $('rs-cancel-confirm').addEventListener('click', () => doCancel());
+  async function doCancel() {
+    if (cancelling || !currentPolicy?.canCancel) return;
+    cancelling = true;
+    const button = $('rs-cancel-confirm');
+    const label = button.textContent;
+    button.disabled = true; $('rs-cancel-keep').disabled = true; $('rs-cancel').disabled = true;
+    button.textContent = 'A cancelar…';
+    $('rs-cancel-error').hidden = true;
     try {
       const response = await fetch(`/api/public/reservation/${encodeURIComponent(token)}/cancel`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -179,11 +265,27 @@
       });
       const payload = await response.json();
       if (!response.ok || !payload.success) throw new Error(payload.error || 'Não foi possível cancelar.');
+      cancelling = false;
       await load();
+      closeCancelDialog();
+      // O foco passa ao novo estado da reserva.
+      const title = $('gp-next-title');
+      title.tabIndex = -1; title.focus({ preventScroll: true });
+      window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
     } catch (error) {
-      await load(); $('rs-error').textContent = error.message; $('rs-error').hidden = false;
-    } finally { cancelling = false; $('rs-cancel').disabled = false; }
-  });
+      cancelling = false;
+      await load();
+      if (currentPolicy?.canCancel && $('rs-cancel-dialog').open) {
+        fillCancelDialog();   // valores atualizados, se foi essa a causa
+        $('rs-cancel-error').textContent = error.message;
+        $('rs-cancel-error').hidden = false;
+      } else { closeCancelDialog(); $('rs-error').textContent = error.message; $('rs-error').hidden = false; }
+    } finally {
+      cancelling = false;
+      button.disabled = false; $('rs-cancel-keep').disabled = false; $('rs-cancel').disabled = false;
+      if (button.textContent === 'A cancelar…') button.textContent = label;
+    }
+  }
   $('rs-refresh').addEventListener('click', () => { refreshCount = 0; load(); });
 
   load();

@@ -10,7 +10,7 @@ const PREVIEW_STATUSES = ['confirmada', 'pre_reserva', 'pendente', 'aguardar_pag
 // Ordem cronológica da jornada do hóspede (o cancelamento fica no fim, como
 // percurso de exceção). Modelos fora da lista vêm a seguir.
 const TEMPLATE_ORDER = [
-  'confirmacao', 'reserva_aceite', 'pagamento', 'aviso_restante', 'coordenadas', 'obrigado',
+  'confirmacao', 'reserva_aceite', 'pagamento', 'reserva_alterada', 'aviso_restante', 'coordenadas', 'obrigado',
   'cancelamento', 'cancelamento_politica', 'portal_hospede', 'pre_checkin', 'apos_checkin', 'antes_checkout',
 ];
 
@@ -55,6 +55,7 @@ function previewContext(orgId, { baseUrl = '', status = 'confirmada', accommodat
     codigo_porta: unit.door_code || '1234#',
     valor_pagamento: '80,00 €',
     ...(overrides.motivo_cancelamento ? { motivo_cancelamento: overrides.motivo_cancelamento } : {}),
+    ...Object.fromEntries(Object.entries(overrides).filter(([key]) => key.startsWith('alteracao_'))),
   }));
   return { settings, vars, blocks: emailService.buildBlocks(vars, settings, reservation), reservation };
 }
@@ -82,7 +83,9 @@ const GUEST_CASES = {
     { label: 'sinal fora do prazo', status: 'cancelada', reservation: { amount_paid: 0, motivo_cancelamento: 'deposit' } },
     { label: 'pela equipa', status: 'cancelada', reservation: { amount_paid: 0, motivo_cancelamento: 'staff' } },
     { label: 'pelo hóspede', status: 'cancelada', reservation: { amount_paid: 0, motivo_cancelamento: 'guest' } },
+    { label: 'pagamento depois de cancelar', status: 'cancelada', reservation: { motivo_cancelamento: 'payment_after' } },
   ],
+  reserva_alterada: [{ reservation: { amount_paid: 80, alteracao_datas_antes: '28 → 30 mai', alteracao_total_antes: '200,00 €', alteracao_prazo: 'sáb, 29 mai' } }],
   cancelamento_politica: [{ status: 'cancelada' }],
   portal_hospede: [
     { label: 'pedido por aprovar', status: 'pendente', reservation: { amount_paid: 0 } },

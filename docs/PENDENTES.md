@@ -12,11 +12,9 @@ filtros, barra lateral, entre outros) está concluída — ver `git log 9a033e7.
 
 Da auditoria de 25/11 (`AUDITORIA-PERCURSO-2026-11-25.md`; os números são os do relatório):
 
-1. **Pagar sem confusão** (com maqueta): restante discreto depois do sinal (9), aviso de consentimento junto da caixa (15), erro da estadia mínima limpo (19), texto do reembolso com prazo (20).
-2. **O que acontece a meio:** sem Stripe, email de aceitação com instruções manuais e prazo de 48 h (3); editar reserva paga avisa o hóspede e mantém-na confirmada (7); dinheiro em reservas canceladas visível e tratado (8); pré-check-in acompanha as datas (11); reativar renova os prazos (12); cancelar pelo formulário com política (21).
-3. **Coerência da equipa:** totais e rótulos iguais no painel, na ficha, no calendário e no portal (14); «aguarda pagamento» e pré-aviso de expiração no sino (16).
-4. **Taxa turística:** idade de isenção configurável por alojamento.
-5. Melhorias da lista do relatório.
+1. **Coerência da equipa:** totais e rótulos iguais no painel, na ficha, no calendário e no portal (14); «aguarda pagamento» e pré-aviso de expiração no sino (16).
+2. **Taxa turística:** idade de isenção configurável por alojamento.
+3. Melhorias da lista do relatório.
 
 ## Antes de publicar a revisão de 23–24/11
 
@@ -44,6 +42,12 @@ Da auditoria de 25/11 (`AUDITORIA-PERCURSO-2026-11-25.md`; os números são os d
 - Atualizar `PERCURSO-HOSPEDE` e `ARQUITETURA` com o portal novo, a área do proprietário, a página incorporada, os recortes e as vistas.
 
 ## Para rever (decisões do dono do produto)
+
+**Auditoria de 25/11**
+- Subir o preço de uma reserva paga desliga a cobrança automática do restante com o cartão guardado: o hóspede paga pelo link do email «Reserva alterada».
+- Sem política, um pagamento parcial registado à mão não confirma a reserva (só o total confirma).
+- «Cancelada» saiu do seletor de estado quando há política: cancela-se pelo botão «Cancelar reserva» da ficha.
+
 
 **Portal do hóspede**
 - Mapa a sério? Hoje: morada + «Abrir no Google Maps» (implica guardar coordenadas ao pesquisar a morada).

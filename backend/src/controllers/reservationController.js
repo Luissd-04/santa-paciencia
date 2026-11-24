@@ -65,6 +65,8 @@ async function getById(req, res, next) {
     reservation.status_options = lifecycle.statusOptions(reservation, req.user);
     reservation.status_undo = lifecycle.undoStatus(reservation, req.user);
     reservation.can_pay_online = require('../services/stripePayments').awaitsOnlinePayment(reservation);
+    // Reserva cancelada com dinheiro recebido: reembolsar ou reter (null se não houver).
+    reservation.cancel_money = require('../services/cancelledMoney').describe(reservation);
     // Cartão «Portal do hóspede»: último envio do link (as aberturas pelo
     // hóspede, portal_first/last_opened_at, vêm com a reserva).
     reservation.portal_link_sent_at = require('../services/portalTracking').lastLinkSentAt(req.user.organization_id, reservation.id);
@@ -129,6 +131,24 @@ async function cancel(req, res, next) {
   } catch (err) {
     next(err);
   }
+}
+
+// POST /api/reservations/:id/cancelled-money/refund  { amount?, method?, note? }
+// POST /api/reservations/:id/cancelled-money/retain  { reason }
+// O que fazer ao dinheiro recebido numa reserva cancelada (services/cancelledMoney).
+async function refundCancelledMoney(req, res, next) {
+  try {
+    const data = await require('../services/cancelledMoney').refund(req.user.organization_id, req.params.id,
+      { actorUserId: req.user.id, amount: req.body?.amount, method: req.body?.method, note: req.body?.note });
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+}
+function retainCancelledMoney(req, res, next) {
+  try {
+    const data = require('../services/cancelledMoney').retain(req.user.organization_id, req.params.id,
+      { actorUserId: req.user.id, reason: req.body?.reason });
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
 }
 
 // DELETE /api/reservations/:id/permanent  (apagar definitivamente)
@@ -297,4 +317,4 @@ async function resolveEmailHold(req, res, next) {
 }
 
 // GET /api/reservations/stats/dashboard
-module.exports = { resolveEmailHold, resolveEmailDelivery, getAll, getById, create, update, quote, approve, sendPrecheckinLink, sendPortalLink, cancel, hardDelete, getDashboardStats, getAvailability, getNotifications, markNotificationsRead, addPayment, deletePayment, saveInvoice, setTaskStatus, getHistory };
+module.exports = { resolveEmailHold, resolveEmailDelivery, getAll, getById, create, update, quote, approve, sendPrecheckinLink, sendPortalLink, cancel, refundCancelledMoney, retainCancelledMoney, hardDelete, getDashboardStats, getAvailability, getNotifications, markNotificationsRead, addPayment, deletePayment, saveInvoice, setTaskStatus, getHistory };

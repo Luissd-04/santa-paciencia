@@ -35,14 +35,17 @@
       <div class="gp-main">
         <!-- Próximo passo: um só cartão, conforme a fase da reserva. -->
         <section class="gp-card gp-next" id="gp-next" aria-labelledby="gp-next-title" aria-live="polite">
-          <span class="gp-pill" id="rs-status"></span>
+          <div class="gp-next-top"><span class="gp-pill" id="rs-status"></span><span class="gp-next-note" id="rs-status-note" hidden></span></div>
           <h2 id="gp-next-title"></h2>
           <div class="gp-next-body" id="gp-next-body"></div>
           <div class="gp-actions" id="gp-next-action"></div>
           <div class="gp-pay" id="rs-payment-panel" hidden>
             <div class="gp-due" id="pn-rs-due"></div>
             <p id="rs-payment-message" role="status"></p>
-            <label id="rs-consent-label" class="rs-consent" hidden><input type="checkbox" id="rs-consent"> <span>Li e aceito as <a href="#gp-policy" id="rs-consent-policy">condições de pagamento e cancelamento</a>.</span></label>
+            <div class="rs-consent-field" id="rs-consent-field">
+              <label id="rs-consent-label" class="rs-consent" hidden><input type="checkbox" id="rs-consent"> <span>Li e aceito as <a href="#gp-policy" id="rs-consent-policy">condições de pagamento e cancelamento</a>.</span></label>
+              <p class="rs-field-error" id="rs-consent-error" hidden><span aria-hidden="true">●</span> Marque esta caixa para continuar para o pagamento.</p>
+            </div>
             <label id="rs-auto-label" class="rs-consent" hidden><input type="checkbox" id="rs-auto"> <span>Autorizo a Stripe a guardar o cartão para cobrar o restante desta reserva na data indicada. Com MB WAY, pagarei através de um novo link.</span></label>
             <div id="rs-pay-wrap"><button class="gp-btn" id="rs-pay" type="button" hidden>Pagar online</button></div>
             <p class="gp-note" id="rs-test-note" hidden>Modo de teste — não são efetuadas cobranças reais.</p>
@@ -76,6 +79,20 @@
       </aside>
     </div>
   </main>
+  <!-- Confirmação do cancelamento pelo hóspede (preenchida por reservation-status.js). -->
+  <dialog class="gp-dialog" id="rs-cancel-dialog" aria-labelledby="rs-cancel-title" aria-describedby="rs-cancel-rule">
+    <form method="dialog" class="gp-dialog-box" id="rs-cancel-form">
+      <h2 id="rs-cancel-title">Cancelar a reserva?</h2>
+      <p class="gp-dialog-stay" id="rs-cancel-stay"></p>
+      <dl class="gp-lines" id="rs-cancel-lines"></dl>
+      <p class="gp-dialog-rule" id="rs-cancel-rule"></p>
+      <p class="rs-field-error" id="rs-cancel-error" role="alert" hidden></p>
+      <div class="gp-dialog-actions">
+        <button type="button" class="gp-btn gp-btn-danger" id="rs-cancel-confirm">Cancelar e pedir o reembolso</button>
+        <button type="button" class="gp-btn gp-btn-ghost" id="rs-cancel-keep" autofocus>Manter a reserva</button>
+      </div>
+    </form>
+  </dialog>
   <script src="/js/domain/responsive-image.js?v=imagens-20261123-1"></script>
   <script src="/js/domain/money.js?v=centralizacao-20261024-2"></script>
   <script src="/js/domain/dates.js?v=percurso-20261119-2"></script>

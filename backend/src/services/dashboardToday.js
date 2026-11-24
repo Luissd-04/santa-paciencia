@@ -56,6 +56,8 @@ function dashboardToday(orgId, today, now = new Date(), { role } = {}) {
     : [];
   const precheckinMissing = db.prepare(`SELECT ${RESERVATION_COLUMNS} ${FROM} WHERE r.organization_id = ? AND r.status = 'confirmada'
     AND r.precheckin_submitted_at IS NULL AND r.check_in BETWEEN ? AND ? ORDER BY r.check_in LIMIT 20`).all(orgId, today, addDays(today, 7));
+  // Dinheiro numa reserva cancelada por tratar e pagamentos online a rever: só gestor ou proprietário.
+  const money = role && role !== 'staff' ? require('./cancelledMoney').attention(orgId) : { cancelledWithMoney: [], paymentReview: [] };
   const brief = r => ({ id: r.id, guest_name: r.guest_name, check_in: r.check_in, check_out: r.check_out, accommodation_name: r.accommodation_name, missing: missing(r),
     // Sem política ativa o que falta é o pagamento, não um «sinal».
     pays_in_full: require('./paymentPolicy').paysInFull({ organization_id: orgId, payment_policy_json: r.payment_policy_json }) });
@@ -69,7 +71,9 @@ function dashboardToday(orgId, today, now = new Date(), { role } = {}) {
 
   return {
     today: items,
-    attention: { pendingApproval: pendingApproval.map(brief), awaitingDeposit: awaitingDeposit.map(brief), depositOverdue: depositOverdue.map(brief), precheckinMissing: precheckinMissing.map(brief) },
+    attention: { pendingApproval: pendingApproval.map(brief), awaitingDeposit: awaitingDeposit.map(brief), depositOverdue: depositOverdue.map(brief), precheckinMissing: precheckinMissing.map(brief),
+      cancelledMoney: money.cancelledWithMoney.map(r => ({ ...brief(r), paid: Number(r.amount_paid || 0) })),
+      paymentReview: money.paymentReview.map(r => ({ ...brief(r), paid: Number(r.amount_paid || 0) })) },
     receivable: { count: receivable.count, amount: Math.round(receivable.amount * 100) / 100 },
     previousOccupancyRate: previous.rate,
   };

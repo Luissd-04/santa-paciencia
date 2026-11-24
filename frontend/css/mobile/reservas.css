@@ -41,6 +41,9 @@
   .rf-next-text { flex: 1; }
   .rf-next-actions { width: 100%; margin-left: 0; }
   .rf-next-actions .btn { flex: 1; justify-content: center; }
+  .rf-money { padding: 14px; }
+  .rf-money-actions .btn { flex: 1; justify-content: center; }
+  .rf-money-form input { font-size: 16px; }
   .rf-card { padding: 16px; }
   .rf-dates { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .rf-arrow { display: none; }

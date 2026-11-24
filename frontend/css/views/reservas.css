@@ -281,6 +281,16 @@
 .rf-next-text strong { font-size: 15px; color: var(--text-main); }
 .rf-next-text span { font-size: 13px; color: var(--text-muted); }
 .rf-next-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-left: auto; }
+.rf-money { grid-column: 1 / -1; display: grid; gap: 10px; padding: 14px 18px; border: 1px solid #efdcb6; border-left: 4px solid #8a5a10; border-radius: 12px; background: #fff7e9; color: var(--text-main); }
+.rf-money.is-done { border-color: var(--border-soft); border-left-color: var(--text-muted); background: var(--surface-muted, #f6f3ee); }
+.rf-money-text { display: grid; gap: 2px; font-size: 14px; line-height: 1.5; }
+.rf-money-text span { color: var(--text-muted); font-size: 13.5px; }
+.rf-money-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.rf-money-form { display: grid; gap: 8px; }
+.rf-money-form[hidden] { display: none; }
+.rf-money-form label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+.rf-money-form input { min-height: 40px; padding: 8px 10px; border: 1px solid var(--border-soft); border-radius: 8px; background: var(--branco); color: var(--text-main); font: inherit; }
+[data-theme="dark"] .rf-money { background: rgba(176, 106, 0, .12); border-color: rgba(176, 106, 0, .3); border-left-color: #e6b45a; }
 [data-theme="dark"] .rf-next { background: rgba(176, 106, 0, .12); border-color: rgba(176, 106, 0, .3); }
 [data-theme="dark"] .rf-next-icon { background: rgba(176, 106, 0, .2); color: #e6b45a; }
 

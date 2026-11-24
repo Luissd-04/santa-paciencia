@@ -16,7 +16,7 @@ AppModules.define('notificacoes', {
 // [chave, etiqueta, ícone, tom, tipos]
 const GROUPS = [
   ['reservas', 'Reservas', 'calendar-check', 'info', ['checkin_today', 'checkout_today', 'checkin_tomorrow', 'pending']],
-  ['pagamentos', 'Pagamentos', 'credit-card', 'warn', ['unpaid', 'payment_review', 'payment_received', 'payment_issue', 'payment_refunded']],
+  ['pagamentos', 'Pagamentos', 'credit-card', 'warn', ['unpaid', 'payment_review', 'cancelled_money', 'payment_to_review', 'payment_received', 'payment_issue', 'payment_refunded']],
   ['tarefas', 'Tarefas', 'list-checks', 'violet', ['important_task']],
   ['sistema', 'Sistema', 'settings', 'bad', []],
 ];

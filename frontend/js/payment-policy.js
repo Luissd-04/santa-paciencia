@@ -29,10 +29,17 @@ function table(kind, title, description) {
     <button class="btn btn-ghost" type="button" ${AppActions.attrs('click', 'payment-policy-add-row', [kind])}>Adicionar intervalo</button>
     <p class="pp-help">Limites incluídos. Comece em 0 e cubra todos os dias, sem sobreposições. Último limite superior vazio = sem limite.</p></section>`;
 }
-function render(policy) {
+function render(policy, instr = { instructions: '', stripe_enabled: false }) {
   const today = window.ReservationDates.localIso();
   const checkIn = window.ReservationDates.localIso(new Date(), 120);
-  $('pp-content').innerHTML = `<form id="pp-form" data-on-submit="payment-policy-save">
+  $('pp-content').innerHTML = `<form id="pp-instr-form" data-on-submit="payment-instructions-save">
+    <section class="card pp-card"><h3>Pagamento sem Stripe</h3>
+      <p class="pp-hint">Aparece no email «Reserva aceite» quando os pagamentos online não estão ligados${instr.stripe_enabled ? ' (agora estão: o hóspede paga pelo botão)' : ''}.</p>
+      <label>Instruções de pagamento<textarea id="pp-instructions" maxlength="1000" rows="4" placeholder="Ex.: Transferência para PT50 … ou MB Way para 912 345 678. Indique a referência da reserva.">${esc(instr.instructions)}</textarea></label>
+      <p class="pp-hint">O hóspede tem 48 h para pagar; a equipa regista o pagamento à mão. Sem Stripe e sem instruções, o email de aceitação fica retido.</p>
+      <div class="pp-save"><button id="pp-instr-save" type="submit" class="btn btn-primary">Guardar instruções</button><span id="pp-instr-result" role="status" aria-live="polite"></span></div>
+    </section></form>
+  <form id="pp-form" data-on-submit="payment-policy-save">
     <section class="card pp-card"><h3>Política para novas reservas</h3>
       <label class="pp-check"><input id="pp-enabled" type="checkbox" ${policy.enabled ? 'checked' : ''}> Ativar pagamentos faseados e cancelamentos</label>
       <p>As reservas guardam estas regras. Alterar esta página só afeta novas reservas. Os valores iniciais são exemplos: reveja-os antes de ativar.</p>
@@ -72,7 +79,10 @@ async function loadPaymentPolicy() {
   // Conservar alterações por guardar ao trocar de separador.
   if (loaded === AppModules.core.currentUser?.organization_id && $('pp-form')) return;
   $('pp-content').textContent = 'A carregar a política…';
-  try { const result = await AppModules.core.apiGet('/api/payment-policy'); render(result.data); }
+  try {
+    const [result, instr] = await Promise.all([AppModules.core.apiGet('/api/payment-policy'), AppModules.core.apiGet('/api/payment-policy/instructions')]);
+    render(result.data, instr.data);
+  }
   catch (e) { $('pp-content').textContent = e.message || 'Não foi possível carregar. Volte a abrir este separador.'; }
 }
 async function save(event) {
@@ -84,6 +94,17 @@ async function save(event) {
     renderRules('deposit', result.data.depositRules); renderRules('refund', result.data.refundRules);
     $('pp-result').textContent = result.data.enabled ? 'Política guardada e ativa para novas reservas.' : 'Política guardada. Continua desativada.';
   } catch (e) { $('pp-result').textContent = e.payload?.error || e.message || 'Não foi possível guardar.'; }
+  finally { button.disabled = false; }
+}
+async function saveInstructions(event) {
+  event.preventDefault();
+  const button = $('pp-instr-save'); button.disabled = true;
+  $('pp-instr-result').textContent = 'A guardar…';
+  try {
+    const result = await AppModules.core.apiPut('/api/payment-policy/instructions', { instructions: $('pp-instructions').value });
+    $('pp-instructions').value = result.data.instructions;
+    $('pp-instr-result').textContent = result.data.instructions ? 'Instruções guardadas.' : 'Instruções removidas.';
+  } catch (e) { $('pp-instr-result').textContent = e.payload?.error || e.message || 'Não foi possível guardar.'; }
   finally { button.disabled = false; }
 }
 async function simulate() {
@@ -118,5 +139,5 @@ AppActions.register({
   },
   'payment-policy-simulate': () => simulate(),
 }, 'click');
-AppActions.register({ 'payment-policy-save': (el, event) => save(event) }, 'submit');
+AppActions.register({ 'payment-policy-save': (el, event) => save(event), 'payment-instructions-save': (el, event) => saveInstructions(event) }, 'submit');
 })();

@@ -17,6 +17,10 @@
     return `${day(date.toLocaleDateString('en-CA', opts))}, às ${date.toLocaleTimeString('pt-PT', { ...opts, hour: '2-digit', minute: '2-digit' })}`;
   };
   let calendarUrl = '';
+  // Regresso da Stripe com o pagamento feito: a confirmação passa à frente de
+  // tudo e o parâmetro sai do endereço, para um refresco não a repetir.
+  let returnedFromPayment = new URLSearchParams(location.search).get('payment') === 'return';
+  const hasPaymentParam = () => new URLSearchParams(location.search).has('payment');
 
   const safePath = path => (typeof path === 'string' && /^\/pre-checkin\/[A-Za-z0-9_-]+$/.test(path) ? path : '');
   function safeUrl(value) {
@@ -50,8 +54,31 @@
     if (r.status === 'aguardar_pagamento') return 'sinal';
     if (r.status === 'check_in' || (r.check_in && today >= r.check_in)) return 'estadia';
     if (r.precheckin && !r.precheckin.submitted && safePath(r.precheckin.path)) return 'pre_checkin';
-    if (missing > 0.004) return 'restante';
+    // O restante só é o passo principal quando já se pode pagar: com o sinal
+    // pago e o vencimento ainda longe, a reserva está confirmada («chegada»).
+    const plan = r.online_payment?.policy;
+    if (missing > 0.004 && (!plan || r.pays_in_full || plan.balanceNoticeSent || String(plan.dueAt || '').slice(0, 10) <= today)) return 'restante';
     return 'chegada';
+  }
+
+  // Dinheiro de uma reserva cancelada ou reembolsada: o que foi pago e o que
+  // volta ao hóspede (valores online; a Stripe é a fonte depois do reembolso).
+  function refundView(r, phase) {
+    const op = r.online_payment || {};
+    const refunded = phase === 'cancelada' || r.payment_status === 'reembolsado' || ['refunded', 'partially_refunded'].includes(op.status);
+    if (!refunded) return null;
+    const paid = Math.max(Number(r.amount_paid) || 0, Number(op.captured) || 0, r.money_resolution === 'refunded' ? Number(r.money_refunded) || 0 : 0);
+    const c = op.policy?.cancellation || null;
+    const returned = Number(op.refunded) || 0;
+    let state = 'none';
+    let amount = 0;
+    if (r.money_resolution === 'refunded') { amount = Number(r.money_refunded) || 0; state = 'done'; }
+    else if (r.money_resolution === 'retained') state = 'retained';
+    else if (c) { amount = c.amount; state = c.state === 'complete' ? 'sent' : c.state === 'manual_review' ? 'manual' : 'pending'; }
+    else if (returned > 0) { amount = returned; state = 'sent'; }
+    else if (paid > 0) state = 'manual';
+    if (!['manual', 'retained'].includes(state) && amount <= 0) state = paid > 0 ? 'zero' : 'none';
+    return { paid, amount, state };
   }
 
   // «hoje», «amanhã» ou «qua, 25 nov».
@@ -161,6 +188,7 @@
 
   // Cartão «Próximo passo»: etiqueta única, título, conteúdo e ação principal.
   function nextCard(r, p, phase, brand) {
+    const justPaid = returnedFromPayment && r.online_payment?.status === 'paid' && ['pre_checkin', 'chegada'].includes(phase);
     const payment = r.online_payment || {};
     const plan = payment.policy;
     const paid = Number(r.amount_paid) || 0;
@@ -191,7 +219,8 @@
         break;
       case 'pre_checkin':
         Object.assign(card, { pill: missing > 0 ? 'Reserva confirmada' : 'Reserva confirmada e paga', title: 'Faça o pré-check-in',
-          body: `<p class="gp-text">Hora de chegada e documento de cada hóspede (a lei obriga ao registo). Leva poucos minutos e poupa tempo à chegada.</p>`,
+          body: justPaid ? `<p class="gp-text">Falta só o pré-check-in: hora de chegada e documento de cada hóspede. Leva poucos minutos.</p>`
+            : `<p class="gp-text">Hora de chegada e documento de cada hóspede (a lei obriga ao registo). Leva poucos minutos e poupa tempo à chegada.</p>`,
           actions: [`<a class="gp-btn" href="${esc(precheckinPath)}">Fazer o pré-check-in</a>`] });
         break;
       case 'restante': {
@@ -203,7 +232,7 @@
         break;
       }
       case 'chegada':
-        Object.assign(card, { pill: 'Reserva confirmada e paga', title: 'Tudo para a sua chegada',
+        Object.assign(card, { pill: missing > 0.004 ? 'Reserva confirmada' : 'Reserva confirmada e paga', title: 'Tudo para a sua chegada',
           body: `<div class="gp-tiles">${tile('Check-in', `${relativeDay(r.check_in, p.today)}${checkinAt ? `, ${checkinAt}` : ''}`, arrivalNote)}${codeTile || pendingTile}</div>` });
         break;
       case 'estadia':
@@ -219,37 +248,80 @@
           ].filter(Boolean) });
         break;
       case 'cancelada': {
-        const c = plan?.cancellation;
-        Object.assign(card, { tone: 'off', pill: 'Reserva cancelada', title: 'Esta reserva foi cancelada',
-          body: `<p class="gp-text">${c ? `Reembolso previsto: <strong>${money(c.amount)}</strong>. ${c.state === 'complete' ? 'Processamento concluído.' : c.state === 'manual_review' ? 'O alojamento está a verificar o reembolso.' : 'Reembolso em processamento.'}`
-            : 'As datas ficaram livres. Se tiver alguma dúvida, fale connosco.'}</p>`,
+        const m = refundView(r, phase);
+        const contact = `Se tiver dúvidas, fale com ${esc(brand || 'o alojamento')} pelo WhatsApp ou email.`;
+        let title = 'Esta reserva foi cancelada';
+        let text = 'As datas ficaram livres. Se tiver alguma dúvida, fale connosco.';
+        if (m?.state === 'sent') {
+          title = `Reembolso de ${money(m.amount)} enviado`;
+          text = 'Vai para o cartão que usou no pagamento. Costuma aparecer em 5 a 10 dias úteis, conforme o banco.';
+        } else if (m?.state === 'pending') {
+          title = `Reembolso de ${money(m.amount)} em processamento`;
+          text = 'Vai para o cartão que usou no pagamento. Costuma aparecer em 5 a 10 dias úteis depois de processado, conforme o banco.';
+        } else if (m?.state === 'manual') {
+          title = 'Reembolso a tratar pelo alojamento';
+          text = `${esc(brand || 'O alojamento')} está a verificar o seu reembolso e fala consigo.`;
+        } else if (m?.state === 'done') {
+          title = `Reembolso de ${money(m.amount)} feito`;
+          text = `${esc(brand || 'O alojamento')} já lhe devolveu o valor. O prazo para o ver na conta depende da forma de pagamento.`;
+        } else if (m?.state === 'retained') {
+          title = 'Reserva cancelada';
+          text = `${esc(brand || 'O alojamento')} vai contactá-lo sobre o valor pago.`;
+        } else if (m?.state === 'zero') {
+          title = 'Reserva cancelada sem reembolso';
+          text = 'Segundo as condições que aceitou, esta reserva já não tinha direito a reembolso.';
+        }
+        Object.assign(card, { tone: 'off', pill: 'Reserva cancelada', title,
+          body: `<p class="gp-text">${text}</p>${m && m.state !== 'none' ? `<p class="gp-text">As datas ficaram livres.${['sent', 'pending'].includes(m.state) ? ' Também lhe enviámos isto por email.' : ''}${['manual', 'retained'].includes(m.state) ? ` ${contact}` : ''}</p>` : ''}`,
           actions: booking ? [`<a class="gp-btn" href="${esc(booking)}">Fazer um novo pedido</a>`] : [] });
         break;
       }
       default: break;
     }
+    if (justPaid) {
+      card.tone = 'ok';
+      card.pill = '✓ Pagamento recebido';
+      card.title = phase === 'chegada' && missing <= 0.004 ? 'A sua reserva está confirmada e paga' : 'A sua reserva está confirmada';
+      card.note = `${money(Number(r.online_payment.last_paid) || paid)} · agora`;
+      // Já viu a confirmação: um refresco ou um regresso mais tarde não a repete.
+      if (hasPaymentParam()) try { history.replaceState(null, '', location.pathname + location.hash); } catch { /* sem history */ }
+    }
     const pill = $('rs-status');
     pill.textContent = card.pill;
     pill.dataset.tone = card.tone;
+    $('rs-status-note').textContent = card.note || '';
+    $('rs-status-note').hidden = !card.note;
     $('gp-next-title').textContent = card.title;
     $('gp-next-body').innerHTML = card.body;
     $('gp-next-action').innerHTML = card.actions.join('');
   }
 
-  // Valor por pagar, dentro do painel do pagamento online.
-  function dueHtml(r, phase) {
+  // Valor por pagar, dentro do painel do pagamento online. No passo
+  // principal («sinal», «restante») é o valor grande; nos outros casos (sinal
+  // pago, pré-check-in a fazer) é uma linha discreta com a data.
+  function dueHtml(r, phase, p) {
     const payment = r.online_payment || {};
     const plan = payment.policy;
     const paid = Number(r.amount_paid) || 0;
     const total = Number(r.total_amount) || 0;
     const due = Number(payment.amount_due) || 0;
     if (!payment.available || due <= 0) return '';
+    if (!['sinal', 'restante'].includes(phase)) {
+      const full = Boolean(r.pays_in_full);
+      const dueDay = plan?.dueAt ? plan.dueAt.slice(0, 10) : '';
+      const today = p.today || new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Lisbon' });
+      let when = '';
+      if (paid > 0 && !full && plan) {
+        if (plan.balanceNoticeSent && plan.deadline) when = `Pague até ${day(String(plan.deadline).slice(0, 10))}.`;
+        else if (dueDay > today) when = `Até ${day(dueDay)}. ${plan.automatic ? 'Cobramos automaticamente o cartão autorizado.' : 'Enviamos-lhe o link uns dias antes.'}`;
+        else if (dueDay) when = `Venceu a ${day(dueDay)}.`;
+      }
+      return `<b>${paid > 0 && !full ? 'Restante' : 'Falta pagar'}: ${money(due)}</b>${when ? `<span>${esc(when)}</span>` : ''}`;
+    }
     const balance = plan?.balanceCents ? plan.balanceCents / 100 : 0;
     const when = paid === 0 && r.deposit_deadline ? `até ${esc(deadline(r.deposit_deadline))}`
       : plan?.dueAt && paid > 0 ? `até ${esc(day(plan.dueAt.slice(0, 10)))}` : '';
-    const secondary = !['sinal', 'restante'].includes(phase);
-    return `${secondary ? `<h3>${paid > 0 ? 'Falta o restante' : (r.pays_in_full ? 'Falta o pagamento' : 'Falta o sinal')}</h3>` : ''}
-      <div class="gp-due-line"><span class="gp-due-amount">${money(due)}</span>${when ? `<span class="gp-due-when">${when}</span>` : ''}</div>
+    return `<div class="gp-due-line"><span class="gp-due-amount">${money(due)}</span>${when ? `<span class="gp-due-when">${when}</span>` : ''}</div>
       ${paid === 0 && r.deposit_deadline ? '<p>Depois desse prazo, as datas voltam a ficar livres.</p>' : ''}
       ${plan && paid === 0 && balance > 0 ? `<p class="gp-note">Sinal de ${plan.depositPercent}% de ${money(total)} · o restante (${money(balance)}) fica para ${esc(day(plan.dueAt.slice(0, 10)))}.</p>` : ''}`;
   }
@@ -314,18 +386,31 @@
       ${r.accommodation_name ? `<div><dt>Unidade</dt><dd>${esc(r.accommodation_name)}</dd></div>` : ''}</dl>
       ${!['cancelada', 'depois'].includes(phase) ? `<a class="gp-btn-ghost pn-calendar" download="reserva-${esc(r.id)}.ics" href="${calendarFile(r, brand)}">Adicionar ao calendário</a>` : ''}`;
 
-    // Pagamentos.
+    // Pagamentos. Numa reserva cancelada ou reembolsada não há «Falta»: mostra
+    // o que foi pago e o que volta ao hóspede.
     const percent = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
-    const showPay = total > 0 && !(phase === 'cancelada' && paid <= 0);
+    const refund = refundView(r, phase);
+    const showPay = refund ? refund.paid > 0 : total > 0;
     $('pn-rs-payments').hidden = !showPay;
-    $('pn-rs-payments').innerHTML = showPay ? `<h3 id="gp-payments-title">Pagamentos</h3>
+    if (showPay && refund) {
+      const value = { sent: money(refund.amount), done: money(refund.amount), retained: 'o alojamento vai contactá-lo', pending: `${money(refund.amount)} (em processamento)`, manual: 'a tratar pelo alojamento',
+        zero: 'sem reembolso', none: 'a tratar pelo alojamento' }[refund.state];
+      $('pn-rs-payments').innerHTML = `<h3 id="gp-payments-title">Pagamentos</h3>
+        <dl class="gp-lines">
+          <div><dt>Pago</dt><dd><strong>${money(refund.paid)}</strong></dd></div>
+          <div><dt>Reembolso</dt><dd>${esc(value)}</dd></div>
+        </dl>
+        ${r.online_payment?.policy ? '<a href="#gp-policy" class="gp-note" id="gp-policy-link">Ver as condições de pagamento e cancelamento</a>' : ''}`;
+    } else if (showPay) {
+      $('pn-rs-payments').innerHTML = `<h3 id="gp-payments-title">Pagamentos</h3>
       <div class="gp-progress${percent >= 100 ? ' full' : ''}" role="progressbar" aria-label="Pago" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}" aria-valuetext="${percent}% pago"><i style="width:${percent}%"></i></div>
       <dl class="gp-lines">
         <div><dt>Pago</dt><dd><strong>${money(paid)}</strong></dd></div>
         <div><dt>Falta</dt><dd>${money(missing)}</dd></div>
         <div class="gp-total"><dt>Total</dt><dd>${money(total)}</dd></div>
       </dl>
-      ${r.online_payment?.policy ? '<a href="#gp-policy" class="gp-note" id="gp-policy-link">Ver as condições de pagamento e cancelamento</a>' : ''}` : '';
+      ${r.online_payment?.policy ? '<a href="#gp-policy" class="gp-note" id="gp-policy-link">Ver as condições de pagamento e cancelamento</a>' : ''}`;
+    }
 
     // Contacto do alojamento (o da organização, em falta).
     const phone = String(r.contact?.phone || '').trim();
@@ -340,7 +425,7 @@
     ].filter(Boolean);
     $('gp-contact').hidden = !links.length;
     $('gp-contact').innerHTML = links.length ? `<h3 id="gp-contact-title">${['chegada', 'estadia'].includes(phase) ? 'Precisa de ajuda?' : 'Dúvidas?'}</h3>
-      <p class="gp-note">Fale diretamente com ${esc(brand || 'o alojamento')}.</p><div class="gp-contact">${links.join('')}</div>` : '';
+      <p class="gp-note">${phase === 'cancelada' ? `Se tiver dúvidas, fale com ${esc(brand || 'o alojamento')} pelo WhatsApp ou email.` : `Fale diretamente com ${esc(brand || 'o alojamento')}.`}</p><div class="gp-contact">${links.join('')}</div>` : '';
   }
 
   function render(r, image = null) {
@@ -354,8 +439,15 @@
 
     renderHero(r, p, phase, image, brand);
     nextCard(r, p, phase, brand);
-    $('pn-rs-due').innerHTML = dueHtml(r, phase);
-    $('rs-payment-panel').classList.toggle('secondary', !['sinal', 'restante'].includes(phase));
+    $('pn-rs-due').innerHTML = dueHtml(r, phase, p);
+    // O pagamento fica dentro do cartão «Próximo passo» quando é o passo
+    // principal; senão passa a um cartão discreto logo a seguir.
+    const panel = $('rs-payment-panel');
+    const later = !['sinal', 'restante'].includes(phase);
+    panel.classList.toggle('later', later);
+    panel.classList.toggle('gp-card', later);
+    if (later) { if (panel.previousElementSibling !== $('gp-next')) $('gp-next').after(panel); }
+    else if (panel.parentElement !== $('gp-next')) $('gp-next').append(panel);
 
     const steps = ['pedido', 'sinal', 'pre_checkin', 'restante'].includes(phase) ? stepsFor(r, phase, brand) : [];
     $('pn-rs-steps').hidden = !steps.length;
@@ -368,8 +460,8 @@
   // Ação principal fixa em baixo no telemóvel: o pagamento, se estiver à
   // vista no cartão, senão a ação do cartão «Próximo passo».
   function setSticky(phase, payVisible) {
-    const sticky = payVisible && ['sinal', 'restante'].includes(phase) ? 'pay'
-      : $('gp-next-action').children.length && !payVisible ? 'action' : '';
+    const payPrimary = payVisible && ['sinal', 'restante'].includes(phase);
+    const sticky = payPrimary ? 'pay' : $('gp-next-action').children.length && !payPrimary ? 'action' : '';
     if (sticky) document.body.dataset.sticky = sticky; else delete document.body.dataset.sticky;
   }
 

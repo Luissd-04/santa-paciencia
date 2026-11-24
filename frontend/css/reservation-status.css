@@ -65,6 +65,8 @@ body.gp { margin: 0; min-height: 100vh; background: var(--cream); color: var(--i
 .gp-pill[data-tone="off"] { background: var(--off-bg); color: var(--off); }
 
 /* Próximo passo */
+.gp-next-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.gp-next-note { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
 .gp-next { display: flex; flex-direction: column; gap: 14px; padding: 28px 30px; }
 .gp-next h2 { font-size: 28px; line-height: 1.2; }
 .gp-next-body { display: grid; gap: 14px; }
@@ -84,11 +86,20 @@ body.gp { margin: 0; min-height: 100vh; background: var(--cream); color: var(--i
 .gp .gp-btn:disabled { opacity: .7; cursor: wait; }
 .gp .gp-btn-ghost { border: 1px solid rgba(84,54,35,.2); background: var(--paper); color: var(--ink); }
 .gp .gp-btn-ghost:hover { border-color: var(--brand); color: var(--brand-dark); }
+.gp .gp-btn.gp-btn-2 { border: 1.5px solid rgba(84,54,35,.28); background: transparent; color: var(--ink); }
+.gp .gp-btn.gp-btn-2:hover { border-color: var(--brand); background: transparent; color: var(--brand-dark); }
+.gp .gp-btn.gp-btn-danger { background: #b3261e; color: #fff; }
+.gp .gp-btn.gp-btn-danger:hover { background: #8f1d17; }
 .gp-btn-small { min-height: 40px; padding: 8px 16px; font-size: 14px; }
 
 /* Pagamento online (Stripe) */
 .gp-pay { display: grid; gap: 12px; }
-.gp-pay.secondary { padding-top: 16px; border-top: 1px solid var(--line); }
+/* Restante depois do sinal: cartão discreto à parte, com botão secundário. */
+.gp-pay.later { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px 16px; padding: 16px 20px; }
+.gp-pay.later > :not(.gp-due):not(#rs-pay-wrap) { grid-column: 1 / -1; }
+.gp-pay.later .gp-due b { font-size: 16px; }
+.gp-pay.later .gp-due span { color: var(--soft); font-size: 14px; }
+.gp-pay.later .gp-btn { min-height: 40px; padding: 8px 18px; font-size: 14.5px; }
 .gp-due { display: grid; gap: 6px; }
 .gp-due:empty { display: none; }
 .gp-due-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
@@ -97,6 +108,10 @@ body.gp { margin: 0; min-height: 100vh; background: var(--cream); color: var(--i
 .gp-due p { color: var(--soft); font-size: 15px; }
 .gp-pay > p { color: var(--soft); font-size: 15px; }
 .rs-consent { display: flex; align-items: flex-start; gap: 10px; font-size: 14.5px; line-height: 1.5; cursor: pointer; }
+.rs-consent-field { display: grid; gap: 6px; }
+.rs-consent.has-error input { outline: 2px solid #b3261e; outline-offset: 2px; border-radius: 4px; }
+.rs-consent.has-error { color: #8f1d17; }
+.rs-field-error { display: flex; gap: 6px; margin: 0 0 0 30px; color: #b3261e; font-size: 14px; font-weight: 600; line-height: 1.4; }
 .rs-consent input { width: 20px; height: 20px; flex-shrink: 0; margin: 2px 0 0; accent-color: var(--brand); }
 .gp-pay .gp-btn { justify-self: start; }
 .gp-note { color: var(--muted); font-size: 13px; line-height: 1.5; }
@@ -134,6 +149,16 @@ body.gp { margin: 0; min-height: 100vh; background: var(--cream); color: var(--i
 .rs-policy p { margin: 0 0 10px; line-height: 1.6; }
 .rs-policy table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .rs-policy th, .rs-policy td { padding: 8px 4px; text-align: left; border-bottom: 1px solid var(--line); }
+/* Cancelar: janela própria */
+.gp-dialog { width: min(440px, calc(100% - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 20px; background: var(--paper); color: var(--ink); box-shadow: 0 24px 60px -20px rgba(0,0,0,.45); overflow: auto; }
+.gp-dialog::backdrop { background: rgba(29,26,23,.5); }
+.gp-dialog-box { display: grid; gap: 12px; padding: 22px; }
+.gp-dialog-box h2 { font-size: 22px; }
+.gp-dialog-stay, .gp-dialog-rule { margin: 0; color: var(--soft); font-size: 14.5px; line-height: 1.55; }
+.gp-dialog-box .gp-lines { margin: 2px 0; font-size: 15px; }
+.gp-dialog-box .rs-field-error { margin: 0; }
+.gp-dialog-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.gp-dialog-actions .gp-btn { flex: 1 1 200px; }
 #rs-cancellation { display: grid; gap: 12px; }
 #rs-cancellation .gp-btn-ghost { justify-self: start; }
 
@@ -184,6 +209,7 @@ body.gp { margin: 0; min-height: 100vh; background: var(--cream); color: var(--i
   .gp-layout { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
   .gp-main, .gp-side { display: contents; }
   .gp-next { order: 1; } #gp-wifi { order: 2; } #pn-rs-stay { order: 3; } #gp-precheckin { order: 4; }
+  #rs-payment-panel.later { order: 1; }
   #pn-rs-steps { order: 5; } #gp-concierge { order: 6; display: flex; flex-direction: column; gap: 16px; }
   #pn-rs-payments { order: 7; } #gp-policy { order: 8; } #rs-cancellation { order: 9; } #gp-contact { order: 10; } .gp-foot { order: 11; }
   .gp-card, .gp-next, .gp-side .gp-card { padding: 20px 18px; border-radius: 18px; }

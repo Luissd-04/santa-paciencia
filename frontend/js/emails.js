@@ -43,7 +43,8 @@ const LANGS = [
 
 const TEMPLATE_META = {
   confirmacao:    { icon: '✅', label: 'Pedido recebido',              eventLabel: 'Logo que o pedido ou a reserva é criada' },
-  reserva_aceite: { icon: '🤝', label: 'Reserva aceite',               eventLabel: 'Quando a equipa aceita o pedido (sinal pela Stripe e pré-check-in)' },
+  reserva_aceite: { icon: '🤝', label: 'Reserva aceite',               eventLabel: 'Quando a equipa aceita o pedido (pagamento pela Stripe ou instruções de pagamento, e pré-check-in)' },
+  reserva_alterada: { icon: '✏️', label: 'Reserva alterada', eventLabel: 'Quando a equipa muda as datas ou o total de uma reserva já paga' },
   pagamento:      { icon: '💶', label: 'Pagamento recebido',           eventLabel: 'Em cada pagamento recebido (manual ou online)' },
   coordenadas:    { icon: '🗺️', label: 'Tudo para a sua chegada',      eventLabel: 'Antes do check-in, com a reserva paga' },
   obrigado:       { icon: '⭐', label: 'Obrigado pela estadia',        eventLabel: 'Após check-out' },
@@ -56,9 +57,9 @@ const TEMPLATE_META = {
   cancelamento_politica: { icon: '↩️', label: 'Cancelamento com reembolso', eventLabel: 'Ao cancelar uma reserva com política de pagamento' },
 };
 
-const FIXED_TIMING_EVENTS = ['booking', 'cancellation', 'approval', 'payment', 'balance_notice', 'policy_cancellation', 'manual'];
+const FIXED_TIMING_EVENTS = ['booking', 'cancellation', 'approval', 'payment', 'balance_notice', 'policy_cancellation', 'manual', 'change'];
 // Avisos com prazo: enviados logo, sem janela horária.
-const IMMEDIATE_TEMPLATES = ['aviso_restante', 'cancelamento_politica'];
+const IMMEDIATE_TEMPLATES = ['aviso_restante', 'cancelamento_politica', 'reserva_alterada'];
 
 function langField(lang, field) {
   return lang === 'pt' ? field : `${field}_${lang}`;

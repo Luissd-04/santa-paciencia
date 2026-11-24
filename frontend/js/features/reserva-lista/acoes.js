@@ -9,6 +9,8 @@ AppModules.define('reservas', {
   enviarLinkPortal: { get: () => enviarLinkPortal },
   hasRole: { get: () => hasRole },
   reativarReserva: { get: () => reativarReserva },
+  reembolsarDinheiro: { get: () => reembolsarDinheiro },
+  reterDinheiro: { get: () => reterDinheiro },
 });
 
 async function aprovarReserva(id) {
@@ -128,7 +130,11 @@ async function cancelarReserva(id) {
   try {
     const { data: reservation } = await AppModules.core.apiGet(`/api/reservations/${id}`);
     const policy = reservation.payment_policy;
-    const message = policy ? `Cancelar esta reserva? Reembolso previsto: ${ReservationMoney.format(policy.refundCents / 100)} (${policy.refundPercent}% do valor pago), segundo a política da reserva.` : 'Cancelar esta reserva? Será removida do Google Calendar.';
+    const received = Number(reservation.amount_paid || 0);
+    // Sem política, o dinheiro já recebido fica por tratar: a ficha pede para reembolsar ou reter.
+    const message = policy ? `Cancelar esta reserva? Reembolso previsto: ${ReservationMoney.format(policy.refundCents / 100)} (${policy.refundPercent}% do valor pago), segundo a política da reserva.`
+      : received > 0.004 ? `Cancelar esta reserva? Recebeu ${ReservationMoney.format(received)}: reembolsar ou reter. Depois de cancelar, a ficha pergunta o que fazer ao dinheiro. A reserva será removida do Google Calendar.`
+      : 'Cancelar esta reserva? Será removida do Google Calendar.';
     if (!(await AppModules.core.confirmar(message))) return;
     const res = await AppModules.core.apiDelete(`/api/reservations/${id}`, undefined, policy ? { key: policy.consentKey, refundCents: policy.refundCents } : undefined);
     if (res.success) {
@@ -136,6 +142,8 @@ async function cancelarReserva(id) {
       AppModules.reservas.showReservasList();
       AppModules.core.toast('❌ Reserva cancelada.', 'info');
       await AppModules.reservas.loadReservas();
+      // Com dinheiro recebido, abre a ficha para decidir logo: reembolsar ou reter.
+      if (!policy && received > 0.004 && typeof AppModules.reservas.showDetail === 'function') AppModules.reservas.showDetail(id);
       if (typeof AppModules.calendario.renderCalView === 'function') AppModules.calendario.renderCalView();
       AppModules.core.renderDashboard();
     } else {
@@ -143,6 +151,37 @@ async function cancelarReserva(id) {
     }
   } catch (e) {
     AppModules.core.toast('❌ ' + (e.message || 'Erro de ligação ao servidor.'), 'error');
+  }
+}
+
+// Dinheiro recebido numa reserva cancelada: reembolsar (Stripe ou registo manual) ou reter.
+async function reembolsarDinheiro(id, amount) {
+  if (!(await AppModules.core.confirmar(`Reembolsar ${ReservationMoney.format(amount)}? A parte paga online volta ao cartão pela Stripe; o que foi pago fora da app fica registado como reembolso manual (a devolução ao hóspede faz-se fora da app).`))) return;
+  try {
+    const res = await AppModules.core.apiPost(`/api/reservations/${id}/cancelled-money/refund`, {});
+    if (res.success) {
+      AppModules.core.toast('✅ Reembolso registado.', 'success');
+      await AppModules.reservas.showDetail(id);
+      AppModules.core.renderDashboard?.();
+      AppModules.core.loadNotifications?.();
+    } else AppModules.core.toast('❌ ' + (res.error || 'Erro ao reembolsar.'), 'error');
+  } catch (e) {
+    AppModules.core.toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
+  }
+}
+
+async function reterDinheiro(id, reason) {
+  if (String(reason || '').trim().length < 3) { AppModules.core.toast('Indique o motivo para reter o valor.', 'error'); document.getElementById('rf-money-reason')?.focus(); return; }
+  try {
+    const res = await AppModules.core.apiPost(`/api/reservations/${id}/cancelled-money/retain`, { reason });
+    if (res.success) {
+      AppModules.core.toast('✅ Valor retido, com o motivo registado.', 'success');
+      await AppModules.reservas.showDetail(id);
+      AppModules.core.renderDashboard?.();
+      AppModules.core.loadNotifications?.();
+    } else AppModules.core.toast('❌ ' + (res.error || 'Erro ao registar.'), 'error');
+  } catch (e) {
+    AppModules.core.toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
   }
 }
 

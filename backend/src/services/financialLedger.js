@@ -50,7 +50,7 @@ function recompute(reservationId, organizationId, { deriveStatus = true, allowDo
   const paidCents = cents(paid), totalCents = cents(r.total_amount || 0);
   if (paidCents < 0) throw httpError('O movimento deixaria um saldo negativo. Corrige primeiro o ajuste associado.', 409);
   const refunded = Boolean(db.prepare(`SELECT 1 FROM reservation_payments WHERE reservation_id = ? AND organization_id = ?
-    AND id LIKE 'stripe-refund-%'`).get(r.id, organizationId));
+    AND (id LIKE 'stripe-refund-%' OR amount < 0)`).get(r.id, organizationId));
   const paymentStatus = state.paymentStatusFor({ paidCents, totalCents, current: fallbackPaymentStatus ?? r.payment_status, refunded });
   const depositCents = require('./paymentPolicy').requiredDepositCents(r);
   const status = deriveStatus ? state.statusAfterPayment({ status: r.status, paidCents, depositCents, allowDowngrade }) : r.status;

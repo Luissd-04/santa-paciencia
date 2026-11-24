@@ -314,6 +314,31 @@ async function showDetail(id, opts = {}) {
       ? `nº ${esc(r.invoice_number)}${r.invoice_sent_date ? ` · enviada ${sd(r.invoice_sent_date)}` : r.invoice_date ? ` · ${sd(r.invoice_date)}` : ''}`
       : 'por registar';
 
+    // Reserva cancelada com dinheiro recebido: reembolsar ou reter (ou o que foi decidido).
+    const cm = r.cancel_money;
+    const cancelMoneyHtml = (() => {
+      if (!cm) return '';
+      if (!cm.pending) {
+        const text = cm.resolution === 'retained' ? 'Valor retido' : 'Valor reembolsado';
+        return `<div class="rf-money is-done" role="status"><div class="rf-money-text"><b>${text}</b>${cm.note ? `<span>${esc(cm.note)}</span>` : ''}</div></div>`;
+      }
+      const canAct = AppModules.reservas.hasRole('manager');
+      const how = cm.online >= cm.paid - 0.005 ? 'Foi pago online: o reembolso volta ao cartão pela Stripe.'
+        : cm.online > 0.005 ? `${fmt(cm.online)} voltam pela Stripe; o resto fica registado como reembolso manual.`
+        : 'Foi pago fora da app: o reembolso fica registado à mão (faça a devolução ao hóspede).';
+      return `<div class="rf-money" role="status">
+          <div class="rf-money-text"><b>Recebeu ${fmt(cm.paid)} nesta reserva cancelada.</b><span>Indique o que fazer com o dinheiro. ${esc(how)}</span></div>
+          ${canAct ? `<div class="rf-money-actions">
+            <button type="button" class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-dinheiro-reembolsar', [String(r.id), String(cm.paid)])}>Reembolsar ${fmt(cm.paid)}</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="rf-money-retain-open" aria-expanded="false" aria-controls="rf-money-form" ${AppActions.attrs('click', 'detalhe-dinheiro-reter-abrir', [])}>Reter (registar motivo)</button>
+          </div>
+          <div class="rf-money-form" id="rf-money-form" hidden>
+            <label>Motivo para reter o valor<input id="rf-money-reason" type="text" maxlength="300" autocomplete="off" placeholder="Ex.: cancelamento fora do prazo das condições"></label>
+            <div class="rf-money-actions"><button type="button" class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-dinheiro-reter', [String(r.id)])}>Confirmar retenção</button></div>
+          </div>` : ''}
+        </div>`;
+    })();
+
     if (detailLoading) detailLoading.style.display = 'none';
 
     detailContent.innerHTML = `
@@ -347,6 +372,7 @@ async function showDetail(id, opts = {}) {
       </div>
 
       <div class="rdv2-body rf-body" id="rdv2-panel-reserva">
+        ${cancelMoneyHtml}
         ${nextStep ? `<div class="rf-next" role="status">
           <span class="rf-next-icon">${ic(nextStep.icon, 18)}</span>
           <div class="rf-next-text"><strong>Próximo passo: ${esc(nextStep.title.charAt(0).toLowerCase() + nextStep.title.slice(1))}</strong><span>${esc(nextStep.text)}</span></div>
@@ -531,6 +557,15 @@ AppActions.register({
   "detalhe-editar-hora-chegada-5c1a9e2": (el, event, args) => { AppModules.reservas.editarHoraChegada(args[0], args[1]) },
   "detalhe-apagar-reserva-definitivo-727881f": (el, event, args) => { AppModules.reservas.apagarReservaDefinitivo(args[0]) },
   "detalhe-cancelar-reserva-2d9df9b": (el, event, args) => { AppModules.reservas.cancelarReserva(args[0]) },
+  "detalhe-dinheiro-reembolsar": (el, event, args) => { AppModules.reservas.reembolsarDinheiro(args[0], Number(args[1])) },
+  "detalhe-dinheiro-reter-abrir": (el) => {
+    const form = document.getElementById('rf-money-form');
+    if (!form) return;
+    form.hidden = !form.hidden;
+    el.setAttribute('aria-expanded', String(!form.hidden));
+    if (!form.hidden) document.getElementById('rf-money-reason')?.focus();
+  },
+  "detalhe-dinheiro-reter": (el, event, args) => { AppModules.reservas.reterDinheiro(args[0], document.getElementById('rf-money-reason')?.value || '') },
   "detalhe-reativar-reserva-9888cf4": (el, event, args) => { AppModules.reservas.reativarReserva(args[0]) },
   "detalhe-aprovar-reserva-0f31ccd": (el, event, args) => { AppModules.reservas.aprovarReserva(args[0]) },
   "detalhe-abrir-hospede-b15454b": (el, event, args) => { AppModules.core.abrirHospede(args[0]) },

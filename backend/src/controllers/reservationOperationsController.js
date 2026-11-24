@@ -293,6 +293,12 @@ function getNotifications(req, res, next) {
         else if (!cancellation && r.check_in <= today && isUnderpaid(r.amount_paid, r.total_amount) && r.status !== 'cancelada') title = 'Pagamento em falta na chegada ou após a estadia';
         if (title) notifications.push({ type: 'payment_review', priority: 'high', icon: 'circle-alert', title, subtitle: `Reserva ${r.id} · verifique os movimentos antes de cobrar ou reembolsar`, reservation_id: r.id });
       }
+      // Reservas canceladas com dinheiro por reembolsar ou reter, e pagamentos online a rever.
+      const moneyAttention = require('../services/cancelledMoney').attention(orgId);
+      for (const r of moneyAttention.cancelledWithMoney) notifications.push({ type: 'cancelled_money', priority: 'high', icon: 'undo-2', title: 'Cancelada com dinheiro por tratar',
+        subtitle: `${r.guest_name} · ${formatEUR(Number(r.amount_paid))} recebidos: reembolsar ou reter`, reservation_id: r.id });
+      for (const r of moneyAttention.paymentReview) notifications.push({ type: 'payment_to_review', priority: 'high', icon: 'circle-alert', title: 'Pagamento online a rever',
+        subtitle: `${r.guest_name} · confirme os movimentos antes de cobrar ou reembolsar`, reservation_id: r.id });
       const attempts = db.prepare("SELECT reservation_id FROM stripe_payment_attempts WHERE organization_id=? AND state IN ('creating','open','processing') AND datetime(created_at) < datetime('now','-23 hours') GROUP BY reservation_id").all(orgId);
       for (const a of attempts) notifications.push({ type: 'payment_review', priority: 'high', icon: 'circle-alert', title: 'Pagamento por reconciliar', subtitle: 'Confirme o resultado na Stripe antes de repetir a cobrança.', reservation_id: a.reservation_id });
       const deliveries = db.prepare(`SELECT reservation_id, template_slug,
@@ -314,6 +320,8 @@ function getNotifications(req, res, next) {
           type: 'email_held', priority: 'high', icon: 'mail', title: `Email retido · ${h.accommodation_name}`,
           subtitle: `«${h.template_name}» de ${h.guest_name || 'hóspede'} não foi enviado. Falta: ${labels.join(', ')}.`,
           reservation_id: h.reservation_id, template_slug: h.template_slug, accommodation_id: h.settings_accommodation_id, missing: labels,
+          // Falta só a forma de pagar: o aviso leva às Definições → Pagamentos.
+          ...(h.missing.length && h.missing.every(m => m.field === 'payment') ? { settings_tab: 'payments' } : {}),
         } : {
           type: 'email_ready', priority: 'medium', icon: 'mail', title: `Pronto a enviar · ${h.accommodation_name}`,
           subtitle: `Os dados que faltavam já estão preenchidos. «${h.template_name}» de ${h.guest_name || 'hóspede'} ficou retido.`,

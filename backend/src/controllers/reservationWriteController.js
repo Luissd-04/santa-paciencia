@@ -151,7 +151,12 @@ async function create(req, res, next) {
 async function update(req, res, next) {
   try {
     const owned = db.prepare('SELECT * FROM reservations WHERE id=? AND organization_id=?').get(req.params.id, req.user.organization_id);
-    if (owned?.payment_policy_json && req.body.status === 'cancelada' && owned.status !== 'cancelada') return require('./reservationController').cancel(req, res, next);
+    if (owned?.payment_policy_json && req.body.status === 'cancelada' && owned.status !== 'cancelada') {
+      // O reembolso da política tem de ser visto e confirmado: só o botão «Cancelar
+      // reserva» da ficha o mostra (o formulário já não oferece «Cancelada»).
+      if (!req.body.key) throw httpError('Esta reserva tem política de pagamento. Cancele-a com «Cancelar reserva» na ficha, que mostra o reembolso a confirmar.', 409, { code: 'refund_confirmation' });
+      return require('./reservationController').cancel(req, res, next);
+    }
     if (owned?.policy_cancellation_json) throw httpError('Esta reserva tem um cancelamento financeiro registado. Crie uma nova reserva para uma nova estadia.', 409);
     validateReservationInput(req.body);
     if (owned && affectsOnlinePayment(req.body, owned)) await require('../services/stripePayments').closeOpenCheckout(owned.id);
@@ -276,15 +281,34 @@ async function update(req, res, next) {
       organizationId
     );
 
-    if (existing.payment_policy_json && (existing.check_in !== totals.checkIn || existing.check_out !== totals.checkOut || Number(existing.total_amount) !== Number(effectiveTotal) || existing.accommodation_id !== newAccommodationId)) {
-      db.prepare(`UPDATE reservations SET policy_accepted_at=NULL, policy_auto_consent=NULL, stripe_payment_method_id=NULL,
-        balance_attempted_at=NULL, balance_deadline=NULL, balance_notice_sent_at=NULL WHERE id=?`).run(existing.id);
+    const staySwitched = existing.check_in !== totals.checkIn || existing.check_out !== totals.checkOut;
+    const totalSwitched = cents(existing.total_amount) !== cents(effectiveTotal);
+    if (existing.payment_policy_json && (staySwitched || totalSwitched || existing.accommodation_id !== newAccommodationId)) {
+      // O consentimento às condições mantém-se e o plano recalcula-se com o novo
+      // total e datas (planFor). O aviso do restante recomeça: o prazo e o valor
+      // mudaram. Um total mais alto retira a autorização do cartão guardado
+      // (a cobrança automática seria de um valor que o hóspede não viu); paga
+      // pelo link do aviso, sem voltar a aceitar as condições.
+      db.prepare(`UPDATE reservations SET balance_attempted_at=NULL, balance_deadline=NULL, balance_notice_sent_at=NULL${
+        cents(effectiveTotal) > cents(existing.total_amount) ? ', policy_auto_consent=NULL, stripe_payment_method_id=NULL' : ''} WHERE id=?`).run(existing.id);
+    }
+    // O link do pré-check-in acompanha a saída: mudar as datas não o deixa expirar antes da estadia.
+    if (existing.check_out !== totals.checkOut && existing.precheckin_token) {
+      db.prepare('UPDATE reservations SET precheckin_token_expires_at = ? WHERE id = ? AND organization_id = ?').run(totals.checkOut, existing.id, organizationId);
     }
     // Reservas antigas só tinham amount_paid: migrar antes de recalcular a partir do ledger.
     ledger.ensureLegacyPayment(existing);
     // O total pode ter mudado: o estado do pagamento é sempre derivado do ledger.
     ledger.recompute(existing.id, organizationId, { deriveStatus: chosenStatus !== existing.status || depositMayChange });
-    if (reactivating) reclaimReleasedVoucher(organizationId, existing.id);
+    if (reactivating) {
+      reclaimReleasedVoucher(organizationId, existing.id);
+      // Prazos novos: sem isto, o scheduler volta a cancelar a reserva reativada
+      // (pedido pendente com a criação antiga, ou sinal com o prazo já passado).
+      const renewed = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(existing.id, organizationId);
+      db.prepare(`UPDATE reservations SET created_at = datetime('now'), deposit_deadline = ?, money_resolution = NULL, money_resolution_note = NULL,
+        money_resolved_at = NULL WHERE id = ? AND organization_id = ?`)
+        .run(renewed.status === 'aguardar_pagamento' ? lifecycle.depositDeadline(renewed) : null, existing.id, organizationId);
+    }
     // Google Calendar: cancelar remove o evento (paridade com o DELETE); as
     // restantes alterações atualizam-no. Gravado na mesma transação.
     if (!cancelling && (existing.google_event_id || (reactivating && existing.google_calendar_user_id))) {
@@ -294,6 +318,12 @@ async function update(req, res, next) {
     // Desfazer o check-in/check-out fica no histórico como passo próprio.
     if (undone) recordHistory({ organizationId, reservationId: req.params.id, userId: req.user.id, action: 'status_undone',
       meta: { from: existing.status, to: updated.status } });
+    // Datas ou total alterados com pagamento feito: a reserva continua como estava
+    // e o hóspede é avisado (valores novos, o que falta e até quando).
+    if (!cancelling && updated.status !== 'cancelada' && !reactivating && cents(existing.amount_paid || 0) > 0 && (staySwitched || totalSwitched)) {
+      require('../services/reservationEvents').emit('reservation.changed', { organizationId, reservationId: existing.id, actorUserId: req.user.id,
+        payload: { before: { check_in: existing.check_in, check_out: existing.check_out, total: Number(existing.total_amount) } } });
+    }
     const historyChanges = diffReservationFields(existing, updated);
     if (historyChanges.length) {
       recordHistory({

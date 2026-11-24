@@ -95,7 +95,7 @@ function getEmailSettings(accommodation, organizationId) {
   const { db } = require('../config/database');
   const orgId = organizationId || accommodation?.organization_id;
   const keys = ['checkin_time','checkout_time','social_facebook','social_instagram','social_website','social_tripadvisor',
-                'property_name','property_address','license_number','email_contact'];
+                'property_name','property_address','license_number','email_contact','payment_instructions'];
   let s = {};
   try { if (orgId) s = require('./settingsService').getMany(orgId, keys); } catch { s = {}; }
   const org = orgId ? db.prepare('SELECT name, logo_url FROM organizations WHERE id = ?').get(orgId) : null;
@@ -128,6 +128,8 @@ function getEmailSettings(accommodation, organizationId) {
     property_address: address || s.property_address || '',
     license_number:   a.license_number || parent?.license_number || s.license_number || '',
     email_contact:    a.contact_email || s.email_contact || '',
+    // Como pagar sem Stripe (Definições → Pagamentos): vale para toda a organização.
+    payment_instructions: String(s.payment_instructions || '').trim(),
     phone:            a.contact_phone || '',
     arrival_instructions:  a.arrival_instructions || '',
     entry_instructions:    a.entry_instructions || '',
@@ -261,6 +263,9 @@ function buildBlocks(vars, settings, reservation) {
       text: `O seu pedido para ${strong(vars.datas_curtas)} em ${strong(vars.alojamento)} não chegou a ser confirmado e as datas ficaram livres. Não lhe foi cobrado nada.`, rebook: true },
     deposit: { eyebrow: 'Prazo terminado', headline: 'As datas voltaram a ficar livres',
       text: `Não recebemos ${full ? 'o pagamento' : 'o sinal'} da sua reserva para ${strong(vars.datas_curtas)} em ${strong(vars.alojamento)} dentro do prazo, por isso as datas voltaram a ficar livres. Não lhe foi cobrado nada.`, rebook: true },
+    // Pagamento online que entrou depois de a reserva ser cancelada.
+    payment_after: { eyebrow: 'Reserva cancelada', headline: 'Vamos tratar do reembolso',
+      text: `A sua reserva em ${strong(vars.alojamento)} estava cancelada quando recebemos ${vars.valor_pagamento ? `o pagamento de ${strong(vars.valor_pagamento)}` : 'um pagamento'}. O alojamento vai tratar do reembolso e entra em contacto consigo. Não precisa de fazer nada.` },
     staff: { eyebrow: 'Reserva cancelada', headline: 'A sua reserva foi cancelada',
       text: `A sua reserva em ${strong(vars.alojamento)} foi cancelada. Se não esperava este email ou tem alguma pergunta, responda a esta mensagem.` },
     guest: { eyebrow: 'Reserva cancelada', headline: 'A sua reserva foi cancelada',
@@ -279,6 +284,10 @@ function buildBlocks(vars, settings, reservation) {
     botao_pagar_sinal: depositDue && vars.pagamento_online
       ? button(vars.link_reserva, `${full ? 'Pagar a reserva' : 'Pagar o sinal'} · ${vars.valor_sinal}`)
         + para('Pagamento seguro através da Stripe.', 'font-size:13.5px;text-align:center;margin:6px 0 0;')
+      // Sem pagamentos online: as instruções do alojamento, no lugar do botão.
+      : depositDue && vars.instrucoes_pagamento
+      ? composer.buildNote({ heading: 'Como pagar', html: esc(vars.instrucoes_pagamento).replace(/\r?\n/g, '<br>')
+        + `<br><br>Indique a referência <strong>${esc(vars.referencia)}</strong> no pagamento. Assim que o recebermos, confirmamos a reserva.` })
       : '',
     proximo_pre_checkin: vars.link_pre_checkin && !precheckinDone && status !== 'cancelada'
       ? label('A seguir') + para('Complete o pré-check-in: hora de chegada e dados de cada hóspede, que a lei nos obriga a registar.')
@@ -395,6 +404,22 @@ function buildBlocks(vars, settings, reservation) {
       { label: 'A devolver', value: vars.valor_reembolso },
     ]),
 
+    // ── Reserva alterada (datas ou total mudados com pagamento feito) ──
+    titulo_alteracao: composer.buildTitle({ eyebrow: 'Reserva alterada', tone: 'warn', headline: 'Alterámos a sua reserva' }),
+    mensagem_alteracao: para(`Fizemos uma alteração à sua reserva em ${strong(vars.alojamento)}. ${status === 'cancelada' ? '' : 'A reserva continua confirmada.'} Aqui ficam os valores atuais.`),
+    resumo_alteracao: composer.buildRows([
+      { label: 'Datas', value: vars.alteracao_datas_antes ? `${vars.datas_curtas} (antes: ${vars.alteracao_datas_antes})` : vars.datas_curtas },
+      { label: 'Total', value: vars.alteracao_total_antes ? `${vars.total} (antes: ${vars.alteracao_total_antes})` : vars.total },
+      { label: 'Já pago', value: vars.total_pago },
+      { label: vars.alteracao_a_devolver ? 'A devolver' : 'Falta pagar', value: vars.alteracao_a_devolver || (vars.pagamento_liquidado ? 'Nada' : vars.valor_em_falta) },
+      { label: 'Referência', value: vars.referencia },
+    ]),
+    aviso_alteracao: vars.alteracao_a_devolver
+      ? composer.buildNote({ heading: 'Diferença a devolver', html: `Já pagou mais do que o novo total. O alojamento entra em contacto consigo para devolver ${esc(vars.alteracao_a_devolver)}.` })
+      : (!vars.pagamento_liquidado && vars.alteracao_prazo
+        ? composer.buildNote({ tone: 'warn', heading: 'Falta pagar', html: `Faltam <strong>${esc(vars.valor_em_falta)}</strong>, até <strong>${esc(vars.alteracao_prazo)}</strong>. Pode pagar na página da sua reserva.` })
+        : ''),
+
     // ── Pagamentos ──
     titulo_pagamento: composer.buildTitle(vars.pagamento_confirma && !vars.pagamento_liquidado
       ? { eyebrow: 'Reserva confirmada', tone: 'ok', headline: vars.valor_sinal_exigido || vars.valor_pagamento ? `Recebemos o sinal de ${vars.valor_sinal_exigido || vars.valor_pagamento}` : 'Recebemos o sinal' }
@@ -501,6 +526,7 @@ function buildVars(guest, reservation, accommodation, settings, extra) {
     titulo_estado: statusPresentation(reservation).title,
     mensagem_estado: statusPresentation(reservation).message,
     ...paymentVars(reservation),
+    instrucoes_pagamento: s.payment_instructions || '',
     wifi_nome: accommodation.wifi_name || '—',
     wifi_password: require('./emailEligibility').canSendTemplate({ slug: 'codigo_porta' }, reservation) ? (accommodation.wifi_password || '—') : '',
     codigo_porta: require('./emailEligibility').canSendTemplate({ slug: 'codigo_porta' }, reservation) ? (accommodation.door_code || '—') : '',
@@ -624,7 +650,7 @@ function formatDate(dateStr) {
 }
 
 // Avisos com prazo (política de pagamento): a janela horária não os adia.
-const IMMEDIATE_TEMPLATES = new Set(['aviso_restante', 'cancelamento_politica']);
+const IMMEDIATE_TEMPLATES = new Set(['aviso_restante', 'cancelamento_politica', 'reserva_alterada']);
 
 // Devolve { id } quando enviado, null quando não se aplica, ou { queued, until }
 // quando tem de esperar (janela de envio, Gmail indisponível, envio por
@@ -723,6 +749,29 @@ async function sendReservationAcceptedEmail(guest, reservation, accommodation, p
   return sendTemplatedEmail('reserva_aceite', guest, reservation, accommodation, preCheckinUrl ? { link_pre_checkin: preCheckinUrl } : {});
 }
 
+// Datas ou total alterados com pagamento feito: o hóspede recebe os valores
+// novos, o que falta e até quando. `change`: { before: { check_in, check_out, total } }
+// (do acontecimento reservation.changed).
+async function sendReservationChangedEmail(guest, reservation, accommodation, change = {}) {
+  const { cents } = require('./money');
+  const dates = require('./dates');
+  const before = change.before || {};
+  const extra = {};
+  if (before.check_in && before.check_out && (before.check_in !== reservation.check_in || before.check_out !== reservation.check_out)) {
+    extra.alteracao_datas_antes = dates.shortRange(before.check_in, before.check_out);
+  }
+  if (before.total != null && cents(before.total) !== cents(reservation.total_amount || 0)) extra.alteracao_total_antes = composer.formatCurrency(before.total);
+  const over = cents(reservation.amount_paid || 0) - cents(reservation.total_amount || 0);
+  if (over > 0) extra.alteracao_a_devolver = composer.formatCurrency(over / 100);
+  else {
+    // Com política, o restante vence na data da política; sem ela, até à chegada.
+    let due = reservation.check_in;
+    try { const plan = require('./paymentPolicy').planFor(reservation); if (plan?.balanceCents) due = dates.localDay(new Date(plan.dueAt)); } catch { /* sem política */ }
+    if (due) extra.alteracao_prazo = `${dates.weekdayDate(due)}`;
+  }
+  return sendTemplatedEmail('reserva_alterada', guest, reservation, accommodation, extra);
+}
+
 // Valores de pagamento e da política, calculados a partir da reserva, para
 // que um envio repetido mais tarde (fila) mostre os mesmos dados.
 function paymentVars(reservation) {
@@ -732,7 +781,7 @@ function paymentVars(reservation) {
   let refund = '';
   try {
     const cancellation = reservation.policy_cancellation_json && JSON.parse(reservation.policy_cancellation_json);
-    if (cancellation) refund = composer.formatCurrency(cancellation.refundCents / 100);
+    if (cancellation && cancellation.refundCents > 0) refund = composer.formatCurrency(cancellation.refundCents / 100);
   } catch { /* sem cancelamento por política */ }
   let link = '';
   try { link = require('./publicLinks').reservationPageUrl(reservation); } catch { /* origem por configurar */ }
@@ -857,6 +906,7 @@ module.exports = {
   sendPreCheckinEmail,
   sendGuestPortalEmail,
   sendReservationAcceptedEmail,
+  sendReservationChangedEmail,
   sendHeldEmail,
   templateContext,
   sendReservationRequestApprovedEmail,

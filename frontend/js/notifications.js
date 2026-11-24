@@ -164,7 +164,7 @@ function notificationClickAttr(n) {
   if (n.type === 'export_reminder') return "data-on-click=\"notifications-close-notif-0782c93\"";
   // Configuração por terminar não tem reserva: abre o alojamento.
   if (n.type === 'ownership_transfer') return `${AppActions.attrs("click", "notifications-open-ownership", [])}`;
-  if (n.type === 'config_incomplete' || n.type === 'email_held') return `${AppActions.attrs("click", "notifications-open-accommodation", [String(n.accommodation_id ?? '')])}`;
+  if (n.type === 'config_incomplete' || n.type === 'email_held') return `${AppActions.attrs("click", "notifications-open-accommodation", [String(n.accommodation_id ?? ''), String(n.settings_tab ?? '')])}`;
   return `${AppActions.attrs("click", "notifications-notif-go-to-0365e4e", [String((n.reservation_id) ?? '')])}`;
 }
 
@@ -378,8 +378,8 @@ function notifActionsHtml(n) {
         </span>
       ` : n.type === 'email_held' || n.type === 'config_incomplete' ? `
         <span class="notifications-page-actions">
-          <button class="btn btn-primary btn-sm" ${AppActions.attrs("click", "notifications-open-accommodation", [String(n.accommodation_id ?? '')])}>
-            <i data-lucide="building-2"></i> Completar o alojamento
+          <button class="btn btn-primary btn-sm" ${AppActions.attrs("click", "notifications-open-accommodation", [String(n.accommodation_id ?? ''), String(n.settings_tab ?? '')])}>
+            <i data-lucide="${n.settings_tab === 'payments' ? 'wallet' : 'building-2'}"></i> ${n.settings_tab === 'payments' ? 'Indicar como pagar' : 'Completar o alojamento'}
           </button>
           ${n.reservation_id ? `<button class="btn btn-ghost btn-sm" ${AppActions.attrs("click", "notifications-notif-go-to-0365e4e", [String(n.reservation_id)])}>
             <i data-lucide="chevron-right"></i> Ver a reserva
@@ -513,7 +513,14 @@ async function resolveEmailHold(reservationId, templateSlug, action) {
   }
 }
 
-async function openAccommodationFromNotif(accommodationId) {
+async function openAccommodationFromNotif(accommodationId, settingsTab = '') {
+  // Falta só a forma de pagar: Definições → Pagamentos (vale para toda a organização).
+  if (settingsTab === 'payments') {
+    closeNotif();
+    await AppModules.core.showView('definicoes');
+    AppModules.core.switchSettingsTab('payments');
+    return;
+  }
   if (!accommodationId) return;
   closeNotif();
   await AppModules.core.showView('alojamentos');
@@ -579,7 +586,7 @@ AppActions.register({
   "notifications-resolve-email-retry-9b3e5f0": (el, event, args) => { resolveEmailDelivery(args[0], args[1], 'retry') },
   "notifications-email-hold-send": (el, event, args) => { event.stopPropagation(); resolveEmailHold(args[0], args[1], 'send') },
   "notifications-email-hold-dismiss": (el, event, args) => { event.stopPropagation(); resolveEmailHold(args[0], args[1], 'dismiss') },
-  "notifications-open-accommodation": (el, event, args) => { openAccommodationFromNotif(args[0]) },
+  "notifications-open-accommodation": (el, event, args) => { openAccommodationFromNotif(args[0], args[1]) },
   // Pedido de transferência de propriedade: aceitar ou recusar na Área do proprietário.
   "notifications-open-ownership": () => { closeNotif(); AppModules.core.closeSideDrawer?.(); return AppModules.proprietario.open(); },
 }, "click");

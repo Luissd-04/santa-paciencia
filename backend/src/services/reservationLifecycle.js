@@ -89,7 +89,12 @@ function nextStatus(current, requested, r = current, actor = null) {
 }
 
 // Opções do seletor de estado (ficha e formulário), já resolvidas pelo sinal.
-const statusOptions = (r, actor = null) => state.statusOptions(r.id && r.status ? r.status : null, context(r, actor));
+// Com política de pagamento, cancelar passa pelo botão «Cancelar reserva» da
+// ficha, que mostra o reembolso a confirmar: o seletor não oferece «Cancelada».
+const statusOptions = (r, actor = null) => {
+  const options = state.statusOptions(r.id && r.status ? r.status : null, context(r, actor));
+  return r.payment_policy_json && r.status !== 'cancelada' ? options.filter(status => status !== 'cancelada') : options;
+};
 // Estado para onde voltaria «desfazer o último passo» (null se não houver ou não for permitido).
 const undoStatus = (r, actor = null) => state.undoStatus(r.status, context(r, actor));
 

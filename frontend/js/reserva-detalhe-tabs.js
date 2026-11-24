@@ -187,6 +187,8 @@ const RDV2_ACTION_META = {
   policy_cancelled: { icon: 'x-circle',    label: 'Reserva cancelada segundo a política' },
   email_delivery_resolved: { icon: 'mail', label: 'Envio de email resolvido' },
   status_undone:   { icon: 'undo-2',       label: 'Passo desfeito' },
+  cancelled_money_refunded: { icon: 'undo-2', label: 'Dinheiro reembolsado' },
+  cancelled_money_retained: { icon: 'wallet', label: 'Dinheiro retido' },
 };
 
 const RDV2_FIELD_LABELS = {
@@ -237,6 +239,11 @@ function rdv2TimelineMetaLine(action, meta) {
     if (meta.amount != null) bits.push(`${ReservationMoney.format(meta.amount)}`);
     if (meta.method) bits.push(AppModules.core.escapeHtml(String(meta.method)));
     if (meta.payment_date) bits.push(rdv2ShortDate(String(meta.payment_date)));
+  } else if (action === 'cancelled_money_refunded' || action === 'cancelled_money_retained') {
+    if (meta.amount != null) bits.push(ReservationMoney.format(meta.amount));
+    if (meta.online > 0) bits.push(`${ReservationMoney.format(meta.online)} pela Stripe`);
+    if (meta.manual > 0) bits.push(`${ReservationMoney.format(meta.manual)} registados à mão`);
+    if (meta.note || meta.reason) bits.push(AppModules.core.escapeHtml(String(meta.note || meta.reason)));
   } else if (action === 'invoice_saved') {
     if (meta.invoice_number) bits.push(`Nº ${AppModules.core.escapeHtml(String(meta.invoice_number))}`);
   } else if (action === 'task_status') {

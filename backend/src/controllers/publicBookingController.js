@@ -464,6 +464,10 @@ function getReservationStatus(req, res) {
       status: reservation.status,
       payment_status: reservation.payment_status,
       online_payment: paymentSummary(reservation),
+      // Desfecho do dinheiro numa reserva cancelada (sem o motivo interno).
+      money_resolution: reservation.status === 'cancelada' ? reservation.money_resolution || null : null,
+      money_refunded: reservation.status === 'cancelada' && reservation.money_resolution === 'refunded'
+        ? Math.abs(db.prepare('SELECT COALESCE(SUM(amount),0) s FROM reservation_payments WHERE reservation_id=? AND organization_id=? AND amount<0').get(reservation.id, reservation.organization_id).s) : 0,
       // Sem política de pagamento ativa paga-se o total: os textos dizem «pagamento», não «sinal».
       pays_in_full: require('../services/paymentPolicy').paysInFull(reservation),
       total_amount: Number(reservation.total_amount || 0),

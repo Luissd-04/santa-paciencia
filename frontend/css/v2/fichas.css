@@ -157,3 +157,7 @@ html[data-look] #view-alojamento-detalhe .acfg-suf > span { color: var(--v2-mute
 html[data-look] #view-alojamento-detalhe .acfg-idade { background: var(--v2-surface-2); border-radius: var(--v2-radius-sm); }
 html[data-look] #view-alojamento-detalhe .acfg-idade > span, html[data-look] #view-alojamento-detalhe .acfg-nota { color: var(--v2-muted); }
 html[data-look] #view-alojamento-detalhe .acfg-idade > b { color: var(--v2-ink); font-weight: 600; }
+
+html[data-look] #view-reservas[data-v2] .rf-money { border-color: color-mix(in srgb, var(--v2-warn) 30%, transparent); border-left-color: var(--v2-warn); border-radius: var(--v2-radius); background: var(--v2-warn-bg); }
+html[data-look] #view-reservas[data-v2] .rf-money.is-done { border-color: var(--v2-line, var(--border-soft)); border-left-color: var(--v2-muted); background: transparent; }
+html[data-look] #view-reservas[data-v2] .rf-money-text span { color: var(--v2-muted); }

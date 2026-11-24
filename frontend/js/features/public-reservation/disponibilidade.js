@@ -82,19 +82,24 @@ function bindEvents() {
   checkinEl.addEventListener('click', openCheckin);
   checkinEl.addEventListener('input', () => {
     if (checkinEl.value.replace(/\D/g, '').length === 8) checkinEl.value = AppModules.booking.ptDate(checkinEl.value);
+    clearStepError();
     AppModules.booking.recalc();
   });
   checkoutEl.addEventListener('focus', openCheckout);
   checkoutEl.addEventListener('click', openCheckout);
   checkoutEl.addEventListener('input', () => {
     if (checkoutEl.value.replace(/\D/g, '').length === 8) checkoutEl.value = AppModules.booking.ptDate(checkoutEl.value);
+    clearStepError();
     AppModules.booking.recalc();
   });
   const birthEl = AppModules.booking.$('pb-birth');
   birthEl.addEventListener('focus', () => AppDatePicker.open(birthEl, { isBirthDate: true }));
   birthEl.addEventListener('click', () => AppDatePicker.open(birthEl, { isBirthDate: true }));
-  AppModules.booking.$('pb-children').addEventListener('input', () => { AppModules.booking.renderChildAges(); AppModules.booking.recalc(); });
+  AppModules.booking.$('pb-children').addEventListener('input', () => { clearStepError(); AppModules.booking.renderChildAges(); AppModules.booking.recalc(); });
   ['pb-checkin','pb-checkout','pb-adults','pb-children','pb-birth'].forEach(id => AppModules.booking.$(id).addEventListener('change', () => {
+    // Um erro do passo (ex.: estadia mínima) deixa de valer assim que o hóspede
+    // altera datas, hóspedes ou quarto; validateStep volta a avaliá-lo.
+    clearStepError();
     scheduleAvailabilityFetch();
     AppModules.booking.renderChildAges();
     if (id === 'pb-adults' || id === 'pb-children') renderExtraGuests();
@@ -104,6 +109,7 @@ function bindEvents() {
     const card = e.target.closest('.unit-card');
     if (!card || card.classList.contains('blocked')) return;
     AppModules.booking.state.selectedUnitId = card.dataset.unit;
+    clearStepError();
     AppModules.booking.renderUnits();
     AppModules.booking.recalc();
   });

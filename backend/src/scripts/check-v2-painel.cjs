@@ -84,7 +84,7 @@ async function main() {
   await expect(hoje.locator('.v2-row').first()).toContainText('Check-out · Ana Costa');
   await expect(hoje.locator('.v2-row').last()).toContainText('faltam 200,00');
   await expect(painel.locator('.v2-c-atencao')).toContainText('Pedido por aprovar');
-  await expect(painel.locator('.v2-c-atencao')).toContainText('Falta o sinal');
+  await expect(painel.locator('.v2-c-atencao')).toContainText('Falta o pagamento');
 
   // «Marcar feito» marca a tarefa e não abre a reserva.
   await hoje.locator('.v2-row').first().getByRole('button', { name: 'Marcar feito' }).click();

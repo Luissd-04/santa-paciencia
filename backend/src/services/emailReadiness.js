@@ -11,7 +11,7 @@ const LABELS = {
   license_number: 'N.º de licença AL',
   checkin_time: 'Hora de check-in',
   checkout_time: 'Hora de check-out',
-  stripe: 'Pagamentos online (Stripe) ligados',
+  payment: 'Instruções de pagamento ou Stripe',
   arrival_instructions: 'Como chegar',
   entry: 'Como entrar ou código da porta',
   checkout_instructions: 'No dia da saída',
@@ -19,7 +19,7 @@ const LABELS = {
 };
 const COMMON = ['email_contact', 'property_address', 'license_number', 'checkin_time', 'checkout_time'];
 const BY_TEMPLATE = {
-  reserva_aceite: ['stripe'],
+  reserva_aceite: ['payment'],
   coordenadas: ['arrival_instructions', 'entry', 'checkout_instructions'],
   obrigado: ['review_url'],
 };
@@ -35,17 +35,18 @@ const TEMPLATE_NAMES = {
 
 function present(field, settings, accommodation, organizationId) {
   switch (field) {
-    case 'stripe': return require('./stripeClient').stripeEnabled(organizationId);
+    // Pagar sem Stripe: as instruções da organização (Definições → Pagamentos).
+    case 'payment': return require('./stripeClient').stripeEnabled(organizationId) || Boolean(String(settings.payment_instructions || '').trim());
     case 'entry': return Boolean(settings.entry_instructions || accommodation?.door_code);
     default: return Boolean(String(settings[field] || '').trim());
   }
 }
 
-// O que falta a um modelo (`reservation`, opcional: o sinal já pago dispensa a Stripe).
+// O que falta a um modelo (`reservation`, opcional: o sinal já pago dispensa a forma de pagar).
 function missingFor(slug, { settings, accommodation, organizationId, reservation = null }) {
   if (!GUEST_TEMPLATES.includes(slug)) return [];
   let fields = [...COMMON, ...(BY_TEMPLATE[slug] || [])];
-  if (slug === 'reserva_aceite' && reservation && reservation.status !== 'aguardar_pagamento') fields = fields.filter(f => f !== 'stripe');
+  if (slug === 'reserva_aceite' && reservation && reservation.status !== 'aguardar_pagamento') fields = fields.filter(f => f !== 'payment');
   return fields.filter(field => !present(field, settings, accommodation, organizationId)).map(field => ({ field, label: LABELS[field] }));
 }
 

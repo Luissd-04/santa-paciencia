@@ -52,8 +52,8 @@ const TEMPLATES = {
     ].join(''),
   },
 
-  // Pedido aceite pela equipa: o sinal a pagar (online, com a Stripe), o prazo
-  // de 48 h e o pré-check-in. Com o sinal já pago, diz que está confirmada.
+  // Pedido aceite pela equipa: o pagamento (online, com a Stripe, ou pelas
+  // instruções do alojamento), o prazo de 48 h e o pré-check-in. Com o sinal já pago, diz que está confirmada.
   reserva_aceite: {
     name: 'Reserva aceite',
     subject: '{{titulo_aceite_assunto}} — {{alojamento}}',
@@ -65,6 +65,22 @@ const TEMPLATES = {
       '{{botao_pagar_sinal}}',
       '{{proximo_pre_checkin}}',
       '{{estadia}}',
+      '{{contacto}}',
+    ].join(''),
+  },
+
+  // Datas ou total alterados pela equipa numa reserva com pagamento feito: a
+  // reserva continua confirmada e o hóspede fica a saber o que mudou e o que falta.
+  reserva_alterada: {
+    name: 'Reserva alterada',
+    subject: 'A sua reserva foi alterada — {{alojamento}}',
+    body: [
+      '{{titulo_alteracao}}',
+      p('Olá <strong>{{primeiro_nome}}</strong>,'),
+      '{{mensagem_alteracao}}',
+      '{{resumo_alteracao}}',
+      '{{aviso_alteracao}}',
+      '{{botao_reserva}}',
       '{{contacto}}',
     ].join(''),
   },
@@ -198,8 +214,9 @@ const TEMPLATES = {
     body: [
       '{{titulo_reembolso}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
-      p('A sua reserva em <strong>{{alojamento}}</strong> foi cancelada. Este é o resumo do reembolso, segundo a política aceite na reserva:'),
+      p('A sua reserva em <strong>{{alojamento}}</strong> ({{datas_curtas}}) foi cancelada. Este é o resumo do reembolso, segundo a política aceite na reserva:'),
       '{{resumo_reembolso}}',
+      p('Se houver valor a devolver, vai para o cartão que usou no pagamento e costuma aparecer em 5 a 10 dias úteis, conforme o banco.'),
       '{{botao_reserva}}',
       '{{contacto}}',
     ].join(''),
@@ -225,6 +242,7 @@ const TIMING = {
   cancelamento:   { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'cancellation' },
   reserva_aceite: { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'approval' },
   // Enviado pela equipa (botão «Enviar pré-check-in» na reserva).
+  reserva_alterada: { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after', timing_event: 'change' },
   pre_checkin:    { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'manual' },
   // Enviado pela equipa (cartão «Portal do hóspede» na reserva).
   portal_hospede: { timing_offset: 0, timing_unit: 'hours', timing_direction: 'after',  timing_event: 'manual' },

@@ -711,3 +711,49 @@ test('sessão expirada avisa a equipa; se a reserva já foi cancelada, não', as
   await service.processWebhook(event(second, 'checkout.session.expired', 'again', 200));
   assert.equal(db.prepare("SELECT COUNT(*) n FROM reservation_events WHERE type='payment.failed'").get().n, 0);
 });
+
+// Dinheiro numa reserva cancelada (auditoria de 25/11): o hóspede é avisado, a
+// equipa reembolsa pela Stripe ou retém, e o pagamento deixa de estar «a rever».
+const cancelledMoney = require('../services/cancelledMoney');
+const typesOf = () => db.prepare('SELECT type FROM reservation_events ORDER BY rowid').all().map(e => e.type);
+
+test('pagamento que entra depois de cancelar: o hóspede é avisado e a equipa recebe o pagamento a rever', async () => {
+  const session = await start(); succeed(session);
+  db.prepare("UPDATE reservations SET status='cancelada'").run();
+  db.prepare('DELETE FROM reservation_events').run();
+  await service.processWebhook(event(session));
+  assert.ok(typesOf().includes('payment.after_cancellation'));
+  assert.ok(typesOf().includes('payment.review'));
+  assert.equal(JSON.parse(db.prepare("SELECT payload FROM reservation_events WHERE type='payment.after_cancellation'").get().payload).amount, 200);
+  assert.equal(cancelledMoney.describe(row()).pending, true);
+  assert.equal(cancelledMoney.describe(row()).online, 200);
+});
+
+test('reembolsar uma reserva cancelada paga online devolve pela Stripe e deixa de estar a rever', async () => {
+  const session = await start(); succeed(session);
+  db.prepare("UPDATE reservations SET status='cancelada'").run();
+  await service.processWebhook(event(session));
+  assert.equal(row().online_payment_status, 'review_required');
+  const result = await cancelledMoney.refund('stripe-org', 'booking', { actorUserId: null });
+  assert.equal(result.pending, false);
+  assert.equal(refundRequests.size, 1);
+  assert.equal([...refundRequests.values()][0].amount, 20000);
+  assert.equal(row().amount_paid, 0);
+  assert.equal(row().payment_status, 'reembolsado');
+  assert.equal(row().online_payment_status, 'refunded');
+  assert.equal(row().money_resolution, 'refunded');
+  assert.equal(row().status, 'cancelada');
+});
+
+test('reter o valor de um pagamento online a rever regista o motivo e fecha o aviso', async () => {
+  const session = await start(); succeed(session);
+  db.prepare("UPDATE reservations SET status='cancelada'").run();
+  await service.processWebhook(event(session));
+  const result = cancelledMoney.retain('stripe-org', 'booking', { reason: 'Cancelou fora do prazo' });
+  assert.equal(result.resolution, 'retained');
+  assert.equal(row().online_payment_status, 'paid');
+  assert.equal(refundRequests.size, 0);
+  // Um novo evento da Stripe não volta a pôr o pagamento a rever.
+  await service.processWebhook(event(session, 'payment_intent.succeeded', 'again', 300));
+  assert.equal(row().online_payment_status, 'paid');
+});

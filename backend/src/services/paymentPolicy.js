@@ -60,7 +60,7 @@ function calculate(policy, { total, paid = 0, bookedOn, checkIn, cancelOn = book
   const dueAt = noonLisbon(shiftDay(checkIn, -p.balanceDays));
   return { leadDays, depositPercent, depositCents, depositAdjusted: depositCents !== Math.round(totalCents * depositPercent / 100), balanceCents: totalCents - depositCents,
     dueAt, deadline: new Date(Date.parse(dueAt) + p.graceHours * 3600000).toISOString(),
-    refundPercent, refundCents: Math.round(paidCents * refundPercent / 100), refundBasis: p.refundBasis };
+    refundPercent, refundDays, refundCents: Math.round(paidCents * refundPercent / 100), refundBasis: p.refundBasis };
 }
 function getPolicy(orgId) {
   // Uma política ilegível é um erro, não uma política desativada.

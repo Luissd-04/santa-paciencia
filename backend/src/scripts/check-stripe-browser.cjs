@@ -82,6 +82,10 @@ async function main() {
     created: Math.floor(Date.now() / 1000), data: { object: session } });
   await page.goto(url + '?payment=return');
   // Uma só etiqueta de estado (portal do hóspede, 23/11/2026).
+  // Regresso da Stripe: a confirmação vem primeiro (a etiqueta «Reserva confirmada e paga» só nas visitas seguintes).
+  await expect(page.locator('#rs-status')).toHaveText('✓ Pagamento recebido');
+  await expect(page.locator('#gp-next-title')).toContainText('A sua reserva está confirmada');
+  await page.reload();
   await expect(page.locator('#rs-status')).toHaveText('Reserva confirmada e paga');
   await expect(page.locator('#pn-rs-payments')).toContainText('200,00');
   await expect(page.locator('#rs-pay')).toBeHidden();

@@ -29,6 +29,10 @@ router.post('/:id/task-status', ctrl.setTaskStatus);
 router.post('/:id/payments', requireRole('manager'), ctrl.addPayment);
 router.delete('/:id/payments/:paymentId', requireRole('manager'), ctrl.deletePayment);
 
+// Dinheiro numa reserva cancelada: reembolsar ou reter — manager+
+router.post('/:id/cancelled-money/refund', requireRole('manager'), ctrl.refundCancelledMoney);
+router.post('/:id/cancelled-money/retain', requireRole('manager'), ctrl.retainCancelledMoney);
+
 // Resolver envio de email incerto/recusado — manager+
 router.post('/:id/email-deliveries/resolve', requireRole('manager'), ctrl.resolveEmailDelivery);
 // Email retido por faltarem dados do alojamento: enviar ou ignorar — manager+

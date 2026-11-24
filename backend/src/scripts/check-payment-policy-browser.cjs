@@ -123,7 +123,11 @@ async function main() {
   await expect(page.locator('#rs-pay')).toContainText('50');
   await expect(page.locator('#rs-policy')).toContainText('200');
   await page.locator('#rs-pay').click();
-  await expect(page.locator('#rs-error')).toContainText('Aceite');
+  // O erro fica junto da caixa, com o foco nela (não no topo da página).
+  await expect(page.locator('#rs-consent-error')).toContainText('Marque esta caixa para continuar para o pagamento.');
+  await expect(page.locator('#rs-consent')).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.locator('#rs-consent')).toBeFocused();
+  await expect(page.locator('#rs-error')).toBeHidden();
   await page.locator('#rs-consent').check(); await page.locator('#rs-auto').check();
   await page.screenshot({path:artifacts+'/guest-mobile.png',fullPage:true});
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'guest overflow');

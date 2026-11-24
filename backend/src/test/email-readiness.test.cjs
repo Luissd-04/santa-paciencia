@@ -75,7 +75,7 @@ test('reserva aceite exige a Stripe ligada; a chegada exige as instruções; o o
   stripe = false;
   const { emails } = readiness.forAccommodation('o', unit());
   const by = Object.fromEntries(emails.map(e => [e.slug, e.missing.map(m => m.field)]));
-  assert.deepEqual(by.reserva_aceite, ['stripe']);
+  assert.deepEqual(by.reserva_aceite, ['payment']);
   assert.deepEqual(by.coordenadas, ['arrival_instructions', 'entry', 'checkout_instructions']);
   assert.deepEqual(by.obrigado, ['review_url']);
   assert.deepEqual(by.confirmacao, []);

@@ -54,6 +54,7 @@ const LABELS = {
   'integration.gmail_disconnected': () => 'desligou o Gmail',
   'integration.tasks_disconnected': () => 'desligou o Google Tasks',
   'settings.payment_policy_changed': () => 'mudou a política de pagamentos e cancelamentos',
+  'settings.payment_instructions_changed': () => 'mudou as instruções de pagamento sem Stripe',
   'settings.embed_origins_changed': () => 'mudou os sites autorizados a mostrar as reservas',
   'settings.embed_style_changed': () => 'mudou o aspeto das reservas no site',
 };

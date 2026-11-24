@@ -65,6 +65,18 @@ async function main() {
   await expect(page.locator('#summary-unit')).toHaveText('Suite Oliveira');
   await expect(page.locator('#pn-bar-total')).toContainText('€');
 
+  // Estadia mínima: o erro desaparece assim que as datas deixam de o provocar.
+  db.prepare("UPDATE accommodations SET min_nights = 2 WHERE id = 'suite'").run();
+  await page.reload();
+  await chooseDate(page, page.locator('#pb-checkout'), '2035-04-03');
+  await chooseDate(page, page.locator('#pb-checkin'), '2035-04-02');
+  await page.locator('[data-pn-unit="suite"]').click();
+  await page.locator('dialog.pn-unit').getByRole('button', { name: 'Escolher este quarto' }).click();
+  await page.locator('#next-btn').click();
+  await expect(page.locator('#step-error')).toContainText('A estadia mínima é de 2 noites.');
+  await chooseDate(page, page.locator('#pb-checkin'), '2035-04-01');
+  await expect(page.locator('#step-error')).toBeHidden();
+
   // Página da reserva: link para o pré-check-in só depois de aceite.
   await page.goto(`${base}/reserva/${TOKEN}`);
   const link = page.locator('#pn-rs-steps a.pn-step-action');

@@ -9,6 +9,8 @@
 //   payment.failed         { reason: 'failed' | 'expired' }   pagamento online que não se concluiu
 //   payment.refunded       { amount, partial }                 reembolso confirmado pela Stripe
 //   payment.review         pagamento online a rever à mão
+//   payment.after_cancellation  { amount }   pagamento online que entrou numa reserva já cancelada
+//   reservation.changed    { before: { check_in, check_out, total }, deadline }  datas ou total alterados com pagamento feito
 //   reservation.cancelled  { reason: 'staff' | 'guest' | 'ttl' | 'nonpayment' | 'deposit', policy }
 //   reservation.approved   { precheckinUrl }
 //   precheckin.submitted   { resubmission }
@@ -47,6 +49,9 @@ function effectsFor(type, payload = {}) {
       ...(payload.reason === 'staff' ? [] : ['staff_email_cancelled']),
     ];
     case 'reservation.approved': return ['guest_accepted_email'];
+    // O hóspede fica a saber que o alojamento vai tratar do reembolso.
+    case 'payment.after_cancellation': return ['guest_payment_after_cancellation_email'];
+    case 'reservation.changed': return ['guest_changed_email'];
     case 'precheckin.submitted': return ['staff_push_precheckin'];
     case 'email.due': return ['guest_template_email'];
     case 'policy.notice_due': return ['guest_policy_notice'];
@@ -154,6 +159,9 @@ const HANDLERS = {
   guest_accepted_email: (ctx, event) => guestEmail(ctx, mail => mail.sendReservationAcceptedEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload.precheckinUrl)),
   guest_precheckin_email: (ctx, event) => guestEmail(ctx, mail => mail.sendPreCheckinEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload.precheckinUrl)),
   guest_payment_email: (ctx, event) => guestEmail(ctx, mail => mail.sendPaymentConfirmationEmail(ctx.guest, ctx.reservation, ctx.accommodation, { amount: event.payload.amount })),
+  guest_payment_after_cancellation_email: (ctx, event) => guestEmail(ctx, mail => mail.sendTemplatedEmail('cancelamento', ctx.guest, ctx.reservation, ctx.accommodation,
+    { motivo_cancelamento: 'payment_after', valor_pagamento: money(event.payload.amount) })),
+  guest_changed_email: (ctx, event) => guestEmail(ctx, mail => mail.sendReservationChangedEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload)),
   guest_template_email: (ctx, event) => guestEmail(ctx, mail => mail.sendTemplatedEmail(event.payload.slug, ctx.guest, ctx.reservation, ctx.accommodation)),
   // O prazo do restante só começa com o aviso entregue: um aviso por enviar é
   // uma falha (repetida e, ao fim das tentativas, no sino), não um êxito.

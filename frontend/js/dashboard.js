@@ -349,11 +349,15 @@ function painelAttention(painel) {
       list => `${names(list)} · chega ${window.ReservationDates.formatDayLabel(list[0].check_in, { weekday: false })}`],
     ['depositOverdue', 'alert-circle', 'warn', 'Prazo passado', list => list.length === 1 ? `Prazo passado: falta ${noun(list)}` : `Prazo passado em ${list.length} reservas`,
       list => `${names(list)} · ${ReservationMoney.format(list.reduce((sum, r) => sum + r.missing, 0))} em falta · já há dinheiro recebido`],
+    ['cancelledMoney', 'undo-2', 'warn', 'Cancelada com dinheiro', list => list.length === 1 ? 'Cancelada com dinheiro por tratar' : `${list.length} canceladas com dinheiro por tratar`,
+      list => `${names(list)} · ${ReservationMoney.format(list.reduce((sum, r) => sum + r.paid, 0))} recebidos: reembolsar ou reter`],
+    ['paymentReview', 'search-check', 'warn', 'Pagamento a rever', list => list.length === 1 ? 'Pagamento online a rever' : `${list.length} pagamentos online a rever`,
+      list => `${names(list)} · confirme os movimentos antes de cobrar ou reembolsar`],
     ['awaitingDeposit', 'credit-card', 'warn', 'Falta pagar', list => list.length === 1 ? `Falta ${noun(list)}` : `Falta pagar em ${list.length} reservas`,
       list => `${names(list)} · ${ReservationMoney.format(list.reduce((sum, r) => sum + r.missing, 0))} em falta`],
     ['precheckinMissing', 'send', 'info', 'Pré-check-in em falta', () => 'Pré-check-in em falta',
       list => `${list.length} reserva${list.length === 1 ? '' : 's'} nos próximos 7 dias`],
-  ].filter(([key]) => painel.attention[key].length);
+  ].filter(([key]) => (painel.attention[key] || []).length);
   const count = groups.reduce((sum, [key]) => sum + painel.attention[key].length, 0);
   const rows = groups.map(([key, icon, tone, shortLabel, title, text]) => {
     const list = painel.attention[key];

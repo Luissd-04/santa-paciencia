@@ -49,8 +49,16 @@ function payable(r) {
 function paymentSummary(r) {
   const attempt = activeCheckout(r.id);
   const active = attempt && Boolean(attempt.livemode) === stripeConfig().livemode ? attempt : null;
+  // Valores online (do modo atual): o último pagamento recebido, o total
+  // cobrado e o total devolvido. O portal usa-os depois de um reembolso, em
+  // que o valor pago da reserva já desceu.
+  const rows = db.prepare("SELECT captured_cents, refunded_cents FROM stripe_payment_attempts WHERE reservation_id=? AND livemode=? AND captured_cents>0 ORDER BY updated_at DESC, rowid DESC")
+    .all(r.id, stripeConfig().livemode ? 1 : 0);
   return {
     available: payable(r), test_mode: !stripeConfig().livemode,
+    last_paid: rows.length ? rows[0].captured_cents / 100 : 0,
+    captured: rows.reduce((sum, a) => sum + a.captured_cents, 0) / 100,
+    refunded: rows.reduce((sum, a) => sum + a.refunded_cents, 0) / 100,
     status: r.online_payment_status || null,
     processing: active?.state === 'processing',
     amount_due: policy.amountDue(r) / 100,
@@ -261,6 +269,9 @@ function applyPayment(attempt, canonical, event) {
         captured = attempt.amount_cents;
         require('./reservationEvents').emit('payment.received', { organizationId: r.organization_id, reservationId: r.id,
           payload: { amount: attempt.amount_cents / 100, source: attempt.kind === 'automatic' ? 'automatic' : 'stripe' } });
+        // Pagou depois de a reserva ser cancelada: o hóspede é avisado de que o alojamento trata do reembolso.
+        if (r.status === 'cancelada') require('./reservationEvents').emit('payment.after_cancellation', { organizationId: r.organization_id,
+          reservationId: r.id, payload: { amount: attempt.amount_cents / 100 } });
       }
       if (refunded > returned) {
         ledger.addEntry(r, { id: `stripe-refund-${attempt.id}-${refunded}`, amount: -(refunded - returned) / 100, method: 'Stripe',
@@ -268,7 +279,10 @@ function applyPayment(attempt, canonical, event) {
         returned = refunded;
         refundNotice = { amount: (refunded - attempt.refunded_cents) / 100, partial: refunded < captured };
       }
-      const review = (r.status === 'cancelada' && (!r.policy_cancellation_json || !attempt.captured_cents)) || snapshot(r) !== attempt.snapshot;
+      // Numa reserva cancelada, o valor só fica a rever enquanto a equipa não o
+      // reembolsou nem decidiu retê-lo (services/cancelledMoney).
+      const unsettled = returned < captured && !r.money_resolution;
+      const review = (r.status === 'cancelada' && unsettled && (!r.policy_cancellation_json || !attempt.captured_cents)) || snapshot(r) !== attempt.snapshot;
       online = review ? 'review_required' : returned === captured ? 'refunded' : returned > 0 ? 'partially_refunded' : 'paid';
       // Um pagamento a rever não confirma a estadia; a Stripe nunca faz recuar
       // uma reserva já confirmada.

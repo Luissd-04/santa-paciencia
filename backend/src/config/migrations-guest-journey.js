@@ -101,10 +101,64 @@ function guestPortalOpens(db) {
   }).immediate();
 }
 
+// Dinheiro numa reserva cancelada sem política de pagamento: a equipa decide
+// reembolsar ou reter (services/cancelledMoney). Guarda a decisão e o motivo.
+function cancelledMoney(db) {
+  const id = '20261125_cancelled_money';
+  if (done(db, id)) return;
+  db.transaction(() => {
+    for (const column of ['money_resolution', 'money_resolution_note', 'money_resolved_at']) {
+      if (!has(db, 'reservations', column)) db.exec(`ALTER TABLE reservations ADD COLUMN ${column} TEXT`);
+    }
+    mark(db, id);
+  }).immediate();
+}
+
+// Email «Cancelamento com reembolso»: passa a incluir as datas e a dizer para
+// onde vai o dinheiro e quando costuma chegar (auditoria de 25/11). Só os
+// modelos ainda iguais ao texto anterior são atualizados (com cópia em
+// organization_email_templates_backup); um modelo editado pela organização
+// não se toca.
+function cancellationRefundText(db) {
+  const id = '20261125_cancel_refund_text';
+  if (done(db, id)) return;
+  db.transaction(() => {
+    const { defaultsList } = require('./emailTemplateDefaults');
+    const novo = defaultsList().find(t => t.slug === 'cancelamento_politica');
+    // O texto anterior: o novo sem as datas e sem a frase do prazo.
+    const frase = /<p [^>]*>Se houver valor a devolver[^<]*<\/p>/;
+    const antigo = novo.body.replace(frase, '').replace(' ({{datas_curtas}}) foi cancelada', ' foi cancelada');
+    const has = name => db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name);
+    if (has('organization_email_templates')) {
+      require('../services/emailDesign').ensureBackupTable(db);
+      const backup = db.prepare(`INSERT INTO organization_email_templates_backup (organization_id, slug, name, subject, body, reason)
+        SELECT organization_id, slug, name, subject, body, ? FROM organization_email_templates WHERE slug = ? AND body = ?`);
+      backup.run(id, novo.slug, antigo);
+      db.prepare("UPDATE organization_email_templates SET body = ?, updated_at = datetime('now') WHERE slug = ? AND body = ?").run(novo.body, novo.slug, antigo);
+    }
+    if (has('email_templates')) db.prepare('UPDATE email_templates SET body = ? WHERE slug = ? AND body = ?').run(novo.body, novo.slug, antigo);
+    mark(db, id);
+  }).immediate();
+}
+
+// O link do pré-check-in expira na saída atual da reserva (e não na original).
+function precheckinExpiry(db) {
+  const id = '20261125_precheckin_expiry';
+  if (done(db, id)) return;
+  db.transaction(() => {
+    db.exec(`UPDATE reservations SET precheckin_token_expires_at = check_out
+      WHERE precheckin_token IS NOT NULL AND precheckin_token_expires_at IS NOT NULL AND check_out IS NOT NULL AND precheckin_token_expires_at != check_out`);
+    mark(db, id);
+  }).immediate();
+}
+
 module.exports = db => {
   depositDeadline(db);
   accommodationGuestInfo(db);
   guestEmails(db);
   emailHolds(db);
   guestPortalOpens(db);
+  cancelledMoney(db);
+  precheckinExpiry(db);
+  cancellationRefundText(db);
 };
