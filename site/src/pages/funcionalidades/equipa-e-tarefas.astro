@@ -1,0 +1,52 @@
+---
+import Feature from '../../layouts/Feature.astro';
+import GlassNotice from '../../components/GlassNotice.astro';
+import PhoneDay from '../../components/PhoneDay.astro';
+import CartaoLista from '../../components/visuais/CartaoLista.astro';
+import { marca } from '../../config/brand';
+import { relacionadas } from '../../config/relacionadas';
+
+const titulo = `Gestão de limpezas para alojamento local | ${marca.nome}`;
+const descricao = 'Atribua limpezas, manutenção e check-ins à equipa do seu alojamento local, com avisos no telemóvel e permissões por função.';
+
+const passos = [
+  { titulo: 'A saída é marcada', texto: 'Quando uma reserva termina, a limpeza da casa fica prevista no dia certo.' },
+  { titulo: 'A limpeza fica atribuída', texto: 'Com casa, hora e responsável. Quem for escolhido recebe o aviso.' },
+  { titulo: 'A Rita marca como feita', texto: 'Do telemóvel, sem ligar a ninguém. Vê logo que a casa está pronta.' },
+];
+const beneficios = [
+  { titulo: 'Avisos no telemóvel', texto: 'Nova tarefa, nova chegada, pré-check-in feito.' },
+  { titulo: 'Cada um vê o que deve', texto: 'A equipa vê chegadas e tarefas, não vê os números.' },
+  { titulo: 'Google Tasks e Calendar', texto: 'As tarefas aparecem onde a equipa já está.' },
+  { titulo: 'Departamentos', texto: 'Para equipas maiores, com responsáveis.' },
+];
+const hoje = [
+  { hora: '10:00', titulo: 'Limpeza · Casa da Eira', texto: 'Rita · saída da Família Lopes', feito: false, destaque: true },
+  { hora: '12:30', titulo: 'Limpeza · Quarto Azul', texto: 'Rita · saída de J. Almeida' },
+  { hora: '15:00', titulo: 'Manutenção · Loft do Rio', texto: 'Torneira da cozinha · Paulo', feito: false },
+  { hora: '16:30', titulo: 'Chegada · Monte Branco', texto: 'Sofia M. · 2 hóspedes', feito: false },
+];
+const funcoes = [
+  { t: 'Gestão', s: 'Reservas, pagamentos e relatórios', pill: 'Vê tudo', tom: 'ok' },
+  { t: 'Rita · Limpezas', s: 'Chegadas e tarefas das suas casas', pill: 'Sem números', tom: 'espera' },
+  { t: 'Paulo · Manutenção', s: 'Só as tarefas atribuídas a ele', pill: 'Sem números', tom: 'espera' },
+] as const;
+const perguntas: [string, string][] = [
+  ['A equipa paga utilizador?', 'Depende do plano: o Essencial inclui 2 utilizadores, o Profissional 5 e o Premium não tem limite.'],
+];
+---
+<Feature
+  titulo={titulo} descricao={descricao} nome="Limpezas e equipa"
+  h1="Cada um sabe o que tem para fazer. E quando."
+  lede="Gestão de limpezas para alojamento local sem grupos de WhatsApp: cada tarefa tem casa, hora e responsável, e a equipa vê tudo no telemóvel."
+  passos={passos} tituloPassos="Da saída ao «está pronto», sem mensagens."
+  tituloBeneficios="Uma equipa alinhada, sem reuniões." beneficios={beneficios}
+  relacionadas={relacionadas('calendario', 'despesas', 'pre-check-in')}
+  perguntas={perguntas}
+>
+  <div slot="visual" style="position:relative">
+    <PhoneDay titulo="Hoje" sub="sáb, 9 nov" itens={hoje} plano />
+    <GlassNotice pos="g1" atraso={700} titulo="Nova tarefa" texto="Limpeza · Casa da Eira · 10:00" />
+  </div>
+  <CartaoLista slot="beneficios" titulo="Equipa" etiqueta="Por função" linhas={[...funcoes]} />
+</Feature>

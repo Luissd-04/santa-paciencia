@@ -1,0 +1,14 @@
+---
+// Cartão branco com título e linhas (nome, nota, valor ou etiqueta). Dados de exemplo.
+export interface Linha { t: string; s?: string; v?: string; pill?: string; tom?: 'ok' | 'espera' | 'falha' | '' }
+interface Props { titulo: string; sub?: string; etiqueta?: string; linhas: Linha[] }
+const { titulo, sub = '', etiqueta = '', linhas } = Astro.props;
+---
+<div class="vcard" aria-hidden="true">
+  <div class="hd"><b>{titulo}</b>{etiqueta ? <span class="pill">{etiqueta}</span> : sub ? <span class="sub2">{sub}</span> : null}</div>
+  <div class="vrows">
+    {linhas.map((l) => (
+      <div class="vrow"><div><b>{l.t}</b>{l.s && <small>{l.s}</small>}</div>{l.pill ? <span class={`pill ${l.tom ?? ''}`}>{l.pill}</span> : <span class="v">{l.v}</span>}</div>
+    ))}
+  </div>
+</div>

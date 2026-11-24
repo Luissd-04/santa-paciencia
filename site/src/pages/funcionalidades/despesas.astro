@@ -1,0 +1,47 @@
+---
+import Feature from '../../layouts/Feature.astro';
+import GlassNotice from '../../components/GlassNotice.astro';
+import CartaoLista from '../../components/visuais/CartaoLista.astro';
+import TalaoLido from '../../components/visuais/TalaoLido.astro';
+import { marca } from '../../config/brand';
+import { relacionadas } from '../../config/relacionadas';
+
+const titulo = `Gestão de despesas do alojamento local | ${marca.nome}`;
+const descricao = 'Registe as despesas do seu alojamento local com uma fotografia do talão. Por casa, categoria e fornecedor, prontas para o contabilista.';
+
+const passos = [
+  { titulo: 'Fotografa o talão', texto: 'Com o telemóvel, na própria loja. Sem cartas nem digitalizações.' },
+  { titulo: 'Confirma o que foi lido', texto: 'Data, valor e fornecedor aparecem preenchidos. Corrige o que for preciso.' },
+  { titulo: 'Fica na casa certa', texto: 'Arrumado por casa e categoria, e já conta nos relatórios.' },
+];
+const beneficios = [
+  { titulo: 'Leitura automática', texto: 'Data, valor e fornecedor preenchidos por si.' },
+  { titulo: 'Por casa e categoria', texto: 'Limpeza, manutenção, consumíveis.' },
+  { titulo: 'Fornecedores à mão', texto: 'Contactos e quanto pagou a cada um.' },
+  { titulo: 'Pronto para o contabilista', texto: 'Exporte o mês num clique.' },
+];
+const mes = [
+  { t: 'Drogaria Central', s: '6 nov · Casa da Eira · Consumíveis', v: '38,40 €' },
+  { t: 'Lavandaria do Rio', s: '4 nov · Loft do Rio · Limpeza', v: '64,00 €' },
+  { t: 'Canalizações Pereira', s: '2 nov · Monte Branco · Manutenção', v: '85,00 €' },
+  { t: 'Total de novembro', s: '3 despesas', v: '187,40 €' },
+];
+const perguntas: [string, string][] = [
+  ['A leitura do talão é sempre certa?', 'A leitura é opcional e serve para poupar escrita: confirma sempre os valores antes de guardar.'],
+];
+---
+<Feature
+  titulo={titulo} descricao={descricao} nome="Despesas"
+  h1="A caixa de sapatos pode reformar-se."
+  lede="A gestão de despesas do alojamento local começa no telemóvel: fotografa o talão, confirma o valor e fica arrumado na casa certa."
+  passos={passos} tituloPassos="Do talão ao registo, em três toques."
+  tituloBeneficios="Contas arrumadas ao longo do ano." beneficios={beneficios}
+  relacionadas={relacionadas('relatorios', 'equipa-e-tarefas', 'calendario')}
+  perguntas={perguntas}
+>
+  <div slot="visual" style="position:relative">
+    <TalaoLido />
+    <GlassNotice pos="g1" atraso={700} titulo="Talão lido" texto="Drogaria Central · 38,40 €" />
+  </div>
+  <CartaoLista slot="beneficios" titulo="Despesas · novembro" sub="Por casa" linhas={mes} />
+</Feature>

@@ -1,0 +1,47 @@
+---
+import Feature from '../../layouts/Feature.astro';
+import GlassNotice from '../../components/GlassNotice.astro';
+import EscolherQuarto from '../../components/visuais/EscolherQuarto.astro';
+import CartaoLista from '../../components/visuais/CartaoLista.astro';
+import { marca } from '../../config/brand';
+import { relacionadas } from '../../config/relacionadas';
+
+const titulo = `Reservas diretas para alojamento local | ${marca.nome}`;
+const descricao = 'Receba reservas diretas no seu alojamento local, com página própria ou dentro do seu site. Sem comissões, com pagamento do sinal por cartão.';
+
+const passos = [
+  { titulo: 'Partilha o link ou cola o botão', texto: 'Uma página de reservas pronta a partilhar, ou um botão dentro do site que já tem.' },
+  { titulo: 'O hóspede escolhe e paga', texto: 'Escolhe as datas e o quarto, vê o total e paga o sinal por cartão.' },
+  { titulo: 'A reserva entra no calendário', texto: 'As datas ficam bloqueadas e o resto segue sozinho.' },
+];
+const beneficios = [
+  { titulo: 'Fica com o aspeto do seu site', texto: 'Cores, letra e cantos copiados do seu site (plano Premium).' },
+  { titulo: 'Preço sempre certo', texto: 'As mesmas regras de época e estadia mínima.' },
+  { titulo: 'Vouchers de desconto', texto: 'Para quem volta ou para parceiros, com regras claras.' },
+  { titulo: 'Protegida contra robôs', texto: 'Pedidos falsos ficam à porta.' },
+];
+const vouchers = [
+  { t: 'VOLTAR10', s: 'Hóspedes que regressam · 10 %', pill: 'Ativo', tom: 'ok' },
+  { t: 'PARCEIRO15', s: 'Parceiros · 15 % · até 31 dez', pill: 'Ativo', tom: 'ok' },
+  { t: 'PRIMAVERA', s: 'Estadias de 3 noites ou mais', pill: 'Expirado', tom: 'espera' },
+] as const;
+const perguntas: [string, string][] = [
+  ['Preciso de ter um site?', 'Não. A página de reservas funciona sozinha e pode partilhá-la nas redes ou por mensagem.'],
+  ['Funciona com WordPress?', 'Sim. Basta colar duas linhas de código numa página.'],
+];
+---
+<Feature
+  titulo={titulo} descricao={descricao} nome="Reservas no seu site"
+  h1="As suas reservas, sem comissões pelo caminho."
+  lede="Reservas diretas para o seu alojamento local: uma página de reservas bonita para partilhar, ou um botão dentro do site que já tem. O hóspede escolhe as datas, paga o sinal e pronto."
+  passos={passos} tituloPassos="Do link à reserva, em três passos."
+  tituloBeneficios="Mais reservas que ficam inteiras para si." beneficios={beneficios}
+  relacionadas={relacionadas('pagamentos-online', 'calendario', 'mensagens-automaticas')}
+  perguntas={perguntas}
+>
+  <div slot="visual" style="position:relative">
+    <EscolherQuarto />
+    <GlassNotice pos="g1" atraso={700} titulo="Reserva direta" texto="Quarto Azul · 0 € de comissão" />
+  </div>
+  <CartaoLista slot="beneficios" titulo="Vouchers" etiqueta="Página de reservas" linhas={[...vouchers]} />
+</Feature>

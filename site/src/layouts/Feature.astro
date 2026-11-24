@@ -5,6 +5,8 @@ import Breadcrumbs from '../components/Breadcrumbs.astro';
 import FinalCta from '../components/FinalCta.astro';
 import Icon, { type NomeIcone } from '../components/Icon.astro';
 import Tile from '../components/Tile.astro';
+import Faq from '../components/Faq.astro';
+import '../styles/visuais.css';
 import { marca } from '../config/brand';
 
 // Modelo de página de funcionalidade: topo com caminho, H1, lede e visual; «três passos»;
@@ -27,9 +29,13 @@ interface Props {
   beneficios: { titulo: string; texto: string }[];
   /** Funcionalidades relacionadas (ladrilhos de ligação). */
   relacionadas: { icone: NomeIcone; rotulo: string; href: string }[];
+  /** Perguntas frequentes (com JSON-LD FAQPage). */
+  perguntas?: [string, string][];
+  /** `perguntas`: os «passos» são perguntas grandes, sem números (página de relatórios). */
+  passosComoPerguntas?: boolean;
   imagem?: string;
 }
-const { titulo, descricao, nome, h1, lede, fase = 0.8, passos, tituloPassos, tituloBeneficios, beneficios, relacionadas, imagem } = Astro.props;
+const { titulo, descricao, nome, h1, lede, fase = 0.8, passos, tituloPassos, tituloBeneficios, beneficios, relacionadas, imagem, perguntas = [], passosComoPerguntas = false } = Astro.props;
 const caminho = [
   { rotulo: 'Início', href: '/' },
   { rotulo: 'Funcionalidades', href: '/funcionalidades/' },
@@ -57,7 +63,7 @@ const software = {
   <section class="sec" id="como" aria-labelledby="como-h">
     <div class="in">
       <h2 class="h2" id="como-h">{tituloPassos}</h2>
-      <ol class="how" style="padding:0">
+      <ol class={passosComoPerguntas ? 'how q' : 'how'} style="padding:0">
         {passos.map((p) => <li><h3>{p.titulo}</h3><p>{p.texto}</p></li>)}
       </ol>
     </div>
@@ -83,6 +89,15 @@ const software = {
       </div>
     </div>
   </section>
+
+  {perguntas.length > 0 && (
+    <section class="sec alt" aria-labelledby="pf">
+      <div class="in">
+        <h2 class="h2" id="pf" style="margin:0 auto;text-align:center;font-size:clamp(28px,3vw,38px)">Perguntas frequentes</h2>
+        <Faq itens={perguntas} esquema />
+      </div>
+    </section>
+  )}
 
   <FinalCta />
 </Base>

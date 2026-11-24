@@ -1,0 +1,88 @@
+/* Visuais das páginas de funcionalidades (cartões brancos sobre basalto, como o de pagamentos). */
+.vcard{background:#fff;border:1px solid var(--linha);border-radius:24px;padding:26px;box-shadow:0 40px 80px -50px rgba(30,28,26,.45);max-width:440px;margin:0 auto;position:relative;color:var(--basalto)}
+.vcard .hd{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.vcard .hd b{font:800 21px var(--disp);letter-spacing:-.02em}
+.vcard .hd span.sub2{color:var(--cinza);font-size:13px}
+.vcard .btn{width:100%;margin-top:18px}
+.vrows{margin-top:14px}
+.vrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--linha)}
+.vrow b{display:block;font-size:15px}
+.vrow small{display:block;color:var(--cinza);font-size:13px;margin-top:2px}
+.vrow .v{font:700 15px var(--ui);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.pill.ok{background:#E6F0E4;color:#2F5A2A}
+.pill.espera{background:var(--cal2);color:var(--cinza)}
+.pill.falha{background:#F6DADA;color:#8A2A2A}
+
+/* Escolha o quarto */
+.dates{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.dates div{border:1px solid var(--linha);border-radius:14px;padding:10px 14px;font-size:12.5px;color:var(--cinza)}
+.dates b{display:block;color:var(--basalto);font-size:16px;margin-top:2px}
+.opt{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:14px;align-items:center;border:1.5px solid var(--linha);border-radius:16px;padding:12px;margin-top:10px}
+.opt .ph2{width:52px;height:52px;border-radius:12px;background:var(--cal2);display:grid;place-items:center;color:var(--basalto)}
+.opt .ph2 svg{width:24px;height:24px}
+.opt b{display:block;font-size:15.5px}.opt small{color:var(--cinza);font-size:13px}
+.opt .v{font:700 15px var(--ui);text-align:right;white-space:nowrap}.opt .v small{display:block;font-weight:500}
+.opt.sel{border-color:var(--barro);background:var(--barro-suave)}
+.opt.sel .ph2{background:var(--barro);color:#fff}
+.vtot{display:flex;justify-content:space-between;align-items:baseline;margin-top:16px;padding-top:14px;border-top:1px solid var(--linha);color:var(--cinza);font-size:15px}
+.vtot b{font:800 28px var(--disp);letter-spacing:-.03em;color:var(--basalto);font-variant-numeric:tabular-nums}
+
+/* Formulário de pré-check-in (no telemóvel) */
+.fld{margin-top:10px}
+.fld label{display:block;font-size:11.5px;color:var(--cinza);margin:0 0 3px 2px}
+.fld div{background:#fff;border:1px solid var(--linha);border-radius:12px;padding:10px 12px;font-size:14px;font-weight:600;display:flex;justify-content:space-between;gap:8px}
+.fld div span{color:var(--cinza);font-weight:500}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chips span{font-size:12.5px;font-weight:600;padding:5px 10px;border-radius:999px;background:#fff;border:1px solid var(--linha)}
+.chips span.on{background:var(--barro);border-color:var(--barro);color:#fff}
+.agree{display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px;margin-top:14px;font-size:12px;color:var(--cinza);line-height:1.4}
+.agree i{width:18px;height:18px;border-radius:6px;background:var(--barro);color:#fff;display:grid;place-items:center}
+.agree i svg{width:11px;height:11px}
+.sendbtn{margin-top:14px;background:var(--barro);color:#fff;border-radius:14px;text-align:center;font-weight:700;padding:12px;font-size:14.5px}
+
+/* Talão lido */
+.talao{background:var(--cal);border:1px dashed #cfc9c1;border-radius:14px;padding:16px 18px;margin-top:16px;font:500 13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--cinza);position:relative}
+.talao p{margin:0;display:flex;justify-content:space-between;gap:10px}
+.talao .t{color:var(--basalto);font-weight:700;text-align:center;display:block;margin-bottom:6px;font-size:14px}
+.talao mark{background:var(--barro-suave);color:var(--barro-esc);border-radius:4px;padding:0 4px;font-weight:700}
+.lido{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.lido .fld{margin:0}.lido .fld.w{grid-column:1/-1}
+
+/* Barras */
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}
+.kpis div{background:var(--cal);border-radius:14px;padding:12px}
+.kpis small{display:block;color:var(--cinza);font-size:12px}
+.kpis b{font:800 21px var(--disp);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.bars{margin-top:16px;display:grid;gap:12px}
+.bars .br{display:grid;grid-template-columns:104px minmax(0,1fr) 72px;gap:10px;align-items:center;font-size:13.5px}
+.bars .tr{height:14px;border-radius:999px;background:var(--cal2);overflow:hidden}
+.bars .tr i{display:block;height:100%;border-radius:999px;background:var(--barro);transform-origin:left}
+.bars .tr i.b2{background:var(--basalto)}.bars .tr i.b3{background:var(--barro-claro)}
+.bars .n{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.vh{font:700 13px var(--ui);color:var(--cinza);margin-top:20px}
+
+/* Email em várias línguas */
+.mail{border:1px solid var(--linha);border-radius:14px;padding:14px 16px;margin-top:16px;font-size:14px}
+.mail small{display:block;color:var(--cinza);font-size:12.5px}
+.mail b{display:block;margin:6px 0 4px;font-size:15.5px}
+.mail p{margin:0;color:var(--cinza)}
+
+/* Perguntas grandes (relatórios): sem números */
+.how.q li::before{display:none}
+.how.q h3{font-size:24px;line-height:1.15}
+
+/* Índice */
+.ainda{list-style:none;margin:44px 0 0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.ainda li{display:grid;grid-template-columns:26px minmax(0,1fr);gap:12px;background:var(--cal);border:1px solid var(--linha);border-radius:18px;padding:22px}
+.ainda svg{width:20px;height:20px;color:var(--barro);margin-top:3px}
+.ainda b{display:block;font:700 19px/1.25 var(--disp);letter-spacing:-.015em}.ainda span{color:var(--cinza);font-size:16px}
+.faqsec{padding-top:0}
+
+@media (max-width:640px){
+  .vcard{padding:20px;border-radius:20px}
+  .bars .br{grid-template-columns:86px minmax(0,1fr) 62px;font-size:12.5px}
+  .kpis b{font-size:18px}
+  .ainda{grid-template-columns:minmax(0,1fr)}
+  .how.q h3{font-size:22px}
+}
+.phone-in{color:var(--basalto)}

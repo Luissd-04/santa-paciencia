@@ -1,0 +1,11 @@
+---
+// Receita por canal (Airbnb, Booking.com e reservas diretas), com dados de exemplo.
+const canais = [['Airbnb', '2 430 €', 100, ''], ['Booking.com', '1 360 €', 56, 'b2'], ['Direto', '1 070 €', 44, 'b3']] as const;
+---
+<div class="vcard" aria-hidden="true">
+  <div class="hd"><b>Receita por canal</b><span class="pill">Junho</span></div>
+  <div class="bars">
+    {canais.map(([n, v, w, c]) => <div class="br"><span>{n}</span><div class="tr"><i class={c} style={`width:${w}%`}></i></div><span class="n">{v}</span></div>)}
+  </div>
+  <div class="vrows"><div class="vrow"><div><b>Reservas diretas</b><small>Sem comissão de plataforma</small></div><span class="v">22 %</span></div></div>
+</div>

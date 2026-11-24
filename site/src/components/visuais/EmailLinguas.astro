@@ -1,0 +1,9 @@
+---
+// Pré-visualização de um email de chegada e as sete línguas. Dados de exemplo.
+const linguas = ['PT', 'EN', 'FR', 'ES', 'DE', 'IT', 'NL'];
+---
+<div class="vcard" aria-hidden="true">
+  <div class="hd"><b>Instruções de chegada</b><span class="pill">Agendado</span></div>
+  <div class="mail"><small>De: Casa da Eira · do seu Gmail</small><small>Para: Família Lopes</small><b>Bem-vindos à Casa da Eira</b><p>Olá, Helena. Chegam a 9 de novembro: a entrada é autónoma e as indicações seguem abaixo…</p></div>
+  <div class="chips">{linguas.map((l, i) => <span class={i === 0 ? 'on' : ''}>{l}</span>)}</div>
+</div>

@@ -1,0 +1,37 @@
+---
+import Feature from '../../layouts/Feature.astro';
+import GlassNotice from '../../components/GlassNotice.astro';
+import RelatorioBarras from '../../components/visuais/RelatorioBarras.astro';
+import CanaisBarras from '../../components/visuais/CanaisBarras.astro';
+import { marca } from '../../config/brand';
+import { relacionadas } from '../../config/relacionadas';
+
+const titulo = `Relatórios de rentabilidade do alojamento local | ${marca.nome}`;
+const descricao = 'Receita, ocupação, despesas e margem do seu alojamento local por mês, por casa e por canal. Sempre atualizados, sem folhas de cálculo.';
+
+const passos = [
+  { titulo: 'Que casa rende mais?', texto: 'Receita e ocupação lado a lado, casa a casa, mês a mês.' },
+  { titulo: 'Quanto veio do Airbnb e quanto foi direto?', texto: 'A receita por canal, para ver o que pesa e o que poupou.' },
+  { titulo: 'Quanto sobrou depois das despesas?', texto: 'A margem, com as despesas por categoria.' },
+];
+const beneficios = [
+  { titulo: 'Receita e ocupação mês a mês', texto: 'Todas as casas ou uma de cada vez.' },
+  { titulo: 'Receita por canal', texto: 'Saber quanto pagou em comissões e quanto poupou.' },
+  { titulo: 'Margem real', texto: 'Receita menos despesas, por categoria.' },
+  { titulo: 'Taxa turística calculada', texto: 'Por mês e por casa.' },
+];
+---
+<Feature
+  titulo={titulo} descricao={descricao} nome="Relatórios"
+  h1="Quanto ganhou este mês? Já está feito."
+  lede="Relatórios do alojamento local construídos com o que já registou: receita, ocupação e margem por casa e por canal, sem uma única fórmula."
+  passos={passos} tituloPassos="Três perguntas a que o relatório responde sozinho." passosComoPerguntas
+  tituloBeneficios="Os números do negócio, sem folhas de cálculo." beneficios={beneficios}
+  relacionadas={relacionadas('despesas', 'pagamentos-online', 'calendario')}
+>
+  <div slot="visual" style="position:relative">
+    <RelatorioBarras />
+    <GlassNotice pos="g1" atraso={700} titulo="Relatório pronto" texto="Junho · 4 casas" />
+  </div>
+  <CanaisBarras slot="beneficios" />
+</Feature>
