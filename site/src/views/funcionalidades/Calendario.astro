@@ -1,0 +1,21 @@
+---
+import Feature from '../../layouts/Feature.astro';
+import GlassNotice from '../../components/GlassNotice.astro';
+import AppCalendar from '../../components/AppCalendar.astro';
+import CartaoLista from '../../components/visuais/CartaoLista.astro';
+import { t, comMarca, type Lang } from '../../i18n';
+import { relacionadas } from '../../config/relacionadas';
+
+// Calendário (/funcionalidades/calendario/ e /en/features/calendar/). Texto em src/i18n/<língua>/funcionalidades.ts.
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const { titulo, avisos, precos, visualAria, ...p } = t(lang).funcionalidades.calendario;
+---
+<Feature lang={lang} titulo={comMarca(titulo)} {...p} relacionadas={relacionadas(lang, 'reservas-diretas', 'pagamentos-online', 'equipa-e-tarefas')}>
+  <div slot="visual" role="img" aria-label={visualAria}>
+    <AppCalendar lang={lang} />
+    <GlassNotice pos="g1" atraso={700} titulo={avisos[0].titulo} texto={avisos[0].texto} />
+    <GlassNotice pos="g2" atraso={1150} titulo={avisos[1].titulo} texto={avisos[1].texto} />
+  </div>
+  <CartaoLista slot="beneficios" titulo={precos.titulo} etiqueta={precos.etiqueta} linhas={precos.linhas} />
+</Feature>

@@ -1,4 +1,5 @@
 ---
+par: deposit-balance-cancellation-policy-direct-bookings
 titulo: "Sinal, saldo e cancelamento: a política de pagamentos das reservas diretas"
 tituloSeo: "Sinal, saldo e cancelamento: reservas diretas"
 descricao: Quanto pedir de sinal, quando cobrar o resto e o que devolver se o hóspede cancelar. Um guia prático para definir a política de pagamentos do seu alojamento.

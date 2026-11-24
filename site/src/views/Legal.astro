@@ -1,0 +1,16 @@
+---
+import Legal from '../layouts/Legal.astro';
+import { marca } from '../config/brand';
+import { t, comMarca, fmt, type Lang } from '../i18n';
+
+// Privacidade e termos (/privacidade/, /termos/ e /en/privacy/, /en/terms/): textos provisórios de i18n.
+// O corpo de cada bloco é HTML simples com {marca} e {email} (ligação mailto) por substituir.
+interface Props { lang: Lang; pagina: 'privacidade' | 'termos'; fase: number }
+const { lang, pagina, fase } = Astro.props;
+const d = t(lang)[pagina];
+const email = `<a href="mailto:${marca.email}">${marca.email}</a>`;
+const aplicar = (html: string) => html.replace(/\{marca\}/g, marca.nome).replace(/\{email\}/g, email);
+---
+<Legal lang={lang} titulo={comMarca(d.titulo)} descricao={fmt(d.descricao, { marca: marca.nome })} h1={d.h1} atualizado={d.atualizado} fase={fase}>
+  {d.blocos.map((b) => <Fragment><h2>{b.h}</h2><Fragment set:html={aplicar(b.html)} /></Fragment>)}
+</Legal>

@@ -1,0 +1,11 @@
+---
+import { guiasDe, slugDe } from '../../../config/guias';
+import Vista from '../../../views/GuiaPagina.astro';
+
+export async function getStaticPaths() {
+  const guias = await guiasDe('en');
+  return guias.map((g) => ({ params: { slug: slugDe(g.id) }, props: { g, outros: guias.filter((o) => o.id !== g.id) } }));
+}
+const { g, outros } = Astro.props;
+---
+<Vista lang="en" g={g} outros={outros} />

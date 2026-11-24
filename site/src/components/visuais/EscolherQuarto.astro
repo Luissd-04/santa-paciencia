@@ -1,12 +1,15 @@
 ---
 import Icon from '../Icon.astro';
+import { t, type Lang } from '../../i18n';
 // Cartão «Escolha o quarto» da página de reservas, com dados de exemplo.
+interface Props { lang?: Lang }
+const { lang = 'pt' } = Astro.props;
+const d = t(lang).comum.visuais.quarto;
 ---
 <div class="vcard" aria-hidden="true">
-  <div class="hd"><b>Escolha o quarto</b><span class="pill">2 hóspedes</span></div>
-  <div class="dates"><div>Entrada<b>9 nov</b></div><div>Saída<b>12 nov</b></div></div>
-  <div class="opt sel"><span class="ph2"><Icon nome="key" /></span><div><b>Quarto Azul</b><small>Casal · pequeno-almoço</small></div><span class="v">60 €<small>por noite</small></span></div>
-  <div class="opt"><span class="ph2"><Icon nome="key" /></span><div><b>Loft do Rio</b><small>Até 4 hóspedes · cozinha</small></div><span class="v">95 €<small>por noite</small></span></div>
-  <div class="vtot"><span>Total · 3 noites</span><b>180,00 €</b></div>
-  <a class="btn p" href="#como">Reservar e pagar o sinal</a>
+  <div class="hd"><b>{d.titulo}</b><span class="pill">{d.pill}</span></div>
+  <div class="dates"><div>{d.entrada}<b>{d.d1}</b></div><div>{d.saida}<b>{d.d2}</b></div></div>
+  {d.opcoes.map((o) => <div class={o.sel ? 'opt sel' : 'opt'}><span class="ph2"><Icon nome="key" /></span><div><b>{o.nome}</b><small>{o.sub}</small></div><span class="v">{o.preco}<small>{o.por}</small></span></div>)}
+  <div class="vtot"><span>{d.total}</span><b>{d.totalValor}</b></div>
+  <a class="btn p" href="#como">{d.botao}</a>
 </div>

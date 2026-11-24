@@ -1,6 +1,7 @@
 ---
 import Calcada from './Calcada.astro';
 import Breadcrumbs from './Breadcrumbs.astro';
+import type { Lang } from '../i18n';
 // Topo escuro das páginas de texto: calçada, caminho (com JSON-LD), kicker opcional, h1 e lede.
 // O slot por omissão fica depois do lede (botões, lista de factos).
 interface Props {
@@ -9,13 +10,14 @@ interface Props {
   caminho?: { rotulo: string; href?: string }[];
   kicker?: string;
   fase?: number;
+  lang?: Lang;
 }
-const { h1, lede, caminho, kicker, fase = 1.6 } = Astro.props;
+const { h1, lede, caminho, kicker, fase = 1.6, lang = 'pt' } = Astro.props;
 ---
 <section class="dark">
   <Calcada fase={fase} />
   <div class="in ph">
-    {caminho && <Breadcrumbs itens={caminho} />}
+    {caminho && <Breadcrumbs itens={caminho} lang={lang} />}
     {kicker && <span class="kicker"><b>{kicker}</b></span>}
     <h1>{h1}</h1>
     {lede && <p class="lede">{lede}</p>}

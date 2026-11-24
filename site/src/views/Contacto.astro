@@ -1,0 +1,30 @@
+---
+import Base from '../layouts/Base.astro';
+import Calcada from '../components/Calcada.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import AccessForm from '../components/AccessForm.astro';
+import { marca } from '../config/brand';
+import { t, comMarca, type Lang } from '../i18n';
+import { url } from '../i18n/rotas';
+
+// Contacto (/contacto/ e /en/contact/): reutiliza o formulário de acesso antecipado.
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const d = t(lang).contacto;
+const inicio = t(lang).comum.inicio;
+---
+<Base titulo={comMarca(d.titulo)} descricao={d.descricao} lang={lang}>
+  <section class="dark">
+    <Calcada fase={4.0} />
+    <div class="in ph-pair">
+      <div>
+        <Breadcrumbs itens={[{ rotulo: inicio, href: url(lang, 'inicio') }, { rotulo: d.titulo }]} lang={lang} />
+        <h1>{d.h1}</h1>
+        <p class="lede">{d.lede}</p>
+        <p class="contacto-mail">{d.preferir} <a href={`mailto:${marca.email}`}>{marca.email}</a></p>
+      </div>
+      <AccessForm lang={lang} assunto titulo={d.formTitulo} botao={d.formBotao} mensagem={d.formMensagem} modo={d.formModo}
+        nota={d.formNota} />
+    </div>
+  </section>
+</Base>

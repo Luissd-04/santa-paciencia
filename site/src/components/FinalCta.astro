@@ -1,19 +1,19 @@
 ---
 import Calcada from './Calcada.astro';
 import Icon from './Icon.astro';
-// Chamada final: faixa escura com a calçada a desvanecer em cima.
-interface Props { titulo?: string; texto?: string; fase?: number }
-const {
-  titulo = 'A próxima época pode ser a mais calma de sempre.',
-  texto = 'Estamos a abrir aos poucos, com acompanhamento pessoal na configuração. Peça já o seu lugar.',
-  fase = 3.1,
-} = Astro.props;
+import { t, type Lang } from '../i18n';
+import { url } from '../i18n/rotas';
+// Chamada final: faixa escura com a calçada a desvanecer em cima. Textos por omissão em i18n (comum.cta).
+interface Props { titulo?: string; texto?: string; fase?: number; lang?: Lang }
+const { lang = 'pt', fase = 3.1 } = Astro.props;
+const d = t(lang).comum.cta;
+const { titulo = d.titulo, texto = d.texto } = Astro.props;
 ---
 <section class="dark final" aria-labelledby="fim">
   <Calcada fase={fase} topo />
   <div class="in">
     <h2 class="h2" id="fim">{titulo}</h2>
     <p class="sub">{texto}</p>
-    <div class="ctas"><a class="btn p" href="/acesso-antecipado/">Pedir acesso antecipado <Icon nome="arrow" class="go" /></a><a class="btn s" href="/precos/">Ver preços</a></div>
+    <div class="ctas"><a class="btn p" href={url(lang, 'acesso')}>{d.pedir} <Icon nome="arrow" class="go" /></a><a class="btn s" href={url(lang, 'precos')}>{d.precos}</a></div>
   </div>
 </section>

@@ -1,31 +1,36 @@
 ---
 import Icon from './Icon.astro';
 import { marca } from '../config/brand';
+import { t, type Lang } from '../i18n';
+import { url } from '../i18n/rotas';
 // Formulário de acesso antecipado. Valida no browser. Com CONTACT_ENDPOINT envia POST JSON
-// ({nome, email, telefone, alojamentos, canais, mensagem}); sem endpoint abre o programa de email.
+// ({nome, email, telefone, alojamentos, canais, assunto, mensagem, idioma}); sem endpoint abre o programa de email.
 // Sem JavaScript, o formulário cai para um mailto: simples.
 // Props (a página de contacto reutiliza este formulário): `assunto` acrescenta o campo «Assunto» (opcional);
-// `titulo`, `botao`, `mensagem` e `nota` mudam os textos; `modo` é o assunto por omissão do email.
-interface Props { assunto?: boolean; titulo?: string; botao?: string; mensagem?: string; modo?: string; nota?: string }
-const { assunto = false, titulo = 'Pedir acesso', botao = 'Pedir o meu lugar', mensagem = 'O que mais lhe tira a paciência?', modo = 'Pedido de acesso antecipado', nota = 'Sem cartão de crédito. Usamos os seus dados só para responder a este pedido.' } = Astro.props;
+// `titulo`, `botao`, `mensagem`, `nota` e `modo` mudam os textos (por omissão, os de i18n `comum.form`);
+// `modo` é o assunto por omissão do email. As mensagens do script vão em `data-t` (uma por língua).
+interface Props { lang?: Lang; assunto?: boolean; titulo?: string; botao?: string; mensagem?: string; modo?: string; nota?: string }
+const { lang = 'pt', assunto = false } = Astro.props;
+const f = t(lang).comum.form;
+const { titulo = f.titulo, botao = f.botao, mensagem = f.mensagem, modo = f.modo, nota = f.nota } = Astro.props;
 ---
 <form class="form" novalidate method="post" action={`mailto:${marca.email}`} enctype="text/plain"
-  data-endpoint={marca.contactEndpoint} data-email={marca.email} data-marca={marca.nome} data-modo={modo}>
+  data-endpoint={marca.contactEndpoint} data-email={marca.email} data-marca={marca.nome} data-modo={modo} data-t={JSON.stringify(f.js)}>
   <h2>{titulo}</h2>
   <div class="two">
-    <div class="fld"><label for="nome">Nome</label><input id="nome" name="nome" autocomplete="name" required aria-describedby="erro-nome"><span class="err" id="erro-nome" role="alert"></span></div>
-    <div class="fld"><label for="tel">Telemóvel <small>(opcional)</small></label><input id="tel" name="telefone" type="tel" autocomplete="tel" inputmode="tel"></div>
+    <div class="fld"><label for="nome">{f.nome}</label><input id="nome" name="nome" autocomplete="name" required aria-describedby="erro-nome"><span class="err" id="erro-nome" role="alert"></span></div>
+    <div class="fld"><label for="tel">{f.telemovel} <small>{f.opcional}</small></label><input id="tel" name="telefone" type="tel" autocomplete="tel" inputmode="tel"></div>
   </div>
-  <div class="fld"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required aria-describedby="erro-email"><span class="err" id="erro-email" role="alert"></span></div>
-  {assunto && <div class="fld"><label for="assunto">Assunto <small>(opcional)</small></label><input id="assunto" name="assunto" autocomplete="off"></div>}
-  <div class="fld"><label for="casas">Quantas casas gere?</label><select id="casas" name="alojamentos"><option>1</option><option>2 a 3</option><option selected>4 a 10</option><option>Mais de 10</option></select></div>
-  <fieldset class="fld"><legend>Onde anuncia hoje?</legend><div class="chips"><label><input type="checkbox" name="canais" value="Airbnb" checked> Airbnb</label><label><input type="checkbox" name="canais" value="Booking.com" checked> Booking.com</label><label><input type="checkbox" name="canais" value="Site próprio"> Site próprio</label><label><input type="checkbox" name="canais" value="Outro"> Outro</label></div></fieldset>
-  <div class="fld"><label for="msg">{mensagem} <small>(opcional)</small></label><textarea id="msg" name="mensagem" rows="3"></textarea></div>
-  <div class="hp" aria-hidden="true"><label>Não preencher <input name="website" tabindex="-1" autocomplete="off"></label></div>
+  <div class="fld"><label for="email">{f.email}</label><input id="email" name="email" type="email" autocomplete="email" required aria-describedby="erro-email"><span class="err" id="erro-email" role="alert"></span></div>
+  {assunto && <div class="fld"><label for="assunto">{f.assunto} <small>{f.opcional}</small></label><input id="assunto" name="assunto" autocomplete="off"></div>}
+  <div class="fld"><label for="casas">{f.casas}</label><select id="casas" name="alojamentos">{f.casasOpcoes.map((o, i) => <option selected={i === 2}>{o}</option>)}</select></div>
+  <fieldset class="fld"><legend>{f.onde}</legend><div class="chips">{f.canais.map((c, i) => <label><input type="checkbox" name="canais" value={c} checked={i < 2}> {c}</label>)}</div></fieldset>
+  <div class="fld"><label for="msg">{mensagem} <small>{f.opcional}</small></label><textarea id="msg" name="mensagem" rows="3"></textarea></div>
+  <div class="hp" aria-hidden="true"><label>{f.naoPreencher} <input name="website" tabindex="-1" autocomplete="off"></label></div>
   <p class="falha" role="alert" data-falha></p>
   <button class="btn p" type="submit">{botao} <Icon nome="arrow" class="go" /></button>
-  <p class="note">{nota} <a href="/privacidade/">Privacidade</a>.</p>
-  <div class="done" role="status"><span class="ok"><Icon nome="check" forte /></span><h2 tabindex="-1">Pedido recebido.</h2><p style="margin:0;color:var(--cinza)" data-feito>Vamos responder por email. Entretanto, espreite as perguntas frequentes.</p><a class="btn s" href="/perguntas-frequentes/" style="color:var(--basalto)">Ver perguntas</a></div>
+  <p class="note">{nota} <a href={url(lang, 'privacidade')}>{f.privacidade}</a>.</p>
+  <div class="done" role="status"><span class="ok"><Icon nome="check" forte /></span><h2 tabindex="-1">{f.feitoTitulo}</h2><p style="margin:0;color:var(--cinza)" data-feito>{f.feitoTexto}</p><a class="btn s" href={url(lang, 'perguntas')} style="color:var(--basalto)">{f.feitoBotao}</a></div>
 </form>
 
 <script>
@@ -34,12 +39,14 @@ const { assunto = false, titulo = 'Pedir acesso', botao = 'Pedir o meu lugar', m
     const email = form.dataset.email || '';
     const marca = form.dataset.marca || '';
     const modo = form.dataset.modo || '';
+    // Mensagens e rótulos da língua da página (atributo data-t, ver o frontmatter).
+    const m: Record<string, string> = JSON.parse(form.dataset.t || '{}');
     const falha = form.querySelector<HTMLElement>('[data-falha]')!;
     const botao = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
 
     const regras: Record<string, (v: string) => string> = {
-      nome: (v) => (v.trim().length < 2 ? 'Indique o seu nome.' : ''),
-      email: (v) => (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()) ? '' : 'Indique um email válido, por exemplo nome@dominio.pt.'),
+      nome: (v) => (v.trim().length < 2 ? m.nomeInvalido : ''),
+      email: (v) => (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()) ? '' : m.emailInvalido),
     };
     const validar = (campo: HTMLInputElement) => {
       const msg = regras[campo.name]?.(campo.value) ?? '';
@@ -76,18 +83,19 @@ const { assunto = false, titulo = 'Pedir acesso', botao = 'Pedir o meu lugar', m
         canais: fd.getAll('canais').map(String),
         assunto: String(fd.get('assunto') || '').trim(),
         mensagem: String(fd.get('mensagem') || '').trim(),
+        idioma: document.documentElement.lang,
       };
 
       if (!endpoint) {
-        const corpo = `${dados.assunto ? `Assunto: ${dados.assunto}\n` : ''}Nome: ${dados.nome}\nEmail: ${dados.email}\nTelefone: ${dados.telefone || '—'}\nAlojamentos: ${dados.alojamentos}\nAnuncia em: ${dados.canais.join(', ') || '—'}\n\n${dados.mensagem}`;
+        const corpo = `${dados.assunto ? `${m.assunto}: ${dados.assunto}\n` : ''}${m.nome}: ${dados.nome}\n${m.email}: ${dados.email}\n${m.telefone}: ${dados.telefone || '—'}\n${m.alojamentos}: ${dados.alojamentos}\n${m.anunciaEm}: ${dados.canais.join(', ') || '—'}\n\n${dados.mensagem}`;
         location.href = `mailto:${email}?subject=${encodeURIComponent(`${dados.assunto || modo} · ${marca}`)}&body=${encodeURIComponent(corpo)}`;
-        concluir('Abrimos o seu programa de email com a mensagem preparada. Basta enviar.');
+        concluir(m.emailAberto);
         return;
       }
 
       botao.disabled = true;
       const rotulo = botao.innerHTML;
-      botao.textContent = 'A enviar…';
+      botao.textContent = m.aEnviar;
       try {
         const r = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados) });
         if (!r.ok) throw new Error(String(r.status));
@@ -95,7 +103,7 @@ const { assunto = false, titulo = 'Pedir acesso', botao = 'Pedir o meu lugar', m
         concluir();
       } catch {
         falha.innerHTML = '';
-        falha.append('Não foi possível enviar agora. Tente de novo ou escreva para ');
+        falha.append(m.falhaEnvio);
         const a = document.createElement('a');
         a.href = `mailto:${email}`; a.textContent = email;
         falha.append(a, '.');

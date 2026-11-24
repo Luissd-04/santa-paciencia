@@ -1,21 +1,24 @@
 ---
 import Icon from './Icon.astro';
-import { planos } from '../config/brand';
+import { eur, fmt, planosDe, t, type Lang } from '../i18n';
+import { url } from '../i18n/rotas';
 // Cartões dos planos recomendados para um perfil. Valores de src/config/brand.ts (POR CONFIRMAR).
-interface Props { ids: string[]; }
-const { ids } = Astro.props;
-const escolhidos = ids.map((id) => planos.find((p) => p.id === id)).filter((p) => !!p);
+interface Props { ids: string[]; lang?: Lang }
+const { ids, lang = 'pt' } = Astro.props;
+const d = t(lang).comum.reco;
+const todos = planosDe(lang);
+const escolhidos = ids.map((id) => todos.find((p) => p.id === id)).filter((p) => !!p);
 ---
 <div class="reco" style={`--n:${escolhidos.length}`}>
   {escolhidos.map((p) => (
     <article>
       <h3>{p!.nome}</h3>
       <p class="for">{p!.para}</p>
-      <div class="pr">{p!.mensal} € <span>por mês</span></div>
-      <small>{p!.anual} € por mês com pagamento anual · valores sem IVA</small>
+      <div class="pr">{eur(lang, p!.mensal)} <span>{d.porMes}</span></div>
+      <small>{fmt(d.anual, { preco: eur(lang, p!.anual) })}</small>
       <ul>{p!.inclui.map((x) => <li><Icon nome="check" forte /><span>{x}</span></li>)}</ul>
       <div class="lim">{p!.limites}</div>
     </article>
   ))}
 </div>
-<p class="reco-nota">Pode mudar de plano quando quiser, para cima ou para baixo. <a href="/precos/">Veja todos os planos e compare</a>.</p>
+<p class="reco-nota">{d.notaAntes}<a href={url(lang, 'precos')}>{d.notaLink}</a>.</p>

@@ -6,12 +6,16 @@ const env = (nome: string): string => (typeof process !== 'undefined' ? process.
 
 export interface Plano {
   id: string;
-  nome: string;
   /** Preço mensal em euros, sem IVA. POR CONFIRMAR. */
   mensal: number;
   /** Preço por mês com pagamento anual, em euros, sem IVA. POR CONFIRMAR. */
   anual: number;
   destaque?: boolean;
+}
+
+/** Plano com o texto de uma língua (nome, para quem, o que inclui, limites), ver `planosDe` em src/i18n/index.ts. */
+export interface PlanoTexto extends Plano {
+  nome: string;
   para: string;
   inclui: string[];
   limites: string;
@@ -21,6 +25,7 @@ export const marca = {
   // «Santa Paciência» é um nome provisório (docs/SITE-MAPA-SEO.md): ao mudar, edita só esta linha e revê os textos.
   nome: 'Santa Paciência',
   slogan: 'Software de gestão de alojamento local',
+  sloganEn: 'Vacation rental management software',
   locale: 'pt-PT',
 
   // Domínio final, sem barra no fim. POR CONFIRMAR.
@@ -44,53 +49,40 @@ export const marca = {
   corTema: '#843424',
 } as const;
 
-// Planos. Nomes e limites vêm da plataforma (backend/src/config/migrations-platform/plans.js).
+// Planos: os valores. Os nomes, o «para quem», o que inclui e os limites estão em src/i18n/*/comum.ts
+// (que vêm da plataforma: backend/src/config/migrations-platform/plans.js).
 // POR CONFIRMAR: os preços 19 / 49 / 99 € por mês e 15 / 39 / 79 € por mês no plano anual são valores
 // de referência e o desconto anual («2 meses grátis») é uma sugestão. Decidir antes de ligar a indexação.
 export const planos: Plano[] = [
-  {
-    id: 'essencial', nome: 'Essencial', mensal: 19, anual: 15, // POR CONFIRMAR
-    para: 'Para quem tem até 3 casas e quer sair da folha de cálculo.',
-    inclui: ['Reservas, calendário e preços por época', 'Pré-check-in dos hóspedes', 'Página de reservas própria', 'Despesas e talões', 'Relatórios essenciais'],
-    limites: 'Até 3 alojamentos · 2 utilizadores',
-  },
-  {
-    id: 'profissional', nome: 'Profissional', mensal: 49, anual: 39, destaque: true, // POR CONFIRMAR
-    para: 'Para quem vive do alojamento local e quer receber online.',
-    inclui: ['Tudo do Essencial', 'Pagamentos online de sinal e saldo', 'Política de cancelamento', 'Emails automáticos em 7 línguas', 'Relatórios completos'],
-    limites: 'Até 10 alojamentos · 5 utilizadores',
-  },
-  {
-    id: 'premium', nome: 'Premium', mensal: 99, anual: 79, // POR CONFIRMAR
-    para: 'Para equipas e empresas de gestão com muitas casas.',
-    // «Reservas dentro do seu site» só existe no Premium.
-    inclui: ['Tudo do Profissional', 'Reservas dentro do seu site, com o aspeto dele', 'Equipa, departamentos e permissões', 'Relatórios em PDF', 'Ajuda prioritária na configuração'],
-    limites: 'Alojamentos e utilizadores sem limite',
-  },
+  { id: 'essencial', mensal: 19, anual: 15 }, // POR CONFIRMAR
+  { id: 'profissional', mensal: 49, anual: 39, destaque: true }, // POR CONFIRMAR
+  { id: 'premium', mensal: 99, anual: 79 }, // POR CONFIRMAR
 ];
 
-// Tabela de comparação: [linha, Essencial, Profissional, Premium].
+// Tabela de comparação: [linha (chave do texto em i18n), Essencial, Profissional, Premium].
 export const comparacao: [string, boolean, boolean, boolean][] = [
-  ['Calendário com todas as reservas', true, true, true],
-  ['Pré-check-in e dados do SIBA', true, true, true],
-  ['Página de reservas própria', true, true, true],
-  ['Pagamentos online', false, true, true],
-  ['Emails automáticos', false, true, true],
-  ['Reservas dentro do seu site', false, false, true],
-  ['Equipa e permissões', false, false, true],
-  ['Relatórios em PDF', false, false, true],
+  ['calendario', true, true, true],
+  ['precheckin', true, true, true],
+  ['paginaReservas', true, true, true],
+  ['pagamentos', false, true, true],
+  ['emails', false, true, true],
+  ['reservasNoSite', false, false, true],
+  ['equipa', false, false, true],
+  ['pdf', false, false, true],
 ];
 
-// Funcionalidades (slugs do docs/SITE-MAPA-SEO.md, secção 3.2) com o texto dos ladrilhos do início.
+// Funcionalidades (slugs do docs/SITE-MAPA-SEO.md, secção 3.2) e ícone de cada uma.
+// O texto dos ladrilhos está em src/i18n/*/funcionalidades.ts.
 export const funcionalidades = [
-  { slug: 'calendario', icone: 'cal', titulo: 'Um calendário para todas', texto: 'As reservas do seu site, do Airbnb, do Booking.com e do telefone, lado a lado. Sem três aplicações abertas.' },
-  { slug: 'reservas-diretas', icone: 'web', titulo: 'Reservas no seu site', texto: 'Uma página de reservas bonita, ou um botão no site que já tem. Sem comissões.' },
-  { slug: 'pagamentos-online', icone: 'pay', titulo: 'Pagamentos que se cobram sozinhos', texto: 'Sinal e saldo por cartão, nas datas certas. Sem andar atrás de ninguém.' },
-  { slug: 'pre-check-in', icone: 'key', titulo: 'Hóspedes que chegam registados', texto: 'Pré-check-in no telemóvel, com os dados do SIBA prontos a usar.' },
-  { slug: 'equipa-e-tarefas', icone: 'clean', titulo: 'Limpezas sem WhatsApp', texto: 'Cada tarefa com dono, hora e casa. A equipa vê tudo no telemóvel.' },
-  { slug: 'mensagens-automaticas', icone: 'mail', titulo: 'Emails que se escrevem sozinhos', texto: 'Confirmação, instruções de chegada e agradecimento, em 7 línguas.' },
-  { slug: 'despesas', icone: 'receipt', titulo: 'Despesas sem caixa de sapatos', texto: 'Tire uma fotografia ao talão e fica registado na casa certa.' },
-  { slug: 'relatorios', icone: 'chart', titulo: 'Contas sempre à vista', texto: 'Receita, ocupação e margem por casa e por mês, sem fórmulas.' },
+  { slug: 'calendario', icone: 'cal' },
+  { slug: 'reservas-diretas', icone: 'web' },
+  { slug: 'pagamentos-online', icone: 'pay' },
+  { slug: 'pre-check-in', icone: 'key' },
+  { slug: 'equipa-e-tarefas', icone: 'clean' },
+  { slug: 'mensagens-automaticas', icone: 'mail' },
+  { slug: 'despesas', icone: 'receipt' },
+  { slug: 'relatorios', icone: 'chart' },
 ] as const;
 
-export const urlFuncionalidade = (slug: string) => `/funcionalidades/${slug}/`;
+// Endereço de uma funcionalidade na língua pedida (PT por omissão). Ver src/i18n/rotas.ts.
+export { urlFuncionalidade } from '../i18n/rotas';

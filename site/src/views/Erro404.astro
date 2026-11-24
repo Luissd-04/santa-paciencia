@@ -1,0 +1,23 @@
+---
+import Base from '../layouts/Base.astro';
+import Calcada from '../components/Calcada.astro';
+import Icon from '../components/Icon.astro';
+import { t, comMarca, type Lang } from '../i18n';
+import { url } from '../i18n/rotas';
+
+// Página 404, nas duas línguas (/404.html e /en/404.html).
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const d = t(lang).erro404;
+---
+<Base titulo={comMarca(d.titulo)} descricao={d.descricao} noindex lang={lang}>
+  <section class="dark">
+    <Calcada fase={5.2} />
+    <div class="in" style="padding-top:96px;padding-bottom:260px">
+      <span class="kicker"><b>{d.kickerTag}</b> {d.kicker}</span>
+      <h1>{d.h1}</h1>
+      <p class="lede">{d.lede}</p>
+      <div class="ctas"><a class="btn p" href={url(lang, 'inicio')}>{d.voltar} <Icon nome="arrow" class="go" /></a><a class="btn s" href={url(lang, 'precos')}>{d.precos}</a></div>
+    </div>
+  </section>
+</Base>

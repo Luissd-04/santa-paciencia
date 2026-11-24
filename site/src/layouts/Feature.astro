@@ -8,6 +8,8 @@ import Tile from '../components/Tile.astro';
 import Faq from '../components/Faq.astro';
 import '../styles/visuais.css';
 import { marca } from '../config/brand';
+import { htmlLang, t, type Lang } from '../i18n';
+import { url } from '../i18n/rotas';
 
 // Modelo de página de funcionalidade: topo com caminho, H1, lede e visual; «três passos»;
 // benefícios com visual; funcionalidades relacionadas; chamada final.
@@ -34,27 +36,29 @@ interface Props {
   /** `perguntas`: os «passos» são perguntas grandes, sem números (página de relatórios). */
   passosComoPerguntas?: boolean;
   imagem?: string;
+  lang?: Lang;
 }
-const { titulo, descricao, nome, h1, lede, fase = 0.8, passos, tituloPassos, tituloBeneficios, beneficios, relacionadas, imagem, perguntas = [], passosComoPerguntas = false } = Astro.props;
+const { lang = 'pt', titulo, descricao, nome, h1, lede, fase = 0.8, passos, tituloPassos, tituloBeneficios, beneficios, relacionadas, imagem, perguntas = [], passosComoPerguntas = false } = Astro.props;
+const d = t(lang).comum;
 const caminho = [
-  { rotulo: 'Início', href: '/' },
-  { rotulo: 'Funcionalidades', href: '/funcionalidades/' },
+  { rotulo: d.inicio, href: url(lang, 'inicio') },
+  { rotulo: d.cab.funcionalidades, href: url(lang, 'funcionalidades') },
   { rotulo: nome },
 ];
 const software = {
   '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: marca.nome, applicationCategory: 'BusinessApplication',
-  operatingSystem: 'Web', inLanguage: marca.locale, url: marca.siteUrl + '/', description: descricao,
+  operatingSystem: 'Web', inLanguage: htmlLang[lang], url: marca.siteUrl + url(lang, 'inicio'), description: descricao,
 };
 ---
-<Base titulo={titulo} descricao={descricao} atual="funcionalidades" imagem={imagem} jsonld={[software]}>
+<Base titulo={titulo} descricao={descricao} atual="funcionalidades" imagem={imagem} jsonld={[software]} lang={lang}>
   <section class="dark play">
     <Calcada fase={fase} />
     <div class="in hero">
       <div>
-        <Breadcrumbs itens={caminho} />
+        <Breadcrumbs itens={caminho} lang={lang} />
         <h1>{h1}</h1>
         <p class="lede">{lede}</p>
-        <div class="ctas"><a class="btn p" href="/acesso-antecipado/">Quero experimentar <Icon nome="arrow" class="go" /></a><a class="btn s" href="#como">Como funciona</a></div>
+        <div class="ctas"><a class="btn p" href={url(lang, 'acesso')}>{d.feature.querExperimentar} <Icon nome="arrow" class="go" /></a><a class="btn s" href="#como">{d.feature.comoFunciona}</a></div>
       </div>
       <div class="stage"><slot name="visual" /></div>
     </div>
@@ -83,7 +87,7 @@ const software = {
 
   <section class="sec" aria-labelledby="rel">
     <div class="in">
-      <h2 class="h2" id="rel" style="font-size:clamp(28px,3vw,38px)">Funciona ainda melhor com</h2>
+      <h2 class="h2" id="rel" style="font-size:clamp(28px,3vw,38px)">{d.feature.relacionadas}</h2>
       <div class="related">
         {relacionadas.map((r) => <a class="hov" href={r.href}><Tile icone={r.icone} />{r.rotulo}</a>)}
       </div>
@@ -93,11 +97,11 @@ const software = {
   {perguntas.length > 0 && (
     <section class="sec alt" aria-labelledby="pf">
       <div class="in">
-        <h2 class="h2" id="pf" style="margin:0 auto;text-align:center;font-size:clamp(28px,3vw,38px)">Perguntas frequentes</h2>
+        <h2 class="h2" id="pf" style="margin:0 auto;text-align:center;font-size:clamp(28px,3vw,38px)">{d.feature.perguntas}</h2>
         <Faq itens={perguntas} esquema />
       </div>
     </section>
   )}
 
-  <FinalCta />
+  <FinalCta lang={lang} />
 </Base>

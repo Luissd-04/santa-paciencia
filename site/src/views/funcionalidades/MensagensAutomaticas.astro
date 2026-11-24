@@ -1,0 +1,20 @@
+---
+import Feature from '../../layouts/Feature.astro';
+import GlassNotice from '../../components/GlassNotice.astro';
+import CartaoLista from '../../components/visuais/CartaoLista.astro';
+import EmailLinguas from '../../components/visuais/EmailLinguas.astro';
+import { t, comMarca, type Lang } from '../../i18n';
+import { relacionadas } from '../../config/relacionadas';
+
+// Mensagens automáticas (/funcionalidades/mensagens-automaticas/ e /en/features/guest-messaging/).
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const { titulo, cartao, aviso, ...p } = t(lang).funcionalidades['mensagens-automaticas'];
+---
+<Feature lang={lang} titulo={comMarca(titulo)} {...p} relacionadas={relacionadas(lang, 'pre-check-in', 'reservas-diretas', 'pagamentos-online')}>
+  <div slot="visual" style="position:relative">
+    <CartaoLista titulo={cartao.titulo} sub={cartao.sub} linhas={cartao.linhas} />
+    <GlassNotice pos="g1" atraso={700} titulo={aviso.titulo} texto={aviso.texto} />
+  </div>
+  <EmailLinguas slot="beneficios" lang={lang} />
+</Feature>

@@ -1,26 +1,4 @@
 ---
-import Perfil from '../../layouts/Perfil.astro';
-import { marca } from '../../config/brand';
-
-const titulo = `Programa de alojamento local para proprietários | ${marca.nome}`;
-const descricao = 'Tem uma ou duas casas e gere nas horas vagas? Reservas, pagamentos e hóspedes tratados sozinhos, para deixar de viver agarrado ao telemóvel.';
+import Vista from '../../views/PerfilPagina.astro';
 ---
-<Perfil
-  titulo={titulo} descricao={descricao} nome="Proprietários" fase={2.4}
-  h1="Tem um alojamento local. Não precisa de ter um segundo emprego."
-  lede="Para quem gere uma, duas ou três casas nas horas vagas. Menos mensagens, menos contas de cabeça, mais fins de semana seus."
-  seccoes={[
-    { id: 'semana', titulo: 'O que muda já na primeira semana.', blocos: [
-      { icone: 'cal', titulo: 'Um calendário só', texto: 'As reservas do seu site, do Airbnb, do Booking.com e do telefone no mesmo sítio. Para saber se a casa está livre, basta um olhar.' },
-      { icone: 'pay', titulo: 'O sinal paga-se por cartão', texto: 'O hóspede paga online e a reserva confirma-se. Não anda a pedir transferências nem a conferir o banco (pagamentos online a partir do plano Profissional).' },
-      { icone: 'key', titulo: 'Hóspedes que chegam registados', texto: 'O pré-check-in faz-se no telemóvel, antes da viagem, com os dados que o SIBA pede já organizados.' },
-      { icone: 'mail', titulo: 'Emails que se escrevem sozinhos', texto: 'Confirmação, instruções de chegada e agradecimento saem na hora certa, na língua do hóspede (a partir do plano Profissional).' },
-    ] },
-    { id: 'tempo', titulo: 'Quanto tempo poupa?', blocos: [], frase: 'As tarefas que hoje faz à mão passam a acontecer sozinhas.' },
-  ]}
-  planoTitulo="O plano que costuma servir."
-  planoTexto="Comece pelo Essencial se só quer sair da folha de cálculo. Escolha o Profissional se quer receber o sinal online e ter os emails automáticos."
-  planoIds={['essencial', 'profissional']}
-  fimTitulo="Os seus fins de semana agradecem."
-  fimTexto="Estamos a abrir aos poucos, com acompanhamento pessoal na configuração. Peça já o seu lugar."
-/>
+<Vista lang="pt" slug="proprietarios" />

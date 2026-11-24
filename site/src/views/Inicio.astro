@@ -1,0 +1,115 @@
+---
+import Base from '../layouts/Base.astro';
+import Calcada from '../components/Calcada.astro';
+import Icon, { type NomeIcone } from '../components/Icon.astro';
+import Tile from '../components/Tile.astro';
+import GlassNotice from '../components/GlassNotice.astro';
+import AppCalendar from '../components/AppCalendar.astro';
+import PhoneDay from '../components/PhoneDay.astro';
+import Faq from '../components/Faq.astro';
+import FinalCta from '../components/FinalCta.astro';
+import { marca, funcionalidades, planos, urlFuncionalidade } from '../config/brand';
+import { t, comMarca, htmlLang, type Lang } from '../i18n';
+import { url, urlPerfil } from '../i18n/rotas';
+
+// Início, nas duas línguas: / (PT) e /en/ (EN). O texto vem de src/i18n/<língua>/inicio.ts.
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const d = t(lang).inicio;
+const ft = t(lang).funcionalidades.ladrilhos;
+
+const titulo = comMarca(d.titulo);
+const jsonld = [{
+  '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: marca.nome, applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web', inLanguage: htmlLang[lang], url: marca.siteUrl + url(lang, 'inicio'),
+  description: d.appDescricao,
+  offers: { '@type': 'Offer', price: String(planos[0].mensal), priceCurrency: 'EUR' },
+}];
+---
+<Base titulo={titulo} descricao={d.descricao} jsonld={jsonld} lang={lang}>
+  <section class="dark play" id="topo">
+    <Calcada />
+    <div class="in hero">
+      <div>
+        <span class="kicker"><b>{d.hero.kickerTag}</b> {d.hero.kicker}</span>
+        <h1>{d.hero.h1}</h1>
+        <p class="lede">{d.hero.lede}</p>
+        <div class="ctas"><a class="btn p" href={url(lang, 'acesso')}>{d.hero.cta} <Icon nome="arrow" class="go" /></a><a class="btn s" href="#um-dia">{d.hero.ctaSec}</a></div>
+        <ul class="facts">{d.hero.factos.map((f) => <li><Icon nome="check" forte />{f}</li>)}</ul>
+      </div>
+      <div class="stage" role="img" aria-label={d.hero.palcoAria}>
+        <AppCalendar lang={lang} />
+        <GlassNotice pos="g1" atraso={700} titulo={d.hero.avisos[0].titulo} texto={d.hero.avisos[0].texto} />
+        <GlassNotice pos="g2" atraso={1150} titulo={d.hero.avisos[1].titulo} texto={d.hero.avisos[1].texto} />
+        <GlassNotice pos="g3" atraso={1600} titulo={d.hero.avisos[2].titulo} texto={d.hero.avisos[2].texto} pop />
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="dores">
+    <div class="in">
+      <h2 class="h2" id="dores">{d.dores.h2}</h2>
+      <div class="pains">
+        {d.dores.itens.map(([quando, p, small]) => <div class="pain"><span class="when">{quando}</span><div><p>{p}</p><small>{small}</small></div></div>)}
+      </div>
+      <div class="answer"><p>{d.dores.resposta}</p><a class="btn w" href="#um-dia">{d.dores.ver} <Icon nome="arrow" class="go" /></a></div>
+    </div>
+  </section>
+
+  <section class="sec alt" id="um-dia" aria-labelledby="dia">
+    <div class="in">
+      <h2 class="h2" id="dia">{d.dia.h2}</h2>
+      <p class="sub">{d.dia.sub}</p>
+      <div class="day">
+        <ol class="steps">
+          {d.dia.passos.map(([tempo, h, p]) => <li><time>{tempo}</time><div><h3>{h}</h3><p>{p}</p></div></li>)}
+        </ol>
+        <PhoneDay titulo={d.dia.telemovel.titulo} sub={d.dia.telemovel.sub} itens={d.dia.hoje} />
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="funcionalidades" aria-labelledby="tudo">
+    <div class="in">
+      <h2 class="h2" id="tudo">{d.tudo.h2}</h2>
+      <p class="sub">{d.tudo.sub}</p>
+      <div class="grid">
+        {funcionalidades.map((f) => (
+          <a class="f hov" href={urlFuncionalidade(f.slug, lang)}><Tile icone={f.icone} /><h3>{ft[f.slug].titulo}</h3><p>{ft[f.slug].texto}</p><span class="more">{d.tudo.saberMais} <Icon nome="arrow" class="go" /></span></a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="dark pt" aria-labelledby="pt">
+    <Calcada fase={1.7} />
+    <div class="in cols">
+      <div>
+        <h2 class="h2" id="pt">{d.portugal.h2}</h2>
+        <p class="sub">{d.portugal.sub}</p>
+        <div class="ctas"><a class="btn p" href={url(lang, 'acesso')}>{d.portugal.cta} <Icon nome="arrow" class="go" /></a></div>
+      </div>
+      <ul class="ptlist">
+        {d.portugal.itens.map(([i, b, s]) => <li><Icon nome={i as NomeIcone} /><div><b>{b}</b><span>{s}</span></div></li>)}
+      </ul>
+    </div>
+  </section>
+
+  <section class="sec alt" id="para-quem" aria-labelledby="quem">
+    <div class="in">
+      <h2 class="h2" id="quem">{d.quem.h2}</h2>
+      <div class="who">
+        {d.quem.itens.map(([n, h, p, slug]) => <a href={urlPerfil(slug, lang)}><span class="n">{n}</span><h3>{h}</h3><p>{p}</p></a>)}
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="perguntas" aria-labelledby="pf">
+    <div class="in">
+      <h2 class="h2 center" id="pf" style="margin:0 auto;text-align:center">{d.perguntas.h2}</h2>
+      <Faq itens={d.perguntas.itens} esquema />
+    </div>
+  </section>
+
+  <FinalCta lang={lang} />
+</Base>

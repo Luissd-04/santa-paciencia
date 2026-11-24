@@ -1,62 +1,11 @@
 ---
-import { getCollection, render } from 'astro:content';
-import Base from '../../layouts/Base.astro';
-import PageHero from '../../components/PageHero.astro';
-import FinalCta from '../../components/FinalCta.astro';
-import Tile from '../../components/Tile.astro';
-import Icon, { type NomeIcone } from '../../components/Icon.astro';
-import { marca } from '../../config/brand';
-import { tempoLeitura, dataLonga } from '../../config/guias';
+import { guiasDe, slugDe } from '../../config/guias';
+import Vista from '../../views/GuiaPagina.astro';
 
 export async function getStaticPaths() {
-  const guias = await getCollection('guias');
-  return guias.map((g) => ({ params: { slug: g.id }, props: { g, outros: guias.filter((o) => o.id !== g.id) } }));
+  const guias = await guiasDe('pt');
+  return guias.map((g) => ({ params: { slug: slugDe(g.id) }, props: { g, outros: guias.filter((o) => o.id !== g.id) } }));
 }
 const { g, outros } = Astro.props;
-const { Content } = await render(g);
-const d = g.data;
-const minutos = tempoLeitura(g.body ?? '');
-const titulo = `${d.tituloSeo} | ${marca.nome}`;
-const url = `${marca.siteUrl}/guias/${g.id}/`;
-const iso = (x: Date) => x.toISOString().slice(0, 10);
-const jsonld = [{
-  '@context': 'https://schema.org', '@type': 'Article', headline: d.titulo, description: d.descricao,
-  datePublished: iso(d.publicado), dateModified: iso(d.atualizado ?? d.publicado), inLanguage: marca.locale,
-  mainEntityOfPage: url, articleSection: d.tema,
-  author: { '@id': marca.siteUrl + '/#organizacao' }, publisher: { '@id': marca.siteUrl + '/#organizacao' },
-}];
-const relacionadas = [
-  ...d.relacionadas,
-  ...outros.slice(0, 1).map((o) => ({ href: `/guias/${o.id}/`, rotulo: `Guia: ${o.data.tituloSeo}`, icone: 'book' })),
-];
 ---
-<Base titulo={titulo} descricao={d.descricao} jsonld={jsonld}>
-  <PageHero h1={d.titulo} kicker={`Guia · ${d.tema}`} fase={5.4}
-    caminho={[{ rotulo: 'Início', href: '/' }, { rotulo: 'Guias', href: '/guias/' }, { rotulo: d.tituloSeo }]}>
-    <ul class="meta">
-      <li>Publicado a <time datetime={iso(d.publicado)}>{dataLonga(d.publicado)}</time></li>
-      <li>Leitura de {minutos} min</li>
-    </ul>
-  </PageHero>
-
-  <article class="sec" style="padding-top:72px">
-    <div class="in">
-      <div class="prose"><Content /></div>
-      <div class="guia-fim">
-        <p>Quer ver isto a funcionar na sua casa?<span>Estamos a abrir aos poucos, com acompanhamento pessoal na configuração.</span></p>
-        <a class="btn p" href="/acesso-antecipado/">Pedir acesso antecipado <Icon nome="arrow" class="go" /></a>
-      </div>
-    </div>
-  </article>
-
-  <section class="sec alt" aria-labelledby="rel">
-    <div class="in">
-      <h2 class="h2" id="rel" style="font-size:clamp(28px,3vw,38px)">Para continuar.</h2>
-      <div class={`related${relacionadas.length === 2 ? ' dois' : ''}`}>
-        {relacionadas.map((r) => <a class="hov" href={r.href}><Tile icone={r.icone as NomeIcone} />{r.rotulo}</a>)}
-      </div>
-    </div>
-  </section>
-
-  <FinalCta />
-</Base>
+<Vista lang="pt" g={g} outros={outros} />

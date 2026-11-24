@@ -1,0 +1,20 @@
+---
+import Feature from '../../layouts/Feature.astro';
+import GlassNotice from '../../components/GlassNotice.astro';
+import CartaoLista from '../../components/visuais/CartaoLista.astro';
+import TalaoLido from '../../components/visuais/TalaoLido.astro';
+import { t, comMarca, type Lang } from '../../i18n';
+import { relacionadas } from '../../config/relacionadas';
+
+// Despesas (/funcionalidades/despesas/ e /en/features/expenses/).
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const { titulo, aviso, mes, ...p } = t(lang).funcionalidades.despesas;
+---
+<Feature lang={lang} titulo={comMarca(titulo)} {...p} relacionadas={relacionadas(lang, 'relatorios', 'equipa-e-tarefas', 'calendario')}>
+  <div slot="visual" style="position:relative">
+    <TalaoLido lang={lang} />
+    <GlassNotice pos="g1" atraso={700} titulo={aviso.titulo} texto={aviso.texto} />
+  </div>
+  <CartaoLista slot="beneficios" titulo={mes.titulo} sub={mes.sub} linhas={mes.linhas} />
+</Feature>

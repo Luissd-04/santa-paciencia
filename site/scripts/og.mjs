@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// Gera as imagens de partilha (Open Graph / Twitter, 1200×630, JPEG) para todas as páginas.
+// Gera as imagens de partilha (Open Graph / Twitter, 1200×630, JPEG) para todas as páginas, PT e EN.
 //
 //   npm run og              faz o build e gera as imagens em public/og/
 //   node scripts/og.mjs --sem-build   usa o site/dist que já existe
 //
 // Lê o H1 e o caminho de cada página do dist, desenha-os num HTML com as fontes locais
 // (@fontsource-variable) e a calçada do componente Calcada.astro, e tira a captura com Playwright.
+// As páginas EN (/en/...) levam o rótulo em inglês e o ficheiro `en-<caminho>.jpg` (o início EN é `en.jpg`).
 // O Playwright NÃO é dependência do projeto: tem de estar instalado (globalmente ou à parte).
 // Se o import falhar, indique o caminho: PLAYWRIGHT_PATH=/caminho/para/node_modules/playwright npm run og
 // Depois de gerar, volte a construir (`npm run build`) para as imagens irem para o dist.
@@ -41,6 +42,7 @@ const { chromium } = await carregarPlaywright();
 const marcaTs = readFileSync(join(raiz, 'src/config/brand.ts'), 'utf8');
 const nomeMarca = (marcaTs.match(/nome:\s*'([^']+)'/) || [])[1] || 'Santa Paciência';
 const slogan = (marcaTs.match(/slogan:\s*'([^']+)'/) || [])[1] || '';
+const sloganEn = (marcaTs.match(/sloganEn:\s*'([^']+)'/) || [])[1] || '';
 
 const decodifica = (s) => s.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
   .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/\s+/g, ' ').trim();
@@ -57,6 +59,12 @@ const ROTULOS = {
   'acesso-antecipado': 'Acesso antecipado', privacidade: 'Privacidade', termos: 'Termos',
 };
 
+const ROTULOS_EN = {
+  features: 'Features', guides: 'Guide', for: 'Who it’s for', pricing: 'Pricing',
+  faq: 'FAQ', about: 'About', contact: 'Contact',
+  'early-access': 'Early access', privacy: 'Privacy', terms: 'Terms',
+};
+
 const paginas = [];
 for (const f of ficheiros(dist).filter((f) => f.endsWith('index.html'))) {
   const caminho = '/' + relative(dist, dirname(f)).split('\\').join('/');
@@ -64,9 +72,12 @@ for (const f of ficheiros(dist).filter((f) => f.endsWith('index.html'))) {
   const m = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/);
   if (!m) continue;
   const partes = caminho.split('/').filter(Boolean);
+  if (partes[partes.length - 1] === '404') continue; // a 404 não tem imagem própria
+  const en = partes[0] === 'en';
   const slug = partes.length ? partes.join('-') : 'inicio';
-  const rotulo = partes.length ? (ROTULOS[partes[0]] || '') : slogan;
-  paginas.push({ slug, h1: decodifica(m[1]), rotulo });
+  const resto = en ? partes.slice(1) : partes;
+  const rotulo = resto.length ? ((en ? ROTULOS_EN : ROTULOS)[resto[0]] || '') : (en ? sloganEn : slogan);
+  paginas.push({ slug, h1: decodifica(m[1]), rotulo, lang: en ? 'en' : 'pt-PT' });
 }
 
 const fontes = join(raiz, 'node_modules/@fontsource-variable');
@@ -87,9 +98,9 @@ const LOGO = '<svg viewBox="0 0 26 26" width="52" height="52"><rect width="26" h
 
 const hash = (s) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 1000, 7);
 
-function pagina({ slug, h1, rotulo }) {
+function pagina({ slug, h1, rotulo, lang }) {
   const fase = (hash(slug) / 1000) * 6.28;
-  return `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><style>
+  return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><style>
 ${CSS_FONTES}
 *{box-sizing:border-box;margin:0}
 html,body{width:1200px;height:630px;overflow:hidden;background:#1E1C1A}

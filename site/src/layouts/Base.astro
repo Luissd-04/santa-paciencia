@@ -7,6 +7,9 @@ import Footer from '../components/Footer.astro';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { marca } from '../config/brand';
+import { htmlLang, type Lang } from '../i18n';
+import { paginas, LINGUAS } from '../i18n/rotas';
+import { parDe } from '../i18n/pares';
 
 interface Props {
   /** Título da página (já com o nome da marca no fim, quando faz sentido). */
@@ -20,10 +23,10 @@ interface Props {
   imagem?: string;
   /** Página que nunca deve ser indexada, mesmo com INDEXAR=true (ex.: 404). */
   noindex?: boolean;
-  /** Alternativas de idioma: {'en': '/en/...'}. O EN vem depois; por agora só pt-PT e x-default. */
-  alternativas?: Record<string, string>;
+  /** Língua da página: define o `lang` do <html>, o menu, o rodapé e o `hreflang`. */
+  lang?: Lang;
 }
-const { titulo, descricao, atual = null, jsonld = [], imagem, noindex = false, alternativas = {} } = Astro.props;
+const { titulo, descricao, atual = null, jsonld = [], imagem, noindex = false, lang = 'pt' } = Astro.props;
 
 const caminho = Astro.url.pathname;
 const abs = (p: string) => marca.siteUrl + p;
@@ -31,7 +34,7 @@ const canonico = abs(caminho);
 // Imagem de partilha: /og/<caminho-com-hífens>.jpg (início = inicio.jpg), gerada por `npm run og`.
 // Se não existir, usa /og/inicio.jpg.
 const slugOg = caminho.split('/').filter(Boolean).join('-') || 'inicio';
-const porOmissao = existsSync(join(process.cwd(), 'public', 'og', `${slugOg}.jpg`)) ? `/og/${slugOg}.jpg` : '/og/inicio.jpg';
+const porOmissao = existsSync(join(process.cwd(), 'public', 'og', `${slugOg}.jpg`)) ? `/og/${slugOg}.jpg` : (lang === 'en' ? '/og/en.jpg' : '/og/inicio.jpg');
 const imagemFinal = imagem ?? porOmissao;
 // Texto alternativo da imagem: o H1 da página (tirado do conteúdo já desenhado); se não houver, o título.
 const conteudo = await Astro.slots.render('default');
@@ -40,11 +43,18 @@ const altOg = h1 ? h1.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&q
 const robots = !marca.indexar || noindex ? 'noindex, nofollow' : 'index, follow, max-image-preview:large';
 const ld = (o: object) => JSON.stringify(o).replace(/</g, '\\u003c');
 
+// Página equivalente na outra língua: o seletor de língua e os hreflang levam sempre a ela
+// (sem equivalente, como na 404, o seletor leva ao início da outra língua).
+const outraLingua: Lang = lang === 'pt' ? 'en' : 'pt';
+const par = await parDe(caminho);
+const outra = par?.[outraLingua] ?? paginas.inicio[outraLingua];
+const inicioLingua = paginas.inicio[lang];
+
 const organizacao = { '@type': 'Organization', '@id': abs('/#organizacao'), name: marca.nome, url: abs('/'), logo: abs('/img/logo-192.png'), email: marca.email };
-const site = { '@type': 'WebSite', '@id': abs('/#site'), url: abs('/'), name: marca.nome, inLanguage: marca.locale, publisher: { '@id': abs('/#organizacao') } };
+const site = { '@type': 'WebSite', '@id': abs(lang === 'pt' ? '/#site' : `${inicioLingua}#site`), url: abs(inicioLingua), name: marca.nome, inLanguage: htmlLang[lang], publisher: { '@id': abs('/#organizacao') } };
 ---
 <!doctype html>
-<html lang="pt-PT">
+<html lang={htmlLang[lang]}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -52,15 +62,17 @@ const site = { '@type': 'WebSite', '@id': abs('/#site'), url: abs('/'), name: ma
 <meta name="description" content={descricao}>
 <meta name="robots" content={robots}>
 {!noindex && <link rel="canonical" href={canonico} />}
-{!noindex && <link rel="alternate" hreflang="pt-PT" href={canonico} />}
-{!noindex && Object.entries(alternativas).map(([lang, p]) => <link rel="alternate" hreflang={lang} href={abs(p)} />)}
-{!noindex && <link rel="alternate" hreflang="x-default" href={canonico} />}
+{!noindex && (par
+  ? LINGUAS.map((l) => <link rel="alternate" hreflang={htmlLang[l]} href={abs(par[l])} />)
+  : <link rel="alternate" hreflang={htmlLang[lang]} href={canonico} />)}
+{!noindex && <link rel="alternate" hreflang="x-default" href={par ? abs(par.pt) : canonico} />}
 <meta name="theme-color" content={marca.corTema}>
 <link rel="icon" type="image/png" href="/img/logo-192.png">
 <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content={marca.nome}>
-<meta property="og:locale" content="pt_PT">
+<meta property="og:locale" content={lang === 'pt' ? 'pt_PT' : 'en_GB'}>
+{!noindex && par && <meta property="og:locale:alternate" content={lang === 'pt' ? 'en_GB' : 'pt_PT'} />}
 <meta property="og:title" content={titulo}>
 <meta property="og:description" content={descricao}>
 <meta property="og:url" content={canonico}>
@@ -76,8 +88,8 @@ const site = { '@type': 'WebSite', '@id': abs('/#site'), url: abs('/'), name: ma
 {jsonld.map((o) => <script type="application/ld+json" set:html={ld(o)} />)}
 </head>
 <body>
-<Header atual={atual} />
+<Header atual={atual} lang={lang} outra={outra} />
 <main id="conteudo" set:html={conteudo} />
-<Footer />
+<Footer lang={lang} outra={outra} />
 </body>
 </html>

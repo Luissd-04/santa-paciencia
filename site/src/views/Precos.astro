@@ -1,0 +1,61 @@
+---
+import Base from '../layouts/Base.astro';
+import Calcada from '../components/Calcada.astro';
+import Icon from '../components/Icon.astro';
+import PlanToggle from '../components/PlanToggle.astro';
+import PlanCards from '../components/PlanCards.astro';
+import CompareTable from '../components/CompareTable.astro';
+import Faq from '../components/Faq.astro';
+import FinalCta from '../components/FinalCta.astro';
+import { marca } from '../config/brand';
+import { t, comMarca, eur, fmt, planosDe, type Lang } from '../i18n';
+import { url } from '../i18n/rotas';
+
+// Preços (/precos/ e /en/pricing/). Os valores vêm de src/config/brand.ts, o texto de src/i18n.
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const d = t(lang).precos;
+const planos = planosDe(lang);
+
+const titulo = comMarca(d.titulo);
+const descricao = fmt(d.descricao, { preco: eur(lang, planos[0].mensal) });
+
+// Product com uma Offer por plano (preço mensal) + FAQPage (na própria <Faq>).
+const jsonld = [{
+  '@context': 'https://schema.org', '@type': 'Product', name: marca.nome, description: d.produtoDescricao,
+  brand: { '@type': 'Brand', name: marca.nome },
+  offers: planos.map((p) => ({
+    '@type': 'Offer', name: p.nome, price: p.mensal.toFixed(2), priceCurrency: 'EUR', url: marca.siteUrl + url(lang, 'precos'),
+    description: `${p.para} ${p.limites}.`, availability: 'https://schema.org/InStock',
+    priceSpecification: { '@type': 'UnitPriceSpecification', price: p.mensal.toFixed(2), priceCurrency: 'EUR', billingDuration: 1, unitCode: 'MON' },
+  })),
+}];
+---
+<Base titulo={titulo} descricao={descricao} atual="precos" jsonld={jsonld} lang={lang}>
+  <section class="dark">
+    <Calcada fase={2.2} />
+    <div class="in center" style="padding-top:80px;padding-bottom:230px">
+      <h1 style="max-width:900px;margin:0 auto">{d.h1}</h1>
+      <p class="lede" style="margin-left:auto;margin-right:auto">{d.lede}</p>
+      <PlanToggle lang={lang} />
+    </div>
+  </section>
+
+  <section class="sec" style="padding-top:0" aria-label={d.planosAria}>
+    <div class="in">
+      <PlanCards lang={lang} />
+      <div class="nofee"><span><Icon nome="check" forte />{d.semComissoes}</span><span><Icon nome="check" forte />{d.semFidelizacao}</span><span><Icon nome="check" forte />{d.ajuda}</span></div>
+      <h2 class="h2" style="margin-top:96px">{d.compare}</h2>
+      <CompareTable lang={lang} />
+    </div>
+  </section>
+
+  <section class="sec alt" aria-labelledby="ppf">
+    <div class="in">
+      <h2 class="h2" id="ppf" style="margin:0 auto;text-align:center">{d.perguntasH2}</h2>
+      <Faq itens={d.perguntas} esquema />
+    </div>
+  </section>
+
+  <FinalCta lang={lang} />
+</Base>

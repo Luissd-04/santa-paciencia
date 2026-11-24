@@ -1,14 +1,20 @@
 ---
+import { t, type Lang } from '../i18n';
 // Alternador mensal/anual. Atualiza os preços de PlanCards (elementos com data-m / data-y).
+// Os textos «/mês» vêm dos atributos data-mes e data-mes-anual (um par por língua).
+interface Props { lang?: Lang }
+const { lang = 'pt' } = Astro.props;
+const d = t(lang).comum.toggle;
 ---
-<div class="toggle" role="group" aria-label="Período de pagamento"><button type="button" aria-pressed="true" data-y="0">Mensal</button><button type="button" aria-pressed="false" data-y="1">Anual · 2 meses grátis</button></div>
+<div class="toggle" role="group" aria-label={d.aria} data-mes={d.mes} data-mes-anual={d.mesAnual}><button type="button" aria-pressed="true" data-y="0">{d.mensal}</button><button type="button" aria-pressed="false" data-y="1">{d.anual}</button></div>
 
 <script>
+  const grupo = document.querySelector<HTMLElement>('.toggle');
   const botoes = [...document.querySelectorAll<HTMLButtonElement>('.toggle button')];
   botoes.forEach((btn) => btn.addEventListener('click', () => {
     botoes.forEach((o) => o.setAttribute('aria-pressed', String(o === btn)));
     const anual = btn.dataset.y === '1';
     document.querySelectorAll<HTMLElement>('[data-m]').forEach((el) => { el.textContent = (anual ? el.dataset.y : el.dataset.m) ?? ''; });
-    document.querySelectorAll<HTMLElement>('.per').forEach((el) => { el.textContent = anual ? '/mês, pago ao ano' : '/mês'; });
+    document.querySelectorAll<HTMLElement>('.per').forEach((el) => { el.textContent = (anual ? grupo?.dataset.mesAnual : grupo?.dataset.mes) ?? ''; });
   }));
 </script>

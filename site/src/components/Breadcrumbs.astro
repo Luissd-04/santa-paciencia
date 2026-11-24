@@ -1,15 +1,16 @@
 ---
 import { marca } from '../config/brand';
+import { t, type Lang } from '../i18n';
 // Caminho de navegação (migalhas) com JSON-LD BreadcrumbList. O último item é a página atual.
-interface Props { itens: { rotulo: string; href?: string }[] }
-const { itens } = Astro.props;
+interface Props { itens: { rotulo: string; href?: string }[]; lang?: Lang }
+const { itens, lang = 'pt' } = Astro.props;
 const abs = (p: string) => marca.siteUrl + p;
 const ld = JSON.stringify({
   '@context': 'https://schema.org', '@type': 'BreadcrumbList',
   itemListElement: itens.map((it, i) => ({ '@type': 'ListItem', position: i + 1, name: it.rotulo, item: abs(it.href ?? Astro.url.pathname) })),
 }).replace(/</g, '\\u003c');
 ---
-<nav class="crumbs" aria-label="Caminho">
+<nav class="crumbs" aria-label={t(lang).comum.caminhoAria}>
   {itens.map((it, i) => (
     <>
       {i > 0 && <span aria-hidden="true">›</span>}

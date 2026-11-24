@@ -1,0 +1,63 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/PageHero.astro';
+import FinalCta from '../components/FinalCta.astro';
+import Tile from '../components/Tile.astro';
+import Icon, { type NomeIcone } from '../components/Icon.astro';
+import { marca } from '../config/brand';
+import { t, comMarca, dataLonga, fmt, htmlLang, type Lang } from '../i18n';
+import { url, urlGuia } from '../i18n/rotas';
+import { tempoLeitura, slugDe } from '../config/guias';
+
+// Artigo de um guia (/guias/<slug>/ e /en/guides/<slug>/). Recebe a entrada da coleção `guias`.
+interface Props { lang: Lang; g: Awaited<ReturnType<typeof getCollection<'guias'>>>[number]; outros: Awaited<ReturnType<typeof getCollection<'guias'>>> }
+const { lang, g, outros } = Astro.props;
+const dict = t(lang);
+const d = g.data;
+const { Content } = await render(g);
+const minutos = tempoLeitura(g.body ?? '');
+const titulo = comMarca(d.tituloSeo);
+const endereco = urlGuia(slugDe(g.id), lang);
+const iso = (x: Date) => x.toISOString().slice(0, 10);
+const jsonld = [{
+  '@context': 'https://schema.org', '@type': 'Article', headline: d.titulo, description: d.descricao,
+  datePublished: iso(d.publicado), dateModified: iso(d.atualizado ?? d.publicado), inLanguage: htmlLang[lang],
+  mainEntityOfPage: marca.siteUrl + endereco, articleSection: d.tema,
+  author: { '@id': marca.siteUrl + '/#organizacao' }, publisher: { '@id': marca.siteUrl + '/#organizacao' },
+}];
+const relacionadas = [
+  ...d.relacionadas,
+  ...outros.slice(0, 1).map((o) => ({ href: urlGuia(slugDe(o.id), lang), rotulo: `${dict.guia.guiaPrefixo}${o.data.tituloSeo}`, icone: 'book' })),
+];
+---
+<Base titulo={titulo} descricao={d.descricao} jsonld={jsonld} lang={lang}>
+  <PageHero h1={d.titulo} kicker={`${dict.guia.kicker} · ${d.tema}`} fase={5.4} lang={lang}
+    caminho={[{ rotulo: dict.comum.inicio, href: url(lang, 'inicio') }, { rotulo: dict.indiceGuias.caminho, href: url(lang, 'guias') }, { rotulo: d.tituloSeo }]}>
+    <ul class="meta">
+      <li>{dict.guia.publicado} <time datetime={iso(d.publicado)}>{dataLonga(d.publicado, lang)}</time></li>
+      <li>{fmt(dict.guia.leitura, { min: minutos })}</li>
+    </ul>
+  </PageHero>
+
+  <article class="sec" style="padding-top:72px">
+    <div class="in">
+      <div class="prose"><Content /></div>
+      <div class="guia-fim">
+        <p>{dict.guia.fimPergunta}<span>{dict.guia.fimTexto}</span></p>
+        <a class="btn p" href={url(lang, 'acesso')}>{dict.guia.pedir} <Icon nome="arrow" class="go" /></a>
+      </div>
+    </div>
+  </article>
+
+  <section class="sec alt" aria-labelledby="rel">
+    <div class="in">
+      <h2 class="h2" id="rel" style="font-size:clamp(28px,3vw,38px)">{dict.guia.continuar}</h2>
+      <div class={`related${relacionadas.length === 2 ? ' dois' : ''}`}>
+        {relacionadas.map((r) => <a class="hov" href={r.href}><Tile icone={r.icone as NomeIcone} />{r.rotulo}</a>)}
+      </div>
+    </div>
+  </section>
+
+  <FinalCta lang={lang} />
+</Base>

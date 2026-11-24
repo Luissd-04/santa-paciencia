@@ -1,4 +1,5 @@
 ---
+par: organise-bookings-without-spreadsheets
 titulo: Como organizar as reservas de alojamento local sem folhas de cálculo
 tituloSeo: Organizar reservas sem folhas de cálculo
 descricao: A folha de cálculo funciona até deixar de funcionar. Veja os sinais de que chegou a altura de mudar e como organizar as reservas passo a passo.

@@ -2,38 +2,44 @@
 import Icon from './Icon.astro';
 import Logo from './Logo.astro';
 import { marca } from '../config/brand';
-interface Props { atual?: 'funcionalidades' | 'para-quem' | 'precos' | 'perguntas' | null }
-const { atual = null } = Astro.props;
+import { t, type Lang } from '../i18n';
+import { url } from '../i18n/rotas';
+// Cabeçalho: menu, pesquisa, seletor de língua (leva à página equivalente, `outra`) e «Experimentar».
+interface Props { atual?: 'funcionalidades' | 'para-quem' | 'precos' | 'perguntas' | null; lang?: Lang; /** Endereço da página equivalente na outra língua. */ outra: string }
+const { atual = null, lang = 'pt', outra } = Astro.props;
+const d = t(lang).comum;
 const ligacoes = [
-  ['/funcionalidades/', 'Funcionalidades', 'funcionalidades'],
-  ['/para/', 'Para quem', 'para-quem'],
-  ['/precos/', 'Preços', 'precos'],
-  ['/perguntas-frequentes/', 'Perguntas', 'perguntas'],
+  [url(lang, 'funcionalidades'), d.cab.funcionalidades, 'funcionalidades'],
+  [url(lang, 'para'), d.cab.paraQuem, 'para-quem'],
+  [url(lang, 'precos'), d.cab.precos, 'precos'],
+  [url(lang, 'perguntas'), d.cab.perguntas, 'perguntas'],
 ] as const;
 ---
-<a class="skip" href="#conteudo">Saltar para o conteúdo</a>
+<a class="skip" href="#conteudo">{d.cab.saltar}</a>
 <header class="top" data-cabecalho><div class="in">
-  <Logo />
-  <nav class="menu" id="menu-principal" aria-label="Principal">
+  <Logo lang={lang} />
+  <nav class="menu" id="menu-principal" aria-label={d.cab.principalAria}>
     {ligacoes.map(([href, rotulo, chave]) => <a href={href} aria-current={atual === chave ? 'page' : undefined}>{rotulo}</a>)}
-    {marca.appUrl && <a href={marca.appUrl} rel="nofollow">Entrar</a>}
+    {marca.appUrl && <a href={marca.appUrl} rel="nofollow">{d.cab.entrar}</a>}
   </nav>
   <div class="top-act">
-    <a class="gicon" href="/perguntas-frequentes/" aria-label="Pesquisar nas perguntas frequentes"><Icon nome="search" /></a>
-    <button class="gicon only-m" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu-principal" data-menu><Icon nome="menu" /></button>
-    <a class="btn p sm" href="/acesso-antecipado/">Experimentar</a>
+    <a class="gicon lang" href={outra} hreflang={d.outraLingua.codigo} lang={d.outraLingua.codigo} aria-label={d.outraLingua.aria} title={d.outraLingua.nome}>{d.outraLingua.curto}</a>
+    <a class="gicon" href={url(lang, 'perguntas')} aria-label={d.cab.pesquisarAria}><Icon nome="search" /></a>
+    <button class="gicon only-m" type="button" aria-label={d.cab.abrirMenu} aria-expanded="false" aria-controls="menu-principal" data-menu data-abrir={d.cab.abrirMenu} data-fechar={d.cab.fecharMenu}><Icon nome="menu" /></button>
+    <a class="btn p sm" href={url(lang, 'acesso')}>{d.cab.experimentar}</a>
   </div>
 </div></header>
 
 <script>
   // Menu móvel: abre e fecha com aria-expanded; fecha com Escape ou ao escolher um destino.
+  // Os rótulos «Abrir menu» / «Fechar menu» vêm dos atributos data-abrir e data-fechar (um por língua).
   const cab = document.querySelector<HTMLElement>('[data-cabecalho]');
   const botao = document.querySelector<HTMLButtonElement>('[data-menu]');
   if (cab && botao) {
     const definir = (aberto: boolean) => {
       cab.classList.toggle('open', aberto);
       botao.setAttribute('aria-expanded', String(aberto));
-      botao.setAttribute('aria-label', aberto ? 'Fechar menu' : 'Abrir menu');
+      botao.setAttribute('aria-label', (aberto ? botao.dataset.fechar : botao.dataset.abrir) ?? '');
     };
     botao.addEventListener('click', () => definir(!cab.classList.contains('open')));
     cab.querySelectorAll('.menu a').forEach((a) => a.addEventListener('click', () => definir(false)));

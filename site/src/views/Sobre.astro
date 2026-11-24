@@ -1,0 +1,35 @@
+---
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/PageHero.astro';
+import FinalCta from '../components/FinalCta.astro';
+import Tile from '../components/Tile.astro';
+import type { NomeIcone } from '../components/Icon.astro';
+import { t, comMarca, type Lang } from '../i18n';
+import { url } from '../i18n/rotas';
+
+// Sobre (/sobre/ e /en/about/).
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const d = t(lang).sobre;
+const inicio = t(lang).comum.inicio;
+---
+<Base titulo={comMarca(d.titulo)} descricao={d.descricao} lang={lang}>
+  <PageHero h1={d.h1} lede={d.lede} fase={4.8} lang={lang}
+    caminho={[{ rotulo: inicio, href: url(lang, 'inicio') }, { rotulo: d.caminho }]} />
+
+  <section class="sec" aria-label={d.historiaAria}>
+    <div class="in">
+      <div class="texto">
+        <p class="abre">{d.abre}</p>
+        <p>{d.p2}</p>
+        <p>{d.p3}</p>
+        <p>{d.p4Antes}<a href={url(lang, 'acesso')}>{d.p4Acesso}</a>{d.p4Meio}<a href={url(lang, 'contacto')}>{d.p4Contacto}</a>.</p>
+      </div>
+      <div class="blocos tres">
+        {d.pontos.map((p) => <div class="bloco"><Tile icone={p.icone as NomeIcone} /><h3>{p.titulo}</h3><p>{p.texto}</p></div>)}
+      </div>
+    </div>
+  </section>
+
+  <FinalCta titulo={d.fimTitulo} texto={d.fimTexto} lang={lang} />
+</Base>

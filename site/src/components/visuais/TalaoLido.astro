@@ -1,21 +1,23 @@
 ---
+import { t, type Lang } from '../../i18n';
 // Cartão de um talão a ser lido: o papel e os campos preenchidos. Dados de exemplo.
+interface Props { lang?: Lang }
+const { lang = 'pt' } = Astro.props;
+const d = t(lang).comum.visuais.talao;
 ---
 <div class="vcard" aria-hidden="true">
-  <div class="hd"><b>Despesa nova</b><span class="pill">Lida do talão</span></div>
+  <div class="hd"><b>{d.titulo}</b><span class="pill">{d.pill}</span></div>
   <div class="talao">
-    <span class="t">DROGARIA CENTRAL</span>
-    <p><span>Detergente multiusos</span><span>12,90</span></p>
-    <p><span>Rolos de cozinha x6</span><span>9,50</span></p>
-    <p><span>Lençóis de cama</span><span>16,00</span></p>
-    <p><span>06/11/2026</span><span><mark>TOTAL 38,40 €</mark></span></p>
+    <span class="t">{d.loja}</span>
+    {d.linhas.map(([nome, valor]) => <p><span>{nome}</span><span>{valor}</span></p>)}
+    <p><span>{d.data}</span><span><mark>{d.total}</mark></span></p>
   </div>
   <div class="lido">
-    <div class="fld"><label>Data</label><div>6 nov 2026</div></div>
-    <div class="fld"><label>Valor</label><div>38,40 €</div></div>
-    <div class="fld w"><label>Fornecedor</label><div>Drogaria Central<span>Lido</span></div></div>
-    <div class="fld"><label>Casa</label><div>Casa da Eira</div></div>
-    <div class="fld"><label>Categoria</label><div>Consumíveis</div></div>
+    <div class="fld"><label>{d.campos.data}</label><div>{d.valores.data}</div></div>
+    <div class="fld"><label>{d.campos.valor}</label><div>{d.valores.valor}</div></div>
+    <div class="fld w"><label>{d.campos.fornecedor}</label><div>{d.valores.fornecedor}<span>{d.valores.lido}</span></div></div>
+    <div class="fld"><label>{d.campos.casa}</label><div>{d.valores.casa}</div></div>
+    <div class="fld"><label>{d.campos.categoria}</label><div>{d.valores.categoria}</div></div>
   </div>
-  <a class="btn p" href="#como">Confirmar despesa</a>
+  <a class="btn p" href="#como">{d.botao}</a>
 </div>

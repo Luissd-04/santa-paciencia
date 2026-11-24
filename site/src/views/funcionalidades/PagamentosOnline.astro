@@ -1,0 +1,22 @@
+---
+import Feature from '../../layouts/Feature.astro';
+import GlassNotice from '../../components/GlassNotice.astro';
+import PhoneDay from '../../components/PhoneDay.astro';
+import { t, comMarca, type Lang } from '../../i18n';
+import { relacionadas } from '../../config/relacionadas';
+
+// Pagamentos online (/funcionalidades/pagamentos-online/ e /en/features/online-payments/).
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const { titulo, cartao, aviso, telemovel, ...p } = t(lang).funcionalidades['pagamentos-online'];
+---
+<Feature lang={lang} titulo={comMarca(titulo)} {...p} relacionadas={relacionadas(lang, 'reservas-diretas', 'mensagens-automaticas', 'relatorios')}>
+  <div slot="visual" class="paycard">
+    <div class="hd"><b>{cartao.casa}</b><span class="pill">{cartao.pill}</span></div>
+    <div class="amt">{cartao.valor}</div><div style="color:var(--cinza);font-size:15px">{cartao.hospede}</div>
+    <div style="margin-top:18px">{cartao.linhas.map(([rotulo, valor]) => <div class="line"><span>{rotulo}</span><b>{valor}</b></div>)}</div>
+    <a class="btn p" href="#como" style="width:100%;margin-top:18px">{cartao.botao}</a>
+    <GlassNotice pos="g1" atraso={700} titulo={aviso.titulo} texto={aviso.texto} />
+  </div>
+  <PhoneDay slot="beneficios" titulo={telemovel.titulo} sub={telemovel.sub} itens={telemovel.itens} plano lang={lang} />
+</Feature>

@@ -1,0 +1,20 @@
+---
+import Feature from '../../layouts/Feature.astro';
+import GlassNotice from '../../components/GlassNotice.astro';
+import EscolherQuarto from '../../components/visuais/EscolherQuarto.astro';
+import CartaoLista from '../../components/visuais/CartaoLista.astro';
+import { t, comMarca, type Lang } from '../../i18n';
+import { relacionadas } from '../../config/relacionadas';
+
+// Reservas diretas (/funcionalidades/reservas-diretas/ e /en/features/direct-bookings/).
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const { titulo, aviso, vouchers, ...p } = t(lang).funcionalidades['reservas-diretas'];
+---
+<Feature lang={lang} titulo={comMarca(titulo)} {...p} relacionadas={relacionadas(lang, 'pagamentos-online', 'calendario', 'mensagens-automaticas')}>
+  <div slot="visual" style="position:relative">
+    <EscolherQuarto lang={lang} />
+    <GlassNotice pos="g1" atraso={700} titulo={aviso.titulo} texto={aviso.texto} />
+  </div>
+  <CartaoLista slot="beneficios" titulo={vouchers.titulo} etiqueta={vouchers.etiqueta} linhas={vouchers.linhas} />
+</Feature>

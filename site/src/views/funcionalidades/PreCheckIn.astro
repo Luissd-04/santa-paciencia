@@ -1,0 +1,20 @@
+---
+import Feature from '../../layouts/Feature.astro';
+import GlassNotice from '../../components/GlassNotice.astro';
+import PhoneDay from '../../components/PhoneDay.astro';
+import PreCheckinForm from '../../components/visuais/PreCheckinForm.astro';
+import { t, comMarca, type Lang } from '../../i18n';
+import { relacionadas } from '../../config/relacionadas';
+
+// Pré-check-in (/funcionalidades/pre-check-in/ e /en/features/online-check-in/).
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const { titulo, aviso, telemovel, ...p } = t(lang).funcionalidades['pre-check-in'];
+---
+<Feature lang={lang} titulo={comMarca(titulo)} {...p} relacionadas={relacionadas(lang, 'mensagens-automaticas', 'calendario', 'equipa-e-tarefas')}>
+  <div slot="visual" style="position:relative">
+    <PreCheckinForm lang={lang} />
+    <GlassNotice pos="g1" atraso={700} titulo={aviso.titulo} texto={aviso.texto} />
+  </div>
+  <PhoneDay slot="beneficios" titulo={telemovel.titulo} sub={telemovel.sub} itens={telemovel.itens} plano lang={lang} />
+</Feature>

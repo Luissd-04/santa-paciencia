@@ -1,17 +1,4 @@
 ---
-import Base from '../layouts/Base.astro';
-import Calcada from '../components/Calcada.astro';
-import Icon from '../components/Icon.astro';
-import { marca } from '../config/brand';
+import Vista from '../views/Erro404.astro';
 ---
-<Base titulo={`Página não encontrada | ${marca.nome}`} descricao="Esta página não existe ou mudou de endereço. Volte ao início ou veja as funcionalidades e os preços." noindex>
-  <section class="dark">
-    <Calcada fase={5.2} />
-    <div class="in" style="padding-top:96px;padding-bottom:260px">
-      <span class="kicker"><b>404</b> Página não encontrada</span>
-      <h1>Esta página perdeu-se pelo caminho.</h1>
-      <p class="lede">O endereço pode estar errado ou a página mudou de sítio. Volte ao início e encontra tudo.</p>
-      <div class="ctas"><a class="btn p" href="/">Voltar ao início <Icon nome="arrow" class="go" /></a><a class="btn s" href="/precos/">Ver preços</a></div>
-    </div>
-  </section>
-</Base>
+<Vista lang="pt" />

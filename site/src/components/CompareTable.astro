@@ -1,12 +1,16 @@
 ---
 import Icon from './Icon.astro';
-import { planos, comparacao } from '../config/brand';
+import { comparacao } from '../config/brand';
+import { planosDe, t, type Lang } from '../i18n';
+interface Props { lang?: Lang }
+const { lang = 'pt' } = Astro.props;
+const d = t(lang).comum.compare;
 ---
 <div class="tw"><table class="compare">
-  <thead><tr><th>O que inclui</th>{planos.map((p) => <th>{p.nome}</th>)}</tr></thead>
+  <thead><tr><th>{d.oQueInclui}</th>{planosDe(lang).map((p) => <th>{p.nome}</th>)}</tr></thead>
   <tbody>
-    {comparacao.map(([linha, ...celulas]) => (
-      <tr><td>{linha}</td>{celulas.map((v) => <td>{v ? <><Icon nome="check" forte /><span class="sr-only">Incluído</span></> : <><span aria-hidden="true"> —</span><span class="sr-only">Não incluído</span></>}</td>)}</tr>
+    {comparacao.map(([chave, ...celulas]) => (
+      <tr><td>{d.linhas[chave]}</td>{celulas.map((v) => <td>{v ? <><Icon nome="check" forte /><span class="sr-only">{d.incluido}</span></> : <><span aria-hidden="true"> —</span><span class="sr-only">{d.naoIncluido}</span></>}</td>)}</tr>
     ))}
   </tbody>
 </table></div>

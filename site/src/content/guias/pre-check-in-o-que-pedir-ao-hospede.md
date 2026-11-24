@@ -1,4 +1,5 @@
 ---
+par: pre-check-in-what-to-ask-guests
 titulo: "Pré-check-in no alojamento local: o que pedir ao hóspede antes da chegada"
 tituloSeo: "Pré-check-in no AL: o que pedir ao hóspede"
 descricao: O que perguntar ao hóspede antes de ele chegar, quando enviar o pedido e como evitar esperas à porta. Um guia prático de pré-check-in.

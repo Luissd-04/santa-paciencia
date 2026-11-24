@@ -1,11 +1,14 @@
 ---
+import { t, type Lang } from '../../i18n';
 // Receita por canal (Airbnb, Booking.com e reservas diretas), com dados de exemplo.
-const canais = [['Airbnb', '2 430 €', 100, ''], ['Booking.com', '1 360 €', 56, 'b2'], ['Direto', '1 070 €', 44, 'b3']] as const;
+interface Props { lang?: Lang }
+const { lang = 'pt' } = Astro.props;
+const d = t(lang).comum.visuais.canais;
 ---
 <div class="vcard" aria-hidden="true">
-  <div class="hd"><b>Receita por canal</b><span class="pill">Junho</span></div>
+  <div class="hd"><b>{d.titulo}</b><span class="pill">{d.pill}</span></div>
   <div class="bars">
-    {canais.map(([n, v, w, c]) => <div class="br"><span>{n}</span><div class="tr"><i class={c} style={`width:${w}%`}></i></div><span class="n">{v}</span></div>)}
+    {d.linhas.map(([n, v, w, c]) => <div class="br"><span>{n}</span><div class="tr"><i class={c} style={`width:${w}%`}></i></div><span class="n">{v}</span></div>)}
   </div>
-  <div class="vrows"><div class="vrow"><div><b>Reservas diretas</b><small>Sem comissão de plataforma</small></div><span class="v">22 %</span></div></div>
+  <div class="vrows"><div class="vrow"><div><b>{d.diretas}</b><small>{d.semComissao}</small></div><span class="v">{d.pct}</span></div></div>
 </div>

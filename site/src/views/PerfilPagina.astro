@@ -1,0 +1,11 @@
+---
+import Perfil from '../layouts/Perfil.astro';
+import { t, comMarca, type Lang } from '../i18n';
+import type { SlugPerfil } from '../i18n/rotas';
+
+// Página «Para quem» de um perfil (/para/<perfil>/ e /en/for/<profile>/): o texto vem de src/i18n/<língua>/perfis.ts.
+interface Props { lang: Lang; slug: SlugPerfil }
+const { lang, slug } = Astro.props;
+const { titulo, ...p } = t(lang).perfis[slug];
+---
+<Perfil lang={lang} titulo={comMarca(titulo)} {...p} />

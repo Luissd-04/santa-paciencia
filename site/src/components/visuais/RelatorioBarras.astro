@@ -1,12 +1,15 @@
 ---
+import { t, type Lang } from '../../i18n';
 // Cartão «Relatório · junho» com números e barras por casa. Dados de exemplo.
-const casas = [['Casa da Eira', '2 140 €', 100, ''], ['Loft do Rio', '1 280 €', 60, 'b2'], ['Quarto Azul', '810 €', 38, 'b3'], ['Monte Branco', '630 €', 29, 'b3']] as const;
+interface Props { lang?: Lang }
+const { lang = 'pt' } = Astro.props;
+const d = t(lang).comum.visuais.relatorio;
 ---
 <div class="vcard" aria-hidden="true">
-  <div class="hd"><b>Relatório · junho</b><span class="pill">4 casas</span></div>
-  <div class="kpis"><div><small>Receita</small><b>4 860 €</b></div><div><small>Ocupação</small><b>78 %</b></div><div><small>Margem</small><b>3 120 €</b></div></div>
-  <div class="vh">Receita por casa</div>
+  <div class="hd"><b>{d.titulo}</b><span class="pill">{d.pill}</span></div>
+  <div class="kpis">{d.kpis.map(([k, v]) => <div><small>{k}</small><b>{v}</b></div>)}</div>
+  <div class="vh">{d.porCasa}</div>
   <div class="bars" style="margin-top:10px">
-    {casas.map(([n, v, w, c]) => <div class="br"><span>{n}</span><div class="tr"><i class={c} style={`width:${w}%`}></i></div><span class="n">{v}</span></div>)}
+    {d.casas.map(([n, v, w, c]) => <div class="br"><span>{n}</span><div class="tr"><i class={c} style={`width:${w}%`}></i></div><span class="n">{v}</span></div>)}
   </div>
 </div>

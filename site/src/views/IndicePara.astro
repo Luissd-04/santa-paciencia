@@ -1,0 +1,25 @@
+---
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/PageHero.astro';
+import FinalCta from '../components/FinalCta.astro';
+import Icon from '../components/Icon.astro';
+import { t, comMarca, type Lang } from '../i18n';
+import { url, urlPerfil } from '../i18n/rotas';
+
+// Índice «Para quem» (/para/ e /en/for/).
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const d = t(lang).indicePara;
+---
+<Base titulo={comMarca(d.titulo)} descricao={d.descricao} atual="para-quem" lang={lang}>
+  <PageHero h1={d.h1} lede={d.lede} fase={2.1} lang={lang}
+    caminho={[{ rotulo: t(lang).comum.inicio, href: url(lang, 'inicio') }, { rotulo: d.caminho }]} />
+  <section class="sec" aria-label={d.perfisAria}>
+    <div class="in">
+      <div class="cartoes" style="margin-top:0">
+        {d.perfis.map(([n, h, p, slug]) => <a class="cartao" href={urlPerfil(slug, lang)}><small>{n}</small><h2>{h}</h2><p>{p}</p><span class="more">{d.verComoAjuda} <Icon nome="arrow" /></span></a>)}
+      </div>
+    </div>
+  </section>
+  <FinalCta lang={lang} />
+</Base>

@@ -1,0 +1,27 @@
+---
+import Base from '../layouts/Base.astro';
+import Calcada from '../components/Calcada.astro';
+import AccessForm from '../components/AccessForm.astro';
+import { t, comMarca, type Lang } from '../i18n';
+
+// Acesso antecipado (/acesso-antecipado/ e /en/early-access/).
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const d = t(lang).acesso;
+---
+<Base titulo={comMarca(d.titulo)} descricao={d.descricao} lang={lang}>
+  <section class="dark">
+    <Calcada fase={4.4} />
+    <div class="in ea">
+      <div>
+        <span class="kicker"><b>{d.kickerTag}</b> {d.kicker}</span>
+        <h1>{d.h1}</h1>
+        <p class="lede">{d.lede}</p>
+        <ol class="next3">
+          {d.passos.map(([b, s]) => <li><div><b>{b}</b><span>{s}</span></div></li>)}
+        </ol>
+      </div>
+      <AccessForm lang={lang} />
+    </div>
+  </section>
+</Base>

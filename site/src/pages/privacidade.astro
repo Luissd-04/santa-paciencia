@@ -1,23 +1,4 @@
 ---
-import Legal from '../layouts/Legal.astro';
-import { marca } from '../config/brand';
-const mail = `mailto:${marca.email}`;
+import Vista from '../views/Legal.astro';
 ---
-<Legal titulo={`Política de privacidade | ${marca.nome}`} descricao={`Como a ${marca.nome} trata os dados pessoais de quem visita o site e pede acesso antecipado ou nos contacta.`} h1="Política de privacidade" atualizado="24 de novembro de 2026" fase={1.0}>
-  <h2>Quem é responsável pelos dados</h2>
-  <p>O responsável pelo tratamento dos dados recolhidos neste site é a entidade que explora a {marca.nome} [identificação, NIF e morada por preencher]. Pode contactar-nos através de <a href={mail}>{marca.email}</a>.</p>
-  <h2>Que dados recolhemos neste site</h2>
-  <ul>
-    <li><strong>Formulários de acesso antecipado e de contacto:</strong> nome, email, telefone (se o indicar), número de alojamentos, canais onde anuncia, o assunto e a mensagem que escrever.</li>
-    <li><strong>Dados técnicos:</strong> os registos habituais do servidor (endereço IP, data e página pedida), guardados por tempo limitado para segurança e diagnóstico.</li>
-  </ul>
-  <p>Este site não usa cookies de publicidade nem ferramentas de seguimento de terceiros.</p>
-  <h2>Para que usamos os dados</h2>
-  <p>Usamos os dados dos formulários apenas para responder ao seu pedido e, se assim o quiser, combinar a configuração do acesso. O fundamento é a sua iniciativa de nos contactar (diligências pré-contratuais a seu pedido).</p>
-  <h2>Durante quanto tempo</h2>
-  <p>Guardamos os pedidos de contacto enquanto durar a conversa e, no máximo, 12 meses depois do último contacto, salvo se entretanto se tornar cliente.</p>
-  <h2>Os seus direitos</h2>
-  <p>Pode pedir o acesso, a retificação ou o apagamento dos seus dados, bem como opor-se ao tratamento, escrevendo para <a href={mail}>{marca.email}</a>. Tem também o direito de apresentar reclamação à Comissão Nacional de Proteção de Dados (CNPD).</p>
-  <h2>Dados tratados dentro da plataforma</h2>
-  <p>Os dados que os clientes introduzem na plataforma (por exemplo, dados de hóspedes) são tratados pela {marca.nome} por conta do cliente, que é o responsável por esses dados. As condições desse tratamento constam do contrato de prestação de serviços.</p>
-</Legal>
+<Vista lang="pt" pagina="privacidade" fase={1.0} />

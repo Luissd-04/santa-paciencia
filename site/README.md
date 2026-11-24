@@ -5,7 +5,8 @@ estática (`site/dist`). Não depende da aplicação e pode ser alojado em qualq
 de ficheiros estáticos. O aspeto segue a direção «H · Calçada Basalto» (maquetas aprovadas).
 
 Fase atual: início, preços, acesso antecipado, «Para quem», perguntas frequentes, sobre, contacto,
-guias, privacidade, termos e 404, mais as páginas de funcionalidades. As do `docs/SITE-MAPA-SEO.md`
+guias, privacidade, termos e 404, mais as páginas de funcionalidades, em **português (raiz) e inglês (`/en/`)**:
+26 páginas em cada língua (ver «Línguas» abaixo). As do `docs/SITE-MAPA-SEO.md`
 que faltem estão listadas em `PENDENTES` no `scripts/check.mjs`.
 
 ## Usar
@@ -40,18 +41,21 @@ O `check` deve correr com as mesmas variáveis do `build`.
 
 | O quê | Onde |
 |---|---|
-| Nome da marca, domínio, email, `INDEXAR`, endpoint, planos e preços | `src/config/brand.ts` |
+| Nome da marca, domínio, email, `INDEXAR`, endpoint, preços dos planos | `src/config/brand.ts` (o texto dos planos está em `src/i18n/*/comum.ts`) |
 | Cores, tipografia e espaçamento (tokens em `:root`) | `src/styles/tokens.css` |
 | Restante CSS (por secção) | `src/styles/*.css`, reunidos em `global.css` |
+| Textos de cada página e dos componentes, por língua | `src/i18n/pt/*.ts` e `src/i18n/en/*.ts` (mesma estrutura; ver «Línguas») |
+| Endereços PT/EN de cada página (seletor de língua, `hreflang`, sitemap) | `src/i18n/rotas.ts` |
 | `<head>`, canonical, Open Graph, `noindex`, `hreflang`, JSON-LD comum | `src/layouts/Base.astro` |
 | Modelo de página de funcionalidade | `src/layouts/Feature.astro` |
 | Cabeçalho, rodapé, calçada, ícones, FAQ, planos, formulário… | `src/components/` |
-| Páginas | `src/pages/` (uma por endereço) |
-| «Para quem» (`/para/…`): textos, blocos e planos recomendados | `src/pages/para/*.astro`, modelo em `src/layouts/Perfil.astro`, cartões de plano em `src/components/PlanoRecomendado.astro` |
-| Perguntas frequentes (por temas, com JSON-LD) | `src/pages/perguntas-frequentes.astro` |
-| Sobre e contacto | `src/pages/sobre.astro`, `src/pages/contacto.astro` (o formulário é o `AccessForm`, com a prop `assunto`) |
-| Guias (Markdown, coleção `guias`) | `src/content/guias/*.md`; esquema em `src/content.config.ts`; páginas em `src/pages/guias/`. O tempo de leitura calcula-se do texto (`src/config/guias.ts`) |
-| Privacidade e termos (textos provisórios) | `src/pages/privacidade.astro`, `src/pages/termos.astro`, modelo em `src/layouts/Legal.astro` |
+| Páginas (um ficheiro por endereço, só chama a vista com a língua) | `src/pages/` (PT) e `src/pages/en/` (EN) |
+| Vistas: a estrutura de cada página, igual nas duas línguas | `src/views/*.astro` e `src/views/funcionalidades/*.astro` |
+| «Para quem» (`/para/…`, `/en/for/…`): textos, blocos e planos recomendados | `src/i18n/*/perfis.ts`, vista `src/views/PerfilPagina.astro`, modelo em `src/layouts/Perfil.astro`, cartões de plano em `src/components/PlanoRecomendado.astro` |
+| Perguntas frequentes (por temas, com JSON-LD) | `src/i18n/*/paginas.ts` (`perguntas`), vista `src/views/Perguntas.astro` |
+| Sobre e contacto | `src/i18n/*/paginas.ts`, vistas `Sobre.astro` e `Contacto.astro` (o formulário é o `AccessForm`, com a prop `assunto`) |
+| Guias (Markdown, coleção `guias`) | PT em `src/content/guias/*.md`, EN em `src/content/guias/en/*.md`; esquema em `src/content.config.ts` (campos `lang` e `par`); vistas `GuiaPagina.astro` e `IndiceGuias.astro`. O tempo de leitura calcula-se do texto (`src/config/guias.ts`) |
+| Privacidade e termos (textos provisórios) | `src/i18n/*/paginas.ts` (`privacidade`, `termos`), vista `src/views/Legal.astro`, modelo em `src/layouts/Legal.astro` |
 | Topo escuro das páginas de texto | `src/components/PageHero.astro` |
 | CSS das páginas acima | `src/styles/paginas.css` |
 | Menu e rodapé (ligações) | `src/components/Header.astro`, `src/components/Footer.astro` |
@@ -60,15 +64,36 @@ O `check` deve correr com as mesmas variáveis do `build`.
 | Verificação pós-build | `scripts/check.mjs` |
 | Imagens de partilha (geradas) | `scripts/og.mjs` → `public/og/` |
 
-Uma página nova é um ficheiro em `src/pages/` (entra sozinha no sitemap; os guias entram pela coleção). Uma página de
-funcionalidade nova usa o layout `Feature.astro` e passa o texto como propriedades (ver
-`src/pages/funcionalidades/pagamentos-online.astro`). Quando uma página que estava por criar
-passa a existir, remover o seu prefixo do array `PENDENTES` em `scripts/check.mjs`.
+Uma página nova é uma vista em `src/views/` com o texto em `src/i18n/pt` e `src/i18n/en`, mais um ficheiro em
+`src/pages/` e outro em `src/pages/en/` que só chamam a vista (entram sozinhos no sitemap; os guias entram pela
+coleção). Acrescentar o par de endereços em `src/i18n/rotas.ts`. Uma página de funcionalidade nova usa o layout
+`Feature.astro` e passa o texto como propriedades (ver `src/views/funcionalidades/PagamentosOnline.astro`).
+Quando uma página que estava por criar passa a existir, remover o seu prefixo do array `PENDENTES` em `scripts/check.mjs`.
+
+## Línguas (PT e EN)
+
+- Português na raiz e inglês em `/en/`, com endereços traduzidos (`docs/SITE-MAPA-SEO.md`, secção 2): por exemplo
+  `/funcionalidades/calendario/` ↔ `/en/features/calendar/`. Os pares estão em `src/i18n/rotas.ts`; os dos guias vêm
+  do campo `par` do Markdown PT (o slug do guia equivalente em `en/`).
+- O texto está em dicionários por língua (`src/i18n/pt/*.ts`, `src/i18n/en/*.ts`). O português é a fonte do tipo:
+  o inglês tem de ter a mesma estrutura e o TypeScript avisa quando falta uma chave. Páginas, layouts e componentes recebem
+  a língua (`lang`) e leem com `t(lang)`. Os preços formatam-se com `eur(lang, n)`: «19 €» em PT e «€19» em EN; as datas
+  por extenso com `dataLonga(data, lang)`.
+- Cada página PT aponta para a EN e vice-versa (`hreflang="pt-PT"`, `"en"` e `x-default` = PT), com o `<html lang>`
+  certo, `og:locale` e `inLanguage` do JSON-LD. O seletor de língua (cabeçalho e rodapé) leva à página equivalente; na
+  404 leva ao início da outra língua. O `sitemap.xml` traz as páginas EN e as alternativas (`xhtml:link`).
+- A 404 EN fica em `/en/404/` (a PT em `/404.html`), com `noindex`: o servidor deve usá-la como página de erro de `/en/`.
+- Os visuais (calendário, cartões, telemóvel) levam dados de exemplo nas duas línguas (em EN: datas «9 Nov», moeda «€120.00»).
+- Termos que se mantêm em inglês: SIBA, «tourist tax», «Complaints Book (Livro de Reclamações)». O «Alojamento Local (AL)»
+  explica-se uma vez, no topo do início EN.
+- Não prometer em EN o que não existe (`docs/SITE-MAPA-SEO.md`, secção 6): sem sincronização com o Airbnb e o Booking.com,
+  sem comunicação automática ao SIBA, sem faturação certificada.
 
 ## Imagens de partilha (`npm run og`)
 
 Cada página tem uma imagem Open Graph / Twitter de 1200×630 (JPEG, qualidade 80) em
-`public/og/<caminho-com-hífens>.jpg` (o início é `inicio.jpg`; `/guias/x/` dá `guias-x.jpg`). O `Base.astro`
+`public/og/<caminho-com-hífens>.jpg` (o início é `inicio.jpg`; `/guias/x/` dá `guias-x.jpg`; as EN levam o prefixo `en-`:
+`/en/` dá `en.jpg` e `/en/features/calendar/` dá `en-features-calendar.jpg`, com o rótulo e o H1 em inglês). O `Base.astro`
 liga-a sozinho (`og:image`, largura, altura, `og:image:alt` = H1, `twitter:card=summary_large_image`) e, se a
 imagem da página não existir, usa `inicio.jpg`. O `npm run check` confirma que cada `og:image` existe no `dist`.
 
@@ -77,7 +102,15 @@ logótipo, rótulo da secção e H1 em Bricolage Grotesque) e tira a captura com
 um H1, uma página ou o nome da marca, depois `npm run build` (as imagens são commitadas). O Playwright não é
 dependência do projeto: tem de estar instalado (`npm i -g playwright`). Se o import falhar, defina o caminho:
 `PLAYWRIGHT_PATH=$(npm root -g)/playwright npm run og`. Com o `dist` já feito: `node scripts/og.mjs --sem-build`.
-O rótulo de cada secção está em `ROTULOS` no `scripts/og.mjs`.
+O rótulo de cada secção está em `ROTULOS` (PT) e `ROTULOS_EN` (EN) no `scripts/og.mjs`.
+
+## Verificação (`npm run check`)
+
+Além do que está descrito no cabeçalho do `scripts/check.mjs` (título e descrição únicos, um só `h1`, ligações internas,
+`og:image`, JSON-LD, `noindex`, `robots.txt` e sitemap), confirma em cada página o `<html lang>`, o par `hreflang`
+recíproco (a equivalente existe e aponta de volta; as alternativas do sitemap coincidem), o seletor de língua, o
+`inLanguage` do JSON-LD, que as duas línguas não se misturam nas ligações e que o texto EN não tem preços «19 €»
+nem palavras portuguesas soltas.
 
 ## Verificação (`npm run check`)
 

@@ -1,0 +1,50 @@
+---
+import Base from '../layouts/Base.astro';
+import Calcada from '../components/Calcada.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import Icon from '../components/Icon.astro';
+import Tile from '../components/Tile.astro';
+import FinalCta from '../components/FinalCta.astro';
+import { funcionalidades, urlFuncionalidade } from '../config/brand';
+import { t, comMarca, type Lang } from '../i18n';
+import { url } from '../i18n/rotas';
+import '../styles/visuais.css';
+
+// Índice das funcionalidades (/funcionalidades/ e /en/features/).
+interface Props { lang: Lang }
+const { lang } = Astro.props;
+const d = t(lang).indiceFuncionalidades;
+const ft = t(lang).funcionalidades.ladrilhos;
+const caminho = [{ rotulo: t(lang).comum.inicio, href: url(lang, 'inicio') }, { rotulo: d.caminho }];
+---
+<Base titulo={comMarca(d.titulo)} descricao={d.descricao} atual="funcionalidades" lang={lang}>
+  <section class="dark play">
+    <Calcada fase={1.2} />
+    <div class="in" style="padding-top:72px;padding-bottom:230px">
+      <Breadcrumbs itens={caminho} lang={lang} />
+      <h1 style="max-width:900px">{d.h1}</h1>
+      <p class="lede">{d.lede}</p>
+    </div>
+  </section>
+
+  <section class="sec" style="padding-top:0" aria-label={d.oitoAria}>
+    <div class="in">
+      <div class="grid" style="margin-top:-110px;position:relative">
+        {funcionalidades.map((f) => (
+          <a class="f hov" href={urlFuncionalidade(f.slug, lang)}><Tile icone={f.icone} /><h2 style="margin:6px 0 0;font:700 20px/1.2 var(--disp);letter-spacing:-.02em">{ft[f.slug].titulo}</h2><p>{ft[f.slug].texto}</p><span class="more">{d.saberMais} <Icon nome="arrow" class="go" /></span></a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="sec alt" aria-labelledby="ainda">
+    <div class="in">
+      <h2 class="h2" id="ainda">{d.aindaH2}</h2>
+      <ul class="ainda">
+        {d.ainda.map(([titulo, s]) => <li><Icon nome="check" forte /><div><b>{titulo}</b><span>{s}</span></div></li>)}
+      </ul>
+    </div>
+  </section>
+
+  <FinalCta lang={lang} />
+</Base>
