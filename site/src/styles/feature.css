@@ -1,0 +1,22 @@
+/* Página de funcionalidade */
+.crumbs{font-size:14px;color:var(--cinza-claro);margin-bottom:22px;display:flex;gap:8px;flex-wrap:wrap}
+.crumbs a{text-decoration:none}.crumbs a:hover{color:#fff}
+.how{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:48px;counter-reset:s}
+.how li{list-style:none;background:var(--branco);border:1px solid var(--linha);border-radius:22px;padding:28px}
+.how li::before{counter-increment:s;content:counter(s);display:grid;place-items:center;width:40px;height:40px;border-radius:999px;background:var(--basalto);color:#fff;font:800 18px var(--disp);margin-bottom:18px}
+.how h3{margin:0;font:700 21px/1.2 var(--disp);letter-spacing:-.02em}
+.how p{margin:8px 0 0;color:var(--cinza)}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:64px;align-items:center}
+.checks{list-style:none;margin:28px 0 0;padding:0;display:grid;gap:14px}
+.checks li{display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px}
+.checks svg{width:20px;height:20px;color:var(--barro);margin-top:3px}
+.checks b{display:block}.checks span{color:var(--cinza);font-size:16px}
+.paycard{background:#fff;border:1px solid var(--linha);border-radius:24px;padding:28px;box-shadow:0 40px 80px -50px rgba(30,28,26,.45);max-width:420px;margin:0 auto;position:relative}
+.paycard .hd{display:flex;justify-content:space-between;align-items:center}
+.paycard .hd b{font:800 22px var(--disp);letter-spacing:-.02em}
+.amt{font:800 48px/1 var(--disp);letter-spacing:-.04em;margin:22px 0 4px;font-variant-numeric:tabular-nums}
+.paycard .line{display:flex;justify-content:space-between;font-size:15px;padding:10px 0;border-top:1px solid var(--linha);color:var(--cinza)}
+.paycard .line b{color:var(--basalto)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;border-radius:999px;padding:4px 10px;background:var(--barro-suave);color:var(--barro-esc)}
+.related{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:40px}
+.related a{display:flex;gap:16px;align-items:center;padding:20px;border-radius:18px;border:1px solid var(--linha);background:var(--branco);text-decoration:none;font-weight:600}

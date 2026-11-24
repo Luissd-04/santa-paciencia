@@ -1,0 +1,35 @@
+/* ── Topo escuro com calçada ── */
+.dark{background:var(--basalto);color:#F8F7F4;position:relative;isolation:isolate}
+.calcada{position:absolute;left:0;right:0;bottom:0;width:100%;height:220px;z-index:-1;display:block;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 45%);mask-image:linear-gradient(to bottom,transparent 0,#000 45%)}
+.calcada.top-edge{top:0;bottom:auto;-webkit-mask-image:linear-gradient(to top,transparent 0,#000 45%);mask-image:linear-gradient(to top,transparent 0,#000 45%)}
+.hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:56px;align-items:center;padding-top:72px;padding-bottom:250px}
+.kicker{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:500;color:var(--cinza-claro);margin-bottom:20px;padding:6px 12px 6px 6px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)}
+.kicker b{background:var(--barro);color:#fff;border-radius:999px;padding:2px 9px;font-size:12.5px;font-weight:600}
+h1,.h1{margin:0;font:800 clamp(42px,6vw,80px)/.98 var(--disp);letter-spacing:-.032em;text-wrap:balance}
+.lede{margin:24px 0 0;font-size:clamp(18px,1.6vw,20px);line-height:1.55;color:var(--cinza-claro);max-width:500px}
+.ctas{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px}
+.facts{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:24px;font-size:14px;color:var(--cinza-claro);list-style:none;padding:0}
+.facts li{display:flex;gap:7px;align-items:center}
+.facts svg{width:15px;height:15px;color:var(--barro-claro)}
+
+/* App e avisos de vidro */
+.stage{position:relative}
+.app{background:#fff;color:var(--basalto);border-radius:18px;border:1px solid var(--linha);box-shadow:0 40px 80px -40px rgba(0,0,0,.7);font-size:12.5px;overflow:hidden}
+.app-top{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid var(--linha);font-weight:700;font-size:14px}
+.app-top span{font-weight:500;color:var(--cinza);font-size:12.5px}
+.row{display:grid;grid-template-columns:96px repeat(7,minmax(0,1fr));align-items:center;min-height:46px;border-bottom:1px solid var(--linha)}
+.row:last-child{border-bottom:0}
+.row > b{font-weight:600;font-size:12px;padding-left:14px}
+.days span{text-align:center;color:var(--cinza);font-size:11px;line-height:1.25}
+.days span.t{color:var(--barro);font-weight:700}
+.bar{height:28px;border-radius:8px;margin:0 3px;display:flex;align-items:center;padding:0 9px;font-weight:600;font-size:11px;white-space:nowrap;overflow:hidden;background:var(--barro);color:#fff}
+.bar.b2{background:var(--basalto)}.bar.b3{background:var(--barro-suave);color:var(--barro-esc)}
+.glass{position:absolute;display:flex;gap:11px;align-items:center;font-size:13.5px;font-weight:600;padding:11px 16px 11px 11px;border-radius:16px;
+  background:rgba(255,255,255,.8);color:var(--basalto);border:1px solid rgba(255,255,255,.9);
+  -webkit-backdrop-filter:blur(18px) saturate(170%);backdrop-filter:blur(18px) saturate(170%);
+  box-shadow:inset 0 1px 0 #fff,0 20px 40px -22px rgba(0,0,0,.6)}
+.glass small{display:block;color:var(--cinza);font-size:12px;font-weight:500}
+.glass .ok{width:30px;height:30px;border-radius:10px;background:var(--barro);color:#fff;display:grid;place-items:center;flex:none}
+.glass .ok svg{width:16px;height:16px}
+.g1{right:-22px;top:-30px}.g2{left:-34px;bottom:-34px}.g3{right:18px;bottom:-56px}

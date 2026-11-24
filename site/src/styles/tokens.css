@@ -1,0 +1,10 @@
+/* Direção H · Calçada Basalto. Topo em basalto com calçada branca; corpo em cal; barro (cor da plataforma) como única cor de destaque.
+   Vidro só no menu, nos avisos sobre a app e nos botões de ícone. */
+:root{
+  --cal:#F8F7F4; --cal2:#EFECE7; --branco:#FFFFFF; --basalto:#1E1C1A; --basalto2:#2A2724;
+  --barro:#843424; --barro-esc:#6C2A1C; --barro-suave:#F3E3DC; --barro-claro:#E3A08C;
+  --cinza:#5F5A55; --cinza-claro:#B9B2AA; --linha:#E4E1DC;
+  --disp:'Bricolage Grotesque Variable','Inter Variable',system-ui,sans-serif; --ui:'Inter Variable',system-ui,sans-serif;
+  --ease:cubic-bezier(.23,1,.32,1); --max:1200px;
+  color-scheme:light;
+}

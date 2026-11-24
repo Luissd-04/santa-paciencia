@@ -1,0 +1,101 @@
+---
+import Icon from './Icon.astro';
+import { marca } from '../config/brand';
+// Formulário de acesso antecipado. Valida no browser. Com CONTACT_ENDPOINT envia POST JSON
+// ({nome, email, telefone, alojamentos, canais, mensagem}); sem endpoint abre o programa de email.
+// Sem JavaScript, o formulário cai para um mailto: simples.
+---
+<form class="form" novalidate method="post" action={`mailto:${marca.email}`} enctype="text/plain"
+  data-endpoint={marca.contactEndpoint} data-email={marca.email} data-marca={marca.nome}>
+  <h2>Pedir acesso</h2>
+  <div class="two">
+    <div class="fld"><label for="nome">Nome</label><input id="nome" name="nome" autocomplete="name" required aria-describedby="erro-nome"><span class="err" id="erro-nome" role="alert"></span></div>
+    <div class="fld"><label for="tel">Telemóvel <small>(opcional)</small></label><input id="tel" name="telefone" type="tel" autocomplete="tel" inputmode="tel"></div>
+  </div>
+  <div class="fld"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required aria-describedby="erro-email"><span class="err" id="erro-email" role="alert"></span></div>
+  <div class="fld"><label for="casas">Quantas casas gere?</label><select id="casas" name="alojamentos"><option>1</option><option>2 a 3</option><option selected>4 a 10</option><option>Mais de 10</option></select></div>
+  <fieldset class="fld"><legend>Onde anuncia hoje?</legend><div class="chips"><label><input type="checkbox" name="canais" value="Airbnb" checked> Airbnb</label><label><input type="checkbox" name="canais" value="Booking.com" checked> Booking.com</label><label><input type="checkbox" name="canais" value="Site próprio"> Site próprio</label><label><input type="checkbox" name="canais" value="Outro"> Outro</label></div></fieldset>
+  <div class="fld"><label for="msg">O que mais lhe tira a paciência? <small>(opcional)</small></label><textarea id="msg" name="mensagem" rows="3"></textarea></div>
+  <div class="hp" aria-hidden="true"><label>Não preencher <input name="website" tabindex="-1" autocomplete="off"></label></div>
+  <p class="falha" role="alert" data-falha></p>
+  <button class="btn p" type="submit">Pedir o meu lugar <Icon nome="arrow" class="go" /></button>
+  <p class="note">Sem cartão de crédito. Usamos os seus dados só para responder a este pedido.</p>
+  <div class="done" role="status"><span class="ok"><Icon nome="check" forte /></span><h2 tabindex="-1">Pedido recebido.</h2><p style="margin:0;color:var(--cinza)" data-feito>Vamos responder por email. Entretanto, espreite as perguntas frequentes.</p><a class="btn s" href="/perguntas-frequentes/" style="color:var(--basalto)">Ver perguntas</a></div>
+</form>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>('form.form');
+  if (form) {
+    const email = form.dataset.email || '';
+    const marca = form.dataset.marca || '';
+    const falha = form.querySelector<HTMLElement>('[data-falha]')!;
+    const botao = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+
+    const regras: Record<string, (v: string) => string> = {
+      nome: (v) => (v.trim().length < 2 ? 'Indique o seu nome.' : ''),
+      email: (v) => (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()) ? '' : 'Indique um email válido, por exemplo nome@dominio.pt.'),
+    };
+    const validar = (campo: HTMLInputElement) => {
+      const msg = regras[campo.name]?.(campo.value) ?? '';
+      campo.setAttribute('aria-invalid', msg ? 'true' : 'false');
+      const alvo = document.getElementById(`erro-${campo.name}`);
+      if (alvo) alvo.textContent = msg;
+      return !msg;
+    };
+    const campos = (): HTMLInputElement[] => [...form.elements].filter((c): c is HTMLInputElement => c instanceof HTMLInputElement && c.name in regras);
+    form.addEventListener('focusout', (e) => { const t = e.target as HTMLInputElement; if (t.name in regras) validar(t); });
+    form.addEventListener('input', (e) => { const t = e.target as HTMLInputElement; if (t.getAttribute?.('aria-invalid') === 'true') validar(t); });
+
+    const concluir = (texto?: string) => {
+      form.classList.add('sent');
+      const p = form.querySelector<HTMLElement>('[data-feito]');
+      if (texto && p) p.textContent = texto;
+      form.querySelector<HTMLElement>('.done h2')?.focus();
+    };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      falha.textContent = '';
+      const endpoint = form.dataset.endpoint || '';
+      const invalidos = campos().filter((c) => !validar(c));
+      if (invalidos.length) { invalidos[0].focus(); return; }
+
+      const fd = new FormData(form);
+      if (fd.get('website')) return; // armadilha para robôs
+      const dados = {
+        nome: String(fd.get('nome') || '').trim(),
+        email: String(fd.get('email') || '').trim(),
+        telefone: String(fd.get('telefone') || '').trim(),
+        alojamentos: String(fd.get('alojamentos') || ''),
+        canais: fd.getAll('canais').map(String),
+        mensagem: String(fd.get('mensagem') || '').trim(),
+      };
+
+      if (!endpoint) {
+        const corpo = `Nome: ${dados.nome}\nEmail: ${dados.email}\nTelefone: ${dados.telefone || '—'}\nAlojamentos: ${dados.alojamentos}\nAnuncia em: ${dados.canais.join(', ') || '—'}\n\n${dados.mensagem}`;
+        location.href = `mailto:${email}?subject=${encodeURIComponent(`Pedido de acesso antecipado · ${marca}`)}&body=${encodeURIComponent(corpo)}`;
+        concluir('Abrimos o seu programa de email com a mensagem preparada. Basta enviar.');
+        return;
+      }
+
+      botao.disabled = true;
+      const rotulo = botao.innerHTML;
+      botao.textContent = 'A enviar…';
+      try {
+        const r = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados) });
+        if (!r.ok) throw new Error(String(r.status));
+        form.reset();
+        concluir();
+      } catch {
+        falha.innerHTML = '';
+        falha.append('Não foi possível enviar agora. Tente de novo ou escreva para ');
+        const a = document.createElement('a');
+        a.href = `mailto:${email}`; a.textContent = email;
+        falha.append(a, '.');
+      } finally {
+        botao.disabled = false;
+        botao.innerHTML = rotulo;
+      }
+    });
+  }
+</script>

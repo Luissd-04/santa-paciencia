@@ -1,0 +1,7 @@
+---
+import Icon from './Icon.astro';
+// Aviso de vidro sobre a app. Posição: g1, g2 ou g3 (ver hero.css). `pop` em vez de `rise` para o terceiro.
+interface Props { pos: 'g1' | 'g2' | 'g3'; atraso: number; titulo: string; texto: string; pop?: boolean }
+const { pos, atraso, titulo, texto, pop = false } = Astro.props;
+---
+<div class={`glass ${pos} ${pop ? 'a-pop' : 'a-rise'}`} style={`--d:${atraso}ms`}><span class="ok"><Icon nome="check" forte /></span><div>{titulo}<small>{texto}</small></div></div>

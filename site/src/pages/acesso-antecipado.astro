@@ -1,0 +1,30 @@
+---
+import Base from '../layouts/Base.astro';
+import Calcada from '../components/Calcada.astro';
+import AccessForm from '../components/AccessForm.astro';
+import { marca } from '../config/brand';
+
+const titulo = `Acesso antecipado | ${marca.nome}`;
+const descricao = 'Peça acesso antecipado ao software de gestão de alojamento local feito em Portugal. Configuração acompanhada e sem cartão de crédito.';
+const passos = [
+  ['Respondemos por email', 'Para conhecer o seu alojamento e marcar uma conversa rápida.'],
+  ['Configuramos consigo', 'Casas, preços e reservas que já tem. Numa tarde fica pronto.'],
+  ['Recebe a primeira reserva', 'Pelo seu site, com o sinal pago e o calendário em dia.'],
+];
+---
+<Base titulo={titulo} descricao={descricao}>
+  <section class="dark">
+    <Calcada fase={4.4} />
+    <div class="in ea">
+      <div>
+        <span class="kicker"><b>Vagas limitadas</b> A abrir por ordem de pedido</span>
+        <h1>Seja dos primeiros.</h1>
+        <p class="lede">Estamos a abrir aos poucos, para acompanhar cada alojamento de perto. Deixe os seus dados e nós tratamos do resto.</p>
+        <ol class="next3">
+          {passos.map(([b, s]) => <li><div><b>{b}</b><span>{s}</span></div></li>)}
+        </ol>
+      </div>
+      <AccessForm />
+    </div>
+  </section>
+</Base>

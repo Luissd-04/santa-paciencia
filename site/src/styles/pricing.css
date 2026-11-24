@@ -1,0 +1,26 @@
+/* Preços */
+.plans{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:-140px;position:relative;z-index:2}
+.plan{background:var(--branco);border:1px solid var(--linha);border-radius:26px;padding:32px 28px;display:flex;flex-direction:column;gap:14px;box-shadow:0 30px 60px -45px rgba(30,28,26,.5)}
+.plan.feat{outline:2px solid var(--barro);outline-offset:-2px}
+.plan h2{margin:0;font:800 26px var(--disp);letter-spacing:-.02em;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.plan .for{margin:0;color:var(--cinza);font-size:15.5px;min-height:48px}
+.price{display:flex;align-items:baseline;gap:6px}
+.price b{font:800 56px/1 var(--disp);letter-spacing:-.05em;font-variant-numeric:tabular-nums}
+.price span{color:var(--cinza)}
+.plan ul{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:10px;font-size:15.5px}
+.plan li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px}
+.plan li svg{width:18px;height:18px;color:var(--barro);margin-top:3px}
+.plan .lim{font-size:14px;color:var(--cinza);border-top:1px solid var(--linha);padding-top:14px}
+.plan .btn{margin-top:4px}
+.toggle{display:inline-flex;padding:5px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);margin-top:28px}
+.toggle button{font:600 14.5px var(--ui);color:var(--cinza-claro);background:transparent;border:0;border-radius:999px;padding:9px 18px;cursor:pointer}
+.toggle button[aria-pressed="true"]{background:#fff;color:var(--basalto)}
+.compare{width:100%;border-collapse:collapse;margin-top:40px;font-size:15.5px;background:var(--branco);border-radius:20px;overflow:hidden}
+.compare th,.compare td{padding:16px 20px;border-bottom:1px solid var(--linha);text-align:left}
+.compare thead th{font:700 16px var(--disp)}
+.compare td:not(:first-child),.compare th:not(:first-child){text-align:center}
+.compare svg{width:18px;height:18px;color:var(--barro)}
+.tw{overflow-x:auto;border-radius:20px;border:1px solid var(--linha)}
+.nofee{display:flex;flex-wrap:wrap;gap:12px 32px;justify-content:center;margin-top:36px;color:var(--cinza);font-size:15px}
+.nofee span{display:flex;gap:8px;align-items:center}.nofee svg{width:18px;height:18px;color:var(--barro)}
+.tw{position:relative}

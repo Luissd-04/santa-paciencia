@@ -1,0 +1,51 @@
+---
+// A calçada portuguesa em canvas: pedras irregulares em duas cores, com uma onda.
+// Decorativa (aria-hidden). Redesenha ao redimensionar. Sem JavaScript, o fundo escuro continua visível.
+interface Props {
+  /** Cor das pedras claras. */ claro?: string;
+  /** Cor das pedras escuras. */ escuro?: string;
+  /** Cor das juntas (fundo). */ junta?: string;
+  /** Fase da onda e do sorteio das pedras: dá a cada secção um desenho diferente. */ fase?: number;
+  /** Desvanece em cima em vez de em baixo (para a chamada final). */ topo?: boolean;
+}
+const { claro = '#F2EFEA', escuro = '#1E1C1A', junta = '#2B2825', fase = 0, topo = false } = Astro.props;
+---
+<canvas class={topo ? 'calcada top-edge' : 'calcada'} data-a={claro} data-b={escuro} data-j={junta} data-ph={fase} aria-hidden="true"></canvas>
+
+<script>
+  const aleatorio = (s: number) => { const x = Math.sin(s) * 10000; return x - Math.floor(x); };
+
+  function desenhar(cv: HTMLCanvasElement) {
+    const A = cv.dataset.a || '#F2EFEA', B = cv.dataset.b || '#1E1C1A', J = cv.dataset.j || '#2B2825';
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return;
+    cv.width = w * dpr; cv.height = h * dpr;
+    const c = cv.getContext('2d');
+    if (!c) return;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.fillStyle = J; c.fillRect(0, 0, w, h);
+    const s = w < 640 ? 11 : 13, folga = 2, faixa = w < 640 ? 36 : 46, amp = w < 640 ? 22 : 30;
+    const comp = Math.max(560, w / 1.6), ph = parseFloat(cv.dataset.ph || '0');
+    for (let y = -s; y < h + s; y += s) {
+      for (let x = -s; x < w + s; x += s) {
+        const i = x * 0.37 + y * 1.91 + ph * 7;
+        const cx = x + (aleatorio(i) - 0.5) * 3, cy = y + (aleatorio(i + 1) - 0.5) * 3;
+        const k = Math.floor((cy + Math.sin(cx / comp * Math.PI * 2 + ph) * amp + 400) / faixa) % 2;
+        c.fillStyle = k ? A : B;
+        const q = s - folga;
+        c.beginPath();
+        c.moveTo(cx + aleatorio(i + 2) * 2, cy + aleatorio(i + 3) * 2);
+        c.lineTo(cx + q - aleatorio(i + 4) * 2, cy + aleatorio(i + 5) * 2);
+        c.lineTo(cx + q - aleatorio(i + 6) * 2, cy + q - aleatorio(i + 7) * 2);
+        c.lineTo(cx + aleatorio(i + 8) * 2, cy + q - aleatorio(i + 9) * 2);
+        c.closePath(); c.fill();
+      }
+    }
+  }
+
+  const telas = [...document.querySelectorAll<HTMLCanvasElement>('canvas.calcada')];
+  const tudo = () => telas.forEach(desenhar);
+  tudo();
+  let t: number | undefined;
+  window.addEventListener('resize', () => { clearTimeout(t); t = window.setTimeout(tudo, 150); });
+</script>

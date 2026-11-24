@@ -1,0 +1,12 @@
+---
+import Icon from './Icon.astro';
+import { planos, comparacao } from '../config/brand';
+---
+<div class="tw"><table class="compare">
+  <thead><tr><th>O que inclui</th>{planos.map((p) => <th>{p.nome}</th>)}</tr></thead>
+  <tbody>
+    {comparacao.map(([linha, ...celulas]) => (
+      <tr><td>{linha}</td>{celulas.map((v) => <td>{v ? <><Icon nome="check" forte /><span class="sr-only">Incluído</span></> : <><span aria-hidden="true"> —</span><span class="sr-only">Não incluído</span></>}</td>)}</tr>
+    ))}
+  </tbody>
+</table></div>

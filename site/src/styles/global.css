@@ -1,0 +1,14 @@
+/* Folha de estilos global, transposta da maqueta «H · Calçada Basalto».
+   A ordem importa (cascata igual à da maqueta). */
+@import './tokens.css';
+@import './base.css';
+@import './header.css';
+@import './buttons.css';
+@import './hero.css';
+@import './sections.css';
+@import './footer.css';
+@import './feature.css';
+@import './pricing.css';
+@import './form.css';
+@import './motion.css';
+@import './responsive.css';

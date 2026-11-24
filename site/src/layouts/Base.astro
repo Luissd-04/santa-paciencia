@@ -1,0 +1,70 @@
+---
+import '@fontsource-variable/inter';
+import '@fontsource-variable/bricolage-grotesque/opsz.css';
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { marca } from '../config/brand';
+
+interface Props {
+  /** Título da página (já com o nome da marca no fim, quando faz sentido). */
+  titulo: string;
+  descricao: string;
+  /** Item do menu a assinalar como página atual. */
+  atual?: 'funcionalidades' | 'para-quem' | 'precos' | 'perguntas' | null;
+  /** Objetos JSON-LD específicos da página (cada um vira um <script>). */
+  jsonld?: object[];
+  /** Imagem de partilha (caminho absoluto no site, 1200×630). Opcional. */
+  imagem?: string;
+  /** Página que nunca deve ser indexada, mesmo com INDEXAR=true (ex.: 404). */
+  noindex?: boolean;
+  /** Alternativas de idioma: {'en': '/en/...'}. O EN vem depois; por agora só pt-PT e x-default. */
+  alternativas?: Record<string, string>;
+}
+const { titulo, descricao, atual = null, jsonld = [], imagem, noindex = false, alternativas = {} } = Astro.props;
+
+const caminho = Astro.url.pathname;
+const abs = (p: string) => marca.siteUrl + p;
+const canonico = abs(caminho);
+const robots = !marca.indexar || noindex ? 'noindex, nofollow' : 'index, follow, max-image-preview:large';
+const ld = (o: object) => JSON.stringify(o).replace(/</g, '\\u003c');
+
+const organizacao = { '@type': 'Organization', '@id': abs('/#organizacao'), name: marca.nome, url: abs('/'), logo: abs('/img/logo-192.png'), email: marca.email };
+const site = { '@type': 'WebSite', '@id': abs('/#site'), url: abs('/'), name: marca.nome, inLanguage: marca.locale, publisher: { '@id': abs('/#organizacao') } };
+---
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{titulo}</title>
+<meta name="description" content={descricao}>
+<meta name="robots" content={robots}>
+{!noindex && <link rel="canonical" href={canonico} />}
+{!noindex && <link rel="alternate" hreflang="pt-PT" href={canonico} />}
+{!noindex && Object.entries(alternativas).map(([lang, p]) => <link rel="alternate" hreflang={lang} href={abs(p)} />)}
+{!noindex && <link rel="alternate" hreflang="x-default" href={canonico} />}
+<meta name="theme-color" content={marca.corTema}>
+<link rel="icon" type="image/png" href="/img/logo-192.png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content={marca.nome}>
+<meta property="og:locale" content="pt_PT">
+<meta property="og:title" content={titulo}>
+<meta property="og:description" content={descricao}>
+<meta property="og:url" content={canonico}>
+{imagem && <meta property="og:image" content={abs(imagem)} />}
+{imagem && <meta property="og:image:width" content="1200" />}
+{imagem && <meta property="og:image:height" content="630" />}
+<meta name="twitter:card" content={imagem ? 'summary_large_image' : 'summary'}>
+<meta name="twitter:title" content={titulo}>
+<meta name="twitter:description" content={descricao}>
+<script type="application/ld+json" set:html={ld({ '@context': 'https://schema.org', '@graph': [organizacao, site] })} />
+{jsonld.map((o) => <script type="application/ld+json" set:html={ld(o)} />)}
+</head>
+<body>
+<Header atual={atual} />
+<main id="conteudo"><slot /></main>
+<Footer />
+</body>
+</html>

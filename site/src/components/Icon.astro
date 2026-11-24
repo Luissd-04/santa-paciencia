@@ -1,0 +1,29 @@
+---
+// Conjunto de ícones SVG inline da maqueta. As partes com classe `k-*` animam-se
+// quando o elemento pai (ladrilho, ligação) tem a classe `.hov` e recebe o rato ou o foco.
+const ICONES = {
+  cal: '<path d="M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><path d="M3 9.5h18M8 3v4M16 3v4"/><path class="k-bar" d="M7 15h6" stroke-width="3"/><path d="M21 17a4 4 0 0 0-4 4" opacity=".55"/>',
+  web: '<circle cx="12" cy="12" r="9"/><g class="k-globe"><path d="M3 12h18"/><path d="M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></g>',
+  pay: '<path d="M4 8h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z"/><path d="M2 12h20"/><g class="k-coin"><circle cx="16.5" cy="5" r="2.6"/></g><path d="M6 16.5h4"/>',
+  key: '<g class="k-key"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M18 12v3M21 12v2"/><path d="M8 10.2l1.8 1.8L8 13.8 6.2 12z" fill="currentColor" stroke="none"/></g>',
+  clean: '<path d="M4.5 10h12l-1.4 10H5.9z"/><path d="M7 10a3.5 3.5 0 0 1 7 0"/><path class="k-spark" d="M18 2.5v5M15.5 5h5"/>',
+  receipt: '<path d="M6 3h12v18l-2.2-1.4L13.6 21l-1.6-1.4L10.4 21l-2.2-1.4L6 21z"/><path d="M9 8h6M9 11.5h6"/><circle class="k-snap" cx="12" cy="15.5" r="1.3" fill="currentColor" stroke="none"/>',
+  mail: '<path d="M4 6h16a1 1 0 0 1 1 1v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a1 1 0 0 1 1-1z"/><path class="k-flap" d="M3.5 7l8.5 6 8.5-6"/>',
+  chart: '<path d="M3 20h18"/><path class="k-b1" d="M6.5 20v-6"/><path class="k-b2" d="M12 20V9"/><path class="k-b3" d="M17.5 20V5"/><path d="M3 8a4 4 0 0 0 4-4" opacity=".55"/>',
+  guest: '<circle cx="10" cy="8" r="3.5"/><path d="M3.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/><g class="k-wave"><path d="M19 12V7.5"/><path d="M19 7.5l1.6-1.6"/></g>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h10"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+  shield: '<path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+  book: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h13"/>',
+  phone: '<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
+} as const;
+
+export type NomeIcone = keyof typeof ICONES;
+interface Props { nome: NomeIcone; class?: string; /** Traço mais grosso, para o visto dentro de círculos. */ forte?: boolean }
+const { nome, class: cls, forte = false } = Astro.props;
+---
+<svg class={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width={forte ? 2.6 : 1.75} stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={ICONES[nome]} />

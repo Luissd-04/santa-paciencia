@@ -1,0 +1,14 @@
+---
+import Icon from './Icon.astro';
+// Perguntas frequentes com <details>. Com `esquema`, acrescenta o JSON-LD FAQPage.
+interface Props { itens: [string, string][]; esquema?: boolean }
+const { itens, esquema = false } = Astro.props;
+const ld = esquema ? JSON.stringify({
+  '@context': 'https://schema.org', '@type': 'FAQPage',
+  mainEntity: itens.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
+}).replace(/</g, '\\u003c') : '';
+---
+<div class="faq">
+  {itens.map(([q, a]) => <details><summary>{q}<i><Icon nome="plus" /></i></summary><p>{a}</p></details>)}
+</div>
+{esquema && <script type="application/ld+json" set:html={ld} />}

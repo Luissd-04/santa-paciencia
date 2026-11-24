@@ -1,0 +1,13 @@
+---
+import Icon from './Icon.astro';
+// O telemóvel com a lista «Hoje» (ou outro título), com dados de exemplo.
+export interface Item { hora: string; titulo: string; texto: string; feito?: boolean; destaque?: boolean }
+interface Props { titulo?: string; sub?: string; itens: Item[]; /** Sem «sticky»: para usar dentro de colunas que não rolam. */ plano?: boolean }
+const { titulo = 'Hoje', sub = '', itens, plano = false } = Astro.props;
+---
+<div class="phone" aria-hidden="true" style={plano ? 'position:relative;top:0' : undefined}><div class="phone-in">
+  <div class="ph"><b>{titulo}</b><span>{sub}</span></div>
+  {itens.map((i) => (
+    <div class={i.destaque ? 'it hl' : 'it'}><time>{i.hora}</time><div><b>{i.titulo}</b><small>{i.texto}</small></div>{(i.feito ?? true) ? <span class="d"><Icon nome="check" forte /></span> : <span class="d o"></span>}</div>
+  ))}
+</div></div>

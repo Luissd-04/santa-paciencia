@@ -1,0 +1,17 @@
+---
+import Icon from './Icon.astro';
+import { planos } from '../config/brand';
+// Os três planos (valores em src/config/brand.ts, marcados POR CONFIRMAR).
+---
+<div class="plans">
+  {planos.map((p) => (
+    <article class={p.destaque ? 'plan feat' : 'plan'}>
+      <h2>{p.nome}{p.destaque && <span class="pill">O mais escolhido</span>}</h2>
+      <p class="for">{p.para}</p>
+      <div class="price"><b data-m={`${p.mensal} €`} data-y={`${p.anual} €`}>{p.mensal} €</b><span class="per">/mês</span></div>
+      <a class={`btn ${p.destaque ? 'p' : 's'}`} href="/acesso-antecipado/">Experimentar o {p.nome}</a>
+      <ul>{p.inclui.map((x) => <li><Icon nome="check" forte /><span>{x}</span></li>)}</ul>
+      <div class="lim">{p.limites}</div>
+    </article>
+  ))}
+</div>

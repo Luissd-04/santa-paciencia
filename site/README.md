@@ -1,88 +1,99 @@
 # Site público da Santa Paciência
 
-Site de apresentação da plataforma: 24 páginas indexáveis e uma página 404, em HTML,
-CSS e JavaScript estáticos. Não depende da aplicação nem de bibliotecas externas e
-pode ser alojado em qualquer serviço de ficheiros estáticos.
+Site de apresentação da plataforma, feito em [Astro](https://astro.build) com saída
+estática (`site/dist`). Não depende da aplicação e pode ser alojado em qualquer serviço
+de ficheiros estáticos. O aspeto segue a direção «H · Calçada Basalto» (maquetas aprovadas).
+
+Fase atual: início, funcionalidade «Pagamentos online» (modelo das restantes), preços,
+acesso antecipado e 404. As outras páginas do `docs/SITE-MAPA-SEO.md` estão por criar.
 
 ## Usar
 
 ```bash
-node site/build.cjs     # constrói em site/dist
-node site/serve.cjs     # constrói e serve em http://localhost:4173
-node site/check.cjs     # constrói e verifica (SEO, ligações, JSON-LD, sitemap)
-node site/og.cjs        # volta a gerar as imagens de partilha (precisa do Playwright)
+cd site
+npm ci              # instala as dependências (versões fixas)
+npm run dev         # servidor de desenvolvimento em http://localhost:4321
+npm run build       # constrói em site/dist
+npm run preview     # serve o resultado do build
+npm run check       # verifica site/dist (corre depois do build)
 ```
 
-O domínio usado em `canonical`, Open Graph, `sitemap.xml` e `robots.txt` vem de
-`SITE_URL`:
+Variáveis de ambiente (todas opcionais):
+
+| Variável | Para quê | Por omissão |
+|---|---|---|
+| `SITE_URL` | Domínio de `canonical`, Open Graph, `sitemap.xml` e `robots.txt` | `https://santapaciencia.xyz` |
+| `INDEXAR` | `true` liga a indexação (sem `noindex`, `robots.txt` aberto) | desligada |
+| `CONTACT_ENDPOINT` | Endereço que recebe o formulário de acesso antecipado por POST | vazio (abre o email) |
+| `CONTACT_EMAIL` | Email de contacto | `ola@santapaciencia.xyz` |
+| `APP_URL` | Endereço da aplicação (acrescenta «Entrar» ao menu) | vazio |
 
 ```bash
-SITE_URL=https://www.exemplo.pt node site/build.cjs
+INDEXAR=true SITE_URL=https://dominio-final.pt npm run build && INDEXAR=true SITE_URL=https://dominio-final.pt npm run check
 ```
+
+O `check` deve correr com as mesmas variáveis do `build`.
 
 ## Onde mudar o quê
 
 | O quê | Onde |
 |---|---|
-| Domínio, email, preços e pacotes | `src/config.cjs` |
-| Cabeçalho, rodapé, `<head>`, dados estruturados | `src/layout.cjs` |
-| Página inicial | `src/content/home.cjs` |
-| Funcionalidades (8 páginas + índice) | `src/content/features.cjs` |
-| Para quem, preços, sobre, contacto, perguntas, legais, 404 | `src/content/pages.cjs` |
-| Guias | `src/content/guides.cjs` |
-| Cores, tipografia, espaçamento e animações (tokens em `:root`) | `src/assets/site.css` |
-| Menu e formulário | `src/assets/site.js` |
+| Nome da marca, domínio, email, `INDEXAR`, endpoint, planos e preços | `src/config/brand.ts` |
+| Cores, tipografia e espaçamento (tokens em `:root`) | `src/styles/tokens.css` |
+| Restante CSS (por secção) | `src/styles/*.css`, reunidos em `global.css` |
+| `<head>`, canonical, Open Graph, `noindex`, `hreflang`, JSON-LD comum | `src/layouts/Base.astro` |
+| Modelo de página de funcionalidade | `src/layouts/Feature.astro` |
+| Cabeçalho, rodapé, calçada, ícones, FAQ, planos, formulário… | `src/components/` |
+| Páginas | `src/pages/` (uma por endereço) |
+| `sitemap.xml` e `robots.txt` | `src/pages/sitemap.xml.ts`, `src/pages/robots.txt.ts` |
+| Imagens e ícones | `public/img/` |
+| Verificação pós-build | `scripts/check.mjs` |
 
-Uma página nova é um objeto `{ path, title, description, crumbs, body }` num destes
-ficheiros; entra sozinha no sitemap e é verificada por `check.cjs`.
+Uma página nova é um ficheiro em `src/pages/` (entra sozinha no sitemap). Uma página de
+funcionalidade nova usa o layout `Feature.astro` e passa o texto como propriedades (ver
+`src/pages/funcionalidades/pagamentos-online.astro`). Quando uma página que estava por criar
+passa a existir, remover o seu prefixo do array `PENDENTES` em `scripts/check.mjs`.
+
+## Verificação (`npm run check`)
+
+Por página: `title` único (aviso acima de 65 caracteres), `description` única (70–160),
+um só `h1`, `canonical` absoluto, `noindex` coerente com `INDEXAR`, JSON-LD válido, imagens
+com `alt`. No conjunto: ligações internas (e âncoras) sem 404, `robots.txt` e `sitemap.xml`
+coerentes. Sai com código ≠ 0 se algo falhar.
 
 ## Antes de publicar
 
-A indexação está **desligada por omissão** (`noindex` em todas as páginas e
-`robots.txt` a bloquear tudo), como decidido em `docs/SITE-MAPA-SEO.md`, enquanto a
-marca e o domínio forem provisórios. No domínio definitivo:
+A indexação está **desligada por omissão** (`noindex` em todas as páginas e `robots.txt`
+a bloquear tudo), como decidido em `docs/SITE-MAPA-SEO.md`, enquanto a marca e o domínio
+forem provisórios. No domínio definitivo, construir com `INDEXAR=true` e `SITE_URL=…`.
 
-```bash
-INDEXAR=true SITE_URL=https://dominio-final.pt node site/build.cjs
-```
-
-Estão marcados `POR CONFIRMAR` em `src/config.cjs`:
+Estão marcados `POR CONFIRMAR` em `src/config/brand.ts`:
 
 - **Domínio** (`siteUrl`) e **email** de contacto;
-- **Preços** dos pacotes (valores de referência; nomes e limites vêm de
-  `backend/src/config/migrations-platform/plans.js`);
+- **Preços** dos planos (19/49/99 € por mês; 15/39/79 € no plano anual) e o «2 meses grátis»;
+  o mapa SEO diz que os preços não são publicados nesta fase: decidir antes de ligar a indexação;
 - **Formulário**: sem `CONTACT_ENDPOINT`, abre o programa de email do visitante. Com
   `CONTACT_ENDPOINT=https://…`, envia um POST em JSON (`nome`, `email`, `telefone`,
-  `alojamentos`, `mensagem`) para esse endereço, que deve validar no servidor e ter
-  proteção contra abuso;
-- **Privacidade e Termos**: textos provisórios, com um aviso visível; falta a
-  identificação da entidade e revisão jurídica;
-- **Promessas no texto** a confirmar: resposta em um dia útil, conta de experiência,
-  apoio prioritário no Premium.
+  `alojamentos`, `canais`, `mensagem`), que o servidor deve validar e proteger contra abuso;
+- **Promessas no texto** a confirmar: sem comissões, ajuda prioritária no Premium, «Livro de
+  Reclamações» na página de reservas (ver a secção 6 do `docs/SITE-MAPA-SEO.md`).
 
 ## Alojamento
 
-`dist/` inclui `_redirects` e `_headers` no formato de Netlify e Cloudflare Pages
-(301 das variantes de URL, cache de um ano em `/assets/`, cabeçalhos de segurança e
-CSP). Noutro servidor, as mesmas regras passam para a sua configuração. O servidor
-tem de responder com 404 verdadeiro a partir de `404.html`, redirecionar para o URL
-com barra final e comprimir texto (gzip ou brotli).
+O resultado é só ficheiros estáticos. O servidor tem de responder com 404 verdadeiro a
+partir de `404.html`, usar sempre o endereço com barra final (`trailingSlash: 'always'`) e
+comprimir texto (gzip ou brotli). As fontes (Inter e Bricolage Grotesque) vão dentro de
+`dist/_astro/`, sem pedidos a terceiros; os ficheiros com hash podem ter cache longa.
 
-Se o site ficar no mesmo domínio da aplicação, as páginas da aplicação, de reserva e
-de estado devem ter `noindex`; hoje o site parte do princípio de que fica num domínio
-ou subdomínio próprio.
-
-Depois de publicar: registar o domínio na Google Search Console, submeter
-`/sitemap.xml` e pedir a indexação da página inicial.
+Depois de publicar: registar o domínio na Google Search Console, submeter `/sitemap.xml` e
+pedir a indexação da página inicial.
 
 ## Decisões
 
-- **Sem FAQPage nos dados estruturados**: a Google deixou de mostrar resultados
-  enriquecidos de FAQ em 2026. As perguntas estão visíveis no HTML.
-- **Dados estruturados**: `Organization`, `WebSite`, `WebPage`/`Article`,
-  `BreadcrumbList` e `SoftwareApplication` (início e preços).
-- **Animações só em CSS** (`animation-timeline`, View Transitions), com
-  `prefers-reduced-motion` respeitado; sem suporte, o conteúdo está simplesmente visível.
-- **Ecrãs do produto ilustrados em HTML**, com dados de exemplo assinalados, em vez de
-  capturas: são leves, nítidos e não expõem dados reais.
-- **Fontes alojadas localmente** (Playfair Display e DM Sans, licença SIL OFL).
+- **Astro sem frameworks de UI nem Tailwind**: o CSS é o da maqueta, em ficheiros por secção.
+  O JavaScript limita-se a pequenos scripts (menu, alternador de preços, formulário, calçada).
+- **Conteúdo visível sem JavaScript**: as animações só acrescentam; a calçada é decorativa.
+- **Animações em CSS** com `prefers-reduced-motion` respeitado; transições entre páginas
+  com `@view-transition`.
+- **Ecrãs do produto ilustrados em HTML**, com dados de exemplo, em vez de capturas.
+- **Fontes alojadas localmente** (`@fontsource-variable`, licença SIL OFL).

@@ -1,0 +1,14 @@
+---
+// Alternador mensal/anual. Atualiza os preços de PlanCards (elementos com data-m / data-y).
+---
+<div class="toggle" role="group" aria-label="Período de pagamento"><button type="button" aria-pressed="true" data-y="0">Mensal</button><button type="button" aria-pressed="false" data-y="1">Anual · 2 meses grátis</button></div>
+
+<script>
+  const botoes = [...document.querySelectorAll<HTMLButtonElement>('.toggle button')];
+  botoes.forEach((btn) => btn.addEventListener('click', () => {
+    botoes.forEach((o) => o.setAttribute('aria-pressed', String(o === btn)));
+    const anual = btn.dataset.y === '1';
+    document.querySelectorAll<HTMLElement>('[data-m]').forEach((el) => { el.textContent = (anual ? el.dataset.y : el.dataset.m) ?? ''; });
+    document.querySelectorAll<HTMLElement>('.per').forEach((el) => { el.textContent = anual ? '/mês, pago ao ano' : '/mês'; });
+  }));
+</script>

@@ -110,5 +110,6 @@ no mesmo pull request que alterar arquitetura, operação, segurança ou priorid
 
 ## Site público
 
-O site de apresentação da plataforma vive em [`site/`](site/README.md): é estático,
-constrói-se com `node site/build.cjs` e verifica-se com `node site/check.cjs`.
+O site de apresentação da plataforma vive em [`site/`](site/README.md): é feito em Astro
+(saída estática), constrói-se com `cd site && npm ci && npm run build` e verifica-se com
+`npm run check`.

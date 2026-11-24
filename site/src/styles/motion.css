@@ -1,0 +1,7 @@
+/* Momento animado do topo */
+@keyframes grow{from{transform:scaleX(0);opacity:0}to{transform:none;opacity:1}}
+@keyframes rise{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
+@keyframes pop{from{transform:scale(.94);opacity:0}to{transform:none;opacity:1}}
+.play .a-grow{animation:grow .55s var(--ease) both;animation-delay:var(--d,0ms);transform-origin:left center}
+.play .a-rise{animation:rise .5s var(--ease) both;animation-delay:var(--d,0ms)}
+.play .a-pop{animation:pop .34s var(--ease) both;animation-delay:var(--d,0ms)}

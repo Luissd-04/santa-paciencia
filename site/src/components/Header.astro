@@ -1,0 +1,44 @@
+---
+import Icon from './Icon.astro';
+import Logo from './Logo.astro';
+import { marca } from '../config/brand';
+interface Props { atual?: 'funcionalidades' | 'para-quem' | 'precos' | 'perguntas' | null }
+const { atual = null } = Astro.props;
+const ligacoes = [
+  ['/#funcionalidades', 'Funcionalidades', 'funcionalidades'],
+  ['/#para-quem', 'Para quem', 'para-quem'],
+  ['/precos/', 'Preços', 'precos'],
+  ['/#perguntas', 'Perguntas', 'perguntas'],
+] as const;
+---
+<a class="skip" href="#conteudo">Saltar para o conteúdo</a>
+<header class="top" data-cabecalho><div class="in">
+  <Logo />
+  <nav class="menu" id="menu-principal" aria-label="Principal">
+    {ligacoes.map(([href, rotulo, chave]) => <a href={href} aria-current={atual === chave ? 'page' : undefined}>{rotulo}</a>)}
+    {marca.appUrl && <a href={marca.appUrl} rel="nofollow">Entrar</a>}
+  </nav>
+  <div class="top-act">
+    <a class="gicon" href="/#perguntas" aria-label="Pesquisar nas perguntas"><Icon nome="search" /></a>
+    <button class="gicon only-m" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu-principal" data-menu><Icon nome="menu" /></button>
+    <a class="btn p sm" href="/acesso-antecipado/">Experimentar</a>
+  </div>
+</div></header>
+
+<script>
+  // Menu móvel: abre e fecha com aria-expanded; fecha com Escape ou ao escolher um destino.
+  const cab = document.querySelector<HTMLElement>('[data-cabecalho]');
+  const botao = document.querySelector<HTMLButtonElement>('[data-menu]');
+  if (cab && botao) {
+    const definir = (aberto: boolean) => {
+      cab.classList.toggle('open', aberto);
+      botao.setAttribute('aria-expanded', String(aberto));
+      botao.setAttribute('aria-label', aberto ? 'Fechar menu' : 'Abrir menu');
+    };
+    botao.addEventListener('click', () => definir(!cab.classList.contains('open')));
+    cab.querySelectorAll('.menu a').forEach((a) => a.addEventListener('click', () => definir(false)));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && cab.classList.contains('open')) { definir(false); botao.focus(); }
+    });
+  }
+</script>
