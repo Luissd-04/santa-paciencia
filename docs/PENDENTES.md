@@ -20,7 +20,18 @@ _(lista nova)_
 - Testar em telemóvel real (iPhone/Safari): reserva no site da cliente, barra do total, deslizar no calendário, portal do hóspede.
 - Testar com serviços reais: pesquisa da morada, email «A sua reserva», PDFs no telemóvel.
 
+## Antes de publicar o site de apresentação (`site/`, Astro)
+
+- Nome e domínio definitivos (`site/src/config/brand.ts`); só então `INDEXAR=true` e submeter o sitemap.
+- Preços: 19/49/99 € e anual 15/39/79 € são provisórios; o plano de SEO dizia para não publicar preços nesta fase.
+- `CONTACT_ENDPOINT` para os pedidos de acesso antecipado entrarem na consola (sem ele, abre o email do visitante).
+- Privacidade e termos: textos provisórios, falta revisão jurídica.
+- Ler os textos escritos pelos agentes: «Sobre», respostas das perguntas novas, guias em inglês.
+- Revisão final: acessibilidade, Lighthouse e revisão das animações.
+
 ## Sugestões (por decidir)
+
+- **Sincronizar calendários com o Airbnb e o Booking.com (iCal):** os endereços já se guardam no alojamento, mas nada os importa nem exporta. É das primeiras perguntas de quem experimenta, e o site diz honestamente que ainda não existe.
 
 - Canal «Site do cliente» separado de «Site», para medir quantas reservas a integração traz.
 - Auditoria de acessibilidade (WCAG AA) das páginas novas: portal, área do proprietário, página incorporada.
