@@ -5,6 +5,7 @@
 //   - title único (≤ 65 caracteres; acima disso só avisa) e description única (70–160)
 //   - um só <h1>, canonical absoluto, imagens com alt
 //   - ligações internas sem 404 (e âncoras #id que existam na página de destino)
+//   - og:image aponta para um ficheiro existente em dist
 //   - JSON-LD válido (JSON.parse)
 //   - noindex coerente com INDEXAR; robots.txt e sitemap.xml coerentes
 import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
@@ -99,6 +100,12 @@ for (const [url, html] of paginas) {
   else if (!INDEXAR && !noindex) falha(pg, 'INDEXAR=false mas a página não tem noindex');
   else if (INDEXAR && !e404 && noindex) falha(pg, 'INDEXAR=true mas a página tem noindex');
   else if (INDEXAR && e404 && !noindex) falha(pg, 'a 404 deve ter noindex');
+
+  // imagem de partilha: og:image existe em dist
+  const og = html.match(/<meta\s+property="og:image"\s+content="([^"]*)"/);
+  if (!og) falha(pg, 'sem og:image');
+  else if (!og[1].startsWith(SITE_URL + '/')) falha(pg, `og:image «${og[1]}» não começa por ${SITE_URL}/`);
+  else if (!existe(og[1].slice(SITE_URL.length))) falha(pg, `og:image aponta para ficheiro inexistente: ${og[1]}`);
 
   // imagens com alt
   for (const img of html.match(/<img\b[^>]*>/g) || []) {

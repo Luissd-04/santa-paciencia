@@ -17,6 +17,7 @@ npm run dev         # servidor de desenvolvimento em http://localhost:4321
 npm run build       # constrói em site/dist
 npm run preview     # serve o resultado do build
 npm run check       # verifica site/dist (corre depois do build)
+npm run og          # regenera as imagens de partilha em public/og/ (ver abaixo)
 ```
 
 Variáveis de ambiente (todas opcionais):
@@ -57,11 +58,26 @@ O `check` deve correr com as mesmas variáveis do `build`.
 | `sitemap.xml` e `robots.txt` | `src/pages/sitemap.xml.ts`, `src/pages/robots.txt.ts` |
 | Imagens e ícones | `public/img/` |
 | Verificação pós-build | `scripts/check.mjs` |
+| Imagens de partilha (geradas) | `scripts/og.mjs` → `public/og/` |
 
 Uma página nova é um ficheiro em `src/pages/` (entra sozinha no sitemap; os guias entram pela coleção). Uma página de
 funcionalidade nova usa o layout `Feature.astro` e passa o texto como propriedades (ver
 `src/pages/funcionalidades/pagamentos-online.astro`). Quando uma página que estava por criar
 passa a existir, remover o seu prefixo do array `PENDENTES` em `scripts/check.mjs`.
+
+## Imagens de partilha (`npm run og`)
+
+Cada página tem uma imagem Open Graph / Twitter de 1200×630 (JPEG, qualidade 80) em
+`public/og/<caminho-com-hífens>.jpg` (o início é `inicio.jpg`; `/guias/x/` dá `guias-x.jpg`). O `Base.astro`
+liga-a sozinho (`og:image`, largura, altura, `og:image:alt` = H1, `twitter:card=summary_large_image`) e, se a
+imagem da página não existir, usa `inicio.jpg`. O `npm run check` confirma que cada `og:image` existe no `dist`.
+
+`npm run og` faz o build, lê o H1 e o caminho de cada página do `dist`, desenha-os (fundo basalto, calçada,
+logótipo, rótulo da secção e H1 em Bricolage Grotesque) e tira a captura com Playwright. Corra-o sempre que mudar
+um H1, uma página ou o nome da marca, depois `npm run build` (as imagens são commitadas). O Playwright não é
+dependência do projeto: tem de estar instalado (`npm i -g playwright`). Se o import falhar, defina o caminho:
+`PLAYWRIGHT_PATH=$(npm root -g)/playwright npm run og`. Com o `dist` já feito: `node scripts/og.mjs --sem-build`.
+O rótulo de cada secção está em `ROTULOS` no `scripts/og.mjs`.
 
 ## Verificação (`npm run check`)
 
