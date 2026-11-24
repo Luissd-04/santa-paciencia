@@ -75,6 +75,9 @@
 .report-chart-wrap { margin-bottom: 14px; }
 /* Antes do gráfico desenhar (ou sem a biblioteca), o canvas tem 300 px fixos. */
 .report-chart-wrap canvas { max-width: 100%; }
+/* Gráficos redondos (css/anel.css): cores do tema, clássico e V2 (vidro incluído). */
+.report-chart-wrap { --anel-ink: var(--texto); --anel-soft: var(--cinza); --anel-painel: var(--cinza-claro); }
+html[data-look] .report-chart-wrap { --anel-ink: var(--v2-ink); --anel-soft: var(--v2-muted); --anel-painel: var(--v2-surface-2); --anel-raio: var(--v2-radius-sm); }
 .report-loading {
   display: flex;
   align-items: center;

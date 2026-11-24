@@ -131,6 +131,9 @@ a.v2-chip:hover { background: var(--v2-accent-soft); }
 .pl-chart-card .v2-card-h { align-items: baseline; flex-wrap: wrap; }
 .pl-chart { position: relative; width: 100%; height: var(--h, 220px); min-width: 0; }
 .pl-chart canvas { max-width: 100%; }
+/* Gráficos redondos (css/anel.css): altura pelo conteúdo e cores do aspeto. */
+.pl-chart.pl-anel { height: auto; }
+.pl-chart-card { --anel-ink: var(--v2-ink); --anel-soft: var(--v2-muted); --anel-painel: var(--v2-surface-2); --anel-raio: var(--v2-radius-sm); }
 .pl-chart-empty { display: grid; min-height: 120px; place-items: center; text-align: center; }
 .pl-chart-empty .v2-empty { justify-content: center; }
 .pl-feed { align-items: flex-start; }

@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v42';
-const CACHE_VERSION = 119;
+const CACHE_VERSION = 120;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -24,6 +24,7 @@ const STATIC_ASSETS = [
   '/css/styles/calendario.css',
   '/css/styles/complementos.css',
   '/css/styles/relatorios.css',
+  '/css/anel.css',
   '/css/styles/definicoes.css',
   '/css/styles/formularios.css',
   '/css/styles/proprietario.css',
@@ -97,6 +98,7 @@ const STATIC_ASSETS = [
   '/js/domain/pricing.js',
   '/js/domain/date-picker.js',
   '/js/domain/swipe.js',
+  '/js/domain/anel.js',
   '/js/domain/table-cols.js',
   '/js/domain/export-columns.js',
   '/js/domain/view-prefs.js',

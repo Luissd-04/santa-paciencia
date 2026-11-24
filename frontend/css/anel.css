@@ -1,0 +1,16 @@
+/* Gráficos redondos (js/domain/anel.js): painel neutro, total no centro e legenda
+   em lista. Só usa os tokens --anel-*, definidos por quem usa (relatorios.css e
+   v2/plataforma.css) a partir das variáveis do tema. */
+.anel { display: grid; gap: 14px; min-width: 0; color: var(--anel-ink, inherit); }
+.anel-painel { display: grid; place-items: center; padding: 18px; border-radius: var(--anel-raio, 14px); background: var(--anel-painel, rgba(127, 127, 127, .1)); }
+.anel-grafico { position: relative; width: min(210px, 100%); aspect-ratio: 1; container-type: inline-size; }
+.anel-grafico canvas { max-width: 100%; }
+.anel-centro { position: absolute; inset: 0; display: grid; place-content: center; padding: 0 14%; text-align: center; pointer-events: none; }
+.anel-centro b { font-size: 22px; font-size: clamp(14px, 10.5cqw, 26px); font-weight: 700; letter-spacing: -.02em; line-height: 1.15; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.anel-centro span { font-size: 13px; color: var(--anel-soft, inherit); opacity: var(--anel-soft-op, 1); }
+.anel-legenda { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.anel-legenda li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 14px; }
+.anel-ponto { width: 11px; height: 11px; border-radius: 50%; }
+.anel-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.anel-nome em { margin-left: 4px; font-size: 13px; font-style: normal; color: var(--anel-soft, inherit); }
+.anel-legenda b { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }

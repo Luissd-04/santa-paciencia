@@ -218,28 +218,11 @@ function _renderRevenueChart(series, granularity = 'month') {
 }
 
 function _renderChannelChart(channels) {
-  const canvas = document.getElementById('chart-channel');
-  if (!canvas || typeof Chart === 'undefined') return;
-  if (_chartChannel) { _chartChannel.destroy(); _chartChannel = null; }
-  if (!channels.length) { canvas.parentElement.innerHTML += '<div class="report-empty">Sem dados de canais.</div>'; return; }
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const textColor = isDark ? '#aaa' : '#8a8278';
-  const ids = channels.map(c => c.channel || 'outro');
-  const labels = ids.map(AppModules.core.channelLabel);
-  const values = channels.map(c => c.revenue || 0);
-  const colors = ids.map(c => CHANNEL_COLORS[c] || CHANNEL_COLORS.outro);
-  _chartChannel = new Chart(canvas, {
-    type: 'doughnut',
-    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2,
-      borderColor: isDark ? '#1e1e1e' : '#fff', hoverOffset: 6 }] },
-    options: {
-      responsive: true, maintainAspectRatio: false, cutout: '62%',
-      plugins: {
-        legend: { position: 'bottom', labels: { color: textColor, font: { size: 11 }, padding: 12, boxWidth: 12 } },
-        tooltip: { callbacks: { label: ctx => ` ${ReservationMoney.format(ctx.raw)} · ${ctx.label}` } }
-      }
-    }
-  });
+  _chartChannel = _renderRing('chart-channel', _chartChannel, channels, 'Sem dados de canais.', c => {
+    const id = c.channel || 'outro';
+    return { label: AppModules.core.channelLabel(id), value: c.revenue || 0, color: CHANNEL_COLORS[id] || CHANNEL_COLORS.outro };
+  }, 'Receita por Canal');
+  _lastRings.channel = () => _renderChannelChart(channels);
 }
 
 function _renderAccomChart(accoms) {
@@ -418,31 +401,31 @@ function _renderDespMonthlyChart(series, granularity = 'month') {
 }
 
 function _renderDespCategoryChart(byCategory) {
-  const canvas = document.getElementById('chart-desp-category');
-  if (!canvas || typeof Chart === 'undefined') return;
-  if (_chartDespCategory) { _chartDespCategory.destroy(); _chartDespCategory = null; }
-  if (!byCategory.length) {
-    canvas.parentElement.innerHTML += '<div class="report-empty">Sem despesas registadas.</div>';
-    return;
-  }
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const textColor = isDark ? '#aaa' : '#8a8278';
-  const labels = byCategory.map(c => CAT_LABELS[c.category] || c.category);
-  const values = byCategory.map(c => c.total);
-  const colors = byCategory.map(c => CAT_COLORS[c.category] || CAT_COLORS.outro);
-  _chartDespCategory = new Chart(canvas, {
-    type: 'doughnut',
-    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2,
-      borderColor: isDark ? '#1e1e1e' : '#fff', hoverOffset: 6 }] },
-    options: {
-      responsive: true, maintainAspectRatio: false, cutout: '62%',
-      plugins: {
-        legend: { position: 'bottom', labels: { color: textColor, font: { size: 11 }, padding: 12, boxWidth: 12 } },
-        tooltip: { callbacks: { label: ctx => ` ${ReservationMoney.format(ctx.raw)} · ${ctx.label}` } }
-      }
-    }
+  _chartDespCategory = _renderRing('chart-desp-category', _chartDespCategory, byCategory, 'Sem despesas registadas.', c => ({
+    label: CAT_LABELS[c.category] || c.category, value: c.total, color: CAT_COLORS[c.category] || CAT_COLORS.outro,
+  }), 'Despesas por Categoria');
+  _lastRings.category = () => _renderDespCategoryChart(byCategory);
+}
+
+// Anel com total no centro e legenda em lista (js/domain/anel.js).
+// Sem dados, a mesma mensagem de estado vazio de sempre.
+function _renderRing(hostId, previous, items, emptyText, pick, title) {
+  const host = document.getElementById(hostId);
+  if (!host || typeof Chart === 'undefined') return previous;
+  if (previous) previous.destroy();
+  if (!items.length) { host.innerHTML = `<div class="report-empty">${emptyText}</div>`; return null; }
+  const rows = items.map(pick);
+  const format = ReservationMoney.format;
+  return DonutRing.mount(host, {
+    labels: rows.map(r => r.label), values: rows.map(r => r.value), colors: rows.map(r => r.color), format,
+    tooltip: ctx => ` ${format(ctx.raw)} · ${ctx.label}`,
+    ariaLabel: `${title}: ${rows.map(r => `${r.label} ${format(r.value)}`).join(', ')}`,
   });
 }
+
+// Os anéis seguem o aspeto (clássico/vidro, claro/escuro): redesenham-se quando muda.
+const _lastRings = {};
+DonutRing.onThemeChange(() => Object.values(_lastRings).forEach(redraw => redraw()));
 
 function _renderDespTable(series, granularity = 'month') {
   const tbody = document.getElementById('desp-table-body');

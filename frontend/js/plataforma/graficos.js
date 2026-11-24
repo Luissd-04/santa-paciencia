@@ -75,20 +75,6 @@ function lineConfig(spec, t) {
   };
 }
 
-function donutConfig(spec, t) {
-  return {
-    type: 'doughnut',
-    data: { labels: spec.labels, datasets: [{ data: spec.datasets[0].data, backgroundColor: spec.labels.map((_, i) => t.palette[i % t.palette.length]), borderWidth: 0, spacing: 2 }] },
-    options: {
-      ...baseOptions(t), cutout: '62%',
-      plugins: {
-        legend: { display: true, position: 'bottom', labels: { color: t.ink, boxWidth: 10, boxHeight: 10, padding: 12, usePointStyle: true, font: { family: t.font, size: 12 } } },
-        tooltip: { callbacks: { label: item => ` ${item.label}: ${fmt.num(item.parsed)}` } },
-      },
-    },
-  };
-}
-
 function hbarConfig(spec, t) {
   return {
     type: 'bar',
@@ -104,7 +90,6 @@ function hbarConfig(spec, t) {
 }
 
 function configFor(spec, t) {
-  if (spec.kind === 'donut') return donutConfig(spec, t);
   if (spec.kind === 'hbar') return hbarConfig(spec, t);
   return lineConfig(spec, t);
 }
@@ -113,12 +98,24 @@ function build(entry) {
   entry.chart?.destroy();
   entry.chart = null;
   if (!entry.canvas.isConnected) { live.delete(entry); return; }
+  if (entry.spec.kind === 'donut') { entry.chart = mountDonut(entry.canvas, entry.spec, theme()); return; }
   entry.chart = new window.Chart(entry.canvas, configFor(entry.spec, theme()));
+}
+
+// Anel com total no centro e legenda em lista (js/domain/anel.js); `host` é o
+// contentor .pl-chart, que guarda o resumo em aria-label.
+function mountDonut(host, spec, t) {
+  return DonutRing.mount(host, {
+    labels: spec.labels, values: spec.datasets[0].data.map(v => Number(v) || 0),
+    colors: spec.labels.map((_, i) => t.palette[i % t.palette.length]),
+    format: fmt.num, font: t.font, animation: false,
+    tooltip: item => ` ${item.label}: ${fmt.num(item.parsed)}`,
+  });
 }
 
 async function draw(canvas, spec) {
   if (!(await AppModules.core.ensureLibrary('chart')) || !canvas.isConnected) {
-    if (canvas.isConnected) canvas.closest('.pl-chart')?.replaceChildren(Object.assign(document.createElement('p'), { className: 'v2-empty', textContent: 'Não foi possível carregar o gráfico.' }));
+    if (canvas.isConnected) (canvas.closest('.pl-chart') || canvas)?.replaceChildren(Object.assign(document.createElement('p'), { className: 'v2-empty', textContent: 'Não foi possível carregar o gráfico.' }));
     return;
   }
   const entry = { canvas, spec, chart: null };
@@ -140,7 +137,10 @@ function card(spec) {
   const total = spec.datasets[0].data.reduce((sum, v) => sum + (Number(v) || 0), 0);
   const summary = `${spec.title}: ${spec.labels.map((l, i) => `${l} ${fmt.num(spec.datasets[0].data[i])}`).join(', ')}${spec.kind === 'donut' ? ` (total ${fmt.num(total)})` : ''}`;
   pending.push({ id, spec });
-  return `<div class="v2-card v2-dense pl-chart-card ${spec.cls || ''}">${head}<div class="pl-chart" style="--h:${Number(spec.height) || 220}px"><canvas id="${id}" role="img" aria-label="${esc(summary)}"></canvas></div></div>`;
+  const body = spec.kind === 'donut'
+    ? `<div class="pl-chart pl-anel" id="${id}" role="img" aria-label="${esc(summary)}"></div>`
+    : `<div class="pl-chart" style="--h:${Number(spec.height) || 220}px"><canvas id="${id}" role="img" aria-label="${esc(summary)}"></canvas></div>`;
+  return `<div class="v2-card v2-dense pl-chart-card ${spec.cls || ''}">${head}${body}</div>`;
 }
 
 function flush(host) {
