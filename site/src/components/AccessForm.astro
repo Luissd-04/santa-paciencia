@@ -4,22 +4,27 @@ import { marca } from '../config/brand';
 // Formulário de acesso antecipado. Valida no browser. Com CONTACT_ENDPOINT envia POST JSON
 // ({nome, email, telefone, alojamentos, canais, mensagem}); sem endpoint abre o programa de email.
 // Sem JavaScript, o formulário cai para um mailto: simples.
+// Props (a página de contacto reutiliza este formulário): `assunto` acrescenta o campo «Assunto» (opcional);
+// `titulo`, `botao`, `mensagem` e `nota` mudam os textos; `modo` é o assunto por omissão do email.
+interface Props { assunto?: boolean; titulo?: string; botao?: string; mensagem?: string; modo?: string; nota?: string }
+const { assunto = false, titulo = 'Pedir acesso', botao = 'Pedir o meu lugar', mensagem = 'O que mais lhe tira a paciência?', modo = 'Pedido de acesso antecipado', nota = 'Sem cartão de crédito. Usamos os seus dados só para responder a este pedido.' } = Astro.props;
 ---
 <form class="form" novalidate method="post" action={`mailto:${marca.email}`} enctype="text/plain"
-  data-endpoint={marca.contactEndpoint} data-email={marca.email} data-marca={marca.nome}>
-  <h2>Pedir acesso</h2>
+  data-endpoint={marca.contactEndpoint} data-email={marca.email} data-marca={marca.nome} data-modo={modo}>
+  <h2>{titulo}</h2>
   <div class="two">
     <div class="fld"><label for="nome">Nome</label><input id="nome" name="nome" autocomplete="name" required aria-describedby="erro-nome"><span class="err" id="erro-nome" role="alert"></span></div>
     <div class="fld"><label for="tel">Telemóvel <small>(opcional)</small></label><input id="tel" name="telefone" type="tel" autocomplete="tel" inputmode="tel"></div>
   </div>
   <div class="fld"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="email" required aria-describedby="erro-email"><span class="err" id="erro-email" role="alert"></span></div>
+  {assunto && <div class="fld"><label for="assunto">Assunto <small>(opcional)</small></label><input id="assunto" name="assunto" autocomplete="off"></div>}
   <div class="fld"><label for="casas">Quantas casas gere?</label><select id="casas" name="alojamentos"><option>1</option><option>2 a 3</option><option selected>4 a 10</option><option>Mais de 10</option></select></div>
   <fieldset class="fld"><legend>Onde anuncia hoje?</legend><div class="chips"><label><input type="checkbox" name="canais" value="Airbnb" checked> Airbnb</label><label><input type="checkbox" name="canais" value="Booking.com" checked> Booking.com</label><label><input type="checkbox" name="canais" value="Site próprio"> Site próprio</label><label><input type="checkbox" name="canais" value="Outro"> Outro</label></div></fieldset>
-  <div class="fld"><label for="msg">O que mais lhe tira a paciência? <small>(opcional)</small></label><textarea id="msg" name="mensagem" rows="3"></textarea></div>
+  <div class="fld"><label for="msg">{mensagem} <small>(opcional)</small></label><textarea id="msg" name="mensagem" rows="3"></textarea></div>
   <div class="hp" aria-hidden="true"><label>Não preencher <input name="website" tabindex="-1" autocomplete="off"></label></div>
   <p class="falha" role="alert" data-falha></p>
-  <button class="btn p" type="submit">Pedir o meu lugar <Icon nome="arrow" class="go" /></button>
-  <p class="note">Sem cartão de crédito. Usamos os seus dados só para responder a este pedido.</p>
+  <button class="btn p" type="submit">{botao} <Icon nome="arrow" class="go" /></button>
+  <p class="note">{nota} <a href="/privacidade/">Privacidade</a>.</p>
   <div class="done" role="status"><span class="ok"><Icon nome="check" forte /></span><h2 tabindex="-1">Pedido recebido.</h2><p style="margin:0;color:var(--cinza)" data-feito>Vamos responder por email. Entretanto, espreite as perguntas frequentes.</p><a class="btn s" href="/perguntas-frequentes/" style="color:var(--basalto)">Ver perguntas</a></div>
 </form>
 
@@ -28,6 +33,7 @@ import { marca } from '../config/brand';
   if (form) {
     const email = form.dataset.email || '';
     const marca = form.dataset.marca || '';
+    const modo = form.dataset.modo || '';
     const falha = form.querySelector<HTMLElement>('[data-falha]')!;
     const botao = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
 
@@ -68,12 +74,13 @@ import { marca } from '../config/brand';
         telefone: String(fd.get('telefone') || '').trim(),
         alojamentos: String(fd.get('alojamentos') || ''),
         canais: fd.getAll('canais').map(String),
+        assunto: String(fd.get('assunto') || '').trim(),
         mensagem: String(fd.get('mensagem') || '').trim(),
       };
 
       if (!endpoint) {
-        const corpo = `Nome: ${dados.nome}\nEmail: ${dados.email}\nTelefone: ${dados.telefone || '—'}\nAlojamentos: ${dados.alojamentos}\nAnuncia em: ${dados.canais.join(', ') || '—'}\n\n${dados.mensagem}`;
-        location.href = `mailto:${email}?subject=${encodeURIComponent(`Pedido de acesso antecipado · ${marca}`)}&body=${encodeURIComponent(corpo)}`;
+        const corpo = `${dados.assunto ? `Assunto: ${dados.assunto}\n` : ''}Nome: ${dados.nome}\nEmail: ${dados.email}\nTelefone: ${dados.telefone || '—'}\nAlojamentos: ${dados.alojamentos}\nAnuncia em: ${dados.canais.join(', ') || '—'}\n\n${dados.mensagem}`;
+        location.href = `mailto:${email}?subject=${encodeURIComponent(`${dados.assunto || modo} · ${marca}`)}&body=${encodeURIComponent(corpo)}`;
         concluir('Abrimos o seu programa de email com a mensagem preparada. Basta enviar.');
         return;
       }

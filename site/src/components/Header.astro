@@ -5,10 +5,10 @@ import { marca } from '../config/brand';
 interface Props { atual?: 'funcionalidades' | 'para-quem' | 'precos' | 'perguntas' | null }
 const { atual = null } = Astro.props;
 const ligacoes = [
-  ['/#funcionalidades', 'Funcionalidades', 'funcionalidades'],
-  ['/#para-quem', 'Para quem', 'para-quem'],
+  ['/funcionalidades/', 'Funcionalidades', 'funcionalidades'],
+  ['/para/', 'Para quem', 'para-quem'],
   ['/precos/', 'Preços', 'precos'],
-  ['/#perguntas', 'Perguntas', 'perguntas'],
+  ['/perguntas-frequentes/', 'Perguntas', 'perguntas'],
 ] as const;
 ---
 <a class="skip" href="#conteudo">Saltar para o conteúdo</a>
@@ -19,7 +19,7 @@ const ligacoes = [
     {marca.appUrl && <a href={marca.appUrl} rel="nofollow">Entrar</a>}
   </nav>
   <div class="top-act">
-    <a class="gicon" href="/#perguntas" aria-label="Pesquisar nas perguntas"><Icon nome="search" /></a>
+    <a class="gicon" href="/perguntas-frequentes/" aria-label="Pesquisar nas perguntas frequentes"><Icon nome="search" /></a>
     <button class="gicon only-m" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu-principal" data-menu><Icon nome="menu" /></button>
     <a class="btn p sm" href="/acesso-antecipado/">Experimentar</a>
   </div>

@@ -1,0 +1,32 @@
+---
+import Perfil from '../../layouts/Perfil.astro';
+import { marca } from '../../config/brand';
+
+const titulo = `Gestão de várias casas de AL num só sítio | ${marca.nome}`;
+const descricao = 'Gere várias casas de alojamento local num só calendário: quem chega, quem pagou e o que falta limpar, de uma vez.';
+---
+<Perfil
+  titulo={titulo} descricao={descricao} nome="Gestores de várias casas" fase={2.8}
+  h1="Dez casas. Um só ecrã."
+  lede="Quando as casas se multiplicam, o problema já não é o trabalho, é a coordenação. Aqui vê tudo de uma vez."
+  seccoes={[
+    { id: 'relance', titulo: 'Num relance.', colunas: 3, blocos: [
+      { icone: 'key', titulo: 'Chegadas de hoje', texto: 'Quem entra, a que horas e se já preencheu o pré-check-in.' },
+      { icone: 'pay', titulo: 'Pagamentos em falta', texto: 'Sinais e saldos por receber, reserva a reserva, sem ir ao extrato.' },
+      { icone: 'clean', titulo: 'Limpezas por fazer', texto: 'O que falta preparar antes da próxima chegada, casa a casa.' },
+    ] },
+    { id: 'equipa', titulo: 'A equipa em sintonia.', blocos: [
+      { icone: 'clean', titulo: 'Cada tarefa com dono', texto: 'Limpezas, manutenção e check-ins atribuídos a quem os faz, com casa e hora.' },
+      { icone: 'guest', titulo: 'Cada um vê o que deve', texto: 'A equipa vê chegadas e tarefas no telemóvel, mas não vê os números do negócio.' },
+    ] },
+    { id: 'numeros', titulo: 'Os números de cada casa.', blocos: [
+      { icone: 'chart', titulo: 'Receita, ocupação e margem', texto: 'Por casa, por mês e por canal, calculados com o que já registou. Sem fórmulas.' },
+      { icone: 'receipt', titulo: 'Despesas na casa certa', texto: 'Uma fotografia ao talão e a despesa fica arrumada por casa e categoria.' },
+    ] },
+  ]}
+  planoTitulo="O plano que costuma servir."
+  planoTexto="O Profissional aguenta até 10 alojamentos e 5 utilizadores, com pagamentos online, emails automáticos e relatórios completos."
+  planoIds={['profissional']}
+  fimTitulo="Com dez casas, cada minuto conta."
+  fimTexto="Estamos a abrir aos poucos, com acompanhamento pessoal na configuração. Peça já o seu lugar."
+/>

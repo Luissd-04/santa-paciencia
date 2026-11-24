@@ -18,16 +18,8 @@ const SITE_URL = (process.env.SITE_URL || 'https://santapaciencia.xyz').replace(
 
 // Páginas ainda por criar (as ligações para elas não contam como erro). Cada entrada é um
 // prefixo de endereço. Quando uma página passar a existir, remover a entrada daqui.
-const PENDENTES = [
-  '/funcionalidades/',          // índice e as restantes 7 funcionalidades (a de pagamentos já existe)
-  '/para/',                     // /para/proprietarios/, /para/gestores/, /para/empresas-de-gestao/
-  '/perguntas-frequentes/',
-  '/sobre/',
-  '/contacto/',
-  '/privacidade/',
-  '/termos/',
-  '/guias/',
-];
+// Páginas ainda por criar: as ligações para elas não falham a verificação. Vazio = todas existem.
+const PENDENTES = [];
 
 const erros = [];
 const avisos = [];

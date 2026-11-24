@@ -1,0 +1,18 @@
+---
+import Legal from '../layouts/Legal.astro';
+import { marca } from '../config/brand';
+---
+<Legal titulo={`Termos de utilização | ${marca.nome}`} descricao={`Condições de utilização do site da ${marca.nome}: conteúdos, preços indicados, propriedade intelectual e lei aplicável.`} h1="Termos de utilização" atualizado="24 de novembro de 2026" fase={1.4}>
+  <h2>Âmbito</h2>
+  <p>Estes termos regulam a utilização deste site. A utilização da plataforma {marca.nome} pelos clientes é regulada por um contrato próprio.</p>
+  <h2>Conteúdos do site</h2>
+  <p>Os textos, imagens e ilustrações deste site destinam-se a apresentar a plataforma. As ilustrações de ecrãs usam dados de exemplo. Procuramos manter a informação atualizada, mas as funcionalidades e os preços podem mudar; as condições aplicáveis são as que constarem da proposta que lhe enviarmos.</p>
+  <h2>Preços</h2>
+  <p>Os preços indicados não incluem IVA e podem ser alterados. Qualquer alteração de preço para clientes existentes é comunicada com antecedência.</p>
+  <h2>Propriedade intelectual</h2>
+  <p>O nome, o logótipo e os conteúdos deste site pertencem à {marca.nome} e não podem ser reproduzidos sem autorização.</p>
+  <h2>Lei aplicável</h2>
+  <p>Estes termos regem-se pela lei portuguesa.</p>
+  <h2>Contacto</h2>
+  <p>Para qualquer questão sobre estes termos, escreva para <a href={`mailto:${marca.email}`}>{marca.email}</a>.</p>
+</Legal>

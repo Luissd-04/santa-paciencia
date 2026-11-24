@@ -4,8 +4,9 @@ Site de apresentação da plataforma, feito em [Astro](https://astro.build) com 
 estática (`site/dist`). Não depende da aplicação e pode ser alojado em qualquer serviço
 de ficheiros estáticos. O aspeto segue a direção «H · Calçada Basalto» (maquetas aprovadas).
 
-Fase atual: início, funcionalidade «Pagamentos online» (modelo das restantes), preços,
-acesso antecipado e 404. As outras páginas do `docs/SITE-MAPA-SEO.md` estão por criar.
+Fase atual: início, preços, acesso antecipado, «Para quem», perguntas frequentes, sobre, contacto,
+guias, privacidade, termos e 404, mais as páginas de funcionalidades. As do `docs/SITE-MAPA-SEO.md`
+que faltem estão listadas em `PENDENTES` no `scripts/check.mjs`.
 
 ## Usar
 
@@ -45,11 +46,19 @@ O `check` deve correr com as mesmas variáveis do `build`.
 | Modelo de página de funcionalidade | `src/layouts/Feature.astro` |
 | Cabeçalho, rodapé, calçada, ícones, FAQ, planos, formulário… | `src/components/` |
 | Páginas | `src/pages/` (uma por endereço) |
+| «Para quem» (`/para/…`): textos, blocos e planos recomendados | `src/pages/para/*.astro`, modelo em `src/layouts/Perfil.astro`, cartões de plano em `src/components/PlanoRecomendado.astro` |
+| Perguntas frequentes (por temas, com JSON-LD) | `src/pages/perguntas-frequentes.astro` |
+| Sobre e contacto | `src/pages/sobre.astro`, `src/pages/contacto.astro` (o formulário é o `AccessForm`, com a prop `assunto`) |
+| Guias (Markdown, coleção `guias`) | `src/content/guias/*.md`; esquema em `src/content.config.ts`; páginas em `src/pages/guias/`. O tempo de leitura calcula-se do texto (`src/config/guias.ts`) |
+| Privacidade e termos (textos provisórios) | `src/pages/privacidade.astro`, `src/pages/termos.astro`, modelo em `src/layouts/Legal.astro` |
+| Topo escuro das páginas de texto | `src/components/PageHero.astro` |
+| CSS das páginas acima | `src/styles/paginas.css` |
+| Menu e rodapé (ligações) | `src/components/Header.astro`, `src/components/Footer.astro` |
 | `sitemap.xml` e `robots.txt` | `src/pages/sitemap.xml.ts`, `src/pages/robots.txt.ts` |
 | Imagens e ícones | `public/img/` |
 | Verificação pós-build | `scripts/check.mjs` |
 
-Uma página nova é um ficheiro em `src/pages/` (entra sozinha no sitemap). Uma página de
+Uma página nova é um ficheiro em `src/pages/` (entra sozinha no sitemap; os guias entram pela coleção). Uma página de
 funcionalidade nova usa o layout `Feature.astro` e passa o texto como propriedades (ver
 `src/pages/funcionalidades/pagamentos-online.astro`). Quando uma página que estava por criar
 passa a existir, remover o seu prefixo do array `PENDENTES` em `scripts/check.mjs`.
@@ -74,7 +83,7 @@ Estão marcados `POR CONFIRMAR` em `src/config/brand.ts`:
   o mapa SEO diz que os preços não são publicados nesta fase: decidir antes de ligar a indexação;
 - **Formulário**: sem `CONTACT_ENDPOINT`, abre o programa de email do visitante. Com
   `CONTACT_ENDPOINT=https://…`, envia um POST em JSON (`nome`, `email`, `telefone`,
-  `alojamentos`, `canais`, `mensagem`), que o servidor deve validar e proteger contra abuso;
+  `alojamentos`, `canais`, `assunto` (só na página de contacto), `mensagem`), que o servidor deve validar e proteger contra abuso;
 - **Promessas no texto** a confirmar: sem comissões, ajuda prioritária no Premium, «Livro de
   Reclamações» na página de reservas (ver a secção 6 do `docs/SITE-MAPA-SEO.md`).
 

@@ -1,0 +1,27 @@
+---
+import Base from '../../layouts/Base.astro';
+import PageHero from '../../components/PageHero.astro';
+import FinalCta from '../../components/FinalCta.astro';
+import Icon from '../../components/Icon.astro';
+import { marca } from '../../config/brand';
+
+const titulo = `Para quem é o software de alojamento local | ${marca.nome}`;
+const descricao = 'Do primeiro alojamento à empresa de gestão: veja como o software se ajusta a proprietários, gestores de várias casas e empresas de gestão.';
+const perfis = [
+  ['1–3 casas', 'Proprietários', 'Gere as casas nas horas vagas e quer deixar de viver agarrado ao telemóvel.', '/para/proprietarios/'],
+  ['4–20 casas', 'Gestores de várias casas', 'Precisa de ver tudo de uma vez: quem chega, quem pagou, o que falta limpar.', '/para/gestores/'],
+  ['Mais de 20', 'Empresas de gestão', 'Equipas, permissões por função e relatórios para enviar a cada proprietário.', '/para/empresas-de-gestao/'],
+];
+---
+<Base titulo={titulo} descricao={descricao} atual="para-quem">
+  <PageHero h1="Do primeiro quarto à empresa de gestão." lede="A mesma plataforma, três maneiras de a usar. Escolha a que se parece mais com o seu dia." fase={2.1}
+    caminho={[{ rotulo: 'Início', href: '/' }, { rotulo: 'Para quem' }]} />
+  <section class="sec" aria-label="Perfis">
+    <div class="in">
+      <div class="cartoes" style="margin-top:0">
+        {perfis.map(([n, h, p, href]) => <a class="cartao" href={href}><small>{n}</small><h2>{h}</h2><p>{p}</p><span class="more">Ver como ajuda <Icon nome="arrow" /></span></a>)}
+      </div>
+    </div>
+  </section>
+  <FinalCta />
+</Base>

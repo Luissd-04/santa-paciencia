@@ -71,7 +71,7 @@ export const planos: Plano[] = [
 
 // Tabela de comparação: [linha, Essencial, Profissional, Premium].
 export const comparacao: [string, boolean, boolean, boolean][] = [
-  ['Calendário com Airbnb e Booking.com', true, true, true],
+  ['Calendário com todas as reservas', true, true, true],
   ['Pré-check-in e dados do SIBA', true, true, true],
   ['Página de reservas própria', true, true, true],
   ['Pagamentos online', false, true, true],
@@ -83,7 +83,7 @@ export const comparacao: [string, boolean, boolean, boolean][] = [
 
 // Funcionalidades (slugs do docs/SITE-MAPA-SEO.md, secção 3.2) com o texto dos ladrilhos do início.
 export const funcionalidades = [
-  { slug: 'calendario', icone: 'cal', titulo: 'Um calendário para todos', texto: 'Junta as reservas do Airbnb, do Booking.com e do seu site. Acabaram-se as reservas duplicadas.' },
+  { slug: 'calendario', icone: 'cal', titulo: 'Um calendário para todas', texto: 'As reservas do seu site, do Airbnb, do Booking.com e do telefone, lado a lado. Sem três aplicações abertas.' },
   { slug: 'reservas-diretas', icone: 'web', titulo: 'Reservas no seu site', texto: 'Uma página de reservas bonita, ou um botão no site que já tem. Sem comissões.' },
   { slug: 'pagamentos-online', icone: 'pay', titulo: 'Pagamentos que se cobram sozinhos', texto: 'Sinal e saldo por cartão, nas datas certas. Sem andar atrás de ninguém.' },
   { slug: 'pre-check-in', icone: 'key', titulo: 'Hóspedes que chegam registados', texto: 'Pré-check-in no telemóvel, com os dados do SIBA prontos a usar.' },

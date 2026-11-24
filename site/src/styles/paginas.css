@@ -1,0 +1,93 @@
+/* Páginas de texto: «Para quem», perguntas, sobre, contacto, guias e legais.
+   Só usa os tokens de tokens.css; o barro é o único destaque. */
+
+/* Topo escuro das páginas simples (a calçada vem do componente Calcada) */
+.ph{padding-top:72px;padding-bottom:230px}
+.ph h1{max-width:900px}
+.ph .lede{max-width:640px}
+.ph .meta{display:flex;flex-wrap:wrap;gap:6px 18px;margin:22px 0 0;padding:0;list-style:none;font-size:15px;color:var(--cinza-claro)}
+.ph .meta li{display:flex;gap:8px;align-items:center}
+.ph .meta svg{width:16px;height:16px;color:var(--barro-claro)}
+.ph-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:64px;align-items:start;padding-top:72px;padding-bottom:200px}
+.ph-pair h1{font-size:clamp(40px,5.4vw,68px)}
+
+/* Blocos de «Para quem» */
+.blocos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:48px}
+.bloco{background:var(--branco);border:1px solid var(--linha);border-radius:22px;padding:28px}
+.bloco h3{margin:0;font:700 21px/1.2 var(--disp);letter-spacing:-.02em}
+.bloco p{margin:8px 0 0;color:var(--cinza);font-size:16.5px}
+.bloco .tl{margin-bottom:16px}
+.blocos.tres{grid-template-columns:repeat(3,minmax(0,1fr))}
+.frase{margin:48px 0 0;max-width:760px;font:700 clamp(24px,2.6vw,32px)/1.25 var(--disp);letter-spacing:-.02em}
+.frase em{font-style:normal;color:var(--barro)}
+
+/* Plano recomendado */
+.reco{display:grid;gap:16px;margin-top:48px;grid-template-columns:repeat(var(--n,1),minmax(0,1fr))}
+.reco article{background:var(--cal);border:1px solid var(--linha);border-radius:24px;padding:30px;display:flex;flex-direction:column;gap:12px}
+.sec:not(.alt) .reco article{background:var(--branco)}
+.reco h3{margin:0;font:800 28px/1.1 var(--disp);letter-spacing:-.03em}
+.reco .for{margin:0;color:var(--cinza)}
+.reco .pr{font:800 44px/1 var(--disp);letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.reco .pr span{font:500 16px var(--ui);letter-spacing:0;color:var(--cinza)}
+.reco small{color:var(--cinza);font-size:14px}
+.reco ul{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:10px}
+.reco li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;font-size:16px}
+.reco li svg{width:18px;height:18px;color:var(--barro);margin-top:4px}
+.reco .lim{margin-top:auto;padding-top:14px;border-top:1px solid var(--linha);font-size:14.5px;font-weight:600;color:var(--barro-esc)}
+.reco-nota{margin:24px 0 0;color:var(--cinza);max-width:680px}
+.reco-nota a,.prose a,.texto a{color:var(--barro);text-underline-offset:3px}
+
+/* Índice de perfis, de guias */
+.cartoes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:48px}
+.cartao{border-radius:22px;padding:30px 28px;text-decoration:none;background:var(--branco);border:1px solid var(--linha);display:flex;flex-direction:column;gap:10px;transition:border-color .2s ease-out}
+.cartao:hover{border-color:var(--barro-claro)}
+.cartao small{font:600 13px var(--ui);color:var(--barro);letter-spacing:.02em}
+.cartao h2,.cartao h3{margin:0;font:700 23px/1.2 var(--disp);letter-spacing:-.02em}
+.cartao p{margin:0;color:var(--cinza);font-size:16px}
+.cartao .more{margin-top:auto;padding-top:10px;font-size:14.5px;font-weight:600;color:var(--barro);display:flex;gap:6px;align-items:center}
+.cartao .more svg{width:16px;height:16px}
+
+/* Perguntas por temas */
+.temas{display:flex;flex-wrap:wrap;gap:8px;margin:32px 0 0}
+.temas a{font-size:15px;font-weight:600;text-decoration:none;border:1.5px solid var(--linha);background:var(--branco);border-radius:999px;padding:8px 16px;transition:border-color .2s ease-out}
+.temas a:hover{border-color:var(--barro)}
+.tema{padding-block:56px;border-top:1px solid var(--linha);scroll-margin-top:90px}
+.tema:first-of-type{border-top:0}
+.tema h2{margin:0;font:800 clamp(26px,3vw,36px)/1.1 var(--disp);letter-spacing:-.03em}
+.tema .faq{margin:16px 0 0;max-width:none}
+
+/* Texto corrido: sobre, guias, legais */
+.texto{max-width:720px}
+.texto p,.prose p{margin:0 0 1.1em}
+.texto p.abre{font:600 clamp(20px,2vw,24px)/1.45 var(--disp);letter-spacing:-.01em}
+.prose{max-width:720px;font-size:18px;line-height:1.7}
+.prose h2{margin:2.2em 0 .6em;font:800 clamp(26px,3vw,34px)/1.12 var(--disp);letter-spacing:-.03em}
+.prose h3{margin:1.8em 0 .4em;font:700 22px/1.25 var(--disp);letter-spacing:-.02em}
+.prose ul,.prose ol{margin:0 0 1.2em;padding-left:1.3em}
+.prose li{margin:.45em 0}
+.prose li::marker{color:var(--barro)}
+.prose > :first-child{margin-top:0}
+.prose .nota,.aviso{background:var(--barro-suave);border-left:4px solid var(--barro);border-radius:12px;padding:16px 20px;font-size:16px;line-height:1.55;color:var(--barro-esc);margin:0 0 1.6em}
+.aviso{margin-bottom:32px}
+.aviso strong{color:var(--barro-esc)}
+.pontos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:48px}
+.contacto-mail{margin:28px 0 0;font-size:17px;color:var(--cinza-claro)}
+.contacto-mail a{color:#fff;font-weight:600}
+.guia-fim{margin-top:56px;padding:28px 30px;border-radius:22px;background:var(--basalto);color:#fff;display:flex;flex-wrap:wrap;gap:16px 28px;align-items:center;justify-content:space-between}
+.guia-fim p{margin:0;font:700 22px/1.25 var(--disp);letter-spacing:-.02em;max-width:460px}
+.guia-fim p span{display:block;margin-top:6px;font:400 16px/1.5 var(--ui);letter-spacing:0;color:var(--cinza-claro)}
+.related.dois{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+@media (max-width:980px){
+  .ph-pair{grid-template-columns:minmax(0,1fr);gap:48px;padding-bottom:170px}
+  .ph{padding-bottom:190px}
+  .cartoes,.pontos,.blocos.tres{grid-template-columns:minmax(0,1fr)}
+  .reco{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:640px){
+  .blocos,.related.dois{grid-template-columns:minmax(0,1fr)}
+  .ph{padding-top:48px;padding-bottom:170px}
+  .ph-pair{padding-top:48px}
+  .prose{font-size:17px}
+  .guia-fim .btn{width:100%}
+}

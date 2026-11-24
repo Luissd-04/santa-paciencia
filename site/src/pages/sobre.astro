@@ -1,0 +1,35 @@
+---
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/PageHero.astro';
+import FinalCta from '../components/FinalCta.astro';
+import Tile from '../components/Tile.astro';
+import { marca } from '../config/brand';
+
+const titulo = `Sobre nós | ${marca.nome}`;
+const descricao = 'O software de alojamento local nasceu numa casa de turismo no Alentejo, feito em Portugal por quem conhece a taxa turística e o Livro de Reclamações.';
+const pontos = [
+  { icone: 'key', titulo: 'Testado numa casa real', texto: 'Cada funcionalidade foi usada primeiro num alojamento a sério, em Reguengos de Monsaraz.' },
+  { icone: 'flag', titulo: 'Feito em Portugal', texto: 'Por quem conhece a taxa turística, o SIBA e o Livro de Reclamações.' },
+  { icone: 'guest', titulo: 'A abrir aos poucos', texto: 'Estamos a receber outros alojamentos por ordem de pedido, para acompanhar cada um de perto.' },
+] as const;
+---
+<Base titulo={titulo} descricao={descricao}>
+  <PageHero h1="Nasceu numa casa de turismo no Alentejo." lede="Não foi uma ideia de gabinete. Foi o que faltava a um alojamento a sério." fase={4.8}
+    caminho={[{ rotulo: 'Início', href: '/' }, { rotulo: 'Sobre' }]} />
+
+  <section class="sec" aria-label="A nossa história">
+    <div class="in">
+      <div class="texto">
+        <p class="abre">Começou para resolver os problemas de um alojamento real, em Reguengos de Monsaraz. Reservas, pagamentos, hóspedes e limpezas: tudo o que dá trabalho a quem recebe pessoas em casa.</p>
+        <p>Cada funcionalidade foi testada lá primeiro, no dia a dia dessa casa, e só ficou quando tornou o trabalho mais simples.</p>
+        <p>É feito em Portugal, por quem conhece a taxa turística, o SIBA e o Livro de Reclamações, e sabe que a época alta não perdoa.</p>
+        <p>Agora está a abrir a outros alojamentos, aos poucos. Se gere uma casa ou dez e reconhece estes problemas, <a href="/acesso-antecipado/">peça acesso antecipado</a> ou <a href="/contacto/">fale connosco</a>.</p>
+      </div>
+      <div class="blocos tres">
+        {pontos.map((p) => <div class="bloco"><Tile icone={p.icone} /><h3>{p.titulo}</h3><p>{p.texto}</p></div>)}
+      </div>
+    </div>
+  </section>
+
+  <FinalCta titulo="Venha conhecer por dentro." texto="Estamos a abrir aos poucos, com acompanhamento pessoal na configuração. Peça já o seu lugar." />
+</Base>

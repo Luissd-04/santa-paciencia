@@ -6,13 +6,13 @@ import CartaoLista from '../../components/visuais/CartaoLista.astro';
 import { marca } from '../../config/brand';
 import { relacionadas } from '../../config/relacionadas';
 
-const titulo = `Calendário de alojamento local com Airbnb | ${marca.nome}`;
-const descricao = 'Todas as reservas do Airbnb, do Booking.com e do seu site num só calendário de alojamento local. Preços por época e nada de reservas duplicadas.';
+const titulo = `Calendário de reservas para alojamento local | ${marca.nome}`;
+const descricao = 'Todas as reservas do seu alojamento local num só calendário: do seu site, do Airbnb, do Booking.com e do telefone. Com preços por época e estadia mínima.';
 
 const passos = [
-  { titulo: 'Liga as plataformas', texto: 'Cola o link de calendário do Airbnb e do Booking.com. É só uma vez.' },
-  { titulo: 'As reservas aparecem', texto: 'Cada uma com a cor do canal, na linha da casa certa.' },
-  { titulo: 'As datas fecham-se em todo o lado', texto: 'O que vende num sítio deixa de estar livre nos outros.' },
+  { titulo: 'As reservas do site entram sozinhas', texto: 'Quem reserva na sua página aparece logo no calendário, já com o sinal.' },
+  { titulo: 'As outras registam-se num minuto', texto: 'Airbnb, Booking.com ou telefone: cada reserva fica com o canal de onde veio.' },
+  { titulo: 'Vê tudo num relance', texto: 'Uma linha por casa, uma barra por reserva. O que está livre salta à vista.' },
 ];
 const beneficios = [
   { titulo: 'Preços por época', texto: 'Verão, Páscoa, fins de semana: define uma vez e o total calcula-se sozinho.' },
@@ -27,23 +27,23 @@ const epocas = [
   { t: 'Fins de semana de verão', s: 'sex e sáb · mín. 3 noites', v: '160 € / noite' },
 ];
 const perguntas: [string, string][] = [
-  ['A sincronização é instantânea?', 'As plataformas atualizam os calendários de tempos a tempos; por isso, nas datas mais disputadas, convém confirmar antes de aceitar uma reserva por telefone.'],
-  ['Posso bloquear datas para mim?', 'Pode. Os bloqueios aparecem no calendário e fecham as datas nas outras plataformas.'],
+  ['Sincroniza sozinho com o Airbnb e o Booking.com?', 'Ainda não. As reservas dessas plataformas são registadas por si, com o canal identificado, e ficam no mesmo calendário das reservas diretas. As reservas feitas na sua página entram sozinhas.'],
+  ['Posso bloquear datas para mim?', 'Pode. Os bloqueios aparecem no calendário e essas datas deixam de estar disponíveis na sua página de reservas.'],
 ];
 ---
 <Feature
   titulo={titulo} descricao={descricao} nome="Calendário"
-  h1="Um calendário. Todas as reservas. Zero sobreposições."
-  lede="O calendário do seu alojamento local junta o Airbnb, o Booking.com, o seu site e as reservas por telefone. Vê num relance quem entra, quem sai e que noites estão por vender."
-  passos={passos} tituloPassos="Liga uma vez, o resto faz-se sozinho."
+  h1="Um calendário. Todas as reservas. Zero confusões."
+  lede="O calendário de reservas do seu alojamento local junta o seu site, o Airbnb, o Booking.com e o telefone. Vê num relance quem entra, quem sai e que noites estão por vender."
+  passos={passos} tituloPassos="Venha de onde vier, a reserva fica no mesmo sítio."
   tituloBeneficios="Preços certos, noites bem vendidas." beneficios={beneficios}
   relacionadas={relacionadas('reservas-diretas', 'pagamentos-online', 'equipa-e-tarefas')}
   perguntas={perguntas}
 >
-  <div slot="visual" role="img" aria-label="Calendário de reservas com avisos: nova reserva e datas fechadas no Airbnb">
+  <div slot="visual" role="img" aria-label="Calendário de reservas com avisos: nova reserva pelo site e reserva do Booking.com registada">
     <AppCalendar />
     <GlassNotice pos="g1" atraso={700} titulo="Nova reserva" texto="Pelo seu site · Loft do Rio" />
-    <GlassNotice pos="g2" atraso={1150} titulo="Datas fechadas" texto="Também no Airbnb e no Booking.com" />
+    <GlassNotice pos="g2" atraso={1150} titulo="Reserva registada" texto="Booking.com · Quarto Azul" />
   </div>
   <CartaoLista slot="beneficios" titulo="Preços · Casa da Eira" etiqueta="Por época" linhas={epocas} />
 </Feature>

@@ -28,21 +28,14 @@ O início, «Pagamentos online», «Preços» e «Acesso antecipado» seguem a m
 Mesma estrutura da página «Pagamentos online»: caminho, H1, lede (com a pesquisa principal), visual; «três passos»; benefícios (4) com visual; «Funciona ainda melhor com» (3); chamada final; perguntas (2–3, com FAQPage).
 
 ### Calendário · `/funcionalidades/calendario/`
-- **Pesquisa:** calendário alojamento local · sincronizar calendário airbnb booking, evitar reservas duplicadas
-- **Title:** Calendário para alojamento local, com Airbnb e Booking.com | {marca}
-- **Description:** Todas as reservas do Airbnb, do Booking.com e do seu site num só calendário de alojamento local. Preços por época e nada de reservas duplicadas.
-- **H1:** Um calendário. Todas as reservas. Zero sobreposições.
-- **Lede:** O calendário do seu alojamento local junta o Airbnb, o Booking.com, o seu site e as reservas por telefone. Vê num relance quem entra, quem sai e que noites estão por vender.
-- **Visual:** o calendário do topo do início.
-- **Três passos:** «Liga as plataformas» (cola o link de calendário do Airbnb e do Booking.com) · «As reservas aparecem» (cada uma com a cor do canal) · «As datas fecham-se em todo o lado» (o que vende num sítio deixa de estar livre nos outros).
-- **Benefícios:**
-  - **Preços por época** — Verão, Páscoa, fins de semana: define uma vez e o total calcula-se sozinho.
-  - **Estadia mínima** — Nada de noites soltas a meio de agosto.
-  - **Arrastar para mudar** — Muda as datas e o preço acompanha.
-  - **Cada reserva com história** — Hóspede, valores, pagamentos e quem mudou o quê.
-- **Relacionadas:** Reservas no seu site · Pagamentos online · Limpezas
-- **Perguntas:** «A sincronização é instantânea?» → As plataformas atualizam os calendários de tempos a tempos; por isso, nas datas mais disputadas, convém confirmar antes de aceitar uma reserva por telefone. · «Posso bloquear datas para mim?» → Pode. Os bloqueios aparecem no calendário e fecham as datas nas outras plataformas.
-- **Não dizer:** «channel manager», «em tempo real».
+- **Pesquisa:** calendário alojamento local · calendário de reservas, gerir reservas de várias plataformas
+- **Title:** Calendário de reservas para alojamento local | {marca}
+- **H1:** Um calendário. Todas as reservas. Zero confusões.
+- **Lede:** O calendário de reservas do seu alojamento local junta o seu site, o Airbnb, o Booking.com e o telefone. Vê num relance quem entra, quem sai e que noites estão por vender.
+- **Três passos:** «As reservas do site entram sozinhas» · «As outras registam-se num minuto» (com o canal de origem) · «Vê tudo num relance».
+- **Benefícios:** preços por época · estadia mínima · arrastar para mudar · cada reserva com história.
+- **Perguntas:** «Sincroniza sozinho com o Airbnb e o Booking.com?» → Ainda não: as reservas dessas plataformas são registadas por si, com o canal identificado. · «Posso bloquear datas para mim?» → Pode; deixam de estar disponíveis na sua página de reservas.
+- **Não dizer:** que sincroniza com o Airbnb ou o Booking.com (não existe), «channel manager», «em tempo real», «reservas duplicadas acabaram».
 
 ### Reservas no seu site · `/funcionalidades/reservas-diretas/`
 - **Pesquisa:** reservas diretas alojamento local · motor de reservas alojamento local, site de reservas próprio

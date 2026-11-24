@@ -1,14 +1,20 @@
 ---
 import Logo from './Logo.astro';
-import { marca } from '../config/brand';
+import { marca, funcionalidades, urlFuncionalidade } from '../config/brand';
 const ano = new Date().getFullYear();
+// Rótulos curtos das 8 funcionalidades (os endereços vêm de brand.ts).
+const rotulos: Record<string, string> = {
+  'calendario': 'Calendário', 'reservas-diretas': 'Reservas no seu site', 'pagamentos-online': 'Pagamentos online', 'pre-check-in': 'Pré-check-in',
+  'equipa-e-tarefas': 'Limpezas e equipa', 'mensagens-automaticas': 'Emails automáticos', 'despesas': 'Despesas', 'relatorios': 'Relatórios',
+};
+const funcs = funcionalidades.map((f) => [urlFuncionalidade(f.slug), rotulos[f.slug] ?? f.titulo]);
 ---
 <footer class="foot"><div class="in">
   <div class="cols">
     <div><Logo /><p style="margin:0;max-width:320px">O programa de gestão para quem tem alojamento local em Portugal. Reservas, pagamentos, hóspedes e limpezas num só sítio.</p></div>
-    <div><h4>Produto</h4><ul><li><a href="/#funcionalidades">Funcionalidades</a></li><li><a href="/funcionalidades/pagamentos-online/">Pagamentos online</a></li><li><a href="/precos/">Preços</a></li><li><a href="/acesso-antecipado/">Acesso antecipado</a></li></ul></div>
+    <div><h4>Funcionalidades</h4><ul>{funcs.map(([href, rotulo]) => <li><a href={href}>{rotulo}</a></li>)}<li><a href="/funcionalidades/">Ver todas</a></li></ul></div>
     <div><h4>Para quem</h4><ul><li><a href="/para/proprietarios/">Proprietários</a></li><li><a href="/para/gestores/">Gestores de várias casas</a></li><li><a href="/para/empresas-de-gestao/">Empresas de gestão</a></li></ul></div>
-    <div><h4>Ajuda</h4><ul><li><a href="/perguntas-frequentes/">Perguntas frequentes</a></li><li><a href="/guias/">Guias</a></li><li><a href="/contacto/">Contacto</a></li></ul></div>
+    <div><h4>Saber mais</h4><ul><li><a href="/precos/">Preços</a></li><li><a href="/acesso-antecipado/">Acesso antecipado</a></li><li><a href="/perguntas-frequentes/">Perguntas frequentes</a></li><li><a href="/guias/">Guias</a></li><li><a href="/sobre/">Sobre nós</a></li><li><a href="/contacto/">Contacto</a></li></ul></div>
   </div>
   <div class="legal"><span>© {ano} {marca.nome} · Feito em Portugal</span><span><a href="/privacidade/">Privacidade</a> · <a href="/termos/">Termos</a> · <a href="https://www.livroreclamacoes.pt/" rel="noopener" target="_blank">Livro de Reclamações</a></span></div>
 </div></footer>

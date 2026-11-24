@@ -1,0 +1,74 @@
+---
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/PageHero.astro';
+import FinalCta from '../components/FinalCta.astro';
+import Faq from '../components/Faq.astro';
+import { marca } from '../config/brand';
+
+const titulo = `Perguntas frequentes sobre alojamento local | ${marca.nome}`;
+const descricao = 'Respostas rápidas sobre preços, Airbnb e Booking.com, SIBA, pagamentos, dados e mudança de programa.';
+
+// Perguntas do início, dos preços e das funcionalidades, por temas. Só afirma o que a plataforma faz.
+const temas: { id: string; titulo: string; itens: [string, string][] }[] = [
+  { id: 'comecar', titulo: 'Começar', itens: [
+    ['Preciso de instalar alguma coisa?', 'Não. Funciona no browser, no computador e no telemóvel. Se quiser, pode adicioná-lo ao ecrã principal do telemóvel como uma app e receber avisos.'],
+    ['Posso mudar a meio da época?', 'Pode. Ajudamos a passar as reservas que já tem, para não perder nada pelo caminho.'],
+    ['Preciso de ter um site?', 'Não. A página de reservas funciona sozinha e pode partilhá-la nas redes ou por mensagem.'],
+    ['Funciona com WordPress?', 'Sim. Basta colar duas linhas de código numa página.'],
+  ] },
+  { id: 'reservas', titulo: 'Reservas e calendário', itens: [
+    ['Funciona com o Airbnb e o Booking.com?', 'As reservas dessas plataformas ficam no mesmo calendário, registadas por si com o canal identificado. A sincronização automática ainda não existe; as reservas feitas no seu site entram sozinhas.'],
+    ['Posso bloquear datas para mim?', 'Pode. Os bloqueios aparecem no calendário e fecham as datas nas outras plataformas.'],
+  ] },
+  { id: 'pagamentos', titulo: 'Pagamentos', itens: [
+    ['Como funcionam os pagamentos online?', 'O hóspede recebe um email com o link e paga por cartão, em segurança, com a Stripe. Escolhe se cobra só o sinal ou o valor total, e quando se cobra o resto. A política de cancelamento fica à vista do hóspede antes de pagar, e os reembolsos ficam registados.'],
+    ['Há comissões por reserva?', 'Não. Paga só o plano. Nos pagamentos por cartão aplicam-se as taxas da Stripe, como em qualquer loja online.'],
+    ['Emite faturas aos hóspedes?', 'Não. Regista os valores e os pagamentos de cada reserva, mas não é um programa de faturação certificado. Continue a emitir as faturas no programa que já usa.'],
+    ['Calcula a taxa turística?', 'Calcula-a nas reservas e nos relatórios, por mês e por casa. A entrega à câmara continua a ser feita por si.'],
+  ] },
+  { id: 'hospedes', titulo: 'Hóspedes e SIBA', itens: [
+    ['Comunica os hóspedes ao SIBA?', 'O pré-check-in recolhe todos os dados que o SIBA pede. A comunicação continua a ser feita por si, mas com os dados já organizados.'],
+    ['E a privacidade do hóspede?', 'O hóspede vê a informação de privacidade antes de enviar os dados, e a aceitação fica registada.'],
+    ['De onde saem os emails automáticos?', 'Do seu Gmail, para os hóspedes lhe responderem a si e a conversa ficar na reserva. Os modelos existem em sete línguas: português, inglês, francês, espanhol, alemão, italiano e neerlandês.'],
+  ] },
+  { id: 'precos', titulo: 'Preços', itens: [
+    ['Quanto custa?', 'Há três planos mensais, consoante o número de casas, e nenhuma comissão por reserva. Pode ver tudo na página de preços.'],
+    ['Posso mudar de plano?', 'Sempre que quiser, para cima ou para baixo.'],
+    ['Há fidelização?', 'Não. No plano mensal pode cancelar quando quiser.'],
+    ['Os preços incluem IVA?', 'Os valores apresentados não incluem IVA à taxa legal em vigor.'],
+    ['A equipa paga utilizador?', 'Depende do plano: o Essencial inclui 2 utilizadores, o Profissional 5 e o Premium não tem limite.'],
+  ] },
+  { id: 'dados', titulo: 'Dados e segurança', itens: [
+    ['Os meus dados estão seguros?', 'Sim. O acesso é protegido, cada pessoa da equipa vê só o que precisa e o consentimento dos hóspedes fica registado.'],
+    ['Posso exportar os meus dados?', 'Pode, quando quiser. Há cópias de segurança e exportações dos seus dados.'],
+    ['A equipa vê os números do negócio?', 'Não precisa. A equipa vê as chegadas e as tarefas, não vê os números, e as permissões definem o que cada pessoa pode ver.'],
+    ['Fica registado quem fez o quê?', 'Sim. Cancelamentos, reembolsos e mudanças de permissões ficam registados.'],
+  ] },
+];
+
+const todas = temas.flatMap((t) => t.itens);
+const jsonld = [{
+  '@context': 'https://schema.org', '@type': 'FAQPage',
+  mainEntity: todas.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
+}];
+---
+<Base titulo={titulo} descricao={descricao} atual="perguntas" jsonld={jsonld}>
+  <PageHero h1="Perguntas que nos fazem sempre." lede="Respostas diretas, incluindo o que a plataforma ainda não faz. Se não encontrar a sua, escreva-nos." fase={1.3}
+    caminho={[{ rotulo: 'Início', href: '/' }, { rotulo: 'Perguntas frequentes' }]} />
+  <section class="sec" style="padding-top:64px" aria-label="Perguntas por tema">
+    <div class="in" style="max-width:860px">
+      <nav class="temas" aria-label="Temas">
+        {temas.map((t) => <a href={`#${t.id}`}>{t.titulo}</a>)}
+      </nav>
+      <div style="margin-top:24px">
+        {temas.map((t) => (
+          <section class="tema" id={t.id} aria-labelledby={`${t.id}-h`}>
+            <h2 id={`${t.id}-h`}>{t.titulo}</h2>
+            <Faq itens={t.itens} />
+          </section>
+        ))}
+      </div>
+    </div>
+  </section>
+  <FinalCta titulo="Ficou alguma por responder?" texto="Escreva-nos ou peça acesso antecipado. Respondemos por email, sem conversa de vendedor." />
+</Base>

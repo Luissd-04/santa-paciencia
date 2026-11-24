@@ -1,0 +1,21 @@
+---
+import Icon from './Icon.astro';
+import { planos } from '../config/brand';
+// Cartões dos planos recomendados para um perfil. Valores de src/config/brand.ts (POR CONFIRMAR).
+interface Props { ids: string[]; }
+const { ids } = Astro.props;
+const escolhidos = ids.map((id) => planos.find((p) => p.id === id)).filter((p) => !!p);
+---
+<div class="reco" style={`--n:${escolhidos.length}`}>
+  {escolhidos.map((p) => (
+    <article>
+      <h3>{p!.nome}</h3>
+      <p class="for">{p!.para}</p>
+      <div class="pr">{p!.mensal} € <span>por mês</span></div>
+      <small>{p!.anual} € por mês com pagamento anual · valores sem IVA</small>
+      <ul>{p!.inclui.map((x) => <li><Icon nome="check" forte /><span>{x}</span></li>)}</ul>
+      <div class="lim">{p!.limites}</div>
+    </article>
+  ))}
+</div>
+<p class="reco-nota">Pode mudar de plano quando quiser, para cima ou para baixo. <a href="/precos/">Veja todos os planos e compare</a>.</p>

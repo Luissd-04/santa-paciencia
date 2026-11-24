@@ -1,0 +1,48 @@
+---
+import Base from './Base.astro';
+import PageHero from '../components/PageHero.astro';
+import FinalCta from '../components/FinalCta.astro';
+import PlanoRecomendado from '../components/PlanoRecomendado.astro';
+import Icon, { type NomeIcone } from '../components/Icon.astro';
+import Tile from '../components/Tile.astro';
+
+// Modelo das páginas «Para quem»: topo, secções de blocos, frase opcional, plano recomendado e chamada final.
+interface Seccao { id: string; titulo: string; blocos: { icone: NomeIcone; titulo: string; texto: string }[]; frase?: string; colunas?: 3 }
+interface Props {
+  titulo: string; descricao: string; nome: string; h1: string; lede: string; fase?: number;
+  seccoes: Seccao[];
+  planoTitulo: string; planoTexto: string; planoIds: string[];
+  fimTitulo: string; fimTexto: string;
+}
+const { titulo, descricao, nome, h1, lede, fase = 2.4, seccoes, planoTitulo, planoTexto, planoIds, fimTitulo, fimTexto } = Astro.props;
+const caminho = [{ rotulo: 'Início', href: '/' }, { rotulo: 'Para quem', href: '/para/' }, { rotulo: nome }];
+---
+<Base titulo={titulo} descricao={descricao} atual="para-quem">
+  <PageHero h1={h1} lede={lede} caminho={caminho} fase={fase}>
+    <div class="ctas"><a class="btn p" href="/acesso-antecipado/">Quero experimentar <Icon nome="arrow" class="go" /></a><a class="btn s" href="#plano">Ver o plano recomendado</a></div>
+  </PageHero>
+
+  {seccoes.map((s, i) => (
+    <section class={i % 2 === 0 ? 'sec' : 'sec alt'} aria-labelledby={s.id}>
+      <div class="in">
+        <h2 class="h2" id={s.id}>{s.titulo}</h2>
+        {s.blocos.length > 0 && (
+          <div class={s.colunas === 3 ? 'blocos tres' : 'blocos'}>
+            {s.blocos.map((b) => <div class="bloco"><Tile icone={b.icone} /><h3>{b.titulo}</h3><p>{b.texto}</p></div>)}
+          </div>
+        )}
+        {s.frase && <p class="frase">{s.frase}</p>}
+      </div>
+    </section>
+  ))}
+
+  <section class={seccoes.length % 2 === 0 ? 'sec' : 'sec alt'} id="plano" aria-labelledby="plano-h">
+    <div class="in">
+      <h2 class="h2" id="plano-h">{planoTitulo}</h2>
+      <p class="sub">{planoTexto}</p>
+      <PlanoRecomendado ids={planoIds} />
+    </div>
+  </section>
+
+  <FinalCta titulo={fimTitulo} texto={fimTexto} fase={3.4} />
+</Base>

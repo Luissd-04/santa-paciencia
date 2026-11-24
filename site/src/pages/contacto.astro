@@ -1,0 +1,25 @@
+---
+import Base from '../layouts/Base.astro';
+import Calcada from '../components/Calcada.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import AccessForm from '../components/AccessForm.astro';
+import { marca } from '../config/brand';
+
+const titulo = `Contacto | ${marca.nome}`;
+const descricao = 'Uma dúvida, uma ideia ou só curiosidade sobre o software de alojamento local? Escreva-nos: respondemos por email.';
+---
+<Base titulo={titulo} descricao={descricao}>
+  <section class="dark">
+    <Calcada fase={4.0} />
+    <div class="in ph-pair">
+      <div>
+        <Breadcrumbs itens={[{ rotulo: 'Início', href: '/' }, { rotulo: 'Contacto' }]} />
+        <h1>Fale connosco.</h1>
+        <p class="lede">Uma dúvida, uma ideia ou só curiosidade. Respondemos por email.</p>
+        <p class="contacto-mail">Prefere escrever diretamente? <a href={`mailto:${marca.email}`}>{marca.email}</a></p>
+      </div>
+      <AccessForm assunto titulo="Enviar mensagem" botao="Enviar mensagem" mensagem="A sua mensagem" modo="Contacto"
+        nota="Usamos os seus dados só para responder a esta mensagem." />
+    </div>
+  </section>
+</Base>

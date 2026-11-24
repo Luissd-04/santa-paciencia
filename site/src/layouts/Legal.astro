@@ -1,0 +1,20 @@
+---
+import Base from './Base.astro';
+import PageHero from '../components/PageHero.astro';
+
+// Páginas legais (privacidade, termos): topo escuro, aviso de texto provisório bem visível e texto corrido.
+interface Props { titulo: string; descricao: string; h1: string; atualizado: string; fase?: number }
+const { titulo, descricao, h1, atualizado, fase = 1.0 } = Astro.props;
+---
+<Base titulo={titulo} descricao={descricao}>
+  <PageHero h1={h1} fase={fase} caminho={[{ rotulo: 'Início', href: '/' }, { rotulo: h1 }]} />
+  <section class="sec" style="padding-top:72px">
+    <div class="in">
+      <div class="prose">
+        <p class="nota" role="note"><strong>Texto provisório.</strong> Este documento é um modelo de trabalho e tem de ser revisto e completado (identificação da entidade, NIF, morada e contactos) antes da publicação do site.</p>
+        <slot />
+        <p style="color:var(--cinza);font-size:15px">Última atualização: {atualizado}.</p>
+      </div>
+    </div>
+  </section>
+</Base>

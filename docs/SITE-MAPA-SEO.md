@@ -174,7 +174,7 @@ Verificado no código a 15/11/2026.
 
 | Afirmação | Pode? | Nota |
 |---|---|---|
-| Sincroniza calendários do Airbnb e do Booking.com | Sim | Por iCal. Não dizer «channel manager» nem «em tempo real» |
+| Sincroniza calendários do Airbnb e do Booking.com | **Não** | Revisto a 25/11/2026: os endereços iCal ficam guardados no alojamento, mas nada os importa nem exporta. As reservas dessas plataformas são registadas à mão, com o canal identificado |
 | Pagamentos online com Stripe, sinal ou total | Sim | |
 | Mensagens automáticas pelo Gmail, em 7 idiomas | Sim | Modelos em PT, EN, FR, ES, DE, IT e NL |
 | Pré-check-in recolhe os campos do SIBA | Sim | **Não** dizer que comunica ao SIBA automaticamente: a submissão não existe |
