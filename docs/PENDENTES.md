@@ -68,6 +68,7 @@ _(lista nova)_
 - **Condições gerais da reserva (à espera da opinião do cliente):** documento formal versionado com PDF, aceite antes de pagar; privacidade como «tomei conhecimento» com versão; marketing opcional. Maqueta pronta.
 - **Documentos e aceitações do hóspede:** política de privacidade completa (art. 13.º); regras da casa aceites no pré-check-in; Livro de Reclamações Eletrónico e resolução alternativa de litígios no site, portal e emails; secção «Documentos» no portal. Validar textos com jurista.
 - **Reservas no site do cliente:** widget de pesquisa (datas que passam para a reserva), plugin de WordPress, domínio próprio (`reservas.cliente.pt`); instalação no site do cliente como serviço pago.
+- **Sites para clientes:** gerador de sites a partir dos dados da plataforma — avaliar só quando a plataforma estiver estável e houver procura. Até lá, a página de reservas serve de mini-site para quem não tem site; sites à medida em WordPress como serviço avulso.
 - **Plano e faturação:** pagamento automático da subscrição (Stripe Billing).
 - Juntar num único documento os planos espalhados por: `ROADMAP.md`, `MELHORIAS.md`, `ESCOPO-V1-V2.md`, `FECHO-V1-2026-10-24.md`, `PERCURSO-HOSPEDE-2026-11-19.md`, `PLANO-CONSOLA.md`.
 - Línguas nos emails: esconder o seletor ou escolher a língua pelo país do hóspede.
