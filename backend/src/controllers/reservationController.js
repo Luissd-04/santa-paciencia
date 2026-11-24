@@ -71,6 +71,7 @@ async function getById(req, res, next) {
     // Sinal exigido (o da política guardada na reserva ou o da organização),
     // para a linha «Pagamento online» do mesmo cartão.
     try { reservation.deposit_amount = require('../services/paymentPolicy').requiredDepositCents(reservation) / 100; } catch { reservation.deposit_amount = null; }
+    try { reservation.pays_in_full = require('../services/paymentPolicy').paysInFull(reservation); } catch { reservation.pays_in_full = false; }
 
     reservation.payments = db.prepare(`
       SELECT * FROM reservation_payments

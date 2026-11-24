@@ -156,16 +156,18 @@
 
   // Mesma regra do servidor (voucherService.voucherDiscount): arredondado ao
   // cêntimo; um crédito de estadia vale o preço das primeiras N noites.
-  function voucherDiscount(voucher, total, nightlyPrices = []) {
+  // Não desconta a taxa turística (`touristTax`, incluída em `total`).
+  function voucherDiscount(voucher, total, nightlyPrices = [], touristTax = 0) {
     if (!voucher) return 0;
     const value = Number(voucher.value) || 0;
+    const base = Math.max(0, Math.round((Number(total) - (Number(touristTax) || 0)) * 100) / 100);
     let discount;
-    if (voucher.type === 'discount_pct') discount = Math.round(total * value) / 100;
+    if (voucher.type === 'discount_pct') discount = Math.round(base * value) / 100;
     else if (voucher.type === 'credit_stay') {
       discount = (Array.isArray(nightlyPrices) ? nightlyPrices : []).slice(0, Math.max(0, Math.floor(value)))
         .reduce((sum, night) => sum + Math.round((Number(night?.price) || 0) * 100), 0) / 100;
     } else discount = Math.round(value * 100) / 100;
-    return Math.max(0, Math.min(total, discount));
+    return Math.max(0, Math.min(base, discount));
   }
 
   function voucherLabel(voucher) {

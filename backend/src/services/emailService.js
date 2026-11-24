@@ -201,7 +201,11 @@ const plural = (n, one, many) => `${n} ${Number(n) === 1 ? one : many}`;
 // das variáveis de texto (que são escapadas), estes são HTML de confiança —
 // por isso são construídos aqui e nunca a partir do que o utilizador escreve.
 function buildBlocks(vars, settings, reservation) {
-  const pres = statusPresentation(reservation);
+  const full = Boolean(vars.pagamento_total);   // sem política: paga-se o total, não há «sinal»
+  const pres = full && String(reservation?.status || '').toLowerCase() === 'aguardar_pagamento'
+    ? { ...statusPresentation(reservation), eyebrow: 'Aguarda o pagamento', headline: () => 'Falta o pagamento para confirmar',
+      message: 'Guardámos as datas. A reserva fica confirmada assim que recebermos o pagamento.' }
+    : statusPresentation(reservation);
   const s = settings || {};
   const status = String(reservation?.status || '').toLowerCase();
   const esc = escapeHtml;
@@ -232,8 +236,8 @@ function buildBlocks(vars, settings, reservation) {
       ? composer.buildNote({ heading: 'Próximo passo', html: 'Complete o pré-check-in: hora de chegada e dados dos hóspedes.' })
         + button(vars.link_pre_checkin, 'Fazer o pré-check-in')
       : '') + mapButton,
-    aguardar_pagamento: () => button(vars.link_reserva, vars.valor_sinal ? `Pagar o sinal · ${vars.valor_sinal}` : 'Pagar o sinal'),
-    pendente: () => composer.buildSteps(['Confirmamos a disponibilidade', 'Enviamos o link para pagar o sinal', 'Prepara a chegada com o pré-check-in'])
+    aguardar_pagamento: () => button(vars.link_reserva, `${full ? 'Pagar a reserva' : 'Pagar o sinal'}${vars.valor_sinal ? ` · ${vars.valor_sinal}` : ''}`),
+    pendente: () => composer.buildSteps(['Confirmamos a disponibilidade', full ? 'Enviamos o link para pagar a reserva' : 'Enviamos o link para pagar o sinal', 'Prepara a chegada com o pré-check-in'])
       + button(vars.link_reserva, 'Acompanhar o pedido', { secondary: true }),
     pre_reserva: () => button(vars.link_reserva, 'Ver a reserva', { secondary: true }),
   };
@@ -256,7 +260,7 @@ function buildBlocks(vars, settings, reservation) {
     ttl: { eyebrow: 'Pedido expirado', headline: 'Não conseguimos confirmar o seu pedido',
       text: `O seu pedido para ${strong(vars.datas_curtas)} em ${strong(vars.alojamento)} não chegou a ser confirmado e as datas ficaram livres. Não lhe foi cobrado nada.`, rebook: true },
     deposit: { eyebrow: 'Prazo terminado', headline: 'As datas voltaram a ficar livres',
-      text: `Não recebemos o sinal da sua reserva para ${strong(vars.datas_curtas)} em ${strong(vars.alojamento)} dentro do prazo, por isso as datas voltaram a ficar livres. Não lhe foi cobrado nada.`, rebook: true },
+      text: `Não recebemos ${full ? 'o pagamento' : 'o sinal'} da sua reserva para ${strong(vars.datas_curtas)} em ${strong(vars.alojamento)} dentro do prazo, por isso as datas voltaram a ficar livres. Não lhe foi cobrado nada.`, rebook: true },
     staff: { eyebrow: 'Reserva cancelada', headline: 'A sua reserva foi cancelada',
       text: `A sua reserva em ${strong(vars.alojamento)} foi cancelada. Se não esperava este email ou tem alguma pergunta, responda a esta mensagem.` },
     guest: { eyebrow: 'Reserva cancelada', headline: 'A sua reserva foi cancelada',
@@ -270,10 +274,10 @@ function buildBlocks(vars, settings, reservation) {
       ? { eyebrow: 'Reserva aceite', tone: 'ok', headline: 'As datas são suas' }
       : { eyebrow: 'Reserva confirmada', tone: 'ok', headline: 'Está tudo marcado' }),
     mensagem_aceite: depositDue
-      ? para(`Aceitámos o seu pedido. Para confirmar a reserva, falta pagar o sinal de ${strong(vars.valor_sinal)}${vars.prazo_sinal ? ` até ${strong(vars.prazo_sinal)}. Depois disso, as datas voltam a ficar livres` : ''}.`)
+      ? para(`Aceitámos o seu pedido. Para confirmar a reserva, falta pagar ${full ? '' : 'o sinal de '}${strong(vars.valor_sinal)}${vars.prazo_sinal ? ` até ${strong(vars.prazo_sinal)}. Depois disso, as datas voltam a ficar livres` : ''}.`)
       : para(`Aceitámos o seu pedido e a sua reserva em ${strong(vars.alojamento)} está confirmada.`),
     botao_pagar_sinal: depositDue && vars.pagamento_online
-      ? button(vars.link_reserva, `Pagar o sinal · ${vars.valor_sinal}`)
+      ? button(vars.link_reserva, `${full ? 'Pagar a reserva' : 'Pagar o sinal'} · ${vars.valor_sinal}`)
         + para('Pagamento seguro através da Stripe.', 'font-size:13.5px;text-align:center;margin:6px 0 0;')
       : '',
     proximo_pre_checkin: vars.link_pre_checkin && !precheckinDone && status !== 'cancelada'
@@ -285,8 +289,11 @@ function buildBlocks(vars, settings, reservation) {
     mensagem_pagamento: vars.pagamento_confirma && vars.pagamento_liquidado
       ? para(`Obrigado. Recebemos o pagamento de ${strong(vars.valor_pagamento)}: a sua reserva em ${strong(vars.alojamento)} está confirmada e paga na totalidade.`)
       : vars.pagamento_confirma
-      ? para(`Obrigado. Recebemos o sinal de ${strong(vars.valor_pagamento)} e a sua reserva em ${strong(vars.alojamento)} está confirmada.`)
-      : para(`Obrigado. Registámos o pagamento de ${strong(vars.valor_pagamento)} da sua reserva em ${strong(vars.alojamento)}.${vars.pagamento_liquidado ? ' Não falta pagar nada.' : ''}`),
+      ? para(vars.valor_sinal_exigido && vars.valor_sinal_exigido !== vars.valor_pagamento
+        ? `Obrigado. Recebemos ${strong(vars.valor_pagamento)}, que completam o sinal de ${strong(vars.valor_sinal_exigido)}: a sua reserva em ${strong(vars.alojamento)} está confirmada.`
+        : `Obrigado. Recebemos o sinal de ${strong(vars.valor_pagamento)} e a sua reserva em ${strong(vars.alojamento)} está confirmada.`)
+      : para(`Obrigado. Registámos o pagamento de ${strong(vars.valor_pagamento)} da sua reserva em ${strong(vars.alojamento)}.${vars.pagamento_liquidado ? ' Não falta pagar nada.'
+        : vars.valor_sinal ? ` Para confirmar a reserva ainda falta ${strong(vars.valor_sinal)}${vars.prazo_sinal ? ` até ${strong(vars.prazo_sinal)}` : ''}.` : ''}`),
 
     // ── Tudo para a sua chegada ──
     como_chegar: s.property_address || s.arrival_instructions
@@ -322,8 +329,8 @@ function buildBlocks(vars, settings, reservation) {
       if (status === 'pendente') return note('Estamos a confirmar a disponibilidade. Avisamos por email assim que o pedido for aceite; até lá não precisa de pagar nada.')
         + portal('Acompanhar o pedido');
       if (['aguardar_pagamento', 'pre_reserva'].includes(status) && depositDue) {
-        return note(`Para confirmar a reserva, falta pagar o sinal de ${strong(vars.valor_sinal)}${vars.prazo_sinal ? ` até ${strong(vars.prazo_sinal)}` : ''}.`)
-          + portal(vars.pagamento_online ? `Pagar o sinal · ${vars.valor_sinal}` : 'Ver a reserva');
+        return note(`Para confirmar a reserva, falta pagar ${full ? '' : 'o sinal de '}${strong(vars.valor_sinal)}${vars.prazo_sinal ? ` até ${strong(vars.prazo_sinal)}` : ''}.`)
+          + portal(vars.pagamento_online ? `${full ? 'Pagar a reserva' : 'Pagar o sinal'} · ${vars.valor_sinal}` : 'Ver a reserva');
       }
       if (['confirmada', 'check_in'].includes(status) && !precheckinDone) {
         return note('Complete o pré-check-in: hora de chegada e dados de cada hóspede, que a lei nos obriga a registar.')
@@ -390,7 +397,7 @@ function buildBlocks(vars, settings, reservation) {
 
     // ── Pagamentos ──
     titulo_pagamento: composer.buildTitle(vars.pagamento_confirma && !vars.pagamento_liquidado
-      ? { eyebrow: 'Reserva confirmada', tone: 'ok', headline: vars.valor_pagamento ? `Recebemos o sinal de ${vars.valor_pagamento}` : 'Recebemos o sinal' }
+      ? { eyebrow: 'Reserva confirmada', tone: 'ok', headline: vars.valor_sinal_exigido || vars.valor_pagamento ? `Recebemos o sinal de ${vars.valor_sinal_exigido || vars.valor_pagamento}` : 'Recebemos o sinal' }
       : vars.pagamento_liquidado
       ? { eyebrow: 'Pagamento concluído', tone: 'ok', headline: 'A reserva está paga na totalidade' }
       : { eyebrow: 'Pagamento recebido', tone: 'ok', headline: vars.valor_pagamento ? `Recebemos ${vars.valor_pagamento}` : 'Pagamento recebido' }),
@@ -731,9 +738,17 @@ function paymentVars(reservation) {
   try { link = require('./publicLinks').reservationPageUrl(reservation); } catch { /* origem por configurar */ }
   const totalCents = cents(reservation.total_amount || 0);
   let depositCents = 0;
-  try { depositCents = require('./paymentPolicy').requiredDepositCents(reservation); } catch { /* sem política */ }
+  let fullPayment = false;
+  try {
+    const policy = require('./paymentPolicy');
+    depositCents = policy.requiredDepositCents(reservation);
+    fullPayment = policy.paysInFull(reservation);
+  } catch { /* sem política */ }
   return {
     percentagem_paga: totalCents > 0 ? String(Math.round(Math.min(paidCents, totalCents) / totalCents * 100)) : '0',
+    // Sem política ativa o «sinal» é o total: os textos dizem «pagamento».
+    pagamento_total: depositCents > paidCents && fullPayment ? '1' : '',
+    valor_sinal_exigido: depositCents > 0 && !fullPayment ? composer.formatCurrency(depositCents / 100) : '',
     valor_sinal: depositCents > paidCents ? composer.formatCurrency((depositCents - paidCents) / 100) : '',
     prazo_pagamento_curto: reservation.balance_deadline ? formatWeekdayDate(require('./dates').localDay(new Date(reservation.balance_deadline))) : '',
     total_pago: composer.formatCurrency(paidCents / 100),
@@ -744,7 +759,7 @@ function paymentVars(reservation) {
     valor_reembolso: refund,
     link_reserva: link,
     prazo_sinal: depositCents > paidCents && reservation.deposit_deadline ? formatDeadline(reservation.deposit_deadline) : '',
-    titulo_aceite_assunto: depositCents > paidCents ? 'Reserva aceite — falta o sinal' : 'Reserva confirmada',
+    titulo_aceite_assunto: depositCents > paidCents ? (fullPayment ? 'Reserva aceite — falta o pagamento' : 'Reserva aceite — falta o sinal') : 'Reserva confirmada',
     pagamento_online: onlinePaymentEnabled(reservation.organization_id) ? '1' : '',
   };
 }

@@ -62,8 +62,8 @@ test('cotação traz as linhas do total e o sinal, que batem com o total', async
   const quote = await call(write.quote, { accommodation_id: 'casa', ...stay, voucher_code: 'DESC10', channel: 'direto' });
   const { total_amount: total, breakdown: b, deposit_amount: deposit } = quote.body.data;
   assert.equal(b.accommodation, 450);
-  // DESC10: 10% do total da estadia (com a taxa turística).
-  assert.equal(b.voucher, Math.round((b.accommodation + b.breakfast + b.extra_occupancy + b.tourist_tax) * 10) / 100);
+  // DESC10: 10% do alojamento e extras, sem a taxa turística.
+  assert.equal(b.voucher, Math.round((b.accommodation + b.breakfast + b.extra_occupancy) * 10) / 100);
   assert.equal(b.adjustment, 0);
   assert.equal(Math.round((b.accommodation + b.breakfast + b.extra_occupancy + b.tourist_tax - b.voucher + b.adjustment) * 100) / 100, total);
   assert.ok(deposit > 0 && deposit <= total);

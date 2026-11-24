@@ -24,6 +24,12 @@ const SETTINGS = {
   arrival_instructions: 'Estacione no largo.', entry_instructions: 'A chave está na caixa.', checkout_instructions: 'Deixe a chave\nFeche as janelas',
   review_url: 'https://g.page/r/casa/review', booking_url: 'https://exemplo.invalid/reservar/casa', no_wifi: false,
 };
+// Com política de pagamento ativa há sinal; sem ela, paga-se o total (ver os
+// testes «sem política» no fim). Os testes do sinal correm com a política ligada.
+const policy = require('../services/paymentPolicy');
+const setPolicy = enabled => require('../services/settingsService').set('o', 'payment_policy', { ...policy.DEFAULT_POLICY, enabled });
+db.prepare("INSERT OR IGNORE INTO organizations(id,name,slug) VALUES ('o','O','o')").run();
+setPolicy(true);
 const GUEST = { name: 'Ana Hóspede', first_name: 'Ana', email: 'ana@exemplo.invalid' };
 const UNIT = { name: 'Casa do Monte', wifi_name: 'CasaDoMonte', wifi_password: 'oliveira', door_code: '4821' };
 const text = html => html.replace(/<span class="sp-g[se]"><span class="sp-gd">([^<]*)<\/span><\/span>/g, '$1').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
@@ -109,4 +115,24 @@ test('«Boas-vindas» e «Lembrete de check-out» ficam desligados por omissão'
   assert.equal(list.find(t => t.slug === 'apos_checkin').active, 0);
   assert.equal(list.find(t => t.slug === 'reserva_aceite').timing_event, 'approval');
   assert.equal(list.find(t => t.slug === 'pre_checkin').timing_event, 'manual');
+});
+
+test('sem política de pagamento: o email diz «pagamento» e o valor é o total, nunca «sinal»', () => {
+  setPolicy(false);
+  try {
+    const { subject, text: t } = render('reserva_aceite', { deposit_deadline: '2035-11-21T10:30:00.000Z' });
+    assert.equal(subject, 'Reserva aceite — falta o pagamento — Casa do Monte');
+    assert.match(t, /falta pagar 288,00 € até \S+, 21 nov( \d{4})?, às 10:30/);
+    assert.match(t, /Pagar a reserva · 288,00 €/);
+    assert.doesNotMatch(t, /sinal/i);
+    assert.match(render('cancelamento', { status: 'cancelada' }, { motivo_cancelamento: 'deposit' }).text, /Não recebemos o pagamento/);
+  } finally { setPolicy(true); }
+});
+
+test('B11: o pagamento que completa o sinal mostra o sinal; o parcial anterior diz quanto falta e até quando', () => {
+  const done = render('pagamento', { status: 'confirmada', amount_paid: 144 }, { valor_pagamento: '94,00 €', pagamento_confirma: '1' }).text;
+  assert.match(done, /Recebemos o sinal de 144,00 €/);
+  assert.match(done, /Recebemos 94,00 € ?, que completam o sinal de 144,00 €/);
+  const partial = render('pagamento', { status: 'aguardar_pagamento', amount_paid: 50, deposit_deadline: '2035-11-21T10:30:00.000Z' }, { valor_pagamento: '50,00 €' }).text;
+  assert.match(partial, /Registámos o pagamento de 50,00 € da sua reserva em Casa do Monte ?\. Para confirmar a reserva ainda falta 94,00 € ?até \S+, 21 nov/);
 });

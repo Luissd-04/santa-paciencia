@@ -61,8 +61,9 @@ test('email de pagamento parcial mostra o valor recebido e o que falta', async (
   assert.ok(result.id);
   assert.equal(sent.length, 1);
   assert.match(sent[0].subject, /Pagamento recebido/);
-  // Os 50 € completam o sinal: o email diz que a reserva ficou confirmada.
-  assert.match(sent[0].html, /Recebemos o sinal de 50,00/);
+  // Sem política paga-se o total: 50 € não confirmam; o email diz quanto falta.
+  assert.match(sent[0].html, /Registámos o pagamento de/);
+  assert.doesNotMatch(sent[0].html, /Recebemos o sinal/);
   assert.match(sent[0].html, />Falta </);
   assert.match(sent[0].html, /150,00/);
   assert.doesNotMatch(sent[0].html, /\{\{/);

@@ -337,10 +337,19 @@ function painelTodayItem(item) {
 function painelAttention(painel) {
   const esc = AppModules.core.escapeHtml;
   const names = list => `${esc(list[0].guest_name)}${list.length > 1 ? ` e mais ${list.length - 1}` : ''}`;
+  // Com sinal parcial fora do prazo (só gestor+), a reserva sai do «Falta o sinal».
+  const overdue = painel.attention.depositOverdue || [];
+  const overdueIds = new Set(overdue.map(r => r.id));
+  const waiting = (painel.attention.awaitingDeposit || []).filter(r => !overdueIds.has(r.id));
+  painel = { ...painel, attention: { ...painel.attention, awaitingDeposit: waiting, depositOverdue: overdue } };
+  // Sem política de pagamento o que falta é o pagamento, não um «sinal».
+  const noun = list => list.every(r => r.pays_in_full) ? 'o pagamento' : 'o sinal';
   const groups = [
     ['pendingApproval', 'inbox', 'violet', 'Por aprovar', list => list.length === 1 ? 'Pedido por aprovar' : `${list.length} pedidos por aprovar`,
       list => `${names(list)} · chega ${window.ReservationDates.formatDayLabel(list[0].check_in, { weekday: false })}`],
-    ['awaitingDeposit', 'credit-card', 'warn', 'Falta o sinal', list => list.length === 1 ? 'Falta o sinal' : `Falta o sinal em ${list.length} reservas`,
+    ['depositOverdue', 'alert-circle', 'warn', 'Prazo passado', list => list.length === 1 ? `Prazo passado: falta ${noun(list)}` : `Prazo passado em ${list.length} reservas`,
+      list => `${names(list)} · ${ReservationMoney.format(list.reduce((sum, r) => sum + r.missing, 0))} em falta · já há dinheiro recebido`],
+    ['awaitingDeposit', 'credit-card', 'warn', 'Falta pagar', list => list.length === 1 ? `Falta ${noun(list)}` : `Falta pagar em ${list.length} reservas`,
       list => `${names(list)} · ${ReservationMoney.format(list.reduce((sum, r) => sum + r.missing, 0))} em falta`],
     ['precheckinMissing', 'send', 'info', 'Pré-check-in em falta', () => 'Pré-check-in em falta',
       list => `${list.length} reserva${list.length === 1 ? '' : 's'} nos próximos 7 dias`],

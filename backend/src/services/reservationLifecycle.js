@@ -101,6 +101,16 @@ function reactivationStatus(existing) {
   return previous;
 }
 
+// Prazo do pagamento depois de aceitar: DEPOSIT_TTL_HOURS, mas nunca depois do
+// início do dia de entrada (Europe/Lisbon) menos 1 h. Numa entrada para hoje ou
+// amanhã cedo esse limite já passou: dá-se pelo menos 1 h para pagar.
+function depositDeadline(reservation, now = new Date()) {
+  const ttl = now.getTime() + DEPOSIT_TTL_HOURS * 3600000;
+  if (!reservation?.check_in) return new Date(ttl).toISOString();
+  const entry = require('./dates').zonedDateTime(reservation.check_in, '00:00').getTime() - 3600000;
+  return new Date(Math.max(Math.min(ttl, entry), now.getTime() + 3600000)).toISOString();
+}
+
 // Aprovar um pedido: passa a reserva ativa (confirmada se o sinal já estiver
 // pago) e envia o link do pré-check-in ao hóspede.
 function approve(organizationId, id, { actorUserId = null, origin }) {
@@ -109,6 +119,9 @@ function approve(organizationId, id, { actorUserId = null, origin }) {
     const reservation = load(organizationId, id);
     if (!reservation) throw httpError('Reserva não encontrada', 404);
     if (reservation.status !== 'pendente') throw httpError('Só um pedido pendente pode ser aprovado.', 409);
+    if (reservation.check_in && reservation.check_in < require('./dates').localDay(new Date())) {
+      throw httpError('A data de entrada deste pedido já passou. Recuse o pedido ou altere as datas antes de o aceitar.', 409);
+    }
     ensurePublicToken(reservation);
     const token = ensurePrecheckinToken(reservation);
     const url = `${origin}/pre-checkin/${token}`;
@@ -118,7 +131,7 @@ function approve(organizationId, id, { actorUserId = null, origin }) {
     // (reservationScheduler.expireUnpaidDeposits).
     if (load(organizationId, id).status === 'aguardar_pagamento') {
       db.prepare('UPDATE reservations SET deposit_deadline = ? WHERE id = ? AND organization_id = ?')
-        .run(new Date(Date.now() + DEPOSIT_TTL_HOURS * 3600000).toISOString(), id, organizationId);
+        .run(depositDeadline(load(organizationId, id)), id, organizationId);
     }
     recordHistory({ organizationId, reservationId: id, userId: actorUserId, action: 'approved' });
     events.emit('reservation.approved', { organizationId, reservationId: id, actorUserId, payload: { precheckinUrl: url } });
@@ -157,4 +170,4 @@ function reconcileLegacyStatuses() {
   }).immediate();
 }
 
-module.exports = { CANCEL_REASONS, DEPOSIT_TTL_HOURS, markCancelled, afterCancel, cancel, context, nextStatus, statusOptions, undoStatus, reactivationStatus, approve, markPrecheckinSent, reconcileLegacyStatuses };
+module.exports = { CANCEL_REASONS, DEPOSIT_TTL_HOURS, depositDeadline, markCancelled, afterCancel, cancel, context, nextStatus, statusOptions, undoStatus, reactivationStatus, approve, markPrecheckinSent, reconcileLegacyStatuses };

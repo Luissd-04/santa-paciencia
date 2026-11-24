@@ -43,7 +43,7 @@ function removeEntry(reservation, paymentId) {
 // `deriveStatus: false` mantém o estado da reserva (ex.: estado escolhido
 // pela equipa na edição). `fallbackPaymentStatus` é o estado do pagamento a
 // conservar quando nada foi recebido.
-function recompute(reservationId, organizationId, { deriveStatus = true, allowDowngrade = true, fallbackPaymentStatus } = {}) {
+function recompute(reservationId, organizationId, { deriveStatus = true, allowDowngrade = false, fallbackPaymentStatus } = {}) {
   const r = db.prepare('SELECT * FROM reservations WHERE id = ? AND organization_id = ?').get(reservationId, organizationId);
   if (!r) throw httpError('Reserva não encontrada', 404);
   const paid = ledgerTotal(r.id, organizationId);

@@ -12,14 +12,11 @@ filtros, barra lateral, entre outros) está concluída — ver `git log 9a033e7.
 
 Da auditoria de 25/11 (`AUDITORIA-PERCURSO-2026-11-25.md`; os números são os do relatório):
 
-1. **Dinheiro certo:** sem política cobra-se o total e os textos dizem «pagamento» (1); voucher sem a taxa turística (4); prazo do pagamento limitado à entrada e pagamento parcial tratado (13).
-2. **Avisos de dinheiro à equipa:** pagamento recebido também por email e no sino (5); pagamento falhado e reembolso (6); email da equipa que não sai sem Gmail fica como falha (17); tags de push por reserva (18).
-3. **Pagar sem confusão** (com maqueta): restante discreto depois do sinal (9), aviso de consentimento junto da caixa (15), erro da estadia mínima limpo (19), texto do reembolso com prazo (20).
-4. **O que acontece a meio:** sem Stripe, email de aceitação com instruções manuais e prazo de 48 h (3); editar reserva paga avisa o hóspede e mantém-na confirmada (7); dinheiro em reservas canceladas visível e tratado (8); pré-check-in acompanha as datas (11); reativar renova os prazos (12); cancelar pelo formulário com política (21).
-5. **Inglês nas páginas públicas, emails e Stripe**, com a língua guardada na reserva e listas de países PT/EN (2).
-6. **Coerência da equipa:** totais e rótulos iguais no painel, na ficha, no calendário e no portal (14); «aguarda pagamento» e pré-aviso de expiração no sino (16).
-7. **Taxa turística:** idade de isenção configurável por alojamento.
-8. Melhorias da lista do relatório.
+1. **Pagar sem confusão** (com maqueta): restante discreto depois do sinal (9), aviso de consentimento junto da caixa (15), erro da estadia mínima limpo (19), texto do reembolso com prazo (20).
+2. **O que acontece a meio:** sem Stripe, email de aceitação com instruções manuais e prazo de 48 h (3); editar reserva paga avisa o hóspede e mantém-na confirmada (7); dinheiro em reservas canceladas visível e tratado (8); pré-check-in acompanha as datas (11); reativar renova os prazos (12); cancelar pelo formulário com política (21).
+3. **Coerência da equipa:** totais e rótulos iguais no painel, na ficha, no calendário e no portal (14); «aguarda pagamento» e pré-aviso de expiração no sino (16).
+4. **Taxa turística:** idade de isenção configurável por alojamento.
+5. Melhorias da lista do relatório.
 
 ## Antes de publicar a revisão de 23–24/11
 
@@ -84,6 +81,8 @@ Da auditoria de 25/11 (`AUDITORIA-PERCURSO-2026-11-25.md`; os números são os d
 - Delegar em agentes (Haiku para tarefas mecânicas, Sonnet para correções com causa conhecida, o modelo principal para maquetas, revisão e verificação no browser). Cada agente recebe o ponto, a causa, os ficheiros, o critério de conclusão e «não fazer commit»; o commit é feito depois da revisão.
 
 ## Para mais tarde
+
+- **Inglês nas páginas do hóspede, emails e Stripe** (auditoria de 25/11, ponto 2; maqueta 7 aprovada): língua guardada na reserva, seletor PT/EN, listas de países PT/EN.
 
 - **Condições gerais da reserva (à espera da opinião do cliente):** documento formal versionado com PDF, aceite antes de pagar; privacidade como «tomei conhecimento» com versão; marketing opcional. Maqueta pronta.
 - **Documentos e aceitações do hóspede:** política de privacidade completa (art. 13.º); regras da casa aceites no pré-check-in; Livro de Reclamações Eletrónico e resolução alternativa de litígios no site, portal e emails; secção «Documentos» no portal. Validar textos com jurista.

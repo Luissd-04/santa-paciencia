@@ -464,6 +464,8 @@ function getReservationStatus(req, res) {
       status: reservation.status,
       payment_status: reservation.payment_status,
       online_payment: paymentSummary(reservation),
+      // Sem política de pagamento ativa paga-se o total: os textos dizem «pagamento», não «sinal».
+      pays_in_full: require('../services/paymentPolicy').paysInFull(reservation),
       total_amount: Number(reservation.total_amount || 0),
       amount_paid: Number(reservation.amount_paid || 0),
       created_at: reservation.created_at,

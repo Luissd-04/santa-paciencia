@@ -76,7 +76,7 @@ async function deletePayment(req, res, next) {
     require('../services/stripePaymentGuards').assertNoActiveCheckout(reservation.id);
 
     const payment = ledger.removeEntry(reservation, paymentId);
-    const result = ledger.recompute(id, organizationId, { fallbackPaymentStatus: 'pendente' });
+    const result = ledger.recompute(id, organizationId, { allowDowngrade: true, fallbackPaymentStatus: 'pendente' });
 
     recordHistory({
       organizationId, reservationId: id, userId: req.user.id, action: 'payment_deleted',

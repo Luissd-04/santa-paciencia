@@ -241,7 +241,7 @@ function showConfirmation({ token, reference, brand, total }) {
     ${total ? `<p class="sp-embed-done-total">Total estimado: <b>${esc(total)}</b></p>` : ''}
     ${reference && !href ? `<p class="sp-embed-done-ref">Referência: <b>${esc(reference)}</b></p>` : ''}
     ${href ? `<a class="primary-btn sp-embed-done-link" href="${esc(href)}" target="_blank" rel="noopener">Ver o meu pedido <span aria-hidden="true">↗</span></a>
-    <p class="sp-embed-done-note">Abre num separador novo, onde acompanha o pedido e, depois de aceite, paga o sinal.</p>` : ''}
+    <p class="sp-embed-done-note">Abre num separador novo, onde acompanha o pedido e, depois de aceite, faz o pagamento.</p>` : ''}
   </section>`;
   card.querySelector('h2')?.focus({ preventScroll: true });
   post({ type: 'sp-embed-scroll' });

@@ -107,7 +107,7 @@ function recalc() {
   const totals = quote(isPropertySelected ? null : unit);
   if (!isPropertySelected) updateRateHints(unit);
 
-  const discountAmount = window.ReservationPricing.voucherDiscount(AppModules.booking._voucherData, totals.totalAmount, totals.nightlyPrices);
+  const discountAmount = window.ReservationPricing.voucherDiscount(AppModules.booking._voucherData, totals.totalAmount, totals.nightlyPrices, totals.touristTax);
   const finalTotal = Math.max(0, totals.totalAmount - discountAmount);
 
   AppModules.booking.$('summary-base').textContent = AppModules.booking.fmtCurrency(totals.baseAmount);

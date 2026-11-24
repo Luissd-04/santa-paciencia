@@ -135,7 +135,8 @@ test('«A sua reserva» é um modelo manual, com o link do portal e o próximo p
   assert.equal(sent[0].to, 'ana@example.com');
   assert.equal(sent[0].subject, 'A sua reserva — Casa do Monte');
   assert.match(sent[0].html, new RegExp(`href="https://reservas\\.example\\.com/reserva/${TOKEN}"`));
-  assert.match(sent[0].html, /falta pagar o sinal/);
+  assert.match(sent[0].html, /falta pagar/);
+  assert.doesNotMatch(sent[0].html, /falta pagar o sinal/, 'sem política paga-se o total');
   assert.ok(res.body.data.portal_link_sent_at, 'último envio');
   assert.equal((await detail()).portal_link_sent_at, res.body.data.portal_link_sent_at);
   assert.equal(res.body.data.precheckin_state, 'enviado', 'depois de aceite, o portal leva o pré-check-in');

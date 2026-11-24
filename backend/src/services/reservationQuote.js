@@ -93,7 +93,7 @@ function priceCreate(organizationId, body) {
 // validade) na criação no backoffice e no pedido público.
 function applyVoucher(organizationId, code, totals, accommodation) {
   const voucher = findUsableVoucher(organizationId, code, { nights: totals.nights, accommodation_id: accommodation.id, parent_id: accommodation.parent_id });
-  return { voucher, discount: calculateVoucherDiscount(voucher, totals.totalAmount, totals.nightlyPrices) };
+  return { voucher, discount: calculateVoucherDiscount(voucher, totals.totalAmount, totals.nightlyPrices, totals.touristTax) };
 }
 
 // Pedido do site público: o preço vem só das tarifas (sem preços por noite nem
@@ -162,7 +162,7 @@ function priceUpdate(organizationId, existing, body) {
       voucherIssue = { code: 'voucher_accommodation', message: `O voucher ${redemption.code} não é válido para este alojamento. Confirme o total da reserva.` };
     } else {
       const fresh = totalsOrBadRequest(accommodation, services, { ...stay, nightly_prices: nightlyPricesUpdate !== undefined ? nightlyPricesUpdate : null });
-      voucherDiscount = calculateVoucherDiscount(redemption, fresh.totalAmount, fresh.nightlyPrices);
+      voucherDiscount = calculateVoucherDiscount(redemption, fresh.totalAmount, fresh.nightlyPrices, fresh.touristTax);
       voucherTotal = Math.max(0, fresh.totalAmount - voucherDiscount);
       totals = { ...totals, nightlyPrices: fresh.nightlyPrices, touristTax: fresh.touristTax };
     }
@@ -178,7 +178,7 @@ function priceUpdate(organizationId, existing, body) {
     const standard = computeStandardTotals(organizationId, { ...stay, accommodations_data: newAccData }, accommodation, periods, services, birthDates);
     const voucherRow = redemption || activeRedemption(organizationId, existing.id);
     standardTotal = voucherRow
-      ? Math.max(0, standard.totalAmount - calculateVoucherDiscount(voucherRow, standard.totalAmount, standard.nightlyPrices))
+      ? Math.max(0, standard.totalAmount - calculateVoucherDiscount(voucherRow, standard.totalAmount, standard.nightlyPrices, standard.touristTax))
       : standard.totalAmount;
   } catch { /* referência indisponível — manter registo atual */ }
   return {
@@ -229,6 +229,7 @@ function createQuote(organizationId, body) {
     // Sinal que a política pede para esta reserva (0 nas plataformas).
     deposit_amount: require('./paymentPolicy').requiredDepositCents({ organization_id: organizationId,
       channel: body.channel || 'direto', total_amount: pricing.finalTotal, check_in: pricing.totals.checkIn }) / 100,
+    pays_in_full: require('./paymentPolicy').paysInFull({ organization_id: organizationId }),
     voucher: body.voucher_code ? {
       ...(voucherSummary(pricing.voucher, pricing.voucherDiscount) || { code: String(body.voucher_code).trim().toUpperCase() }),
       applied: !!pricing.voucher && !manual,

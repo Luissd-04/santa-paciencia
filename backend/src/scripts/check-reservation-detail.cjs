@@ -60,7 +60,7 @@ async function main() {
   await expect(page.locator('.rf-guest-name')).toHaveText('Beatriz Pinto');
   await expect(page.locator('.rf-chips')).toContainText('Aguarda sinal');
   await expect(page.locator('.rf-chips')).toContainText('Parcial');
-  await expect(page.locator('.rf-next')).toContainText('Próximo passo: receber o restante do sinal');
+  await expect(page.locator('.rf-next')).toContainText('Próximo passo: receber o resto do pagamento');
   await expect(page.locator('.rf-next')).toContainText('faltam 200,00 €');
   await expect(page.locator('.rf-next .btn', { hasText: 'Registar pagamento' })).toBeVisible();
   await expect(page.locator('#rdv2-total-paid')).toHaveText('80,00 €');

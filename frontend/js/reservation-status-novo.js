@@ -68,19 +68,20 @@
     const missing = Math.max(0, (Number(r.total_amount) || 0) - paid);
     const precheckin = r.precheckin;
     const due = plan?.dueAt ? day(plan.dueAt.slice(0, 10)) : '';
+    const full = Boolean(r.pays_in_full);   // sem política de pagamento: paga-se o total
     const steps = [];
     if (phase === 'pedido') {
       steps.push({ state: 'done', title: 'Pedido enviado', text: 'Recebemos o seu pedido de reserva.' });
       steps.push({ state: 'now', title: 'Aceitação do alojamento', text: 'Confirmamos a disponibilidade e respondemos por email.' });
-      steps.push({ state: 'later', title: 'Sinal', text: 'Depois de aceite, tem 48 horas para o pagar online.' });
+      steps.push({ state: 'later', title: full ? 'Pagamento' : 'Sinal', text: 'Depois de aceite, tem 48 horas para o pagar online.' });
     } else {
       steps.push({ state: 'done', title: 'Pedido aceite', text: `${brand || 'O alojamento'} confirmou a disponibilidade.` });
     }
     if (paid > 0) {
-      steps.push({ state: 'done', title: missing > 0 ? 'Sinal pago' : 'Pagamento feito', text: `${money(paid)} recebidos.` });
+      steps.push({ state: 'done', title: missing > 0 && !full ? 'Sinal pago' : (missing > 0 ? 'Pagamento parcial' : 'Pagamento feito'), text: `${money(paid)} recebidos.` });
     } else if (phase === 'sinal') {
       const amount = Number(payment.amount_due) || 0;
-      steps.push({ state: 'now', title: amount > 0 ? `Sinal de ${money(amount)}` : 'Sinal', text: r.deposit_deadline ? `Até ${deadline(r.deposit_deadline)}, para confirmar a reserva.` : 'Para confirmar a reserva.' });
+      steps.push({ state: 'now', title: full ? (amount > 0 ? `Pagamento de ${money(amount)}` : 'Pagamento') : (amount > 0 ? `Sinal de ${money(amount)}` : 'Sinal'), text: r.deposit_deadline ? `Até ${deadline(r.deposit_deadline)}, para confirmar a reserva.` : 'Para confirmar a reserva.' });
     }
     const path = safePath(precheckin?.path);
     steps.push({
@@ -182,11 +183,11 @@
     switch (phase) {
       case 'pedido':
         Object.assign(card, { tone: 'wait', pill: 'A aguardar aceitação', title: 'Recebemos o seu pedido',
-          body: `<p class="gp-text">${esc(brand || 'O alojamento')} confirma a disponibilidade e responde por email. Hoje não paga nada: depois de aceite, tem 48 horas para pagar o sinal.</p>` });
+          body: `<p class="gp-text">${esc(brand || 'O alojamento')} confirma a disponibilidade e responde por email. Hoje não paga nada: depois de aceite, tem 48 horas para pagar${r.pays_in_full ? ' a reserva' : ' o sinal'}.</p>` });
         break;
       case 'sinal':
-        Object.assign(card, { tone: 'wait', pill: 'Próximo passo · Falta o sinal', title: 'Pague o sinal para garantir as datas',
-          body: payment.available ? '' : `<p class="gp-text">O alojamento vai indicar-lhe como pagar o sinal${r.deposit_deadline ? ` até ${esc(deadline(r.deposit_deadline))}. Depois desse prazo, as datas voltam a ficar livres` : ''}. Se tiver dúvidas, fale connosco.</p>` });
+        Object.assign(card, { tone: 'wait', pill: r.pays_in_full ? 'Próximo passo · Falta o pagamento' : 'Próximo passo · Falta o sinal', title: r.pays_in_full ? 'Pague a reserva para garantir as datas' : 'Pague o sinal para garantir as datas',
+          body: payment.available ? '' : `<p class="gp-text">O alojamento vai indicar-lhe como pagar ${r.pays_in_full ? 'a reserva' : 'o sinal'}${r.deposit_deadline ? ` até ${esc(deadline(r.deposit_deadline))}. Depois desse prazo, as datas voltam a ficar livres` : ''}. Se tiver dúvidas, fale connosco.</p>` });
         break;
       case 'pre_checkin':
         Object.assign(card, { pill: missing > 0 ? 'Reserva confirmada' : 'Reserva confirmada e paga', title: 'Faça o pré-check-in',
@@ -247,7 +248,7 @@
     const when = paid === 0 && r.deposit_deadline ? `até ${esc(deadline(r.deposit_deadline))}`
       : plan?.dueAt && paid > 0 ? `até ${esc(day(plan.dueAt.slice(0, 10)))}` : '';
     const secondary = !['sinal', 'restante'].includes(phase);
-    return `${secondary ? `<h3>${paid > 0 ? 'Falta o restante' : 'Falta o sinal'}</h3>` : ''}
+    return `${secondary ? `<h3>${paid > 0 ? 'Falta o restante' : (r.pays_in_full ? 'Falta o pagamento' : 'Falta o sinal')}</h3>` : ''}
       <div class="gp-due-line"><span class="gp-due-amount">${money(due)}</span>${when ? `<span class="gp-due-when">${when}</span>` : ''}</div>
       ${paid === 0 && r.deposit_deadline ? '<p>Depois desse prazo, as datas voltam a ficar livres.</p>' : ''}
       ${plan && paid === 0 && balance > 0 ? `<p class="gp-note">Sinal de ${plan.depositPercent}% de ${money(total)} · o restante (${money(balance)}) fica para ${esc(day(plan.dueAt.slice(0, 10)))}.</p>` : ''}`;

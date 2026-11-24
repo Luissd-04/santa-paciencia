@@ -78,7 +78,7 @@ test('backoffice com valor pago na criação: fica no registo de pagamentos', as
   const r = row((await backoffice({ amount_paid: 200, payment_method: 'MB Way' })).body.data.id);
   assert.equal(r.amount_paid, 200);
   assert.equal(r.payment_status, 'parcial', 'o total inclui a taxa turística');
-  assert.equal(r.status, 'confirmada', 'o valor pago cobre o sinal');
+  assert.equal(r.status, 'aguardar_pagamento', 'sem política só o total confirma');
   assert.equal(db.prepare('SELECT SUM(amount) AS s FROM reservation_payments WHERE reservation_id = ?').get(r.id).s, 200);
 });
 

@@ -74,11 +74,16 @@ test('sinal: plataformas e reservas sem valor não têm sinal; diretas seguem as
   const base = { organization_id: ORG, total_amount: 200, check_in: '2035-06-01', created_at: '2035-01-01 10:00:00' };
   assert.equal(policy.requiredDepositCents({ ...base, channel: 'booking' }), 0);
   assert.equal(policy.requiredDepositCents({ ...base, channel: 'direto', total_amount: 0 }), 0);
+  assert.equal(policy.requiredDepositCents({ ...base, channel: 'direto' }), 20000, 'sem política ativa: o total');
+  assert.equal(policy.paysInFull({ ...base, channel: 'direto' }), true);
+  policy.savePolicy(ORG, { ...policy.DEFAULT_POLICY, enabled: true });
+  assert.equal(policy.paysInFull({ ...base, channel: 'direto' }), false);
   assert.equal(policy.requiredDepositCents({ ...base, channel: 'direto' }), 4000, '20% a mais de 90 dias');
   assert.equal(policy.requiredDepositCents({ ...base, channel: 'website', created_at: '2035-05-25 10:00:00' }), 20000, 'tudo a menos de 15 dias');
 });
 
 test('check-in pela edição: recusado sem sinal ou sem pré-check-in, com a explicação; aceite com os dois', async () => {
+  policy.savePolicy(ORG, { ...policy.DEFAULT_POLICY, enabled: true });
   reservation();
   let res = await call(write.update, { status: 'check_in' }, { id: 'res' });
   assert.equal(res.statusCode, 409);

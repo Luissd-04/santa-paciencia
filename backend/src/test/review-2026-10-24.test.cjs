@@ -138,6 +138,7 @@ test('acompanhantes gravados não se duplicam e não renomeiam o titular', async
 });
 
 test('migração: reservas em pré-check-in passam a ativas, com o pré-check-in enviado à parte', () => {
+  policy.savePolicy(org.id, { ...structuredClone(policy.DEFAULT_POLICY), enabled: true });   // com sinal
   const lifecycle = require(path.join(root, 'services/reservationLifecycle'));
   const { precheckinState } = require(path.join(root, 'services/reservationState'));
   const g = require(path.join(root, 'services/publicGuestService')).createReservationGuest(org.id, { name: 'Arrival', email: 'arrival@example.invalid' });
@@ -160,6 +161,7 @@ test('migração: reservas em pré-check-in passam a ativas, com o pré-check-in
   assert.equal(row('PC-DEPOSIT').amount_paid, 50);
   assert.equal(row('PC-DIRECT').status, 'aguardar_pagamento');
   assert.equal(lifecycle.reconcileLegacyStatuses(), 0);
+  policy.savePolicy(org.id, structuredClone(policy.DEFAULT_POLICY));
 });
 
 test('expiração por TTL só cancela pedidos nunca aceites, regista-o e liberta o voucher', async () => {

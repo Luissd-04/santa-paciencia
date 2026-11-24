@@ -54,7 +54,8 @@ test('a confirmação segue o estado: pré-reserva, pedido, à espera do sinal e
   const pending = render('confirmacao', { status: 'pendente', amount_paid: 0 });
   assert.ok(pending.includes('Recebemos o seu pedido') && pending.includes('Total previsto') && !pending.includes('>Pago</td>'));
   const deposit = render('confirmacao', { status: 'aguardar_pagamento', amount_paid: 0, public_token: 'tok', organization_id: 'x' });
-  assert.ok(deposit.includes('Falta o sinal para confirmar') && deposit.includes('Pagar o sinal'));
+  // Sem política de pagamento (organização «x») paga-se o total: «pagamento», não «sinal».
+  assert.ok(deposit.includes('Falta o pagamento para confirmar') && deposit.includes('Pagar a reserva') && !deposit.includes('Pagar o sinal'));
   const confirmed = render('confirmacao');
   assert.ok(confirmed.includes('Está tudo pronto para 14 de novembro') && confirmed.includes('Falta <strong'));
 });

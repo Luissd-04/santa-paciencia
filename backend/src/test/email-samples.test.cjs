@@ -49,7 +49,7 @@ test('um exemplo de cada email, sem marcadores por preencher nem códigos reais'
   // A confirmação mostra os 4 estados e as coordenadas os códigos de exemplo.
   const confirmations = guest.filter(s => s.name.startsWith('Pedido recebido ('));
   assert.equal(confirmations.length, 4);
-  assert.ok(confirmations.some(s => s.html.includes('Falta o sinal para confirmar')));
+  assert.ok(confirmations.some(s => /Falta o (sinal|pagamento) para confirmar/.test(s.html)));
   assert.ok(confirmations.some(s => s.html.includes('Recebemos o seu pedido')));
   const arrival = guest.find(s => s.subject.includes('chegada') || s.html.includes('Código da porta'));
   assert.ok(arrival && arrival.html.includes('1234#'), 'coordenadas com o código de exemplo');

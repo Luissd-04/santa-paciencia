@@ -199,7 +199,7 @@ async function showDetail(id, opts = {}) {
         actions: `<button class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-toggle-reservation-task-bf7e72a', [String(r.id), 'checkin'])}>${ic('log-in', 13)} Marcar check-in feito</button>` };
       if (r.status === 'check_in' && r.check_out && r.check_out <= today && !tasks.checkout_done) return { icon: 'log-out', title: 'Saída hoje', text: remaining > 0.01 ? `faltam ${fmt(remaining)} por receber` : 'estadia paga',
         actions: `${remaining > 0.01 ? payBtn.replace('btn-primary', 'btn-ghost') : ''}<button class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-toggle-reservation-task-bf7e72a', [String(r.id), 'checkout'])}>${ic('log-out', 13)} Marcar check-out feito</button>` };
-      if (['pre_reserva', 'aguardar_pagamento'].includes(r.status) && remaining > 0.01) return { icon: 'credit-card', title: paid > 0 ? 'Receber o restante do sinal' : 'Receber o sinal',
+      if (['pre_reserva', 'aguardar_pagamento'].includes(r.status) && remaining > 0.01) return { icon: 'credit-card', title: r.pays_in_full ? (paid > 0 ? 'Receber o resto do pagamento' : 'Receber o pagamento') : (paid > 0 ? 'Receber o restante do sinal' : 'Receber o sinal'),
         text: [`faltam ${fmt(remaining)}`, onlineStatus ? `pagamento online: ${onlineStatus.toLowerCase()}` : '', arrivalText].filter(Boolean).join(' · '), actions: copyPay + payBtn };
       if (['confirmada', 'check_in'].includes(r.status) && r.precheckin_state !== 'preenchido') return { icon: 'send', title: 'Pedir o pré-check-in',
         text: [r.precheckin_state === 'enviado' ? 'link enviado, a aguardar o hóspede' : 'ainda não foi enviado', arrivalText].filter(Boolean).join(' · '),
@@ -295,7 +295,7 @@ async function showDetail(id, opts = {}) {
       const shortDue = value => fmtInstant(value, false);
       const payText = remaining <= 0.01 ? 'Pago'
         : r.status === 'pendente' ? `Depois de aceitar o pedido · total ${fmt(total)}`
-        : depositDue > 0.005 ? `Falta o sinal · ${fmt(depositDue)}${r.deposit_deadline ? ` até ${shortDue(r.deposit_deadline)}` : ''}`
+        : depositDue > 0.005 ? `Falta ${r.pays_in_full ? 'o pagamento' : 'o sinal'} · ${fmt(depositDue)}${r.deposit_deadline ? ` até ${shortDue(r.deposit_deadline)}` : ''}`
         : policy?.balanceCents ? `Falta o restante · ${fmt(remaining)}${policy.dueAt ? ` até ${shortDue(policy.dueAt)}` : ''}`
         : `Falta pagar ${fmt(remaining)}`;
       const payExtra = onlineStatus && r.online_payment_status !== 'paid' && remaining > 0.01 ? ` · online: ${onlineStatus.toLowerCase()}` : '';

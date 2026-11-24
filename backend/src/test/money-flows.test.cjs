@@ -67,6 +67,7 @@ function enablePolicy() {
 }
 
 test('separador Pagamentos: pagamento parcial atualiza a cache e o estado do pagamento', async () => {
+  enablePolicy();
   reservation();
   const res = await call(payments.addPayment, { amount: 50, method: 'transferencia', payment_date: '2035-01-10' }, { id: 'res' });
   assert.equal(res.statusCode, 200);
@@ -172,9 +173,10 @@ test('cada pagamento no separador Pagamentos pede o email de pagamento, sem repe
 });
 
 // Regra única (reservationState + paymentPolicy.requiredDepositCents): uma
-// reserva direta só fica confirmada com o sinal, mesmo sem política ativa. As
-// regras do sinal das definições (por omissão 20% a mais de 90 dias) contam.
-test('pagamento manual sem política: o sinal das definições confirma, menos não', async () => {
+// reserva direta só fica confirmada com o sinal. Com a política ativa contam as
+// regras do sinal das definições (por omissão 20% a mais de 90 dias).
+test('pagamento manual com política ativa: o sinal das definições confirma, menos não', async () => {
+  enablePolicy();
   reservation({ status: 'aguardar_pagamento' });
   await call(payments.addPayment, { amount: 30 }, { id: 'res' });
   assert.equal(row().status, 'aguardar_pagamento');
@@ -183,7 +185,18 @@ test('pagamento manual sem política: o sinal das definições confirma, menos n
   assert.equal(row().status, 'confirmada');
 });
 
+// Decisão do produto: sem política de pagamento ativa exige-se o total.
+test('pagamento manual sem política: só o total confirma a reserva', async () => {
+  reservation({ status: 'aguardar_pagamento' });
+  assert.equal(policy.requiredDepositCents(row()), 20000);
+  await call(payments.addPayment, { amount: 40 }, { id: 'res' });
+  assert.equal(row().status, 'aguardar_pagamento');
+  await call(payments.addPayment, { amount: 160 }, { id: 'res' });
+  assert.equal(row().status, 'confirmada');
+});
+
 test('apagar o pagamento que fazia o sinal volta a aguardar o sinal', async () => {
+  enablePolicy();
   reservation({ status: 'aguardar_pagamento' });
   const added = await call(payments.addPayment, { amount: 40 }, { id: 'res' });
   assert.equal(row().status, 'confirmada');
