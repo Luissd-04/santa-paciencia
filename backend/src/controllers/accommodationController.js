@@ -48,6 +48,14 @@ function validateTextPayload(body, limits = ACCOMMODATION_TEXT_LIMITS) {
   return null;
 }
 
+// Limite próprio do alojamento: vazio = herda; -1 = sem isenção; 0-17.
+function exemptAgeColumn(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  if (!Number.isInteger(n)) return null;
+  return n < 0 ? -1 : Math.min(17, n);
+}
+
 function validateServices(services) {
   if (!Array.isArray(services)) return 'Formato inválido';
   if (services.length > 100) return 'O limite é de 100 serviços.';
@@ -60,6 +68,10 @@ function validateServices(services) {
     const value = Number(service.value);
     if (!Number.isFinite(value) || value < 0 || value > 1000000) return 'O valor do serviço é inválido.';
     if (service.id !== undefined && (typeof service.id !== 'string' || service.id.length > 128)) return 'Identificador de serviço inválido.';
+    if (service.exempt_until_age !== undefined && service.exempt_until_age !== null && service.exempt_until_age !== '') {
+      const age = Number(service.exempt_until_age);
+      if (!Number.isInteger(age) || age < 0 || age > 17) return 'A idade de isenção deve ser um inteiro entre 0 e 17.';
+    }
     if (service.unit !== undefined && (typeof service.unit !== 'string' || service.unit.length > 80 || FORBIDDEN_TEXT_CONTROLS.test(service.unit))) {
       return 'Unidade de serviço inválida.';
     }
@@ -313,7 +325,7 @@ function update(req, res) {
     base_guests_included, extra_bed_enabled, extra_bed_type,
     extra_bed_capacity, extra_bed_price, extra_bed_charge_type,
     extra_occupancy_options, baby_age_limit, baby_price, child_age_limit, child_price,
-    min_nights, rgpd_text
+    min_nights, rgpd_text, tourist_tax_exempt_age
   } = req.body;
   const normalizedName = name === undefined ? undefined : String(name || '').trim();
   if (name !== undefined && !normalizedName) return res.status(400).json({ error: 'Nome obrigatório' });
@@ -412,6 +424,7 @@ function update(req, res) {
     baby_price = ?,
     child_age_limit = ?,
     child_price = ?,
+    tourist_tax_exempt_age = ?,
     min_nights = COALESCE(?, min_nights),
     rgpd_text = COALESCE(?, rgpd_text),
     airbnb_ical_url = ?,
@@ -453,6 +466,7 @@ function update(req, res) {
       Number(baby_price ?? existing.baby_price ?? 0) || 0,
       nextChildAgeLimit,
       Number(child_price ?? existing.child_price ?? 0) || 0,
+      tourist_tax_exempt_age !== undefined ? exemptAgeColumn(tourist_tax_exempt_age) : (existing.tourist_tax_exempt_age ?? null),
       min_nights !== undefined ? (Number(min_nights) || 1) : null,
       rgpd_text !== undefined ? (rgpd_text || null) : null,
       req.body.airbnb_ical_url !== undefined ? airbnbIcalUrl : existing.airbnb_ical_url,
@@ -488,6 +502,8 @@ function saveSettings(req, res) {
     value: Number(service.value),
     unit: typeof service.unit === 'string' ? service.unit.trim() : '€/hóspede/noite',
     active: service.active !== false,
+    ...(service.id === 'tourist_tax' && service.exempt_until_age !== undefined && service.exempt_until_age !== null && service.exempt_until_age !== ''
+      ? { exempt_until_age: Number(service.exempt_until_age) } : {}),
   }));
 
   require('../services/settingsService').set(req.user.organization_id, 'services', normalized);

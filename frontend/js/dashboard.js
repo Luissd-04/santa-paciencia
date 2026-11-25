@@ -396,7 +396,7 @@ function renderPainelV2(stats) {
       ${kpi('log-in', 'Chegadas hoje', arrivals.length, first(arrivals), 'checkins')}
       ${kpi('log-out', 'Saídas hoje', departures.length, first(departures), 'checkouts')}
       ${kpi('bed-double', `Ocupação de ${monthName}`, `${stats.occupancyRate}%`, diffText, 'calendario')}
-      ${kpi('wallet', 'Por receber', ReservationMoney.format(painel.receivable.amount), `em ${painel.receivable.count} reserva${painel.receivable.count === 1 ? '' : 's'}`, 'pagamentos')}
+      ${kpi('wallet', 'Por receber', ReservationMoney.format(painel.receivable.amount), `em ${painel.receivable.count} reserva${painel.receivable.count === 1 ? '' : 's'}${painel.receivable.pendingCount ? ` · mais ${ReservationMoney.format(painel.receivable.pendingAmount)} em ${painel.receivable.pendingCount} pedido${painel.receivable.pendingCount === 1 ? '' : 's'} por aprovar` : ''}`, 'pagamentos')}
     </div>
     <div class="v2-grid">
       <div class="v2-col">

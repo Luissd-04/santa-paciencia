@@ -91,6 +91,7 @@ function buildReservaPayload() {
     num_adults: numAdultos,
     num_children: numCriancas,
     num_guests: numAdultos + numCriancas,
+    children_ages: AppModules.reservas.wizChildrenAges(),
     breakfast_included: document.getElementById('f-breakfast')?.value === 'true',
     channel: document.getElementById('f-canal').value,
     status: document.getElementById('f-estado').value,

@@ -208,11 +208,14 @@ function openUnit(unit) {
 }
 
 // ── Resumo, barra fixa e plano de pagamento ───────────────────────────────
-function linesHtml(totals, n, discount) {
+function linesHtml(totals, n, discount, guests) {
   const rows = [[plural(n, 'noite', 'noites'), totals.baseAmount]];
   if (totals.extraOccupancyCost > 0) rows.push(['Ocupação extra', totals.extraOccupancyCost]);
   if (totals.breakfastCost > 0) rows.push(['Pequeno-almoço', totals.breakfastCost]);
-  if (totals.touristTax > 0) rows.push(['Taxa turística', totals.touristTax]);
+  if (totals.touristTax > 0 || totals.exemptGuests > 0) {
+    const exempt = totals.exemptGuests || 0;
+    rows.push([exempt > 0 ? `Taxa turística (${plural(guests, 'hóspede', 'hóspedes')}, ${plural(exempt, 'isento', 'isentos')})` : 'Taxa turística', totals.touristTax]);
+  }
   const html = rows.map(([label, value]) => `<div><dt>${esc(label)}</dt><dd>${money(value)}</dd></div>`).join('');
   return html + (discount > 0 ? `<div class="pn-discount"><dt>Desconto</dt><dd>−${money(discount)}</dd></div>` : '');
 }
@@ -254,7 +257,7 @@ function renderConfirm() {
       <div><strong>${esc(info.unit?.name || '')}</strong><small>${esc(stayLine())}</small><small>${esc(plural(info.guests, 'hóspede', 'hóspedes'))}</small></div>
     </div>
     <dl class="pn-lines">
-      ${linesHtml(info.totals, info.nights, info.discountAmount)}
+      ${linesHtml(info.totals, info.nights, info.discountAmount, info.guests)}
       <div class="pn-total"><dt>Total</dt><dd>${money(info.finalTotal)}</dd></div>
     </dl>
     ${planHtml()}`;

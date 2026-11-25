@@ -115,6 +115,7 @@ async function create(req, res, next) {
       price_edited_at: priceEdited ? new Date().toISOString() : null,
       price_edited_by_user_id: priceEdited ? req.user.id : null,
       status: initialStatus, accommodations_data: JSON.stringify(extraUnits),
+      children_ages: JSON.stringify(require('../services/reservationRules').parseChildrenAges(req.body.children_ages)),
     }, {
       source: importing ? 'import' : 'backoffice', actorUserId: req.user.id, calendarUserId: importCancelled ? null : req.user.id,
       voucher: appliedVoucherId ? { id: appliedVoucherId, discount: voucherDiscount } : null,
@@ -253,7 +254,7 @@ async function update(req, res, next) {
         payment_status = ?, guests_data = ?, accommodations_data = ?,
         amount_paid = ?, payment_date = ?, nightly_prices = ?,
         cancelled_previous_status = ?, cancelled_previous_payment_status = ?,
-        arrival_time = ?,
+        arrival_time = ?, children_ages = ?,
         price_edited_at = ?, price_edited_by_user_id = ?, updated_at = datetime('now')
       WHERE id = ? AND organization_id = ?
     `).run(
@@ -276,6 +277,7 @@ async function update(req, res, next) {
       arrival_time !== undefined
         ? (/^([01]\d|2[0-3]):[0-5]\d$/.test(String(arrival_time).trim()) ? String(arrival_time).trim() : null)
         : existing.arrival_time,
+      pricingChanged || req.body.children_ages !== undefined ? JSON.stringify(pricing.childrenAges) : (existing.children_ages || null),
       priceEditedAt, priceEditedBy,
       req.params.id,
       organizationId

@@ -426,6 +426,7 @@ async function openAlojamento(id, preferredTab = 'info') {
     document.getElementById('aloj-baby-price').value = a.baby_price ?? 0;
     document.getElementById('aloj-child-age-limit').value = a.child_age_limit ?? 12;
     document.getElementById('aloj-child-price').value = a.child_price ?? 0;
+    AppModules.alojamentos.fillTouristTaxExemptSelect?.(a.tourist_tax_exempt_age);
     AppModules.alojamentos.setExtraOccupancyFields(a);
     document.getElementById('aloj-gcal-id').value = a.google_calendar_id || '';
     document.getElementById('aloj-gcal-manual').checked = !!a.google_calendar_manual;

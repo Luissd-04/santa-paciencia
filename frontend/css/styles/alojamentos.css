@@ -503,3 +503,10 @@ html[data-theme="dark"] .upload-alert, html[data-mode="escuro"] .upload-alert { 
 .cover-pick-item .img-small-badge { background: rgba(60, 40, 10, .9); }
 .cover-pick-item .cover-pick-w { position: absolute; right: 6px; bottom: 6px; padding: 2px 7px; border-radius: 999px; background: rgba(0, 0, 0, .65); color: #fff; font-size: 10.5px; }
 html[data-theme="dark"] .aloj-small-warn, html[data-mode="escuro"] .aloj-small-warn { border-color: rgba(230, 190, 110, .4); background: rgba(160, 110, 20, .22); color: #f1d49a; }
+
+/* Taxa turística: idade de isenção (Serviços e taxas e ficha do alojamento) */
+.acfg-idade select.form-control { width: auto; min-width: 150px; text-align: left; }
+.servico-isencao { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 13.5px; }
+.servico-isencao .form-control { width: 72px; flex: none; text-align: center; font-size: 13px; padding: 6px 10px; }
+.servico-isencao-nota { margin-top: 4px; color: var(--cinza); font-size: 12.5px; }
+.servico-isencao-row td { padding-top: 0; border-top: 0; }

@@ -267,6 +267,7 @@ async function saveAlojamento() {
     baby_price: parseFloat(document.getElementById('aloj-baby-price')?.value) || 0,
     child_age_limit: parseInt(document.getElementById('aloj-child-age-limit')?.value) || 0,
     child_price: parseFloat(document.getElementById('aloj-child-price')?.value) || 0,
+    tourist_tax_exempt_age: document.getElementById('aloj-tourist-tax-exempt-age')?.value ?? '',
     extra_occupancy_options: extraOccupancyOptions,
     extra_bed_enabled: extraOccupancyOptions.length > 0,
     extra_bed_type: firstExtra?.type || 'sofa_cama',

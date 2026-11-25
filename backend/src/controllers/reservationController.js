@@ -73,6 +73,8 @@ async function getById(req, res, next) {
     // Sinal exigido (o da política guardada na reserva ou o da organização),
     // para a linha «Pagamento online» do mesmo cartão.
     try { reservation.deposit_amount = require('../services/paymentPolicy').requiredDepositCents(reservation) / 100; } catch { reservation.deposit_amount = null; }
+    // O que falta pagar agora: o mesmo valor do painel e do portal (paymentPolicy.dueNow).
+    try { const d = require('../services/paymentPolicy').dueNow(reservation); reservation.due_now = d.cents / 100; reservation.due_now_kind = d.kind; } catch { reservation.due_now = null; reservation.due_now_kind = 'none'; }
     try { reservation.pays_in_full = require('../services/paymentPolicy').paysInFull(reservation); } catch { reservation.pays_in_full = false; }
 
     reservation.payments = db.prepare(`

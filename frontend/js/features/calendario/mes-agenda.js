@@ -150,7 +150,7 @@ function drawCal() {
     for (let l = 0; l < visLanes; l++) {
       for (const { r, effStart, effEnd } of lanes[l]) {
         const color      = AppModules.calendario.calAccColor(r.accommodation_id);
-        const statusCls  = r.status === 'pendente' ? 'cal-event-pending' : 'cal-event-confirmed';
+        const statusCls  = r.status === 'pendente' ? 'cal-event-pending' : ['aguardar_pagamento', 'pre_reserva'].includes(r.status) ? 'cal-event-awaiting' : 'cal-event-confirmed';
         const col0       = week.findIndex(d => d.dateStr === effStart); // 0-indexed
         const col1       = week.findIndex(d => d.dateStr === effEnd);   // 0-indexed
         const startsHere = r.check_in  >= weekStart;
@@ -242,7 +242,7 @@ function openCalendarOverflow(dateStr) {
     <div class="calendar-overflow-list">
       ${reservations.map(r => `<button type="button" class="calendar-overflow-item" ${AppActions.attrs("click", "mes-agenda-open-overflow-reservation-b4219da", [String(r.id)])}>
         <span class="calendar-overflow-dot" style="background:${AppModules.calendario.calAccColor(r.accommodation_id)}"></span>
-        <span><strong>${AppModules.core.escapeHtml(r.guest_name || 'Reserva')}</strong><small>${AppModules.core.escapeHtml(r.accommodation_name || 'Alojamento')} · ${AppModules.core.escapeHtml(r.status || '—')}</small></span>
+        <span><strong>${AppModules.core.escapeHtml(r.guest_name || 'Reserva')}</strong><small>${AppModules.core.escapeHtml(r.accommodation_name || 'Alojamento')} · ${AppModules.core.escapeHtml(r.status ? window.ReservationStatus.label(r.status) : '—')}</small></span>
       </button>`).join('')}
     </div>`,
   });

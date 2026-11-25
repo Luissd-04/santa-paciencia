@@ -82,6 +82,7 @@ const GUEST_CASES = {
     { label: 'pedido expirado', status: 'cancelada', reservation: { amount_paid: 0, motivo_cancelamento: 'ttl' } },
     { label: 'sinal fora do prazo', status: 'cancelada', reservation: { amount_paid: 0, motivo_cancelamento: 'deposit' } },
     { label: 'pela equipa', status: 'cancelada', reservation: { amount_paid: 0, motivo_cancelamento: 'staff' } },
+    { label: 'pedido recusado', status: 'cancelada', reservation: { amount_paid: 0, motivo_cancelamento: 'refused' } },
     { label: 'pelo hóspede', status: 'cancelada', reservation: { amount_paid: 0, motivo_cancelamento: 'guest' } },
     { label: 'pagamento depois de cancelar', status: 'cancelada', reservation: { motivo_cancelamento: 'payment_after' } },
   ],

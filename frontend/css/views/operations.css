@@ -165,6 +165,20 @@
   box-shadow: inset 0 0 0 1px rgba(196, 120, 32, 0.16);
 }
 
+/* «Aguarda sinal»: tracejado, para não parecer uma reserva confirmada. */
+.legend-aguarda {
+  border-style: dashed;
+  box-shadow: inset 0 0 0 1px rgba(60, 110, 160, 0.18);
+}
+
+.cal-event-awaiting,
+.tl-block-aguardar_pagamento,
+.tl-block-pre_reserva {
+  outline: 1.5px dashed currentColor;
+  outline-offset: -2px;
+  background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgba(255, 255, 255, .38) 6px 9px) !important;
+}
+
 .cal-week:not(:first-child) {
   border-top: 1px dashed var(--border-soft, rgba(0,0,0,.1));
 }

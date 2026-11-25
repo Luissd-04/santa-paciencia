@@ -60,6 +60,7 @@ test('painel: hoje por hora, o que precisa de atenção e o valor por receber', 
   assert.deepEqual(painel.attention.pendingApproval.map(r => r.id), ['pedido']);
   assert.deepEqual(painel.attention.awaitingDeposit.map(r => r.id), ['chega']);
   assert.deepEqual(painel.attention.precheckinMissing.map(r => r.id), ['semdados'], 'só confirmadas dos próximos 7 dias sem pré-check-in');
-  assert.deepEqual(painel.receivable, { count: 3, amount: 200 + 190 + 70 });
+  // Os pedidos por aprovar (190) não contam como por receber: vão à parte.
+  assert.deepEqual(painel.receivable, { count: 2, amount: 200 + 70, pendingCount: 1, pendingAmount: 190 });
   assert.equal(typeof painel.previousOccupancyRate, 'number');
 });

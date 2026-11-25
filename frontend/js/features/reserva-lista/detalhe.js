@@ -80,6 +80,8 @@ async function showDetail(id, opts = {}) {
     const paid = Number(r.amount_paid || 0);
     const total = Number(r.total_amount || 0);
     const remaining = total - paid;
+    // O que falta pagar agora, calculado no servidor (o mesmo valor do painel e do portal).
+    const dueNow = r.due_now == null ? remaining : Number(r.due_now);
 
     // Accommodation rows: multi-accommodation or single
     const accRows = accsData.length > 0
@@ -195,12 +197,17 @@ async function showDetail(id, opts = {}) {
       const payBtn = `<button class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-open-payment-form-74a29ac', [String(r.id), paid, total])}>${ic('credit-card', 13)} Registar pagamento</button>`;
       if (r.status === 'pendente') return { icon: 'inbox', title: 'Pedido por aprovar', text: [arrivalText, 'o hóspede aguarda resposta'].filter(Boolean).join(' · '),
         actions: `<button class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-aprovar-reserva-0f31ccd', [String(r.id)])}>${ic('check', 13)} Aprovar e enviar pré-check-in</button>` };
+      // Estadia esquecida: a saída já passou e ninguém marcou o check-out. Não muda
+      // o estado sozinha; só avisa a equipa.
+      if (['confirmada', 'check_in'].includes(r.status) && r.check_out && r.check_out < today && !tasks.checkout_done) return { icon: 'log-out', title: 'Estadia terminada — marcar check-out',
+        text: [`a saída era a ${sd(r.check_out)}`, remaining > 0.01 ? `faltam ${fmt(remaining)} por receber` : 'estadia paga'].join(' · '),
+        actions: `${remaining > 0.01 ? payBtn.replace('btn-primary', 'btn-ghost') : ''}<button class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-toggle-reservation-task-bf7e72a', [String(r.id), 'checkout'])}>${ic('log-out', 13)} Marcar check-out feito</button>` };
       if (r.status === 'confirmada' && r.check_in && r.check_in <= today && !tasks.checkin_done) return { icon: 'log-in', title: 'Chegada hoje', text: r.arrival_time ? `hora prevista ${r.arrival_time}` : 'sem hora de chegada indicada',
         actions: `<button class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-toggle-reservation-task-bf7e72a', [String(r.id), 'checkin'])}>${ic('log-in', 13)} Marcar check-in feito</button>` };
       if (r.status === 'check_in' && r.check_out && r.check_out <= today && !tasks.checkout_done) return { icon: 'log-out', title: 'Saída hoje', text: remaining > 0.01 ? `faltam ${fmt(remaining)} por receber` : 'estadia paga',
         actions: `${remaining > 0.01 ? payBtn.replace('btn-primary', 'btn-ghost') : ''}<button class="btn btn-primary btn-sm" ${AppActions.attrs('click', 'detalhe-toggle-reservation-task-bf7e72a', [String(r.id), 'checkout'])}>${ic('log-out', 13)} Marcar check-out feito</button>` };
       if (['pre_reserva', 'aguardar_pagamento'].includes(r.status) && remaining > 0.01) return { icon: 'credit-card', title: r.pays_in_full ? (paid > 0 ? 'Receber o resto do pagamento' : 'Receber o pagamento') : (paid > 0 ? 'Receber o restante do sinal' : 'Receber o sinal'),
-        text: [`faltam ${fmt(remaining)}`, onlineStatus ? `pagamento online: ${onlineStatus.toLowerCase()}` : '', arrivalText].filter(Boolean).join(' · '), actions: copyPay + payBtn };
+        text: [`faltam ${fmt(dueNow)}`, onlineStatus ? `pagamento online: ${onlineStatus.toLowerCase()}` : '', arrivalText].filter(Boolean).join(' · '), actions: copyPay + payBtn };
       if (['confirmada', 'check_in'].includes(r.status) && r.precheckin_state !== 'preenchido') return { icon: 'send', title: 'Pedir o pré-check-in',
         text: [r.precheckin_state === 'enviado' ? 'link enviado, a aguardar o hóspede' : 'ainda não foi enviado', arrivalText].filter(Boolean).join(' · '),
         // O link do portal já leva o pré-check-in (email «A sua reserva»).
@@ -291,7 +298,8 @@ async function showDetail(id, opts = {}) {
         : canSend ? `<button type="button" class="rf-row-link" ${AppActions.attrs('click', 'detalhe-enviar-link-precheckin-1ddc760', [String(r.id)])}>Gerar link →</button>` : '';
 
       // Pagamento online: o que falta agora (sinal ou restante) e até quando.
-      const depositDue = Math.max(0, (policy ? Number(policy.depositCents || 0) / 100 : Number(r.deposit_amount || 0)) - paid);
+      // O mesmo valor do «Próximo passo» e do painel (servidor: paymentPolicy.dueNow).
+      const depositDue = dueNow;
       const shortDue = value => fmtInstant(value, false);
       const payText = remaining <= 0.01 ? 'Pago'
         : r.status === 'pendente' ? `Depois de aceitar o pedido · total ${fmt(total)}`

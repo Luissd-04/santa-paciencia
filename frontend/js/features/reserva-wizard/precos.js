@@ -55,6 +55,8 @@ async function calcTotal() {
       num_guests: numHospedes,
       breakfast_included: breakfast,
       birth_dates: AppModules.reservas.wizEffectiveBirthDates(),
+      children_ages: AppModules.reservas.wizChildrenAges(),
+      parent_accommodation: AppModules.reservas.wizParentOf(suite),
       pricing_periods: pricingPeriods,
       nightly_prices: AppModules.reservas.nightlyOverrideArray(),
     });

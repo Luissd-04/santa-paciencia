@@ -23,6 +23,8 @@ const load = (organizationId, id) => db.prepare('SELECT * FROM reservations WHER
 function markCancelled(reservation, { reason, actorUserId = null, policy = false, meta = {}, note = null, quiet = false }) {
   if (!CANCEL_REASONS.includes(reason)) throw new Error(`Motivo de cancelamento inválido: ${reason}`);
   const { id, organization_id: organizationId } = reservation;
+  // Pedido do site recusado pela equipa (ainda por aprovar): o email ao hóspede é «pedido não aceite».
+  const refusedRequest = reason === 'staff' && reservation.status === 'pendente';
   const changed = db.prepare(`UPDATE reservations SET status = 'cancelada',
       cancelled_previous_status = status, cancelled_previous_payment_status = payment_status,
       notes = CASE WHEN ? IS NULL THEN notes ELSE COALESCE(notes || char(10), '') || ? END,
@@ -32,7 +34,7 @@ function markCancelled(reservation, { reason, actorUserId = null, policy = false
   require('./voucherService').releaseVoucherIfUnpaid(organizationId, id);
   require('./calendarService').detachReservationEvent(organizationId, id);
   recordHistory({ organizationId, reservationId: id, userId: actorUserId, action: 'cancelled', meta: { reason, ...(policy ? { policy: true } : {}), ...meta } });
-  if (!quiet) events.emit('reservation.cancelled', { organizationId, reservationId: id, actorUserId, payload: { reason, policy } });
+  if (!quiet) events.emit('reservation.cancelled', { organizationId, reservationId: id, actorUserId, payload: { reason, policy, ...(refusedRequest ? { refusedRequest: true } : {}) } });
   return true;
 }
 

@@ -125,17 +125,48 @@
     return result;
   }
 
+  // Isenção da taxa turística por idade (espelha reservationRules.js).
+  function parseExemptAge(value) {
+    if (value === null || value === undefined || value === '') return undefined;
+    const n = Number(value);
+    if (!Number.isInteger(n)) return undefined;
+    if (n < 0) return null;
+    return Math.min(17, n);
+  }
+  function resolveExemptAge(accommodation, taxSvc, parent) {
+    for (const source of [accommodation?.tourist_tax_exempt_age, parent?.tourist_tax_exempt_age]) {
+      const age = parseExemptAge(source);
+      if (age !== undefined) return age;
+    }
+    const org = parseExemptAge(taxSvc?.exempt_until_age);
+    return org === undefined ? null : org;
+  }
+  function countExemptGuests({ guests, checkIn, exemptAge, birthDates = [], childrenAges = [] }) {
+    if (exemptAge === null || exemptAge === undefined) return 0;
+    const ages = (Array.isArray(birthDates) ? birthDates : [])
+      .map(d => (d ? window.ReservationDates?.ageAtDate(d, checkIn) ?? null : null)).filter(a => a !== null);
+    const minorsKnown = ages.filter(a => a < 18).length;
+    const declared = (Array.isArray(childrenAges) ? childrenAges : [])
+      .map(a => (a === '' || a === null || a === undefined ? NaN : Number(a)))
+      .filter(a => Number.isInteger(a) && a >= 0 && a <= 17)
+      .slice(minorsKnown);
+    const exempt = [...ages, ...declared].filter(a => a <= exemptAge).length;
+    return Math.min(Math.max(0, Number(guests) || 0), exempt);
+  }
+
   function calculateReservationTotal(accommodation, services = [], payload = {}) {
     const nights = window.ReservationDates?.countNights(payload.check_in, payload.check_out) || 0;
     const guests = Math.max(1, Number(payload.num_guests) || 1);
     if (!accommodation || !nights) {
-      return { nights, baseAmount: 0, extraOccupancyCost: 0, touristTax: 0, breakfastCost: 0, totalAmount: 0 };
+      return { nights, baseAmount: 0, extraOccupancyCost: 0, touristTax: 0, exemptGuests: 0, breakfastCost: 0, totalAmount: 0 };
     }
 
     const breakfast = payload.breakfast_included === true || payload.breakfast_included === 'true' || payload.breakfast_included === 1;
     const taxSvc = services.find(s => s.id === 'tourist_tax');
     const bkfSvc = services.find(s => s.id === 'breakfast');
-    const touristTax = (taxSvc?.active !== false) ? (Number(taxSvc?.value ?? 3) * guests * nights) : 0;
+    const exemptAge = resolveExemptAge(accommodation, taxSvc, payload.parent_accommodation);
+    const exemptGuests = countExemptGuests({ guests, checkIn: payload.check_in, exemptAge, birthDates: payload.birth_dates || [], childrenAges: payload.children_ages });
+    const touristTax = (taxSvc?.active !== false) ? (Number(taxSvc?.value ?? 3) * (guests - exemptGuests) * nights) : 0;
     const breakfastCost = breakfast ? (Number(bkfSvc?.value ?? 19) * guests * nights) : 0;
     const extraOccupancyCost = getExtraOccupancyCharge(accommodation, guests, nights, payload.birth_dates || [], payload.check_in);
     const pricingPeriods = payload.pricing_periods || [];
@@ -149,6 +180,7 @@
       nightlyPrices,
       extraOccupancyCost,
       touristTax,
+      exemptGuests,
       breakfastCost,
       totalAmount: baseAmount + extraOccupancyCost + touristTax + breakfastCost
     };
@@ -185,6 +217,8 @@
     getExtraOccupancyCharge,
     buildNightlyPrices,
     calculateReservationTotal,
+    resolveExemptAge,
+    countExemptGuests,
   };
 })();
 

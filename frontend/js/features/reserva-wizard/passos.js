@@ -372,6 +372,8 @@ function suiteStayTotals(a, ci, co) {
     check_out: co,
     num_guests: numHospedes,
     birth_dates: AppModules.reservas.wizEffectiveBirthDates(),
+    children_ages: AppModules.reservas.wizChildrenAges(),
+    parent_accommodation: AppModules.reservas.wizParentOf(a),
     pricing_periods: AppModules.reservas._cachedPricingPeriods[a.id] || [],
   });
   return totals && totals.baseAmount && totals.nights ? totals : null;

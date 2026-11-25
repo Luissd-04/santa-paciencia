@@ -43,6 +43,12 @@
     return /^#[0-9a-f]{6}$/i.test(color || '') && contrastWithWhite(color) >= 4.5 ? color : DEFAULT_COLOR;
   }
 
+  // Prazo configurado no alojamento («48 horas», «2 dias»); sem valor, 48 horas.
+  function hoursText(hours) {
+    const h = Number(hours) > 0 ? Number(hours) : 48;
+    return h % 24 === 0 && h > 48 ? `${h / 24} dias` : `${h} ${h === 1 ? 'hora' : 'horas'}`;
+  }
+
   // Fase da reserva, pela ordem do percurso.
   function phaseOf(r) {
     const p = r.portal || {};
@@ -100,7 +106,7 @@
     if (phase === 'pedido') {
       steps.push({ state: 'done', title: 'Pedido enviado', text: 'Recebemos o seu pedido de reserva.' });
       steps.push({ state: 'now', title: 'Aceitação do alojamento', text: 'Confirmamos a disponibilidade e respondemos por email.' });
-      steps.push({ state: 'later', title: full ? 'Pagamento' : 'Sinal', text: 'Depois de aceite, tem 48 horas para o pagar online.' });
+      steps.push({ state: 'later', title: full ? 'Pagamento' : 'Sinal', text: `Depois de aceite, tem ${hoursText(r.deposit_ttl_hours)} para o pagar online.` });
     } else {
       steps.push({ state: 'done', title: 'Pedido aceite', text: `${brand || 'O alojamento'} confirmou a disponibilidade.` });
     }
@@ -211,7 +217,7 @@
     switch (phase) {
       case 'pedido':
         Object.assign(card, { tone: 'wait', pill: 'A aguardar aceitação', title: 'Recebemos o seu pedido',
-          body: `<p class="gp-text">${esc(brand || 'O alojamento')} confirma a disponibilidade e responde por email. Hoje não paga nada: depois de aceite, tem 48 horas para pagar${r.pays_in_full ? ' a reserva' : ' o sinal'}.</p>` });
+          body: `<p class="gp-text">${esc(brand || 'O alojamento')} confirma a disponibilidade e responde por email. Hoje não paga nada: depois de aceite, tem ${hoursText(r.deposit_ttl_hours)} para pagar${r.pays_in_full ? ' a reserva' : ' o sinal'}.</p>` });
         break;
       case 'sinal':
         Object.assign(card, { tone: 'wait', pill: r.pays_in_full ? 'Próximo passo · Falta o pagamento' : 'Próximo passo · Falta o sinal', title: r.pays_in_full ? 'Pague a reserva para garantir as datas' : 'Pague o sinal para garantir as datas',
@@ -406,7 +412,7 @@
       <div class="gp-progress${percent >= 100 ? ' full' : ''}" role="progressbar" aria-label="Pago" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}" aria-valuetext="${percent}% pago"><i style="width:${percent}%"></i></div>
       <dl class="gp-lines">
         <div><dt>Pago</dt><dd><strong>${money(paid)}</strong></dd></div>
-        <div><dt>Falta</dt><dd>${money(missing)}</dd></div>
+        ${r.status === 'pendente' ? '<div><dt>A pagar</dt><dd>depois de aceite</dd></div>' : `<div><dt>Falta</dt><dd>${money(missing)}</dd></div>`}
         <div class="gp-total"><dt>Total</dt><dd>${money(total)}</dd></div>
       </dl>
       ${r.online_payment?.policy ? '<a href="#gp-policy" class="gp-note" id="gp-policy-link">Ver as condições de pagamento e cancelamento</a>' : ''}`;

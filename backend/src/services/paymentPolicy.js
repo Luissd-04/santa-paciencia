@@ -127,6 +127,22 @@ function amountDue(r, now = new Date()) {
   if (initial > 0 && now.getTime() < Date.parse(plan.dueAt)) return Math.min(remaining, Math.max(initial, MIN_ONLINE_CENTS));
   return remaining;
 }
+// «Falta pagar agora» (cêntimos), o único cálculo do painel, da ficha e do
+// portal. Com política: o sinal em falta (e o restante, a partir do prazo
+// dele). Sem política: o total em falta. Pedidos por aprovar e reservas
+// canceladas não devem nada. `kind`: 'deposit' | 'payment' | 'balance' | 'none'.
+function dueNow(r, now = new Date()) {
+  const remaining = Math.max(0, dueCents(r.total_amount, r.amount_paid));
+  const none = { cents: 0, remainingCents: remaining, kind: 'none' };
+  if (['pendente', 'cancelada'].includes(r.status) || remaining <= 0) return none;
+  let required = 0;
+  try { required = requiredDepositCents(r, now); } catch { required = remaining; }
+  const short = Math.max(0, Math.min(remaining, required - cents(r.amount_paid || 0)));
+  if (short > 0) return { cents: short, remainingCents: remaining, kind: paysInFull(r) ? 'payment' : 'deposit' };
+  const plan = r.payment_policy_json ? planFor(r, now) : null;
+  if (plan && now.getTime() >= Date.parse(plan.dueAt)) return { cents: remaining, remainingCents: remaining, kind: 'balance' };
+  return none;
+}
 function describe(r, now = new Date()) {
   const policy = policyFor(r), plan = planFor(r, now);
   if (!plan) return null;
@@ -136,4 +152,4 @@ function describe(r, now = new Date()) {
     automatic: r.policy_auto_consent === '1', balanceNoticeSent: Boolean(r.balance_notice_sent_at), deadline: r.balance_deadline || plan.deadline,
     cancellation, canCancel: !cancellation && ['pendente','aguardar_pagamento','confirmada','pre_reserva'].includes(r.status) && localDay(now) <= r.check_in };
 }
-module.exports = { DEFAULT_POLICY, POLICY_CHANNELS, PLATFORM_CHANNELS, validatePolicy, calculate, getPolicy, savePolicy, attachPolicy, requiredDepositCents, paysInFull, policyFor, planFor, consentKey, amountDue, describe, localDay, cents };
+module.exports = { DEFAULT_POLICY, POLICY_CHANNELS, PLATFORM_CHANNELS, validatePolicy, calculate, getPolicy, savePolicy, attachPolicy, requiredDepositCents, paysInFull, policyFor, planFor, consentKey, amountDue, dueNow, describe, localDay, cents };

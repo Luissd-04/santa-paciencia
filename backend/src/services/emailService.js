@@ -266,6 +266,10 @@ function buildBlocks(vars, settings, reservation) {
     // Pagamento online que entrou depois de a reserva ser cancelada.
     payment_after: { eyebrow: 'Reserva cancelada', headline: 'Vamos tratar do reembolso',
       text: `A sua reserva em ${strong(vars.alojamento)} estava cancelada quando recebemos ${vars.valor_pagamento ? `o pagamento de ${strong(vars.valor_pagamento)}` : 'um pagamento'}. O alojamento vai tratar do reembolso e entra em contacto consigo. Não precisa de fazer nada.` },
+    // A equipa recusou um pedido ainda por aprovar: não houve reserva a cancelar.
+    refused: { eyebrow: 'Pedido não aceite', headline: 'Não foi possível aceitar o seu pedido',
+      text: `Lamentamos, mas o seu pedido para ${strong(vars.datas_curtas)} em ${strong(vars.alojamento)} não pôde ser aceite. As datas escolhidas já não estão disponíveis para si${s.booking_url ? '; pode escolher outras datas na nossa página de reservas' : ''}. Não lhe foi cobrado nada.`,
+      rebook: true, rebookLabel: 'Escolher outras datas' },
     staff: { eyebrow: 'Reserva cancelada', headline: 'A sua reserva foi cancelada',
       text: `A sua reserva em ${strong(vars.alojamento)} foi cancelada. Se não esperava este email ou tem alguma pergunta, responda a esta mensagem.` },
     guest: { eyebrow: 'Reserva cancelada', headline: 'A sua reserva foi cancelada',
@@ -319,7 +323,7 @@ function buildBlocks(vars, settings, reservation) {
     // ── Cancelamento, segundo o motivo ──
     titulo_cancelamento: composer.buildTitle({ eyebrow: cancellation.eyebrow, tone: 'muted', headline: cancellation.headline }),
     mensagem_cancelamento: para(cancellation.text),
-    botao_novo_pedido: cancellation.rebook ? button(s.booking_url, 'Fazer um novo pedido') : '',
+    botao_novo_pedido: cancellation.rebook ? button(s.booking_url, cancellation.rebookLabel || 'Fazer um novo pedido') : '',
 
     // ── Título segundo o estado (modelo da reserva) ──
     titulo_reserva: composer.buildTitle({ eyebrow: pres.eyebrow, tone: pres.tone, headline: pres.headline(vars) }),
@@ -530,6 +534,8 @@ function buildVars(guest, reservation, accommodation, settings, extra) {
     wifi_nome: accommodation.wifi_name || '—',
     wifi_password: require('./emailEligibility').canSendTemplate({ slug: 'codigo_porta' }, reservation) ? (accommodation.wifi_password || '—') : '',
     codigo_porta: require('./emailEligibility').canSendTemplate({ slug: 'codigo_porta' }, reservation) ? (accommodation.door_code || '—') : '',
+    // «Reserva cancelada» ou, quando a equipa recusa um pedido por aprovar, «Pedido não aceite».
+    assunto_cancelamento: extra?.motivo_cancelamento === 'refused' ? 'Pedido não aceite' : 'Reserva cancelada',
     ...extra,
   };
 }

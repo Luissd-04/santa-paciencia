@@ -13,21 +13,42 @@ AppModules.define('reservas', {
   reterDinheiro: { get: () => reterDinheiro },
 });
 
+// Um segundo clique (ou toque) durante a aprovação é ignorado; o botão fica
+// desativado até o pedido terminar.
+const aprovando = new Set();
+const APPROVE_BUTTONS = '[data-on-click="detalhe-aprovar-reserva-0f31ccd"], [data-on-click="lista-colunas-aprovar-reserva-0f31ccd"]';
+function setAprovarBusy(busy) {
+  document.querySelectorAll(APPROVE_BUTTONS).forEach(button => { button.disabled = busy; button.setAttribute('aria-busy', String(busy)); });
+}
+
 async function aprovarReserva(id) {
-  if (!(await AppModules.core.confirmar('Aprovar esta reserva e enviar o email de pre check-in ao hóspede?'))) return;
+  if (aprovando.has(id)) return;
+  aprovando.add(id);
+  setAprovarBusy(true);
   try {
-    const res = await AppModules.core.apiPost(`/api/reservations/${id}/approve`, {});
-    if (res.success) {
-      AppModules.core.toast('✅ Reserva aprovada e pre check-in enviado.', 'success');
+    if (!(await AppModules.core.confirmar('Aprovar esta reserva e enviar o email de pre check-in ao hóspede?'))) return;
+    const refresh = async () => {
       await AppModules.reservas.loadReservas();
       if (typeof AppModules.calendario.renderCalView === 'function') AppModules.calendario.renderCalView();
       if (typeof AppModules.core.renderDashboard === 'function') AppModules.core.renderDashboard();
       AppModules.reservas.showDetail(id);
-    } else {
-      AppModules.core.toast('❌ ' + (res.error || 'Erro ao aprovar reserva.'), 'error');
+    };
+    try {
+      const res = await AppModules.core.apiPost(`/api/reservations/${id}/approve`, {});
+      if (res.success) {
+        AppModules.core.toast('✅ Reserva aprovada e pre check-in enviado.', 'success');
+        await refresh();
+      } else {
+        AppModules.core.toast('❌ ' + (res.error || 'Erro ao aprovar reserva.'), 'error');
+      }
+    } catch (e) {
+      // 409: já foi aprovada (outro clique, outro separador ou outra pessoa). Não é um erro.
+      if ((e?.status || e?.payload?.status) === 409 && /pendente/i.test(e?.payload?.error || e?.message || '')) await refresh();
+      else AppModules.core.toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
     }
-  } catch (e) {
-    AppModules.core.toast('❌ ' + (e?.payload?.error || e?.message || 'Erro de ligação ao servidor.'), 'error');
+  } finally {
+    aprovando.delete(id);
+    setAprovarBusy(false);
   }
 }
 

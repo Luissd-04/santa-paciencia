@@ -222,7 +222,9 @@ function getNotifications(req, res, next) {
     const checkinsTomorrow = db.prepare(`${baseSelect} AND r.check_in = ?  AND r.status != 'cancelada' ${notDone('checkin')}`).all(orgId, tomorrow);
     const checkoutsToday   = db.prepare(`${baseSelect} AND r.check_out = ? AND r.status != 'cancelada' ${notDone('checkout')}`).all(orgId, today);
     const pending          = db.prepare(`${baseSelect} AND r.status = 'pendente'`).all(orgId);
-    const unpaid           = db.prepare(`${baseSelect} AND r.status = 'confirmada' AND r.total_amount > 0`).all(orgId)
+    // O funcionário não vê valores de dinheiro: sem «Pagamento em falta» (decisão
+    // de produto: nem sem valor, a equipa de limpeza e receção não cobra).
+    const unpaid           = req.user.role === 'staff' ? [] : db.prepare(`${baseSelect} AND r.status = 'confirmada' AND r.total_amount > 0`).all(orgId)
       .filter(r => isUnderpaid(r.amount_paid, r.total_amount));
     const importantTasks   = db.prepare(`
       SELECT e.id, e.title, e.date, e.start_time, e.type, e.reservation_id,
@@ -283,6 +285,22 @@ function getNotifications(req, res, next) {
     }));
 
     if (req.user.role !== 'staff') {
+      // Aguarda pagamento (com prazo) e pré-avisos de prazo a terminar (≤ 12 h).
+      const expiry = require('../services/expiryNotices');
+      const near = expiry.expiring(orgId);
+      const nearIds = new Set(near.filter(e => e.kind === 'payment').map(e => e.reservation.id));
+      for (const r of expiry.awaitingPayment(orgId)) {
+        if (nearIds.has(r.id)) continue; // já tem o aviso «Pagamento expira em N h»
+        notifications.push({ type: 'awaiting_payment', priority: 'low', icon: 'clock', title: 'Aguarda pagamento',
+          subtitle: `${r.guest_name} · ${r.accommodation_name}${r.deposit_deadline ? ` · prazo: ${expiry.deadlineText(r.deposit_deadline)}` : ''}`, reservation_id: r.id });
+      }
+      for (const e of near) {
+        const r = e.reservation, request = e.kind === 'request';
+        notifications.push({ type: request ? 'request_expiring' : 'payment_expiring', priority: 'high', icon: 'timer',
+          title: `${request ? 'Pedido' : 'Pagamento'} expira em ${e.hours} h`,
+          subtitle: `${r.guest_name} · ${r.accommodation_name} · ${require('../services/dates').shortRange(r.check_in, r.check_out)}${request ? ' · aceite ou recuse' : ''}`,
+          reservation_id: r.id, occurred_at: new Date(e.deadline.getTime() - expiry.WARN_HOURS * 3600000).toISOString() });
+      }
       const issues = db.prepare(`SELECT id, guest_id, payment_policy_json, policy_accepted_at, policy_cancellation_json, status, total_amount, amount_paid, check_in, balance_notice_sent_at FROM reservations WHERE organization_id=? AND payment_policy_json IS NOT NULL`).all(orgId);
       for (const r of issues) {
         const cancellation = r.policy_cancellation_json && JSON.parse(r.policy_cancellation_json);

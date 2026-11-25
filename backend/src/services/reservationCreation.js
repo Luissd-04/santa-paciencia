@@ -12,7 +12,7 @@ const COLUMNS = new Set([
   'guest_id', 'accommodation_id', 'check_in', 'check_out', 'nights', 'num_guests', 'num_adults', 'num_children',
   'total_amount', 'breakfast_included', 'tourist_tax', 'channel', 'payment_method', 'payment_date', 'notes',
   'license_number', 'guests_data', 'nightly_prices', 'accommodations_data', 'price_edited_at', 'price_edited_by_user_id',
-  'status', 'public_token', 'precheckin_token', 'precheckin_token_expires_at', 'arrival_time', 'guest_snapshot',
+  'status', 'public_token', 'precheckin_token', 'precheckin_token_expires_at', 'arrival_time', 'guest_snapshot', 'children_ages',
 ]);
 const SOURCES = {
   // A equipa escolhe o estado; os pagamentos e a política acertam-no.

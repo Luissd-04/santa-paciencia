@@ -13,6 +13,7 @@ const EFFECTS = {
   staff_push_new_request: ['push', 'do novo pedido'],
   staff_push_payment: ['push', 'do pagamento'],
   staff_push_payment_issue: ['push', 'do problema de pagamento'],
+  staff_push_expiring: ['push', 'do prazo a terminar'],
   staff_push_cancelled: ['push', 'do cancelamento'],
   staff_push_precheckin: ['push', 'do pré-check-in'],
   staff_email_new_request: ['email', 'do novo pedido'],

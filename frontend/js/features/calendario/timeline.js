@@ -105,7 +105,7 @@ function drawTimeline(autoScroll = true) {
             <div class="tl-resize-handle tl-resize-left" ${AppActions.attrs("pointerdown", "timeline-stop-propagation-3708716", [r.id])}></div>
             <div class="tl-block-main">
               <span class="tl-block-name">${AppModules.core.escapeHtml(r.guest_name.split(' ')[0])}</span>
-              <span class="tl-block-status" style="color:${bg};">${r.status}</span>
+              <span class="tl-block-status" style="color:${bg};">${AppModules.core.escapeHtml(window.ReservationStatus.label(r.status))}</span>
             </div>
             <span class="tl-block-meta">${AppModules.calendario.shortDatePt(r.check_in)} → ${AppModules.calendario.shortDatePt(r.check_out)} · ${nights} noite${nights !== 1 ? 's' : ''}</span>
             <div class="tl-resize-handle tl-resize-right" ${AppActions.attrs("pointerdown", "timeline-stop-propagation-e7ac927", [r.id])}></div>

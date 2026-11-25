@@ -23,12 +23,14 @@ function pendingToday(orgId, today) {
         AND e.status = 'concluido'
     )`;
   const guests = (column, kind) => db.prepare(`
-    SELECT COALESCE(NULLIF(g.name, ''), 'Hóspede') AS name FROM reservations r
+    SELECT r.id, COALESCE(NULLIF(g.name, ''), 'Hóspede') AS name FROM reservations r
     LEFT JOIN guests g ON g.id = r.guest_id AND g.organization_id = r.organization_id
     WHERE r.organization_id = ? AND r.${column} = ? AND r.status != 'cancelada' ${notDone(kind)}
     ORDER BY r.created_at
-  `).all(orgId, today).map(row => row.name);
-  return { checkins: guests('check_in', 'checkin'), checkouts: guests('check_out', 'checkout') };
+  `).all(orgId, today);
+  const checkins = guests('check_in', 'checkin'), checkouts = guests('check_out', 'checkout');
+  // `ids`: as reservas do resumo, para o aviso abrir a vista certa.
+  return { checkins: checkins.map(r => r.name), checkouts: checkouts.map(r => r.name), ids: [...new Set([...checkins, ...checkouts].map(r => r.id))] };
 }
 
 // «Ana», «Ana e Rui», «Ana, Rui e Marta», «Ana, Rui, Marta e mais 2».
@@ -47,6 +49,9 @@ function summaryMessage({ checkins, checkouts }) {
   ].filter(Boolean).join(' · ');
   return { title: `Hoje: ${title}`, body };
 }
+
+// Uma só reserva: abre a reserva; várias: o painel, que mostra o dia de hoje.
+const summaryUrl = ({ ids = [] }) => ids.length === 1 ? `/reservas?reserva=${encodeURIComponent(ids[0])}` : '/dashboard';
 
 // Uma passagem (de 15 em 15 minutos, pelo executor de tarefas automáticas):
 // a partir da hora do resumo, uma vez por dia e organização.
@@ -68,9 +73,9 @@ async function sendDailySummaries() {
     if (!pending.checkins.length && !pending.checkouts.length) continue;
 
     await require('./staffNotifier').push(orgId, 'daily_summary', {
-      kind: 'summary', ...summaryMessage(pending), url: '/reservas', tag: 'sp-daily-summary',
+      kind: 'summary', ...summaryMessage(pending), url: summaryUrl(pending), tag: 'sp-daily-summary',
     });
   }
 }
 
-module.exports = { sendDailySummaries, summaryMessage };
+module.exports = { sendDailySummaries, summaryMessage, summaryUrl, pendingToday };

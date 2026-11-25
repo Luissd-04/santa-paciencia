@@ -33,9 +33,9 @@ const slugs = () => db.prepare('SELECT slug FROM organization_email_templates WH
 test('um exemplo de cada email, sem marcadores por preencher nem códigos reais', () => {
   const all = samples.allSamples(org.id, { baseUrl: 'https://app.exemplo.invalid' });
   const guest = all.filter(s => s.group === 'Hóspede');
-  // A confirmação em 4 estados, a reserva aceite em 2, o cancelamento em 5
+  // A confirmação em 4 estados, a reserva aceite em 2, o cancelamento em 6
   // motivos (um é o pagamento depois de cancelar) e «A sua reserva» (portal) em 3 fases.
-  assert.equal(guest.length, slugs().length + 3 + 1 + 4 + 2, 'cada modelo uma vez, com as variantes');
+  assert.equal(guest.length, slugs().length + 3 + 1 + 5 + 2, 'cada modelo uma vez, com as variantes');
   assert.deepEqual(guest.filter(s => s.name.startsWith('A sua reserva (')).map(s => s.name),
     ['A sua reserva (pedido por aprovar)', 'A sua reserva (falta o sinal)', 'A sua reserva (pré-check-in por fazer)']);
   assert.deepEqual(all.filter(s => s.group === 'Equipa').map(s => s.name), ['Novo pedido', 'Reserva cancelada']);

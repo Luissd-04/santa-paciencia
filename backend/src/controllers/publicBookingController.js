@@ -7,7 +7,7 @@ const { db } = require('../config/database');
 const { recordConsent } = require('../services/rgpdService');
 const creation = require('../services/reservationCreation');
 const { getEmailSettings, resolveAccommodationInheritance } = require('../services/emailService');
-const { normalizeDateValue } = require('../services/reservationRules');
+const { normalizeDateValue, parseChildrenAges, parseExemptAge } = require('../services/reservationRules');
 const { cents, MIN_ONLINE_CENTS } = require('../services/money');
 const turnstile = require('../services/turnstileService');
 const { recordHistory } = require('../services/reservationHistoryService');
@@ -80,6 +80,7 @@ function serializeAccommodation(req, row, parent = null) {
     baby_price: Number(row.baby_price ?? 0),
     child_age_limit: Number(row.child_age_limit ?? 12),
     child_price: Number(row.child_price ?? 0),
+    tourist_tax_exempt_age: row.tourist_tax_exempt_age ?? null,
     checkin_time: row.checkin_time || parent?.checkin_time || '15:00',
     checkout_time: row.checkout_time || parent?.checkout_time || '11:00',
     min_nights: Number(row.min_nights || parent?.min_nights || 1),
@@ -160,10 +161,13 @@ function getLanding(req, res) {
       })),
       online_payment_available: stripeEnabled(parent.organization_id),
       online_payment_test: !require('../services/stripeClient').stripeConfig().livemode,
+      // Prazo para pagar depois de aceite (DEPOSIT_TTL_HOURS), para os textos das páginas públicas.
+      deposit_ttl_hours: require('../services/reservationLifecycle').DEPOSIT_TTL_HOURS,
       payment_policy: require('../services/paymentPolicy').getPolicy(parent.organization_id),
       services: require('../services/reservationSupport').getOrganizationServices(parent.organization_id)
         .filter(s => ['breakfast', 'tourist_tax'].includes(s.id))
-        .map(s => ({ id: s.id, name: s.name, value: Number(s.value || 0), unit: s.unit, active: s.active !== false })),
+        .map(s => ({ id: s.id, name: s.name, value: Number(s.value || 0), unit: s.unit, active: s.active !== false,
+          ...(s.id === 'tourist_tax' ? { exempt_until_age: parseExemptAge(s.exempt_until_age) ?? null } : {}) })),
       captcha: {
         provider: 'turnstile',
         site_key: turnstile.getSiteKey(),
@@ -320,6 +324,9 @@ async function createReservation(req, res, next) {
     }
     // Mesmo cálculo de preço e voucher do backoffice (reservationQuote).
     const { pricePublic } = require('../services/reservationQuote');
+    // Idades das crianças (0-17): só as que o pedido declara como crianças.
+    payload.children_ages = parseChildrenAges(payload.children_ages).slice(0, Math.max(0, Number(payload.num_children) || 0));
+    const childrenAges = payload.children_ages;
     const pricing = pricePublic(parent.organization_id, unit, payload);
     const { totals } = pricing;
     // Datas de calendário do alojamento (Lisboa): não se reserva o passado.
@@ -381,6 +388,7 @@ async function createReservation(req, res, next) {
         guests_data: JSON.stringify(normalizedGuestsData), public_token: token, precheckin_token: precheckinToken,
         precheckin_token_expires_at: precheckinExpiresAt, arrival_time: arrivalTime,
         guest_snapshot: JSON.stringify({ name: g.name, email: g.email, phone: g.phone }),
+        children_ages: JSON.stringify(childrenAges),
       }, {
         source: 'public', voucher: confirmedVoucherId ? { id: confirmedVoucherId, discount: voucherDiscount } : null,
         eventPayload: { appUrl: publicUrl(req) },
@@ -472,6 +480,10 @@ function getReservationStatus(req, res) {
       pays_in_full: require('../services/paymentPolicy').paysInFull(reservation),
       total_amount: Number(reservation.total_amount || 0),
       amount_paid: Number(reservation.amount_paid || 0),
+      // O que falta pagar agora (o mesmo valor do painel e da ficha) e os prazos configurados.
+      due_now: require('../services/paymentPolicy').dueNow(reservation).cents / 100,
+      pending_ttl_hours: require('../services/reservationScheduler').PENDING_TTL_HOURS,
+      deposit_ttl_hours: require('../services/reservationLifecycle').DEPOSIT_TTL_HOURS,
       created_at: reservation.created_at,
       // Link para o pré-check-in (antes só chegava por email): só depois de a
       // reserva ser aceite e enquanto o pré-check-in estiver aberto.

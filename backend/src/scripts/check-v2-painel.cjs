@@ -78,7 +78,9 @@ async function main() {
   await expect(painel.locator('.v2-head h2')).toHaveText(/(Bom dia|Boa tarde|Boa noite), Célia/);
   await expect(painel.locator('.v2-kpi').nth(0)).toContainText('Chegadas hoje');
   await expect(painel.locator('.v2-kpi').nth(0).locator('strong')).toHaveText('1');
-  await expect(painel.locator('.v2-kpi').nth(3).locator('strong')).toHaveText(/390,00/);
+  await expect(painel.locator('.v2-kpi').nth(3).locator('strong')).toHaveText(/200,00/);
+  // O pedido por aprovar (190,00) vai à parte, no texto por baixo.
+  await expect(painel.locator('.v2-kpi').nth(3)).toContainText('190,00');
   const hoje = painel.locator('.v2-c-hoje');
   await expect(hoje.locator('.v2-row')).toHaveCount(2);
   await expect(hoje.locator('.v2-row').first()).toContainText('Check-out · Ana Costa');

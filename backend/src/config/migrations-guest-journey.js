@@ -141,6 +141,29 @@ function cancellationRefundText(db) {
   }).immediate();
 }
 
+// Email «Cancelamento da reserva»: o assunto passa a depender do motivo
+// («Pedido não aceite» quando a equipa recusa um pedido por aprovar). Só os
+// modelos com o assunto anterior se atualizam (com cópia em
+// organization_email_templates_backup); um assunto editado não se toca.
+function cancellationSubject(db) {
+  const id = '20261125_cancel_subject';
+  if (done(db, id)) return;
+  db.transaction(() => {
+    const { defaultsList } = require('./emailTemplateDefaults');
+    const novo = defaultsList().find(t => t.slug === 'cancelamento');
+    const antigo = 'Reserva cancelada — {{alojamento}}';
+    const has = name => db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name);
+    if (has('organization_email_templates')) {
+      require('../services/emailDesign').ensureBackupTable(db);
+      db.prepare(`INSERT INTO organization_email_templates_backup (organization_id, slug, name, subject, body, reason)
+        SELECT organization_id, slug, name, subject, body, ? FROM organization_email_templates WHERE slug = 'cancelamento' AND subject = ?`).run(id, antigo);
+      db.prepare("UPDATE organization_email_templates SET subject = ?, updated_at = datetime('now') WHERE slug = 'cancelamento' AND subject = ?").run(novo.subject, antigo);
+    }
+    if (has('email_templates')) db.prepare("UPDATE email_templates SET subject = ? WHERE slug = 'cancelamento' AND subject = ?").run(novo.subject, antigo);
+    mark(db, id);
+  }).immediate();
+}
+
 // O link do pré-check-in expira na saída atual da reserva (e não na original).
 function precheckinExpiry(db) {
   const id = '20261125_precheckin_expiry';
@@ -161,4 +184,5 @@ module.exports = db => {
   cancelledMoney(db);
   precheckinExpiry(db);
   cancellationRefundText(db);
+  cancellationSubject(db);
 };

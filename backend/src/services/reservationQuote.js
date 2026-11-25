@@ -2,7 +2,7 @@
 // pré-visualização do wizard usam estas funções: o total mostrado ao operador
 // é o que o servidor grava, incluindo o voucher. Nada aqui escreve na base.
 const { db } = require('../config/database');
-const { calculateReservationTotals, getReservationBirthDates, normalizeDateValue } = require('./reservationRules');
+const { calculateReservationTotals, getReservationBirthDates, normalizeDateValue, parseChildrenAges } = require('./reservationRules');
 const { findUsableVoucher, voucherDiscount: calculateVoucherDiscount, activeRedemption } = require('./voucherService');
 const { assertMoneyLimit } = require('./reservationValidation');
 const { safeJson, stayCapacity, computeStandardTotals, getOrganizationServices } = require('./reservationSupport');
@@ -21,6 +21,8 @@ const STAY_FIELDS = {
   num_adults: value => Number(value ?? 0),
   num_children: value => Number(value ?? 0),
   breakfast_included: asFlag,
+  // Só contam as idades indicadas (um seletor por escolher não é alteração).
+  children_ages: value => JSON.stringify(parseChildrenAges(value).filter(a => a !== null)),
 };
 function nightlyKey(value) {
   const rows = Array.isArray(value) ? value : safeJson(value, []);
@@ -52,6 +54,7 @@ function totalsOrBadRequest(...args) {
 function priceCreate(organizationId, body) {
   const { accommodation_id, check_in, check_out, num_guests, num_adults, num_children, breakfast_included,
     guest, guests_data, voucher_code, total_amount: manualTotal, nightly_prices, accommodations_data } = body;
+  const children_ages = parseChildrenAges(body.children_ages);
   const totalGuests = (num_adults != null || num_children != null)
     ? (Number(num_adults ?? 1) + Number(num_children ?? 0))
     : (num_guests || 1);
@@ -60,7 +63,7 @@ function priceCreate(organizationId, body) {
   const services = getOrganizationServices(organizationId);
   const totals = totalsOrBadRequest(accommodation, services, {
     check_in, check_out, num_guests: totalGuests, pricing_periods: periods, breakfast_included,
-    guest, guests_data: guests_data || [], nightly_prices, ...room,
+    guest, guests_data: guests_data || [], nightly_prices, children_ages, ...room,
   });
   let voucher = null, voucherError = null, discount = 0;
   if (voucher_code) {
@@ -79,7 +82,7 @@ function priceCreate(organizationId, body) {
   try {
     const standard = calculateReservationTotals(accommodation, services, {
       check_in, check_out, num_guests: totalGuests, pricing_periods: periods, breakfast_included,
-      guest, guests_data: guests_data || [], ...room,
+      guest, guests_data: guests_data || [], children_ages, ...room,
     });
     standardTotal = Math.max(0, standard.totalAmount - discount);
   } catch { /* referência indisponível — não marcar */ }
@@ -105,6 +108,7 @@ function pricePublic(organizationId, accommodation, payload) {
   const totals = calculateReservationTotals(accommodation, getOrganizationServices(organizationId), {
     check_in: payload.check_in, check_out: payload.check_out, num_guests: payload.num_guests, breakfast_included: payload.breakfast_included,
     guest: payload.guest, guests_data: payload.guests_data, pricing_periods: periods,
+    children_ages: parseChildrenAges(payload.children_ages),
   });
   let voucher = null, discount = 0, voucherCode = null;
   if (payload.voucher_code) {
@@ -136,9 +140,10 @@ function priceUpdate(organizationId, existing, body) {
   const incomingGuestsData = guests_data !== undefined ? guests_data : safeJson(existing.guests_data, []);
   const existingGuest = db.prepare('SELECT birth_date FROM guests WHERE id = ? AND organization_id = ?').get(existing.guest_id, organizationId) || {};
   const birthDates = getReservationBirthDates({ ...existingGuest, ...guest }, incomingGuestsData);
+  const childrenAges = body.children_ages !== undefined ? parseChildrenAges(body.children_ages) : parseChildrenAges(existing.children_ages);
   const services = getOrganizationServices(organizationId);
   const room = stayCapacity(organizationId, accommodation, accommodations_data !== undefined ? accommodations_data : existing.accommodations_data);
-  const stay = { check_in: newCheckIn, check_out: newCheckOut, num_guests: guests, breakfast_included: breakfast, birth_dates: birthDates, pricing_periods: periods, ...room };
+  const stay = { check_in: newCheckIn, check_out: newCheckOut, num_guests: guests, breakfast_included: breakfast, birth_dates: birthDates, children_ages: childrenAges, pricing_periods: periods, ...room };
   // Preço por noite: usa o enviado; senão preserva o guardado (reconciliado por data).
   let totals = totalsOrBadRequest(accommodation, services, {
     ...stay, nightly_prices: nightlyPricesUpdate !== undefined ? nightlyPricesUpdate : safeJson(existing.nightly_prices, []),
@@ -183,7 +188,7 @@ function priceUpdate(organizationId, existing, body) {
   } catch { /* referência indisponível — manter registo atual */ }
   return {
     accommodation, periods, newAccommodationId, newCheckIn, newCheckOut, newAdults, newChildren, guests, breakfast,
-    incomingGuestsData, newAccData, totals, pricingChanged, redemption, voucherDiscount, voucherIssue, confirmation,
+    incomingGuestsData, newAccData, childrenAges, totals, pricingChanged, redemption, voucherDiscount, voucherIssue, confirmation,
     effectiveTotal, standardTotal,
   };
 }

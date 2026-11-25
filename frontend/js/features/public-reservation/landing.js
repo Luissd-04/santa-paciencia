@@ -21,7 +21,7 @@ async function init() {
     AppModules.booking.state.captcha = payload.data.captcha || null;
     AppModules.booking.state.onlinePayment = payload.data.online_payment_available === true;
     if (AppModules.booking.state.onlinePayment) {
-      AppModules.booking.$('pb-payment-note').textContent = `Hoje não paga nada. Depois de o alojamento aceitar o pedido, recebe por email o link para pagar ${payload.data.payment_policy?.enabled ? 'o sinal' : 'a reserva'} online e tem 48 horas para o fazer.` + (payload.data.online_payment_test ? ' Modo de teste: não são efetuadas cobranças reais.' : '');
+      AppModules.booking.$('pb-payment-note').textContent = `Hoje não paga nada. Depois de o alojamento aceitar o pedido, recebe por email o link para pagar ${payload.data.payment_policy?.enabled ? 'o sinal' : 'a reserva'} online e tem ${(h => h % 24 === 0 && h > 48 ? `${h / 24} dias` : `${h} ${h === 1 ? 'hora' : 'horas'}`)(Number(payload.data.deposit_ttl_hours) > 0 ? Number(payload.data.deposit_ttl_hours) : 48)} para o fazer.` + (payload.data.online_payment_test ? ' Modo de teste: não são efetuadas cobranças reais.' : '');
     }
     const paymentPolicy = payload.data.payment_policy;
     if (paymentPolicy?.enabled && document.getElementById('pb-policy')) {

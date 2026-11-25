@@ -4,6 +4,9 @@ AppModules.define('booking', {
   api: { get: () => api },
   ccFromFlagEmoji: { get: () => ccFromFlagEmoji },
   effectiveBirthDates: { get: () => effectiveBirthDates },
+  childAges: { get: () => childAges },
+  updateChildAgeHints: { get: () => updateChildAgeHints },
+  exemptAge: { get: () => exemptAge },
   flagHtml: { get: () => flagHtml },
   fmtCurrency: { get: () => fmtCurrency },
   fuzzyMatch: { get: () => fuzzyMatch },
@@ -101,7 +104,10 @@ function updateChildAgeHints() {
     const sel = item.querySelector('select');
     const hint = item.querySelector('.child-age-hint');
     if (!sel || !hint) return;
-    hint.textContent = (sel.value !== '' && Number(sel.value) < limit) ? 'Sem custo' : '';
+    const exempt = exemptAge();
+    const taxFree = sel.value !== '' && exempt !== null && Number(sel.value) <= exempt;
+    const free = sel.value !== '' && Number(sel.value) < limit;
+    hint.textContent = [free ? 'Sem custo' : '', taxFree ? 'Isento de taxa turística' : ''].filter(Boolean).join(' · ');
   });
 }
 
@@ -123,6 +129,21 @@ function effectiveBirthDates() {
   const children = Number(AppModules.booking.$('pb-children').value) || 0;
   if (children > 0) return [...Array(adults).fill(null), ...childBirthDates()];
   return AppModules.booking.getBirthDates();
+}
+
+// Idades escolhidas para as crianças (null = por escolher).
+function childAges() {
+  const count = Number(AppModules.booking.$('pb-children').value) || 0;
+  return Array.from(document.querySelectorAll('#pb-child-ages select')).slice(0, count)
+    .map(s => (s.value === '' ? null : Number(s.value)));
+}
+
+// Idade até à qual a taxa turística não se paga neste alojamento (null = sem isenção).
+function exemptAge() {
+  const unit = selectedUnit();
+  const property = AppModules.booking.state.property;
+  const tax = (AppModules.booking.state.services || []).find(s => s.id === 'tourist_tax');
+  return window.ReservationPricing.resolveExemptAge(unit || property, tax, unit ? property : null);
 }
 
 function selectedUnit() {

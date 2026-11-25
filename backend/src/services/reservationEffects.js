@@ -11,9 +11,10 @@
 //   payment.review         pagamento online a rever à mão
 //   payment.after_cancellation  { amount }   pagamento online que entrou numa reserva já cancelada
 //   reservation.changed    { before: { check_in, check_out, total }, deadline }  datas ou total alterados com pagamento feito
-//   reservation.cancelled  { reason: 'staff' | 'guest' | 'ttl' | 'nonpayment' | 'deposit', policy }
+//   reservation.cancelled  { reason: 'staff' | 'guest' | 'ttl' | 'nonpayment' | 'deposit', policy, refusedRequest? }
 //   reservation.approved   { precheckinUrl }
 //   precheckin.submitted   { resubmission }
+//   reservation.expiring   { kind: 'request' | 'payment', deadline }  pedido ou pagamento a expirar dentro de 12 h (pré-aviso)
 //   email.due              modelo agendado pela estadia já na hora { slug, key }
 //   policy.notice_due      aviso da política { kind: 'balance' | 'cancelled', key }
 const { db } = require('../config/database');
@@ -48,6 +49,8 @@ function effectsFor(type, payload = {}) {
       'staff_push_cancelled',
       ...(payload.reason === 'staff' ? [] : ['staff_email_cancelled']),
     ];
+    // Pré-aviso do prazo: só push, só proprietário e gestores, uma vez por reserva e prazo.
+    case 'reservation.expiring': return ['staff_push_expiring'];
     case 'reservation.approved': return ['guest_accepted_email'];
     // O hóspede fica a saber que o alojamento vai tratar do reembolso.
     case 'payment.after_cancellation': return ['guest_payment_after_cancellation_email'];
@@ -155,7 +158,7 @@ function paymentMessage(ctx, url) {
 
 const HANDLERS = {
   guest_confirmation_email: (ctx) => guestEmail(ctx, mail => mail.sendConfirmationEmail(ctx.guest, ctx.reservation, ctx.accommodation)),
-  guest_cancellation_email: (ctx, event) => guestEmail(ctx, mail => mail.sendCancellationEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload.reason)),
+  guest_cancellation_email: (ctx, event) => guestEmail(ctx, mail => mail.sendCancellationEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload.refusedRequest ? 'refused' : event.payload.reason)),
   guest_accepted_email: (ctx, event) => guestEmail(ctx, mail => mail.sendReservationAcceptedEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload.precheckinUrl)),
   guest_precheckin_email: (ctx, event) => guestEmail(ctx, mail => mail.sendPreCheckinEmail(ctx.guest, ctx.reservation, ctx.accommodation, event.payload.precheckinUrl)),
   guest_payment_email: (ctx, event) => guestEmail(ctx, mail => mail.sendPaymentConfirmationEmail(ctx.guest, ctx.reservation, ctx.accommodation, { amount: event.payload.amount })),
@@ -213,6 +216,15 @@ const HANDLERS = {
     url: `/reservas?reserva=${ctx.reservation.id}`, excludeUserId: event.actorUserId, tag: `sp-cancellation-${ctx.reservation.id}`,
   }),
   staff_email_cancelled: (ctx, event) => staff.email(event.organizationId, staffCancelledMessage(ctx, event.payload.reason, backofficeUrl(event, ctx.reservation))),
+  staff_push_expiring: (ctx, event) => {
+    const hours = Math.max(1, Math.ceil((Date.parse(event.payload.deadline) - Date.now()) / 3600000));
+    const request = event.payload.kind === 'request';
+    return staff.push(event.organizationId, request ? 'new_reservation' : 'payment', {
+      kind: request ? 'request' : 'payment', title: `${request ? 'Pedido' : 'Pagamento'} expira em ${hours} h`,
+      body: `${summary(ctx)}${request ? ' · aceite ou recuse' : ''}`, url: `/reservas?reserva=${ctx.reservation.id}`,
+      tag: `sp-expiring-${ctx.reservation.id}`, requireInteraction: true, roles: ['owner', 'manager'],
+    });
+  },
   staff_push_precheckin: (ctx, event) => staff.push(event.organizationId, 'precheckin', {
     kind: 'precheckin', title: event.payload.resubmission ? 'Pré-check-in alterado pelo hóspede' : 'Pré-check-in recebido',
     body: [guestName(ctx), ctx.accommodation.name, `entrada a ${dates.shortDate(ctx.reservation.check_in)}`].filter(Boolean).join(' · '),

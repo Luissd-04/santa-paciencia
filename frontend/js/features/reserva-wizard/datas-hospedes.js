@@ -12,6 +12,8 @@ AppModules.define('reservas', {
   renderWizChildAges: { get: () => renderWizChildAges },
   updateSpecialRateHints: { get: () => updateSpecialRateHints },
   wizEffectiveBirthDates: { get: () => wizEffectiveBirthDates },
+  wizChildrenAges: { get: () => wizChildrenAges },
+  wizParentOf: { get: () => wizParentOf },
 });
 
 function getExtraOccupancyCharge(suite, numGuests, nights, birthDates = [], checkIn = null) {
@@ -108,6 +110,20 @@ function wizEffectiveBirthDates() {
   const childDates = [];
   for (let i = 0; i < children; i++) childDates.push(rowDates[i] || ageDates[i] || null);
   return [...Array(adults).fill(null), ...childDates];
+}
+
+// Idades das crianças escolhidas (taxa turística: isenção por idade); vazio
+// se não houver crianças ou nenhuma idade escolhida.
+function wizChildrenAges() {
+  const children = parseInt(document.getElementById('f-num-criancas')?.value) || 0;
+  if (!children) return [];
+  return Array.from(document.querySelectorAll('#resf-child-ages [data-wiz-child-age]')).slice(0, children)
+    .map(sel => (sel.value === '' ? null : Number(sel.value)));
+}
+
+// Alojamento principal de uma unidade (herança do limite de isenção).
+function wizParentOf(accommodation) {
+  return accommodation?.parent_id ? AppModules.core.accommodations.find(p => p.id === accommodation.parent_id) || null : null;
 }
 
 function formatDateForBirthInput(value) {

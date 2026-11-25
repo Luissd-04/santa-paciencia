@@ -49,17 +49,19 @@ function quote(unit) {
   };
   if (unit) {
     return window.ReservationPricing.calculateReservationTotal(unit, AppModules.booking.state.services, {
-      ...common, birth_dates: AppModules.booking.effectiveBirthDates(), pricing_periods: unit.pricing_periods || []
+      ...common, birth_dates: AppModules.booking.effectiveBirthDates(), children_ages: AppModules.booking.childAges(),
+      parent_accommodation: AppModules.booking.state.property, pricing_periods: unit.pricing_periods || []
     });
   }
   const property = AppModules.booking.state.property;
   const rawTotals = window.ReservationPricing.calculateReservationTotal(property, AppModules.booking.state.services, {
-    ...common, birth_dates: [], pricing_periods: property?.pricing_periods || []
+    ...common, birth_dates: [], children_ages: AppModules.booking.childAges(), pricing_periods: property?.pricing_periods || []
   });
   return { ...rawTotals, extraOccupancyCost: 0, totalAmount: rawTotals.baseAmount + rawTotals.breakfastCost + rawTotals.touristTax };
 }
 
 function recalc() {
+  AppModules.booking.updateChildAgeHints();
   const unit = AppModules.booking.selectedUnit();
   const n = AppModules.booking.nights();
   const adults = Number(AppModules.booking.$('pb-adults').value) || 1;

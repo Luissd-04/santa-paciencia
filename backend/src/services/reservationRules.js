@@ -108,6 +108,51 @@ function getExtraOccupancyCharge(accommodation, guests, nights, birthDates = [],
   }, total);
 }
 
+// Isenção da taxa turística por idade. Idade limite efetiva: a do alojamento
+// (0-17; -1 = «sem isenção» explícito), senão a do alojamento principal, senão
+// a da taxa turística da organização (`exempt_until_age`). Vazio = sem isenção.
+function parseExemptAge(value) {
+  if (value === null || value === undefined || value === '') return undefined;
+  const n = Number(value);
+  if (!Number.isInteger(n)) return undefined;
+  if (n < 0) return null; // sem isenção
+  return Math.min(17, n);
+}
+function resolveExemptAge(accommodation, taxSvc, parent) {
+  for (const source of [accommodation?.tourist_tax_exempt_age, parent?.tourist_tax_exempt_age]) {
+    const age = parseExemptAge(source);
+    if (age !== undefined) return age;
+  }
+  const org = parseExemptAge(taxSvc?.exempt_until_age);
+  return org === undefined ? null : org;
+}
+
+// Hóspedes isentos (idade <= limite à data de entrada). Idades, por ordem:
+// datas de nascimento conhecidas; idades indicadas na reserva (`childrenAges`,
+// só as crianças que ainda não têm data de nascimento: as primeiras
+// `menores com data` entradas já estão cobertas por ela). «N crianças» sem
+// idade nem data não isenta ninguém (comportamento anterior: paga).
+function countExemptGuests({ guests, checkIn, exemptAge, birthDates = [], childrenAges = [] }) {
+  if (exemptAge === null || exemptAge === undefined) return 0;
+  const ages = (Array.isArray(birthDates) ? birthDates : [])
+    .map(d => (d ? getAgeAtDate(d, checkIn) : null)).filter(a => a !== null);
+  const minorsKnown = ages.filter(a => a < 18).length;
+  const declared = (Array.isArray(childrenAges) ? childrenAges : [])
+    .map(a => (a === '' || a === null || a === undefined ? NaN : Number(a)))
+    .filter(a => Number.isInteger(a) && a >= 0 && a <= 17)
+    .slice(minorsKnown);
+  const exempt = [...ages, ...declared].filter(a => a <= exemptAge).length;
+  return Math.min(Math.max(0, Number(guests) || 0), exempt);
+}
+
+function parseChildrenAges(value) {
+  let list = value;
+  if (typeof list === 'string') { try { list = JSON.parse(list); } catch { list = []; } }
+  if (!Array.isArray(list)) return [];
+  return list.slice(0, 30).map(a => (a === '' || a === null || a === undefined ? null : Number(a)))
+    .map(a => (Number.isInteger(a) && a >= 0 && a <= 17 ? a : null));
+}
+
 function getReservationBirthDates(guest = {}, guestsData = []) {
   const extra = Array.isArray(guestsData) ? guestsData : [];
   return [guest.birth_date, ...extra.map(g => g?.birth_date)];
@@ -197,7 +242,14 @@ function calculateReservationTotals(accommodation, services = [], payload = {}) 
   const bkfSvc = services.find(s => s.id === 'breakfast');
   const breakfast = payload.breakfast_included === true || payload.breakfast_included === 'true' || payload.breakfast_included === 1;
   const birthDates = payload.birth_dates || getReservationBirthDates(payload.guest || {}, payload.guests_data || []);
-  const touristTax = (taxSvc?.active !== false) ? (Number(taxSvc?.value ?? 3) * guests * nights) : 0;
+  let parent = payload.parent_accommodation;
+  if (parent === undefined && accommodation?.parent_id) {
+    try { parent = require('../config/database').db.prepare('SELECT tourist_tax_exempt_age FROM accommodations WHERE id = ?').get(accommodation.parent_id); } catch { parent = null; }
+  }
+  const exemptAge = resolveExemptAge(accommodation, taxSvc, parent);
+  const exemptGuests = countExemptGuests({ guests, checkIn, exemptAge, birthDates, childrenAges: payload.children_ages });
+  const taxableGuests = guests - exemptGuests;
+  const touristTax = (taxSvc?.active !== false) ? (Number(taxSvc?.value ?? 3) * taxableGuests * nights) : 0;
   const breakfastCost = breakfast ? (Number(bkfSvc?.value ?? 19) * guests * nights) : 0;
   const extraOccupancyCost = getExtraOccupancyCharge(accommodation, guests, nights, birthDates, checkIn);
   const pricingPeriods = payload.pricing_periods || [];
@@ -218,6 +270,7 @@ function calculateReservationTotals(accommodation, services = [], payload = {}) 
     baseAmount,
     nightlyPrices,
     touristTax,
+    exemptGuests,
     breakfastCost,
     extraOccupancyCost,
     totalAmount: baseAmount + touristTax + breakfastCost + extraOccupancyCost
@@ -241,6 +294,10 @@ module.exports = {
   getAgeSpecialRates,
   getExtraOccupancyCharge,
   getReservationBirthDates,
+  parseExemptAge,
+  resolveExemptAge,
+  countExemptGuests,
+  parseChildrenAges,
   validateReservationBirthDates,
   calculateReservationTotals,
   buildNightlyPrices,

@@ -99,7 +99,7 @@ const TEMPLATES = {
 
   cancelamento: {
     name: 'Cancelamento da reserva',
-    subject: 'Reserva cancelada — {{alojamento}}',
+    subject: '{{assunto_cancelamento}} — {{alojamento}}',
     body: [
       '{{titulo_cancelamento}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),

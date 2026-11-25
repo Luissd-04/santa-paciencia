@@ -96,6 +96,7 @@ function collectPayload() {
     num_guests: AppModules.booking.totalGuests(),
     num_adults: Number(AppModules.booking.$('pb-adults').value) || 1,
     num_children: Number(AppModules.booking.$('pb-children').value) || 0,
+    children_ages: AppModules.booking.childAges().filter(a => a !== null),
     breakfast_included: false,
     // O servidor volta sempre a validar o código. Enviar o valor escrito evita
     // perder o voucher quando o hóspede não carrega primeiro em «Aplicar».

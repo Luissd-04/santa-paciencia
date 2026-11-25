@@ -7,7 +7,7 @@ const { addDays } = require('./dates');
 
 const ACTIVE = "r.status NOT IN ('cancelada')";
 const RESERVATION_COLUMNS = `r.id, r.check_in, r.check_out, r.nights, r.status, r.arrival_time,
-  r.total_amount, r.amount_paid, r.payment_policy_json, r.precheckin_submitted_at, g.name AS guest_name, a.name AS accommodation_name,
+  r.total_amount, r.amount_paid, r.payment_policy_json, r.channel, r.created_at, r.organization_id, r.precheckin_submitted_at, g.name AS guest_name, a.name AS accommodation_name,
   a.color AS accommodation_color, COALESCE(a.checkin_time, p.checkin_time) AS checkin_time,
   COALESCE(a.checkout_time, p.checkout_time) AS checkout_time`;
 const FROM = `FROM reservations r
@@ -46,7 +46,8 @@ function dashboardToday(orgId, today, now = new Date(), { role } = {}) {
 
   const pendingApproval = db.prepare(`SELECT ${RESERVATION_COLUMNS} ${FROM} WHERE r.organization_id = ? AND r.status = 'pendente' ORDER BY r.check_in LIMIT 20`).all(orgId);
   const awaitingDeposit = db.prepare(`SELECT ${RESERVATION_COLUMNS} ${FROM} WHERE r.organization_id = ? AND r.status IN ('aguardar_pagamento','pre_reserva')
-    AND r.total_amount - COALESCE(r.amount_paid, 0) > 0.005 ORDER BY r.check_in LIMIT 20`).all(orgId);
+    AND r.total_amount - COALESCE(r.amount_paid, 0) > 0.005 ORDER BY r.check_in LIMIT 20`).all(orgId)
+    .filter(r => require('./paymentPolicy').dueNow(r, now).cents > 0);
   // Sinal parcial depois do prazo: não se cancela (há dinheiro recebido), mas o
   // gestor tem de decidir. Só gestor ou proprietário.
   const depositOverdue = role && role !== 'staff'
@@ -58,12 +59,18 @@ function dashboardToday(orgId, today, now = new Date(), { role } = {}) {
     AND r.precheckin_submitted_at IS NULL AND r.check_in BETWEEN ? AND ? ORDER BY r.check_in LIMIT 20`).all(orgId, today, addDays(today, 7));
   // Dinheiro numa reserva cancelada por tratar e pagamentos online a rever: só gestor ou proprietário.
   const money = role && role !== 'staff' ? require('./cancelledMoney').attention(orgId) : { cancelledWithMoney: [], paymentReview: [] };
-  const brief = r => ({ id: r.id, guest_name: r.guest_name, check_in: r.check_in, check_out: r.check_out, accommodation_name: r.accommodation_name, missing: missing(r),
+  // `missing`: o que falta pagar agora (paymentPolicy.dueNow, o mesmo valor da ficha e do portal).
+  const brief = r => ({ id: r.id, guest_name: r.guest_name, check_in: r.check_in, check_out: r.check_out, accommodation_name: r.accommodation_name,
+    missing: require('./paymentPolicy').dueNow(r, now).cents / 100,
     // Sem política ativa o que falta é o pagamento, não um «sinal».
     pays_in_full: require('./paymentPolicy').paysInFull({ organization_id: orgId, payment_policy_json: r.payment_policy_json }) });
 
+  // Por receber: sem os pedidos por aprovar (ainda não há obrigação de pagar),
+  // que vão à parte em `pendingAmount`.
   const receivable = db.prepare(`SELECT COUNT(*) AS count, COALESCE(SUM(MAX(total_amount - COALESCE(amount_paid, 0), 0)), 0) AS amount
-    FROM reservations r WHERE r.organization_id = ? AND ${ACTIVE} AND r.payment_status IN ('pendente', 'parcial')`).get(orgId);
+    FROM reservations r WHERE r.organization_id = ? AND ${ACTIVE} AND r.status != 'pendente' AND r.payment_status IN ('pendente', 'parcial')`).get(orgId);
+  const unapproved = db.prepare(`SELECT COUNT(*) AS count, COALESCE(SUM(MAX(total_amount - COALESCE(amount_paid, 0), 0)), 0) AS amount
+    FROM reservations r WHERE r.organization_id = ? AND r.status = 'pendente'`).get(orgId);
 
   const year = now.getFullYear(), month = now.getMonth() + 1;
   const prevStart = month === 1 ? firstOfMonth(year - 1, 12) : firstOfMonth(year, month - 1);
@@ -74,7 +81,8 @@ function dashboardToday(orgId, today, now = new Date(), { role } = {}) {
     attention: { pendingApproval: pendingApproval.map(brief), awaitingDeposit: awaitingDeposit.map(brief), depositOverdue: depositOverdue.map(brief), precheckinMissing: precheckinMissing.map(brief),
       cancelledMoney: money.cancelledWithMoney.map(r => ({ ...brief(r), paid: Number(r.amount_paid || 0) })),
       paymentReview: money.paymentReview.map(r => ({ ...brief(r), paid: Number(r.amount_paid || 0) })) },
-    receivable: { count: receivable.count, amount: Math.round(receivable.amount * 100) / 100 },
+    receivable: { count: receivable.count, amount: Math.round(receivable.amount * 100) / 100,
+      pendingCount: unapproved.count, pendingAmount: Math.round(unapproved.amount * 100) / 100 },
     previousOccupancyRate: previous.rate,
   };
 }

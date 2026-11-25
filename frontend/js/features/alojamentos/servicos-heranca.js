@@ -3,6 +3,7 @@
 AppModules.define('alojamentos', {
   _applyInheritedFields: { get: () => _applyInheritedFields },
   addServico: { get: () => addServico },
+  fillTouristTaxExemptSelect: { get: () => fillTouristTaxExemptSelect },
   onAlojParentChange: { get: () => onAlojParentChange },
   onAlojTipoChange: { get: () => onAlojTipoChange },
   renderServicos: { get: () => renderServicos },
@@ -48,9 +49,32 @@ function renderServicos() {
           ${AppModules.core.lcIcon('trash-2', 15)}
         </button>`}
       </td>
-    </tr>`;
+    </tr>${s.id === 'tourist_tax' ? `
+    <tr class="servico-isencao-row">
+      <td></td>
+      <td colspan="5">
+        <div class="servico-isencao">
+          <label for="servico-isencao-idade">Isentos até aos</label>
+          <input class="form-control" id="servico-isencao-idade" type="number" min="0" max="17" step="1" inputmode="numeric" placeholder="—" value="${s.exempt_until_age ?? ''}" ${AppActions.attrs("change", "servicos-heranca-exempt-age-3f1a9c2", [i])} autocomplete="off" aria-label="Idade de isenção da taxa turística, em anos">
+          <span>anos (inclusive)</span>
+        </div>
+        <div class="servico-isencao-nota">Varia por concelho. Vazio = sem isenção. Na reserva pelo site, as crianças passam a indicar a idade. Cada alojamento pode ter o seu limite.</div>
+      </td>
+    </tr>` : ''}`;
   }).join('');
   if (window.lucide) lucide.createIcons();
+}
+
+// Limite próprio do alojamento: «Herdar» (vazio), «Sem isenção» (-1) ou 0-17.
+function fillTouristTaxExemptSelect(value) {
+  const sel = document.getElementById('aloj-tourist-tax-exempt-age');
+  if (!sel) return;
+  const org = AppModules.core.servicosData.find(x => x.id === 'tourist_tax')?.exempt_until_age;
+  const orgTxt = (org === undefined || org === null || org === '') ? 'sem isenção' : `${org} anos`;
+  let html = `<option value="">Herdar (${orgTxt})</option><option value="-1">Sem isenção</option>`;
+  for (let a = 0; a <= 17; a++) html += `<option value="${a}">${a}</option>`;
+  sel.innerHTML = html;
+  sel.value = value === null || value === undefined ? '' : String(value);
 }
 
 function addServico() {
@@ -203,6 +227,13 @@ AppActions.register({
   "servicos-heranca-auto-save-servicos-0e85039": (el, event, args) => { AppModules.core.servicosData[args[0]].type=el.value;autoSaveServicos() },
   "servicos-heranca-auto-save-servicos-0bacea0": (el, event, args) => { AppModules.core.servicosData[args[0]].name=el.value;autoSaveServicos() },
   "servicos-heranca-parse-float-ec6e7aa": (el, event, args) => { AppModules.core.servicosData[args[0]].value=parseFloat(el.value)||0;autoSaveServicos() },
+  "servicos-heranca-exempt-age-3f1a9c2": (el, event, args) => {
+    const raw = String(el.value).trim();
+    const n = Math.min(17, Math.max(0, Math.floor(Number(raw))));
+    if (raw === '' || !Number.isFinite(n)) { delete AppModules.core.servicosData[args[0]].exempt_until_age; el.value = ''; }
+    else { AppModules.core.servicosData[args[0]].exempt_until_age = n; el.value = n; }
+    autoSaveServicos();
+  },
   "servicos-heranca-auto-save-servicos-1661226": (el, event, args) => { AppModules.core.servicosData[args[0]].active=el.checked;autoSaveServicos() },
 }, "change");
 

@@ -12,9 +12,7 @@ filtros, barra lateral, entre outros) está concluída — ver `git log 9a033e7.
 
 Da auditoria de 25/11 (`AUDITORIA-PERCURSO-2026-11-25.md`; os números são os do relatório):
 
-1. **Coerência da equipa:** totais e rótulos iguais no painel, na ficha, no calendário e no portal (14); «aguarda pagamento» e pré-aviso de expiração no sino (16).
-2. **Taxa turística:** idade de isenção configurável por alojamento.
-3. Melhorias da lista do relatório.
+1. Melhorias da lista do relatório que ainda faltam: listas de países só em português, nome do acompanhante obrigatório no pedido, casa inteira «Escolhido» antes das datas, formatos de data e fuso no prazo, painel lateral com «Total estimado», assuntos dos emails de pagamento, «As datas são suas», fim do pré-check-in, jargão e «tu», links inválidos sem contacto, avanço automático da estadia, `review_required` herdado, «48 horas» fixo em `layout-novo.js`, recusa de pedido com política (email da política em vez do de recusa).
 
 ## Antes de publicar a revisão de 23–24/11
 
@@ -47,6 +45,9 @@ Da auditoria de 25/11 (`AUDITORIA-PERCURSO-2026-11-25.md`; os números são os d
 - Subir o preço de uma reserva paga desliga a cobrança automática do restante com o cartão guardado: o hóspede paga pelo link do email «Reserva alterada».
 - Sem política, um pagamento parcial registado à mão não confirma a reserva (só o total confirma).
 - «Cancelada» saiu do seletor de estado quando há política: cancela-se pelo botão «Cancelar reserva» da ficha.
+- O funcionário deixa de ver «Pagamento em falta» no sino (sem valores em dinheiro).
+- Rótulo do estado mantém-se «Aguarda sinal» (também quando não há política e se paga o total).
+- Taxa turística: crianças sem idade nem data de nascimento continuam a pagar.
 
 
 **Portal do hóspede**

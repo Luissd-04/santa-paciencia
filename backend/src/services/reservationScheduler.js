@@ -121,6 +121,7 @@ async function runMaintenance() {
   await require('./paymentPolicyAutomation').runPolicyMaintenance();
   expirePendingReservations();
   expireUnpaidDeposits();
+  try { require('./expiryNotices').warnExpiring(); } catch (err) { console.error('Pré-avisos de prazo:', err.message); }
   require('./reservationEvents').recoverInterrupted();
   await require('./reservationEvents').dispatchPending();
   await retryPendingGoogleTaskDeletions();
@@ -132,4 +133,5 @@ module.exports = {
   retryPendingGoogleTaskDeletions,
   runMaintenance,
   PENDING_TTL_HOURS,
+  NEVER_PROGRESSED_SQL,
 };

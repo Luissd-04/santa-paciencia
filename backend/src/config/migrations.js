@@ -40,6 +40,7 @@ function migrateIntegrity(db) {
 }
 function runMigrations(db) {
   migrateIntegrity(db);
+  migrateTouristTaxExemption(db);
   migrateListIndexes(db);
   migrateAuthScheduler(db);
   migrateGoogleTaskCleanupQueue(db);
@@ -730,6 +731,23 @@ function migratePlatformAlerts(db) {
       notified_at TEXT NOT NULL,
       resolved_at TEXT
     )`);
+    db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
+  }).immediate();
+}
+
+// Isenção da taxa turística por idade: limite próprio do alojamento (NULL =
+// herda do principal e da organização; -1 = sem isenção) e idades das crianças
+// indicadas na reserva (JSON), para o servidor recalcular a taxa.
+function migrateTouristTaxExemption(db) {
+  const id = '20261125_tourist_tax_exemption';
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE id=?').get(id)) return;
+  db.transaction(() => {
+    if (!db.pragma('table_info(accommodations)').some(c => c.name === 'tourist_tax_exempt_age')) {
+      db.exec('ALTER TABLE accommodations ADD COLUMN tourist_tax_exempt_age INTEGER');
+    }
+    if (!db.pragma('table_info(reservations)').some(c => c.name === 'children_ages')) {
+      db.exec('ALTER TABLE reservations ADD COLUMN children_ages TEXT');
+    }
     db.prepare('INSERT INTO schema_migrations(id) VALUES(?)').run(id);
   }).immediate();
 }

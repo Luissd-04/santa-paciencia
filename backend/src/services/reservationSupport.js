@@ -33,6 +33,7 @@ function computeStandardTotals(organizationId, resLike, primaryAccommodation, pr
     num_guests: resLike.num_guests,
     breakfast_included: resLike.breakfast_included,
     birth_dates: birthDates,
+    children_ages: resLike.children_ages,
     pricing_periods: primaryPeriods,
     ...stayCapacity(organizationId, primaryAccommodation, resLike.accommodations_data),
   });

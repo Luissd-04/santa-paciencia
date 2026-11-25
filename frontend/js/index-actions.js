@@ -64,6 +64,7 @@ AppActions.register({
   "index-set-timeline-range-23c3f3a": (el, event, args) => { AppModules.calendario.setTimelineRange(30) },
   "index-open-block-modal-35e136a": (el, event, args) => { AppModules.bloqueios.openBlockModal() },
   "index-toggle-calendar-legend-filter-00e6bb2": (el, event, args) => { AppModules.calendario.toggleCalendarLegendFilter('confirmada') },
+  "index-toggle-calendar-legend-filter-5c1d7a2": (el, event, args) => { AppModules.calendario.toggleCalendarLegendFilter('aguardar_pagamento') },
   "index-toggle-calendar-legend-filter-a60a470": (el, event, args) => { AppModules.calendario.toggleCalendarLegendFilter('pendente') },
   "index-cal-land-block-shortcut-4b8b5d3": (el, event, args) => { AppModules.calendario.calLandBlockShortcut() },
   "index-set-eventos-view-cb4fbd3": (el, event, args) => { AppModules.eventos.setEventosView('calendar') },

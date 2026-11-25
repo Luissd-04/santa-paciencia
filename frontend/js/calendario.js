@@ -155,6 +155,7 @@ function updateCalendarLegendUi() {
   const statusFilter = document.getElementById('cal-status-filter')?.value || '';
   document.getElementById('legend-confirmada')?.classList.toggle('active', statusFilter === 'confirmada');
   document.getElementById('legend-pendente')?.classList.toggle('active', statusFilter === 'pendente');
+  document.getElementById('legend-aguarda')?.classList.toggle('active', statusFilter === 'aguardar_pagamento');
 }
 
 function toggleCalendarLegendFilter(status) {
