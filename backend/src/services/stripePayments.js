@@ -282,7 +282,10 @@ function applyPayment(attempt, canonical, event) {
       // Numa reserva cancelada, o valor só fica a rever enquanto a equipa não o
       // reembolsou nem decidiu retê-lo (services/cancelledMoney).
       const unsettled = returned < captured && !r.money_resolution;
-      const review = (r.status === 'cancelada' && unsettled && (!r.policy_cancellation_json || !attempt.captured_cents)) || snapshot(r) !== attempt.snapshot;
+      const review = (r.status === 'cancelada' && unsettled && (!r.policy_cancellation_json || !attempt.captured_cents)) || (snapshot(r) !== attempt.snapshot
+        && (!attempt.captured_cents || (r.online_payment_status === 'review_required' && returned < captured)));
+      // Só a captura de agora compara a reserva com a do pagamento; depois, editar o total é decisão da gestão
+      // e um reembolso ou cancelamento não deve herdar a revisão. Mantém-se se já estava a rever com dinheiro por devolver.
       online = review ? 'review_required' : returned === captured ? 'refunded' : returned > 0 ? 'partially_refunded' : 'paid';
       // Um pagamento a rever não confirma a estadia; a Stripe nunca faz recuar
       // uma reserva já confirmada.

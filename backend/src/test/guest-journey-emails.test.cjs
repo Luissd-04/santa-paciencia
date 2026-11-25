@@ -72,6 +72,15 @@ test('o pagamento que completa o sinal confirma a reserva e lembra o pré-check-
   assert.match(t, /Fazer o pré-check-in/);
 });
 
+test('assunto do email de pagamento: «Reserva confirmada» quando o pagamento confirma a reserva', () => {
+  const subject = extra => emailService.renderEmail({ subject: '{{assunto_pagamento}} — {{alojamento}}', body: '<p>x</p>',
+    vars: emailService.buildVars(GUEST, { id: 'SP-1', organization_id: 'o', status: 'confirmada', check_in: '2035-12-09', check_out: '2035-12-12', nights: 3,
+      num_guests: 2, total_amount: 288, amount_paid: 144, public_token: 't'.repeat(64), channel: 'website' }, UNIT, SETTINGS, extra),
+    blocks: {}, settings: SETTINGS }).subject;
+  assert.equal(subject({ valor_pagamento: '144,00 €', pagamento_confirma: '1' }), 'Reserva confirmada — Casa do Monte');
+  assert.equal(subject({ valor_pagamento: '50,00 €' }), 'Pagamento recebido — Casa do Monte');
+});
+
 test('tudo para a chegada: como chegar, como entrar, Wi-Fi e o dia da saída', () => {
   const { subject, text: t } = render('coordenadas', { status: 'confirmada', amount_paid: 288 });
   assert.equal(subject, 'Tudo para a sua chegada — Casa do Monte');

@@ -161,6 +161,18 @@ test('cancelamento pelo hóspede com política: equipa avisada por push e email 
   assert.deepEqual(await effects(), ['staff:email:Reserva cancelada pelo hóspede', 'staff:push:cancellation']);
 });
 
+test('recusar um pedido pendente com política envia o email de recusa, não o da política', async () => {
+  policy.savePolicy(ORG, { ...policy.DEFAULT_POLICY, enabled: true });
+  reservation({ status: 'pendente' });
+  policy.attachPolicy({ id: 'res', organization_id: ORG });
+  const quote = automation.cancellationQuote(db.prepare("SELECT * FROM reservations WHERE id='res'").get());
+  await automation.cancelByPolicy('res', { reason: 'staff', key: quote.key, expectedRefundCents: quote.refundCents });
+  assert.equal(db.prepare("SELECT status FROM reservations WHERE id='res'").get().status, 'cancelada');
+  assert.equal(JSON.parse(db.prepare("SELECT payload FROM reservation_events WHERE type='reservation.cancelled'").get().payload).refusedRequest, true);
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM reservation_events WHERE type='policy.notice_due'").get().n, 0);
+  assert.ok((await effects()).includes('guest:sendCancellationEmail'));
+});
+
 test('alteração desfeita não emite acontecimentos', async () => {
   reservation();
   const res = await call(write.create, { accommodation_id: 'unit', check_in: '2035-06-01', check_out: '2035-06-03', num_guests: 2,

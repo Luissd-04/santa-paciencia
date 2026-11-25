@@ -536,6 +536,8 @@ function buildVars(guest, reservation, accommodation, settings, extra) {
     codigo_porta: require('./emailEligibility').canSendTemplate({ slug: 'codigo_porta' }, reservation) ? (accommodation.door_code || '—') : '',
     // «Reserva cancelada» ou, quando a equipa recusa um pedido por aprovar, «Pedido não aceite».
     assunto_cancelamento: extra?.motivo_cancelamento === 'refused' ? 'Pedido não aceite' : 'Reserva cancelada',
+    // «Pagamento recebido» ou, quando o pagamento confirma a reserva, «Reserva confirmada» (assunto do modelo «pagamento»).
+    assunto_pagamento: extra?.pagamento_confirma ? 'Reserva confirmada' : 'Pagamento recebido',
     ...extra,
   };
 }

@@ -37,9 +37,11 @@ async function cancelByPolicy(id, { reason = 'guest', expectedRefundCents, key, 
   r = row(id);
   const quote = cancellationQuote(r);
   if (reason !== 'nonpayment' && (key !== quote.key || expectedRefundCents !== quote.refundCents)) fail('Os valores foram atualizados. Reveja o reembolso antes de confirmar.');
+  let refusedRequest = false;
   db.transaction(() => {
     r = row(id);
     if (r.policy_cancellation_json) return;
+    refusedRequest = reason === 'staff' && r.status === 'pendente';
     const currentQuote = cancellationQuote(r);
     if (reason !== 'nonpayment' && (key !== currentQuote.key || expectedRefundCents !== currentQuote.refundCents)) fail('Os valores foram atualizados. Reveja o reembolso antes de confirmar.');
     if (activeCheckout(id)) fail('Existe um pagamento em curso.');
@@ -63,7 +65,7 @@ async function cancelByPolicy(id, { reason = 'guest', expectedRefundCents, key, 
   if (r.status !== 'cancelada') return cancellationQuote(r);
   require('./reservationLifecycle').afterCancel(r.organization_id, id);
   await processRefunds(id);
-  await notify(row(id), 'cancelled');
+  if (!refusedRequest) await notify(row(id), 'cancelled');
   return cancellationQuote(row(id));
 }
 async function processRefunds(id) {

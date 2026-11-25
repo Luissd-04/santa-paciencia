@@ -393,6 +393,17 @@ test('backup conserva o histórico Stripe e impede restauros desatualizados ou e
   assert.equal(row().amount_paid, 150);
 });
 
+test('editar o total depois de pago e reembolsar a seguir não deixa o pagamento a rever', async () => {
+  const session = await start(); succeed(session);
+  await service.processWebhook(event(session, 'checkout.session.completed'));
+  assert.equal(row().online_payment_status, 'paid');
+  db.prepare("UPDATE reservations SET total_amount=300 WHERE id='booking'").run();
+  refunds.set(session.payment_intent.id, [{ amount: 5000, status: 'succeeded' }]);
+  await service.processWebhook(event({ object: 'charge', payment_intent: session.payment_intent.id }, 'charge.refunded'));
+  assert.equal(row().amount_paid, 150);
+  assert.equal(row().online_payment_status, 'partially_refunded');
+});
+
 test('pré-check-in posterior ao pagamento não repõe a reserva em aguardar pagamento', async () => {
   const session = await start(); succeed(session);
   await service.processWebhook(event(session));

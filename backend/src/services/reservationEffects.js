@@ -43,9 +43,10 @@ function effectsFor(type, payload = {}) {
     case 'payment.failed': case 'payment.refunded': case 'payment.review':
       return ['staff_push_payment_issue', 'staff_email_payment_issue'];
     // Decisão 4: cancelamentos que a equipa não fez chegam-lhe por push e email.
-    // Com política, o aviso ao hóspede sai da automatização da política.
+    // Com política, o aviso ao hóspede sai da automatização da política (salvo a recusa de um pedido
+    // pendente, que não tem pagamentos: recebe o email de recusa).
     case 'reservation.cancelled': return [
-      ...(['ttl', 'deposit'].includes(payload.reason) || !payload.policy ? ['guest_cancellation_email'] : []),
+      ...(['ttl', 'deposit'].includes(payload.reason) || !payload.policy || payload.refusedRequest ? ['guest_cancellation_email'] : []),
       'staff_push_cancelled',
       ...(payload.reason === 'staff' ? [] : ['staff_email_cancelled']),
     ];
