@@ -6,7 +6,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 const CACHE_NAME = 'sp-v42';
-const CACHE_VERSION = 123;
+const CACHE_VERSION = 124;
 const CACHE_PREFIX = 'sp-';
 
 /* Núcleo da aplicação e páginas públicas: pré-cacheado na instalação */
@@ -87,6 +87,7 @@ const STATIC_ASSETS = [
   '/js/domain/telemetry.js',
   '/js/domain/announcements.js',
   '/js/domain/libraries.js',
+  '/js/domain/countries.js',
   '/js/domain/dates.js',
   '/js/domain/money.js',
   '/js/domain/image-crops.js',

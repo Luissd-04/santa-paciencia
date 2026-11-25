@@ -17,6 +17,9 @@ const { paymentSummary } = require('../services/stripePayments');
 
 const { createReservationGuest, savePrecheckin } = require('../services/publicGuestService');
 
+// Link que não corresponde a nenhuma reserva: diz o que fazer a seguir.
+const INVALID_LINK_HELP = 'Não encontrámos esta reserva. Verifique se abriu o link completo do email que recebeu; se o problema continuar, contacte o alojamento.';
+
 const COMMON_AREAS_KEY = 'areas_comuns';
 
 const { safeJson: parseJson } = require('../services/json');
@@ -145,7 +148,7 @@ function getPricingPeriods(organizationId, accommodationId) {
 
 function getLanding(req, res) {
   const parent = getPropertyBySlug(req.params.slug);
-  if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado.' });
+  if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado. Verifique o link do alojamento ou peça-o de novo a quem lho enviou.' });
   const children = getChildren(parent);
   const reservable = children.length ? children : [parent];
   res.json({
@@ -178,7 +181,7 @@ function getLanding(req, res) {
 
 function validatePublicVoucher(req, res) {
   const parent = getPropertyBySlug(req.params.slug);
-  if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado.' });
+  if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado. Verifique o link do alojamento ou peça-o de novo a quem lho enviou.' });
   const rawCode = String(req.query.code || '').toUpperCase().trim();
   if (!rawCode) return res.status(400).json({ success: false, error: 'Código obrigatório.' });
   if (!/^[A-Z0-9]{3,20}$/.test(rawCode)) return res.status(400).json({ success: false, error: 'Formato de código inválido.' });
@@ -194,7 +197,7 @@ function validatePublicVoucher(req, res) {
 
 function getAvailability(req, res) {
   const parent = getPropertyBySlug(req.params.slug);
-  if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado.' });
+  if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado. Verifique o link do alojamento ou peça-o de novo a quem lho enviou.' });
   const checkIn = normalizeDateValue(req.query.check_in);
   const checkOut = normalizeDateValue(req.query.check_out);
   const guests = Math.max(1, Number(req.query.num_guests) || 1);
@@ -243,7 +246,7 @@ function getAvailability(req, res) {
 // estimativa — a reserva volta a calcular tudo no servidor.
 function getPaymentPlan(req, res) {
   const parent = getPropertyBySlug(req.params.slug);
-  if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado.' });
+  if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado. Verifique o link do alojamento ou peça-o de novo a quem lho enviou.' });
   const policy = require('../services/paymentPolicy');
   const rules = policy.getPolicy(parent.organization_id);
   if (!rules.enabled || !stripeEnabled(parent.organization_id)) return res.json({ success: true, data: null });
@@ -262,13 +265,13 @@ function getPaymentPlan(req, res) {
 
 // Mensagem genérica para qualquer rejeição anti-bot — não dar pistas a quem
 // está a tentar contornar (honeypot, timing, captcha) sobre QUAL camada falhou.
-const ANTIBOT_GENERIC_ERROR = 'Não foi possível processar o pedido. Por favor recarrega a página e tenta de novo.';
+const ANTIBOT_GENERIC_ERROR = 'Não foi possível processar o pedido. Por favor recarregue a página e tente de novo.';
 const MIN_FORM_FILL_MS = 8000; // 8 segundos — humano dificilmente preenche tudo mais rápido
 
 async function createReservation(req, res, next) {
   try {
     const parent = getPropertyBySlug(req.params.slug);
-    if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado.' });
+    if (!parent) return res.status(404).json({ success: false, error: 'Alojamento não encontrado. Verifique o link do alojamento ou peça-o de novo a quem lho enviou.' });
     const payload = req.body || {};
     validateReservationInput({ ...payload, nightly_prices: undefined, total_amount: undefined, amount_paid: undefined, status: undefined, payment_status: undefined });
 
@@ -317,11 +320,7 @@ async function createReservation(req, res, next) {
     }
     const guestsData = Array.isArray(payload.guests_data) ? payload.guests_data : [];
     const guestCount = Math.max(1, Number(payload.num_guests) || 1);
-    for (let i = 0; i < guestCount - 1; i++) {
-      if (!guestsData[i]?.name) {
-        return res.status(400).json({ success: false, error: `Dados do hóspede ${i + 2} em falta.` });
-      }
-    }
+    // Os nomes dos acompanhantes são opcionais no pedido: pedem-se no pré-check-in.
     // Mesmo cálculo de preço e voucher do backoffice (reservationQuote).
     const { pricePublic } = require('../services/reservationQuote');
     // Idades das crianças (0-17): só as que o pedido declara como crianças.
@@ -442,7 +441,7 @@ function getReservationStatus(req, res) {
   // Tokens emitidos pela aplicação têm 256 bits em hexadecimal. Validar o
   // formato antes da consulta reduz ruído e enumeração acidental.
   if (!/^[a-f0-9]{64}$/i.test(token)) {
-    return res.status(404).json({ success: false, error: 'Reserva não encontrada.' });
+    return res.status(404).json({ success: false, error: INVALID_LINK_HELP });
   }
   const reservation = db.prepare(`
     SELECT r.*,
@@ -451,7 +450,7 @@ function getReservationStatus(req, res) {
     JOIN accommodations a ON a.id = r.accommodation_id AND a.organization_id = r.organization_id
     WHERE r.public_token = ?
   `).get(token);
-  if (!reservation) return res.status(404).json({ success: false, error: 'Reserva não encontrada.' });
+  if (!reservation) return res.status(404).json({ success: false, error: INVALID_LINK_HELP });
   // «Aberto pelo hóspede» na ficha da reserva (a equipa com sessão não conta).
   try { require('../services/portalTracking').recordOpen(req, reservation); } catch (err) { console.warn('Abertura do portal não registada:', err.message); }
   const brand = publicBrand(reservation);
@@ -513,18 +512,18 @@ function precheckinLink(reservation) {
   return { path: `/pre-checkin/${encodeURIComponent(token)}`, submitted: Boolean(reservation.precheckin_submitted_at) };
 }
 
-// O hóspede pode abrir e corrigir o pré check-in quantas vezes quiser até ao
+// O hóspede pode abrir e corrigir o pré-check-in quantas vezes quiser até ao
 // fim do dia de chegada. Depois disso os dados já seguiram para o SIBA e
 // qualquer correção passa pelo alojamento.
 function precheckinClosed(reservation) {
-  if (reservation.status === 'cancelada') return { status: 400, error: 'Esta reserva está cancelada.' };
+  if (reservation.status === 'cancelada') return { status: 400, error: 'Esta reserva está cancelada. Se precisar de ajuda, contacte o alojamento.' };
   const now = new Date();
   if (reservation.precheckin_token_expires_at &&
       new Date(reservation.precheckin_token_expires_at + 'T23:59:59') < now) {
-    return { status: 410, error: 'Este link de pré check-in expirou.' };
+    return { status: 410, error: 'Este link de pré-check-in expirou. Contacte o alojamento para receber um novo.' };
   }
   if (reservation.check_in && new Date(reservation.check_in + 'T23:59:59') < now) {
-    return { status: 410, error: 'O prazo para alterar o pré check-in terminou. Contacte o alojamento.' };
+    return { status: 410, error: 'O prazo para alterar o pré-check-in terminou. Contacte o alojamento.' };
   }
   return null;
 }
@@ -541,9 +540,9 @@ function effectiveCheckinTime(reservation) {
 function getPreCheckin(req, res) {
   const token = String(req.params.token || '').trim();
   const reservation = lookupReservationByPrecheckinToken(token);
-  if (!reservation) return res.status(404).json({ success: false, error: 'Link inválido ou expirado.' });
+  if (!reservation) return res.status(404).json({ success: false, error: INVALID_LINK_HELP });
   const closed = precheckinClosed(reservation);
-  if (closed) return res.status(closed.status).json({ success: false, error: closed.error });
+  if (closed) return res.status(closed.status).json({ success: false, error: closed.error, contact: publicBrand(reservation).contact });
   // O formulário é pré-preenchido com a ficha atual do hóspede (não com o
   // `guest_snapshot`, que congela no momento da reserva) — assim uma correção
   // feita no backoffice aparece de imediato no link do hóspede.
@@ -583,6 +582,9 @@ function getPreCheckin(req, res) {
         precheckin_updated_at: reservation.precheckin_updated_at || null,
         editable_until: reservation.check_in,
         payment_path: onlinePayment.available && reservation.public_token ? `/reserva/${reservation.public_token}` : null,
+        // Voltar à reserva (sempre que existir página) e o valor ainda em dívida.
+        reservation_path: reservation.public_token ? `/reserva/${reservation.public_token}` : null,
+        due_now: require('../services/paymentPolicy').dueNow(reservation).cents / 100,
       },
       guest: {
         name: (shared ? snapshot.name : reservation.guest_name) || '',
@@ -646,9 +648,9 @@ function submitPreCheckin(req, res) {
     SELECT * FROM reservations
     WHERE precheckin_token = ? OR (precheckin_token IS NULL AND public_token = ?)
   `).get(token, token);
-  if (!reservation) return res.status(404).json({ success: false, error: 'Link inválido ou expirado.' });
+  if (!reservation) return res.status(404).json({ success: false, error: INVALID_LINK_HELP });
   const closed = precheckinClosed(reservation);
-  if (closed) return res.status(closed.status).json({ success: false, error: closed.error });
+  if (closed) return res.status(closed.status).json({ success: false, error: closed.error, contact: publicBrand(reservation).contact });
 
   const mainGuest = cleanGuestData(req.body?.guest || {});
   const expectedGuests = Math.max(1, Number(reservation.num_guests || 1));

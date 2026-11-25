@@ -73,7 +73,7 @@ async function main() {
   await expect(page.locator('[data-flow-mobile] #next-btn')).toBeVisible();
   await expect(page.locator('.summary-panel #next-btn')).toHaveCount(0);
   await page.locator('#next-btn').click();
-  await expect(page.locator('[data-flow-mobile] #step-error')).toBeVisible();
+  await expect(page.locator('.pb-field-error').first()).toBeVisible();
   await expect(page.locator('[data-step="2"]')).toBeVisible();
   await page.locator('#pb-name').fill('Hóspede Público');
   await page.locator('#pb-email').fill('publico@example.invalid');

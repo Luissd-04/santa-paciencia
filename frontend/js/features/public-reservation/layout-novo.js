@@ -5,7 +5,7 @@
 const B = AppModules.booking;
 const esc = value => B.escapeHtml(value);
 const money = value => B.fmtCurrency(value);
-const day = (value, options) => window.ReservationDates.formatDayLabel(value, options);
+const day = (value, options) => window.ReservationDates.formatDayLabel(value, { year: true, ...options });
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 let plan = null;
 let planKey = '';
@@ -269,6 +269,11 @@ function refundLabel(rule) {
   return `${rule.minDays} a ${rule.maxDays} dias antes`;
 }
 
+function hoursText(hours) {
+  const h = Number(hours) > 0 ? Number(hours) : 48;
+  return h % 24 === 0 && h > 48 ? `${h / 24} dias` : `${h} ${h === 1 ? 'hora' : 'horas'}`;
+}
+
 function planHtml() {
   if (!plan) return `<p class="pn-note">${esc(B.$('pb-payment-note').textContent)}</p>`;
   const due = plan.dueAt ? day(plan.dueAt.slice(0, 10)) : '';
@@ -281,7 +286,7 @@ function planHtml() {
   return `<section class="pn-plan-box">
     <h3>Como paga</h3>
     <div class="pn-plan">${rows}</div>
-    <p class="pn-note">Hoje não paga nada. Primeiro confirmamos a disponibilidade; depois de aceite, recebe por email o link para pagar com cartão ou MB WAY e tem 48 horas para o fazer.${plan.balanceCents && plan.automaticCharge ? ' Se autorizar, o restante é cobrado no cartão na data indicada; senão, enviamos um link.' : ''}</p>
+    <p class="pn-note">Hoje não paga nada. Primeiro confirmamos a disponibilidade; depois de aceite, recebe por email o link para pagar com cartão ou MB WAY e tem ${hoursText(B.state.depositTtlHours)} para o fazer.${plan.balanceCents && plan.automaticCharge ? ' Se autorizar, o restante é cobrado no cartão na data indicada; senão, enviamos um link.' : ''}</p>
     <h3>Se precisar de cancelar</h3>
     <dl class="pn-lines pn-refunds">${refunds}</dl>
     ${plan.refundBasis === 'booking' ? '<p class="pn-note">Os dias contam-se desde a data da reserva até à chegada.</p>' : ''}

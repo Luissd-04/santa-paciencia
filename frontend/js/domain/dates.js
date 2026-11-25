@@ -57,13 +57,24 @@
   // pontos que cada browser põe nas abreviaturas.
   const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
   const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-  function formatDayLabel(value, { weekday = true, long = false } = {}) {
+  function formatDayLabel(value, { weekday = true, long = false, year: withYear = false } = {}) {
     const iso = normalizeIsoDate(value);
     if (!iso) return '—';
     const [year, month, day] = iso.split('-').map(Number);
     if (long) return `${day} de ${MONTHS[month - 1]}`;
     const week = WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
-    return `${weekday ? `${week}, ` : ''}${day} ${MONTHS[month - 1].slice(0, 3)}`;
+    return `${weekday ? `${week}, ` : ''}${day} ${MONTHS[month - 1].slice(0, 3)}${withYear ? ` ${year}` : ''}`;
+  }
+
+  // Prazo com dia e hora, sempre na hora do alojamento e a dizê-lo:
+  // «sex, 15 jan 2027, às 14:00 (hora de Portugal)».
+  function formatDeadline(value, { zone = true } = {}) {
+    const date = parseInstant(value);
+    if (!date) return value ? String(value) : '';
+    const opts = { timeZone: BUSINESS_TIME_ZONE };
+    const label = formatDayLabel(date.toLocaleDateString('en-CA', opts), { year: true });
+    const time = date.toLocaleTimeString('pt-PT', { ...opts, hour: '2-digit', minute: '2-digit' });
+    return `${label}, às ${time}${zone ? ' (hora de Portugal)' : ''}`;
   }
 
   function countNights(checkIn, checkOut) {
@@ -130,6 +141,7 @@
     addDays,
     parseInstant,
     formatDateTime,
+    formatDeadline,
     normalizeIsoDate,
     formatPtDate,
     formatShortPtDate,

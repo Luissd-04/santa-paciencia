@@ -312,6 +312,8 @@ textarea { resize: vertical; }
 .country-dropdown-item.highlighted {
   background: rgba(132,52,36,.12);
 }
+.country-alt-name { color: #7a6f6a; font-size: 12px; margin-left: 6px; }
+.country-dropdown-empty { padding: 10px 14px; font-size: 14px; color: #7a6f6a; }
 
 .doc-type-wrap {
   position: relative;
@@ -941,3 +943,9 @@ textarea { resize: vertical; }
 /* Títulos focados pelo código (tabindex="-1"), para o leitor de ecrã ler o
    passo novo: sem a moldura de foco do browser, que o Safari desenha preta. */
 h1[tabindex="-1"]:focus, h2[tabindex="-1"]:focus, h3[tabindex="-1"]:focus { outline: none; }
+
+/* Erro junto do campo e dicas de campos opcionais */
+.pb-field-error { display: block; margin-top: 6px; color: #b3261e; font-size: 13px; font-weight: 600; }
+[aria-invalid="true"] { border-color: #b3261e !important; }
+.opt-hint { font-style: normal; font-weight: 400; color: #7a6f6a; }
+.summary-media[hidden] { display: none !important; }

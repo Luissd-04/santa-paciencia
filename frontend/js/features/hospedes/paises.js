@@ -65,6 +65,12 @@ const COUNTRIES = [
   { code: 'zm', name: 'Zâmbia' }, { code: 'zw', name: 'Zimbabwe' },
 ];
 
+// Nome em inglês (pesquisa e normalização de registos antigos).
+const COUNTRY_NAMES_EN = {
+  af: 'Afghanistan', za: 'South Africa', al: 'Albania', de: 'Germany', ad: 'Andorra', ao: 'Angola', sa: 'Saudi Arabia', dz: 'Algeria', ar: 'Argentina', am: 'Armenia', au: 'Australia', at: 'Austria', az: 'Azerbaijan', be: 'Belgium', bh: 'Bahrain', bd: 'Bangladesh', by: 'Belarus', bo: 'Bolivia', ba: 'Bosnia & Herzegovina', br: 'Brazil', bg: 'Bulgaria', cv: 'Cape Verde', ca: 'Canada', cl: 'Chile', cn: 'China', cy: 'Cyprus', co: 'Colombia', cr: 'Costa Rica', hr: 'Croatia', cu: 'Cuba', dk: 'Denmark', eg: 'Egypt', ae: 'United Arab Emirates', sk: 'Slovakia', si: 'Slovenia', es: 'Spain', us: 'United States', ee: 'Estonia', et: 'Ethiopia', ph: 'Philippines', fi: 'Finland', fr: 'France', ge: 'Georgia', gh: 'Ghana', gr: 'Greece', gt: 'Guatemala', hu: 'Hungary', in: 'India', id: 'Indonesia', iq: 'Iraq', ir: 'Iran', ie: 'Ireland', is: 'Iceland', il: 'Israel', it: 'Italy', jp: 'Japan', jo: 'Jordan', kz: 'Kazakhstan', ke: 'Kenya', kw: 'Kuwait', lv: 'Latvia', lb: 'Lebanon', ly: 'Libya', li: 'Liechtenstein', lt: 'Lithuania', lu: 'Luxembourg', mo: 'Macao SAR China', mk: 'North Macedonia', my: 'Malaysia', ma: 'Morocco', mx: 'Mexico', md: 'Moldova', mc: 'Monaco', mz: 'Mozambique', na: 'Namibia', ng: 'Nigeria', no: 'Norway', nz: 'New Zealand', nl: 'Netherlands', pk: 'Pakistan', pe: 'Peru', pl: 'Poland', pt: 'Portugal', qa: 'Qatar', gb: 'United Kingdom', cz: 'Czechia', ro: 'Romania', ru: 'Russia', rw: 'Rwanda', sm: 'San Marino', sn: 'Senegal', rs: 'Serbia', sg: 'Singapore', so: 'Somalia', lk: 'Sri Lanka', se: 'Sweden', ch: 'Switzerland', th: 'Thailand', tw: 'Taiwan', tz: 'Tanzania', tr: 'Türkiye', ua: 'Ukraine', ug: 'Uganda', uy: 'Uruguay', ve: 'Venezuela', vn: 'Vietnam', zm: 'Zambia', zw: 'Zimbabwe',
+};
+for (const c of COUNTRIES) c.en = COUNTRY_NAMES_EN[c.code] || c.name;
+
 // Nationality free-text → ISO2 fallback for older records
 const NATIONALITY_FALLBACK = {
   'portuguesa': 'pt', 'portuguese': 'pt', 'portugal': 'pt',
@@ -107,17 +113,23 @@ const NATIONALITY_FALLBACK = {
   'marroquina': 'ma', 'marroquino': 'ma', 'moroccan': 'ma',
 };
 
+// Nome em português ou inglês («United Kingdom» e «Reino Unido» são o mesmo).
+function findCountry(text) {
+  const key = String(text || '').toLowerCase().trim();
+  return key ? COUNTRIES.find(c => c.name.toLowerCase() === key || c.en.toLowerCase() === key) : null;
+}
+
 function resolveCountryCode(g) {
   // Prefer standardized country field
   if (g.country) {
-    const found = COUNTRIES.find(c => c.name.toLowerCase() === g.country.toLowerCase().trim());
+    const found = findCountry(g.country);
     if (found) return found.code;
   }
   // Fallback: nationality free text
   if (g.nationality) {
     const key = g.nationality.toLowerCase().trim();
     // Try exact country name match
-    const found = COUNTRIES.find(c => c.name.toLowerCase() === key);
+    const found = findCountry(key);
     if (found) return found.code;
     // Try fallback map
     return NATIONALITY_FALLBACK[key] || null;

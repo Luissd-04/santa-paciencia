@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/public-reservation.css?v=percurso-20261119-2">
+  <link rel="stylesheet" href="/css/public-reservation.css?v=melhorias-20261125-1">
   <link rel="stylesheet" href="/css/components/date-picker.css?v=public-flow-20261001-2">
   <link rel="stylesheet" href="/css/vendor/flag-icons.min.css?v=public-flow-20261001-2">
   <link rel="stylesheet" href="/css/public-novo.css?v=imagens-20261123-1">
@@ -159,7 +159,7 @@
           </form>
 
           <aside class="summary-panel">
-            <div class="summary-media" id="summary-media"></div>
+            <div class="summary-media" id="summary-media" hidden></div>
             <div class="summary-content">
               <span class="summary-kicker">Pedido de reserva</span>
               <h3 id="summary-unit">Escolha um quarto</h3>
@@ -167,11 +167,11 @@
               <div class="summary-row"><span>Noites</span><strong id="summary-nights">-</strong></div>
               <div class="summary-row"><span>Hóspedes</span><strong id="summary-guests">2</strong></div>
               <div class="summary-row muted"><span>Base</span><strong id="summary-base">-</strong></div>
-              <div class="summary-row muted"><span>Extras</span><strong id="summary-extras">-</strong></div>
-              <div class="summary-row muted"><span>Taxas/serviços</span><strong id="summary-services">-</strong></div>
+              <div class="summary-row muted" id="summary-extras-row"><span>Extras</span><strong id="summary-extras">-</strong></div>
+              <div class="summary-row muted" id="summary-services-row"><span>Taxas e serviços</span><strong id="summary-services">-</strong></div>
               <div class="summary-row muted" id="summary-discount-row" style="display:none;color:#4f8f6b;"><span>Voucher</span><strong id="summary-discount">-</strong></div>
-              <div class="summary-total"><span>Total estimado</span><strong id="summary-total">-</strong></div>
-              <p id="summary-dates-note" style="display:none;margin:4px 0 12px;font-size:12px;color:var(--muted);text-align:right;">para as datas selecionadas</p>
+              <div class="summary-total"><span>Total</span><strong id="summary-total">-</strong></div>
+              <p id="summary-dates-note" hidden></p>
               <div data-flow-desktop></div>
               <details id="pb-policy" hidden><summary>Condições de pagamento e cancelamento</summary><div id="pb-policy-details"></div></details>
               <p class="microcopy" id="pb-payment-note">A reserva fica pendente até confirmação do alojamento.</p>
@@ -183,24 +183,25 @@
   </div>
 
   <script src="https://unpkg.com/lucide@1.17.0/dist/umd/lucide.min.js" integrity="sha384-bdZtphetAEBgkGZvhZXOFDWc55tHGLqaSo1f4qZtgvEiolEBqlJ9u6FTk+CoLfj0" crossorigin="anonymous"></script>
-  <script src="/js/domain/modules.js?v=public-flow-20261001-2"></script>
+  <script src="/js/domain/modules.js?v=melhorias-20261125-1"></script>
 <script src="/js/domain/actions.js?v=public-flow-20261001-2"></script>
-  <script src="/js/domain/dates.js?v=percurso-20261119-2"></script>
+  <script src="/js/domain/countries.js?v=melhorias-20261125-1"></script>
+  <script src="/js/domain/dates.js?v=melhorias-20261125-1"></script>
   <script src="/js/domain/responsive-image.js?v=imagens-20261123-1"></script>
   <script src="/js/domain/money.js?v=centralizacao-20261024-2"></script>
   <script src="/js/domain/pricing.js?v=mobile-20261026-1"></script>
   <script src="/js/domain/date-picker.js?v=mobile-20261026-1"></script>
   <script src="/js/ui.js?v=mobile-20261026-1"></script>
   <script src="/js/public-flow.js?v=public-flow-20261001-2"></script>
-  <script src="/js/features/public-reservation/embed.js?v=aspeto-20261123-1"></script>
-  <script src="/js/public-reservation.js?v=imagens-20261123-1"></script>
+  <script src="/js/features/public-reservation/embed.js?v=melhorias-20261125-1"></script>
+  <script src="/js/public-reservation.js?v=melhorias-20261125-1"></script>
   <script src="/js/features/public-reservation/helpers.js?v=review-20261024-1"></script>
-  <script src="/js/features/public-reservation/landing.js?v=imagens-20261123-2"></script>
-  <script src="/js/features/public-reservation/dados-hospedes.js?v=percurso-20261119-2"></script>
-  <script src="/js/features/public-reservation/disponibilidade.js?v=aspeto-20261123-1"></script>
-  <script src="/js/features/public-reservation/precos.js?v=recortes-20261123-1"></script>
-  <script src="/js/features/public-reservation/layout-novo.js?v=imagens-20261123-1"></script>
-  <script src="/js/features/public-reservation/submissao.js?v=embed-20261123-1"></script>
+  <script src="/js/features/public-reservation/landing.js?v=melhorias-20261125-1"></script>
+  <script src="/js/features/public-reservation/dados-hospedes.js?v=melhorias-20261125-1"></script>
+  <script src="/js/features/public-reservation/disponibilidade.js?v=melhorias-20261125-2"></script>
+  <script src="/js/features/public-reservation/precos.js?v=melhorias-20261125-1"></script>
+  <script src="/js/features/public-reservation/layout-novo.js?v=melhorias-20261125-1"></script>
+  <script src="/js/features/public-reservation/submissao.js?v=melhorias-20261125-1"></script>
   <script src="/js/public-reservation-actions.js?v=public-flow-20261001-2"></script>
 </body>
 </html>

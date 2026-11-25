@@ -143,5 +143,5 @@ test('B11: o pagamento que completa o sinal mostra o sinal; o parcial anterior d
   assert.match(done, /Recebemos o sinal de 144,00 €/);
   assert.match(done, /Recebemos 94,00 € ?, que completam o sinal de 144,00 €/);
   const partial = render('pagamento', { status: 'aguardar_pagamento', amount_paid: 50, deposit_deadline: '2035-11-21T10:30:00.000Z' }, { valor_pagamento: '50,00 €' }).text;
-  assert.match(partial, /Registámos o pagamento de 50,00 € da sua reserva em Casa do Monte ?\. Para confirmar a reserva ainda falta 94,00 € ?até \S+, 21 nov/);
+  assert.match(partial, /Registámos o pagamento de 50,00 € da sua reserva \( ?Casa do Monte ?\)\. Para confirmar a reserva ainda falta 94,00 € ?até \S+, 21 nov/);
 });

@@ -52,34 +52,29 @@ function validateStep() {
     const phone = AppModules.booking.$('pb-phone').value.trim();
     const country = AppModules.booking.$('pb-country').value.trim();
 
-    if (!name || !email || !phone || !country) {
-      AppModules.booking.showStepError('Preencha todos os campos obrigatórios (*) do hóspede principal.');
-      return false;
-    }
+    const missing = [['pb-name', name, 'Indique o seu nome.'], ['pb-email', email, 'Indique o seu email.'],
+      ['pb-phone', phone, 'Indique o seu telefone.'], ['pb-country', country, 'Indique a sua nacionalidade.']]
+      .find(([, value]) => !value);
+    if (missing) { AppModules.booking.showFieldError(AppModules.booking.$(missing[0]), missing[2]); return false; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      AppModules.booking.showStepError('Email inválido.');
+      AppModules.booking.showFieldError(AppModules.booking.$('pb-email'), 'Email inválido.');
       return false;
     }
 
-    // Só se validam os campos que o formulário mostra (a versão nova pede aos
-    // acompanhantes apenas o nome; o resto fica para o pré-check-in).
+    // O nome dos acompanhantes é opcional: fica para o pré-check-in. Só se
+    // validam os campos que o formulário mostra e que foram preenchidos.
     const guestSections = Array.from(document.querySelectorAll('.extra-guest-box'));
-    for (let i = 0; i < guestSections.length; i++) {
-      const section = guestSections[i];
+    for (const section of guestSections) {
       const idx = Number(section.dataset.guestIndex);
-      const field = name => section.querySelector(`[data-field="${name}"]`)?.value.trim() ?? null;
-      const guestEmail = field('email');
-      if (['name', 'email', 'phone', 'country'].some(name => field(name) === '')) {
-        AppModules.booking.showStepError(`Preencha todos os campos obrigatórios (*) do hóspede ${idx}.`);
-        return false;
-      }
-      if (guestEmail !== null && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
-        AppModules.booking.showStepError(`Email inválido para hóspede ${idx}.`);
+      const emailInput = section.querySelector('[data-field="email"]');
+      const guestEmail = emailInput?.value.trim() || '';
+      if (emailInput && guestEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+        AppModules.booking.showFieldError(emailInput, `Email inválido para o hóspede ${idx}.`);
         return false;
       }
     }
   }
-  if (AppModules.booking.state.step === 3 && !AppModules.booking.$('pb-rgpd').checked) { AppModules.booking.showStepError('É necessário aceitar o RGPD.'); return false; }
+  if (AppModules.booking.state.step === 3 && !AppModules.booking.$('pb-rgpd').checked) { AppModules.booking.showFieldError(AppModules.booking.$('pb-rgpd'), 'Aceite a política de privacidade para continuar.'); return false; }
   return true;
 }
 
@@ -113,7 +108,7 @@ function collectPayload() {
       last_name: nameParts.slice(1).join(' '),
       email: AppModules.booking.$('pb-email').value.trim(),
       phone: phone ? `${phoneCode} ${phone}` : null,
-      nationality: AppModules.booking.$('pb-country').value.trim(),
+      nationality: AppModules.countries.normalize(AppModules.booking.$('pb-country').value),
       birth_date: AppModules.booking.iso(AppModules.booking.$('pb-birth').value) || null
     },
     guests_data: Array.from(document.querySelectorAll('.extra-guest-box')).map(guestSection => {
@@ -127,7 +122,7 @@ function collectPayload() {
         last_name: parts.slice(1).join(' '),
         email: value('email'),
         phone: guestPhone ? `${guestSection.querySelector('input[data-field="phone_code"]')?.value || '+351'} ${guestPhone}` : null,
-        nationality: value('country'),
+        nationality: AppModules.countries.normalize(value('country')),
         birth_date: AppModules.booking.iso(value('birth_date')) || null
       };
     })
@@ -138,7 +133,7 @@ function collectPayload() {
 async function submitReservation() {
   const btn = AppModules.booking.$('next-btn');
   if (AppModules.booking.state.captcha?.site_key && !AppModules.booking._turnstileToken) {
-    AppModules.booking.showStepError('Por favor confirma que não és um robô (CAPTCHA).');
+    AppModules.booking.showStepError('Por favor confirme que não é um robô (CAPTCHA).');
     return;
   }
   try {

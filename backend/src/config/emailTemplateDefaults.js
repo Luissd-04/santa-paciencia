@@ -134,7 +134,7 @@ const TEMPLATES = {
     body: [
       '{{titulo_reserva}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
-      p('Na página da sua reserva em <strong>{{alojamento}}</strong> encontra os detalhes da estadia, os pagamentos e o pré-check-in, sempre atualizados.'),
+      p('Na página da sua reserva (<strong>{{alojamento}}</strong>) encontra os detalhes da estadia, os pagamentos e o pré-check-in, sempre atualizados.'),
       '{{proximo_passo_portal}}',
       '{{estadia}}',
       '{{contacto}}',
@@ -173,10 +173,12 @@ const TEMPLATES = {
   },
 
   // Enviado em cada pagamento recebido (manual ou Stripe): sinal, restante ou
-  // pagamento único.
+  // pagamento único. O assunto diz «Reserva confirmada» quando este pagamento
+  // confirma a reserva e «Pagamento recebido» nos outros casos
+  // ({{assunto_pagamento}}, em emailService).
   pagamento: {
     name: 'Pagamento recebido',
-    subject: 'Pagamento recebido — {{alojamento}}',
+    subject: '{{assunto_pagamento}} — {{alojamento}}',
     body: [
       '{{titulo_pagamento}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
@@ -197,7 +199,7 @@ const TEMPLATES = {
     body: [
       '{{titulo_aviso_pagamento}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
-      p('Falta concluir o pagamento da sua reserva em <strong>{{alojamento}}</strong>.'),
+      p('Falta concluir o pagamento da sua reserva (<strong>{{alojamento}}</strong>).'),
       '{{resumo_pagamento}}',
       '{{botao_pagar}}',
       '{{aviso_prazo}}',
@@ -210,11 +212,11 @@ const TEMPLATES = {
   // de pagamento) com o reembolso contratado. Enviado logo.
   cancelamento_politica: {
     name: 'Cancelamento com reembolso',
-    subject: 'Cancelamento — Reserva {{referencia}}',
+    subject: 'Reserva cancelada — {{alojamento}}',
     body: [
       '{{titulo_reembolso}}',
       p('Olá <strong>{{primeiro_nome}}</strong>,'),
-      p('A sua reserva em <strong>{{alojamento}}</strong> ({{datas_curtas}}) foi cancelada. Este é o resumo do reembolso, segundo a política aceite na reserva:'),
+      p('A sua reserva (<strong>{{alojamento}}</strong>, {{datas_curtas}}) foi cancelada. Este é o resumo do reembolso, segundo a política aceite na reserva:'),
       '{{resumo_reembolso}}',
       p('Se houver valor a devolver, vai para o cartão que usou no pagamento e costuma aparecer em 5 a 10 dias úteis, conforme o banco.'),
       '{{botao_reserva}}',
@@ -227,7 +229,7 @@ const TEMPLATES = {
     subject: 'Obrigado pela sua visita — {{alojamento}}',
     body: [
       '{{titulo_obrigado}}',
-      p('Foi um gosto receber a sua visita em <strong>{{alojamento}}</strong>. Se tiver um minuto, a sua avaliação ajuda outras pessoas a escolher e ajuda-nos a melhorar.'),
+      p('Foi um gosto receber a sua visita ao alojamento <strong>{{alojamento}}</strong>. Se tiver um minuto, a sua avaliação ajuda outras pessoas a escolher e ajuda-nos a melhorar.'),
       '{{botao_avaliar}}',
       '{{contacto}}',
     ].join(''),

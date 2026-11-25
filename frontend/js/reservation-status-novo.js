@@ -4,18 +4,13 @@
 (() => {
   const $ = id => document.getElementById(id);
   const money = value => window.ReservationMoney.format(value);
-  const day = (value, options) => window.ReservationDates.formatDayLabel(value, options);
+  const day = (value, options) => window.ReservationDates.formatDayLabel(value, { year: true, ...options });
   const addDays = (iso, n) => window.ReservationDates.addDays(iso, n);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
   const plural = (n, one, many) => `${n} ${Number(n) === 1 ? one : many}`;
   const DEFAULT_COLOR = '#843424';
-  // «sáb, 21 nov, às 10:30» (hora de Lisboa).
-  const deadline = iso => {
-    const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) return '';
-    const opts = { timeZone: 'Europe/Lisbon' };
-    return `${day(date.toLocaleDateString('en-CA', opts))}, às ${date.toLocaleTimeString('pt-PT', { ...opts, hour: '2-digit', minute: '2-digit' })}`;
-  };
+  // «sáb, 21 nov 2026, às 10:30 (hora de Portugal)».
+  const deadline = iso => window.ReservationDates.formatDeadline(iso);
   let calendarUrl = '';
   // Regresso da Stripe com o pagamento feito: a confirmação passa à frente de
   // tudo e o parâmetro sai do endereço, para um refresco não a repetir.

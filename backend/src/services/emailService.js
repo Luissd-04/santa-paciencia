@@ -153,7 +153,7 @@ function bookingUrl(a, parent, orgId) {
 
 // O desenho vive todo em emailComposer.js — envio e pré-visualização usam a
 // mesma composição, por isso não podem divergir. baseTemplate() mantém-se como
-// ponto de entrada porque há mensagens avulsas (pagamento, pré check-in,
+// ponto de entrada porque há mensagens avulsas (pagamento, pré-check-in,
 // notificação ao owner) que compõem o conteúdo em código e não por template.
 function baseTemplate(content, settings, options = {}) {
   const s = settings || getEmailSettings();
@@ -265,26 +265,26 @@ function buildBlocks(vars, settings, reservation) {
       text: `Não recebemos ${full ? 'o pagamento' : 'o sinal'} da sua reserva para ${strong(vars.datas_curtas)} em ${strong(vars.alojamento)} dentro do prazo, por isso as datas voltaram a ficar livres. Não lhe foi cobrado nada.`, rebook: true },
     // Pagamento online que entrou depois de a reserva ser cancelada.
     payment_after: { eyebrow: 'Reserva cancelada', headline: 'Vamos tratar do reembolso',
-      text: `A sua reserva em ${strong(vars.alojamento)} estava cancelada quando recebemos ${vars.valor_pagamento ? `o pagamento de ${strong(vars.valor_pagamento)}` : 'um pagamento'}. O alojamento vai tratar do reembolso e entra em contacto consigo. Não precisa de fazer nada.` },
+      text: `A sua reserva (${strong(vars.alojamento)}) estava cancelada quando recebemos ${vars.valor_pagamento ? `o pagamento de ${strong(vars.valor_pagamento)}` : 'um pagamento'}. O alojamento vai tratar do reembolso e entra em contacto consigo. Não precisa de fazer nada.` },
     // A equipa recusou um pedido ainda por aprovar: não houve reserva a cancelar.
     refused: { eyebrow: 'Pedido não aceite', headline: 'Não foi possível aceitar o seu pedido',
       text: `Lamentamos, mas o seu pedido para ${strong(vars.datas_curtas)} em ${strong(vars.alojamento)} não pôde ser aceite. As datas escolhidas já não estão disponíveis para si${s.booking_url ? '; pode escolher outras datas na nossa página de reservas' : ''}. Não lhe foi cobrado nada.`,
       rebook: true, rebookLabel: 'Escolher outras datas' },
     staff: { eyebrow: 'Reserva cancelada', headline: 'A sua reserva foi cancelada',
-      text: `A sua reserva em ${strong(vars.alojamento)} foi cancelada. Se não esperava este email ou tem alguma pergunta, responda a esta mensagem.` },
+      text: `A sua reserva (${strong(vars.alojamento)}) foi cancelada. Se não esperava este email ou tem alguma pergunta, responda a esta mensagem.` },
     guest: { eyebrow: 'Reserva cancelada', headline: 'A sua reserva foi cancelada',
-      text: `Confirmamos o cancelamento da sua reserva em ${strong(vars.alojamento)}.` },
+      text: `Confirmamos o cancelamento da sua reserva (${strong(vars.alojamento)}).` },
   }[reason] || { eyebrow: 'Reserva cancelada', headline: 'A sua reserva foi cancelada',
-    text: `A sua reserva em ${strong(vars.alojamento)} foi cancelada.` };
+    text: `A sua reserva (${strong(vars.alojamento)}) foi cancelada.` };
 
   return {
     // ── Reserva aceite (pedido aprovado pela equipa) ──
     titulo_aceite: composer.buildTitle(depositDue
-      ? { eyebrow: 'Reserva aceite', tone: 'ok', headline: 'As datas são suas' }
+      ? { eyebrow: 'Reserva aceite', tone: 'ok', headline: 'Aceitámos o seu pedido' }
       : { eyebrow: 'Reserva confirmada', tone: 'ok', headline: 'Está tudo marcado' }),
     mensagem_aceite: depositDue
       ? para(`Aceitámos o seu pedido. Para confirmar a reserva, falta pagar ${full ? '' : 'o sinal de '}${strong(vars.valor_sinal)}${vars.prazo_sinal ? ` até ${strong(vars.prazo_sinal)}. Depois disso, as datas voltam a ficar livres` : ''}.`)
-      : para(`Aceitámos o seu pedido e a sua reserva em ${strong(vars.alojamento)} está confirmada.`),
+      : para(`Aceitámos o seu pedido e a sua reserva (${strong(vars.alojamento)}) está confirmada.`),
     botao_pagar_sinal: depositDue && vars.pagamento_online
       ? button(vars.link_reserva, `${full ? 'Pagar a reserva' : 'Pagar o sinal'} · ${vars.valor_sinal}`)
         + para('Pagamento seguro através da Stripe.', 'font-size:13.5px;text-align:center;margin:6px 0 0;')
@@ -300,12 +300,12 @@ function buildBlocks(vars, settings, reservation) {
 
     // ── Pagamento recebido ──
     mensagem_pagamento: vars.pagamento_confirma && vars.pagamento_liquidado
-      ? para(`Obrigado. Recebemos o pagamento de ${strong(vars.valor_pagamento)}: a sua reserva em ${strong(vars.alojamento)} está confirmada e paga na totalidade.`)
+      ? para(`Obrigado. Recebemos o pagamento de ${strong(vars.valor_pagamento)}: a sua reserva (${strong(vars.alojamento)}) está confirmada e paga na totalidade.`)
       : vars.pagamento_confirma
       ? para(vars.valor_sinal_exigido && vars.valor_sinal_exigido !== vars.valor_pagamento
-        ? `Obrigado. Recebemos ${strong(vars.valor_pagamento)}, que completam o sinal de ${strong(vars.valor_sinal_exigido)}: a sua reserva em ${strong(vars.alojamento)} está confirmada.`
-        : `Obrigado. Recebemos o sinal de ${strong(vars.valor_pagamento)} e a sua reserva em ${strong(vars.alojamento)} está confirmada.`)
-      : para(`Obrigado. Registámos o pagamento de ${strong(vars.valor_pagamento)} da sua reserva em ${strong(vars.alojamento)}.${vars.pagamento_liquidado ? ' Não falta pagar nada.'
+        ? `Obrigado. Recebemos ${strong(vars.valor_pagamento)}, que completam o sinal de ${strong(vars.valor_sinal_exigido)}: a sua reserva (${strong(vars.alojamento)}) está confirmada.`
+        : `Obrigado. Recebemos o sinal de ${strong(vars.valor_pagamento)} e a sua reserva (${strong(vars.alojamento)}) está confirmada.`)
+      : para(`Obrigado. Registámos o pagamento de ${strong(vars.valor_pagamento)} da sua reserva (${strong(vars.alojamento)}).${vars.pagamento_liquidado ? ' Não falta pagar nada.'
         : vars.valor_sinal ? ` Para confirmar a reserva ainda falta ${strong(vars.valor_sinal)}${vars.prazo_sinal ? ` até ${strong(vars.prazo_sinal)}` : ''}.` : ''}`),
 
     // ── Tudo para a sua chegada ──
@@ -410,7 +410,7 @@ function buildBlocks(vars, settings, reservation) {
 
     // ── Reserva alterada (datas ou total mudados com pagamento feito) ──
     titulo_alteracao: composer.buildTitle({ eyebrow: 'Reserva alterada', tone: 'warn', headline: 'Alterámos a sua reserva' }),
-    mensagem_alteracao: para(`Fizemos uma alteração à sua reserva em ${strong(vars.alojamento)}. ${status === 'cancelada' ? '' : 'A reserva continua confirmada.'} Aqui ficam os valores atuais.`),
+    mensagem_alteracao: para(`Fizemos uma alteração à sua reserva (${strong(vars.alojamento)}). ${status === 'cancelada' ? '' : 'A reserva continua confirmada.'} Aqui ficam os valores atuais.`),
     resumo_alteracao: composer.buildRows([
       { label: 'Datas', value: vars.alteracao_datas_antes ? `${vars.datas_curtas} (antes: ${vars.alteracao_datas_antes})` : vars.datas_curtas },
       { label: 'Total', value: vars.alteracao_total_antes ? `${vars.total} (antes: ${vars.alteracao_total_antes})` : vars.total },

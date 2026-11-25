@@ -73,14 +73,12 @@ function recalc() {
   AppModules.booking.$('summary-guests').textContent = children > 0
     ? `${adults} adulto${adults !== 1 ? 's' : ''} · ${children} criança${children !== 1 ? 's' : ''}`
     : `${adults} adulto${adults !== 1 ? 's' : ''}`;
-  AppModules.booking.$('summary-dates').textContent = AppModules.booking.iso(AppModules.booking.$('pb-checkin').value) && AppModules.booking.iso(AppModules.booking.$('pb-checkout').value) ? `${AppModules.booking.ptDate(AppModules.booking.$('pb-checkin').value)} - ${AppModules.booking.ptDate(AppModules.booking.$('pb-checkout').value)}` : '-';
+  AppModules.booking.$('summary-dates').textContent = AppModules.booking.iso(AppModules.booking.$('pb-checkin').value) && AppModules.booking.iso(AppModules.booking.$('pb-checkout').value) ? `${window.ReservationDates.formatDayLabel(AppModules.booking.iso(AppModules.booking.$('pb-checkin').value), { year: true })} → ${window.ReservationDates.formatDayLabel(AppModules.booking.iso(AppModules.booking.$('pb-checkout').value), { year: true })}` : '-';
   AppModules.booking.$('summary-nights').textContent = n ? `${n} noite${n !== 1 ? 's' : ''}` : '-';
 
   document.querySelectorAll('.summary-row.muted:not(#summary-discount-row)').forEach(row => row.style.display = hasDates ? '' : 'none');
   const totalRow = document.querySelector('.summary-total');
   if (totalRow) totalRow.style.display = hasDates ? '' : 'none';
-  const note = AppModules.booking.$('summary-dates-note');
-  if (note) note.style.display = hasDates ? '' : 'none';
 
   // Sem escolha disponível não há total a mostrar (antes ficava a taxa
   // turística sozinha, ex. 18,00 €, com o nome da casa ocupada).
@@ -88,6 +86,7 @@ function recalc() {
   if ((!isPropertySelected && !unit) || (selection && !selection.available)) {
     AppModules.booking.$('summary-unit').textContent = 'Escolha um quarto';
     AppModules.booking.$('summary-media').style.backgroundImage = '';
+    AppModules.booking.$('summary-media').hidden = true;
     document.querySelectorAll('.summary-row.muted:not(#summary-discount-row)').forEach(row => row.style.display = 'none');
     if (totalRow) totalRow.style.display = 'none';
     AppModules.booking.novo?.afterRecalc(null);
@@ -96,11 +95,14 @@ function recalc() {
 
   if (isPropertySelected) {
     AppModules.booking.$('summary-unit').textContent = AppModules.booking.state.property?.name || 'Alojamento completo';
-    AppModules.booking.$('summary-media').style.backgroundImage = `url(${JSON.stringify(AppModules.booking.mediaThumb(AppModules.booking.state.property?.images?.[0]?.url, 1024))})`;
+    const propertyImage = AppModules.booking.state.property?.images?.[0]?.url;
+    AppModules.booking.$('summary-media').hidden = !propertyImage;
+    AppModules.booking.$('summary-media').style.backgroundImage = propertyImage ? `url(${JSON.stringify(AppModules.booking.mediaThumb(propertyImage, 1024))})` : '';
   } else {
     AppModules.booking.$('summary-unit').textContent = unit.name;
     const cover = AppModules.booking.coverOf(unit, 'landscape');
-    AppModules.booking.$('summary-media').style.backgroundImage = `url(${JSON.stringify(AppModules.booking.mediaThumb(cover.src, 1024))})`;
+    AppModules.booking.$('summary-media').hidden = !cover.src;
+    AppModules.booking.$('summary-media').style.backgroundImage = cover.src ? `url(${JSON.stringify(AppModules.booking.mediaThumb(cover.src, 1024))})` : '';
     AppModules.booking.$('summary-media').style.backgroundPosition = cover.position;
   }
 
@@ -115,6 +117,9 @@ function recalc() {
   AppModules.booking.$('summary-base').textContent = AppModules.booking.fmtCurrency(totals.baseAmount);
   AppModules.booking.$('summary-extras').textContent = AppModules.booking.fmtCurrency(totals.extraOccupancyCost);
   AppModules.booking.$('summary-services').textContent = AppModules.booking.fmtCurrency(totals.breakfastCost + totals.touristTax);
+  // Sem valor, a linha não aparece (nada de «Extras 0,00 €»).
+  AppModules.booking.$('summary-extras-row').style.display = totals.extraOccupancyCost > 0 ? '' : 'none';
+  AppModules.booking.$('summary-services-row').style.display = totals.breakfastCost + totals.touristTax > 0 ? '' : 'none';
 
   const discRow = AppModules.booking.$('summary-discount-row');
   if (discRow) {

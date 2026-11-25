@@ -62,7 +62,7 @@ async function main() {
   await residence.press('Enter');
   await expect(residence).toHaveValue('França');
   await residence.fill('fra');
-  await mainCard.getByRole('option', { name: 'França', exact: true }).click();
+  await mainCard.getByRole('option', { name: /^França\b/ }).click();
   await expect(residence).toHaveValue('França');
   await mainCard.locator('[data-field="document_type"]').selectOption('passaporte');
   await mainCard.locator('[data-field="document_number"]').fill('AB12345');

@@ -6,40 +6,16 @@ let reservationData = null;
 let currentStep = 0;
 let steps = [];
 
-const COUNTRIES = [
-  { name: 'Portugal', flag: 'PT' }, { name: 'Espanha', flag: 'ES' },
-  { name: 'França', flag: 'FR' }, { name: 'Itália', flag: 'IT' },
-  { name: 'Alemanha', flag: 'DE' }, { name: 'Bélgica', flag: 'BE' },
-  { name: 'Holanda', flag: 'NL' }, { name: 'Reino Unido', flag: 'GB' },
-  { name: 'Irlanda', flag: 'IE' }, { name: 'Brasil', flag: 'BR' },
-  { name: 'EUA', flag: 'US' }, { name: 'Canadá', flag: 'CA' },
-  { name: 'Suíça', flag: 'CH' }, { name: 'Áustria', flag: 'AT' },
-  { name: 'Polónia', flag: 'PL' }, { name: 'Ucrânia', flag: 'UA' },
-  { name: 'China', flag: 'CN' }, { name: 'Japão', flag: 'JP' },
-  { name: 'Índia', flag: 'IN' }, { name: 'Austrália', flag: 'AU' },
-  { name: 'África do Sul', flag: 'ZA' }, { name: 'Angola', flag: 'AO' },
-  { name: 'Moçambique', flag: 'MZ' }, { name: 'Cabo Verde', flag: 'CV' }
-];
-// ISO 3166-1 alpha-2 para seleção; a API conserva os nomes portugueses
-// existentes. A conversão ICAO pertence à exportação do boletim.
-const regionNames = new Intl.DisplayNames(['pt-PT'], { type: 'region' });
-const countryCodes = 'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'.split(' ');
-for (const code of countryCodes) {
-  if (!COUNTRIES.some(country => country.flag === code)) COUNTRIES.push({ flag: code, name: regionNames.of(code) });
-}
-const fold = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+// Países em português e inglês (módulo partilhado). O servidor continua a
+// receber o nome em português; o código ISO fica em data-country-code.
+const COUNTRIES = AppModules.countries.all();
 function resolveCountry(value) {
-  const key = fold(value);
-  return COUNTRIES.find(c => [c.name, c.flag, regionNames.of(c.flag)].some(name => fold(name) === key));
+  return AppModules.countries.find(value);
 }
 
 function fmtDate(value) {
   if (!value) return '—';
-  return new Date(value + 'T12:00:00').toLocaleDateString('pt-PT', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  return window.ReservationDates.formatDayLabel(value, { year: true });
 }
 
 function isoDate(value) {
@@ -75,6 +51,7 @@ async function api(path, options = {}) {
   if (!res.ok || payload.success === false) {
     const error = new Error(payload.error || 'Pedido indisponível.');
     error.fieldErrors = payload.fieldErrors;
+    error.contact = payload.contact;
     throw error;
   }
   return payload;
@@ -169,7 +146,7 @@ function companyFields(guest) {
       <span class="pc-company-switch" aria-hidden="true"></span>
     </label>
     <label data-nif-field="personal" ${isCompany ? 'hidden' : ''}>
-      <span>NIF</span>
+      <span>NIF <em class="opt-hint">(só se quiser fatura com número fiscal português)</em></span>
       <input data-field="nif" inputmode="numeric" maxlength="20" value="${escapeAttr(guest?.nif || '')}" placeholder="Número de identificação fiscal" autocomplete="off">
     </label>
     <div class="field-grid two pc-company-fields" data-nif-field="company" ${isCompany ? '' : 'hidden'}>
@@ -262,7 +239,7 @@ function collectGuest(card) {
 
 function updateForeignRequired(card) {
   const nationality = (card.querySelector('[data-field="nationality"]')?.value || '').trim();
-  const isForeign = Boolean(nationality && resolveCountry(nationality)?.flag !== 'PT');
+  const isForeign = Boolean(nationality && resolveCountry(nationality)?.code !== 'PT');
   card.querySelectorAll('.foreign-field').forEach(field => { field.hidden = !isForeign; });
   card.querySelectorAll('[data-foreign-required]').forEach(el => {
     el.required = isForeign;
@@ -290,24 +267,24 @@ function setupCountryInput(input) {
     active = -1;
   };
   const open = (showAll = false) => {
-    const query = showAll && resolveCountry(input.value) ? '' : fold(input.value);
-    matches = COUNTRIES.filter(c => [c.name, c.flag, regionNames.of(c.flag)].some(name => fold(name).includes(query)));
+    const query = showAll && resolveCountry(input.value) ? '' : input.value;
+    matches = AppModules.countries.search(query, 12);
     active = -1;
     input.removeAttribute('aria-activedescendant');
-    dropdown.innerHTML = matches.length ? matches.map((c, i) => `<div class="country-dropdown-item" role="option" aria-selected="false" id="${dropdown.id}-${i}" data-country-code="${c.flag}">${flagHtml(c.flag)}<span>${escapeAttr(c.name)}</span></div>`).join('') : '<div class="pc-country-empty">Nenhum país encontrado.</div>';
+    dropdown.innerHTML = matches.length ? matches.map((c, i) => `<div class="country-dropdown-item" role="option" aria-selected="false" id="${dropdown.id}-${i}" data-country-code="${c.code}">${flagHtml(c.code)}<span>${escapeAttr(c.pt)}${c.en !== c.pt ? ` <small class="country-alt-name">${escapeAttr(c.en)}</small>` : ''}</span></div>`).join('') : '<div class="pc-country-empty">Nenhum país encontrado.</div>';
     dropdown.style.display = 'block';
     input.setAttribute('aria-expanded', 'true');
   };
   const commit = country => {
     if (!country) return;
-    input.value = country.name;
-    input.dataset.countryCode = country.flag;
+    input.value = country.pt;
+    input.dataset.countryCode = country.code;
     close();
     input.dispatchEvent(new Event('change', { bubbles: true }));
     validateField(input);
   };
   const initial = resolveCountry(input.value);
-  if (initial) { input.value = initial.name; input.dataset.countryCode = initial.flag; }
+  if (initial) { input.value = initial.pt; input.dataset.countryCode = initial.code; }
   input.addEventListener('focus', () => open(true));
   input.addEventListener('input', () => {
     delete input.dataset.countryCode;
@@ -337,11 +314,11 @@ function setupCountryInput(input) {
   dropdown.addEventListener('click', event => {
     const item = event.target.closest('[data-country-code]');
     if (!item) return;
-    commit(COUNTRIES.find(c => c.flag === item.dataset.countryCode));
+    commit(COUNTRIES.find(c => c.code === item.dataset.countryCode));
   });
   input.addEventListener('blur', () => {
     const country = resolveCountry(input.value);
-    if (country) { input.value = country.name; input.dataset.countryCode = country.flag; }
+    if (country) { input.value = country.pt; input.dataset.countryCode = country.code; }
     setTimeout(close, 120);
     if (input.dataset.field === 'nationality') updateForeignRequired(input.closest('.guest-card'));
     validateField(input);
@@ -424,7 +401,7 @@ function showStep(index, focus = true) {
   const residence = allCards()[0]?.querySelector('[data-field="residence_country"]');
   allCards().forEach(card => {
     const button = card.querySelector('[data-copy-residence]');
-    if (button) button.hidden = !resolveCountry(residence?.value) || resolveCountry(card.querySelector('[data-field="nationality"]').value)?.flag === 'PT';
+    if (button) button.hidden = !resolveCountry(residence?.value) || resolveCountry(card.querySelector('[data-field="nationality"]').value)?.code === 'PT';
   });
   $('pc-progress').querySelectorAll('button').forEach((button, i) => {
     button.disabled = i > index;
@@ -484,8 +461,8 @@ function setupGuestCard(card) {
     const country = resolveCountry(source.value);
     if (!country) { displayFieldError(source, 'Escolha primeiro um país para o poder copiar.'); focusInvalid(source); return; }
     const target = card.querySelector(`[data-field="${field}"]`);
-    target.value = country.name;
-    target.dataset.countryCode = country.flag;
+    target.value = country.pt;
+    target.dataset.countryCode = country.code;
     target.dispatchEvent(new Event('change', { bubbles: true }));
   };
   card.querySelector('[data-copy-nationality]')?.addEventListener('click', () => copyCountry('document_issuer_country', card.querySelector('[data-field="nationality"]')));
@@ -644,17 +621,22 @@ function showSubmittedState(submittedAt) {
   if (!submittedAt) { note.hidden = true; return; }
   const until = reservationData?.reservation?.editable_until;
   note.hidden = false;
-  note.textContent = `Já enviou o pré check-in a ${fmtDate(String(submittedAt).slice(0, 10))}. `
+  note.textContent = `Já enviou o pré-check-in a ${fmtDate(String(submittedAt).slice(0, 10))}. `
     + `Pode corrigir os dados${until ? ` até ${fmtDate(until)}` : ''}: altere o que precisar e carregue em "Guardar alterações".`;
   $('pc-submit').textContent = 'Guardar alterações';
 }
 
 // Link fechado (prazo, reserva cancelada, link inválido): mostra só a
 // mensagem, sem resumo vazio nem formulário.
-function showClosed(message) {
+function contactText(contact) {
+  const parts = [contact?.email, contact?.phone].filter(Boolean);
+  return parts.length ? ` Contacto do alojamento: ${parts.join(' · ')}.` : '';
+}
+
+function showClosed(message, contact) {
   $('pc-summary').hidden = true;
   $('precheckin-form').hidden = true;
-  $('pc-closed-message').textContent = message;
+  $('pc-closed-message').textContent = message + contactText(contact);
   $('pc-closed').hidden = false;
 }
 
@@ -669,7 +651,7 @@ async function load() {
     const payload = await api(`/api/public/pre-checkin/${token}`);
     render(payload.data);
   } catch (err) {
-    showClosed(err.message);
+    showClosed(err.message, err.contact);
   }
 }
 
@@ -702,6 +684,8 @@ $('precheckin-form').addEventListener('submit', async event => {
       brand: reservationData.reservation.brand_name || reservationData.reservation.accommodation_name || '',
       returnPath: location.pathname,
       paymentPath: reservationData.reservation.payment_path,
+      reservationPath: reservationData.reservation.reservation_path,
+      dueNow: Number(reservationData.reservation.due_now) > 0 ? window.ReservationMoney.format(reservationData.reservation.due_now) : '',
     });
   } catch (err) {
     btn.disabled = false;
@@ -713,7 +697,7 @@ $('precheckin-form').addEventListener('submit', async event => {
       return input;
     }).filter(Boolean);
     if (invalid.length) focusInvalid(invalid[0]);
-    btn.textContent = reservationData.reservation.precheckin_submitted_at ? 'Guardar alterações' : 'Enviar pré check-in';
+    btn.textContent = reservationData.reservation.precheckin_submitted_at ? 'Guardar alterações' : 'Enviar pré-check-in';
   }
 });
 

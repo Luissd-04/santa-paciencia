@@ -555,6 +555,15 @@ async function main() {
       assert.equal(push.isValidPushEndpoint(bad), false, String(bad));
     }
   });
+  await check('Pedido público: o nome do acompanhante é opcional (fica para o pré-check-in)', async () => {
+    const res = await call(publicCtrl.createReservation, request({ accommodation_id: 'unit-b',
+      check_in: '2033-05-01', check_out: '2033-05-03', num_guests: 2, rgpd_consent: true, elapsed_ms: 9000,
+      guest: { name: 'Synthetic Main', email: 'main-opt@example.invalid' }, guests_data: [{ name: '' }],
+    }, { slug: 'audit-b' }));
+    assert.equal(res.statusCode, 201, JSON.stringify(res.body));
+    const row = db.prepare('SELECT guests_data FROM reservations WHERE id=?').get(res.body.data.id);
+    assert.deepEqual(JSON.parse(row.guests_data).map(g => g.name), ['']);
+  });
   await check('A10: reserva pública normaliza acompanhantes e hora de chegada', async () => {
     const res = await call(publicCtrl.createReservation, request({ accommodation_id: 'unit-b',
       check_in: '2033-03-01', check_out: '2033-03-03', num_guests: 2, rgpd_consent: true, elapsed_ms: 9000,

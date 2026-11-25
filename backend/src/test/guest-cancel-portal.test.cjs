@@ -27,14 +27,15 @@ test('email de cancelamento com política: datas, cartão e prazo do reembolso',
   const vars = emailService.sanitizeUrlVars(emailService.buildVars(GUEST, r, { name: 'Quarto Sobreiro' }, SETTINGS, {}));
   const tpl = TEMPLATES.cancelamento_politica;
   const text = strip(emailService.renderEmail({ subject: tpl.subject, body: tpl.body, vars, blocks: emailService.buildBlocks(vars, SETTINGS, r), settings: SETTINGS }).html);
-  assert.match(text, /Quarto Sobreiro \(14 a 16 nov|Quarto Sobreiro \([^)]*nov/);
+  assert.match(text, /\( ?Quarto Sobreiro ?, 14[^)]*nov/);
   assert.match(text, /vai para o cartão que usou no pagamento/);
   assert.match(text, /5 a 10 dias úteis, conforme o banco/);
 });
 
 test('migração do texto: só atualiza o modelo que ainda é o anterior', () => {
   const novo = TEMPLATES.cancelamento_politica;
-  const antigo = novo.body.replace(/<p [^>]*>Se houver valor a devolver[^<]*<\/p>/, '').replace(' ({{datas_curtas}}) foi cancelada', ' foi cancelada');
+  const antigo = novo.body.replace(/<p [^>]*>Se houver valor a devolver[^<]*<\/p>/, '')
+    .replace('A sua reserva (<strong>{{alojamento}}</strong>, {{datas_curtas}}) foi cancelada', 'A sua reserva em <strong>{{alojamento}}</strong> foi cancelada');
   assert.notEqual(antigo, novo.body);
   db.exec("INSERT INTO organizations(id,name,slug) VALUES ('o1','A','a'),('o2','B','b')");
   const put = db.prepare(`INSERT INTO organization_email_templates(organization_id,slug,name,subject,body,active) VALUES (?,?,?,?,?,1)

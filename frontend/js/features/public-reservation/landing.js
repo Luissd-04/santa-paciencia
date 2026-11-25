@@ -20,6 +20,7 @@ async function init() {
     AppModules.booking.state.services = payload.data.services || [];
     AppModules.booking.state.captcha = payload.data.captcha || null;
     AppModules.booking.state.onlinePayment = payload.data.online_payment_available === true;
+    AppModules.booking.state.depositTtlHours = Number(payload.data.deposit_ttl_hours) > 0 ? Number(payload.data.deposit_ttl_hours) : 48;
     if (AppModules.booking.state.onlinePayment) {
       AppModules.booking.$('pb-payment-note').textContent = `Hoje não paga nada. Depois de o alojamento aceitar o pedido, recebe por email o link para pagar ${payload.data.payment_policy?.enabled ? 'o sinal' : 'a reserva'} online e tem ${(h => h % 24 === 0 && h > 48 ? `${h / 24} dias` : `${h} ${h === 1 ? 'hora' : 'horas'}`)(Number(payload.data.deposit_ttl_hours) > 0 ? Number(payload.data.deposit_ttl_hours) : 48)} para o fazer.` + (payload.data.online_payment_test ? ' Modo de teste: não são efetuadas cobranças reais.' : '');
     }
@@ -28,7 +29,7 @@ async function init() {
       const ranges = rows => rows.map(r => `<li>${r.minDays}${r.maxDays === null ? ' ou mais' : ` a ${r.maxDays}`} dias: ${r.percent}%</li>`).join('');
       document.getElementById('pb-policy').hidden = false;
       document.getElementById('pb-policy-details').innerHTML = `<p>Pagamento inicial, pela antecedência da reserva:</p><ul>${ranges(paymentPolicy.depositRules)}</ul>
-        <p>O restante vence ${paymentPolicy.balanceDays} dias antes do check-in, às 12:00 de Lisboa. Dentro desse prazo, o pagamento inicial é integral. ${paymentPolicy.automaticCharge ? 'Com autorização, o cartão pode ser cobrado automaticamente.' : ''} Se for necessário pagar por link, terá ${paymentPolicy.graceHours} horas após o aviso; depois, a reserva é cancelada sem reembolso.</p>
+        <p>O restante vence ${paymentPolicy.balanceDays} dias antes do check-in, às 12:00 (hora de Portugal). Dentro desse prazo, o pagamento inicial é integral. ${paymentPolicy.automaticCharge ? 'Com autorização, o cartão pode ser cobrado automaticamente.' : ''} Se for necessário pagar por link, terá ${paymentPolicy.graceHours} horas após o aviso; depois, a reserva é cancelada sem reembolso.</p>
         <p>Reembolso do valor pago, pela antecedência ${paymentPolicy.refundBasis === 'booking' ? 'da criação da reserva' : 'do pedido de cancelamento'}:</p><ul>${ranges(paymentPolicy.refundRules)}</ul><p>Os valores e as datas exatas serão apresentados antes do pagamento.</p>`;
     }
     AppModules.booking.state.selectedUnitId = 'property';
@@ -128,12 +129,12 @@ function renderUnits() {
   const container = AppModules.booking.$('unit-list');
   const propertyAv = AppModules.booking.state.availability.find(a => a.type === 'property');
   const propertyBlocked = propertyAv && !propertyAv.available;
-  const propertySelected = AppModules.booking.state.selectedUnitId === 'property' || AppModules.booking.state.selectedUnitId === AppModules.booking.state.property?.id;
+  const propertySelected = AppModules.booking.nights() > 0 && (AppModules.booking.state.selectedUnitId === 'property' || AppModules.booking.state.selectedUnitId === AppModules.booking.state.property?.id);
   const propertyReason = propertyAv?.occupied
     ? 'Indisponível nas datas selecionadas'
     : propertyAv?.over_capacity
     ? `Capacidade máxima: ${propertyAv.max_guests} hóspedes`
-    : 'Propriedade inteira para sua exclusividade';
+    : 'A casa inteira, só para si';
 
   const n = AppModules.booking.nights();
   const hasDates = n > 0;

@@ -27,6 +27,9 @@ function setupCountrySearch(inputId, dropdownId, onPick) {
 
   input.addEventListener('blur', () => {
     if (handler.ignoreBlur) { handler.ignoreBlur = false; return; }
+    // «United Kingdom» → «Reino Unido», o nome que a equipa recebe.
+    const known = AppModules.countries.find(input.value);
+    if (known) { input.value = known.pt; input.dataset.countryCode = known.code; }
     setTimeout(() => { dropdown.style.display = 'none'; }, 80);
   });
 
@@ -35,8 +38,10 @@ function setupCountrySearch(inputId, dropdownId, onPick) {
     const item = e.target.closest('.country-dropdown-item');
     if (!item) return;
     e.preventDefault();
-    const c = AppModules.booking.COUNTRIES.find(x => x.name === item.dataset.country);
-    input.value = c.name;
+    const c = AppModules.countries.all().find(x => x.code === item.dataset.countryCode);
+    if (!c) return;
+    input.value = c.pt;
+    input.dataset.countryCode = c.code;
     dropdown.style.display = 'none';
     if (onPick) onPick(c);
   });
@@ -49,17 +54,12 @@ function setupCountrySearch(inputId, dropdownId, onPick) {
 }
 
 function renderCountryDropdown(search, dropdown) {
-  const results = search.trim()
-    ? AppModules.booking.COUNTRIES.filter(c => AppModules.booking.fuzzyMatch(search, c.name) > 0)
-        .sort((a, b) => AppModules.booking.fuzzyMatch(search, b.name) - AppModules.booking.fuzzyMatch(search, a.name))
-        .slice(0, 12)
-    : AppModules.booking.COUNTRIES;
-
-  dropdown.innerHTML = results.map(c => `
-    <div class="country-dropdown-item" data-country="${c.name}">
-      <span>${AppModules.booking.flagHtml(c.flag)}</span>
-      <span>${c.name}</span>
-    </div>`).join('');
+  const results = AppModules.countries.search(search, 12);
+  dropdown.innerHTML = results.length ? results.map(c => `
+    <div class="country-dropdown-item" data-country-code="${c.code}">
+      <span>${AppModules.booking.flagHtml(c.code)}</span>
+      <span>${c.pt}${c.en !== c.pt ? ` <small class="country-alt-name">${c.en}</small>` : ''}</span>
+    </div>`).join('') : '<div class="country-dropdown-empty">Nenhum país encontrado.</div>';
 }
 
 function buildPhoneSearchDropdown(dropdown) {
@@ -73,7 +73,7 @@ function buildPhoneSearchDropdown(dropdown) {
   const results = dropdown.querySelector('.phone-code-results');
   function filter(q) {
     const list = q.trim()
-      ? AppModules.booking.PHONE_CODES.filter(c => AppModules.booking.fuzzyMatch(q, c.code) > 0 || AppModules.booking.fuzzyMatch(q, c.country) > 0)
+      ? AppModules.booking.PHONE_CODES.filter(c => AppModules.booking.fuzzyMatch(q, c.code) > 0 || AppModules.booking.fuzzyMatch(q, c.country) > 0 || AppModules.countries.matches(q, AppModules.booking.ccFromFlagEmoji(c.flag)))
           .sort((a, b) =>
             Math.max(AppModules.booking.fuzzyMatch(q, b.code), AppModules.booking.fuzzyMatch(q, b.country)) -
             Math.max(AppModules.booking.fuzzyMatch(q, a.code), AppModules.booking.fuzzyMatch(q, a.country)))

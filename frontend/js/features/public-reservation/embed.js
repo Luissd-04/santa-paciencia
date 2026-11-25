@@ -237,8 +237,8 @@ function showConfirmation({ token, reference, brand, total }) {
   card.innerHTML = `<section class="sp-embed-done" role="status" aria-live="polite">
     <span class="sp-embed-done-mark" aria-hidden="true">✓</span>
     <h2 tabindex="-1">Pedido enviado</h2>
-    <p>${brand ? `Obrigado! O pedido chegou a <b>${esc(brand)}</b>.` : 'Obrigado! O pedido foi recebido.'} Hoje não paga nada: o alojamento confirma a disponibilidade e responde por email.</p>
-    ${total ? `<p class="sp-embed-done-total">Total estimado: <b>${esc(total)}</b></p>` : ''}
+    <p>${brand ? `Obrigado! Recebemos o seu pedido para <b>${esc(brand)}</b>.` : 'Obrigado! O pedido foi recebido.'} Hoje não paga nada: o alojamento confirma a disponibilidade e responde por email.</p>
+    ${total ? `<p class="sp-embed-done-total">Total: <b>${esc(total)}</b></p>` : ''}
     ${reference && !href ? `<p class="sp-embed-done-ref">Referência: <b>${esc(reference)}</b></p>` : ''}
     ${href ? `<a class="primary-btn sp-embed-done-link" href="${esc(href)}" target="_blank" rel="noopener">Ver o meu pedido <span aria-hidden="true">↗</span></a>
     <p class="sp-embed-done-note">Abre num separador novo, onde acompanha o pedido e, depois de aceite, faz o pagamento.</p>` : ''}

@@ -114,6 +114,25 @@ function cancelledMoney(db) {
   }).immediate();
 }
 
+// Textos dos emails revistos na auditoria de 25/11 (artigos em falta antes do
+// nome do alojamento, assuntos mais informativos). `de` é o texto anterior e
+// `para` o atual, nos modelos por omissão; só os modelos ainda iguais ao texto
+// anterior se atualizam.
+const EMAIL_WORDING = {
+  portal_hospede: { body: [['Na página da sua reserva em <strong>{{alojamento}}</strong> encontra', 'Na página da sua reserva (<strong>{{alojamento}}</strong>) encontra']] },
+  aviso_restante: { body: [['Falta concluir o pagamento da sua reserva em <strong>{{alojamento}}</strong>.', 'Falta concluir o pagamento da sua reserva (<strong>{{alojamento}}</strong>).']] },
+  cancelamento_politica: {
+    subject: [['Cancelamento — Reserva {{referencia}}', 'Reserva cancelada — {{alojamento}}']],
+    body: [['A sua reserva em <strong>{{alojamento}}</strong> ({{datas_curtas}}) foi cancelada.', 'A sua reserva (<strong>{{alojamento}}</strong>, {{datas_curtas}}) foi cancelada.']],
+  },
+  obrigado: { body: [['Foi um gosto receber a sua visita em <strong>{{alojamento}}</strong>.', 'Foi um gosto receber a sua visita ao alojamento <strong>{{alojamento}}</strong>.']] },
+  pagamento: { subject: [['Pagamento recebido — {{alojamento}}', '{{assunto_pagamento}} — {{alojamento}}']] },
+};
+// O texto anterior de um campo do modelo por omissão atual.
+function previousText(slug, field, current) {
+  return (EMAIL_WORDING[slug]?.[field] || []).reduce((text, [de, para]) => text.split(para).join(de), current);
+}
+
 // Email «Cancelamento com reembolso»: passa a incluir as datas e a dizer para
 // onde vai o dinheiro e quando costuma chegar (auditoria de 25/11). Só os
 // modelos ainda iguais ao texto anterior são atualizados (com cópia em
@@ -127,7 +146,7 @@ function cancellationRefundText(db) {
     const novo = defaultsList().find(t => t.slug === 'cancelamento_politica');
     // O texto anterior: o novo sem as datas e sem a frase do prazo.
     const frase = /<p [^>]*>Se houver valor a devolver[^<]*<\/p>/;
-    const antigo = novo.body.replace(frase, '').replace(' ({{datas_curtas}}) foi cancelada', ' foi cancelada');
+    const antigo = previousText(novo.slug, 'body', novo.body).replace(frase, '').replace(' ({{datas_curtas}}) foi cancelada', ' foi cancelada');
     const has = name => db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name);
     if (has('organization_email_templates')) {
       require('../services/emailDesign').ensureBackupTable(db);
@@ -164,6 +183,40 @@ function cancellationSubject(db) {
   }).immediate();
 }
 
+// Emails ao hóspede: artigos em falta e assuntos informativos («Reserva
+// confirmada — …» quando o pagamento confirma a reserva). Só os modelos
+// ainda iguais ao texto anterior mudam, com cópia em
+// organization_email_templates_backup; os editados pela organização não se tocam.
+function emailWording(db) {
+  const id = '20261125_email_wording';
+  if (done(db, id)) return;
+  db.transaction(() => {
+    const { defaultsList } = require('./emailTemplateDefaults');
+    const exists = name => db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name);
+    if (exists('organization_email_templates')) require('../services/emailDesign').ensureBackupTable(db);
+    for (const novo of defaultsList().filter(t => EMAIL_WORDING[t.slug])) {
+      const antigo = { subject: previousText(novo.slug, 'subject', novo.subject), body: previousText(novo.slug, 'body', novo.body) };
+      if (exists('organization_email_templates')) {
+        // Assunto e corpo avaliados à parte: um modelo com o corpo editado
+        // mas o assunto por omissão também recebe o assunto novo, e vice-versa.
+        // Cada modelo que vai mudar é copiado antes para a tabela de cópias.
+        for (const field of ['subject', 'body']) {
+          if (antigo[field] === novo[field]) continue;
+          db.prepare(`INSERT INTO organization_email_templates_backup (organization_id, slug, name, subject, body, reason)
+            SELECT organization_id, slug, name, subject, body, ? FROM organization_email_templates WHERE slug = ? AND ${field} = ?`).run(id, novo.slug, antigo[field]);
+          db.prepare(`UPDATE organization_email_templates SET ${field} = ?, updated_at = datetime('now') WHERE slug = ? AND ${field} = ?`).run(novo[field], novo.slug, antigo[field]);
+        }
+      }
+      if (exists('email_templates')) {
+        for (const field of ['subject', 'body']) {
+          if (antigo[field] !== novo[field]) db.prepare(`UPDATE email_templates SET ${field} = ? WHERE slug = ? AND ${field} = ?`).run(novo[field], novo.slug, antigo[field]);
+        }
+      }
+    }
+    mark(db, id);
+  }).immediate();
+}
+
 // O link do pré-check-in expira na saída atual da reserva (e não na original).
 function precheckinExpiry(db) {
   const id = '20261125_precheckin_expiry';
@@ -185,4 +238,5 @@ module.exports = db => {
   precheckinExpiry(db);
   cancellationRefundText(db);
   cancellationSubject(db);
+  emailWording(db);
 };

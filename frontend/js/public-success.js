@@ -2,8 +2,8 @@
   const kind = new URLSearchParams(location.search).get('tipo');
   const messages = {
     reserva: ['Pedido enviado com sucesso!', 'Recebemos o seu pedido de reserva. A reserva fica pendente de confirmação pelo alojamento.'],
-    dados: ['Dados guardados com sucesso!', 'O pré check-in foi enviado com sucesso. Se precisar de corrigir algum dado, pode voltar ao link do pré check-in até ao dia de chegada.'],
-    alteracoes: ['Alterações guardadas com sucesso!', 'Os dados do pré check-in foram atualizados. O alojamento foi avisado das alterações.'],
+    dados: ['Dados guardados com sucesso!', 'O pré-check-in foi enviado com sucesso. Se precisar de corrigir algum dado, pode voltar ao link do pré-check-in até ao dia de chegada.'],
+    alteracoes: ['Alterações guardadas com sucesso!', 'Os dados do pré-check-in foram atualizados. O alojamento foi avisado das alterações.'],
   };
   if (!Object.hasOwn(messages, kind)) return;
   const $ = id => document.getElementById(id);
@@ -31,10 +31,18 @@
       $('confirmation-return').href = receipt.returnPath;
       $('confirmation-return').hidden = false;
     }
-    if (kind !== 'reserva' && /^\/reserva\/[a-f0-9]{64}$/i.test(receipt.paymentPath || '')) {
-      $('confirmation-payment').href = receipt.paymentPath;
-      $('confirmation-payment').hidden = false;
+    const reservationPath = /^\/reserva\/[a-f0-9]{64}$/i.test(receipt.reservationPath || '') ? receipt.reservationPath : '';
+    // O botão principal leva sempre de volta à reserva; pagar só aparece se
+    // houver valor em dívida, com o valor.
+    if (kind !== 'reserva' && reservationPath) {
+      $('confirmation-reservation').href = reservationPath;
+      $('confirmation-reservation').hidden = false;
       $('confirmation-close').hidden = true;
+      if (/^\/reserva\/[a-f0-9]{64}$/i.test(receipt.paymentPath || '') && receipt.dueNow) {
+        $('confirmation-payment').href = receipt.paymentPath;
+        $('confirmation-payment').textContent = `Pagar ${receipt.dueNow} online`;
+        $('confirmation-payment').hidden = false;
+      }
     }
   }
   $('confirmation-title').focus({ preventScroll: true });

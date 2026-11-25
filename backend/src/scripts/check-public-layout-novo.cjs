@@ -90,8 +90,8 @@ async function main() {
   // Acompanhante só com o nome: o resto fica para o pré-check-in.
   const companion = page.locator('.extra-guest-box[data-guest-index="2"]');
   await expect(companion.locator('[data-field="email"]')).toHaveCount(0);
-  await page.locator('#next-btn').click();
-  await expect(page.locator('#step-error')).toContainText('hóspede 2');
+  // O nome do acompanhante é opcional: sem nome, o pedido segue.
+  await expect(companion.locator('[data-field="name"]')).not.toHaveAttribute('required', '');
   await companion.locator('[data-field="name"]').fill('João Silva');
   await page.locator('#next-btn').click();
 

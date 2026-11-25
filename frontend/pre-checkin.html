@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/public-reservation.css?v=percurso-20261119-2">
+  <link rel="stylesheet" href="/css/public-reservation.css?v=melhorias-20261125-1">
   <link rel="stylesheet" href="/css/components/date-picker.css?v=public-flow-20261001-2">
   <link rel="stylesheet" href="/css/vendor/flag-icons.min.css?v=public-flow-20261001-2">
   <link rel="stylesheet" href="/css/public-novo.css?v=percurso-20261119-2">
@@ -21,7 +21,7 @@
     <main class="booking-shell">
       <section class="booking-card precheckin-card">
         <div class="pc-closed" id="pc-closed" hidden>
-          <strong>Pré check-in indisponível</strong>
+          <strong>Pré-check-in indisponível</strong>
           <p id="pc-closed-message"></p>
         </div>
 
@@ -47,7 +47,7 @@
               <div class="form-actions">
                 <button type="button" class="secondary-btn" id="pc-back" hidden>Anterior</button>
                 <button type="button" class="primary-btn" id="pc-next" disabled>Seguinte</button>
-                <button type="submit" class="primary-btn" id="pc-submit" hidden>Enviar pré check-in</button>
+                <button type="submit" class="primary-btn" id="pc-submit" hidden>Enviar pré-check-in</button>
               </div>
             </div>
           </div>
@@ -76,7 +76,7 @@
             <p class="pc-time-hint" id="pc-time-hint" hidden></p>
           </div>
 
-          <p class="pc-help">Os dados do documento de identificação são pedidos apenas aos hóspedes estrangeiros para comunicação ao SIBA.</p>
+          <p class="pc-help">Os dados do documento de identificação são pedidos apenas aos hóspedes estrangeiros, para o registo obrigatório de hóspedes estrangeiros junto das autoridades (SIBA).</p>
           <details class="pc-privacy" id="pc-privacy">
             <summary>Informação de privacidade</summary>
             <p id="pc-privacy-text">Estes dados são usados pelo alojamento para preparar e registar a estadia, faturar e cumprir as obrigações legais. Para esclarecer o tratamento dos seus dados ou pedir uma correção, contacte o alojamento.</p>
@@ -94,11 +94,13 @@
     </main>
   </div>
 
-  <script src="/js/domain/modules.js?v=public-flow-20261001-2"></script>
+  <script src="/js/domain/modules.js?v=melhorias-20261125-1"></script>
 <script src="/js/domain/actions.js?v=public-flow-20261001-2"></script>
-  <script src="/js/domain/dates.js?v=percurso-20261119-2"></script>
+  <script src="/js/domain/countries.js?v=melhorias-20261125-1"></script>
+  <script src="/js/domain/dates.js?v=melhorias-20261125-1"></script>
+  <script src="/js/domain/money.js?v=centralizacao-20261024-2"></script>
   <script src="/js/domain/date-picker.js?v=mobile-20261026-1"></script>
   <script src="/js/public-flow.js?v=public-flow-20261001-2"></script>
-  <script src="/js/pre-checkin.js?v=recortes-20261123-1"></script>
+  <script src="/js/pre-checkin.js?v=melhorias-20261125-1"></script>
 </body>
 </html>

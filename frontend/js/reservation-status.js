@@ -1,9 +1,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const token = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop() || '');
-  const fmtDate = value => value ? new Date(`${value}T12:00:00`).toLocaleDateString('pt-PT', {
-    day: '2-digit', month: 'short', year: 'numeric',
-  }) : '—';
+  const fmtDate = value => value ? window.ReservationDates.formatDayLabel(value, { year: true }) : '—';
   const fmtMoney = ReservationMoney.format;
   const returnState = new URLSearchParams(location.search).get('payment');
   let refreshTimer;
@@ -14,7 +12,7 @@
   let cancelling = false;
   let currentReservation = null;
   let cancelTrigger = null;
-  const fmtDeadline = value => window.ReservationDates.formatDateTime(value);
+  const fmtDeadline = value => window.ReservationDates.formatDeadline(value, { zone: false });
   function renderPolicy(payment) {
     const p = payment.policy;
     currentPolicy = p;
@@ -26,10 +24,10 @@
     const rules = p.policy.refundRules.map(r => `<tr><td>${r.minDays}${r.maxDays === null ? ' ou mais' : ` a ${r.maxDays}`} dias</td><td>${r.percent}% do valor pago</td></tr>`).join('');
     $('rs-policy').innerHTML = `<h3>Pagamentos e cancelamentos</h3>
       <p>Pagamento inicial: <strong>${fmtMoney(p.depositCents / 100)}</strong> (${p.depositPercent}% do total${p.depositAdjusted ? ', ajustado ao mínimo de 0,50 € por pagamento' : ''}).</p>
-      ${p.balanceCents ? `<p>Restante previsto: <strong>${fmtMoney(p.balanceCents / 100)}</strong>, com vencimento em <strong>${fmtDeadline(p.dueAt)}</strong> (Lisboa).</p>
+      ${p.balanceCents ? `<p>Restante previsto: <strong>${fmtMoney(p.balanceCents / 100)}</strong>, com vencimento em <strong>${fmtDeadline(p.dueAt)}</strong> (hora de Portugal).</p>
       <p>${p.policy.automaticCharge ? 'Com cartão autorizado, tentaremos cobrar automaticamente nessa data. ' : ''}Se for necessário concluir o pagamento, receberá um link e terá ${p.policy.graceHours} horas após o aviso. Depois do prazo, a reserva será cancelada sem devolução do valor já pago.</p>` : '<p>Pagamento integral para confirmar esta reserva.</p>'}
       ${p.accepted && p.balanceCents ? `<p>Cobrança automática por cartão: ${p.automatic ? 'autorizada, quando o cartão for elegível' : 'não autorizada; pagamento por link'}.</p>` : ''}
-      ${p.balanceNoticeSent && payment.available ? `<p><strong>Conclua o pagamento até ${fmtDeadline(p.deadline)} (Lisboa).</strong></p>` : ''}
+      ${p.balanceNoticeSent && payment.available ? `<p><strong>Conclua o pagamento até ${fmtDeadline(p.deadline)} (hora de Portugal).</strong></p>` : ''}
       <p>O reembolso é calculado pela antecedência entre <strong>${p.refundBasis === 'booking' ? 'a criação da reserva' : 'o pedido de cancelamento'}</strong> e o check-in. Após o dia de check-in, contacte o alojamento.</p>
       <table><thead><tr><th>Antecedência</th><th>Reembolso</th></tr></thead><tbody>${rules}</tbody></table>
       ${p.cancellation ? `<p>Cancelamento registado. ${p.cancellation.amount > 0 ? `Reembolso de <strong>${fmtMoney(p.cancellation.amount)}</strong>: ${p.cancellation.state === 'complete' ? 'enviado para o cartão usado no pagamento (costuma aparecer em 5 a 10 dias úteis, conforme o banco).' : p.cancellation.state === 'manual_review' ? 'o alojamento está a verificar o reembolso.' : 'em processamento.'}` : 'Sem reembolso, segundo as condições aceites.'}</p>` : ''}`;
@@ -132,7 +130,11 @@
     try {
       const response = await fetch(`/api/public/reservation/${encodeURIComponent(token)}`, { cache: 'no-store' });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok || payload.success === false) throw new Error(payload.error || 'Não foi possível consultar a reserva.');
+      if (!response.ok || payload.success === false) {
+        const failure = new Error(payload.error || 'Não foi possível consultar a reserva. Tente de novo dentro de momentos.');
+        failure.contact = payload.contact;
+        throw failure;
+      }
       const reservation = payload.data;
       currentReservation = reservation;
       // Topo, próximo passo, passos e lateral (reservation-status-novo.js);
@@ -146,7 +148,8 @@
       $('rs-error').hidden = true;
     } catch (error) {
       $('rs-loading').hidden = true;
-      $('rs-error').textContent = error.message;
+      const contact = [error.contact?.email, error.contact?.phone].filter(Boolean).join(' · ');
+      $('rs-error').textContent = error.message + (contact ? ` Contacto do alojamento: ${contact}.` : '');
       $('rs-error').hidden = false;
     }
   }

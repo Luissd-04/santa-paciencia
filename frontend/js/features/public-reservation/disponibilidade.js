@@ -4,6 +4,7 @@ AppModules.define('booking', {
   applyVoucher: { get: () => applyVoucher },
   bindEvents: { get: () => bindEvents },
   clearStepError: { get: () => clearStepError },
+  showFieldError: { get: () => showFieldError },
   showStepError: { get: () => showStepError },
 });
 
@@ -58,6 +59,26 @@ function showStepError(msg) {
 function clearStepError() {
   const el = AppModules.booking.$('step-error');
   if (el) el.style.display = 'none';
+  document.querySelectorAll('.pb-field-error').forEach(node => node.remove());
+  document.querySelectorAll('[aria-invalid="true"]').forEach(node => node.removeAttribute('aria-invalid'));
+}
+
+// Erro junto do campo (em vez de só no topo do passo).
+function showFieldError(input, message) {
+  AppModules.booking.clearStepError();
+  const holder = input.closest('label') || input.parentElement;
+  const note = document.createElement('small');
+  note.className = 'pb-field-error';
+  note.setAttribute('role', 'alert');
+  note.textContent = message;
+  holder.appendChild(note);
+  input.setAttribute('aria-invalid', 'true');
+  // O erro sai assim que o hóspede mexe no campo.
+  const clear = () => { note.remove(); input.removeAttribute('aria-invalid'); };
+  input.addEventListener('input', clear, { once: true });
+  input.addEventListener('change', clear, { once: true });
+  input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  input.focus({ preventScroll: true });
 }
 
 function bindEvents() {
@@ -182,8 +203,8 @@ function renderExtraGuests() {
       <div class="extra-guest-box" data-guest-index="${i}" style="border-top: 1px solid var(--line); padding-top: 18px; margin-top: 18px;">
         <h3 style="margin: 0 0 18px; font-size: 18px; color: var(--brand);">Hóspede ${i}</h3>
         <label>
-          <span>Nome completo *</span>
-          <input data-field="name" required value="${AppModules.booking.escapeHtml(prev.name || '')}" placeholder="Nome completo" autocomplete="off">
+          <span>Nome completo <em class="opt-hint">(opcional — pode indicar no pré-check-in)</em></span>
+          <input data-field="name" value="${AppModules.booking.escapeHtml(prev.name || '')}" placeholder="Nome completo" autocomplete="off">
         </label>
         ${nameOnly ? '' : `<div class="field-grid two">
           <label>

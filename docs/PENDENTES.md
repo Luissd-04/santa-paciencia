@@ -10,9 +10,7 @@ filtros, barra lateral, entre outros) está concluída — ver `git log 9a033e7.
 
 ## A fazer
 
-Da auditoria de 25/11 (`AUDITORIA-PERCURSO-2026-11-25.md`; os números são os do relatório):
-
-1. Melhorias da lista do relatório que ainda faltam: listas de países só em português, nome do acompanhante obrigatório no pedido, casa inteira «Escolhido» antes das datas, formatos de data e fuso no prazo, painel lateral com «Total estimado», assuntos dos emails de pagamento, «As datas são suas», fim do pré-check-in, jargão e «tu», links inválidos sem contacto, avanço automático da estadia, `review_required` herdado, «48 horas» fixo em `layout-novo.js`, recusa de pedido com política (email da política em vez do de recusa).
+_(lista nova — a auditoria de 25/11 está concluída: ver `git log 44e9203..HEAD`)_
 
 ## Antes de publicar a revisão de 23–24/11
 
@@ -48,6 +46,7 @@ Da auditoria de 25/11 (`AUDITORIA-PERCURSO-2026-11-25.md`; os números são os d
 - O funcionário deixa de ver «Pagamento em falta» no sino (sem valores em dinheiro).
 - Rótulo do estado mantém-se «Aguarda sinal» (também quando não há política e se paga o total).
 - Taxa turística: crianças sem idade nem data de nascimento continuam a pagar.
+- Países: o código ISO não é guardado na base de dados (continua o nome em português); guardá-lo exige colunas novas.
 
 
 **Portal do hóspede**
